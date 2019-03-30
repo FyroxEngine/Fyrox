@@ -1,0 +1,8 @@
+[package]
+name = "rg3d"
+version = "0.1.0"
+authors = ["mrDIMAS <d1maxa@yandex.ru>"]
+edition = "2018"
+
+[dependencies]
+glutin = "*"
