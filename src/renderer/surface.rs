@@ -4,7 +4,7 @@ use crate::math::vec4::*;
 use crate::renderer::renderer::*;
 use crate::renderer::gl;
 use crate::renderer::gl::types::*;
-use std::ffi::{c_void};
+use std::ffi::c_void;
 use std::rc::Rc;
 use std::cell::RefCell;
 use crate::resource::*;
@@ -139,9 +139,7 @@ impl SurfaceSharedData {
         self.need_upload = false;
     }
 
-    pub fn calculate_tangents(&self) {
-
-    }
+    pub fn calculate_tangents(&self) {}
 
     pub fn make_cube() -> Self {
         let mut data = Self::new();
@@ -293,57 +291,31 @@ type SurfaceSharedDataRef = Rc<RefCell<SurfaceSharedData>>;
 
 pub struct Surface {
     pub(crate) data: SurfaceSharedDataRef,
-    pub(crate) texture: Option<Rc<RefCell<Resource>>>
+    pub(crate) texture: Option<Rc<RefCell<Resource>>>,
 }
 
 impl Surface {
     pub fn new(data: &SurfaceSharedDataRef) -> Self {
         Self {
             data: data.clone(),
-            texture: Option::None
+            texture: Option::None,
         }
     }
 
     pub fn draw(&self) {
         unsafe {
-            if let Some(ref texture_resource) = self.texture {
-                if let ResourceKind::Texture(texture) = texture_resource.borrow_mut().borrow_kind_mut() {
-                    if texture.need_upload {
-                        if texture.gpu_tex == 0 {
-                            gl::GenTextures(1, &mut texture.gpu_tex);
-                        }
-                        println!("uploaded {}", texture.gpu_tex);
-                        gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                        gl::TexImage2D(
-                            gl::TEXTURE_2D,
-                            0,
-                            gl::RGBA as i32,
-                            texture.width as i32,
-                            texture.height as i32,
-                            0,
-                            gl::RGBA,
-                            gl::UNSIGNED_BYTE,
-                            texture.pixels.as_ptr() as *const c_void
-                        );
-                        gl::TexParameteri(
-                            gl::TEXTURE_2D,
-                            gl::TEXTURE_MAG_FILTER,
-                            gl::LINEAR as i32
-                        );
-                        gl::TexParameteri(
-                            gl::TEXTURE_2D,
-                            gl::TEXTURE_MIN_FILTER,
-                            gl::LINEAR_MIPMAP_LINEAR as i32
-                        );
-                        gl::GenerateMipmap(gl::TEXTURE_2D);
-                        texture.need_upload = false;
-                    }
-                }
-            }
-
             let mut data = self.data.borrow_mut();
             if data.need_upload {
                 data.upload();
+            }
+            if let Some(ref resource) = self.texture {
+                if let ResourceKind::Texture(texture) = &resource.borrow_mut().borrow_kind() {
+                    gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
+                } else {
+                    gl::BindTexture(gl::TEXTURE_2D, 0);
+                }
+            } else {
+                gl::BindTexture(gl::TEXTURE_2D, 0);
             }
             gl::BindVertexArray(data.vao);
             gl::DrawElements(gl::TRIANGLES,

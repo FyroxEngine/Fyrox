@@ -44,7 +44,7 @@ impl Player {
         camera.set_local_position(Vec3 { x: 0.0, y: 2.0, z: 0.0 });
 
         let mut pivot = Node::new(NodeKind::Base);
-        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: 0.0 });
+        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: 20.0 });
 
         let camera_handle = scene.add_node(camera);
         let pivot_handle = scene.add_node(pivot);
@@ -169,7 +169,7 @@ impl Level {
     pub fn new(engine: &mut Engine) -> Level {
         let mut cubes: Vec<Handle<Node>> = Vec::new();
 
-        let tex = engine.request_texture(Path::new("data/textures/box.png"));
+
 
         // Create test scene
         let mut scene = Scene::new();
@@ -178,13 +178,15 @@ impl Level {
         {
             let mut floor_mesh = Mesh::default();
             floor_mesh.make_cube();
-            if let Some(texture) = tex {
-                floor_mesh.apply_texture(texture);
+            if let Some(floor_tex) = engine.request_texture(Path::new("data/textures/floor.png")) {
+                floor_mesh.apply_texture(floor_tex);
             }
             let mut floor_node = Node::new(NodeKind::Mesh(floor_mesh));
             floor_node.set_local_scale(Vec3 { x: 100.0, y: 0.1, z: 100.0 });
             scene.add_node(floor_node);
         }
+
+        let cube_tex = engine.request_texture(Path::new("data/textures/box.png"));
 
         // Create cubes
         for i in 0..3 {
@@ -192,6 +194,9 @@ impl Level {
                 for k in 0..3 {
                     let mut cube_mesh = Mesh::default();
                     cube_mesh.make_cube();
+                    if let Some(ref cube_t) = cube_tex {
+                        cube_mesh.apply_texture(cube_t.clone());
+                    }
                     let mut cube_node = Node::new(NodeKind::Mesh(cube_mesh));
                     let pos = Vec3 {
                         x: i as f32 * 2.0,

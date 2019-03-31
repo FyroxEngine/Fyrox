@@ -81,6 +81,8 @@ impl Engine {
     }
 
     pub fn render(&mut self) {
+        self.renderer.upload_resources(&mut self.resources);
+
         let mut alive_scenes: Vec<&Scene> = Vec::new();
         for i in 0..self.scenes.capacity() {
             if let Some(scene) = self.scenes.at(i) {

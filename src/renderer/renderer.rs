@@ -6,6 +6,11 @@ use crate::math::vec2::*;
 use crate::scene::*;
 use crate::utils::pool::*;
 use crate::scene::node::*;
+use crate::renderer::surface::*;
+use crate::resource::*;
+use std::rc::*;
+use std::ffi::{c_void};
+use std::cell::*;
 
 pub fn check_gl_error() {
     unsafe {
@@ -174,6 +179,47 @@ impl Renderer {
             cameras: Vec::new(),
             lights: Vec::new(),
             meshes: Vec::new(),
+        }
+    }
+
+    fn draw_surface(&mut self, surf: &Surface) {}
+
+    pub fn upload_resources(&mut self, resources: &Vec<Rc<RefCell<Resource>>>) {
+        for resource in resources.iter() {
+            if let ResourceKind::Texture(texture) = resource.borrow_mut().borrow_kind_mut() {
+                if texture.need_upload {
+                    unsafe {
+                        if texture.gpu_tex == 0 {
+                            gl::GenTextures(1, &mut texture.gpu_tex);
+                        }
+                        println!("uploaded {}", texture.gpu_tex);
+                        gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
+                        gl::TexImage2D(
+                            gl::TEXTURE_2D,
+                            0,
+                            gl::RGBA as i32,
+                            texture.width as i32,
+                            texture.height as i32,
+                            0,
+                            gl::RGBA,
+                            gl::UNSIGNED_BYTE,
+                            texture.pixels.as_ptr() as *const c_void,
+                        );
+                        gl::TexParameteri(
+                            gl::TEXTURE_2D,
+                            gl::TEXTURE_MAG_FILTER,
+                            gl::LINEAR as i32,
+                        );
+                        gl::TexParameteri(
+                            gl::TEXTURE_2D,
+                            gl::TEXTURE_MIN_FILTER,
+                            gl::LINEAR_MIPMAP_LINEAR as i32,
+                        );
+                        gl::GenerateMipmap(gl::TEXTURE_2D);
+                        texture.need_upload = false;
+                    }
+                }
+            }
         }
     }
 
