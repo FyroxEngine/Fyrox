@@ -1,4 +1,6 @@
 pub mod texture;
+pub mod fbx;
+use std::path::*;
 use crate::resource::texture::*;
 
 pub enum ResourceKind {
@@ -7,13 +9,15 @@ pub enum ResourceKind {
 }
 
 pub struct Resource {
+    pub(crate) path: PathBuf,
     kind: ResourceKind
 }
 
 impl Resource {
-    pub fn new(kind: ResourceKind) -> Resource {
+    pub fn new(path: &Path, kind: ResourceKind) -> Resource {
         Resource {
-            kind: kind,
+            path: path.to_path_buf(),
+            kind,
         }
     }
 

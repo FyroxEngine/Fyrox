@@ -20,7 +20,6 @@ mod engine;
 use engine::*;
 
 mod resource;
-use resource::*;
 
 pub struct Controller {
     move_forward: bool,
@@ -186,7 +185,7 @@ impl Level {
             scene.add_node(floor_node);
         }
 
-        let cube_tex = engine.request_texture(Path::new("data/textures/box.png"));
+
 
         // Create cubes
         for i in 0..3 {
@@ -194,7 +193,7 @@ impl Level {
                 for k in 0..3 {
                     let mut cube_mesh = Mesh::default();
                     cube_mesh.make_cube();
-                    if let Some(ref cube_t) = cube_tex {
+                    if let Some(ref cube_t) = engine.request_texture(Path::new("data/textures/box.png")) {
                         cube_mesh.apply_texture(cube_t.clone());
                     }
                     let mut cube_node = Node::new(NodeKind::Mesh(cube_mesh));
@@ -289,7 +288,8 @@ impl Game {
 }
 
 fn main() {
-
+    let mut fbx = resource::fbx::Fbx::read_ascii(Path::new("data/models/cube.fbx")).unwrap();
+    fbx.prepare().unwrap();
 
     Game::new().run();
 }

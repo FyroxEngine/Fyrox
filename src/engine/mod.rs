@@ -49,14 +49,28 @@ impl Engine {
     }
 
     pub fn request_texture(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
-        if path.exists() {
-            if let Ok(texture) = Texture::load(path) {
-                println!("texture {:?} loaded", path);
-                let resource = Rc::new(RefCell::new(Resource::new(ResourceKind::Texture(texture))));
-                self.resources.push(resource.clone());
-                return Some(resource.clone());
+        for existing in self.resources.iter() {
+            let resource = existing.borrow_mut();
+            if resource.path == path {
+                if let ResourceKind::Texture(tex) = resource.borrow_kind() {
+                    return Some(existing.clone());
+                } else {
+                    println!("resource with path {:?} found but it is not a texture!", path);
+                    return None;
+                }
             }
         }
+
+        // Texture was not loaded before, try to load and register
+        if let Ok(texture) = Texture::load(path) {
+            println!("texture {:?} loaded", path);
+            let resource = Rc::new(RefCell::new(
+                Resource::new(path, ResourceKind::Texture(texture))));
+            self.resources.push(resource.clone());
+            return Some(resource.clone());
+        }
+
+        // Fail
         None
     }
 
