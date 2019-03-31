@@ -11,6 +11,7 @@ use utils::pool::*;
 
 mod math;
 
+use math::vec2::*;
 use math::vec3::*;
 use math::vec4::*;
 use math::mat4::*;
@@ -40,6 +41,7 @@ pub struct Player {
     controller: Controller,
     yaw: f32,
     pitch: f32,
+    last_mouse_pos: Vec2,
 }
 
 impl Player {
@@ -48,7 +50,7 @@ impl Player {
         camera.set_local_position(Vec3 { x: 0.0, y: 2.0, z: 0.0 });
 
         let mut pivot = Node::new(NodeKind::Base);
-        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: -20.0 });
+        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: 20.0 });
 
         let camera_handle = scene.add_node(camera);
         let pivot_handle = scene.add_node(pivot);
@@ -64,29 +66,39 @@ impl Player {
                 move_right: false,
             },
             yaw: 0.0,
-            pitch: 0.0
+            pitch: 0.0,
+            last_mouse_pos: Vec2::new()
         }
     }
 
     pub fn update(&mut self, scene: &mut Scene) {
         if let Some(pivot_node) = scene.borrow_node_mut(&self.pivot) {
+            let look = pivot_node.get_look_vector();
+            let side = pivot_node.get_side_vector();
+
             let mut velocity = Vec3::new();
             if self.controller.move_forward {
-                velocity.z += 1.0;
+                velocity -= look;
             }
             if self.controller.move_backward {
-                velocity.z -= 1.0;
+                velocity += look;
             }
             if self.controller.move_left {
-                velocity.x -= 1.0;
+                velocity -= side;
             }
             if self.controller.move_right {
-                velocity.x += 1.0;
+                velocity += side;
             }
 
             if let Ok(normalized_velocity) = velocity.normalized() {
                 pivot_node.offset(normalized_velocity);
             }
+
+            pivot_node.set_local_rotation(Quat::from_axis_angle(Vec3::up(), self.yaw.to_radians()));
+        }
+
+        if let Some(camera_node) = scene.borrow_node_mut(&self.camera) {
+            camera_node.set_local_rotation(Quat::from_axis_angle(Vec3::right(), self.pitch.to_radians()));
         }
     }
 
@@ -95,7 +107,18 @@ impl Player {
 
         match event {
             WindowEvent::CursorMoved { position, .. } => {
+                let mouse_velocity = Vec2 {
+                    x: position.x as f32 - self.last_mouse_pos.x,
+                    y: position.y as f32 - self.last_mouse_pos.y,
+                };
 
+                self.pitch -= mouse_velocity.y;
+                self.yaw -= mouse_velocity.x;
+
+                self.last_mouse_pos = Vec2 {
+                    x: position.x as f32,
+                    y: position.y as f32
+                };
             },
 
             WindowEvent::KeyboardInput { input, .. } => {

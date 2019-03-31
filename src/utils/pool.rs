@@ -7,7 +7,8 @@ struct PoolRecord<T: Sized> {
 }
 
 pub struct Pool<T: Sized> {
-    records: Vec<PoolRecord<T>>
+    records: Vec<PoolRecord<T>>,
+    free_stack: Vec<u32>
 }
 
 pub struct Handle<T> {
@@ -45,25 +46,21 @@ impl<T> Handle<T> {
 impl<T> Pool<T> {
     pub fn new() -> Self {
         Pool {
-            records: Vec::<PoolRecord<T>>::new()
+            records: Vec::<PoolRecord<T>>::new(),
+            free_stack: Vec::new(),
         }
     }
 
     pub fn spawn(&mut self, payload: T) -> Handle<T> {
-        // Look for free handle
-        let mut index: u32 = 0;
-        for record in self.records.iter_mut() {
-            // Free record found
-            if record.payload.is_none() {
-                record.generation += 1;
-                record.payload.replace(payload);
-                return Handle {
-                    index,
-                    stamp: record.generation,
-                    type_marker: PhantomData
-                };
-            }
-            index += 1;
+        if let Some(free_index) = self.free_stack.pop() {
+            let record =  &mut self.records[free_index as usize];
+            record.generation += 1;
+            record.payload.replace(payload);
+            return Handle {
+                index: free_index,
+                stamp: record.generation,
+                type_marker: PhantomData
+            };
         }
 
         // No free records, create new one
@@ -78,8 +75,6 @@ impl<T> Pool<T> {
             stamp: record.generation,
             type_marker: PhantomData
         };
-
-        //println!("{}", handle.index);
 
         self.records.push(record);
 
@@ -115,6 +110,7 @@ impl<T> Pool<T> {
     pub fn free(&mut self, handle: Handle<T>) {
         let index = handle.index as usize;
         if index < self.records.len() {
+            self.free_stack.push(handle.index);
             // move out payload and drop it
             self.records[index].payload.take();
         }

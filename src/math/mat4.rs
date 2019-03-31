@@ -159,7 +159,7 @@ impl Mat4 {
 
                 -xaxis.dot(&eye),
                 -yaxis.dot(&eye),
-                zaxis.dot(&eye), // ????????????
+                -zaxis.dot(&eye), // ????????????
                 1.0,
             ]
         })

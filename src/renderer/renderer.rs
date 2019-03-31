@@ -229,7 +229,7 @@ impl Renderer {
                             let viewport = camera.get_viewport_pixels(
                                 Vec2 {
                                     x: client_size.width as f32,
-                                    y: client_size.height as f32
+                                    y: client_size.height as f32,
                                 });
                             gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
                         }
@@ -238,7 +238,7 @@ impl Renderer {
 
                         for mesh_handle in self.meshes.iter() {
                             if let Some(node) = scene.borrow_node(&mesh_handle) {
-                                let mvp = view_projection* node.global_transform;
+                                let mvp = view_projection * node.global_transform;
 
                                 unsafe {
                                     gl::UseProgram(self.flat_shader.id);
