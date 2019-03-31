@@ -1,12 +1,18 @@
 use crate::scene::*;
 use crate::utils::pool::*;
 use crate::renderer::renderer::*;
+use crate::resource::*;
+use std::rc::*;
+use std::cell::*;
+use std::path::*;
+use crate::resource::texture::*;
 
 pub struct Engine {
     renderer: Renderer,
     scenes: Pool<Scene>,
     events: Vec<glutin::Event>,
     running: bool,
+    resources: Vec<Rc<RefCell<Resource>>>
 }
 
 impl Engine {
@@ -16,6 +22,7 @@ impl Engine {
             renderer: Renderer::new(),
             events: Vec::new(),
             running: true,
+            resources: Vec::new()
         }
     }
 
@@ -39,6 +46,18 @@ impl Engine {
 
     pub fn is_running(&self) -> bool {
         self.running
+    }
+
+    pub fn request_texture(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
+        if path.exists() {
+            if let Ok(texture) = Texture::load(path) {
+                println!("texture {:?} loaded", path);
+                let resource = Rc::new(RefCell::new(Resource::new(ResourceKind::Texture(texture))));
+                self.resources.push(resource.clone());
+                return Some(resource.clone());
+            }
+        }
+        None
     }
 
     pub fn update(&mut self) {

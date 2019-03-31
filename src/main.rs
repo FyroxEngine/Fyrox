@@ -1,32 +1,26 @@
-use std::ffi::{CStr, CString, c_void};
-use std::ops;
-use std::rc::Rc;
-use std::rc::Weak;
-use std::cell::RefCell;
-use std::any::Any;
+extern crate image;
+extern crate glutin;
 
+use std::path::*;
 mod utils;
-
 use utils::pool::*;
 
 mod math;
-
 use math::vec2::*;
 use math::vec3::*;
-use math::vec4::*;
-use math::mat4::*;
 use math::quat::*;
 
 mod scene;
-
 use scene::node::*;
 use scene::*;
 
 mod renderer;
 
 mod engine;
-
 use engine::*;
+
+mod resource;
+use resource::*;
 
 pub struct Controller {
     move_forward: bool,
@@ -50,7 +44,7 @@ impl Player {
         camera.set_local_position(Vec3 { x: 0.0, y: 2.0, z: 0.0 });
 
         let mut pivot = Node::new(NodeKind::Base);
-        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: 20.0 });
+        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: 0.0 });
 
         let camera_handle = scene.add_node(camera);
         let pivot_handle = scene.add_node(pivot);
@@ -106,14 +100,23 @@ impl Player {
         use glutin::*;
 
         match event {
+
             WindowEvent::CursorMoved { position, .. } => {
                 let mouse_velocity = Vec2 {
                     x: position.x as f32 - self.last_mouse_pos.x,
                     y: position.y as f32 - self.last_mouse_pos.y,
                 };
 
-                self.pitch -= mouse_velocity.y;
-                self.yaw -= mouse_velocity.x;
+                let sens: f32 = 0.3;
+
+                self.pitch -= mouse_velocity.y * sens;
+                self.yaw -= mouse_velocity.x * sens;
+
+                if self.pitch > 90.0  {
+                    self.pitch = 90.0;
+                } else if self.pitch < -90.0 {
+                    self.pitch = -90.0;
+                }
 
                 self.last_mouse_pos = Vec2 {
                     x: position.x as f32,
@@ -166,6 +169,8 @@ impl Level {
     pub fn new(engine: &mut Engine) -> Level {
         let mut cubes: Vec<Handle<Node>> = Vec::new();
 
+        let tex = engine.request_texture(Path::new("data/textures/box.png"));
+
         // Create test scene
         let mut scene = Scene::new();
 
@@ -173,8 +178,11 @@ impl Level {
         {
             let mut floor_mesh = Mesh::default();
             floor_mesh.make_cube();
+            if let Some(texture) = tex {
+                floor_mesh.apply_texture(texture);
+            }
             let mut floor_node = Node::new(NodeKind::Mesh(floor_mesh));
-            floor_node.set_local_scale(Vec3 { x: 10.0, y: 0.1, z: 10.0 });
+            floor_node.set_local_scale(Vec3 { x: 100.0, y: 0.1, z: 100.0 });
             scene.add_node(floor_node);
         }
 
@@ -276,5 +284,7 @@ impl Game {
 }
 
 fn main() {
+
+
     Game::new().run();
 }

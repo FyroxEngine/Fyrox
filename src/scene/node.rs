@@ -1,5 +1,4 @@
 use std::rc::Rc;
-use std::rc::Weak;
 use std::cell::RefCell;
 use crate::math::vec3::*;
 use crate::math::mat4::*;
@@ -7,9 +6,9 @@ use crate::math::quat::*;
 use crate::renderer::surface::*;
 use std::any::Any;
 use crate::utils::pool::*;
-use crate::scene::*;
 use crate::math::*;
 use crate::math::vec2::*;
+use crate::resource::*;
 
 pub struct Light {
     radius: f32,
@@ -88,6 +87,12 @@ impl Mesh {
         self.surfaces.clear();
         let data = Rc::new(RefCell::new(SurfaceSharedData::make_cube()));
         self.surfaces.push(Surface::new(&data));
+    }
+
+    pub fn apply_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+        for surface in self.surfaces.iter_mut() {
+            surface.set_texture(tex.clone());
+        }
     }
 }
 

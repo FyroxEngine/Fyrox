@@ -4,10 +4,10 @@ use crate::math::vec4::*;
 use crate::renderer::renderer::*;
 use crate::renderer::gl;
 use crate::renderer::gl::types::*;
-use std::ffi::{CStr, CString, c_void};
+use std::ffi::{c_void};
 use std::rc::Rc;
-use std::rc::Weak;
 use std::cell::RefCell;
+use crate::resource::*;
 
 pub struct SurfaceSharedData {
     need_upload: bool,
@@ -292,18 +292,55 @@ impl Drop for SurfaceSharedData {
 type SurfaceSharedDataRef = Rc<RefCell<SurfaceSharedData>>;
 
 pub struct Surface {
-    pub(crate) data: SurfaceSharedDataRef
+    pub(crate) data: SurfaceSharedDataRef,
+    pub(crate) texture: Option<Rc<RefCell<Resource>>>
 }
 
 impl Surface {
     pub fn new(data: &SurfaceSharedDataRef) -> Self {
         Self {
-            data: data.clone()
+            data: data.clone(),
+            texture: Option::None
         }
     }
 
     pub fn draw(&self) {
         unsafe {
+            if let Some(ref texture_resource) = self.texture {
+                if let ResourceKind::Texture(texture) = texture_resource.borrow_mut().borrow_kind_mut() {
+                    if texture.need_upload {
+                        if texture.gpu_tex == 0 {
+                            gl::GenTextures(1, &mut texture.gpu_tex);
+                        }
+                        println!("uploaded {}", texture.gpu_tex);
+                        gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
+                        gl::TexImage2D(
+                            gl::TEXTURE_2D,
+                            0,
+                            gl::RGBA as i32,
+                            texture.width as i32,
+                            texture.height as i32,
+                            0,
+                            gl::RGBA,
+                            gl::UNSIGNED_BYTE,
+                            texture.pixels.as_ptr() as *const c_void
+                        );
+                        gl::TexParameteri(
+                            gl::TEXTURE_2D,
+                            gl::TEXTURE_MAG_FILTER,
+                            gl::LINEAR as i32
+                        );
+                        gl::TexParameteri(
+                            gl::TEXTURE_2D,
+                            gl::TEXTURE_MIN_FILTER,
+                            gl::LINEAR_MIPMAP_LINEAR as i32
+                        );
+                        gl::GenerateMipmap(gl::TEXTURE_2D);
+                        texture.need_upload = false;
+                    }
+                }
+            }
+
             let mut data = self.data.borrow_mut();
             if data.need_upload {
                 data.upload();
@@ -313,6 +350,14 @@ impl Surface {
                              data.indices.len() as GLint,
                              gl::UNSIGNED_INT,
                              std::ptr::null());
+        }
+    }
+
+    pub fn set_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+        if let ResourceKind::Texture(_) = tex.borrow_mut().borrow_kind() {
+            self.texture = Some(tex.clone());
+        } else {
+            self.texture = None;
         }
     }
 }

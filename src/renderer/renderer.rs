@@ -1,16 +1,9 @@
 use glutin::ContextTrait;
 use crate::renderer::gl;
 use crate::renderer::gl::types::*;
-use std::ffi::{CStr, CString, c_void};
-use std::rc::Rc;
-use std::rc::Weak;
-use std::cell::RefCell;
-use crate::math::vec3::*;
-use crate::math::mat4::*;
-use crate::math::quat::*;
+use std::ffi::{CStr, CString};
 use crate::math::vec2::*;
 use crate::scene::*;
-use crate::renderer::surface::*;
 use crate::utils::pool::*;
 use crate::scene::node::*;
 
@@ -139,6 +132,10 @@ impl Renderer {
 
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
+        unsafe {
+            gl::Enable(gl::DEPTH_TEST);
+        }
+
         println!("creating shaders...");
 
         let fragment_source = CString::new(r#"
@@ -148,7 +145,7 @@ impl Renderer {
             in vec2 texCoord;
             void main()
             {
-                FragColor = vec4(1,0,0,1); //texture(diffuseTexture, texCoord);
+                FragColor = texture(diffuseTexture, texCoord);
             }"#
         ).unwrap();
 
@@ -185,7 +182,7 @@ impl Renderer {
 
         unsafe {
             gl::ClearColor(0.0, 0.63, 0.91, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
 
         for scene in scenes.iter() {

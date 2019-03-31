@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 glutin = "*"
+image = "*"
