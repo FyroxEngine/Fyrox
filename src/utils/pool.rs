@@ -41,6 +41,10 @@ impl<T> Handle<T> {
             type_marker: PhantomData
         }
     }
+
+    pub fn is_none(&self) -> bool {
+        self.index == 0 && self.stamp == 0
+    }
 }
 
 impl<T> Pool<T> {
@@ -84,10 +88,13 @@ impl<T> Pool<T> {
     pub fn borrow(&self, handle: &Handle<T>) -> Option<&T> {
         let index = handle.index as usize;
         if index < self.records.len() {
-            let record = &self.records[index];
-            if record.stamp == handle.stamp {
-                if let Some(payload) = &record.payload {
-                    return Some(payload);
+            unsafe {
+                // _unchecked here because we already checked index
+                let record = self.records.get_unchecked(index);
+                if record.stamp == handle.stamp {
+                    if let Some(payload) = &record.payload {
+                        return Some(payload);
+                    }
                 }
             }
         }
@@ -97,10 +104,13 @@ impl<T> Pool<T> {
     pub fn borrow_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
         let index = handle.index as usize;
         if index < self.records.len() {
-            let record = &mut self.records[index];
-            if record.stamp == handle.stamp {
-                if let Some(payload) = &mut record.payload {
-                    return Some(payload);
+            unsafe {
+                // _unchecked here because we already checked index
+                let record = self.records.get_unchecked_mut(index);
+                if record.stamp == handle.stamp {
+                    if let Some(payload) = &mut record.payload {
+                        return Some(payload);
+                    }
                 }
             }
         }

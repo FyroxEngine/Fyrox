@@ -1,6 +1,7 @@
 extern crate image;
 extern crate glutin;
 
+
 use std::path::*;
 mod utils;
 use utils::pool::*;
@@ -168,10 +169,11 @@ impl Level {
     pub fn new(engine: &mut Engine) -> Level {
         let mut cubes: Vec<Handle<Node>> = Vec::new();
 
-
-
         // Create test scene
         let mut scene = Scene::new();
+
+        // Load some test models
+        resource::fbx::load_to_scene(&mut scene, Path::new("data/models/cube.fbx"));
 
         // Create floor
         {
@@ -288,8 +290,5 @@ impl Game {
 }
 
 fn main() {
-    let mut fbx = resource::fbx::Fbx::read_ascii(Path::new("data/models/cube.fbx")).unwrap();
-    fbx.prepare().unwrap();
-
     Game::new().run();
 }

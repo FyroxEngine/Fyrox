@@ -1,4 +1,5 @@
 use std::ops;
+use super::mat4::*;
 
 #[derive(Copy, Clone)]
 pub struct Vec3 {
@@ -16,11 +17,23 @@ impl Vec3 {
         }
     }
 
+    pub fn make(x: f32, y: f32, z: f32) -> Self {
+        Vec3 { x, y, z }
+    }
+
+    pub fn zero() -> Self {
+        Vec3 { x: 0.0, y: 0.0, z: 0.0 }
+    }
+
+    pub fn unit() -> Self {
+        Vec3 { x: 1.0, y: 1.0, z: 1.0 }
+    }
+
     pub fn up() -> Self {
         Vec3 {
             x: 0.0,
             y: 1.0,
-            z: 0.0
+            z: 0.0,
         }
     }
 
@@ -29,7 +42,7 @@ impl Vec3 {
         Vec3 {
             x: 1.0,
             y: 0.0,
-            z: 0.0
+            z: 0.0,
         }
     }
 
@@ -49,7 +62,7 @@ impl Vec3 {
         Self {
             x: self.y * b.z - self.z * b.y,
             y: self.z * b.x - self.x * b.z,
-            z: self.x * b.y - self.y * b.x
+            z: self.x * b.y - self.y * b.x,
         }
     }
 
@@ -60,10 +73,19 @@ impl Vec3 {
             return Ok(Vec3 {
                 x: self.x * inv_len,
                 y: self.y * inv_len,
-                z: self.z * inv_len
+                z: self.z * inv_len,
             });
         }
         Err("unable to normalize vector with zero length")
+    }
+
+    pub fn normalized_unchecked(&self) -> Vec3 {
+        let inv_len = 1.0 / self.len();
+        Vec3 {
+            x: self.x * inv_len,
+            y: self.y * inv_len,
+            z: self.z * inv_len,
+        }
     }
 }
 

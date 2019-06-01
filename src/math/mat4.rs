@@ -198,6 +198,14 @@ impl Mat4 {
         }
         Err("matrix is not invertible, determinant == 0")
     }
+
+    pub fn transform_vector(&self, v: Vec3) -> Vec3 {
+        Vec3 {
+            x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8] + self.f[12],
+            y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9] + self.f[13],
+            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10] + self.f[14]
+        }
+    }
 }
 
 impl ops::Mul<Self> for Mat4 {
