@@ -9,7 +9,7 @@ use crate::scene::node::*;
 use crate::renderer::surface::*;
 use crate::resource::*;
 use std::rc::*;
-use std::ffi::{c_void};
+use std::ffi::c_void;
 use std::cell::*;
 
 pub fn check_gl_error() {
@@ -172,7 +172,7 @@ impl Renderer {
         ).unwrap();
 
         Self {
-            context: context,
+            context,
             events_loop: el,
             flat_shader: GpuProgram::from_source(&vertex_source, &fragment_source).unwrap(),
             traversal_stack: Vec::new(),
@@ -239,19 +239,17 @@ impl Renderer {
             self.cameras.clear();
             self.traversal_stack.clear();
             self.traversal_stack.push(scene.root.clone());
-            while !self.traversal_stack.is_empty() {
-                if let Some(node_handle) = self.traversal_stack.pop() {
-                    if let Some(node) = scene.borrow_node(&node_handle) {
-                        match node.borrow_kind() {
-                            NodeKind::Mesh(_) => self.meshes.push(node_handle),
-                            NodeKind::Light(_) => self.lights.push(node_handle),
-                            NodeKind::Camera(_) => self.cameras.push(node_handle),
-                            _ => ()
-                        }
-                        // Queue children for render
-                        for child_handle in node.children.iter() {
-                            self.traversal_stack.push(child_handle.clone());
-                        }
+            while let Some(node_handle) = self.traversal_stack.pop() {
+                if let Some(node) = scene.borrow_node(&node_handle) {
+                    match node.borrow_kind() {
+                        NodeKind::Mesh(_) => self.meshes.push(node_handle),
+                        NodeKind::Light(_) => self.lights.push(node_handle),
+                        NodeKind::Camera(_) => self.cameras.push(node_handle),
+                        _ => ()
+                    }
+                    // Queue children for render
+                    for child_handle in node.children.iter() {
+                        self.traversal_stack.push(child_handle.clone());
                     }
                 }
             }
@@ -289,7 +287,7 @@ impl Renderer {
                                 }
 
                                 if let NodeKind::Mesh(mesh) = node.borrow_kind() {
-                                    for surface in mesh.surfaces.iter() {
+                                    for surface in mesh.get_surfaces().iter() {
                                         surface.draw();
                                     }
                                 }

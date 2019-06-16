@@ -17,28 +17,27 @@ pub struct Rect<T> {
 
 #[derive(Copy, Clone)]
 pub enum PlaneClass {
-    oXY,
-    oYZ,
-    oXZ,
+    XY,
+    YZ,
+    XZ,
 }
 
 pub fn classify_plane(normal: Vec3) -> PlaneClass {
     let mut longest = 0.0f32;
-    let mut class = PlaneClass::oXY;
+    let mut class = PlaneClass::XY;
 
     if normal.x.abs() > longest {
         longest = normal.x.abs();
-        class = PlaneClass::oYZ;
+        class = PlaneClass::YZ;
     }
 
     if normal.y.abs() > longest {
         longest = normal.y.abs();
-        class = PlaneClass::oXZ;
+        class = PlaneClass::XZ;
     }
 
     if normal.z.abs() > longest {
-        longest = normal.z.abs();
-        class = PlaneClass::oXY;
+        class = PlaneClass::XY;
     }
 
     class
@@ -67,9 +66,9 @@ pub fn get_signed_triangle_area(v1: Vec2, v2: Vec2, v3: Vec2) -> f32 {
 
 pub fn vec3_to_vec2_by_plane(plane_class: PlaneClass, normal: Vec3, point: Vec3) -> Vec2 {
     match plane_class {
-        PlaneClass::oXY => if normal.z < 0.0 { Vec2::make(point.y, point.x) } else { Vec2::make(point.x, point.y) }
-        PlaneClass::oXZ => if normal.y < 0.0 { Vec2::make(point.x, point.z) } else { Vec2::make(point.z, point.x) }
-        PlaneClass::oYZ => if normal.x < 0.0 { Vec2::make(point.z, point.y) } else { Vec2::make(point.y, point.z) }
+        PlaneClass::XY => if normal.z < 0.0 { Vec2::make(point.y, point.x) } else { Vec2::make(point.x, point.y) }
+        PlaneClass::XZ => if normal.y < 0.0 { Vec2::make(point.x, point.z) } else { Vec2::make(point.z, point.x) }
+        PlaneClass::YZ => if normal.x < 0.0 { Vec2::make(point.z, point.y) } else { Vec2::make(point.y, point.z) }
     }
 }
 

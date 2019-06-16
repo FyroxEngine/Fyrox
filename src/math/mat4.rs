@@ -136,7 +136,7 @@ impl Mat4 {
     }
 
     pub fn look_at(eye: Vec3, at: Vec3, up: Vec3) -> Result<Mat4, &'static str> {
-        let zaxis = (at - eye).normalized()?;
+        let zaxis = (eye - at).normalized()?;
         let xaxis = up.cross(&zaxis).normalized()?;
         let yaxis = zaxis.cross(&xaxis).normalized()?;
 
@@ -159,7 +159,7 @@ impl Mat4 {
 
                 -xaxis.dot(&eye),
                 -yaxis.dot(&eye),
-                -zaxis.dot(&eye), // ????????????
+                -zaxis.dot(&eye),
                 1.0,
             ]
         })
@@ -204,6 +204,14 @@ impl Mat4 {
             x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8] + self.f[12],
             y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9] + self.f[13],
             z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10] + self.f[14]
+        }
+    }
+
+    pub fn transform_vector_normal(&self, v: Vec3) -> Vec3 {
+        Vec3 {
+            x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8],
+            y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9],
+            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10]
         }
     }
 }

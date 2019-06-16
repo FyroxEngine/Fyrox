@@ -1,7 +1,6 @@
 use std::ops;
-use super::mat4::*;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -37,6 +36,13 @@ impl Vec3 {
         }
     }
 
+    pub fn scale(&self, scalar: f32) -> Self {
+        Vec3 {
+            x: self.x * scalar,
+            y: self.y * scalar,
+            z: self.z * scalar
+        }
+    }
 
     pub fn right() -> Self {
         Vec3 {

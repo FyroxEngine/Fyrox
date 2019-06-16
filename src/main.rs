@@ -1,23 +1,29 @@
+#![allow(dead_code)]
+
 extern crate image;
 extern crate glutin;
 
-
 use std::path::*;
+
 mod utils;
+
 use utils::pool::*;
 
 mod math;
+
 use math::vec2::*;
 use math::vec3::*;
 use math::quat::*;
 
 mod scene;
+
 use scene::node::*;
 use scene::*;
 
 mod renderer;
 
 mod engine;
+
 use engine::*;
 
 mod resource;
@@ -44,7 +50,7 @@ impl Player {
         camera.set_local_position(Vec3 { x: 0.0, y: 2.0, z: 0.0 });
 
         let mut pivot = Node::new(NodeKind::Base);
-        pivot.set_local_position(Vec3 { x: 0.0, y: 0.0, z: 20.0 });
+        pivot.set_local_position(Vec3 { x: -1.0, y: 0.0, z: 1.0 });
 
         let camera_handle = scene.add_node(camera);
         let pivot_handle = scene.add_node(pivot);
@@ -61,7 +67,7 @@ impl Player {
             },
             yaw: 0.0,
             pitch: 0.0,
-            last_mouse_pos: Vec2::new()
+            last_mouse_pos: Vec2::new(),
         }
     }
 
@@ -72,20 +78,20 @@ impl Player {
 
             let mut velocity = Vec3::new();
             if self.controller.move_forward {
-                velocity -= look;
-            }
-            if self.controller.move_backward {
                 velocity += look;
             }
+            if self.controller.move_backward {
+                velocity -= look;
+            }
             if self.controller.move_left {
-                velocity -= side;
+                velocity += side;
             }
             if self.controller.move_right {
-                velocity += side;
+                velocity -= side;
             }
 
             if let Ok(normalized_velocity) = velocity.normalized() {
-                pivot_node.offset(normalized_velocity);
+                pivot_node.offset(normalized_velocity.scale(0.2));
             }
 
             pivot_node.set_local_rotation(Quat::from_axis_angle(Vec3::up(), self.yaw.to_radians()));
@@ -100,7 +106,6 @@ impl Player {
         use glutin::*;
 
         match event {
-
             WindowEvent::CursorMoved { position, .. } => {
                 let mouse_velocity = Vec2 {
                     x: position.x as f32 - self.last_mouse_pos.x,
@@ -109,10 +114,10 @@ impl Player {
 
                 let sens: f32 = 0.3;
 
-                self.pitch -= mouse_velocity.y * sens;
+                self.pitch += mouse_velocity.y * sens;
                 self.yaw -= mouse_velocity.x * sens;
 
-                if self.pitch > 90.0  {
+                if self.pitch > 90.0 {
                     self.pitch = 90.0;
                 } else if self.pitch < -90.0 {
                     self.pitch = -90.0;
@@ -120,9 +125,9 @@ impl Player {
 
                 self.last_mouse_pos = Vec2 {
                     x: position.x as f32,
-                    y: position.y as f32
+                    y: position.y as f32,
                 };
-            },
+            }
 
             WindowEvent::KeyboardInput { input, .. } => {
                 match input.state {
@@ -136,7 +141,7 @@ impl Player {
                                 _ => ()
                             }
                         }
-                    },
+                    }
                     ElementState::Released => {
                         if let Some(key) = input.virtual_keycode {
                             match key {
@@ -173,21 +178,21 @@ impl Level {
         let mut scene = Scene::new();
 
         // Load some test models
-        resource::fbx::load_to_scene(&mut scene, Path::new("data/models/cube.fbx"));
-
-        // Create floor
-        {
-            let mut floor_mesh = Mesh::default();
-            floor_mesh.make_cube();
-            if let Some(floor_tex) = engine.request_texture(Path::new("data/textures/floor.png")) {
-                floor_mesh.apply_texture(floor_tex);
-            }
-            let mut floor_node = Node::new(NodeKind::Mesh(floor_mesh));
-            floor_node.set_local_scale(Vec3 { x: 100.0, y: 0.1, z: 100.0 });
-            scene.add_node(floor_node);
+        if let Err(err_msg) = resource::fbx::load_to_scene(
+            &mut scene, engine.get_resource_manager(), Path::new("data/models/map.fbx")) {
+            println!("{}", err_msg);
+        } else {
+            println!("Map loaded!");
         }
 
-
+        match resource::fbx::load_to_scene(&mut scene, engine.get_resource_manager(), Path::new("data/models/ripper.fbx")) {
+            Ok(node_handle) => {
+                if let Some(node) = scene.borrow_node_mut(&node_handle) {
+                    node.set_local_position(Vec3::make(-1.0, 0.0, -1.0));
+                }
+            }
+            Err(err_msg) => println!("{}", err_msg)
+        }
 
         // Create cubes
         for i in 0..3 {
@@ -195,7 +200,7 @@ impl Level {
                 for k in 0..3 {
                     let mut cube_mesh = Mesh::default();
                     cube_mesh.make_cube();
-                    if let Some(ref cube_t) = engine.request_texture(Path::new("data/textures/box.png")) {
+                    if let Some(ref cube_t) = engine.get_resource_manager().request_texture(Path::new("data/textures/box.png")) {
                         cube_mesh.apply_texture(cube_t.clone());
                     }
                     let mut cube_node = Node::new(NodeKind::Mesh(cube_mesh));

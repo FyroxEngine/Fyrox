@@ -7,45 +7,15 @@ use std::cell::*;
 use std::path::*;
 use crate::resource::texture::*;
 
-pub struct Engine {
-    renderer: Renderer,
-    scenes: Pool<Scene>,
-    events: Vec<glutin::Event>,
-    running: bool,
+pub struct ResourceManager {
     resources: Vec<Rc<RefCell<Resource>>>
 }
 
-impl Engine {
-    pub fn new() -> Engine {
-        Engine {
-            scenes: Pool::new(),
-            renderer: Renderer::new(),
-            events: Vec::new(),
-            running: true,
+impl ResourceManager {
+    pub fn new() -> ResourceManager {
+        ResourceManager {
             resources: Vec::new()
         }
-    }
-
-    pub fn add_scene(&mut self, scene: Scene) -> Handle<Scene> {
-        self.scenes.spawn(scene)
-    }
-
-    pub fn borrow_scene(&self, handle: &Handle<Scene>) -> Option<&Scene> {
-        if let Some(scene) = self.scenes.borrow(handle) {
-            return Some(scene);
-        }
-        None
-    }
-
-    pub fn borrow_scene_mut(&mut self, handle: &Handle<Scene>) -> Option<&mut Scene> {
-        if let Some(scene) = self.scenes.borrow_mut(handle) {
-            return Some(scene);
-        }
-        None
-    }
-
-    pub fn is_running(&self) -> bool {
-        self.running
     }
 
     pub fn request_texture(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
@@ -73,6 +43,58 @@ impl Engine {
         // Fail
         None
     }
+}
+
+pub struct Engine {
+    renderer: Renderer,
+    scenes: Pool<Scene>,
+    events: Vec<glutin::Event>,
+    running: bool,
+    resource_manager: ResourceManager,
+}
+
+impl Engine {
+    #[inline]
+    pub fn new() -> Engine {
+        Engine {
+            scenes: Pool::new(),
+            renderer: Renderer::new(),
+            events: Vec::new(),
+            running: true,
+            resource_manager: ResourceManager::new()
+        }
+    }
+
+    #[inline]
+    pub fn add_scene(&mut self, scene: Scene) -> Handle<Scene> {
+        self.scenes.spawn(scene)
+    }
+
+    #[inline]
+    pub fn borrow_scene(&self, handle: &Handle<Scene>) -> Option<&Scene> {
+        if let Some(scene) = self.scenes.borrow(handle) {
+            return Some(scene);
+        }
+        None
+    }
+
+    #[inline]
+    pub fn borrow_scene_mut(&mut self, handle: &Handle<Scene>) -> Option<&mut Scene> {
+        if let Some(scene) = self.scenes.borrow_mut(handle) {
+            return Some(scene);
+        }
+        None
+    }
+
+    #[inline]
+    pub fn is_running(&self) -> bool {
+        self.running
+    }
+
+    #[inline]
+    pub fn get_resource_manager(&mut self) -> &mut ResourceManager {
+        &mut self.resource_manager
+    }
 
     pub fn update(&mut self) {
         let client_size = self.renderer.context.get_inner_size().unwrap();
@@ -95,7 +117,7 @@ impl Engine {
     }
 
     pub fn render(&mut self) {
-        self.renderer.upload_resources(&mut self.resources);
+        self.renderer.upload_resources(&mut self.resource_manager.resources);
 
         let mut alive_scenes: Vec<&Scene> = Vec::new();
         for i in 0..self.scenes.capacity() {
@@ -106,10 +128,12 @@ impl Engine {
         self.renderer.render(alive_scenes.as_slice());
     }
 
+    #[inline]
     pub fn stop(&mut self) {
         self.running = false;
     }
 
+    #[inline]
     pub fn pop_event(&mut self) -> Option<glutin::Event> {
         self.events.pop()
     }

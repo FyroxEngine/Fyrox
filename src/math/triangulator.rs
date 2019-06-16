@@ -5,9 +5,9 @@
 use super::vec2::*;
 use super::vec3::*;
 use super::mat4::*;
+use super::quat::*;
 use crate::math;
 use std::fmt;
-use crate::math::quat::Quat;
 
 ///
 /// Polygon vertex
@@ -62,7 +62,7 @@ impl fmt::Debug for Polygon {
         let mut i = self.head;
         loop {
             let vertex = &self.vertices[i];
-            writeln!(f, "Vertex {:?}; {} {} {}", vertex.position, vertex.prev, vertex.index, vertex.next);
+            writeln!(f, "Vertex {:?}; {} {} {}", vertex.position, vertex.prev, vertex.index, vertex.next)?;
             i = self.vertices[i].next;
             if i == self.head {
                 break;

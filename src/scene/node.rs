@@ -22,6 +22,14 @@ impl Light {
             color: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
         }
     }
+
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius;
+    }
+
+    pub fn set_color(&mut self, color: Vec3) {
+        self.color = color;
+    }
 }
 
 pub struct Camera {
@@ -73,7 +81,7 @@ impl Camera {
 }
 
 pub struct Mesh {
-    pub(crate) surfaces: Vec<Surface>
+    surfaces: Vec<Surface>
 }
 
 impl Mesh {
@@ -93,6 +101,18 @@ impl Mesh {
         for surface in self.surfaces.iter_mut() {
             surface.set_texture(tex.clone());
         }
+    }
+
+    pub fn get_surfaces(&self) -> &Vec<Surface> {
+        &self.surfaces
+    }
+
+    pub fn get_surfaces_mut(&mut self) -> &mut Vec<Surface> {
+        &mut self.surfaces
+    }
+
+    pub fn add_surface(&mut self, surface: Surface) {
+        self.surfaces.push(surface);
     }
 }
 
@@ -163,30 +183,77 @@ impl Node {
             scale_offset * scale_pivot * scale * scale_pivot_inv;
     }
 
+    #[inline]
     pub fn borrow_kind(&self) -> &NodeKind {
         &self.kind
     }
 
+    #[inline]
     pub fn borrow_kind_mut(&mut self) -> &mut NodeKind {
         &mut self.kind
     }
 
+    #[inline]
     pub fn set_local_position(&mut self, pos: Vec3) {
         self.local_position = pos;
     }
 
+    #[inline]
     pub fn set_local_rotation(&mut self, rot: Quat) {
         self.local_rotation = rot;
     }
 
+    #[inline]
+    pub fn set_pre_rotation(&mut self, pre_rotation: Quat) {
+        self.pre_rotation = pre_rotation;
+    }
+
+    #[inline]
+    pub fn set_post_rotation(&mut self, post_rotation: Quat) {
+        self.post_rotation = post_rotation;
+    }
+
+    #[inline]
+    pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) {
+        self.rotation_offset = rotation_offset;
+    }
+
+    #[inline]
+    pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) {
+        self.rotation_pivot = rotation_pivot;
+    }
+
+    #[inline]
+    pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) {
+        self.scaling_offset = scaling_offset;
+    }
+
+    #[inline]
+    pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) {
+        self.scaling_pivot = scaling_pivot;
+    }
+
+    #[inline]
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
+    }
+
+    #[inline]
+    pub fn get_name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    #[inline]
     pub fn set_local_scale(&mut self, scl: Vec3) {
         self.local_scale = scl;
     }
 
+    #[inline]
     pub fn offset(&mut self, vec: Vec3) {
         self.local_position += vec;
     }
 
+    #[inline]
     pub fn get_global_position(&self) -> Vec3 {
         Vec3 {
             x: self.global_transform.f[12],
@@ -195,6 +262,7 @@ impl Node {
         }
     }
 
+    #[inline]
     pub fn get_look_vector(&self) -> Vec3 {
         Vec3 {
             x: self.global_transform.f[8],
@@ -203,6 +271,7 @@ impl Node {
         }
     }
 
+    #[inline]
     pub fn get_side_vector(&self) -> Vec3 {
         Vec3 {
             x: self.global_transform.f[0],
@@ -211,6 +280,7 @@ impl Node {
         }
     }
 
+    #[inline]
     pub fn get_up_vector(&self) -> Vec3 {
         Vec3 {
             x: self.global_transform.f[4],
