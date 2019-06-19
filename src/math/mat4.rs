@@ -135,12 +135,12 @@ impl Mat4 {
         }
     }
 
-    pub fn look_at(eye: Vec3, at: Vec3, up: Vec3) -> Result<Mat4, &'static str> {
+    pub fn look_at(eye: Vec3, at: Vec3, up: Vec3) -> Option<Mat4> {
         let zaxis = (eye - at).normalized()?;
         let xaxis = up.cross(&zaxis).normalized()?;
         let yaxis = zaxis.cross(&xaxis).normalized()?;
 
-        Ok(Self {
+        Some(Self {
             f: [
                 xaxis.x,
                 yaxis.x,

@@ -29,11 +29,11 @@ pub struct GpuProgram {
 impl GpuProgram {
     pub fn create_shader(actual_type: GLuint, source: &CStr) -> Result<GLuint, String> {
         unsafe {
-            let shader: GLuint;
-            let mut status = 1;
-            shader = gl::CreateShader(actual_type);
+            let shader = gl::CreateShader(actual_type);
             gl::ShaderSource(shader, 1, &source.as_ptr(), std::ptr::null());
             gl::CompileShader(shader);
+
+            let mut status = 1;
             gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
             if status == 0 {
                 let mut log_len = 0;
@@ -42,7 +42,7 @@ impl GpuProgram {
                 gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
                 Err(String::from_utf8_unchecked(buffer))
             } else {
-                println!("shader compiled!");
+                println!("Shader compiled!");
                 Ok(shader)
             }
         }
@@ -192,7 +192,6 @@ impl Renderer {
                         if texture.gpu_tex == 0 {
                             gl::GenTextures(1, &mut texture.gpu_tex);
                         }
-                        println!("uploaded {}", texture.gpu_tex);
                         gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                         gl::TexImage2D(
                             gl::TEXTURE_2D,

@@ -113,11 +113,11 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usi
         for i in 0..4 {
             let v = vertices[i];
             let v0 = vertices[(i + 3) % 4];
-            if let Ok(left) = (v0 - v).normalized() {
+            if let Some(left) = (v0 - v).normalized() {
                 let v1 = vertices[(i + 2) % 4];
-                if let Ok(diag) = (v1 - v).normalized() {
+                if let Some(diag) = (v1 - v).normalized() {
                     let v2 = vertices[(i + 1) % 4];
-                    if let Ok(right) = (v2 - v).normalized() {
+                    if let Some(right) = (v2 - v).normalized() {
                         // Check for concave vertex
                         let angle = left.dot(&diag).acos() + right.dot(&diag).acos();
                         if angle > std::f32::consts::PI {

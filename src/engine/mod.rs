@@ -8,13 +8,18 @@ use std::path::*;
 use crate::resource::texture::*;
 
 pub struct ResourceManager {
-    resources: Vec<Rc<RefCell<Resource>>>
+    resources: Vec<Rc<RefCell<Resource>>>,
+    /// Path to textures, extensively used for resource files
+    /// which stores path in weird format (either relative or absolute) which
+    /// is obviously not good for engine.
+    textures_path: PathBuf
 }
 
 impl ResourceManager {
     pub fn new() -> ResourceManager {
         ResourceManager {
-            resources: Vec::new()
+            resources: Vec::new(),
+            textures_path: PathBuf::from("data/textures/")
         }
     }
 
@@ -22,10 +27,10 @@ impl ResourceManager {
         for existing in self.resources.iter() {
             let resource = existing.borrow_mut();
             if resource.path == path {
-                if let ResourceKind::Texture(tex) = resource.borrow_kind() {
+                if let ResourceKind::Texture(_) = resource.borrow_kind() {
                     return Some(existing.clone());
                 } else {
-                    println!("resource with path {:?} found but it is not a texture!", path);
+                    println!("Resource with path {:?} found but it is not a texture!", path);
                     return None;
                 }
             }
@@ -33,7 +38,7 @@ impl ResourceManager {
 
         // Texture was not loaded before, try to load and register
         if let Ok(texture) = Texture::load(path) {
-            println!("texture {:?} loaded", path);
+            println!("Texture {:?} loaded", path);
             let resource = Rc::new(RefCell::new(
                 Resource::new(path, ResourceKind::Texture(texture))));
             self.resources.push(resource.clone());
@@ -42,6 +47,10 @@ impl ResourceManager {
 
         // Fail
         None
+    }
+
+    pub fn get_textures_path(&self) -> &Path {
+        self.textures_path.as_path()
     }
 }
 

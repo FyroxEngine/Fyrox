@@ -2,31 +2,26 @@
 
 extern crate image;
 extern crate glutin;
+extern crate lexical;
 
 use std::path::*;
 
 mod utils;
+mod math;
+mod scene;
+mod renderer;
+mod engine;
+mod resource;
+mod physics;
 
 use utils::pool::*;
-
-mod math;
-
 use math::vec2::*;
 use math::vec3::*;
 use math::quat::*;
-
-mod scene;
-
 use scene::node::*;
 use scene::*;
-
-mod renderer;
-
-mod engine;
-
 use engine::*;
 
-mod resource;
 
 pub struct Controller {
     move_forward: bool,
@@ -90,7 +85,7 @@ impl Player {
                 velocity -= side;
             }
 
-            if let Ok(normalized_velocity) = velocity.normalized() {
+            if let Some(normalized_velocity) = velocity.normalized() {
                 pivot_node.offset(normalized_velocity.scale(0.2));
             }
 

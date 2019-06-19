@@ -58,7 +58,7 @@ impl Camera {
     }
 
     pub fn calculate_matrices(&mut self, pos: Vec3, look: Vec3, up: Vec3, aspect: f32) {
-        if let Ok(view_matrix) = Mat4::look_at(pos, pos + look, up) {
+        if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
             self.view_matrix = view_matrix;
         } else {
             self.view_matrix = Mat4::identity();

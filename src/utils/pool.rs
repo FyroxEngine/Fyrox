@@ -16,14 +16,22 @@ pub struct Pool<T: Sized> {
 /// allows to ensure that handle is still valid.
 ///
 pub struct Handle<T> {
+    /// Index of object in pool.
     index: u32,
-    stamp: u32,
+    /// Generation number, if it is same as generation of pool record at
+    /// index of handle then this is valid handle.
+    generation: u32,
+    /// Type holder.
     type_marker: PhantomData<T>,
 }
 
 struct PoolRecord<T: Sized> {
-    stamp: u32,
+    /// Generation number, used to keep info about lifetime.
+    /// The handle is valid only if record it points to is of the
+    /// same generation as the pool record.
+    /// Notes: Zero is unknown generation used for None handles.
     generation: u32,
+    /// Actual payload.
     payload: Option<T>,
 }
 
@@ -31,7 +39,7 @@ impl<T> Clone for Handle<T> {
     fn clone(&self) -> Handle<T> {
         Handle {
             index: self.index,
-            stamp: self.stamp,
+            generation: self.generation,
             type_marker: PhantomData
         }
     }
@@ -39,7 +47,7 @@ impl<T> Clone for Handle<T> {
 
 impl<T> PartialEq for Handle<T> {
     fn eq(&self, other: &Handle<T>) -> bool {
-        self.stamp == other.stamp && self.index == other.index
+        self.generation == other.generation && self.index == other.index
     }
 }
 
@@ -50,7 +58,7 @@ impl<T> Eq for Handle<T> {
 impl<T> Hash for Handle<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.index.hash(state);
-        self.stamp.hash(state);
+        self.generation.hash(state);
     }
 }
 
@@ -59,18 +67,28 @@ impl<T> Handle<T> {
     pub fn none() -> Self {
         Handle {
             index: 0,
-            stamp: 0,
+            generation: Pool::<T>::INVALID_GENERATION,
             type_marker: PhantomData
         }
     }
 
     #[inline]
     pub fn is_none(&self) -> bool {
-        self.index == 0 && self.stamp == 0
+        self.index == 0 && self.generation == Pool::<T>::INVALID_GENERATION
+    }
+
+    fn make(index: u32, generation: u32) -> Self {
+        Handle {
+            index,
+            generation,
+            type_marker: PhantomData
+        }
     }
 }
 
 impl<T> Pool<T> {
+    const INVALID_GENERATION: u32 = 0;
+
     #[inline]
     pub fn new() -> Self {
         Pool {
@@ -87,21 +105,20 @@ impl<T> Pool<T> {
             record.payload.replace(payload);
             return Handle {
                 index: free_index,
-                stamp: record.generation,
+                generation: record.generation,
                 type_marker: PhantomData
             };
         }
 
         // No free records, create new one
         let record = PoolRecord {
-            stamp: 1,
             generation: 1,
             payload: Some(payload)
         };
 
         let handle = Handle {
             index: self.records.len() as u32,
-            stamp: record.generation,
+            generation: record.generation,
             type_marker: PhantomData
         };
 
@@ -113,7 +130,7 @@ impl<T> Pool<T> {
     #[inline]
     pub fn borrow(&self, handle: &Handle<T>) -> Option<&T> {
         if let Some(record) = self.records.get(handle.index as usize) {
-            if record.stamp == handle.stamp {
+            if record.generation == handle.generation {
                 if let Some(payload) = &record.payload {
                     return Some(payload);
                 }
@@ -125,7 +142,7 @@ impl<T> Pool<T> {
     #[inline]
     pub fn borrow_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
-            if record.stamp == handle.stamp {
+            if record.generation == handle.generation {
                 if let Some(payload) = &mut record.payload {
                     return Some(payload);
                 }
@@ -136,11 +153,11 @@ impl<T> Pool<T> {
 
     #[inline]
     pub fn free(&mut self, handle: Handle<T>) {
-        let index = handle.index as usize;
-        if index < self.records.len() {
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            // Remember this index as free
             self.free_stack.push(handle.index);
-            // move out payload and drop it
-            self.records[index].payload.take();
+            // Move out payload and drop it so it will be destroyed
+            record.payload.take();
         }
     }
 
@@ -168,4 +185,43 @@ impl<T> Pool<T> {
         }
         None
     }
+
+    #[inline]
+    pub fn handle_from_index(&self, n: usize) -> Option<Handle<T>> {
+        if let Some(record) = self.records.get(n) {
+            if record.generation != 0 {
+                return Some(Handle::make(n as u32, record.generation));
+            }
+        }
+        None
+    }
+
+    #[inline]
+    pub fn is_valid_handle(&self, handle: &Handle<T>) -> bool {
+        if let Some(record) = self.records.get(handle.index as usize) {
+            return record.payload.is_some() && record.generation == handle.generation;
+        }
+        false
+    }
+}
+
+#[test]
+fn pool_sanity_tests() {
+    let mut pool: Pool<String> = Pool::new();
+    let foobar_handle = pool.spawn(String::from("Foobar"));
+    assert_eq!(foobar_handle.index, 0);
+    assert_ne!(foobar_handle.generation, Pool::<String>::INVALID_GENERATION);
+    let foobar_handle_copy = foobar_handle.clone();
+    assert_eq!(foobar_handle.index, foobar_handle_copy.index);
+    assert_eq!(foobar_handle.generation, foobar_handle_copy.generation);
+    let baz_handle = pool.spawn(String::from("Baz"));
+    assert_eq!(pool.borrow(&foobar_handle).unwrap(), "Foobar");
+    assert_eq!(pool.borrow(&baz_handle).unwrap(), "Baz");
+    pool.free(foobar_handle);
+    assert_eq!(pool.is_valid_handle(&foobar_handle_copy), false);
+    assert_eq!(pool.is_valid_handle(&baz_handle), true);
+    let at_foobar_index = pool.spawn(String::from("AtFoobarIndex"));
+    assert_eq!(at_foobar_index.index, 0);
+    assert_ne!(at_foobar_index.generation, Pool::<String>::INVALID_GENERATION);
+    assert_eq!(pool.borrow(&at_foobar_index).unwrap(), "AtFoobarIndex");
 }
