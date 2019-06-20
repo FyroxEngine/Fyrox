@@ -15,6 +15,18 @@ pub struct StaticGeometry {
     triangles: Vec<StaticTriangle>
 }
 
+impl StaticGeometry {
+    pub fn new() -> StaticGeometry {
+        StaticGeometry {
+            triangles: Vec::new()
+        }
+    }
+
+    pub fn add_triangle(&mut self, triangle: StaticTriangle) {
+        self.triangles.push(triangle);
+    }
+}
+
 pub struct StaticTriangle {
     points: [Vec3; 3],
     ca: Vec3,
@@ -78,6 +90,7 @@ pub struct Body {
     friction: f32,
     gravity: Vec3,
     radius: f32,
+    sqr_radius: f32,
 }
 
 impl Body {
@@ -86,11 +99,39 @@ impl Body {
             position: Vec3::zero(),
             last_position: Vec3::zero(),
             acceleration: Vec3::zero(),
-            friction: 0.985,
+            friction: 0.965,
             gravity: Vec3::make(0.0, -9.81, 0.0),
             radius: 1.0,
+            sqr_radius: 1.0,
             contacts: Vec::new(),
         }
+    }
+
+    #[inline]
+    pub fn get_position(&self) -> Vec3 {
+        self.position
+    }
+
+    #[inline]
+    pub fn set_position(&mut self, p: Vec3) {
+        self.position = p;
+        self.last_position = p;
+    }
+
+    #[inline]
+    pub fn move_by(&mut self, v: Vec3) {
+        self.position += v;
+    }
+
+    #[inline]
+    pub fn set_radius(&mut self, r: f32) {
+        self.radius = r;
+        self.sqr_radius = r * r;
+    }
+
+    #[inline]
+    pub fn get_radius(&self) -> f32 {
+        self.radius
     }
 
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
@@ -99,8 +140,6 @@ impl Body {
         } else {
             air_friction
         };
-
-        let speed_limit = 0.75;
 
         let k1 = 2.0 - friction;
         let k2 = 1.0 - friction;
@@ -113,8 +152,11 @@ impl Body {
             z: k1 * self.position.z - k2 * self.last_position.z + self.acceleration.z * sqr_delta_time,
         };
 
+        self.last_position = last_position;
+
         self.acceleration = Vec3::zero();
 
+        let speed_limit = 0.75;
         let velocity = self.last_position - self.position;
         let sqr_speed = velocity.sqr_len();
         if sqr_speed > speed_limit * speed_limit {
@@ -122,8 +164,6 @@ impl Body {
                 self.last_position = self.position - direction.scale(speed_limit);
             }
         }
-
-        self.last_position = last_position;
     }
 
     /// Checks if body intersects with a triangle.
@@ -145,11 +185,9 @@ impl Body {
                     }
                 }
 
-                let sqr_radius = self.radius * self.radius;
-
                 // Finally check if body contains any vertex of a triangle.
                 for point in &triangle.points {
-                    if (*point - self.position).sqr_len() <= sqr_radius {
+                    if (*point - self.position).sqr_len() <= self.sqr_radius {
                         return Some(*point);
                     }
                 }
@@ -192,8 +230,24 @@ impl Physics {
         self.body_pool.spawn(body)
     }
 
+    pub fn remove_body(&mut self, body_handle: Handle<Body>) {
+        self.body_pool.free(body_handle);
+    }
+
     pub fn add_static_geometry(&mut self, static_geom: StaticGeometry) -> Handle<StaticGeometry> {
         self.static_geom_pool.spawn(static_geom)
+    }
+
+    pub fn remove_static_geometry(&mut self, static_geom: Handle<StaticGeometry>) {
+        self.static_geom_pool.free(static_geom);
+    }
+
+    pub fn borrow_body(&self, handle: &Handle<Body>) -> Option<&Body> {
+        self.body_pool.borrow(handle)
+    }
+
+    pub fn borrow_body_mut(&mut self, handle: &Handle<Body>) -> Option<&mut Body> {
+        self.body_pool.borrow_mut(handle)
     }
 
     pub fn step(&mut self, delta_time: f32) {
@@ -202,9 +256,11 @@ impl Physics {
 
         for i in 0..self.body_pool.capacity() {
             if let Some(body) = self.body_pool.at_mut(i) {
-                body.contacts.clear();
+
                 body.acceleration += body.gravity;
                 body.verlet(dt2, air_friction);
+
+                body.contacts.clear();
 
                 for k in 0..self.static_geom_pool.capacity() {
                     if let Some(static_geometry) = self.static_geom_pool.at(k) {

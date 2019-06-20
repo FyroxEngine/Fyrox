@@ -42,12 +42,14 @@ impl SurfaceSharedData {
         }
     }
 
+    #[inline]
     pub fn add_vertex(&mut self, vertex: Vertex) {
         self.vertices.push(vertex);
     }
 
     /// Inserts vertex or its index. Performs optimizing insertion with checking if such
     /// vertex already exists.
+    #[inline]
     pub fn insert_vertex(&mut self, vertex: Vertex) {
         // Reverse search is much faster because it is most likely that we'll find identic
         // vertex at the end of the array.
@@ -62,6 +64,16 @@ impl SurfaceSharedData {
             }
         });
         self.need_upload = true;
+    }
+
+    #[inline]
+    pub fn get_vertices(&self) -> &[Vertex] {
+        self.vertices.as_slice()
+    }
+
+    #[inline]
+    pub fn get_indices(&self) -> &[i32] {
+        self.indices.as_slice()
     }
 
     pub fn upload(&mut self) {

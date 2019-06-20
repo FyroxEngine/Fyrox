@@ -2,7 +2,7 @@ use crate::math::vec3::Vec3;
 
 pub struct Ray {
     pub origin: Vec3,
-    pub dir: Vec3
+    pub dir: Vec3,
 }
 
 impl Ray {
@@ -29,9 +29,9 @@ impl Ray {
         if discriminant < 0.0 {
             return None;
         }
-        let discrRoot = discriminant.sqrt();
-        let r1 = (-b + discrRoot) / 2.0;
-        let r2 = (-b - discrRoot) / 2.0;
+        let discr_root = discriminant.sqrt();
+        let r1 = (-b + discr_root) / 2.0;
+        let r2 = (-b - discr_root) / 2.0;
         return Some((self.origin + self.dir.scale(r1), self.origin + self.dir.scale(r2)));
     }
 

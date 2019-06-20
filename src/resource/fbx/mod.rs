@@ -1076,6 +1076,7 @@ impl Fbx {
                 }
             }
         }
+        scene.update(0.0);
         Ok(root)
     }
 

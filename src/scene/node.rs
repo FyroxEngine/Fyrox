@@ -9,6 +9,7 @@ use crate::utils::pool::*;
 use crate::math::*;
 use crate::math::vec2::*;
 use crate::resource::*;
+use crate::physics::Body;
 
 pub struct Light {
     radius: f32,
@@ -142,6 +143,7 @@ pub struct Node {
     pub(crate) children: Vec<Handle<Node>>,
     pub(super) local_transform: Mat4,
     pub(crate) global_transform: Mat4,
+    body: Handle<Body>
 }
 
 impl Node {
@@ -162,6 +164,7 @@ impl Node {
             scaling_pivot: Vec3::new(),
             local_transform: Mat4::identity(),
             global_transform: Mat4::identity(),
+            body: Handle::none()
         }
     }
 
@@ -181,6 +184,16 @@ impl Node {
         self.local_transform = translation * rotation_offset * rotation_pivot *
             pre_rotation * rotation * post_rotation * rotation_pivot_inv *
             scale_offset * scale_pivot * scale * scale_pivot_inv;
+    }
+
+    #[inline]
+    pub fn set_body(&mut self, body: Handle<Body>) {
+        self.body = body;
+    }
+
+    #[inline]
+    pub fn get_body(&self) -> Handle<Body> {
+        self.body.clone()
     }
 
     #[inline]

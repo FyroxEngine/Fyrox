@@ -21,7 +21,7 @@ use math::quat::*;
 use scene::node::*;
 use scene::*;
 use engine::*;
-
+use crate::physics::{Body, StaticGeometry, StaticTriangle};
 
 pub struct Controller {
     move_forward: bool,
@@ -33,10 +33,13 @@ pub struct Controller {
 pub struct Player {
     camera: Handle<Node>,
     pivot: Handle<Node>,
+    body: Handle<Body>,
     controller: Controller,
     yaw: f32,
     pitch: f32,
     last_mouse_pos: Vec2,
+    stand_body_radius: f32,
+    move_speed: f32,
 }
 
 impl Player {
@@ -46,6 +49,12 @@ impl Player {
 
         let mut pivot = Node::new(NodeKind::Base);
         pivot.set_local_position(Vec3 { x: -1.0, y: 0.0, z: 1.0 });
+
+        let stand_body_radius = 0.5;
+        let mut body = Body::new();
+        body.set_radius(stand_body_radius);
+        let body_handle = scene.get_physics_mut().add_body(body);
+        pivot.set_body(body_handle.clone());
 
         let camera_handle = scene.add_node(camera);
         let pivot_handle = scene.add_node(pivot);
@@ -60,6 +69,9 @@ impl Player {
                 move_left: false,
                 move_right: false,
             },
+            stand_body_radius,
+            move_speed: 0.028,
+            body: body_handle,
             yaw: 0.0,
             pitch: 0.0,
             last_mouse_pos: Vec2::new(),
@@ -67,10 +79,15 @@ impl Player {
     }
 
     pub fn update(&mut self, scene: &mut Scene) {
-        if let Some(pivot_node) = scene.borrow_node_mut(&self.pivot) {
-            let look = pivot_node.get_look_vector();
-            let side = pivot_node.get_side_vector();
+        let mut look = Vec3::zero();
+        let mut side = Vec3::zero();
 
+        if let Some(pivot_node) = scene.borrow_node(&self.pivot) {
+            look = pivot_node.get_look_vector();
+            side = pivot_node.get_side_vector();
+        }
+
+        if let Some(body) = scene.get_physics_mut().borrow_body_mut(&self.body) {
             let mut velocity = Vec3::new();
             if self.controller.move_forward {
                 velocity += look;
@@ -86,9 +103,11 @@ impl Player {
             }
 
             if let Some(normalized_velocity) = velocity.normalized() {
-                pivot_node.offset(normalized_velocity.scale(0.2));
+                body.move_by(normalized_velocity.scale(self.move_speed));
             }
+        }
 
+        if let Some(pivot_node) = scene.borrow_node_mut(&self.pivot) {
             pivot_node.set_local_rotation(Quat::from_axis_angle(Vec3::up(), self.yaw.to_radians()));
         }
 
@@ -172,14 +191,50 @@ impl Level {
         // Create test scene
         let mut scene = Scene::new();
 
-        // Load some test models
-        if let Err(err_msg) = resource::fbx::load_to_scene(
-            &mut scene, engine.get_resource_manager(), Path::new("data/models/map.fbx")) {
-            println!("{}", err_msg);
-        } else {
-            println!("Map loaded!");
+        // Load map
+        match resource::fbx::load_to_scene(&mut scene, engine.get_resource_manager(), Path::new("data/models/map.fbx")) {
+            Ok(root_handle) => {
+                let mut static_geometry = StaticGeometry::new();
+
+                if let Some(polygon_handle) = scene.find_node_by_name(&root_handle, "Polygon") {
+                    if let Some(polygon) = scene.borrow_node(&polygon_handle) {
+
+                        let global_transform = polygon.global_transform.clone();
+
+                        if let NodeKind::Mesh(mesh) = polygon.borrow_kind() {
+                            for surface in mesh.get_surfaces() {
+                                let shared_data = surface.data.borrow();
+
+                                let vertices = shared_data.get_vertices();
+                                let indices = shared_data.get_indices();
+
+                                let last = indices.len() - indices.len() % 3;
+                                let mut i: usize = 0;
+                                while i < last {
+
+                                    let a = global_transform.transform_vector(vertices[indices[i] as usize].position);
+                                    let b = global_transform.transform_vector(vertices[indices[i + 1] as usize].position);
+                                    let c = global_transform.transform_vector(vertices[indices[i + 2] as usize].position);
+
+                                    if let Some(triangle) = StaticTriangle::from_points(a, b, c) {
+                                        static_geometry.add_triangle(triangle);
+                                    } else {
+                                        println!("degenerated triangle!");
+                                    }
+
+                                    i += 3;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                scene.get_physics_mut().add_static_geometry(static_geometry);
+            }
+            Err(err_msg) => println!("{}", err_msg)
         }
 
+        // Load test models
         match resource::fbx::load_to_scene(&mut scene, engine.get_resource_manager(), Path::new("data/models/ripper.fbx")) {
             Ok(node_handle) => {
                 if let Some(node) = scene.borrow_node_mut(&node_handle) {
@@ -187,27 +242,6 @@ impl Level {
                 }
             }
             Err(err_msg) => println!("{}", err_msg)
-        }
-
-        // Create cubes
-        for i in 0..3 {
-            for j in 0..3 {
-                for k in 0..3 {
-                    let mut cube_mesh = Mesh::default();
-                    cube_mesh.make_cube();
-                    if let Some(ref cube_t) = engine.get_resource_manager().request_texture(Path::new("data/textures/box.png")) {
-                        cube_mesh.apply_texture(cube_t.clone());
-                    }
-                    let mut cube_node = Node::new(NodeKind::Mesh(cube_mesh));
-                    let pos = Vec3 {
-                        x: i as f32 * 2.0,
-                        y: j as f32 * 2.0,
-                        z: k as f32 * 2.0,
-                    };
-                    cube_node.set_local_position(pos);
-                    cubes.push(scene.add_node(cube_node));
-                }
-            }
         }
 
         let player = Player::new(&mut scene);
@@ -258,28 +292,20 @@ impl Game {
     pub fn run(&mut self) {
         while self.engine.is_running() {
             self.engine.poll_events();
-            loop {
-                let event = self.engine.pop_event();
-
-                match event {
-                    Some(event) => {
-                        if let glutin::Event::WindowEvent { event, .. } = event {
-                            self.level.player.process_event(&event);
-
-                            match event {
-                                glutin::WindowEvent::CloseRequested => self.engine.stop(),
-                                glutin::WindowEvent::KeyboardInput {
-                                    input: glutin::KeyboardInput {
-                                        virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
-                                        ..
-                                    },
-                                    ..
-                                } => self.engine.stop(),
-                                _ => ()
-                            }
-                        }
+            while let Some(event) = self.engine.pop_event() {
+                if let glutin::Event::WindowEvent { event, .. } = event {
+                    self.level.player.process_event(&event);
+                    match event {
+                        glutin::WindowEvent::CloseRequested => self.engine.stop(),
+                        glutin::WindowEvent::KeyboardInput {
+                            input: glutin::KeyboardInput {
+                                virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
+                                ..
+                            },
+                            ..
+                        } => self.engine.stop(),
+                        _ => ()
                     }
-                    None => break
                 }
             }
             self.update();
