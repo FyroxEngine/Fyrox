@@ -105,13 +105,13 @@ impl Engine {
         &mut self.resource_manager
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, dt: f64) {
         let client_size = self.renderer.context.get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
 
         for i in 0..self.scenes.capacity() {
             if let Some(scene) = self.scenes.at_mut(i) {
-                scene.update(aspect_ratio);
+                scene.update(aspect_ratio, dt);
             }
         }
     }

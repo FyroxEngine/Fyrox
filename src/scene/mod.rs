@@ -120,8 +120,8 @@ impl Scene {
         None
     }
 
-    pub fn update_physics(&mut self) {
-        self.physics.step(1.0 / 60.0);
+    pub fn update_physics(&mut self, dt: f64) {
+        self.physics.step(dt as f32);
 
         // Sync node positions with assigned physics bodies
         for i in 0..self.nodes.capacity() {
@@ -133,9 +133,7 @@ impl Scene {
         }
     }
 
-    pub fn update(&mut self, aspect_ratio: f32) {
-        self.update_physics();
-
+    pub fn calculate_transforms(&mut self) {
         // Calculate transforms on nodes
         let mut stack = self.stack.borrow_mut();
         stack.clear();
@@ -149,24 +147,35 @@ impl Scene {
             }
 
             // Extract parent's global transform
-            let mut parent_global_transform = Mat4::identity();
-            if let Some(parent) = self.nodes.borrow_mut(&parent_handle) {
-                parent_global_transform = parent.global_transform;
-            }
+            let parent_global_transform =
+                match self.nodes.borrow_mut(&parent_handle) {
+                    Some(parent) => parent.global_transform,
+                    None => Mat4::identity()
+                };
 
             if let Some(node) = self.nodes.borrow_mut(&handle) {
                 node.global_transform = parent_global_transform * node.local_transform;
-                let eye = node.get_global_position();
-                let look = node.get_look_vector();
-                let up = node.get_up_vector();
-
-                if let NodeKind::Camera(camera) = node.borrow_kind_mut() {
-                    camera.calculate_matrices(eye, look, up, aspect_ratio);
-                }
 
                 // Queue children and continue traversal on them
                 for child_handle in node.children.iter() {
                     stack.push(child_handle.clone());
+                }
+            }
+        }
+    }
+
+    pub fn update(&mut self, aspect_ratio: f32, dt: f64) {
+        self.update_physics(dt);
+
+        self.calculate_transforms();
+
+        for i in 0..self.nodes.capacity() {
+            if let Some(node) = self.nodes.at_mut(i) {
+                let eye = node.get_global_position();
+                let look = node.get_look_vector();
+                let up = node.get_up_vector();
+                if let NodeKind::Camera(camera) = node.borrow_kind_mut() {
+                    camera.calculate_matrices(eye, look, up, aspect_ratio);
                 }
             }
         }

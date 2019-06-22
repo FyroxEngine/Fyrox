@@ -99,7 +99,7 @@ impl Body {
             position: Vec3::zero(),
             last_position: Vec3::zero(),
             acceleration: Vec3::zero(),
-            friction: 0.965,
+            friction: 0.94,
             gravity: Vec3::make(0.0, -9.81, 0.0),
             radius: 1.0,
             sqr_radius: 1.0,
@@ -134,6 +134,21 @@ impl Body {
         self.radius
     }
 
+    #[inline]
+    pub fn set_x_velocity(&mut self, x: f32) {
+        self.last_position.x = self.position.x - x;
+    }
+
+    #[inline]
+    pub fn set_y_velocity(&mut self, y: f32) {
+        self.last_position.y = self.position.y - y;
+    }
+
+    #[inline]
+    pub fn set_z_velocity(&mut self, z: f32) {
+        self.last_position.z = self.position.z - z;
+    }
+
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
         let friction = if self.contacts.len() > 0 {
             1.0 - self.friction
@@ -146,6 +161,7 @@ impl Body {
 
         let last_position = self.position;
 
+        // Verlet integration
         self.position = Vec3 {
             x: k1 * self.position.x - k2 * self.last_position.x + self.acceleration.x * sqr_delta_time,
             y: k1 * self.position.y - k2 * self.last_position.y + self.acceleration.y * sqr_delta_time,

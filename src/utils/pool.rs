@@ -1,5 +1,7 @@
-use std::marker::PhantomData;
-use std::hash::{Hash, Hasher};
+use std::{
+    marker::PhantomData,
+    hash:: {Hash, Hasher}
+};
 
 ///
 /// Pool allows to create as many objects as you want in contiguous memory
@@ -51,9 +53,7 @@ impl<T> PartialEq for Handle<T> {
     }
 }
 
-impl<T> Eq for Handle<T> {
-
-}
+impl<T> Eq for Handle<T> { }
 
 impl<T> Hash for Handle<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {

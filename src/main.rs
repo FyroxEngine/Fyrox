@@ -22,6 +22,7 @@ use scene::node::*;
 use scene::*;
 use engine::*;
 use crate::physics::{Body, StaticGeometry, StaticTriangle};
+use std::time::{Instant, Duration};
 
 pub struct Controller {
     move_forward: bool,
@@ -45,7 +46,7 @@ pub struct Player {
 impl Player {
     pub fn new(scene: &mut Scene) -> Player {
         let mut camera = Node::new(NodeKind::Camera(Camera::default()));
-        camera.set_local_position(Vec3 { x: 0.0, y: 2.0, z: 0.0 });
+        camera.set_local_position(Vec3 { x: 0.0, y: 1.0, z: 0.0 });
 
         let mut pivot = Node::new(NodeKind::Base);
         pivot.set_local_position(Vec3 { x: -1.0, y: 0.0, z: 1.0 });
@@ -103,6 +104,8 @@ impl Player {
             }
 
             if let Some(normalized_velocity) = velocity.normalized() {
+                body.set_x_velocity(0.0);
+                body.set_z_velocity(0.0);
                 body.move_by(normalized_velocity.scale(self.move_speed));
             }
         }
@@ -178,16 +181,10 @@ impl Player {
 pub struct Level {
     scene: Handle<Scene>,
     player: Player,
-
-    // Test stuff
-    cubes: Vec<Handle<Node>>,
-    angle: f32,
 }
 
 impl Level {
     pub fn new(engine: &mut Engine) -> Level {
-        let mut cubes: Vec<Handle<Node>> = Vec::new();
-
         // Create test scene
         let mut scene = Scene::new();
 
@@ -248,23 +245,12 @@ impl Level {
 
         Level {
             player,
-            cubes,
-            angle: 0.0,
             scene: engine.add_scene(scene),
         }
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
-        self.angle += 0.1;
-
-        let rotation = Quat::from_axis_angle(Vec3 { x: 0.0, y: 1.0, z: 0.0 }, self.angle);
+    pub fn update(&mut self, engine: &mut Engine, dt: f64) {
         if let Some(scene) = engine.borrow_scene_mut(&self.scene) {
-            for node_handle in self.cubes.iter() {
-                if let Some(node) = scene.borrow_node_mut(node_handle) {
-                    node.set_local_rotation(rotation);
-                }
-            }
-
             self.player.update(scene);
         }
     }
@@ -273,6 +259,10 @@ impl Level {
 pub struct Game {
     engine: Engine,
     level: Level,
+}
+
+fn duration_to_seconds_f64(duration: Duration) -> f64 {
+    duration.as_secs() as f64 + duration.subsec_nanos() as f64 / 1_000_000_000.0
 }
 
 impl Game {
@@ -285,31 +275,41 @@ impl Game {
         }
     }
 
-    pub fn update(&mut self) {
-        self.level.update(&mut self.engine);
+    pub fn update(&mut self, dt: f64) {
+        self.level.update(&mut self.engine, dt);
     }
 
     pub fn run(&mut self) {
+        let fixed_fps = 60.0;
+        let fixed_timestep = 1.0 / fixed_fps;
+        let clock = Instant::now();
+        let mut game_time = 0.0;
         while self.engine.is_running() {
-            self.engine.poll_events();
-            while let Some(event) = self.engine.pop_event() {
-                if let glutin::Event::WindowEvent { event, .. } = event {
-                    self.level.player.process_event(&event);
-                    match event {
-                        glutin::WindowEvent::CloseRequested => self.engine.stop(),
-                        glutin::WindowEvent::KeyboardInput {
-                            input: glutin::KeyboardInput {
-                                virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
+            let mut dt = duration_to_seconds_f64(clock.elapsed()) - game_time;
+            while dt >= fixed_timestep {
+                dt -= fixed_timestep;
+                game_time += fixed_timestep;
+                self.engine.poll_events();
+                while let Some(event) = self.engine.pop_event() {
+                    if let glutin::Event::WindowEvent { event, .. } = event {
+                        self.level.player.process_event(&event);
+                        match event {
+                            glutin::WindowEvent::CloseRequested => self.engine.stop(),
+                            glutin::WindowEvent::KeyboardInput {
+                                input: glutin::KeyboardInput {
+                                    virtual_keycode: Some(glutin::VirtualKeyCode::Escape),
+                                    ..
+                                },
                                 ..
-                            },
-                            ..
-                        } => self.engine.stop(),
-                        _ => ()
+                            } => self.engine.stop(),
+                            _ => ()
+                        }
                     }
                 }
+                self.update(fixed_timestep);
+                self.engine.update(fixed_timestep);
             }
-            self.update();
-            self.engine.update();
+            // Render at max speed
             self.engine.render();
         }
     }
