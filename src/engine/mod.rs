@@ -6,32 +6,41 @@ use std::rc::*;
 use std::cell::*;
 use std::path::*;
 use crate::resource::texture::*;
+use serde::{Serialize, Deserialize};
+use crate::utils::rcpool::{RcPool, RcHandle};
 
 pub struct ResourceManager {
-    resources: Vec<Rc<RefCell<Resource>>>,
+    resources: RcPool<Resource>,
     /// Path to textures, extensively used for resource files
     /// which stores path in weird format (either relative or absolute) which
     /// is obviously not good for engine.
-    textures_path: PathBuf
+    textures_path: PathBuf,
+}
+
+impl Default for ResourceManager {
+    fn default() -> Self {
+        Self {
+            resources: RcPool::new(),
+            textures_path: PathBuf::from("data/textures/"),
+        }
+    }
 }
 
 impl ResourceManager {
     pub fn new() -> ResourceManager {
-        ResourceManager {
-            resources: Vec::new(),
-            textures_path: PathBuf::from("data/textures/")
-        }
+        ResourceManager::default()
     }
 
-    pub fn request_texture(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
-        for existing in self.resources.iter() {
-            let resource = existing.borrow_mut();
-            if resource.path == path {
-                if let ResourceKind::Texture(_) = resource.borrow_kind() {
-                    return Some(existing.clone());
-                } else {
-                    println!("Resource with path {:?} found but it is not a texture!", path);
-                    return None;
+    pub fn request_texture(&mut self, path: &Path) -> Option<RcHandle<Resource>> {
+        for i in 0..self.resources.get_capacity() {
+            if let Some(resource) = self.resources.at_mut(i) {
+                if resource.path == path {
+                    if let ResourceKind::Texture(_) = resource.borrow_kind() {
+                        return Some(self.resources.handle_from_index(i).unwrap());
+                    } else {
+                        println!("Resource with path {:?} found but it is not a texture!", path);
+                        return None;
+                    }
                 }
             }
         }
@@ -39,14 +48,28 @@ impl ResourceManager {
         // Texture was not loaded before, try to load and register
         if let Ok(texture) = Texture::load(path) {
             println!("Texture {:?} loaded", path);
-            let resource = Rc::new(RefCell::new(
+            return Some(self.resources.spawn(
                 Resource::new(path, ResourceKind::Texture(texture))));
-            self.resources.push(resource.clone());
-            return Some(resource.clone());
         }
 
         // Fail
         None
+    }
+
+    pub fn for_each_texture_mut<Func>(&mut self, mut func: Func) where Func: FnMut(&mut Texture) {
+        for resource in self.resources.iter_mut() {
+            if let ResourceKind::Texture(texture) = resource.borrow_kind_mut() {
+                func(texture);
+            }
+        }
+    }
+
+    pub fn borrow_resource(&self, resource_handle: &RcHandle<Resource>) -> Option<&Resource> {
+        self.resources.borrow(resource_handle)
+    }
+
+    pub fn borrow_resource_mut(&mut self, resource_handle: &RcHandle<Resource>) -> Option<&mut Resource> {
+        self.resources.borrow_mut(resource_handle)
     }
 
     pub fn get_textures_path(&self) -> &Path {
@@ -54,9 +77,22 @@ impl ResourceManager {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct State {
+    scenes: Pool<Scene>,
+}
+
+impl State {
+    pub fn new() -> Self {
+        State {
+            scenes: Pool::new(),
+        }
+    }
+}
+
 pub struct Engine {
     renderer: Renderer,
-    scenes: Pool<Scene>,
+    state: State,
     events: Vec<glutin::Event>,
     running: bool,
     resource_manager: ResourceManager,
@@ -66,22 +102,22 @@ impl Engine {
     #[inline]
     pub fn new() -> Engine {
         Engine {
-            scenes: Pool::new(),
+            state: State::new(),
             renderer: Renderer::new(),
             events: Vec::new(),
             running: true,
-            resource_manager: ResourceManager::new()
+            resource_manager: ResourceManager::new(),
         }
     }
 
     #[inline]
     pub fn add_scene(&mut self, scene: Scene) -> Handle<Scene> {
-        self.scenes.spawn(scene)
+        self.state.scenes.spawn(scene)
     }
 
     #[inline]
     pub fn borrow_scene(&self, handle: &Handle<Scene>) -> Option<&Scene> {
-        if let Some(scene) = self.scenes.borrow(handle) {
+        if let Some(scene) = self.state.scenes.borrow(handle) {
             return Some(scene);
         }
         None
@@ -89,10 +125,15 @@ impl Engine {
 
     #[inline]
     pub fn borrow_scene_mut(&mut self, handle: &Handle<Scene>) -> Option<&mut Scene> {
-        if let Some(scene) = self.scenes.borrow_mut(handle) {
+        if let Some(scene) = self.state.scenes.borrow_mut(handle) {
             return Some(scene);
         }
         None
+    }
+
+    #[inline]
+    pub fn get_state(&self) -> &State {
+        &self.state
     }
 
     #[inline]
@@ -109,10 +150,8 @@ impl Engine {
         let client_size = self.renderer.context.get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
 
-        for i in 0..self.scenes.capacity() {
-            if let Some(scene) = self.scenes.at_mut(i) {
-                scene.update(aspect_ratio, dt);
-            }
+        for scene in self.state.scenes.iter_mut() {
+            scene.update(aspect_ratio, dt);
         }
     }
 
@@ -126,15 +165,8 @@ impl Engine {
     }
 
     pub fn render(&mut self) {
-        self.renderer.upload_resources(&mut self.resource_manager.resources);
-
-        let mut alive_scenes: Vec<&Scene> = Vec::new();
-        for i in 0..self.scenes.capacity() {
-            if let Some(scene) = self.scenes.at(i) {
-                alive_scenes.push(scene);
-            }
-        }
-        self.renderer.render(alive_scenes.as_slice());
+        self.renderer.upload_resources(&mut self.resource_manager);
+        self.renderer.render(&self.state.scenes, &self.resource_manager);
     }
 
     #[inline]

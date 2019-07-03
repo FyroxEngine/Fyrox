@@ -8,3 +8,5 @@ edition = "2018"
 glutin = "*"
 image = "*"
 lexical = "*"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"

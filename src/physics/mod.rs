@@ -2,15 +2,17 @@ use crate::math::vec3::Vec3;
 use crate::utils::pool::{Pool, Handle};
 use crate::math::ray::Ray;
 use crate::math::plane::Plane;
-use crate::resource::fbx::FbxAttribute::Bool;
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct Contact {
-    body: Handle<Body>,
-    position: Vec3,
-    normal: Vec3,
-    triangle_index: usize,
+    pub body: Handle<Body>,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub triangle_index: usize,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct StaticGeometry {
     triangles: Vec<StaticTriangle>
 }
@@ -27,6 +29,7 @@ impl StaticGeometry {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct StaticTriangle {
     points: [Vec3; 3],
     ca: Vec3,
@@ -82,6 +85,7 @@ impl StaticTriangle {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Body {
     position: Vec3,
     last_position: Vec3,
@@ -91,6 +95,7 @@ pub struct Body {
     gravity: Vec3,
     radius: f32,
     sqr_radius: f32,
+    speed_limit: f32,
 }
 
 impl Body {
@@ -99,11 +104,12 @@ impl Body {
             position: Vec3::zero(),
             last_position: Vec3::zero(),
             acceleration: Vec3::zero(),
-            friction: 0.94,
+            friction: 0.2,
             gravity: Vec3::make(0.0, -9.81, 0.0),
             radius: 1.0,
             sqr_radius: 1.0,
             contacts: Vec::new(),
+            speed_limit: 0.75,
         }
     }
 
@@ -130,6 +136,22 @@ impl Body {
     }
 
     #[inline]
+    pub fn set_friction(&mut self, friction: f32) {
+        self.friction = friction;
+
+        if self.friction < 0.0 {
+            self.friction = 0.0;
+        } else if self.friction > 1.0 {
+            self.friction = 1.0;
+        }
+    }
+
+    #[inline]
+    pub fn get_friction(&self) -> f32 {
+        self.friction
+    }
+
+    #[inline]
     pub fn get_radius(&self) -> f32 {
         self.radius
     }
@@ -149,12 +171,18 @@ impl Body {
         self.last_position.z = self.position.z - z;
     }
 
+    #[inline]
+    pub fn get_contacts(&self) -> &[Contact] {
+        self.contacts.as_slice()
+    }
+
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
-        let friction = if self.contacts.len() > 0 {
-            1.0 - self.friction
-        } else {
-            air_friction
-        };
+        let friction =
+            if self.contacts.len() > 0 {
+                self.friction
+            } else {
+                air_friction
+            };
 
         let k1 = 2.0 - friction;
         let k2 = 1.0 - friction;
@@ -172,12 +200,11 @@ impl Body {
 
         self.acceleration = Vec3::zero();
 
-        let speed_limit = 0.75;
         let velocity = self.last_position - self.position;
         let sqr_speed = velocity.sqr_len();
-        if sqr_speed > speed_limit * speed_limit {
+        if sqr_speed > self.speed_limit * self.speed_limit {
             if let Some(direction) = velocity.normalized() {
-                self.last_position = self.position - direction.scale(speed_limit);
+                self.last_position = self.position - direction.scale(self.speed_limit);
             }
         }
     }
@@ -222,13 +249,14 @@ impl Body {
                     body: Handle::none(),
                     position: intersection_point,
                     normal: push_vector,
-                    triangle_index
+                    triangle_index,
                 })
             }
         }
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Physics {
     body_pool: Pool<Body>,
     static_geom_pool: Pool<StaticGeometry>,
@@ -270,20 +298,17 @@ impl Physics {
         let dt2 = delta_time * delta_time;
         let air_friction = 0.003;
 
-        for i in 0..self.body_pool.capacity() {
-            if let Some(body) = self.body_pool.at_mut(i) {
-
+        for body in self.body_pool.iter_mut() {
+            if body.contacts.len() == 0 {
                 body.acceleration += body.gravity;
-                body.verlet(dt2, air_friction);
+            }
+            body.verlet(dt2, air_friction);
 
-                body.contacts.clear();
+            body.contacts.clear();
 
-                for k in 0..self.static_geom_pool.capacity() {
-                    if let Some(static_geometry) = self.static_geom_pool.at(k) {
-                        for (n, triangle) in static_geometry.triangles.iter().enumerate() {
-                            body.solve_triangle_collision(&triangle, n);
-                        }
-                    }
+            for static_geometry in self.static_geom_pool.iter() {
+                for (n, triangle) in static_geometry.triangles.iter().enumerate() {
+                    body.solve_triangle_collision(&triangle, n);
                 }
             }
         }

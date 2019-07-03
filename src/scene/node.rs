@@ -11,6 +11,9 @@ use crate::math::vec2::*;
 use crate::resource::*;
 use crate::physics::Body;
 
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct Light {
     radius: f32,
     color: Vec3,
@@ -33,6 +36,7 @@ impl Light {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Camera {
     fov: f32,
     z_near: f32,
@@ -81,6 +85,7 @@ impl Camera {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Mesh {
     surfaces: Vec<Surface>
 }
@@ -89,18 +94,6 @@ impl Mesh {
     pub fn default() -> Mesh {
         Mesh {
             surfaces: Vec::new()
-        }
-    }
-
-    pub fn make_cube(&mut self) {
-        self.surfaces.clear();
-        let data = Rc::new(RefCell::new(SurfaceSharedData::make_cube()));
-        self.surfaces.push(Surface::new(&data));
-    }
-
-    pub fn apply_texture(&mut self, tex: Rc<RefCell<Resource>>) {
-        for surface in self.surfaces.iter_mut() {
-            surface.set_texture(tex.clone());
         }
     }
 
@@ -117,16 +110,15 @@ impl Mesh {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum NodeKind {
     Base,
     Light(Light),
     Camera(Camera),
-    Mesh(Mesh),
-
-    /// User-defined node kind
-    Custom(Box<Any>),
+    Mesh(Mesh)
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Node {
     name: String,
     kind: NodeKind,
@@ -302,4 +294,3 @@ impl Node {
         }
     }
 }
-

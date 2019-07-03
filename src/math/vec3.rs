@@ -1,6 +1,7 @@
 use std::ops;
+use serde::{Serialize, Deserialize};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -170,3 +171,4 @@ impl ops::SubAssign<Self> for Vec3 {
         self.z -= b.z;
     }
 }
+

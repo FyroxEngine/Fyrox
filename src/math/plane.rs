@@ -1,5 +1,7 @@
 use crate::math::vec3::Vec3;
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct Plane {
     pub normal: Vec3,
     pub d: f32,

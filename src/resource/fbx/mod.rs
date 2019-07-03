@@ -109,7 +109,7 @@ struct FbxSubDeformer {
     model: Handle<FbxComponent>,
     indices: Vec<i32>,
     weights: Vec<f32>,
-    transform: Mat4
+    transform: Mat4,
 }
 
 impl FbxSubDeformer {
@@ -128,7 +128,7 @@ impl FbxSubDeformer {
             return Err(format!("FBX: Wrong transform size! Expect 16, got {}", transform_node.attrib_count()));
         }
 
-        let mut transform= Mat4::identity();
+        let mut transform = Mat4::identity();
         for i in 0..16 {
             transform.f[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
         }
@@ -192,7 +192,7 @@ struct FbxDeformer {
 impl FbxDeformer {
     fn read(_sub_deformer_handle: &Handle<FbxNode>, _nodes: &Pool<FbxNode>,
             _stack: &mut Vec<Handle<FbxNode>>) -> Result<Self, String> {
-        Ok(FbxDeformer{
+        Ok(FbxDeformer {
             sub_deformers: Vec::new()
         })
     }
@@ -711,8 +711,6 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
     });
     let mut parent_handle: Handle<FbxNode> = root_handle.clone();
     let mut node_handle: Handle<FbxNode> = Handle::none();
-    let mut read_all = false;
-    let mut read_value = false;
     let mut buffer: Vec<u8> = Vec::new();
     let mut name: Vec<u8> = Vec::new();
     let mut value: Vec<u8> = Vec::new();
@@ -726,6 +724,7 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
             // Read line, trim spaces (but leave spaces in quotes)
             buffer.clear();
 
+            let mut read_all = false;
             while read_ptr < file_content.len() {
                 let symbol = unsafe { *file_content.get_unchecked(read_ptr) };
                 read_ptr += 1;
@@ -744,7 +743,7 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
             }
 
             // Parse string
-            read_value = false;
+            let mut read_value = false;
             name.clear();
             for i in 0..buffer.len() {
                 let symbol = unsafe { *buffer.get_unchecked(i as usize) };
@@ -916,6 +915,7 @@ fn prepare_next_face(geom: &FbxGeometry,
 
 fn convert_vertex(geom: &FbxGeometry,
                   mesh: &mut Mesh,
+                  scene: &mut Scene,
                   geometric_transform: &Mat4,
                   material_index: usize,
                   origin: usize,
@@ -953,15 +953,21 @@ fn convert_vertex(geom: &FbxGeometry,
     };
 
     let surface = mesh.get_surfaces_mut().get_mut(material).unwrap();
-    surface.data.borrow_mut().insert_vertex(Vertex {
-        position,
-        normal,
-        tex_coord: uv,
-        tangent: Vec4 { x: tangent.x, y: tangent.y, z: tangent.z, w: 1.0 },
-        // FIXME
-        bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-        bone_indices: [0, 0, 0, 0], // Correct indices will be calculated later
-    })
+    let data_storage = scene.get_surface_data_storage_mut();
+    match data_storage.borrow_mut(surface.get_data_handle()) {
+        Some(surface_data) => {
+            surface_data.insert_vertex(Vertex {
+                position,
+                normal,
+                tex_coord: uv,
+                tangent: Vec4 { x: tangent.x, y: tangent.y, z: tangent.z, w: 1.0 },
+                // FIXME
+                bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_indices: [0, 0, 0, 0], // Correct indices will be calculated later
+            });
+        },
+        None => println!("Unable to get surface data!")
+    }
 }
 
 impl Fbx {
@@ -1018,11 +1024,11 @@ impl Fbx {
                         "Cluster" => {
                             component_handle = self.component_pool.spawn(FbxComponent::SubDeformer(
                                 FbxSubDeformer::read(object_handle, &self.nodes, &mut traversal_stack)?));
-                        },
+                        }
                         "Skin" => {
                             component_handle = self.component_pool.spawn(FbxComponent::Deformer(
                                 FbxDeformer::read(object_handle, &self.nodes, &mut traversal_stack)?));
-                        },
+                        }
                         _ => ()
                     }
                 }
@@ -1059,15 +1065,14 @@ impl Fbx {
         light.set_radius(fbx_light.radius);
     }
 
-    fn create_surfaces(&self, mesh: &mut Mesh, model: &FbxModel, resource_manager: &mut ResourceManager) {
+    fn create_surfaces(&self, mesh: &mut Mesh, scene: &mut Scene, model: &FbxModel, resource_manager: &mut ResourceManager) {
         // Create surfaces per material
+        let surf_storage = scene.get_surface_data_storage_mut();
         if model.materials.is_empty() {
-            let surface_data = SurfaceSharedData::new();
-            mesh.add_surface(Surface::new(&Rc::new(RefCell::new(surface_data))));
+            mesh.add_surface(Surface::new(surf_storage.spawn( SurfaceSharedData::new())));
         } else {
             for material_handle in model.materials.iter() {
-                let surface_data = SurfaceSharedData::new();
-                let mut surface = Surface::new(&Rc::new(RefCell::new(surface_data)));
+                let mut surface = Surface::new(surf_storage.spawn( SurfaceSharedData::new()));
                 if let FbxComponent::Material(material) = self.component_pool.borrow(&material_handle).unwrap() {
                     if let Some(texture_handle) = self.component_pool.borrow(&material.diffuse_texture) {
                         if let FbxComponent::Texture(texture) = texture_handle {
@@ -1085,7 +1090,7 @@ impl Fbx {
         }
     }
 
-    fn convert_mesh(&self, mesh: &mut Mesh, model: &FbxModel, resource_manager: &mut ResourceManager) {
+    fn convert_mesh(&self, mesh: &mut Mesh, scene: &mut Scene, model: &FbxModel, resource_manager: &mut ResourceManager) {
         let geometric_transform = Mat4::translate(model.geometric_translation) *
             Mat4::from_quat(quat_from_euler(model.geometric_rotation)) *
             Mat4::scale(model.geometric_scale);
@@ -1097,7 +1102,7 @@ impl Fbx {
         for geom_handle in &model.geoms {
             let geom_component = self.component_pool.borrow(&geom_handle).unwrap();
             if let FbxComponent::Geometry(geom) = geom_component {
-                self.create_surfaces(mesh, model, resource_manager);
+                self.create_surfaces(mesh, scene, model, resource_manager);
 
                 let mut material_index = 0;
                 let mut n = 0;
@@ -1108,9 +1113,9 @@ impl Fbx {
                         let triangle = &triangles[i];
                         let relative_triangle = &relative_triangles[i];
 
-                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
-                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
-                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
+                        convert_vertex(geom, mesh, scene, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
+                        convert_vertex(geom, mesh, scene, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
+                        convert_vertex(geom, mesh, scene, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
                     }
                     if geom.material_mapping == FbxMapping::ByPolygon {
                         material_index += 1;
@@ -1120,8 +1125,7 @@ impl Fbx {
         }
     }
 
-    fn convert_model(&self, model: &FbxModel, scene: &mut Scene, resource_manager: &mut ResourceManager) ->
-    Result<Handle<Node>, String> {
+    fn convert_model(&self, model: &FbxModel, scene: &mut Scene, resource_manager: &mut ResourceManager) -> Result<Handle<Node>, String> {
         // Create node with of correct kind.
         let mut node =
             if model.geoms.len() != 0 {
@@ -1151,7 +1155,7 @@ impl Fbx {
                 }
             }
             NodeKind::Mesh(mesh) => {
-                self.convert_mesh(mesh, model, resource_manager);
+                self.convert_mesh(mesh, scene, model, resource_manager);
             }
             _ => ()
         }
@@ -1210,7 +1214,7 @@ pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, 
                      -> Result<Handle<Node>, String> {
     let start_time = Instant::now();
 
-    println!("Trying to load {:?}", path);
+    println!("FBX;Trying to load {:?}", path);
 
     let now = Instant::now();
     let ref mut fbx = read_ascii(path)?;
@@ -1222,9 +1226,9 @@ pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, 
 
     let now = Instant::now();
     let result = fbx.convert(scene, resource_manager);
-    println!("\tFBX Conversion - {} ms", now.elapsed().as_millis());
+    println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
 
-    println!("{:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+    println!("FBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
 
     result
 }

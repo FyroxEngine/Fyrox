@@ -1,8 +1,9 @@
 use std::ops;
 use crate::math::vec3::*;
 use crate::math::quat::*;
+use serde::{Serialize, Deserialize};
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Mat4 {
     pub f: [f32; 16]
 }

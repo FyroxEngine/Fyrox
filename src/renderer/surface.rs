@@ -4,6 +4,10 @@ use crate::renderer::gl;
 use crate::renderer::gl::types::*;
 use std::{ffi::c_void, rc::Rc, cell::RefCell, mem::size_of, fmt};
 use crate::resource::*;
+use serde::{Serialize, Deserialize};
+use crate::utils::pool::Handle;
+use crate::utils::rcpool::{RcPool, RcHandle};
+use crate::engine::ResourceManager;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -16,12 +20,15 @@ pub struct Vertex {
     pub bone_indices: [u8; 4],
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct SurfaceSharedData {
     need_upload: bool,
     vbo: GLuint,
     vao: GLuint,
     ebo: GLuint,
+    #[serde(skip)]
     vertices: Vec<Vertex>,
+    #[serde(skip)]
     indices: Vec<i32>,
 }
 
@@ -82,6 +89,10 @@ impl SurfaceSharedData {
     }
 
     pub fn upload(&mut self) {
+        if !self.need_upload {
+            return;
+        }
+
         let total_size_bytes = self.vertices.len() * std::mem::size_of::<Vertex>();
 
         unsafe {
@@ -374,47 +385,53 @@ impl Drop for SurfaceSharedData {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Surface {
-    pub(crate) data: Rc<RefCell<SurfaceSharedData>>,
-    pub(crate) texture: Option<Rc<RefCell<Resource>>>,
+    data: RcHandle<SurfaceSharedData>,
+    texture: Option<RcHandle<Resource>>,
 }
 
 impl Surface {
-    pub fn new(data: &Rc<RefCell<SurfaceSharedData>>) -> Self {
+    pub fn new(data: RcHandle<SurfaceSharedData>) -> Self {
         Self {
-            data: data.clone(),
+            data,
             texture: Option::None,
         }
     }
 
-    pub fn draw(&self) {
+    #[inline]
+    pub fn get_data_handle(&self) -> &RcHandle<SurfaceSharedData> {
+        &self.data
+    }
+
+    pub fn draw(&self, gfx_data: &RcPool<SurfaceSharedData>, resource_manager: &ResourceManager) {
         unsafe {
-            let mut data = self.data.borrow_mut();
-            if data.need_upload {
-                data.upload();
-            }
-            if let Some(ref resource) = self.texture {
-                if let ResourceKind::Texture(texture) = &resource.borrow_mut().borrow_kind() {
-                    gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                } else {
-                    gl::BindTexture(gl::TEXTURE_2D, 0);
+            if let Some(data) = gfx_data.borrow(&self.data) {
+                if !data.need_upload {
+                    if let Some(ref resource_handle) = self.texture {
+                        if let Some(resource) = resource_manager.borrow_resource(resource_handle) {
+                            if let ResourceKind::Texture(texture) = resource.borrow_kind() {
+                                gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
+                            } else {
+                                gl::BindTexture(gl::TEXTURE_2D, 0);
+                            }
+                        } else {
+                            gl::BindTexture(gl::TEXTURE_2D, 0);
+                        }
+                    } else {
+                        gl::BindTexture(gl::TEXTURE_2D, 0);
+                    }
+                    gl::BindVertexArray(data.vao);
+                    gl::DrawElements(gl::TRIANGLES,
+                                     data.indices.len() as GLint,
+                                     gl::UNSIGNED_INT,
+                                     std::ptr::null());
                 }
-            } else {
-                gl::BindTexture(gl::TEXTURE_2D, 0);
             }
-            gl::BindVertexArray(data.vao);
-            gl::DrawElements(gl::TRIANGLES,
-                             data.indices.len() as GLint,
-                             gl::UNSIGNED_INT,
-                             std::ptr::null());
         }
     }
 
-    pub fn set_texture(&mut self, tex: Rc<RefCell<Resource>>) {
-        if let ResourceKind::Texture(_) = tex.borrow_mut().borrow_kind() {
-            self.texture = Some(tex.clone());
-        } else {
-            self.texture = None;
-        }
+    pub fn set_texture(&mut self, tex: RcHandle<Resource>) {
+        self.texture = Some(tex);
     }
 }

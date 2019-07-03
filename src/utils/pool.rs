@@ -1,15 +1,17 @@
 use std::{
     marker::PhantomData,
-    hash:: {Hash, Hasher}
+    hash::{Hash, Hasher},
 };
+use serde::{Serialize, Deserialize};
 
 ///
 /// Pool allows to create as many objects as you want in contiguous memory
 /// block. It allows to create and delete objects very fast.
 ///
+#[derive(Serialize, Deserialize)]
 pub struct Pool<T: Sized> {
     records: Vec<PoolRecord<T>>,
-    free_stack: Vec<u32>
+    free_stack: Vec<u32>,
 }
 
 ///
@@ -17,6 +19,7 @@ pub struct Pool<T: Sized> {
 /// It stores index of object and additional information that
 /// allows to ensure that handle is still valid.
 ///
+#[derive(Serialize, Deserialize)]
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,
@@ -24,9 +27,11 @@ pub struct Handle<T> {
     /// index of handle then this is valid handle.
     generation: u32,
     /// Type holder.
+    #[serde(skip)]
     type_marker: PhantomData<T>,
 }
 
+#[derive(Serialize, Deserialize)]
 struct PoolRecord<T: Sized> {
     /// Generation number, used to keep info about lifetime.
     /// The handle is valid only if record it points to is of the
@@ -42,7 +47,7 @@ impl<T> Clone for Handle<T> {
         Handle {
             index: self.index,
             generation: self.generation,
-            type_marker: PhantomData
+            type_marker: PhantomData,
         }
     }
 }
@@ -53,7 +58,7 @@ impl<T> PartialEq for Handle<T> {
     }
 }
 
-impl<T> Eq for Handle<T> { }
+impl<T> Eq for Handle<T> {}
 
 impl<T> Hash for Handle<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
@@ -68,7 +73,7 @@ impl<T> Handle<T> {
         Handle {
             index: 0,
             generation: Pool::<T>::INVALID_GENERATION,
-            type_marker: PhantomData
+            type_marker: PhantomData,
         }
     }
 
@@ -81,7 +86,7 @@ impl<T> Handle<T> {
         Handle {
             index,
             generation,
-            type_marker: PhantomData
+            type_marker: PhantomData,
         }
     }
 }
@@ -100,26 +105,26 @@ impl<T> Pool<T> {
     #[inline]
     pub fn spawn(&mut self, payload: T) -> Handle<T> {
         if let Some(free_index) = self.free_stack.pop() {
-            let record =  &mut self.records[free_index as usize];
+            let record = &mut self.records[free_index as usize];
             record.generation += 1;
             record.payload.replace(payload);
             return Handle {
                 index: free_index,
                 generation: record.generation,
-                type_marker: PhantomData
+                type_marker: PhantomData,
             };
         }
 
         // No free records, create new one
         let record = PoolRecord {
             generation: 1,
-            payload: Some(payload)
+            payload: Some(payload),
         };
 
         let handle = Handle {
             index: self.records.len() as u32,
             generation: record.generation,
-            type_marker: PhantomData
+            type_marker: PhantomData,
         };
 
         self.records.push(record);
@@ -162,7 +167,7 @@ impl<T> Pool<T> {
     }
 
     #[inline]
-    pub fn capacity(&self) -> usize {
+    pub fn get_capacity(&self) -> usize {
         self.records.len()
     }
 
@@ -203,6 +208,74 @@ impl<T> Pool<T> {
         }
         false
     }
+
+    pub fn iter(&self) -> PoolIterator<T> {
+        PoolIterator {
+            pool: self,
+            current: 0,
+        }
+    }
+
+    pub fn iter_mut(&mut self) -> PoolIteratorMut<T> {
+        unsafe {
+            PoolIteratorMut {
+                ptr: self.records.as_mut_ptr(),
+                end: self.records.as_mut_ptr().offset(self.records.len() as isize),
+                marker: PhantomData,
+            }
+        }
+    }
+}
+
+pub struct PoolIterator<'a, T> {
+    pool: &'a Pool<T>,
+    current: usize,
+}
+
+impl<'a, T> Iterator for PoolIterator<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<&'a T> {
+        loop {
+            match self.pool.records.get(self.current) {
+                Some(record) => {
+                    if let Some(payload) = &record.payload {
+                        self.current += 1;
+                        return Some(payload);
+                    }
+                    self.current += 1;
+                }
+                None => {
+                    return None;
+                }
+            }
+        }
+    }
+}
+
+pub struct PoolIteratorMut<'a, T> {
+    ptr: *mut PoolRecord<T>,
+    end: *mut PoolRecord<T>,
+    marker: PhantomData<&'a mut T>,
+}
+
+impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<&'a mut T> {
+        unsafe {
+            while self.ptr != self.end {
+                let current = &mut *self.ptr;
+                if let Some(ref mut payload) = current.payload {
+                    self.ptr = self.ptr.offset(1);
+                    return Some(payload);
+                }
+                self.ptr = self.ptr.offset(1);
+            }
+
+            None
+        }
+    }
 }
 
 #[test]
@@ -224,4 +297,16 @@ fn pool_sanity_tests() {
     assert_eq!(at_foobar_index.index, 0);
     assert_ne!(at_foobar_index.generation, Pool::<String>::INVALID_GENERATION);
     assert_eq!(pool.borrow(&at_foobar_index).unwrap(), "AtFoobarIndex");
+}
+
+#[test]
+fn pool_iterator_mut_test() {
+    let mut pool: Pool<String> = Pool::new();
+    pool.spawn(format!("Foobar"));
+    let d = pool.spawn(format!("Foo"));
+    pool.free(d);
+    pool.spawn(format!("Baz"));
+    for s in pool.iter_mut() {
+        println!("{}", s);
+    }
 }

@@ -7,9 +7,11 @@ pub mod ray;
 pub mod plane;
 pub mod triangulator;
 
+use serde::{Serialize, Deserialize};
 use vec2::*;
 use vec3::*;
 
+#[derive(Serialize, Deserialize)]
 pub struct Rect<T> {
     pub x: T,
     pub y: T,
