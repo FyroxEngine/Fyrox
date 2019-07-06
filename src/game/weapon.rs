@@ -22,8 +22,13 @@ pub struct Weapon {
 
 impl Weapon {
     pub fn new(kind: WeaponKind, state: &mut State, scene: &mut Scene) -> Weapon {
+        let model_path = match kind {
+            WeaponKind::Ak47 => Path::new("data/models/ak47.fbx"),
+            WeaponKind::M4 => Path::new("data/models/m4.fbx"),
+        };
+
         let mut weapon_model = Handle::none();
-        let model_resource_handle = state.request_resource(Path::new("data/models/ak47.fbx"));
+        let model_resource_handle = state.request_resource(model_path);
         if let Some(resource) = state.get_resource_manager().borrow_resource(&model_resource_handle) {
             if let ResourceKind::Model(model) = resource.borrow_kind() {
                 weapon_model = model.instantiate(state, scene);
@@ -49,7 +54,7 @@ impl Weapon {
         self.offset.y += (self.dest_offset.y - self.offset.y) * 0.2;
         self.offset.z += (self.dest_offset.z - self.offset.z) * 0.2;
 
-        if let Some(node) = scene.borrow_node_mut(&self.model) {
+        if let Some(node) = scene.get_node_mut(&self.model) {
             node.set_local_position(self.offset);
         }
     }

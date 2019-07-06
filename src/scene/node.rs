@@ -57,7 +57,7 @@ pub struct Camera {
 
 impl Default for Camera {
     fn default() -> Camera {
-        let fov: f32 = 45.0;
+        let fov: f32 = 75.0;
         let z_near: f32 = 0.025;
         let z_far: f32 = 2048.0;
 
@@ -169,6 +169,8 @@ pub struct Node {
     rotation_pivot: Vec3,
     scaling_offset: Vec3,
     scaling_pivot: Vec3,
+    pub(super) visibility: bool,
+    pub(super) global_visibility: bool,
     pub(super) parent: Handle<Node>,
     pub(crate) children: Vec<Handle<Node>>,
     pub(super) local_transform: Mat4,
@@ -192,6 +194,8 @@ impl Node {
             rotation_pivot: Vec3::new(),
             scaling_offset: Vec3::new(),
             scaling_pivot: Vec3::new(),
+            visibility: true,
+            global_visibility: true,
             local_transform: Mat4::identity(),
             global_transform: Mat4::identity(),
             body: Handle::none()
@@ -238,6 +242,8 @@ impl Node {
             scaling_pivot: self.scaling_pivot,
             local_transform: self.local_transform,
             global_transform: self.global_transform,
+            visibility: self.visibility,
+            global_visibility: self.global_visibility,
             children: Vec::new(),
             parent: Handle::none(),
             body: Handle::none()
@@ -302,6 +308,21 @@ impl Node {
     #[inline]
     pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) {
         self.scaling_pivot = scaling_pivot;
+    }
+
+    #[inline]
+    pub fn set_visibility(&mut self, visibility: bool) {
+        self.visibility = visibility;
+    }
+
+    #[inline]
+    pub fn get_visibility(&self) -> bool {
+        self.visibility
+    }
+
+    #[inline]
+    pub fn get_global_visibility(&self) -> bool {
+        self.global_visibility
     }
 
     #[inline]

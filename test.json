@@ -59,6 +59,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 0
@@ -85,7 +87,7 @@
                       "generation": 1
                     },
                     {
-                      "index": 324,
+                      "index": 325,
                       "generation": 1
                     }
                   ],
@@ -188,6 +190,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 1
@@ -297,6 +301,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 1,
                     "generation": 1
@@ -797,6 +803,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -901,6 +909,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1005,6 +1015,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1109,6 +1121,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1213,6 +1227,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1317,6 +1333,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1421,6 +1439,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1525,6 +1545,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1629,6 +1651,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1733,6 +1757,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1837,6 +1863,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -1941,6 +1969,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2060,6 +2090,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2164,6 +2196,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2268,6 +2302,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2372,6 +2408,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2476,6 +2514,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2580,6 +2620,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2684,6 +2726,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2788,6 +2832,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2892,6 +2938,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -2996,6 +3044,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3100,6 +3150,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3204,6 +3256,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3308,6 +3362,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3412,6 +3468,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3516,6 +3574,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3620,6 +3680,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3724,6 +3786,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3828,6 +3892,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -3932,6 +3998,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4036,6 +4104,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4140,6 +4210,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4244,6 +4316,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4348,6 +4422,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4452,6 +4528,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4556,6 +4634,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4660,6 +4740,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4764,6 +4846,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4868,6 +4952,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -4972,6 +5058,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5076,6 +5164,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5180,6 +5270,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5284,6 +5376,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5388,6 +5482,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5492,6 +5588,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5596,6 +5694,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5700,6 +5800,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5804,6 +5906,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -5908,6 +6012,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6012,6 +6118,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6116,6 +6224,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6235,6 +6345,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6339,6 +6451,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6458,6 +6572,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6577,6 +6693,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6696,6 +6814,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6815,6 +6935,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -6934,6 +7056,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -7053,6 +7177,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 2,
                     "generation": 1
@@ -7157,6 +7283,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 1
@@ -7266,6 +7394,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 63,
                     "generation": 1
@@ -7394,6 +7524,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 64,
                     "generation": 1
@@ -7498,6 +7630,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 64,
                     "generation": 1
@@ -7615,6 +7749,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 66,
                     "generation": 1
@@ -7724,6 +7860,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 67,
                     "generation": 1
@@ -7833,6 +7971,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 68,
                     "generation": 1
@@ -7950,6 +8090,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 69,
                     "generation": 1
@@ -8059,6 +8201,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 70,
                     "generation": 1
@@ -8183,6 +8327,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 71,
                     "generation": 1
@@ -8287,6 +8433,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 69,
                     "generation": 1
@@ -8396,6 +8544,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 73,
                     "generation": 1
@@ -8505,6 +8655,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 74,
                     "generation": 1
@@ -8614,6 +8766,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 75,
                     "generation": 1
@@ -8743,6 +8897,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 76,
                     "generation": 1
@@ -8852,6 +9008,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 77,
                     "generation": 1
@@ -8961,6 +9119,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 78,
                     "generation": 1
@@ -9065,6 +9225,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 76,
                     "generation": 1
@@ -9174,6 +9336,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 80,
                     "generation": 1
@@ -9283,6 +9447,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 81,
                     "generation": 1
@@ -9392,6 +9558,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 82,
                     "generation": 1
@@ -9496,6 +9664,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 76,
                     "generation": 1
@@ -9605,6 +9775,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 84,
                     "generation": 1
@@ -9714,6 +9886,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 85,
                     "generation": 1
@@ -9823,6 +9997,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 86,
                     "generation": 1
@@ -9927,6 +10103,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 76,
                     "generation": 1
@@ -10036,6 +10214,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 88,
                     "generation": 1
@@ -10145,6 +10325,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 89,
                     "generation": 1
@@ -10254,6 +10436,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 90,
                     "generation": 1
@@ -10358,6 +10542,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 76,
                     "generation": 1
@@ -10467,6 +10653,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 92,
                     "generation": 1
@@ -10576,6 +10764,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 93,
                     "generation": 1
@@ -10685,6 +10875,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 94,
                     "generation": 1
@@ -10804,6 +10996,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 76,
                     "generation": 1
@@ -10908,6 +11102,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 69,
                     "generation": 1
@@ -11017,6 +11213,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 97,
                     "generation": 1
@@ -11126,6 +11324,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 98,
                     "generation": 1
@@ -11235,6 +11435,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 99,
                     "generation": 1
@@ -11360,6 +11562,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 100,
                     "generation": 1
@@ -11469,6 +11673,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 101,
                     "generation": 1
@@ -11578,6 +11784,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 102,
                     "generation": 1
@@ -11682,6 +11890,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 100,
                     "generation": 1
@@ -11791,6 +12001,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 104,
                     "generation": 1
@@ -11900,6 +12112,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 105,
                     "generation": 1
@@ -12009,6 +12223,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 106,
                     "generation": 1
@@ -12113,6 +12329,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 100,
                     "generation": 1
@@ -12222,6 +12440,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 108,
                     "generation": 1
@@ -12331,6 +12551,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 109,
                     "generation": 1
@@ -12440,6 +12662,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 110,
                     "generation": 1
@@ -12544,6 +12768,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 100,
                     "generation": 1
@@ -12653,6 +12879,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 112,
                     "generation": 1
@@ -12762,6 +12990,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 113,
                     "generation": 1
@@ -12871,6 +13101,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 114,
                     "generation": 1
@@ -12975,6 +13207,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 100,
                     "generation": 1
@@ -13084,6 +13318,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 116,
                     "generation": 1
@@ -13193,6 +13429,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 117,
                     "generation": 1
@@ -13302,6 +13540,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 118,
                     "generation": 1
@@ -13406,6 +13646,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 66,
                     "generation": 1
@@ -13515,6 +13757,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 120,
                     "generation": 1
@@ -13624,6 +13868,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 121,
                     "generation": 1
@@ -13733,6 +13979,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 122,
                     "generation": 1
@@ -13837,6 +14085,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 66,
                     "generation": 1
@@ -13946,6 +14196,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 124,
                     "generation": 1
@@ -14055,6 +14307,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 125,
                     "generation": 1
@@ -14164,6 +14418,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 126,
                     "generation": 1
@@ -14268,6 +14524,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 1
@@ -14377,6 +14635,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 128,
                     "generation": 1
@@ -14505,6 +14765,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 129,
                     "generation": 1
@@ -14609,6 +14871,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 129,
                     "generation": 1
@@ -14726,6 +14990,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 131,
                     "generation": 1
@@ -14835,6 +15101,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 132,
                     "generation": 1
@@ -14944,6 +15212,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 133,
                     "generation": 1
@@ -15061,6 +15331,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 134,
                     "generation": 1
@@ -15170,6 +15442,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 135,
                     "generation": 1
@@ -15294,6 +15568,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 136,
                     "generation": 1
@@ -15398,6 +15674,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 134,
                     "generation": 1
@@ -15507,6 +15785,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 138,
                     "generation": 1
@@ -15616,6 +15896,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 139,
                     "generation": 1
@@ -15725,6 +16007,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 140,
                     "generation": 1
@@ -15854,6 +16138,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 141,
                     "generation": 1
@@ -15963,6 +16249,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 142,
                     "generation": 1
@@ -16072,6 +16360,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 143,
                     "generation": 1
@@ -16176,6 +16466,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 141,
                     "generation": 1
@@ -16285,6 +16577,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 145,
                     "generation": 1
@@ -16394,6 +16688,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 146,
                     "generation": 1
@@ -16503,6 +16799,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 147,
                     "generation": 1
@@ -16607,6 +16905,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 141,
                     "generation": 1
@@ -16716,6 +17016,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 149,
                     "generation": 1
@@ -16825,6 +17127,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 150,
                     "generation": 1
@@ -16934,6 +17238,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 151,
                     "generation": 1
@@ -17038,6 +17344,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 141,
                     "generation": 1
@@ -17147,6 +17455,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 153,
                     "generation": 1
@@ -17256,6 +17566,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 154,
                     "generation": 1
@@ -17365,6 +17677,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 155,
                     "generation": 1
@@ -17469,6 +17783,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 141,
                     "generation": 1
@@ -17578,6 +17894,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 157,
                     "generation": 1
@@ -17687,6 +18005,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 158,
                     "generation": 1
@@ -17796,6 +18116,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 159,
                     "generation": 1
@@ -17915,6 +18237,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 141,
                     "generation": 1
@@ -18019,6 +18343,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 134,
                     "generation": 1
@@ -18128,6 +18454,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 162,
                     "generation": 1
@@ -18237,6 +18565,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 163,
                     "generation": 1
@@ -18346,6 +18676,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 164,
                     "generation": 1
@@ -18471,6 +18803,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 165,
                     "generation": 1
@@ -18580,6 +18914,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 166,
                     "generation": 1
@@ -18689,6 +19025,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 167,
                     "generation": 1
@@ -18793,6 +19131,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 165,
                     "generation": 1
@@ -18902,6 +19242,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 169,
                     "generation": 1
@@ -19011,6 +19353,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 170,
                     "generation": 1
@@ -19120,6 +19464,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 171,
                     "generation": 1
@@ -19224,6 +19570,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 165,
                     "generation": 1
@@ -19333,6 +19681,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 173,
                     "generation": 1
@@ -19442,6 +19792,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 174,
                     "generation": 1
@@ -19551,6 +19903,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 175,
                     "generation": 1
@@ -19655,6 +20009,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 165,
                     "generation": 1
@@ -19764,6 +20120,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 177,
                     "generation": 1
@@ -19873,6 +20231,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 178,
                     "generation": 1
@@ -19982,6 +20342,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 179,
                     "generation": 1
@@ -20086,6 +20448,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 165,
                     "generation": 1
@@ -20195,6 +20559,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 181,
                     "generation": 1
@@ -20304,6 +20670,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 182,
                     "generation": 1
@@ -20413,6 +20781,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 183,
                     "generation": 1
@@ -20517,6 +20887,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 131,
                     "generation": 1
@@ -20626,6 +20998,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 185,
                     "generation": 1
@@ -20735,6 +21109,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 186,
                     "generation": 1
@@ -20844,6 +21220,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 187,
                     "generation": 1
@@ -20948,6 +21326,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 131,
                     "generation": 1
@@ -21057,6 +21437,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 189,
                     "generation": 1
@@ -21166,6 +21548,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 190,
                     "generation": 1
@@ -21275,6 +21659,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 191,
                     "generation": 1
@@ -21379,6 +21765,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 1
@@ -21488,6 +21876,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 193,
                     "generation": 1
@@ -21616,6 +22006,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 194,
                     "generation": 1
@@ -21720,6 +22112,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 194,
                     "generation": 1
@@ -21837,6 +22231,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 196,
                     "generation": 1
@@ -21946,6 +22342,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 197,
                     "generation": 1
@@ -22055,6 +22453,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 198,
                     "generation": 1
@@ -22172,6 +22572,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 199,
                     "generation": 1
@@ -22281,6 +22683,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 200,
                     "generation": 1
@@ -22405,6 +22809,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 201,
                     "generation": 1
@@ -22509,6 +22915,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 199,
                     "generation": 1
@@ -22618,6 +23026,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 203,
                     "generation": 1
@@ -22727,6 +23137,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 204,
                     "generation": 1
@@ -22836,6 +23248,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 205,
                     "generation": 1
@@ -22965,6 +23379,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 206,
                     "generation": 1
@@ -23074,6 +23490,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 207,
                     "generation": 1
@@ -23183,6 +23601,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 208,
                     "generation": 1
@@ -23287,6 +23707,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 206,
                     "generation": 1
@@ -23396,6 +23818,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 210,
                     "generation": 1
@@ -23505,6 +23929,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 211,
                     "generation": 1
@@ -23614,6 +24040,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 212,
                     "generation": 1
@@ -23718,6 +24146,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 206,
                     "generation": 1
@@ -23827,6 +24257,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 214,
                     "generation": 1
@@ -23936,6 +24368,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 215,
                     "generation": 1
@@ -24045,6 +24479,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 216,
                     "generation": 1
@@ -24149,6 +24585,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 206,
                     "generation": 1
@@ -24258,6 +24696,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 218,
                     "generation": 1
@@ -24367,6 +24807,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 219,
                     "generation": 1
@@ -24476,6 +24918,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 220,
                     "generation": 1
@@ -24580,6 +25024,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 206,
                     "generation": 1
@@ -24689,6 +25135,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 222,
                     "generation": 1
@@ -24798,6 +25246,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 223,
                     "generation": 1
@@ -24907,6 +25357,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 224,
                     "generation": 1
@@ -25026,6 +25478,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 206,
                     "generation": 1
@@ -25130,6 +25584,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 199,
                     "generation": 1
@@ -25239,6 +25695,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 227,
                     "generation": 1
@@ -25348,6 +25806,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 228,
                     "generation": 1
@@ -25457,6 +25917,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 229,
                     "generation": 1
@@ -25582,6 +26044,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 230,
                     "generation": 1
@@ -25691,6 +26155,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 231,
                     "generation": 1
@@ -25800,6 +26266,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 232,
                     "generation": 1
@@ -25904,6 +26372,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 230,
                     "generation": 1
@@ -26013,6 +26483,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 234,
                     "generation": 1
@@ -26122,6 +26594,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 235,
                     "generation": 1
@@ -26231,6 +26705,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 236,
                     "generation": 1
@@ -26335,6 +26811,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 230,
                     "generation": 1
@@ -26444,6 +26922,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 238,
                     "generation": 1
@@ -26553,6 +27033,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 239,
                     "generation": 1
@@ -26662,6 +27144,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 240,
                     "generation": 1
@@ -26766,6 +27250,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 230,
                     "generation": 1
@@ -26875,6 +27361,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 242,
                     "generation": 1
@@ -26984,6 +27472,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 243,
                     "generation": 1
@@ -27093,6 +27583,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 244,
                     "generation": 1
@@ -27197,6 +27689,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 230,
                     "generation": 1
@@ -27306,6 +27800,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 246,
                     "generation": 1
@@ -27415,6 +27911,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 247,
                     "generation": 1
@@ -27524,6 +28022,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 248,
                     "generation": 1
@@ -27628,6 +28128,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 196,
                     "generation": 1
@@ -27737,6 +28239,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 250,
                     "generation": 1
@@ -27846,6 +28350,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 251,
                     "generation": 1
@@ -27955,6 +28461,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 252,
                     "generation": 1
@@ -28059,6 +28567,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 196,
                     "generation": 1
@@ -28168,6 +28678,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 254,
                     "generation": 1
@@ -28277,6 +28789,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 255,
                     "generation": 1
@@ -28386,6 +28900,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 256,
                     "generation": 1
@@ -28490,6 +29006,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 1
@@ -28599,6 +29117,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 258,
                     "generation": 1
@@ -28727,6 +29247,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 259,
                     "generation": 1
@@ -28831,6 +29353,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 259,
                     "generation": 1
@@ -28948,6 +29472,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 261,
                     "generation": 1
@@ -29057,6 +29583,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 262,
                     "generation": 1
@@ -29166,6 +29694,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 263,
                     "generation": 1
@@ -29283,6 +29813,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 264,
                     "generation": 1
@@ -29392,6 +29924,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 265,
                     "generation": 1
@@ -29516,6 +30050,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 266,
                     "generation": 1
@@ -29620,6 +30156,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 264,
                     "generation": 1
@@ -29729,6 +30267,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 268,
                     "generation": 1
@@ -29838,6 +30378,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 269,
                     "generation": 1
@@ -29947,6 +30489,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 270,
                     "generation": 1
@@ -30076,6 +30620,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 271,
                     "generation": 1
@@ -30185,6 +30731,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 272,
                     "generation": 1
@@ -30294,6 +30842,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 273,
                     "generation": 1
@@ -30398,6 +30948,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 271,
                     "generation": 1
@@ -30507,6 +31059,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 275,
                     "generation": 1
@@ -30616,6 +31170,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 276,
                     "generation": 1
@@ -30725,6 +31281,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 277,
                     "generation": 1
@@ -30829,6 +31387,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 271,
                     "generation": 1
@@ -30938,6 +31498,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 279,
                     "generation": 1
@@ -31047,6 +31609,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 280,
                     "generation": 1
@@ -31156,6 +31720,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 281,
                     "generation": 1
@@ -31260,6 +31826,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 271,
                     "generation": 1
@@ -31369,6 +31937,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 283,
                     "generation": 1
@@ -31478,6 +32048,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 284,
                     "generation": 1
@@ -31587,6 +32159,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 285,
                     "generation": 1
@@ -31691,6 +32265,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 271,
                     "generation": 1
@@ -31800,6 +32376,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 287,
                     "generation": 1
@@ -31909,6 +32487,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 288,
                     "generation": 1
@@ -32018,6 +32598,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 289,
                     "generation": 1
@@ -32137,6 +32719,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 271,
                     "generation": 1
@@ -32241,6 +32825,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 264,
                     "generation": 1
@@ -32350,6 +32936,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 292,
                     "generation": 1
@@ -32459,6 +33047,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 293,
                     "generation": 1
@@ -32568,6 +33158,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 294,
                     "generation": 1
@@ -32693,6 +33285,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 295,
                     "generation": 1
@@ -32802,6 +33396,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 296,
                     "generation": 1
@@ -32911,6 +33507,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 297,
                     "generation": 1
@@ -33015,6 +33613,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 295,
                     "generation": 1
@@ -33124,6 +33724,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 299,
                     "generation": 1
@@ -33233,6 +33835,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 300,
                     "generation": 1
@@ -33342,6 +33946,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 301,
                     "generation": 1
@@ -33446,6 +34052,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 295,
                     "generation": 1
@@ -33555,6 +34163,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 303,
                     "generation": 1
@@ -33664,6 +34274,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 304,
                     "generation": 1
@@ -33773,6 +34385,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 305,
                     "generation": 1
@@ -33877,6 +34491,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 295,
                     "generation": 1
@@ -33986,6 +34602,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 307,
                     "generation": 1
@@ -34095,6 +34713,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 308,
                     "generation": 1
@@ -34204,6 +34824,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 309,
                     "generation": 1
@@ -34308,6 +34930,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 295,
                     "generation": 1
@@ -34417,6 +35041,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 311,
                     "generation": 1
@@ -34526,6 +35152,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 312,
                     "generation": 1
@@ -34635,6 +35263,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 313,
                     "generation": 1
@@ -34739,6 +35369,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 261,
                     "generation": 1
@@ -34848,6 +35480,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 315,
                     "generation": 1
@@ -34957,6 +35591,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 316,
                     "generation": 1
@@ -35066,6 +35702,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 317,
                     "generation": 1
@@ -35170,6 +35808,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 261,
                     "generation": 1
@@ -35279,6 +35919,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 319,
                     "generation": 1
@@ -35388,6 +36030,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 320,
                     "generation": 1
@@ -35497,6 +36141,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 321,
                     "generation": 1
@@ -35554,7 +36200,7 @@
                   "name": "Node",
                   "kind": {
                     "Camera": {
-                      "fov": 45.0,
+                      "fov": 75.0,
                       "z_near": 0.025,
                       "z_far": 2048.0,
                       "viewport": {
@@ -35585,12 +36231,12 @@
                       },
                       "projection_matrix": {
                         "f": [
-                          2.4142134,
+                          1.3032254,
                           0.0,
                           0.0,
                           0.0,
                           0.0,
-                          2.4142134,
+                          1.3032254,
                           0.0,
                           0.0,
                           0.0,
@@ -35605,6 +36251,117 @@
                       }
                     }
                   },
+                  "local_scale": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                  },
+                  "local_position": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "local_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "pre_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 324,
+                    "generation": 1
+                  },
+                  "children": [
+                    {
+                      "index": 326,
+                      "generation": 1
+                    }
+                  ],
+                  "local_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "Node",
+                  "kind": "Base",
                   "local_scale": {
                     "x": 1.0,
                     "y": 1.0,
@@ -35653,13 +36410,15 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
-                    "index": 324,
+                    "index": 325,
                     "generation": 1
                   },
                   "children": [
                     {
-                      "index": 325,
+                      "index": 323,
                       "generation": 1
                     }
                   ],
@@ -35762,13 +36521,15 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 0,
                     "generation": 1
                   },
                   "children": [
                     {
-                      "index": 323,
+                      "index": 324,
                       "generation": 1
                     }
                   ],
@@ -35871,123 +36632,20 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 323,
                     "generation": 1
                   },
                   "children": [
                     {
-                      "index": 326,
-                      "generation": 1
-                    }
-                  ],
-                  "local_transform": {
-                    "f": [
-                      1.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.0
-                    ]
-                  },
-                  "global_transform": {
-                    "f": [
-                      1.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      0.0,
-                      1.0
-                    ]
-                  },
-                  "body": {
-                    "index": 0,
-                    "generation": 0
-                  }
-                }
-              },
-              {
-                "generation": 1,
-                "payload": {
-                  "name": "Node",
-                  "kind": "Base",
-                  "local_scale": {
-                    "x": 1.0,
-                    "y": 1.0,
-                    "z": 1.0
-                  },
-                  "local_position": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0
-                  },
-                  "local_rotation": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
-                    "w": 1.0
-                  },
-                  "pre_rotation": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
-                    "w": 1.0
-                  },
-                  "post_rotation": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0,
-                    "w": 1.0
-                  },
-                  "rotation_offset": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0
-                  },
-                  "rotation_pivot": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0
-                  },
-                  "scaling_offset": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0
-                  },
-                  "scaling_pivot": {
-                    "x": 0.0,
-                    "y": 0.0,
-                    "z": 0.0
-                  },
-                  "parent": {
-                    "index": 325,
-                    "generation": 1
-                  },
-                  "children": [
-                    {
                       "index": 327,
                       "generation": 1
+                    },
+                    {
+                      "index": 330,
+                      "generation": 1
                     }
                   ],
                   "local_transform": {
@@ -36089,6 +36747,8 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
                     "index": 326,
                     "generation": 1
@@ -36096,6 +36756,117 @@
                   "children": [
                     {
                       "index": 328,
+                      "generation": 1
+                    }
+                  ],
+                  "local_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "Node",
+                  "kind": "Base",
+                  "local_scale": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                  },
+                  "local_position": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "local_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "pre_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 327,
+                    "generation": 1
+                  },
+                  "children": [
+                    {
+                      "index": 329,
                       "generation": 1
                     }
                   ],
@@ -36233,8 +37004,10 @@
                     "y": 0.0,
                     "z": 0.0
                   },
+                  "visibility": true,
+                  "global_visibility": true,
                   "parent": {
-                    "index": 327,
+                    "index": 328,
                     "generation": 1
                   },
                   "children": [],
@@ -36275,6 +37048,599 @@
                       0.0,
                       -0.017313927,
                       0.112273276,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "Node",
+                  "kind": "Base",
+                  "local_scale": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                  },
+                  "local_position": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "local_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "pre_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 326,
+                    "generation": 1
+                  },
+                  "children": [
+                    {
+                      "index": 331,
+                      "generation": 1
+                    }
+                  ],
+                  "local_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "Node",
+                  "kind": "Base",
+                  "local_scale": {
+                    "x": 1.0,
+                    "y": 1.0,
+                    "z": 1.0
+                  },
+                  "local_position": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "local_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "pre_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 330,
+                    "generation": 1
+                  },
+                  "children": [
+                    {
+                      "index": 332,
+                      "generation": 1
+                    },
+                    {
+                      "index": 333,
+                      "generation": 1
+                    },
+                    {
+                      "index": 334,
+                      "generation": 1
+                    }
+                  ],
+                  "local_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "M4A1_Sopmod_Magazine",
+                  "kind": {
+                    "Mesh": {
+                      "surfaces": [
+                        {
+                          "data": {
+                            "index": 29,
+                            "generation": 1
+                          },
+                          "texture": {
+                            "index": 15,
+                            "generation": 1
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "local_scale": {
+                    "x": 0.0066246046,
+                    "y": 0.0075803064,
+                    "z": 0.008305216
+                  },
+                  "local_position": {
+                    "x": -0.000030046009,
+                    "y": -0.042818666,
+                    "z": 0.19639665
+                  },
+                  "local_rotation": {
+                    "x": -2.161684e-23,
+                    "y": -1.110223e-16,
+                    "z": 1.0,
+                    "w": 1.9470718e-7
+                  },
+                  "pre_rotation": {
+                    "x": -0.70710677,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 0.70710677
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 331,
+                    "generation": 1
+                  },
+                  "children": [],
+                  "local_transform": {
+                    "f": [
+                      -0.0066246046,
+                      0.0,
+                      -2.5797162e-9,
+                      0.0,
+                      -2.9518803e-9,
+                      -1.6831661e-18,
+                      0.0075803064,
+                      0.0,
+                      -7.181301e-25,
+                      0.008305216,
+                      1.8441285e-18,
+                      0.0,
+                      -0.000030046009,
+                      -0.042818666,
+                      0.19639665,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      -0.0066246046,
+                      0.0,
+                      -2.5797162e-9,
+                      0.0,
+                      -2.9518803e-9,
+                      -1.6831661e-18,
+                      0.0075803064,
+                      0.0,
+                      -7.181301e-25,
+                      0.008305216,
+                      1.8441285e-18,
+                      0.0,
+                      -0.000030046009,
+                      -0.042818666,
+                      0.19639665,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "M4A1_Sopmod_Iron_Sight",
+                  "kind": {
+                    "Mesh": {
+                      "surfaces": [
+                        {
+                          "data": {
+                            "index": 30,
+                            "generation": 1
+                          },
+                          "texture": {
+                            "index": 16,
+                            "generation": 1
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "local_scale": {
+                    "x": 0.0055409507,
+                    "y": 0.0038130144,
+                    "z": 0.0038130144
+                  },
+                  "local_position": {
+                    "x": -0.000030025694,
+                    "y": 0.018460788,
+                    "z": 0.15327261
+                  },
+                  "local_rotation": {
+                    "x": -2.161684e-23,
+                    "y": -1.110223e-16,
+                    "z": 1.0,
+                    "w": 1.9470718e-7
+                  },
+                  "pre_rotation": {
+                    "x": -0.70710677,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 0.70710677
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 331,
+                    "generation": 1
+                  },
+                  "children": [],
+                  "local_transform": {
+                    "f": [
+                      -0.0055409507,
+                      0.0,
+                      -2.1577258e-9,
+                      0.0,
+                      -1.4848426e-9,
+                      -8.4665927e-19,
+                      0.0038130144,
+                      0.0,
+                      -3.2970128e-25,
+                      0.0038130144,
+                      8.4665927e-19,
+                      0.0,
+                      -0.000030025694,
+                      0.018460788,
+                      0.15327261,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      -0.0055409507,
+                      0.0,
+                      -2.1577258e-9,
+                      0.0,
+                      -1.4848426e-9,
+                      -8.4665927e-19,
+                      0.0038130144,
+                      0.0,
+                      -3.2970128e-25,
+                      0.0038130144,
+                      8.4665927e-19,
+                      0.0,
+                      -0.000030025694,
+                      0.018460788,
+                      0.15327261,
+                      1.0
+                    ]
+                  },
+                  "body": {
+                    "index": 0,
+                    "generation": 0
+                  }
+                }
+              },
+              {
+                "generation": 1,
+                "payload": {
+                  "name": "M4A1_Sopmod_Body",
+                  "kind": {
+                    "Mesh": {
+                      "surfaces": [
+                        {
+                          "data": {
+                            "index": 31,
+                            "generation": 1
+                          },
+                          "texture": {
+                            "index": 17,
+                            "generation": 1
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "local_scale": {
+                    "x": 0.009874027,
+                    "y": 0.007987243,
+                    "z": 0.007987243
+                  },
+                  "local_position": {
+                    "x": -0.0011837904,
+                    "y": -0.004187621,
+                    "z": 0.1750561
+                  },
+                  "local_rotation": {
+                    "x": -2.161684e-23,
+                    "y": -1.110223e-16,
+                    "z": 1.0,
+                    "w": 1.9470718e-7
+                  },
+                  "pre_rotation": {
+                    "x": -0.70710677,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 0.70710677
+                  },
+                  "post_rotation": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0,
+                    "w": 1.0
+                  },
+                  "rotation_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "rotation_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_offset": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "scaling_pivot": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "z": 0.0
+                  },
+                  "visibility": true,
+                  "global_visibility": true,
+                  "parent": {
+                    "index": 331,
+                    "generation": 1
+                  },
+                  "children": [],
+                  "local_transform": {
+                    "f": [
+                      -0.009874027,
+                      0.0,
+                      -3.8450882e-9,
+                      0.0,
+                      -3.1103473e-9,
+                      -1.7735242e-18,
+                      0.007987243,
+                      0.0,
+                      -6.9063584e-25,
+                      0.007987243,
+                      1.7735242e-18,
+                      0.0,
+                      -0.0011837904,
+                      -0.004187621,
+                      0.1750561,
+                      1.0
+                    ]
+                  },
+                  "global_transform": {
+                    "f": [
+                      -0.009874027,
+                      0.0,
+                      -3.8450882e-9,
+                      0.0,
+                      -3.1103473e-9,
+                      -1.7735242e-18,
+                      0.007987243,
+                      0.0,
+                      -6.9063584e-25,
+                      0.007987243,
+                      1.7735242e-18,
+                      0.0,
+                      -0.0011837904,
+                      -0.004187621,
+                      0.1750561,
                       1.0
                     ]
                   },
@@ -117180,6 +118546,27 @@
       {
         "generation": 1,
         "ref_count": 5,
+        "payload": {
+          "need_upload": true
+        }
+      },
+      {
+        "generation": 1,
+        "ref_count": 2,
+        "payload": {
+          "need_upload": true
+        }
+      },
+      {
+        "generation": 1,
+        "ref_count": 2,
+        "payload": {
+          "need_upload": true
+        }
+      },
+      {
+        "generation": 1,
+        "ref_count": 2,
         "payload": {
           "need_upload": true
         }

@@ -31,7 +31,7 @@ impl Level {
 
             // Create collision geometry
             let polygon_handle = scene.find_node_by_name(&map_root_handle, "Polygon");
-            if let Some(polygon) = scene.borrow_node(&polygon_handle) {
+            if let Some(polygon) = scene.get_node(&polygon_handle) {
                 let global_transform = polygon.global_transform.clone();
                 let mut static_geometry = StaticGeometry::new();
                 if let NodeKind::Mesh(mesh) = polygon.borrow_kind() {
@@ -75,7 +75,7 @@ impl Level {
             }
         }
         for (i, handle) in ripper_handles.iter().enumerate() {
-            if let Some(node) = scene.borrow_node_mut(&handle) {
+            if let Some(node) = scene.get_node_mut(&handle) {
                 node.set_local_position(Vec3::make(-0.25, 0.0, 3.0 - i as f32 * 1.75));
             }
         }

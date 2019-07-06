@@ -29,12 +29,13 @@ impl Game {
         let mut engine = Engine::new();
         let level = Level::new(&mut engine);
 
+        /*
         match File::create(Path::new("test.json")) {
             Err(_) => println!("unable to create a save"),
             Ok(file) => {
                 serde_json::to_writer_pretty(file, engine.get_state()).unwrap();
             }
-        }
+        }*/
 
         Game {
             engine,

@@ -64,12 +64,12 @@ impl Scene {
     }
 
     #[inline]
-    pub fn borrow_node(&self, handle: &Handle<Node>) -> Option<&Node> {
+    pub fn get_node(&self, handle: &Handle<Node>) -> Option<&Node> {
         self.nodes.borrow(handle)
     }
 
     #[inline]
-    pub fn borrow_node_mut(&mut self, handle: &Handle<Node>) -> Option<&mut Node> {
+    pub fn get_node_mut(&mut self, handle: &Handle<Node>) -> Option<&mut Node> {
         self.nodes.borrow_mut(handle)
     }
 
@@ -138,7 +138,7 @@ impl Scene {
     /// This is relatively heavy operation!
     /// In case if some error happened it returns Handle::none
     pub fn copy_node(&self, root_handle: &Handle<Node>, state: &State, dest_scene: &mut Scene) -> Handle<Node> {
-        match self.borrow_node(root_handle) {
+        match self.get_node(root_handle) {
             Some(src_node) => {
                 let mut dest_node = src_node.make_copy(state);
                 if let Some(src_body) = self.physics.borrow_body(&src_node.get_body()) {
@@ -172,7 +172,7 @@ impl Scene {
         }
     }
 
-    pub fn calculate_transforms(&mut self) {
+    pub fn update_nodes(&mut self) {
         // Calculate transforms on nodes
         self.stack.clear();
         self.stack.push(self.root.clone());
@@ -185,14 +185,16 @@ impl Scene {
             }
 
             // Extract parent's global transform
-            let parent_global_transform =
-                match self.nodes.borrow_mut(&parent_handle) {
-                    Some(parent) => parent.global_transform,
-                    None => Mat4::identity()
-                };
+            let mut parent_global_transform = Mat4::identity();
+            let mut parent_visibility = true;
+            if let Some(parent) = self.nodes.borrow(&parent_handle) {
+                parent_global_transform = parent.global_transform;
+                parent_visibility = parent.global_visibility;
+            }
 
             if let Some(node) = self.nodes.borrow_mut(&handle) {
                 node.global_transform = parent_global_transform * node.local_transform;
+                node.global_visibility = parent_visibility && node.visibility;
 
                 // Queue children and continue traversal on them
                 for child_handle in node.children.iter() {
@@ -205,7 +207,7 @@ impl Scene {
     pub fn update(&mut self, aspect_ratio: f32, dt: f64) {
         self.update_physics(dt);
 
-        self.calculate_transforms();
+        self.update_nodes();
 
         for node in self.nodes.iter_mut() {
             let eye = node.get_global_position();

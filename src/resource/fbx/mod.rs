@@ -1198,7 +1198,7 @@ impl Fbx {
                 }
             }
         }
-        scene.calculate_transforms();
+        scene.update_nodes();
         Ok(root)
     }
 

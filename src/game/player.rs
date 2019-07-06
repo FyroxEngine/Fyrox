@@ -4,7 +4,7 @@ use crate::math::vec3::*;
 use crate::math::quat::*;
 use crate::scene::node::*;
 use crate::scene::*;
-use crate::physics::{Body};
+use crate::physics::Body;
 use crate::game::weapon::{Weapon, WeaponKind};
 use crate::engine::State;
 use crate::game::GameTime;
@@ -39,6 +39,7 @@ impl Default for Controller {
 
 pub struct Player {
     camera: Handle<Node>,
+    camera_pivot: Handle<Node>,
     pivot: Handle<Node>,
     body: Handle<Body>,
     weapon_pivot: Handle<Node>,
@@ -47,17 +48,24 @@ pub struct Player {
     dest_yaw: f32,
     pitch: f32,
     dest_pitch: f32,
-    stand_body_radius: f32,
     run_speed_multiplier: f32,
+    stand_body_radius: f32,
+    crouch_body_radius: f32,
     move_speed: f32,
     weapons: Vec<Weapon>,
-    current_weapon: usize
+    camera_offset: Vec3,
+    camera_dest_offset: Vec3,
+    current_weapon: usize,
 }
 
 impl Player {
     pub fn new(state: &mut State, scene: &mut Scene) -> Player {
-        let mut camera = Node::new(NodeKind::Camera(Camera::default()));
-        camera.set_local_position(Vec3 { x: 0.0, y: 1.0, z: 0.0 });
+        let camera_handle = scene.add_node(Node::new(NodeKind::Camera(Camera::default())));
+
+        let mut camera_pivot = Node::new(NodeKind::Base);
+        camera_pivot.set_local_position(Vec3 { x: 0.0, y: 1.0, z: 0.0 });
+        let camera_pivot_handle = scene.add_node(camera_pivot);
+        scene.link_nodes(&camera_handle, &camera_pivot_handle);
 
         let mut pivot = Node::new(NodeKind::Base);
         pivot.set_local_position(Vec3 { x: -1.0, y: 0.0, z: 1.0 });
@@ -68,9 +76,8 @@ impl Player {
         let body_handle = scene.get_physics_mut().add_body(body);
         pivot.set_body(body_handle.clone());
 
-        let camera_handle = scene.add_node(camera);
         let pivot_handle = scene.add_node(pivot);
-        scene.link_nodes(&camera_handle, &pivot_handle);
+        scene.link_nodes(&camera_pivot_handle, &pivot_handle);
 
         let mut weapon_pivot = Node::new(NodeKind::Base);
         weapon_pivot.set_local_position(Vec3::make(-0.065, -0.052, 0.02));
@@ -80,6 +87,7 @@ impl Player {
         let mut player = Player {
             camera: camera_handle,
             pivot: pivot_handle,
+            camera_pivot: camera_pivot_handle,
             controller: Controller::default(),
             stand_body_radius,
             dest_pitch: 0.0,
@@ -87,15 +95,21 @@ impl Player {
             move_speed: 0.058,
             body: body_handle,
             run_speed_multiplier: 1.75,
+            crouch_body_radius: 0.35,
             yaw: 0.0,
             pitch: 0.0,
             weapons: Vec::new(),
+            camera_dest_offset: Vec3::new(),
+            camera_offset: Vec3::new(),
             weapon_pivot: weapon_pivot_handle,
-            current_weapon: 0
+            current_weapon: 0,
         };
 
         let ak47 = Weapon::new(WeaponKind::Ak47, state, scene);
         player.add_weapon(scene, ak47);
+
+        let m4 = Weapon::new(WeaponKind::M4, state, scene);
+        player.add_weapon(scene, m4);
 
         player
     }
@@ -134,13 +148,14 @@ impl Player {
         let mut look = Vec3::zero();
         let mut side = Vec3::zero();
 
-        if let Some(pivot_node) = scene.borrow_node(&self.pivot) {
+        if let Some(pivot_node) = scene.get_node(&self.pivot) {
             look = pivot_node.get_look_vector();
             side = pivot_node.get_side_vector();
         }
 
         let has_ground_contact = self.has_ground_contact(scene);
 
+        let mut is_moving = false;
         if let Some(body) = scene.get_physics_mut().borrow_body_mut(&self.body) {
             let mut velocity = Vec3::new();
             if self.controller.move_forward {
@@ -166,6 +181,8 @@ impl Player {
             if let Some(normalized_velocity) = velocity.normalized() {
                 body.set_x_velocity(normalized_velocity.x * self.move_speed * speed_mult);
                 body.set_z_velocity(normalized_velocity.z * self.move_speed * speed_mult);
+
+                is_moving = true;
             }
 
             if self.controller.jump {
@@ -176,15 +193,35 @@ impl Player {
             }
         }
 
+        if has_ground_contact && is_moving {
+            let k = (time.elapsed * 15.0) as f32;
+            self.camera_dest_offset.x = 0.05 * (k * 0.5).cos();
+            self.camera_dest_offset.y = 0.1 * k.sin();
+        }
+
+        self.camera_offset.x += (self.camera_dest_offset.x - self.camera_offset.x) * 0.1;
+        self.camera_offset.y += (self.camera_dest_offset.y - self.camera_offset.y) * 0.1;
+        self.camera_offset.z += (self.camera_dest_offset.z - self.camera_offset.z) * 0.1;
+
+        if let Some(camera_node) = scene.get_node_mut(&self.camera) {
+            camera_node.set_local_position(self.camera_offset);
+        }
+
+        for (i, weapon) in self.weapons.iter().enumerate() {
+            if let Some(model) = scene.get_node_mut(&weapon.get_model()) {
+                model.set_visibility(i == self.current_weapon);
+            }
+        }
+
         self.yaw += (self.dest_yaw - self.yaw) * 0.2;
         self.pitch += (self.dest_pitch - self.pitch) * 0.2;
 
-        if let Some(pivot_node) = scene.borrow_node_mut(&self.pivot) {
+        if let Some(pivot_node) = scene.get_node_mut(&self.pivot) {
             pivot_node.set_local_rotation(Quat::from_axis_angle(Vec3::up(), self.yaw.to_radians()));
         }
 
-        if let Some(camera_node) = scene.borrow_node_mut(&self.camera) {
-            camera_node.set_local_rotation(Quat::from_axis_angle(Vec3::right(), self.pitch.to_radians()));
+        if let Some(camera_pivot) = scene.get_node_mut(&self.camera_pivot) {
+            camera_pivot.set_local_rotation(Quat::from_axis_angle(Vec3::right(), self.pitch.to_radians()));
         }
 
         if let Some(current_weapon) = self.weapons.get_mut(self.current_weapon) {
@@ -233,7 +270,20 @@ impl Player {
                                 self.controller.shoot = false;
                             }
                         }
-                    },
+                    }
+                    _ => ()
+                }
+            }
+
+            WindowEvent::MouseWheel { delta, .. } => {
+                match delta {
+                    MouseScrollDelta::LineDelta(_, y) => {
+                        if *y < 0.0 {
+                            self.prev_weapon();
+                        } else if *y > 0.0 {
+                            self.next_weapon();
+                        }
+                    }
                     _ => ()
                 }
             }
@@ -247,6 +297,7 @@ impl Player {
                                 VirtualKeyCode::S => self.controller.move_backward = true,
                                 VirtualKeyCode::A => self.controller.move_left = true,
                                 VirtualKeyCode::D => self.controller.move_right = true,
+                                VirtualKeyCode::C => self.controller.crouch = true,
                                 VirtualKeyCode::Space => self.controller.jump = true,
                                 VirtualKeyCode::LShift => self.controller.run = true,
                                 _ => ()
@@ -260,6 +311,7 @@ impl Player {
                                 VirtualKeyCode::S => self.controller.move_backward = false,
                                 VirtualKeyCode::A => self.controller.move_left = false,
                                 VirtualKeyCode::D => self.controller.move_right = false,
+                                VirtualKeyCode::C => self.controller.crouch = false,
                                 VirtualKeyCode::LShift => self.controller.run = false,
                                 _ => ()
                             }

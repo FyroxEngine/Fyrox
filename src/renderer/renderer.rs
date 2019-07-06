@@ -174,7 +174,7 @@ impl Renderer {
 
         Self {
             context,
-            events_loop: events_loop,
+            events_loop,
             flat_shader: GpuProgram::from_source(&vertex_source, &fragment_source).unwrap(),
             traversal_stack: Vec::new(),
             cameras: Vec::new(),
@@ -313,7 +313,7 @@ impl Renderer {
             self.traversal_stack.clear();
             self.traversal_stack.push(scene.root.clone());
             while let Some(node_handle) = self.traversal_stack.pop() {
-                if let Some(node) = scene.borrow_node(&node_handle) {
+                if let Some(node) = scene.get_node(&node_handle) {
                     match node.borrow_kind() {
                         NodeKind::Mesh(_) => self.meshes.push(node_handle),
                         NodeKind::Light(_) => self.lights.push(node_handle),
@@ -335,7 +335,7 @@ impl Renderer {
 
             // Render scene from each camera
             for camera_handle in self.cameras.iter() {
-                if let Some(camera_node) = scene.borrow_node(&camera_handle) {
+                if let Some(camera_node) = scene.get_node(&camera_handle) {
                     if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
 
                         // Setup viewport
@@ -351,7 +351,11 @@ impl Renderer {
                         let view_projection = camera.get_view_projection_matrix();
 
                         for mesh_handle in self.meshes.iter() {
-                            if let Some(node) = scene.borrow_node(&mesh_handle) {
+                            if let Some(node) = scene.get_node(&mesh_handle) {
+                                if !node.get_global_visibility() {
+                                    continue;
+                                }
+
                                 let mvp = view_projection * node.global_transform;
 
                                 unsafe {
