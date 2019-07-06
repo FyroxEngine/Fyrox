@@ -5,11 +5,9 @@ use crate::utils::pool::*;
 use crate::math::mat4::*;
 use node::*;
 use crate::physics::Physics;
-use std::cell::RefCell;
 
 use serde::{Serialize, Deserialize};
-use crate::renderer::surface::{SurfaceSharedData, Surface};
-use crate::utils::rcpool::RcPool;
+use crate::engine::State;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
@@ -21,13 +19,11 @@ pub struct Scene {
     /// to root.
     pub(crate) root: Handle<Node>,
 
+    physics: Physics,
+
     /// Tree traversal stack.
     #[serde(skip)]
     stack: Vec<Handle<Node>>,
-
-    surf_data_storage: RcPool<SurfaceSharedData>,
-
-    physics: Physics,
 }
 
 impl Scene {
@@ -39,7 +35,6 @@ impl Scene {
             nodes,
             stack: Vec::new(),
             root,
-            surf_data_storage: RcPool::new(),
             physics: Physics::new(),
         }
     }
@@ -55,17 +50,17 @@ impl Scene {
 
     /// Destroys node
     #[inline]
-    pub fn remove_node(&mut self, handle: Handle<Node>) {
-        if let Some(node) = self.nodes.borrow_mut(&handle) {
+    pub fn remove_node(&mut self, node_handle: Handle<Node>, state: &mut State) {
+        if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             self.physics.remove_body(node.get_body());
 
             if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
                 for surf in mesh.get_surfaces() {
-                    self.surf_data_storage.release(surf.get_data_handle());
+                    state.get_surface_data_storage_mut().release(surf.get_data_handle());
                 }
             }
         }
-        self.nodes.free(handle);
+        self.nodes.free(node_handle);
     }
 
     #[inline]
@@ -86,16 +81,6 @@ impl Scene {
     #[inline]
     pub fn get_physics_mut(&mut self) -> &mut Physics {
         &mut self.physics
-    }
-
-    #[inline]
-    pub fn get_surface_data_storage(&self) -> &RcPool<SurfaceSharedData> {
-        &self.surf_data_storage
-    }
-
-    #[inline]
-    pub fn get_surface_data_storage_mut(&mut self) -> &mut RcPool<SurfaceSharedData> {
-        &mut self.surf_data_storage
     }
 
     /// Links specified child with specified parent.
@@ -128,24 +113,52 @@ impl Scene {
     }
 
     /// Searches node with specified name starting from specified root node.
-    pub fn find_node_by_name(&self, root_node: &Handle<Node>, name: &str) -> Option<Handle<Node>> {
+    pub fn find_node_by_name(&self, root_node: &Handle<Node>, name: &str) -> Handle<Node> {
         match self.nodes.borrow(root_node) {
             Some(node) => {
                 if node.get_name() == name {
-                    Some(root_node.clone())
+                    root_node.clone()
                 } else {
-                    let mut result: Option<Handle<Node>> = None;
+                    let mut result: Handle<Node> = Handle::none();
                     for child in &node.children {
-                        if let Some(child_handle) = self.find_node_by_name(child, name) {
-                            result = Some(child_handle);
+                        let child_handle = self.find_node_by_name(child, name);
+                        if !child_handle.is_none() {
+                            result = child_handle.clone();
                             break;
                         }
                     }
                     result
                 }
             }
-            None => None
+            None => Handle::none()
         }
+    }
+
+    /// Creates a full copy of node with all children.
+    /// This is relatively heavy operation!
+    /// In case if some error happened it returns Handle::none
+    pub fn copy_node(&self, root_handle: &Handle<Node>, state: &State, dest_scene: &mut Scene) -> Handle<Node> {
+        match self.borrow_node(root_handle) {
+            Some(src_node) => {
+                let mut dest_node = src_node.make_copy(state);
+                if let Some(src_body) = self.physics.borrow_body(&src_node.get_body()) {
+                    dest_node.set_body(dest_scene.physics.add_body(src_body.make_copy()));
+                }
+                let dest_copy_handle = dest_scene.add_node(dest_node);
+                for src_child_handle in &src_node.children {
+                    let dest_child_handle = self.copy_node(src_child_handle, state, dest_scene);
+                    if !dest_child_handle.is_none() {
+                        dest_scene.link_nodes(&dest_child_handle, &dest_copy_handle);
+                    }
+                }
+                dest_copy_handle
+            }
+            None => Handle::none()
+        }
+    }
+
+    pub fn get_root(&self) -> Handle<Node> {
+        self.root.clone()
     }
 
     pub fn update_physics(&mut self, dt: f64) {
@@ -193,10 +206,6 @@ impl Scene {
         self.update_physics(dt);
 
         self.calculate_transforms();
-
-        for data in self.surf_data_storage.iter_mut() {
-            data.upload();
-        }
 
         for node in self.nodes.iter_mut() {
             let eye = node.get_global_position();

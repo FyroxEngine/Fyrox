@@ -1,16 +1,13 @@
 use crate::math::{vec2::*, vec3::*, vec4::*};
-use crate::renderer::renderer::*;
 use crate::renderer::gl;
 use crate::renderer::gl::types::*;
-use std::{ffi::c_void, rc::Rc, cell::RefCell, mem::size_of, fmt};
 use crate::resource::*;
 use serde::{Serialize, Deserialize};
-use crate::utils::pool::Handle;
-use crate::utils::rcpool::{RcPool, RcHandle};
-use crate::engine::ResourceManager;
+use crate::utils::rcpool::{RcHandle};
+use crate::engine::State;
 
 #[derive(Copy, Clone, Debug)]
-#[repr(C)]
+#[repr(C)] // OpenGL expects this structure packed as in C
 pub struct Vertex {
     pub position: Vec3,
     pub tex_coord: Vec2,
@@ -22,10 +19,15 @@ pub struct Vertex {
 
 #[derive(Serialize, Deserialize)]
 pub struct SurfaceSharedData {
-    need_upload: bool,
+    pub need_upload: bool,
+    #[serde(skip)]
     vbo: GLuint,
+    #[serde(skip)]
     vao: GLuint,
+    #[serde(skip)]
     ebo: GLuint,
+
+    // Skip vertices and indices for now, later it can be useful for dynamic surfaces.
     #[serde(skip)]
     vertices: Vec<Vertex>,
     #[serde(skip)]
@@ -59,6 +61,21 @@ impl SurfaceSharedData {
         self.vertices.push(vertex);
     }
 
+    #[inline]
+    pub fn get_vertex_array_object(&self) -> GLuint {
+        self.vao
+    }
+
+    #[inline]
+    pub fn get_vertex_buffer_object(&self) -> GLuint {
+        self.vbo
+    }
+
+    #[inline]
+    pub fn get_element_buffer_object(&self) -> GLuint {
+        self.ebo
+    }
+
     /// Inserts vertex or its index. Performs optimizing insertion with checking if such
     /// vertex already exists.
     #[inline]
@@ -88,64 +105,9 @@ impl SurfaceSharedData {
         self.indices.as_slice()
     }
 
-    pub fn upload(&mut self) {
-        if !self.need_upload {
-            return;
-        }
+    pub fn calculate_tangents(&self) {
 
-        let total_size_bytes = self.vertices.len() * std::mem::size_of::<Vertex>();
-
-        unsafe {
-            gl::BindVertexArray(self.vao);
-
-            // Upload indices
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                           (self.indices.len() * std::mem::size_of::<i32>()) as GLsizeiptr,
-                           self.indices.as_ptr() as *const GLvoid,
-                           gl::STATIC_DRAW);
-
-            // Upload vertices
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-            gl::BufferData(gl::ARRAY_BUFFER,
-                           total_size_bytes as GLsizeiptr,
-                           self.vertices.as_ptr() as *const GLvoid,
-                           gl::STATIC_DRAW);
-
-            let mut offset = 0;
-
-            // Positions
-            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(0);
-            offset += size_of::<Vec3>();
-
-            // Texture coordinates
-            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(1);
-            offset += size_of::<Vec2>();
-
-            // Normals
-            gl::VertexAttribPointer(2, 3, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(2);
-            offset += size_of::<Vec3>();
-
-            // Tangents
-            gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(3);
-
-            gl::BindVertexArray(0);
-
-            check_gl_error();
-        }
-
-        self.need_upload = false;
     }
-
-    pub fn calculate_tangents(&self) {}
 
     pub fn make_cube() -> Self {
         let mut data = Self::new();
@@ -388,14 +350,15 @@ impl Drop for SurfaceSharedData {
 #[derive(Serialize, Deserialize)]
 pub struct Surface {
     data: RcHandle<SurfaceSharedData>,
-    texture: Option<RcHandle<Resource>>,
+    texture: RcHandle<Resource>,
 }
 
 impl Surface {
+    #[inline]
     pub fn new(data: RcHandle<SurfaceSharedData>) -> Self {
         Self {
             data,
-            texture: Option::None,
+            texture: RcHandle::none(),
         }
     }
 
@@ -404,34 +367,21 @@ impl Surface {
         &self.data
     }
 
-    pub fn draw(&self, gfx_data: &RcPool<SurfaceSharedData>, resource_manager: &ResourceManager) {
-        unsafe {
-            if let Some(data) = gfx_data.borrow(&self.data) {
-                if !data.need_upload {
-                    if let Some(ref resource_handle) = self.texture {
-                        if let Some(resource) = resource_manager.borrow_resource(resource_handle) {
-                            if let ResourceKind::Texture(texture) = resource.borrow_kind() {
-                                gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                            } else {
-                                gl::BindTexture(gl::TEXTURE_2D, 0);
-                            }
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, 0);
-                        }
-                    } else {
-                        gl::BindTexture(gl::TEXTURE_2D, 0);
-                    }
-                    gl::BindVertexArray(data.vao);
-                    gl::DrawElements(gl::TRIANGLES,
-                                     data.indices.len() as GLint,
-                                     gl::UNSIGNED_INT,
-                                     std::ptr::null());
-                }
-            }
-        }
+    #[inline]
+    pub fn get_texture_resource_handle(&self) -> &RcHandle<Resource> {
+        &self.texture
     }
 
+    #[inline]
     pub fn set_texture(&mut self, tex: RcHandle<Resource>) {
-        self.texture = Some(tex);
+        self.texture = tex;
+    }
+
+    #[inline]
+    pub fn make_copy(&self, state: &State) -> Surface {
+        Surface {
+            data: state.get_surface_data_storage().share_handle(&self.data),
+            texture: state.get_resource_manager().share_resource_handle(&self.texture)
+        }
     }
 }

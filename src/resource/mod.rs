@@ -1,15 +1,19 @@
 pub mod texture;
 pub mod fbx;
+pub mod model;
+
 use std::path::*;
 use crate::resource::texture::*;
+use crate::resource::model::{Model};
 
 pub enum ResourceKind {
     Base,
-    Texture(Texture)
+    Texture(Texture),
+    Model(Model),
 }
 
 pub struct Resource {
-    pub(crate) path: PathBuf,
+    path: PathBuf,
     kind: ResourceKind
 }
 
@@ -21,11 +25,22 @@ impl Resource {
         }
     }
 
+    #[inline]
+    pub fn get_path(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    #[inline]
     pub fn borrow_kind(&self) -> &ResourceKind {
         &self.kind
     }
 
+    #[inline]
     pub fn borrow_kind_mut(&mut self) -> &mut ResourceKind {
         &mut self.kind
     }
+}
+
+pub trait ResourceBehavior {
+    fn load(&self);
 }

@@ -1,6 +1,6 @@
 use crate::math::vec3::*;
 use std::ops;
-use serde::{Serialize, Serializer, ser::SerializeSeq, Deserialize, Deserializer};
+use serde::{Serialize, Deserialize};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Quat {

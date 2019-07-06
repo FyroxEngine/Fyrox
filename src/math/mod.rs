@@ -11,7 +11,7 @@ use serde::{Serialize, Deserialize};
 use vec2::*;
 use vec3::*;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Rect<T> {
     pub x: T,
     pub y: T,

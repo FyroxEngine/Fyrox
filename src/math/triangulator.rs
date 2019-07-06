@@ -2,10 +2,8 @@
 /// Generic triangulator.
 ///
 
-use super::vec2::*;
-use super::vec3::*;
-use super::mat4::*;
-use super::quat::*;
+use crate::math::vec2::*;
+use crate::math::vec3::*;
 use crate::math;
 use std::fmt;
 
@@ -159,7 +157,7 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usi
                 if is_ear(&polygon, prev, ear, next) {
                     let prev_index = prev.index;
                     out_triangles.push((prev_index, ear.index, next.index));
-                    polygon.remove_vertex(ear.index);
+                    polygon.remove_vertex(ear_index);
                     ear_index = prev_index;
                     vertices_left -= 1;
                 } else {
@@ -217,6 +215,8 @@ fn ear_clip_test() {
     triangulate(polygon.as_slice(), &mut ref_indices);
     println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
+
+    use crate::math::{mat4::Mat4, quat::Quat};
 
     // Then compare previous result with series of rotated versions of the polygon
     // This could give false fails because of not sufficient precision of f32 when

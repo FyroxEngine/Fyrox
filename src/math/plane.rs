@@ -7,6 +7,15 @@ pub struct Plane {
     pub d: f32,
 }
 
+impl Default for Plane {
+    fn default() -> Self {
+        Plane {
+            normal: Vec3::make(0.0, 1.0, 0.0),
+            d: 0.0
+        }
+    }
+}
+
 impl Plane {
     /// Creates plane from a point and normal vector at that point.
     /// May fail if normal is degenerated vector.

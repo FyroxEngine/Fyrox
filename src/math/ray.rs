@@ -7,6 +7,15 @@ pub struct Ray {
     pub dir: Vec3,
 }
 
+impl Default for Ray {
+    fn default() -> Self {
+        Ray {
+            origin: Vec3::default(),
+            dir: Vec3::make(0.0, 0.0, 1.0),
+        }
+    }
+}
+
 impl Ray {
     /// Creates ray from two points. May fail if begin == end.
     #[inline]

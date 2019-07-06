@@ -8,14 +8,20 @@ pub struct Vec3 {
     pub z: f32,
 }
 
-impl Vec3 {
-    #[inline]
-    pub fn new() -> Self {
-        Vec3 {
+impl Default for Vec3 {
+    fn default() -> Self {
+        Self {
             x: 0.0,
             y: 0.0,
             z: 0.0,
         }
+    }
+}
+
+impl Vec3 {
+    #[inline]
+    pub fn new() -> Self {
+        Vec3::default()
     }
 
     #[inline]

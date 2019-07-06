@@ -3,6 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 use serde::{Serialize, Deserialize};
+use std::cell::Cell;
 
 ///
 /// RcPool allows to create as many objects as you want in contiguous memory
@@ -48,7 +49,7 @@ struct RcPoolRecord<T: Sized> {
     generation: u32,
     /// Actual amount of handles created for this record.
     /// Record will die only if there is no handles left.
-    ref_count: u32,
+    ref_count: Cell<u32>,
     /// Actual payload.
     payload: Option<T>,
 }
@@ -83,6 +84,10 @@ impl<T> RcHandle<T> {
         self.index == 0 && self.generation == RcPool::<T>::INVALID_GENERATION
     }
 
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
+    }
+
     fn make(index: u32, generation: u32) -> Self {
         RcHandle {
             index,
@@ -108,7 +113,7 @@ impl<T> RcPool<T> {
         if let Some(free_index) = self.free_stack.pop() {
             let record = &mut self.records[free_index as usize];
             record.generation += 1;
-            record.ref_count = 1;
+            record.ref_count.set(1);
             record.payload.replace(payload);
             return RcHandle {
                 index: free_index,
@@ -120,7 +125,7 @@ impl<T> RcPool<T> {
         // No free records, create new one
         let record = RcPoolRecord {
             generation: 1,
-            ref_count: 1,
+            ref_count: Cell::new(1),
             payload: Some(payload),
         };
 
@@ -135,19 +140,19 @@ impl<T> RcPool<T> {
         handle
     }
 
-    /// Creates copy of specified handle. May fail if handle is invalid.
-    ///
+    /// Creates copy of specified handle.
     /// Internally increases reference count of record.
-    pub fn share_handle(&mut self, handle: &RcHandle<T>) -> Option<RcHandle<T>> {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
-            record.ref_count += 1;
-            return Some(RcHandle {
+    /// If input handle was invalid then RcHandle::none will be returned.
+    pub fn share_handle(&self, handle: &RcHandle<T>) -> RcHandle<T> {
+        if let Some(record) = self.records.get(handle.index as usize) {
+            record.ref_count.set(record.ref_count.get() + 1);
+            return RcHandle {
                 index: handle.index,
                 generation: handle.generation,
                 type_marker: PhantomData,
-            });
+            };
         }
-        None
+        RcHandle::none()
     }
 
     #[inline]
@@ -178,8 +183,8 @@ impl<T> RcPool<T> {
     #[inline]
     pub fn release(&mut self, handle: &RcHandle<T>) {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
-            record.ref_count -= 1;
-            if record.ref_count == 0 {
+            record.ref_count.set(record.ref_count.get() - 1);
+            if record.ref_count.get() == 0 {
                 // Remember this index as free
                 self.free_stack.push(handle.index);
                 // Move out payload and drop it so it will be destroyed
@@ -214,14 +219,14 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
-    pub fn handle_from_index(&mut self, n: usize) -> Option<RcHandle<T>> {
+    pub fn handle_from_index(&mut self, n: usize) -> RcHandle<T> {
         if let Some(record) = self.records.get_mut(n) {
             if record.generation != 0 {
-                record.ref_count += 1;
-                return Some(RcHandle::make(n as u32, record.generation));
+                record.ref_count.set(record.ref_count.get() + 1);
+                return RcHandle::make(n as u32, record.generation);
             }
         }
-        None
+        RcHandle::none()
     }
 
     #[inline]
@@ -232,6 +237,7 @@ impl<T> RcPool<T> {
         false
     }
 
+    #[inline]
     pub fn iter(&self) -> RcPoolIterator<T> {
         RcPoolIterator {
             pool: self,
@@ -239,6 +245,7 @@ impl<T> RcPool<T> {
         }
     }
 
+    #[inline]
     pub fn iter_mut(&mut self) -> RcPoolIteratorMut<T> {
         unsafe {
             RcPoolIteratorMut {

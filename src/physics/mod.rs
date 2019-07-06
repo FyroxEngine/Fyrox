@@ -32,13 +32,21 @@ impl StaticGeometry {
 #[derive(Serialize, Deserialize)]
 pub struct StaticTriangle {
     points: [Vec3; 3],
+    #[serde(skip)]
     ca: Vec3,
+    #[serde(skip)]
     ba: Vec3,
+    #[serde(skip)]
     ca_dot_ca: f32,
+    #[serde(skip)]
     ca_dot_ba: f32,
+    #[serde(skip)]
     ba_dot_ba: f32,
+    #[serde(skip)]
     edges: [Ray; 3],
+    #[serde(skip)]
     inv_denom: f32,
+    #[serde(skip)]
     plane: Plane,
 }
 
@@ -110,6 +118,21 @@ impl Body {
             sqr_radius: 1.0,
             contacts: Vec::new(),
             speed_limit: 0.75,
+        }
+    }
+
+    #[inline]
+    pub fn make_copy(&self) -> Body {
+        Body {
+            position: self.position,
+            last_position: self.last_position,
+            acceleration: self.acceleration,
+            contacts: Vec::new(),
+            friction: self.friction,
+            gravity: self.gravity,
+            radius: self.radius,
+            sqr_radius: self.sqr_radius,
+            speed_limit: self.speed_limit
         }
     }
 
@@ -299,9 +322,7 @@ impl Physics {
         let air_friction = 0.003;
 
         for body in self.body_pool.iter_mut() {
-            if body.contacts.len() == 0 {
-                body.acceleration += body.gravity;
-            }
+            body.acceleration += body.gravity;
             body.verlet(dt2, air_friction);
 
             body.contacts.clear();

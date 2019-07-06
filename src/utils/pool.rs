@@ -192,13 +192,13 @@ impl<T> Pool<T> {
     }
 
     #[inline]
-    pub fn handle_from_index(&self, n: usize) -> Option<Handle<T>> {
+    pub fn handle_from_index(&self, n: usize) -> Handle<T> {
         if let Some(record) = self.records.get(n) {
             if record.generation != 0 {
-                return Some(Handle::make(n as u32, record.generation));
+                return Handle::make(n as u32, record.generation);
             }
         }
-        None
+        Handle::none()
     }
 
     #[inline]

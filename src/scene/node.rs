@@ -1,17 +1,14 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use crate::math::vec3::*;
 use crate::math::mat4::*;
 use crate::math::quat::*;
 use crate::renderer::surface::*;
-use std::any::Any;
 use crate::utils::pool::*;
 use crate::math::*;
 use crate::math::vec2::*;
-use crate::resource::*;
 use crate::physics::Body;
 
 use serde::{Serialize, Deserialize};
+use crate::engine::State;
 
 #[derive(Serialize, Deserialize)]
 pub struct Light {
@@ -19,20 +16,32 @@ pub struct Light {
     color: Vec3,
 }
 
-impl Light {
-    pub fn default() -> Light {
+impl Default for Light {
+    fn default() -> Light {
         Light {
             radius: 10.0,
             color: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
         }
     }
+}
 
+impl Light {
+    #[inline]
     pub fn set_radius(&mut self, radius: f32) {
         self.radius = radius;
     }
 
+    #[inline]
     pub fn set_color(&mut self, color: Vec3) {
         self.color = color;
+    }
+
+    #[inline]
+    pub fn make_copy(&self) -> Light {
+        Light {
+            radius: self.radius,
+            color: self.color
+        }
     }
 }
 
@@ -46,8 +55,8 @@ pub struct Camera {
     projection_matrix: Mat4,
 }
 
-impl Camera {
-    pub fn default() -> Camera {
+impl Default for Camera {
+    fn default() -> Camera {
         let fov: f32 = 45.0;
         let z_near: f32 = 0.025;
         let z_far: f32 = 2048.0;
@@ -61,7 +70,10 @@ impl Camera {
             viewport: Rect::<f32> { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
         }
     }
+}
 
+impl Camera {
+    #[inline]
     pub fn calculate_matrices(&mut self, pos: Vec3, look: Vec3, up: Vec3, aspect: f32) {
         if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
             self.view_matrix = view_matrix;
@@ -71,6 +83,7 @@ impl Camera {
         self.projection_matrix = Mat4::perspective(self.fov.to_radians(), aspect, self.z_near, self.z_far);
     }
 
+    #[inline]
     pub fn get_viewport_pixels(&self, client_size: Vec2) -> Rect<i32> {
         Rect {
             x: (self.viewport.x * client_size.x) as i32,
@@ -80,8 +93,21 @@ impl Camera {
         }
     }
 
+    #[inline]
     pub fn get_view_projection_matrix(&self) -> Mat4 {
         self.projection_matrix * self.view_matrix
+    }
+
+    #[inline]
+    pub fn make_copy(&self) -> Camera {
+        Camera {
+            fov: self.fov,
+            z_near: self.z_near,
+            z_far: self.z_far,
+            viewport: self.viewport,
+            view_matrix: self.view_matrix,
+            projection_matrix: self.projection_matrix,
+        }
     }
 }
 
@@ -90,23 +116,35 @@ pub struct Mesh {
     surfaces: Vec<Surface>
 }
 
-impl Mesh {
-    pub fn default() -> Mesh {
+impl Default for Mesh {
+    fn default() -> Mesh {
         Mesh {
             surfaces: Vec::new()
         }
     }
+}
 
+impl Mesh {
+    #[inline]
     pub fn get_surfaces(&self) -> &Vec<Surface> {
         &self.surfaces
     }
 
+    #[inline]
     pub fn get_surfaces_mut(&mut self) -> &mut Vec<Surface> {
         &mut self.surfaces
     }
 
+    #[inline]
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.push(surface);
+    }
+
+    #[inline]
+    pub fn make_copy(&self, state: &State) -> Mesh {
+        Mesh {
+            surfaces: self.surfaces.iter().map(|surf| surf.make_copy(state)).collect()
+        }
     }
 }
 
@@ -176,6 +214,34 @@ impl Node {
         self.local_transform = translation * rotation_offset * rotation_pivot *
             pre_rotation * rotation * post_rotation * rotation_pivot_inv *
             scale_offset * scale_pivot * scale * scale_pivot_inv;
+    }
+
+    /// Creates copy of node without copying children nodes and physics body.
+    /// Children nodes has to be copied explicitly.
+    pub fn make_copy(&self, state: &State) -> Node {
+        Node {
+            kind: match &self.kind {
+                NodeKind::Camera(camera) => NodeKind::Camera(camera.make_copy()),
+                NodeKind::Light(light) => NodeKind::Light(light.make_copy()),
+                NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.make_copy(state)),
+                NodeKind::Base => NodeKind::Base
+            },
+            name: self.name.clone(),
+            local_position: self.local_position,
+            local_scale: self.local_scale,
+            local_rotation: self.local_rotation,
+            pre_rotation: self.pre_rotation,
+            post_rotation: self.post_rotation,
+            rotation_offset: self.rotation_offset,
+            rotation_pivot: self.rotation_pivot,
+            scaling_offset: self.scaling_offset,
+            scaling_pivot: self.scaling_pivot,
+            local_transform: self.local_transform,
+            global_transform: self.global_transform,
+            children: Vec::new(),
+            parent: Handle::none(),
+            body: Handle::none()
+        }
     }
 
     #[inline]

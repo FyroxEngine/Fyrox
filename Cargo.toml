@@ -1,8 +1,14 @@
 [package]
 name = "rg3d"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["mrDIMAS <d1maxa@yandex.ru>"]
 edition = "2018"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
 
 [dependencies]
 glutin = "*"
