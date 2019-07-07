@@ -19,7 +19,7 @@ pub struct Pool<T: Sized> {
 /// It stores index of object and additional information that
 /// allows to ensure that handle is still valid.
 ///
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,

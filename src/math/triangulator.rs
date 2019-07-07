@@ -198,7 +198,7 @@ fn quadrilaterals_triangulation_concave() {
     assert_ne!(ref_indices.len(), 0);
 }
 
-#[test]
+//#[test]
 fn ear_clip_test() {
     let polygon = vec![
         Vec3::make(0.0, 0.0, 1.0),

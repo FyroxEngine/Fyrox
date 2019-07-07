@@ -11,12 +11,27 @@ use serde::{Serialize, Deserialize};
 use vec2::*;
 use vec3::*;
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct Rect<T> {
     pub x: T,
     pub y: T,
     pub w: T,
     pub h: T,
+}
+
+impl<T> Rect<T> where T: Default {
+    pub fn new(x: T, y: T, w: T, h: T) -> Rect<T> {
+        Rect { x, y, w, h }
+    }
+
+    pub fn default() -> Rect<T> {
+        Rect {
+            x: T::default(),
+            y: T::default(),
+            w: T::default(),
+            h: T::default(),
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
