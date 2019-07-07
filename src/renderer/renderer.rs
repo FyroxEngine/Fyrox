@@ -10,6 +10,11 @@ use crate::engine::{ResourceManager, State};
 use crate::math::{vec3::*};
 use crate::resource::ResourceKind;
 use std::mem::size_of;
+use crate::resource::ttf::Font;
+use crate::gui::draw::{DrawingContext, CommandKind, Color};
+use crate::math::mat4::Mat4;
+use image::ColorType;
+use std::path::PathBuf;
 
 // Welcome to the kingdom of Unsafe Code
 
@@ -96,10 +101,30 @@ impl Drop for GpuProgram {
     }
 }
 
+struct UIShader {
+    program: GpuProgram,
+    wvp_matrix: GLint,
+    diffuse_texture: GLint,
+}
+
+struct FlatShader {
+    program: GpuProgram,
+    wvp_matrix: GLint,
+    diffuse_texture: GLint,
+}
+
+struct UIRenderBuffers {
+    vbo: GLuint,
+    vao: GLuint,
+    ebo: GLuint,
+}
+
 pub struct Renderer {
     pub(crate) events_loop: glutin::EventsLoop,
     pub(crate) context: glutin::WindowedContext,
-    flat_shader: GpuProgram,
+    flat_shader: FlatShader,
+    ui_shader: UIShader,
+    white_dummy: GLuint,
 
     /// Separate lists of handles to nodes of specified kinds
     /// Used reduce tree traversal count, it will performed once.
@@ -110,78 +135,186 @@ pub struct Renderer {
 
     /// Scene graph traversal stack
     traversal_stack: Vec<Handle<Node>>,
+
+    ui_render_buffers: UIRenderBuffers,
+}
+
+fn create_flat_shader() -> FlatShader {
+    let fragment_source = CString::new(r#"
+        #version 330 core
+
+        uniform sampler2D diffuseTexture;
+
+        out vec4 FragColor;
+
+        in vec2 texCoord;
+
+        void main()
+        {
+            FragColor = texture(diffuseTexture, texCoord);
+        }
+        "#).unwrap();
+
+    let vertex_source = CString::new(r#"
+        #version 330 core
+
+        layout(location = 0) in vec3 vertexPosition;
+        layout(location = 1) in vec2 vertexTexCoord;
+
+        uniform mat4 worldViewProjection;
+
+        out vec2 texCoord;
+
+        void main()
+        {
+            texCoord = vertexTexCoord;
+            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
+        }
+        "#).unwrap();
+
+    let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
+    FlatShader {
+        wvp_matrix: program.get_uniform_location("worldViewProjection"),
+        diffuse_texture: program.get_uniform_location("diffuseTexture"),
+        program,
+    }
+}
+
+fn create_ui_shader() -> UIShader {
+    let fragment_source = CString::new(r#"
+        #version 330 core
+
+        uniform sampler2D diffuseTexture;
+
+        out vec4 FragColor;
+        in vec2 texCoord;
+        in vec4 color;
+
+        void main()
+        {
+            FragColor = color;
+            FragColor.a *= texture(diffuseTexture, texCoord).r;
+        };"#).unwrap();
+
+
+    let vertex_source = CString::new(r#"
+        #version 330 core
+
+        layout(location = 0) in vec3 vertexPosition;
+        layout(location = 1) in vec2 vertexTexCoord;
+        layout(location = 2) in vec4 vertexColor;
+
+        uniform mat4 worldViewProjection;
+
+        out vec2 texCoord;
+        out vec4 color;
+
+        void main()
+        {
+            texCoord = vertexTexCoord;
+            color = vertexColor;
+            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
+        };"#).unwrap();
+
+    let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
+    UIShader {
+        wvp_matrix: program.get_uniform_location("worldViewProjection"),
+        diffuse_texture: program.get_uniform_location("diffuseTexture"),
+        program,
+    }
+}
+
+fn create_ui_render_buffers() -> UIRenderBuffers {
+    unsafe {
+        let mut ui_render_buffers = UIRenderBuffers {
+            vbo: 0,
+            ebo: 0,
+            vao: 0,
+        };
+
+        gl::GenVertexArrays(1, &mut ui_render_buffers.vao);
+        gl::GenBuffers(1, &mut ui_render_buffers.vbo);
+        gl::GenBuffers(1, &mut ui_render_buffers.ebo);
+
+        ui_render_buffers
+    }
+}
+
+fn create_white_dummy() -> GLuint {
+    unsafe {
+        let mut texture: GLuint = 0;
+        let white_pixel: [Color; 1] = [Color { r: 255, g: 255, b: 255, a: 255 }; 1];
+        gl::GenTextures(1, &mut texture);
+
+        gl::BindTexture(gl::TEXTURE_2D, texture);
+        gl::TexImage2D(
+            gl::TEXTURE_2D,
+            0,
+            gl::RGBA as i32,
+            1,
+            1,
+            0,
+            gl::RGBA,
+            gl::UNSIGNED_BYTE,
+            white_pixel.as_ptr() as *const c_void,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_2D,
+            gl::TEXTURE_MAG_FILTER,
+            gl::LINEAR as i32,
+        );
+        gl::TexParameteri(
+            gl::TEXTURE_2D,
+            gl::TEXTURE_MIN_FILTER,
+            gl::LINEAR as i32,
+        );
+        gl::BindTexture(gl::TEXTURE_2D, 0);
+
+        texture
+    }
 }
 
 impl Renderer {
     pub fn new() -> Self {
-        let events_loop = glutin::EventsLoop::new();
-
-        let primary_monitor = events_loop.get_primary_monitor();
-        let mut monitor_dimensions = primary_monitor.get_dimensions();
-        monitor_dimensions.height = monitor_dimensions.height * 0.5;
-        monitor_dimensions.width = monitor_dimensions.width * 0.5;
-        let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
-
-        let window_builder = glutin::WindowBuilder::new()
-            .with_title("RG3D")
-            .with_dimensions(window_size)
-            .with_resizable(false);
-
-        let context = glutin::ContextBuilder::new()
-            .with_vsync(true)
-            .build_windowed(window_builder, &events_loop)
-            .unwrap();
-
         unsafe {
+            let events_loop = glutin::EventsLoop::new();
+
+            let primary_monitor = events_loop.get_primary_monitor();
+            let mut monitor_dimensions = primary_monitor.get_dimensions();
+            monitor_dimensions.height = monitor_dimensions.height * 0.5;
+            monitor_dimensions.width = monitor_dimensions.width * 0.5;
+            let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
+
+            let window_builder = glutin::WindowBuilder::new()
+                .with_title("RG3D")
+                .with_dimensions(window_size)
+                .with_resizable(false);
+
+            let context = glutin::ContextBuilder::new()
+                .with_vsync(true)
+                .build_windowed(window_builder, &events_loop)
+                .unwrap();
+
             context.make_current().unwrap();
-        }
+            gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
-        gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
-
-        unsafe {
             gl::Enable(gl::DEPTH_TEST);
-        }
 
-        println!("creating shaders...");
-
-        let fragment_source = CString::new(r#"
-            #version 330 core
-            uniform sampler2D diffuseTexture;
-            out vec4 FragColor;
-            in vec2 texCoord;
-            void main()
-            {
-                FragColor = texture(diffuseTexture, texCoord);
-            }"#
-        ).unwrap();
-
-        let vertex_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) in vec3 vertexPosition;
-            layout(location = 1) in vec2 vertexTexCoord;
-
-            uniform mat4 worldViewProjection;
-
-            out vec2 texCoord;
-
-            void main()
-            {
-                texCoord = vertexTexCoord;
-                gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-            }"#
-        ).unwrap();
-
-        Self {
-            context,
-            events_loop,
-            flat_shader: GpuProgram::from_source(&vertex_source, &fragment_source).unwrap(),
-            traversal_stack: Vec::new(),
-            cameras: Vec::new(),
-            lights: Vec::new(),
-            meshes: Vec::new(),
+            Self {
+                context,
+                events_loop,
+                flat_shader: create_flat_shader(),
+                ui_shader: create_ui_shader(),
+                traversal_stack: Vec::new(),
+                cameras: Vec::new(),
+                lights: Vec::new(),
+                meshes: Vec::new(),
+                white_dummy: create_white_dummy(),
+                ui_render_buffers: create_ui_render_buffers(),
+            }
         }
     }
+
 
     fn draw_surface(&self, surf: &Surface, data: &SurfaceSharedData, resource_manager: &ResourceManager) {
         unsafe {
@@ -189,10 +322,10 @@ impl Renderer {
                 if let ResourceKind::Texture(texture) = resource.borrow_kind() {
                     gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                 } else {
-                    gl::BindTexture(gl::TEXTURE_2D, 0);
+                    gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
                 }
             } else {
-                gl::BindTexture(gl::TEXTURE_2D, 0);
+                gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
             }
             gl::BindVertexArray(data.get_vertex_array_object());
             gl::DrawElements(gl::TRIANGLES,
@@ -253,6 +386,51 @@ impl Renderer {
         }
     }
 
+    pub fn upload_font_cache(&mut self, font_cache: &mut Pool<Font>) {
+        unsafe {
+            for font in font_cache.iter_mut() {
+                if font.get_texture_id() == 0 {
+                    let mut texture: GLuint = 0;
+                    gl::GenTextures(1, &mut texture);
+
+                    gl::BindTexture(gl::TEXTURE_2D, texture);
+
+                    let rgba_pixels: Vec<Color> = font.get_atlas_pixels().
+                        iter().map(|p| Color { r: *p, g: *p, b: *p, a: *p }).collect();
+
+                    gl::TexImage2D(
+                        gl::TEXTURE_2D,
+                        0,
+                        gl::RGBA as i32,
+                        font.get_atlas_size(),
+                        font.get_atlas_size(),
+                        0,
+                        gl::RGBA,
+                        gl::UNSIGNED_BYTE,
+                        rgba_pixels.as_ptr() as *const c_void,
+                    );
+                    gl::TexParameteri(
+                        gl::TEXTURE_2D,
+                        gl::TEXTURE_MAG_FILTER,
+                        gl::LINEAR as i32,
+                    );
+                    gl::TexParameteri(
+                        gl::TEXTURE_2D,
+                        gl::TEXTURE_MIN_FILTER,
+                        gl::LINEAR as i32,
+                    );
+                    gl::BindTexture(gl::TEXTURE_2D, 0);
+
+                    println!("font cache loaded! {}", texture);
+
+                    font.set_texture_id(texture);
+                }
+            }
+        }
+
+        check_gl_error();
+    }
+
     pub fn upload_resources(&mut self, state: &mut State) {
         state.get_resource_manager_mut().for_each_texture_mut(|texture| {
             if texture.need_upload {
@@ -296,77 +474,72 @@ impl Renderer {
         }
     }
 
-    pub fn render(&mut self, state: &State) {
-        let client_size = self.context.get_inner_size().unwrap();
-
+    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
         unsafe {
+            let client_size = self.context.get_inner_size().unwrap();
+
+
             gl::ClearColor(0.0, 0.63, 0.91, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-        }
 
-        for scene in state.get_scenes().iter() {
-            // Prepare for render - fill lists of nodes participating in rendering
-            // by traversing scene graph
-            self.meshes.clear();
-            self.lights.clear();
-            self.cameras.clear();
-            self.traversal_stack.clear();
-            self.traversal_stack.push(scene.root.clone());
-            while let Some(node_handle) = self.traversal_stack.pop() {
-                if let Some(node) = scene.get_node(&node_handle) {
-                    match node.borrow_kind() {
-                        NodeKind::Mesh(_) => self.meshes.push(node_handle),
-                        NodeKind::Light(_) => self.lights.push(node_handle),
-                        NodeKind::Camera(_) => self.cameras.push(node_handle),
-                        _ => ()
-                    }
-                    // Queue children for render
-                    for child_handle in node.children.iter() {
-                        self.traversal_stack.push(child_handle.clone());
+
+            for scene in state.get_scenes().iter() {
+                // Prepare for render - fill lists of nodes participating in rendering
+                // by traversing scene graph
+                self.meshes.clear();
+                self.lights.clear();
+                self.cameras.clear();
+                self.traversal_stack.clear();
+                self.traversal_stack.push(scene.root.clone());
+                while let Some(node_handle) = self.traversal_stack.pop() {
+                    if let Some(node) = scene.get_node(&node_handle) {
+                        match node.borrow_kind() {
+                            NodeKind::Mesh(_) => self.meshes.push(node_handle),
+                            NodeKind::Light(_) => self.lights.push(node_handle),
+                            NodeKind::Camera(_) => self.cameras.push(node_handle),
+                            _ => ()
+                        }
+                        // Queue children for render
+                        for child_handle in node.children.iter() {
+                            self.traversal_stack.push(child_handle.clone());
+                        }
                     }
                 }
-            }
 
-            unsafe {
-                gl::UseProgram(self.flat_shader.id);
-            }
+                gl::UseProgram(self.flat_shader.program.id);
 
-            let u_wvp = self.flat_shader.get_uniform_location("worldViewProjection");
+                // Render scene from each camera
+                for camera_handle in self.cameras.iter() {
+                    if let Some(camera_node) = scene.get_node(&camera_handle) {
+                        if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
 
-            // Render scene from each camera
-            for camera_handle in self.cameras.iter() {
-                if let Some(camera_node) = scene.get_node(&camera_handle) {
-                    if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
-
-                        // Setup viewport
-                        unsafe {
+                            // Setup viewport
                             let viewport = camera.get_viewport_pixels(
                                 Vec2 {
                                     x: client_size.width as f32,
                                     y: client_size.height as f32,
                                 });
                             gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
-                        }
 
-                        let view_projection = camera.get_view_projection_matrix();
 
-                        for mesh_handle in self.meshes.iter() {
-                            if let Some(node) = scene.get_node(&mesh_handle) {
-                                if !node.get_global_visibility() {
-                                    continue;
-                                }
+                            let view_projection = camera.get_view_projection_matrix();
 
-                                let mvp = view_projection * node.global_transform;
+                            for mesh_handle in self.meshes.iter() {
+                                if let Some(node) = scene.get_node(&mesh_handle) {
+                                    if !node.get_global_visibility() {
+                                        continue;
+                                    }
 
-                                unsafe {
-                                    gl::UseProgram(self.flat_shader.id);
-                                    gl::UniformMatrix4fv(u_wvp, 1, gl::FALSE, &mvp.f as *const GLfloat);
-                                }
+                                    let mvp = view_projection * node.global_transform;
 
-                                if let NodeKind::Mesh(mesh) = node.borrow_kind() {
-                                    for surface in mesh.get_surfaces().iter() {
-                                        if let Some(data) = state.get_surface_data_storage().borrow(surface.get_data_handle()) {
-                                            self.draw_surface(surface, data, state.get_resource_manager());
+                                    gl::UseProgram(self.flat_shader.program.id);
+                                    gl::UniformMatrix4fv(self.flat_shader.wvp_matrix, 1, gl::FALSE, &mvp.f as *const GLfloat);
+
+                                    if let NodeKind::Mesh(mesh) = node.borrow_kind() {
+                                        for surface in mesh.get_surfaces().iter() {
+                                            if let Some(data) = state.get_surface_data_storage().borrow(surface.get_data_handle()) {
+                                                self.draw_surface(surface, data, state.get_resource_manager());
+                                            }
                                         }
                                     }
                                 }
@@ -375,7 +548,113 @@ impl Renderer {
                     }
                 }
             }
+
+            // Render UI on top of everything
+            gl::Disable(gl::DEPTH_TEST);
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            gl::Enable(gl::STENCIL_TEST);
+            gl::Disable(gl::CULL_FACE);
+
+            gl::UseProgram(self.ui_shader.program.id);
+            gl::ActiveTexture(gl::TEXTURE0);
+
+            let index_bytes = drawing_context.get_indices_bytes();
+            let vertex_bytes = drawing_context.get_vertices_bytes();
+
+            /* upload to gpu */
+            gl::BindVertexArray(self.ui_render_buffers.vao);
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.ui_render_buffers.vbo);
+            gl::BufferData(gl::ARRAY_BUFFER, vertex_bytes, drawing_context.get_vertices_ptr(), gl::DYNAMIC_DRAW);
+
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ui_render_buffers.ebo);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, index_bytes, drawing_context.get_indices_ptr(), gl::DYNAMIC_DRAW);
+
+            let mut offset = 0;
+            gl::VertexAttribPointer(0,
+                                    2,
+                                    gl::FLOAT,
+                                    gl::FALSE,
+                                    drawing_context.get_vertex_size(),
+                                    offset as *const c_void);
+            gl::EnableVertexAttribArray(0);
+            offset += std::mem::size_of::<Vec2>();
+
+            gl::VertexAttribPointer(1,
+                                    2,
+                                    gl::FLOAT,
+                                    gl::FALSE,
+                                    drawing_context.get_vertex_size(),
+                                    offset as *const c_void);
+            gl::EnableVertexAttribArray(1);
+            offset += std::mem::size_of::<Vec2>();
+
+            gl::VertexAttribPointer(2,
+                                    4,
+                                    gl::UNSIGNED_BYTE,
+                                    gl::TRUE,
+                                    drawing_context.get_vertex_size(),
+                                    offset as *const c_void);
+            gl::EnableVertexAttribArray(2);
+
+            let ortho = Mat4::ortho(0.0,
+                                    client_size.width as f32,
+                                    client_size.height as f32,
+                                    0.0,
+                                    -1.0,
+                                    1.0);
+            gl::UniformMatrix4fv(self.ui_shader.wvp_matrix, 1, gl::FALSE, ortho.f.as_ptr() as *const f32);
+
+            for cmd in drawing_context.get_command_buffer() {
+                let index_count = cmd.get_triangle_count() * 3;
+                match cmd.get_kind() {
+                    CommandKind::Clip => {
+                        let is_root_nesting = cmd.get_nesting() == 1;
+                        if is_root_nesting {
+                            gl::Clear(gl::STENCIL_BUFFER_BIT);
+                        }
+                        if cmd.get_nesting() != 0 {
+                            gl::Enable(gl::STENCIL_TEST);
+                        } else {
+                            gl::Disable(gl::STENCIL_TEST);
+                        }
+                        gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
+                        // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
+                        gl::StencilFunc(gl::EQUAL, (cmd.get_nesting() - 1) as i32, 0xFF);
+                        gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
+                        // Draw clipping geometry to stencil buffer
+                        gl::StencilMask(0xFF);
+                    }
+                    CommandKind::Geometry => {
+                        // Make sure to draw geometry only on clipping geometry with current nesting level
+                        gl::StencilFunc(gl::EQUAL, cmd.get_nesting() as i32, 0xFF);
+
+                        if cmd.get_texture() != 0 {
+                            gl::ActiveTexture(gl::TEXTURE0);
+                            gl::Uniform1i(self.ui_shader.diffuse_texture, 0);
+                            gl::BindTexture(gl::TEXTURE_2D, cmd.get_texture());
+                        } else {
+                            gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
+                        }
+
+                        // Do not draw geometry to stencil buffer
+                        gl::StencilMask(0x00);
+                    }
+                }
+                gl::DrawElements(gl::TRIANGLES,
+                                 index_count as i32,
+                                 gl::UNSIGNED_INT,
+                                 (cmd.get_index_offset() * std::mem::size_of::<GLuint>()) as *const c_void);
+
+                gl::BindVertexArray(0);
+            }
+            gl::Disable(gl::STENCIL_TEST);
+            gl::Disable(gl::BLEND);
+            gl::Enable(gl::DEPTH_TEST);
         }
+
+        check_gl_error();
 
         self.context.swap_buffers().unwrap();
     }

@@ -1222,7 +1222,7 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
                      -> Result<Handle<Node>, String> {
     let start_time = Instant::now();
 
-    println!("FBX;Trying to load {:?}", path);
+    println!("FBX: Trying to load {:?}", path);
 
     let now = Instant::now();
     let ref mut fbx = read_ascii(path)?;
@@ -1236,7 +1236,7 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
     let result = fbx.convert(state, scene);
     println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
 
-    println!("FBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+    println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
 
     result
 }

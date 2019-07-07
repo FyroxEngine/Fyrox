@@ -6,10 +6,13 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/math/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/math/triangulator.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/triangulator.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/game/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/vec2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/vec2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/pool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/pool.rs" afterDir="false" />
     </list>
     <ignored path="$PROJECT_DIR$/target/" />
     <ignored path="$PROJECT_DIR$/out/" />
@@ -22,91 +25,91 @@
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
       <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/resource/texture.rs">
+        <entry file="file://$PROJECT_DIR$/src/resource/ttf.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="306">
-              <caret line="18" column="59" selection-start-line="18" selection-start-column="59" selection-end-line="18" selection-end-column="59" />
+            <state relative-caret-position="497">
+              <caret line="951" column="11" selection-start-line="951" selection-start-column="11" selection-end-line="951" selection-end-column="11" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/resource/fbx/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="883">
+              <caret line="1228" column="39" selection-start-line="1228" selection-start-column="39" selection-end-line="1228" selection-end-column="39" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/gui/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="830">
+              <caret line="148" column="63" selection-start-line="148" selection-start-column="63" selection-end-line="148" selection-end-column="63" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/gui/draw.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="850">
+              <caret line="335" column="67" selection-start-line="335" selection-start-column="67" selection-end-line="335" selection-end-column="67" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/renderer/gl.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="752">
+              <caret line="1033" column="54" selection-start-line="1033" selection-start-column="54" selection-end-line="1033" selection-end-column="54" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/renderer/renderer.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="694">
+              <caret line="403" column="31" selection-start-line="403" selection-start-column="31" selection-end-line="403" selection-end-column="31" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/renderer/surface.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="5817">
+              <caret line="367" column="5" selection-start-line="367" selection-start-column="5" selection-end-line="367" selection-end-column="5" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/engine/mod.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="1969">
+              <caret line="284" column="62" selection-start-line="284" selection-start-column="62" selection-end-line="284" selection-end-column="62" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/main.rs">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="357">
+              <caret line="21" column="8" selection-start-line="21" selection-start-column="8" selection-end-line="21" selection-end-column="8" />
             </state>
           </provider>
         </entry>
       </file>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/src/resource/ttf.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="539">
-              <caret line="133" column="31" lean-forward="true" selection-start-line="133" selection-start-column="31" selection-end-line="133" selection-end-column="31" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/game/mod.rs">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="68">
-              <caret line="4" column="4" selection-start-line="4" selection-start-column="4" selection-end-line="4" selection-end-column="4" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/utils/pool.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-935">
-              <caret line="45" column="34" lean-forward="true" selection-start-line="45" selection-start-column="34" selection-end-line="45" selection-end-column="34" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/math/mod.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="221">
-              <caret line="13" column="51" selection-start-line="13" selection-start-column="51" selection-end-line="13" selection-end-column="51" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/image-0.21.0/src/png.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="581">
-              <caret line="106" selection-start-line="106" selection-end-line="106" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libstd/path.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="335">
-              <caret line="2207" column="11" selection-start-line="2207" selection-start-column="11" selection-end-line="2207" selection-end-column="11" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/image-0.21.0/src/dynimage.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="327">
-              <caret line="763" column="7" selection-start-line="763" selection-start-column="7" selection-end-line="763" selection-end-column="7" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/image-0.21.0/src/ico/encoder.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="335">
-              <caret line="28" column="11" selection-start-line="28" selection-start-column="11" selection-end-line="28" selection-end-column="11" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/image-0.21.0/src/color.rs">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="153">
-              <caret line="9" column="9" selection-start-line="9" selection-start-column="9" selection-end-line="9" selection-end-column="9" />
+            <state relative-caret-position="446">
+              <caret line="59" column="101" selection-start-line="59" selection-start-column="101" selection-end-line="59" selection-end-column="101" />
             </state>
           </provider>
         </entry>
@@ -144,8 +147,14 @@
       <find>ttf_glyph-&gt;</find>
       <find>bitmap-&gt;</find>
       <find>node-&gt;</find>
-      <find>-&gt;</find>
       <find>glyph.bitmap_height</find>
+      <find>size-&gt;y</find>
+      <find>f;</find>
+      <find>-&gt;</find>
+      <find>cmd -&gt;</find>
+      <find>r -&gt;</find>
+      <find>gui_render_buffers</find>
+      <find>check_gl_error</find>
     </findStrings>
     <replaceStrings>
       <replace>b.</replace>
@@ -153,8 +162,12 @@
       <replace>RcPool</replace>
       <replace>RcPoolRecord</replace>
       <replace>glyph.</replace>
-      <replace>self.</replace>
+      <replace>rect-&gt;h</replace>
+      <replace>;</replace>
       <replace>.</replace>
+      <replace>cmd.</replace>
+      <replace>self.</replace>
+      <replace>ui_render_buffers</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -172,7 +185,6 @@
         <option value="$PROJECT_DIR$/src/renderer/mod.rs" />
         <option value="$PROJECT_DIR$/src/resource/texture.rs" />
         <option value="$PROJECT_DIR$/src/utils/persistent_pool.rs" />
-        <option value="$PROJECT_DIR$/src/math/vec2.rs" />
         <option value="$PROJECT_DIR$/src/math/vec4.rs" />
         <option value="$PROJECT_DIR$/src/scene/animation.rs" />
         <option value="$PROJECT_DIR$/src/utils/serialization.rs" />
@@ -184,23 +196,26 @@
         <option value="$PROJECT_DIR$/src/math/quat.rs" />
         <option value="$PROJECT_DIR$/src/physics/mod.rs" />
         <option value="$PROJECT_DIR$/src/resource/model.rs" />
-        <option value="$PROJECT_DIR$/src/engine/mod.rs" />
         <option value="$PROJECT_DIR$/src/renderer/surface.rs" />
         <option value="$PROJECT_DIR$/src/utils/rcpool.rs" />
         <option value="$PROJECT_DIR$/src/game/level.rs" />
         <option value="$PROJECT_DIR$/src/game/weapon.rs" />
         <option value="$PROJECT_DIR$/src/scene/node.rs" />
         <option value="$PROJECT_DIR$/src/scene/mod.rs" />
-        <option value="$PROJECT_DIR$/src/renderer/renderer.rs" />
         <option value="$PROJECT_DIR$/src/game/player.rs" />
-        <option value="$PROJECT_DIR$/src/main.rs" />
-        <option value="$PROJECT_DIR$/src/resource/mod.rs" />
-        <option value="$PROJECT_DIR$/src/game/mod.rs" />
-        <option value="$PROJECT_DIR$/src/resource/fbx/mod.rs" />
         <option value="$PROJECT_DIR$/src/math/triangulator.rs" />
-        <option value="$PROJECT_DIR$/src/math/mod.rs" />
         <option value="$PROJECT_DIR$/src/utils/pool.rs" />
+        <option value="$PROJECT_DIR$/src/resource/mod.rs" />
+        <option value="$PROJECT_DIR$/src/main.rs" />
+        <option value="$PROJECT_DIR$/src/math/vec2.rs" />
+        <option value="$PROJECT_DIR$/src/math/mod.rs" />
+        <option value="$PROJECT_DIR$/src/resource/fbx/mod.rs" />
+        <option value="$PROJECT_DIR$/src/gui/mod.rs" />
+        <option value="$PROJECT_DIR$/src/engine/mod.rs" />
         <option value="$PROJECT_DIR$/src/resource/ttf.rs" />
+        <option value="$PROJECT_DIR$/src/gui/draw.rs" />
+        <option value="$PROJECT_DIR$/src/renderer/renderer.rs" />
+        <option value="$PROJECT_DIR$/src/game/mod.rs" />
       </list>
     </option>
   </component>
@@ -214,7 +229,7 @@
     </treeState>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="width" value="1515" />
+    <option name="width" value="1280" />
     <option name="height" value="1400" />
   </component>
   <component name="ProjectView">
@@ -222,7 +237,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="PackagesPane" />
       <pane id="ProjectPane">
         <subPane>
@@ -247,6 +261,12 @@
               <item name="rg3d" type="462c0819:PsiDirectoryNode" />
               <item name="src" type="462c0819:PsiDirectoryNode" />
               <item name="game" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="rg3d" type="b2602c69:ProjectViewProjectNode" />
+              <item name="rg3d" type="462c0819:PsiDirectoryNode" />
+              <item name="src" type="462c0819:PsiDirectoryNode" />
+              <item name="gui" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="rg3d" type="b2602c69:ProjectViewProjectNode" />
@@ -300,10 +320,11 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1562500347805" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1562523886968" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/../Program Files/Git/bin/git.exe" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
     <property name="project.structure.last.edited" value="Project" />
@@ -325,7 +346,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Cargo Command.Test">
+  <component name="RunManager" selected="Cargo Command.Release">
     <configuration name="Debug" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
       <option name="command" value="run --package rg3d --bin rg3d" />
@@ -427,10 +448,10 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="0" width="1515" height="1400" extended-state="0" />
+    <frame x="0" y="0" width="1280" height="1400" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1766323" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.21393442" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Image Layers" order="2" />
       <window_info id="Designer" order="3" />
@@ -469,51 +490,8 @@
     <option name="FILTER_TARGETS" value="false" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/ops/arith.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="8755">
-          <caret line="515" column="7" selection-start-line="515" selection-start-column="7" selection-end-line="515" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/time.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-7939">
-          <caret line="326" column="17" selection-start-line="326" selection-start-column="17" selection-end-line="326" selection-end-column="17" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/utils/serialization.rs" />
-    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/serde-1.0.92/src/ser/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="327">
-          <caret line="1192" column="7" selection-start-line="1192" selection-start-column="7" selection-end-line="1192" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/default.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="335">
-          <caret line="83" column="10" selection-start-line="83" selection-start-column="10" selection-end-line="83" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/math/mat4.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="867">
-          <caret line="225" selection-start-line="225" selection-end-line="225" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/test.json">
       <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/liballoc/vec.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="30260">
-          <caret line="1780" column="37" selection-start-line="1780" selection-start-column="37" selection-end-line="1780" selection-end-column="37" />
-        </state>
-      </provider>
     </entry>
     <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/slice/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
@@ -547,13 +525,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="51">
           <caret line="3" selection-start-line="3" selection-end-line="3" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/math/vec3.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="10" selection-start-line="10" selection-end-line="18" selection-end-column="1" />
         </state>
       </provider>
     </entry>
@@ -620,31 +591,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/renderer/surface.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="6239">
-          <caret line="367" column="5" selection-start-line="367" selection-start-column="5" selection-end-line="367" selection-end-column="5" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/option.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="14416">
           <caret line="848" column="11" selection-start-line="848" selection-start-column="11" selection-end-line="848" selection-end-column="11" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/engine/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="327">
-          <caret line="73" column="99" selection-start-line="73" selection-start-column="99" selection-end-line="73" selection-end-column="99" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/scene/node.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="310">
-          <caret line="171" column="15" selection-start-line="171" selection-start-column="15" selection-end-line="171" selection-end-column="15" />
         </state>
       </provider>
     </entry>
@@ -655,24 +605,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/renderer/renderer.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="663">
-          <caret line="355" column="45" selection-start-line="355" selection-start-column="45" selection-end-line="355" selection-end-column="45" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/game/weapon.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="391">
           <caret line="23" column="82" selection-start-line="23" selection-start-column="82" selection-end-line="23" selection-end-column="82" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/main.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="442">
-          <caret line="26" column="1" selection-start-line="26" selection-start-column="1" selection-end-line="26" selection-end-column="1" />
         </state>
       </provider>
     </entry>
@@ -683,13 +619,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/resource/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="3" column="12" selection-start-line="3" selection-start-column="12" selection-end-line="3" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/game/player.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="3366">
@@ -697,24 +626,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/winit-0.19.0/src/events.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="4301">
-          <caret line="253" column="4" selection-start-line="253" selection-start-column="4" selection-end-line="253" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/cmp.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="335">
           <caret line="287" column="9" selection-start-line="287" selection-start-column="9" selection-end-line="287" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/resource/fbx/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="668">
-          <caret line="716" selection-start-line="716" selection-end-line="716" selection-end-column="48" />
         </state>
       </provider>
     </entry>
@@ -788,31 +703,143 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/math/mod.rs">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="221">
-          <caret line="13" column="51" selection-start-line="13" selection-start-column="51" selection-end-line="13" selection-end-column="51" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/utils/pool.rs">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-935">
-          <caret line="45" column="34" lean-forward="true" selection-start-line="45" selection-start-column="34" selection-end-line="45" selection-end-column="34" />
+          <caret line="45" column="34" selection-start-line="45" selection-start-column="34" selection-end-line="45" selection-end-column="34" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/game/mod.rs">
+    <entry file="file://$PROJECT_DIR$/src/resource/mod.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="68">
-          <caret line="4" column="4" selection-start-line="4" selection-start-column="4" selection-end-line="4" selection-end-column="4" />
+        <state relative-caret-position="204">
+          <caret line="12" column="17" selection-start-line="12" selection-start-column="17" selection-end-line="12" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/scene/node.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="15" column="4" selection-start-line="15" selection-start-column="4" selection-end-line="15" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/liballoc/vec.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="12172">
+          <caret line="716" column="11" selection-start-line="716" selection-start-column="11" selection-end-line="716" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/math/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="561">
+          <caret line="33" column="5" selection-start-line="33" selection-start-column="5" selection-end-line="33" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/math/vec2.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="238">
+          <caret line="14" column="9" selection-start-line="14" selection-start-column="9" selection-end-line="14" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/math/vec3.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1768">
+          <caret line="104" column="5" selection-start-line="92" selection-start-column="3" selection-end-line="104" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.cargo/registry/src/github.com-1ecc6299db9ec823/winit-0.19.0/src/events.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4539">
+          <caret line="267" column="9" selection-start-line="267" selection-start-column="9" selection-end-line="267" selection-end-column="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/mem.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="414">
+          <caret line="234" column="13" selection-start-line="234" selection-start-column="13" selection-end-line="234" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/resource/fbx/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="883">
+          <caret line="1228" column="39" selection-start-line="1228" selection-start-column="39" selection-end-line="1228" selection-end-column="39" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.rustup/toolchains/stable-x86_64-pc-windows-gnu/lib/rustlib/src/rust/src/libcore/intrinsics.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="839">
+          <caret line="667" column="11" selection-start-line="667" selection-start-column="11" selection-end-line="667" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/renderer/surface.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="5817">
+          <caret line="367" column="5" selection-start-line="367" selection-start-column="5" selection-end-line="367" selection-end-column="5" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/gui/draw.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="850">
+          <caret line="335" column="67" selection-start-line="335" selection-start-column="67" selection-end-line="335" selection-end-column="67" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/engine/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1969">
+          <caret line="284" column="62" selection-start-line="284" selection-start-column="62" selection-end-line="284" selection-end-column="62" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/resource/ttf.rs">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="539">
-          <caret line="133" column="31" lean-forward="true" selection-start-line="133" selection-start-column="31" selection-end-line="133" selection-end-column="31" />
+        <state relative-caret-position="497">
+          <caret line="951" column="11" selection-start-line="951" selection-start-column="11" selection-end-line="951" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/renderer/gl.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="752">
+          <caret line="1033" column="54" selection-start-line="1033" selection-start-column="54" selection-end-line="1033" selection-end-column="54" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/renderer/renderer.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="694">
+          <caret line="403" column="31" selection-start-line="403" selection-start-column="31" selection-end-line="403" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/main.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="357">
+          <caret line="21" column="8" selection-start-line="21" selection-start-column="8" selection-end-line="21" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/gui/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="830">
+          <caret line="148" column="63" selection-start-line="148" selection-start-column="63" selection-end-line="148" selection-end-column="63" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/game/mod.rs">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="446">
+          <caret line="59" column="101" selection-start-line="59" selection-start-column="101" selection-end-line="59" selection-end-column="101" />
         </state>
       </provider>
     </entry>

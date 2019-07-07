@@ -9,6 +9,8 @@ use crate::utils::rcpool::{RcPool, RcHandle};
 use std::collections::VecDeque;
 use crate::renderer::surface::SurfaceSharedData;
 use crate::resource::model::Model;
+use crate::resource::ttf::Font;
+use crate::gui::UserInterface;
 
 pub struct ResourceManager {
     resources: RcPool<Resource>,
@@ -202,16 +204,24 @@ pub struct Engine {
     state: State,
     events: VecDeque<glutin::Event>,
     running: bool,
+    font_cache: Pool<Font>,
+    default_font: Handle<Font>,
+    user_interface: UserInterface,
 }
 
 impl Engine {
     #[inline]
     pub fn new() -> Engine {
+        let mut font_cache = Pool::new();
         Engine {
             state: State::new(),
             renderer: Renderer::new(),
             events: VecDeque::new(),
             running: true,
+            default_font: font_cache.spawn(Font::load(
+                Path::new("data/fonts/font.ttf"), 18.0, (0..255).collect()).unwrap()),
+            font_cache,
+            user_interface: UserInterface::new()
         }
     }
 
@@ -248,9 +258,31 @@ impl Engine {
         });
     }
 
+    #[inline]
+    pub fn get_font(&self, font_handle: &Handle<Font>) -> Option<&Font> {
+        self.font_cache.borrow(font_handle)
+    }
+
+    #[inline]
+    pub fn get_default_font(&self) -> &Font {
+        self.font_cache.borrow(&self.default_font).unwrap()
+    }
+
+    #[inline]
+    pub fn get_ui(&self) -> &UserInterface {
+        &self.user_interface
+    }
+
+    #[inline]
+    pub fn get_ui_mut(&mut self) -> &mut UserInterface {
+        &mut self.user_interface
+    }
+
     pub fn render(&mut self) {
+        self.renderer.upload_font_cache(&mut self.font_cache);
         self.renderer.upload_resources(&mut self.state);
-        self.renderer.render(&self.state);
+        self.renderer.render(&self.state, &self.user_interface.get_drawing_context());
+        self.user_interface.get_drawing_context_mut().clear();
     }
 
     #[inline]

@@ -2,7 +2,7 @@
 
 use crate::math::vec2::Vec2;
 use std::cmp::Ordering;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::Read;
@@ -25,7 +25,7 @@ struct Polygon {
     points: Vec<Point>
 }
 
-struct FontGlyph {
+pub struct FontGlyph {
     bitmap_top: f32,
     bitmap_left: f32,
     bitmap_width: f32,
@@ -76,7 +76,7 @@ struct Bitmap {
     height: usize,
 }
 
-struct Font {
+pub struct Font {
     height: f32,
     glyphs: Vec<FontGlyph>,
     ascender: f32,
@@ -84,6 +84,7 @@ struct Font {
     line_gap: f32,
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
+    atlas_size: i32,
     texture_id: u32,
 }
 
@@ -243,7 +244,7 @@ fn fourcc(d: u8, c: u8, b: u8, a: u8) -> u32 {
     ((d as u32) << 24) | ((c as u32) << 16) | ((b as u32) << 8) | (a as u32)
 }
 
-fn segmented_mapping(subtable: *const u8, unicode: u32) -> u32 {
+fn segmented_mapping(subtable: *const u8, unicode: u32) -> usize {
     unsafe {
         let segment_count = (get_u16(subtable.offset(6)) / 2) as u32;
         let end_codes = subtable.offset(14);
@@ -264,10 +265,10 @@ fn segmented_mapping(subtable: *const u8, unicode: u32) -> u32 {
             if start_code <= unicode {
                 let range_offset = (get_u16(id_range_offset.offset(2 * segment as isize)) / 2) as u32;
                 if range_offset == 0 {
-                    return (unicode + get_u16(id_delta.offset(2 * segment as isize)) as u32) & 0xFFFF;
+                    return ((unicode + get_u16(id_delta.offset(2 * segment as isize)) as u32) & 0xFFFF) as usize;
                 } else {
                     let offset = 2 * (segment + range_offset + (unicode - start_code));
-                    return get_u16(id_range_offset.offset(offset as isize)) as u32;
+                    return get_u16(id_range_offset.offset(offset as isize)) as usize;
                 }
             }
         }
@@ -276,25 +277,25 @@ fn segmented_mapping(subtable: *const u8, unicode: u32) -> u32 {
     }
 }
 
-fn direct_mapping(subtable: *const u8, unicode: u32) -> u32 {
+fn direct_mapping(subtable: *const u8, unicode: u32) -> usize {
     unsafe {
         if unicode < 256 {
             let indices = subtable.offset(6);
-            return indices.offset(unicode as isize).read() as u32;
+            return indices.offset(unicode as isize).read() as usize;
         }
     }
 
     return 0;
 }
 
-fn dense_mapping(subtable: *const u8, unicode: u32) -> u32 {
+fn dense_mapping(subtable: *const u8, unicode: u32) -> usize {
     unsafe {
         let first = get_u16(subtable.offset(6)) as u32;
         let entry_count = get_u16(subtable.offset(8)) as u32;
         let indices = subtable.offset(10);
 
         if unicode > first && unicode < first + entry_count {
-            return get_u16(indices.offset(2 * (unicode - first) as isize)) as u32;
+            return get_u16(indices.offset(2 * (unicode - first) as isize)) as usize;
         }
     }
 
@@ -497,7 +498,7 @@ impl TrueType {
         }
     }
 
-    fn unicode_to_glyph_index(&self, unicode: u32) -> u32 {
+    fn unicode_to_glyph_index(&self, unicode: u32) -> usize {
         unsafe {
             let subtable_count = get_u16(self.cmap_table.offset(2));
             for i in 0..subtable_count {
@@ -889,6 +890,7 @@ impl Font {
                 char_map: HashMap::new(),
                 texture_id: 0,
                 atlas: Vec::new(),
+                atlas_size: 0,
             };
 
             for ttf_glyph in ttf.glyphs.iter() {
@@ -897,12 +899,61 @@ impl Font {
 
             font.pack();
 
+            for unicode in char_set {
+                let index = ttf.unicode_to_glyph_index(unicode);
+                font.char_map.insert(unicode, index);
+            }
+
             Some(font)
         } else {
             None
         }
     }
 
+    #[inline]
+    pub fn get_glyph(&self, unicode: char) -> Option<&FontGlyph> {
+        match self.char_map.get(&(unicode as u32)) {
+            Some(glyph_index) => self.glyphs.get(*glyph_index),
+            None => None
+        }
+    }
+
+    #[inline]
+    pub fn get_height(&self) -> f32 {
+        self.height
+    }
+
+    #[inline]
+    pub fn get_ascender(&self) -> f32 {
+        self.ascender
+    }
+
+    #[inline]
+    pub fn get_descender(&self) -> f32 {
+        self.descender
+    }
+
+    #[inline]
+    pub fn set_texture_id(&mut self, id: u32)  {
+        self.texture_id = id;
+    }
+
+    #[inline]
+    pub fn get_texture_id(&self) -> u32 {
+        self.texture_id
+    }
+
+    #[inline]
+    pub fn get_atlas_pixels(&self) -> &[u8] {
+        self.atlas.as_slice()
+    }
+
+    #[inline]
+    pub fn get_atlas_size(&self) -> i32 {
+        self.atlas_size
+    }
+
+    #[inline]
     fn compute_atlas_size(&self) -> i32 {
         let mut area = 0.0;
         for glyph in self.glyphs.iter() {
@@ -912,34 +963,26 @@ impl Font {
     }
 
     fn pack(&mut self) {
-        let atlas_size = self.compute_atlas_size();
+        self.atlas_size = self.compute_atlas_size();
 
-        self.atlas = vec![0; (atlas_size * atlas_size) as usize];
+        self.atlas = vec![0; (self.atlas_size * self.atlas_size) as usize];
 
-        let mut rect_packer = RectPacker::new(atlas_size, atlas_size);
+        let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
         for glyph in self.glyphs.iter_mut() {
-            
-            if let Some(bounds) = rect_packer.find_free(glyph.bitmap_width as i32, glyph.bitmap_height as i32) {            
-                let w = bounds.w as f32 / atlas_size as f32;
-                let h = bounds.h as f32 / atlas_size as f32;
-                let x = bounds.x as f32 / atlas_size as f32;
-                let y = bounds.y as f32 / atlas_size as f32;
-    
-                glyph.tex_coords[0].x = x;
-                glyph.tex_coords[0].y = y;
-    
-                glyph.tex_coords[1].x = x + w;
-                glyph.tex_coords[1].y = y;
-    
-                glyph.tex_coords[2].x = x + w;
-                glyph.tex_coords[2].y = y + h;
-    
-                glyph.tex_coords[3].x = x;
-                glyph.tex_coords[3].y = y + h;
-    
+            if let Some(bounds) = rect_packer.find_free(glyph.bitmap_width as i32, glyph.bitmap_height as i32) {
+                let w = bounds.w as f32 / self.atlas_size as f32;
+                let h = bounds.h as f32 / self.atlas_size as f32;
+                let x = bounds.x as f32 / self.atlas_size as f32;
+                let y = bounds.y as f32 / self.atlas_size as f32;
+
+                glyph.tex_coords[0] = Vec2 { x, y };
+                glyph.tex_coords[1] = Vec2 { x: x + w, y };
+                glyph.tex_coords[2] = Vec2 { x: x + w, y: y + h };
+                glyph.tex_coords[3] = Vec2 { x, y: y + h };
+
                 let row_end = bounds.y + bounds.h;
                 let col_end = bounds.x + bounds.w;
-    
+
                 // Copy glyph pixels to atlas pixels
                 let mut row = bounds.y;
                 let mut src_row = 0;
@@ -947,7 +990,7 @@ impl Font {
                     let mut col = bounds.x;
                     let mut src_col = 0;
                     while col < col_end {
-                        self.atlas[(row * atlas_size + col) as usize] = glyph.pixels[(src_row * bounds.w + src_col) as usize];
+                        self.atlas[(row * self.atlas_size + col) as usize] = glyph.pixels[(src_row * bounds.w + src_col) as usize];
                         col += 1;
                         src_col += 1;
                     }
@@ -959,22 +1002,61 @@ impl Font {
                 println!("Insufficient atlas size!");
             }
         }
+    }
+}
 
+impl FontGlyph {
+    #[inline]
+    pub fn get_bitmap_top(&self) -> f32 {
+        self.bitmap_top
+    }
 
-        let mut path = PathBuf::from("data/raster/_atlas.png");
-        image::save_buffer(path, self.atlas.as_slice(),
-                           atlas_size as u32,
-                           atlas_size as u32,
-                           ColorType::Gray(8));
+    #[inline]
+    pub fn get_bitmap_left(&self) -> f32 {
+        self.bitmap_left
+    }
+
+    #[inline]
+    pub fn get_bitmap_width(&self) -> f32 {
+        self.bitmap_width
+    }
+
+    #[inline]
+    pub fn get_bitmap_height(&self) -> f32 {
+        self.bitmap_height
+    }
+
+    #[inline]
+    pub fn get_pixels(&self) -> &[u8] {
+        self.pixels.as_slice()
+    }
+
+    #[inline]
+    pub fn get_advance(&self) -> f32 {
+        self.advance
+    }
+
+    #[inline]
+    pub fn has_outline(&self) -> bool {
+        self.has_outline
+    }
+
+    #[inline]
+    pub fn get_tex_coords(&self) -> &[Vec2; 4] {
+        &self.tex_coords
     }
 }
 
 #[test]
 fn font_test() {
-    let mut char_set: Vec<u32> = Vec::new();
-    for i in 0..255 {
-        char_set.push(i);
+    let font = Font::load(Path::new("data/fonts/font.ttf"), 40.0, (0..255).collect()).unwrap();
+    let raster_path = Path::new("data/raster");
+    if !raster_path.exists() {
+        std::fs::create_dir(raster_path).unwrap();
     }
-    let f = Font::load(Path::new("data/fonts/font.ttf"), 40.0, char_set);
-    assert!(f.is_some());
+    let path = PathBuf::from("data/raster/_atlas.png");
+    image::save_buffer(path, font.atlas.as_slice(),
+                       font.atlas_size as u32,
+                       font.atlas_size as u32,
+                       ColorType::Gray(8)).unwrap();
 }

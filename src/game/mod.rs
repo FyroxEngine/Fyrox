@@ -3,12 +3,14 @@ pub mod player;
 pub mod weapon;
 
 use std::fs::File;
-use std::path::{Path};
+use std::path::Path;
 
-use crate::game::level::{Level};
+use crate::game::level::Level;
 
 use crate::engine::Engine;
 use std::time::{Duration, Instant};
+use crate::math::vec2::Vec2;
+use crate::gui::draw::{Color, CommandKind, FormattedText};
 
 pub struct Game {
     engine: Engine,
@@ -17,7 +19,7 @@ pub struct Game {
 
 pub struct GameTime {
     elapsed: f64,
-    delta: f64
+    delta: f64,
 }
 
 fn duration_to_seconds_f64(duration: Duration) -> f64 {
@@ -52,7 +54,17 @@ impl Game {
         let fixed_timestep = 1.0 / fixed_fps;
         let clock = Instant::now();
         let mut game_time = GameTime { elapsed: 0.0, delta: fixed_timestep };
+        let mut test_text = FormattedText::new();
         while self.engine.is_running() {
+            {
+                test_text.set_text("The quick brown fox jumps over a lazy dog. 1234567890!@#$%^&*()_+",
+                                   self.engine.get_default_font(),
+                                   &Vec2::new(),
+                                   Color::white());
+
+                let dc = self.engine.get_ui_mut().get_drawing_context_mut();
+                dc.draw_text(&test_text);
+            }
             let mut dt = duration_to_seconds_f64(clock.elapsed()) - game_time.elapsed;
             while dt >= fixed_timestep {
                 dt -= fixed_timestep;

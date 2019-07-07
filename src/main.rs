@@ -19,6 +19,7 @@ mod engine;
 mod resource;
 mod physics;
 mod game;
+mod gui;
 
 use crate::game::{Game};
 
