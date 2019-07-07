@@ -4,6 +4,9 @@
 # What is done already?
 - Window (using glutin)
 - Object pool
-- Scene graph
-- Simple scene with few cube
-- Player (can walk and look)
+- Scene graph with pivot, camera, mesh nodes.
+- FBX Loader 
+- Player 
+- Weapons
+- TTF Loader
+- Simple level
