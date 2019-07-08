@@ -13,8 +13,6 @@ use std::mem::size_of;
 use crate::resource::ttf::Font;
 use crate::gui::draw::{DrawingContext, CommandKind, Color};
 use crate::math::mat4::Mat4;
-use image::ColorType;
-use std::path::PathBuf;
 
 // Welcome to the kingdom of Unsafe Code
 

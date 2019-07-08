@@ -3,10 +3,9 @@
 use crate::math::vec2::Vec2;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use std::fs::File;
 use std::io::Read;
-use image::ColorType;
 use crate::math::Rect;
 use crate::utils::pool::{Pool, Handle};
 
@@ -911,8 +910,8 @@ impl Font {
     }
 
     #[inline]
-    pub fn get_glyph(&self, unicode: char) -> Option<&FontGlyph> {
-        match self.char_map.get(&(unicode as u32)) {
+    pub fn get_glyph(&self, unicode: u32) -> Option<&FontGlyph> {
+        match self.char_map.get(&unicode) {
             Some(glyph_index) => self.glyphs.get(*glyph_index),
             None => None
         }
@@ -1049,6 +1048,9 @@ impl FontGlyph {
 
 #[test]
 fn font_test() {
+    use image::ColorType;
+    use std::path::{PathBuf};
+
     let font = Font::load(Path::new("data/fonts/font.ttf"), 40.0, (0..255).collect()).unwrap();
     let raster_path = Path::new("data/raster");
     if !raster_path.exists() {

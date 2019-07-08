@@ -10,6 +10,7 @@ pub struct UserInterface {
     drawing_context: DrawingContext
 }
 
+#[derive(Copy, Clone)]
 pub enum HorizontalAlignment {
     Stretch,
     Left,
@@ -17,6 +18,7 @@ pub enum HorizontalAlignment {
     Right,
 }
 
+#[derive(Copy, Clone)]
 pub enum VerticalAlignment {
     Stretch,
     Top,
@@ -24,6 +26,7 @@ pub enum VerticalAlignment {
     Bottom,
 }
 
+#[derive(Copy, Clone)]
 pub struct Thickness {
     left: f32,
     top: f32,
@@ -31,6 +34,7 @@ pub struct Thickness {
     bottom: f32,
 }
 
+#[derive(Copy, Clone)]
 pub enum Visibility {
     Visible,
     Collapsed,

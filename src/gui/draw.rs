@@ -1,6 +1,6 @@
 use crate::math::vec2::Vec2;
 use crate::math::Rect;
-use crate::gui::Thickness;
+use crate::gui::{Thickness, HorizontalAlignment, VerticalAlignment};
 use crate::resource::ttf::Font;
 use std::os::raw::c_void;
 
@@ -89,63 +89,224 @@ pub struct DrawingContext {
     current_nesting: u8,
 }
 
-struct TextElement {
+struct TextGlyph {
     bounds: Rect<f32>,
     tex_coords: [Vec2; 4],
     color: Color,
 }
 
+#[derive(Copy, Clone)]
+struct TextLine {
+    begin: usize,
+    end: usize,
+    width: f32,
+    x: f32,
+}
+
+impl TextLine {
+    fn new() -> TextLine {
+        TextLine {
+            begin: 0,
+            end: 0,
+            width: 0.0,
+            x: 0.0
+        }
+    }
+}
+
 pub struct FormattedText {
     texture: u32,
-    elements: Vec<TextElement>
+    /// Text in UTF32 format.
+    text: Vec<u32>,
+    /// Temporary buffer used to split text on lines. We need it to reduce memory allocations
+    /// when we changing text too frequently, here we sacrifice some memory in order to get
+    /// more performance.
+    lines: Vec<TextLine>,
+    /// Final glyphs for draw buffer.
+    glyphs: Vec<TextGlyph>,
 }
 
 impl FormattedText {
-    pub fn new() -> FormattedText {
+    fn new() -> FormattedText {
         FormattedText {
+            text: Vec::new(),
             texture: 0,
-            elements: Vec::new(),
+            glyphs: Vec::new(),
+            lines: Vec::new(),
         }
     }
 
-    pub fn set_text(&mut self, text: &str, font: &Font, pos: &Vec2, color: Color) {
-        self.elements.clear();
-        self.texture = font.get_texture_id();
-        let mut cursor = *pos;
-        for code in text.chars() {
-            match font.get_glyph(code) {
-                Some(glyph) => {
-                    if glyph.has_outline() {
-                        let rect = Rect {
-                            x: cursor.x + glyph.get_bitmap_left(),
-                            y: cursor.y + font.get_ascender() - glyph.get_bitmap_top() - glyph.get_bitmap_height(),
-                            w: glyph.get_bitmap_width(),
-                            h: glyph.get_bitmap_height(),
-                        };
-                        self.elements.push(TextElement {
-                            bounds: rect,
-                            tex_coords: glyph.get_tex_coords().clone(),
-                            color
-                        });
-                    }
-                    cursor.x += glyph.get_advance();
-                }
-                None => {
-                    let rect = Rect {
-                        x: cursor.x,
-                        y: cursor.y + font.get_ascender(),
-                        w: font.get_height(),
-                        h: font.get_height(),
-                    };
-                    self.elements.push(TextElement {
-                        bounds: rect,
-                        tex_coords: [Vec2::new(); 4],
-                        color
-                    });
-                    cursor.x += rect.w;
-                }
+    fn build(&mut self, text: &str, font: &Font, bounds: &Rect<f32>, color: Color) {
+        // Convert text to UTF32.
+        self.text.clear();
+        for code in text.chars().map(|c| c as u32) {
+            self.text.push(code);
+        }
+
+        // Split on lines.
+        let mut current_line = TextLine::new();
+        self.lines.clear();
+        for (i, code) in self.text.iter().enumerate() {
+            let advance =
+                match font.get_glyph(*code) {
+                    Some(glyph) => glyph.get_advance(),
+                    None => font.get_height()
+                };
+            let is_new_line = *code == b'\n' as u32 || *code == '\r' as u32;
+            let new_width = current_line.width + advance;
+            if new_width > bounds.w || is_new_line {
+                self.lines.push(current_line.clone());
+                current_line.begin = if is_new_line { i + 1 } else { i };
+                current_line.end = current_line.begin + 1;
+                current_line.width = advance;
+            } else {
+                current_line.width = new_width;
+                current_line.end += 1;
             }
         }
+        // Commit rest of text.
+        if current_line.begin != current_line.end {
+            current_line.end = self.text.len();
+            self.lines.push(current_line);
+        }
+
+        self.texture = font.get_texture_id();
+
+        // Generate glyphs for each text line.
+        self.glyphs.clear();
+        let mut cursor = Vec2::make(bounds.x, bounds.y);
+
+        for line in self.lines.iter() {
+            cursor.x = bounds.x;
+
+            for code_index in line.begin..line.end {
+                let code = self.text[code_index];
+
+                match font.get_glyph(code) {
+                    Some(glyph) => {
+                        // Insert glyph
+                        if glyph.has_outline() {
+                            let rect = Rect {
+                                x: cursor.x + glyph.get_bitmap_left(),
+                                y: cursor.y + font.get_ascender() - glyph.get_bitmap_top() - glyph.get_bitmap_height(),
+                                w: glyph.get_bitmap_width(),
+                                h: glyph.get_bitmap_height(),
+                            };
+                            self.glyphs.push(TextGlyph {
+                                bounds: rect,
+                                tex_coords: glyph.get_tex_coords().clone(),
+                                color,
+                            });
+                        }
+                        cursor.x += glyph.get_advance();
+                    }
+                    None => {
+                        // Insert invalid symbol
+                        let rect = Rect {
+                            x: cursor.x,
+                            y: cursor.y + font.get_ascender(),
+                            w: font.get_height(),
+                            h: font.get_height(),
+                        };
+                        self.glyphs.push(TextGlyph {
+                            bounds: rect,
+                            tex_coords: [Vec2::new(); 4],
+                            color,
+                        });
+                        cursor.x += rect.w;
+                    }
+                }
+            }
+
+            cursor.y += font.get_ascender();
+        }
+    }
+}
+
+pub struct FormattedTextBuilder<'a> {
+    color: Color,
+    bounds: Rect<f32>,
+    text: Option<&'a str>,
+    font: Option<&'a Font>,
+    formatted_text: FormattedText,
+    vertical_alignment: VerticalAlignment,
+    horizontal_alignment: HorizontalAlignment,
+}
+
+impl<'a> FormattedTextBuilder<'a> {
+    /// Creates new formatted text builder with default parameters.
+    pub fn new() -> FormattedTextBuilder<'a> {
+        FormattedTextBuilder {
+            font: None,
+            text: None,
+            formatted_text: FormattedText::new(),
+            horizontal_alignment: HorizontalAlignment::Left,
+            vertical_alignment: VerticalAlignment::Top,
+            color: Color::white(),
+            bounds: Rect::new(0.0, 0.0, 128.0, 128.0),
+        }
+    }
+
+    /// Creates new formatted text builder that will reuse existing
+    /// buffers from existing formatted text. This is very useful to
+    /// reduce memory allocations.
+    pub fn reuse(formatted_text: FormattedText) -> FormattedTextBuilder<'a> {
+        FormattedTextBuilder {
+            font: None,
+            text: None,
+            formatted_text: FormattedText {
+                // Take buffers out and reuse them so no need to allocate new
+                // buffers every time when need to change a text.
+                text: formatted_text.text,
+                lines: formatted_text.lines,
+                glyphs: formatted_text.glyphs,
+                texture: 0,
+            },
+            horizontal_alignment: HorizontalAlignment::Left,
+            vertical_alignment: VerticalAlignment::Top,
+            color: Color::white(),
+            bounds: Rect::new(0.0, 0.0, 128.0, 128.0),
+        }
+    }
+
+    pub fn with_font(mut self, font: &'a Font) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
+        self.vertical_alignment = vertical_alignment;
+        self
+    }
+
+    pub fn with_horizontal_alignment(mut self, horizontal_alignment: HorizontalAlignment) -> Self {
+        self.horizontal_alignment = horizontal_alignment;
+        self
+    }
+
+    pub fn with_text(mut self, text: &'a str) -> Self {
+        self.text = Some(text);
+        self
+    }
+
+    pub fn with_bounds(mut self, bounds: Rect<f32>) -> Self {
+        self.bounds = bounds;
+        self
+    }
+
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn build(mut self) -> FormattedText {
+        if let Some(text) = self.text {
+            if let Some(font) = self.font {
+                self.formatted_text.build(text, font, &self.bounds, self.color);
+            }
+        }
+
+        self.formatted_text
     }
 }
 
@@ -330,7 +491,7 @@ impl DrawingContext {
     }
 
     pub fn draw_text(&mut self, formatted_text: &FormattedText) {
-        for element in formatted_text.elements.iter() {
+        for element in formatted_text.glyphs.iter() {
             self.push_rect_filled(&element.bounds, Some(&element.tex_coords), element.color);
         }
         self.commit(CommandKind::Geometry, formatted_text.texture);

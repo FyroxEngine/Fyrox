@@ -213,15 +213,20 @@ impl Engine {
     #[inline]
     pub fn new() -> Engine {
         let mut font_cache = Pool::new();
+        let default_font = font_cache.spawn(Font::load(
+            Path::new("data/fonts/font.ttf"),
+            20.0,
+            (0..255).collect()).unwrap());
+        let mut renderer = Renderer::new();
+        renderer.upload_font_cache(&mut font_cache);
         Engine {
             state: State::new(),
-            renderer: Renderer::new(),
+            renderer,
             events: VecDeque::new(),
             running: true,
-            default_font: font_cache.spawn(Font::load(
-                Path::new("data/fonts/font.ttf"), 18.0, (0..255).collect()).unwrap()),
+            default_font,
             font_cache,
-            user_interface: UserInterface::new()
+            user_interface: UserInterface::new(),
         }
     }
 
