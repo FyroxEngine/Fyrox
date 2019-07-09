@@ -6,13 +6,15 @@ use crate::math::vec2::*;
 use crate::utils::pool::*;
 use crate::scene::node::*;
 use crate::renderer::surface::*;
-use crate::engine::{ResourceManager, State};
+use crate::engine::{ResourceManager, State, duration_to_seconds_f32};
 use crate::math::{vec3::*};
 use crate::resource::ResourceKind;
 use std::mem::size_of;
 use crate::resource::ttf::Font;
 use crate::gui::draw::{DrawingContext, CommandKind, Color};
 use crate::math::mat4::Mat4;
+use std::time::{Instant, Duration};
+use std::thread;
 
 // Welcome to the kingdom of Unsafe Code
 
@@ -117,24 +119,48 @@ struct UIRenderBuffers {
     ebo: GLuint,
 }
 
+pub struct Statistics {
+    pub frame_time: f32,
+    pub mean_fps: usize,
+    pub min_fps: usize,
+    pub current_fps: usize,
+    frame_time_accumulator: f32,
+    frame_time_measurements: usize,
+    time_last_fps_measured: f32,
+}
+
+impl Default for Statistics {
+    fn default() -> Self {
+        Self {
+            frame_time: 0.0,
+            mean_fps: 0,
+            min_fps: 0,
+            current_fps: 0,
+            frame_time_accumulator: 0.0,
+            frame_time_measurements: 0,
+            time_last_fps_measured: 0.0,
+        }
+    }
+}
+
 pub struct Renderer {
     pub(crate) events_loop: glutin::EventsLoop,
     pub(crate) context: glutin::WindowedContext,
     flat_shader: FlatShader,
     ui_shader: UIShader,
+    /// Dummy white one pixel texture which will be used as stub when rendering
+    /// something without texture specified.
     white_dummy: GLuint,
-
-    /// Separate lists of handles to nodes of specified kinds
-    /// Used reduce tree traversal count, it will performed once.
-    /// Lists are valid while there is scene to render.
+    /// Separate lists of handles to nodes of specified kinds. Used reduce tree traversal
+    /// count, it will performed once. Lists are valid while there is scene to render.
     cameras: Vec<Handle<Node>>,
     lights: Vec<Handle<Node>>,
     meshes: Vec<Handle<Node>>,
-
-    /// Scene graph traversal stack
+    /// Scene graph traversal stack.
     traversal_stack: Vec<Handle<Node>>,
-
+    frame_rate_limit: usize,
     ui_render_buffers: UIRenderBuffers,
+    statistics: Statistics
 }
 
 fn create_flat_shader() -> FlatShader {
@@ -279,8 +305,8 @@ impl Renderer {
 
             let primary_monitor = events_loop.get_primary_monitor();
             let mut monitor_dimensions = primary_monitor.get_dimensions();
-            monitor_dimensions.height = monitor_dimensions.height * 0.5;
-            monitor_dimensions.width = monitor_dimensions.width * 0.5;
+            monitor_dimensions.height = monitor_dimensions.height * 0.6;
+            monitor_dimensions.width = monitor_dimensions.width * 0.6;
             let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
 
             let window_builder = glutin::WindowBuilder::new()
@@ -307,12 +333,17 @@ impl Renderer {
                 cameras: Vec::new(),
                 lights: Vec::new(),
                 meshes: Vec::new(),
+                frame_rate_limit: 60,
+                statistics: Statistics::default(),
                 white_dummy: create_white_dummy(),
                 ui_render_buffers: create_ui_render_buffers(),
             }
         }
     }
 
+    pub fn get_statistics(&self) -> &Statistics {
+        &self.statistics
+    }
 
     fn draw_surface(&self, surf: &Surface, data: &SurfaceSharedData, resource_manager: &ResourceManager) {
         unsafe {
@@ -473,13 +504,13 @@ impl Renderer {
     }
 
     pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
+        let frame_start_time = Instant::now();
+
         unsafe {
             let client_size = self.context.get_inner_size().unwrap();
 
-
             gl::ClearColor(0.0, 0.63, 0.91, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
-
 
             for scene in state.get_scenes().iter() {
                 // Prepare for render - fill lists of nodes participating in rendering
@@ -655,5 +686,18 @@ impl Renderer {
         check_gl_error();
 
         self.context.swap_buffers().unwrap();
+
+        if self.frame_rate_limit > 0 {
+            let frame_time_ms = 1000.0 * duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
+            let desired_frame_time_ms = 1000.0 / self.frame_rate_limit as f32;
+            if frame_time_ms < desired_frame_time_ms {
+                let sleep_time_us = 1000.0 * (desired_frame_time_ms - frame_time_ms);
+                thread::sleep(Duration::from_micros(sleep_time_us as u64));
+            }
+        }
+
+        let total_time_s = duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
+        self.statistics.frame_time = total_time_s;
+        self.statistics.current_fps = (1.0 / total_time_s) as usize;
     }
 }

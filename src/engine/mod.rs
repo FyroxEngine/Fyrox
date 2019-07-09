@@ -11,6 +11,7 @@ use crate::renderer::surface::SurfaceSharedData;
 use crate::resource::model::Model;
 use crate::resource::ttf::Font;
 use crate::gui::UserInterface;
+use std::time::Duration;
 
 pub struct ResourceManager {
     resources: RcPool<Resource>,
@@ -283,6 +284,10 @@ impl Engine {
         &mut self.user_interface
     }
 
+    pub fn get_rendering_statisting(&self) -> &Statistics {
+        self.renderer.get_statistics()
+    }
+
     pub fn render(&mut self) {
         self.renderer.upload_font_cache(&mut self.font_cache);
         self.renderer.upload_resources(&mut self.state);
@@ -299,4 +304,12 @@ impl Engine {
     pub fn pop_event(&mut self) -> Option<glutin::Event> {
         self.events.pop_front()
     }
+}
+
+pub fn duration_to_seconds_f64(duration: Duration) -> f64 {
+    duration.as_secs() as f64 + duration.subsec_nanos() as f64 / 1_000_000_000.0
+}
+
+pub fn duration_to_seconds_f32(duration: Duration) -> f32 {
+    duration_to_seconds_f64(duration) as f32
 }

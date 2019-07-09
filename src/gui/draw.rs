@@ -100,7 +100,7 @@ struct TextLine {
     begin: usize,
     end: usize,
     width: f32,
-    x: f32,
+    x_offset: f32
 }
 
 impl TextLine {
@@ -109,7 +109,7 @@ impl TextLine {
             begin: 0,
             end: 0,
             width: 0.0,
-            x: 0.0
+            x_offset: 0.0
         }
     }
 }
@@ -136,7 +136,8 @@ impl FormattedText {
         }
     }
 
-    fn build(&mut self, text: &str, font: &Font, bounds: &Rect<f32>, color: Color) {
+    fn build(&mut self, text: &str, font: &Font, bounds: &Rect<f32>, color: Color,
+             vertical_alignment: VerticalAlignment, horizontal_alignment: HorizontalAlignment) {
         // Convert text to UTF32.
         self.text.clear();
         for code in text.chars().map(|c| c as u32) {
@@ -144,6 +145,7 @@ impl FormattedText {
         }
 
         // Split on lines.
+        let mut total_height = 0.0;
         let mut current_line = TextLine::new();
         self.lines.clear();
         for (i, code) in self.text.iter().enumerate() {
@@ -159,6 +161,7 @@ impl FormattedText {
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin + 1;
                 current_line.width = advance;
+                total_height += font.get_ascender();
             } else {
                 current_line.width = new_width;
                 current_line.end += 1;
@@ -168,16 +171,34 @@ impl FormattedText {
         if current_line.begin != current_line.end {
             current_line.end = self.text.len();
             self.lines.push(current_line);
+            total_height += font.get_ascender();
+        }
+
+        // Align lines according to desired alignment.
+        for line in self.lines.iter_mut() {
+            match horizontal_alignment {
+                HorizontalAlignment::Left => line.x_offset = 0.0,
+                HorizontalAlignment::Center => line.x_offset = 0.5 * (bounds.w - line.width),
+                HorizontalAlignment::Right => line.x_offset = bounds.w - line.width,
+                HorizontalAlignment::Stretch => line.x_offset = 0.0
+            }
         }
 
         self.texture = font.get_texture_id();
 
         // Generate glyphs for each text line.
         self.glyphs.clear();
-        let mut cursor = Vec2::make(bounds.x, bounds.y);
 
+        let cursor_y_start = match vertical_alignment {
+            VerticalAlignment::Top => bounds.y,
+            VerticalAlignment::Center => bounds.y + (bounds.h - total_height) * 0.5,
+            VerticalAlignment::Bottom => bounds.y + bounds.h - total_height,
+            VerticalAlignment::Stretch => bounds.y
+        };
+
+        let mut cursor = Vec2::make(bounds.x, cursor_y_start);
         for line in self.lines.iter() {
-            cursor.x = bounds.x;
+            cursor.x = bounds.x + line.x_offset;
 
             for code_index in line.begin..line.end {
                 let code = self.text[code_index];
@@ -302,7 +323,14 @@ impl<'a> FormattedTextBuilder<'a> {
     pub fn build(mut self) -> FormattedText {
         if let Some(text) = self.text {
             if let Some(font) = self.font {
-                self.formatted_text.build(text, font, &self.bounds, self.color);
+                self.formatted_text.build(
+                    text,
+                    font,
+                    &self.bounds,
+                    self.color,
+                    self.vertical_alignment,
+                    self.horizontal_alignment
+                );
             }
         }
 

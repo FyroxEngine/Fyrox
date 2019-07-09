@@ -4,10 +4,11 @@ pub mod weapon;
 
 use std::fs::File;
 use std::path::Path;
+use std::fmt::Write;
 
 use crate::game::level::Level;
 
-use crate::engine::Engine;
+use crate::engine::{Engine, duration_to_seconds_f64};
 use std::time::{Duration, Instant};
 use crate::gui::draw::{FormattedText, FormattedTextBuilder};
 use crate::math::Rect;
@@ -15,7 +16,7 @@ use crate::math::Rect;
 pub struct Game {
     engine: Engine,
     level: Level,
-    debug_text: FormattedText,
+    debug_text: Option<FormattedText>,
 }
 
 pub struct GameTime {
@@ -23,26 +24,17 @@ pub struct GameTime {
     delta: f64,
 }
 
-fn duration_to_seconds_f64(duration: Duration) -> f64 {
-    duration.as_secs() as f64 + duration.subsec_nanos() as f64 / 1_000_000_000.0
-}
-
 impl Game {
     pub fn new() -> Game {
         let mut engine = Engine::new();
         let level = Level::new(&mut engine);
 
-        let debug_text =
-            FormattedTextBuilder::new()
-                .with_font(engine.get_default_font())
-                .with_text("The quick brown fox jumps over a lazy dog. 1234567890!@#$%^&*()_+")
-                .with_bounds(Rect::new(0.0, 0.0, 220.0, 200.0))
-                .build();
+        let debug_text = FormattedTextBuilder::new().build();
 
         Game {
             engine,
             level,
-            debug_text,
+            debug_text: Some(debug_text),
         }
     }
 
@@ -65,10 +57,8 @@ impl Game {
         let clock = Instant::now();
         let mut game_time = GameTime { elapsed: 0.0, delta: fixed_timestep };
 
+        let mut debug_string = String::new();
         while self.engine.is_running() {
-            let dc = self.engine.get_ui_mut().get_drawing_context_mut();
-            dc.draw_text(&self.debug_text);
-
             let mut dt = duration_to_seconds_f64(clock.elapsed()) - game_time.elapsed;
             while dt >= fixed_timestep {
                 dt -= fixed_timestep;
@@ -93,6 +83,22 @@ impl Game {
                 self.update(&game_time);
                 self.engine.update(fixed_timestep);
             }
+
+            debug_string.clear();
+            write!(debug_string, "Frame time: {:.2} ms\nFPS: {}\nUp time: {:.2} s",
+                   self.engine.get_rendering_statisting().frame_time * 1000.0,
+                   self.engine.get_rendering_statisting().current_fps,
+                   game_time.elapsed);
+            self.debug_text = Some(FormattedTextBuilder::reuse(self.debug_text.take().unwrap())
+                .with_font(self.engine.get_default_font())
+                .with_text(debug_string.as_str())
+                .with_bounds(Rect::new(0.0, 0.0, 300.0, 300.0))
+                .build());
+            let drawing_context = self.engine.get_ui_mut().get_drawing_context_mut();
+            if let Some(ref debug_text) = self.debug_text {
+                drawing_context.draw_text(debug_text);
+            }
+
             // Render at max speed
             self.engine.render();
         }
