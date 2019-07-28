@@ -100,7 +100,7 @@ struct TextLine {
     begin: usize,
     end: usize,
     width: f32,
-    x_offset: f32
+    x_offset: f32,
 }
 
 impl TextLine {
@@ -109,7 +109,7 @@ impl TextLine {
             begin: 0,
             end: 0,
             width: 0.0,
-            x_offset: 0.0
+            x_offset: 0.0,
         }
     }
 }
@@ -136,7 +136,7 @@ impl FormattedText {
         }
     }
 
-    fn build(&mut self, text: &str, font: &Font, bounds: &Rect<f32>, color: Color,
+    fn build(&mut self, text: &str, font: &Font, size: &Vec2, color: Color,
              vertical_alignment: VerticalAlignment, horizontal_alignment: HorizontalAlignment) {
         // Convert text to UTF32.
         self.text.clear();
@@ -156,7 +156,7 @@ impl FormattedText {
                 };
             let is_new_line = *code == b'\n' as u32 || *code == '\r' as u32;
             let new_width = current_line.width + advance;
-            if new_width > bounds.w || is_new_line {
+            if new_width > size.x || is_new_line {
                 self.lines.push(current_line.clone());
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin + 1;
@@ -178,8 +178,8 @@ impl FormattedText {
         for line in self.lines.iter_mut() {
             match horizontal_alignment {
                 HorizontalAlignment::Left => line.x_offset = 0.0,
-                HorizontalAlignment::Center => line.x_offset = 0.5 * (bounds.w - line.width),
-                HorizontalAlignment::Right => line.x_offset = bounds.w - line.width,
+                HorizontalAlignment::Center => line.x_offset = 0.5 * (size.x - line.width),
+                HorizontalAlignment::Right => line.x_offset = size.x - line.width,
                 HorizontalAlignment::Stretch => line.x_offset = 0.0
             }
         }
@@ -190,15 +190,15 @@ impl FormattedText {
         self.glyphs.clear();
 
         let cursor_y_start = match vertical_alignment {
-            VerticalAlignment::Top => bounds.y,
-            VerticalAlignment::Center => bounds.y + (bounds.h - total_height) * 0.5,
-            VerticalAlignment::Bottom => bounds.y + bounds.h - total_height,
-            VerticalAlignment::Stretch => bounds.y
+            VerticalAlignment::Top => 0.0,
+            VerticalAlignment::Center => (size.y - total_height) * 0.5,
+            VerticalAlignment::Bottom => size.y - total_height,
+            VerticalAlignment::Stretch => 0.0
         };
 
-        let mut cursor = Vec2::make(bounds.x, cursor_y_start);
+        let mut cursor = Vec2::make(size.x, cursor_y_start);
         for line in self.lines.iter() {
-            cursor.x = bounds.x + line.x_offset;
+            cursor.x = line.x_offset;
 
             for code_index in line.begin..line.end {
                 let code = self.text[code_index];
@@ -213,11 +213,12 @@ impl FormattedText {
                                 w: glyph.get_bitmap_width(),
                                 h: glyph.get_bitmap_height(),
                             };
-                            self.glyphs.push(TextGlyph {
+                            let text_glyph = TextGlyph {
                                 bounds: rect,
                                 tex_coords: glyph.get_tex_coords().clone(),
                                 color,
-                            });
+                            };
+                            self.glyphs.push(text_glyph);
                         }
                         cursor.x += glyph.get_advance();
                     }
@@ -246,7 +247,7 @@ impl FormattedText {
 
 pub struct FormattedTextBuilder<'a> {
     color: Color,
-    bounds: Rect<f32>,
+    size: Vec2,
     text: Option<&'a str>,
     font: Option<&'a Font>,
     formatted_text: FormattedText,
@@ -264,7 +265,7 @@ impl<'a> FormattedTextBuilder<'a> {
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             color: Color::white(),
-            bounds: Rect::new(0.0, 0.0, 128.0, 128.0),
+            size: Vec2::make(128.0, 128.0),
         }
     }
 
@@ -286,7 +287,7 @@ impl<'a> FormattedTextBuilder<'a> {
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             color: Color::white(),
-            bounds: Rect::new(0.0, 0.0, 128.0, 128.0),
+            size: Vec2::make(128.0, 128.0),
         }
     }
 
@@ -310,8 +311,8 @@ impl<'a> FormattedTextBuilder<'a> {
         self
     }
 
-    pub fn with_bounds(mut self, bounds: Rect<f32>) -> Self {
-        self.bounds = bounds;
+    pub fn with_size(mut self, size: Vec2) -> Self {
+        self.size = size;
         self
     }
 
@@ -326,10 +327,10 @@ impl<'a> FormattedTextBuilder<'a> {
                 self.formatted_text.build(
                     text,
                     font,
-                    &self.bounds,
+                    &self.size,
                     self.color,
                     self.vertical_alignment,
-                    self.horizontal_alignment
+                    self.horizontal_alignment,
                 );
             }
         }
@@ -369,7 +370,6 @@ impl DrawingContext {
         self.triangles_to_commit = 0;
         self.current_nesting = 0;
     }
-
 
     #[inline]
     pub fn get_command_buffer(&self) -> &[Command] {
@@ -431,10 +431,9 @@ impl DrawingContext {
 
     #[inline]
     fn get_index_origin(&self) -> i32 {
-        if self.index_buffer.len() > 0 {
-            self.index_buffer.last().unwrap() + 1
-        } else {
-            0
+        match self.index_buffer.last() {
+            Some(last) => *last + 1,
+            None => 0
         }
     }
 
@@ -503,24 +502,29 @@ impl DrawingContext {
 
     pub fn commit(&mut self, kind: CommandKind, texture: u32) {
         if self.triangles_to_commit > 0 {
-            self.command_buffer.push(Command {
+            let command = Command {
                 kind,
                 texture,
                 nesting: self.current_nesting,
                 index_offset: if self.index_buffer.len() > 0 {
                     self.index_buffer.len() - self.triangles_to_commit * 3
-                } else {
-                    0
-                },
+                } else { 0 },
                 triangle_count: self.triangles_to_commit,
-            });
+            };
+            self.command_buffer.push(command);
             self.triangles_to_commit = 0;
         }
     }
 
-    pub fn draw_text(&mut self, formatted_text: &FormattedText) {
+    pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) {
         for element in formatted_text.glyphs.iter() {
-            self.push_rect_filled(&element.bounds, Some(&element.tex_coords), element.color);
+            let final_bounds = Rect::new(
+                position.x + element.bounds.x,
+                position.y + element.bounds.y,
+                element.bounds.w,
+                element.bounds.h);
+
+            self.push_rect_filled(&final_bounds, Some(&element.tex_coords), element.color);
         }
         self.commit(CommandKind::Geometry, formatted_text.texture);
     }

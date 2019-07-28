@@ -12,11 +12,14 @@ use crate::engine::{Engine, duration_to_seconds_f64};
 use std::time::{Duration, Instant};
 use crate::gui::draw::{FormattedText, FormattedTextBuilder};
 use crate::math::Rect;
+use crate::math::vec2::Vec2;
+use crate::gui::{UINode, UINodeKind, Text};
+use crate::utils::pool::Handle;
 
 pub struct Game {
     engine: Engine,
     level: Level,
-    debug_text: Option<FormattedText>,
+    debug_text: Handle<UINode>,
 }
 
 pub struct GameTime {
@@ -29,12 +32,15 @@ impl Game {
         let mut engine = Engine::new();
         let level = Level::new(&mut engine);
 
-        let debug_text = FormattedTextBuilder::new().build();
-
+        let mut text = Text::new("");
+        text.set_font(engine.get_default_font());
+        let mut ui_node = UINode::new(UINodeKind::Text(text));
+        ui_node.set_width(200.0);
+        ui_node.set_height(200.0);
         Game {
+            debug_text: engine.get_ui_mut().add_node(ui_node),
             engine,
-            level,
-            debug_text: Some(debug_text),
+            level
         }
     }
 
@@ -88,15 +94,12 @@ impl Game {
             write!(debug_string, "Frame time: {:.2} ms\nFPS: {}\nUp time: {:.2} s",
                    self.engine.get_rendering_statisting().frame_time * 1000.0,
                    self.engine.get_rendering_statisting().current_fps,
-                   game_time.elapsed);
-            self.debug_text = Some(FormattedTextBuilder::reuse(self.debug_text.take().unwrap())
-                .with_font(self.engine.get_default_font())
-                .with_text(debug_string.as_str())
-                .with_bounds(Rect::new(0.0, 0.0, 300.0, 300.0))
-                .build());
-            let drawing_context = self.engine.get_ui_mut().get_drawing_context_mut();
-            if let Some(ref debug_text) = self.debug_text {
-                drawing_context.draw_text(debug_text);
+                   game_time.elapsed).unwrap();
+
+            if let Some(ui_node) = self.engine.get_ui_mut().get_node_mut(&self.debug_text) {
+                if let UINodeKind::Text(text) = ui_node.get_kind_mut() {
+                    text.set_text(debug_string.as_str());
+                }
             }
 
             // Render at max speed

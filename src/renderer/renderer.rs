@@ -671,6 +671,7 @@ impl Renderer {
                         gl::StencilMask(0x00);
                     }
                 }
+
                 gl::DrawElements(gl::TRIANGLES,
                                  index_count as i32,
                                  gl::UNSIGNED_INT,

@@ -12,6 +12,7 @@ use crate::resource::model::Model;
 use crate::resource::ttf::Font;
 use crate::gui::UserInterface;
 use std::time::Duration;
+use crate::math::vec2::Vec2;
 
 pub struct ResourceManager {
     resources: RcPool<Resource>,
@@ -253,6 +254,8 @@ impl Engine {
         for scene in self.state.scenes.iter_mut() {
             scene.update(aspect_ratio, dt);
         }
+
+        self.user_interface.update(&Vec2::make(client_size.width as f32, client_size.height as f32));
     }
 
     pub fn poll_events(&mut self) {
@@ -270,8 +273,8 @@ impl Engine {
     }
 
     #[inline]
-    pub fn get_default_font(&self) -> &Font {
-        self.font_cache.borrow(&self.default_font).unwrap()
+    pub fn get_default_font(&self) -> Handle<Font> {
+        self.default_font.clone()
     }
 
     #[inline]
@@ -291,8 +294,8 @@ impl Engine {
     pub fn render(&mut self) {
         self.renderer.upload_font_cache(&mut self.font_cache);
         self.renderer.upload_resources(&mut self.state);
+        self.user_interface.draw(&self.font_cache);
         self.renderer.render(&self.state, &self.user_interface.get_drawing_context());
-        self.user_interface.get_drawing_context_mut().clear();
     }
 
     #[inline]
