@@ -2,8 +2,8 @@ pub mod draw;
 
 use crate::utils::pool::{Pool, Handle};
 use crate::math::vec2::Vec2;
-use glutin::{VirtualKeyCode, MouseButton};
-use crate::gui::draw::{Color, DrawingContext, FormattedText, CommandKind, FormattedTextBuilder};
+use glutin::{VirtualKeyCode, MouseButton, WindowEvent};
+use crate::gui::draw::{Color, DrawingContext, FormattedText, CommandKind, FormattedTextBuilder, Command};
 use crate::math::Rect;
 use serde::export::PhantomData;
 use crate::utils::rcpool::RcHandle;
@@ -94,6 +94,8 @@ pub struct Image {
     texture: RcHandle<Resource>
 }
 
+pub struct Button {}
+
 pub enum UINodeKind {
     Base,
     /// TODO
@@ -123,6 +125,16 @@ pub enum UINodeKind {
     /// TODO
     CheckBox,
 }
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum RoutedEventHandlerType {
+    MouseMove,
+    MouseEnter,
+    MouseLeave,
+    Count,
+}
+
+pub type EventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>, &mut RoutedEvent);
 
 pub struct UINode {
     kind: UINodeKind,
@@ -160,6 +172,10 @@ pub struct UINode {
     visibility: Visibility,
     children: Vec<Handle<UINode>>,
     parent: Handle<UINode>,
+    /// Indices of commands in command buffer emitted by the node.
+    geometry: Vec<usize>,
+    is_mouse_over: bool,
+    event_handlers: [Option<Box<EventHandler>>; RoutedEventHandlerType::Count as usize],
 }
 
 pub enum RoutedEventKind {
@@ -187,6 +203,8 @@ pub enum RoutedEventKind {
         pos: Vec2,
         amount: u32,
     },
+    MouseLeave,
+    MouseEnter
 }
 
 pub struct RoutedEvent {
@@ -200,6 +218,8 @@ pub struct UserInterface {
 
     /// Every UI node will live on the window-sized canvas.
     root_canvas: Handle<UINode>,
+    picked_node: Handle<UINode>,
+    prev_picked_node: Handle<UINode>,
 }
 
 #[inline]
@@ -273,6 +293,8 @@ impl UserInterface {
             root_canvas: nodes.spawn(UINode::new(UINodeKind::Canvas)),
             nodes,
             drawing_context: DrawingContext::new(),
+            picked_node: Handle::none(),
+            prev_picked_node: Handle::none()
         }
     }
 
@@ -641,7 +663,9 @@ impl UserInterface {
                         node.actual_size.y);
                     self.drawing_context.push_rect_filled(&bounds, None, node.color);
                     self.drawing_context.push_rect_vary(&bounds, border.stroke_thickness, border.stroke_color);
-                    self.drawing_context.commit(CommandKind::Geometry, 0);
+                    if let Some(command_index) = self.drawing_context.commit(CommandKind::Geometry, 0) {
+                        node.geometry.push(command_index);
+                    }
                 }
                 UINodeKind::Image => {}
                 UINodeKind::Text(text) => {
@@ -657,7 +681,9 @@ impl UserInterface {
                         }
                         text.need_update = true; // TODO
                     }
-                    self.drawing_context.draw_text(node.screen_position, text.formatted_text.as_ref().unwrap());
+                    if let Some(command_index) = self.drawing_context.draw_text(node.screen_position, text.formatted_text.as_ref().unwrap()) {
+                        node.geometry.push(command_index);
+                    }
                 }
                 _ => ()
             }
@@ -678,6 +704,131 @@ impl UserInterface {
         self.draw_node(&root_canvas, font_cache);
 
         &self.drawing_context
+    }
+
+    fn is_node_clipped(&self, node_handle: &Handle<UINode>, pt: &Vec2) -> bool {
+        let mut clipped = true;
+
+        if let Some(node) = self.nodes.borrow(node_handle) {
+            if node.visibility != Visibility::Visible {
+                return clipped;
+            }
+
+            for command_index in node.geometry.iter() {
+                if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
+                    if *command.get_kind() == CommandKind::Clip {
+                        if self.drawing_context.is_command_contains_point(command, pt) {
+                            clipped = false;
+
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Point can be clipped by parent's clipping geometry.
+            if let Some(parent) = self.nodes.borrow(&node.parent) {
+                if !clipped {
+                    clipped |= self.is_node_clipped(&node.parent, pt);
+                }
+            }
+        }
+
+        clipped
+    }
+
+    fn is_node_contains_point(&self, node_handle: &Handle<UINode>, pt: &Vec2) -> bool {
+        if let Some(node) = self.nodes.borrow(node_handle) {
+            if node.visibility != Visibility::Visible {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn pick_node(&self, node_handle: &Handle<UINode>, pt: &Vec2, level: &mut i32) -> Handle<UINode> {
+        let mut picked = Handle::none();
+        let mut topmost_picked_level = 0;
+
+        if self.is_node_contains_point(node_handle, pt) {
+            picked = node_handle.clone();
+            topmost_picked_level = *level;
+        }
+
+        if let Some(node) = self.nodes.borrow(node_handle) {
+            for child_handle in node.children.iter() {
+                *level += 1;
+                let picked_child = self.pick_node(child_handle, pt, level);
+                if !picked_child.is_none() && *level > topmost_picked_level {
+                    topmost_picked_level = *level;
+                    picked = picked_child;
+                }
+            }
+        }
+
+        return picked;
+    }
+
+    pub fn hit_test(&self, pt: &Vec2) -> Handle<UINode> {
+        let mut level = 0;
+        self.pick_node(&self.root_canvas, pt, &mut level)
+    }
+
+    fn route_event(&mut self, node_handle: Handle<UINode>, event_type: RoutedEventHandlerType, event_args: &mut RoutedEvent) {
+        let mut handler = None;
+        let mut parent = Handle::none();
+        let index = event_type as usize;
+
+        if let Some(node) = self.nodes.borrow_mut(&node_handle) {
+            // Take event handler.
+            handler = node.event_handlers[index].take();
+            parent = node.parent.clone();
+        }
+
+        // Execute event handler.
+        if let Some(ref mut mouse_enter) = handler {
+            mouse_enter(self, node_handle.clone(), event_args);
+        }
+
+        if let Some(node) = self.nodes.borrow_mut(&node_handle) {
+            // Put event handler back.
+            node.event_handlers[index] = handler.take();
+        }
+
+        // Route event up on hierarchy (bubbling strategy) until is not handled.
+        if !event_args.handled {
+            self.route_event(parent, event_type, event_args);
+        }
+    }
+
+    pub fn process_event(&mut self, event: &glutin::WindowEvent) -> bool {
+        match event {
+            WindowEvent::CursorMoved { position, .. } => {
+                let pos = Vec2::make(position.x as f32, position.y as f32);
+                self.picked_node = self.hit_test(&pos);
+                // Fire mouse leave for previously picked node
+                if self.picked_node != self.prev_picked_node {
+                    let mut route_mouse_leave = false;
+                    if let Some(prev_picked_node) = self.nodes.borrow_mut(&self.prev_picked_node) {
+                        if prev_picked_node.is_mouse_over {
+                            prev_picked_node.is_mouse_over = false;
+                            route_mouse_leave = true;
+                        }
+                    }
+
+                    if route_mouse_leave {
+                        let mut evt = RoutedEvent {
+                            handled: false,
+                            kind: RoutedEventKind::MouseLeave
+                        };
+                        self.route_event(self.prev_picked_node.clone(), RoutedEventHandlerType::MouseLeave, &mut evt);
+                    }
+                }
+            }
+            _ => ()
+        }
+        false
     }
 }
 
@@ -703,6 +854,9 @@ impl UINode {
             visibility: Visibility::Visible,
             children: Vec::new(),
             parent: Handle::none(),
+            geometry: Vec::new(),
+            event_handlers: Default::default(),
+            is_mouse_over: false
         }
     }
 

@@ -1,8 +1,9 @@
 use crate::math::vec2::Vec2;
 use crate::math::Rect;
-use crate::gui::{Thickness, HorizontalAlignment, VerticalAlignment};
+use crate::gui::{Thickness, HorizontalAlignment, VerticalAlignment, UINode};
 use crate::resource::ttf::Font;
 use std::os::raw::c_void;
+use crate::utils::pool::Handle;
 
 #[derive(Copy, Clone)]
 pub struct Color {
@@ -39,6 +40,7 @@ impl Vertex {
     }
 }
 
+#[derive(PartialEq)]
 pub enum CommandKind {
     Geometry,
     Clip,
@@ -49,7 +51,7 @@ pub struct Command {
     texture: u32,
     index_offset: usize,
     triangle_count: usize,
-    nesting: u8,
+    nesting: u8
 }
 
 impl Command {
@@ -437,6 +439,59 @@ impl DrawingContext {
         }
     }
 
+    #[inline]
+    pub fn get_commands(&self) -> &Vec<Command> {
+        &self.command_buffer
+    }
+
+    pub fn is_command_contains_point(&self, command: &Command, pos: &Vec2) -> bool {
+        let last = command.index_offset + command.triangle_count * 3;
+
+        /* check each triangle from command for intersection with mouse pointer */
+        for j in (command.index_offset..last).step_by(3) {
+            let va = match self.vertex_buffer.get(self.index_buffer[j] as usize) {
+                Some(v) => v,
+                None => return false
+            };
+            let vb = match self.vertex_buffer.get(self.index_buffer[j + 1] as usize) {
+                Some(v) => v,
+                None => return false
+            };
+            let vc = match self.vertex_buffer.get(self.index_buffer[j + 2] as usize) {
+                Some(v) => v,
+                None => return false
+            };
+
+            /* check if point is in triangle */
+            let v0 = vc.pos - va.pos;
+            let v1 = vb.pos - va.pos;
+            let v2 = *pos - va.pos;
+
+            let dot00 = v0.dot(v0);
+            let dot01 = v0.dot(v1);
+            let dot02 = v0.dot(v2);
+            let dot11 = v1.dot(v1);
+            let dot12 = v1.dot(v2);
+
+            let denom = dot00 * dot11 - dot01 * dot01;
+
+            if denom <= std::f32::EPSILON {
+                // We don't want floating-point exceptions
+                return false;
+            }
+
+            let invDenom = 1.0 / denom;
+            let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+            let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+
+            if (u >= 0.0) && (v >= 0.0) && (u + v < 1.0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     pub fn push_line(&mut self, a: &Vec2, b: &Vec2, thickness: f32, color: Color) {
         let perp = get_line_thickness_vector(a, b, thickness);
         self.push_vertex(*a - perp, Vec2::make(0.0, 0.0), color);
@@ -500,7 +555,7 @@ impl DrawingContext {
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    pub fn commit(&mut self, kind: CommandKind, texture: u32) {
+    pub fn commit(&mut self, kind: CommandKind, texture: u32) -> Option<usize> {
         if self.triangles_to_commit > 0 {
             let command = Command {
                 kind,
@@ -511,12 +566,16 @@ impl DrawingContext {
                 } else { 0 },
                 triangle_count: self.triangles_to_commit,
             };
+            let index = self.command_buffer.len();
             self.command_buffer.push(command);
             self.triangles_to_commit = 0;
+            Some(index)
+        } else {
+            None
         }
     }
 
-    pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) {
+    pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) -> Option<usize> {
         for element in formatted_text.glyphs.iter() {
             let final_bounds = Rect::new(
                 position.x + element.bounds.x,
@@ -526,6 +585,6 @@ impl DrawingContext {
 
             self.push_rect_filled(&final_bounds, Some(&element.tex_coords), element.color);
         }
-        self.commit(CommandKind::Geometry, formatted_text.texture);
+        return self.commit(CommandKind::Geometry, formatted_text.texture);
     }
 }
