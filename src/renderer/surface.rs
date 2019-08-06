@@ -1,10 +1,14 @@
-use crate::math::{vec2::*, vec3::*, vec4::*};
-use crate::renderer::gl;
-use crate::renderer::gl::types::*;
-use crate::resource::*;
+use crate::{
+    math::{vec2::*, vec3::*, vec4::*},
+    renderer::{
+        gl,
+        gl::types::*
+    },
+    resource::*,
+    utils::rcpool::{RcHandle},
+    engine::State
+};
 use serde::{Serialize, Deserialize};
-use crate::utils::rcpool::{RcHandle};
-use crate::engine::State;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C

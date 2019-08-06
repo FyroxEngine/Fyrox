@@ -1,9 +1,13 @@
-use crate::scene::Scene;
-use crate::utils::pool::Handle;
-use crate::scene::node::Node;
-use crate::engine::State;
+use crate::{
+    scene::{
+        Scene,
+        node::Node
+    },
+    utils::pool::Handle,
+    engine::State,
+    resource::fbx
+};
 use std::path::Path;
-use crate::resource::fbx;
 
 pub struct Model {
     scene: Scene

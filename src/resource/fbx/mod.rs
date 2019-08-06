@@ -1,9 +1,11 @@
 use std::{path::{PathBuf, Path}, fs::File, io::Read, collections::HashMap, time::Instant};
-use crate::utils::pool::*;
-use crate::math::{vec4::*, vec3::*, vec2::*, mat4::*, quat::*, triangulator::*};
-use crate::scene::{*, node::*};
-use crate::renderer::surface::{SurfaceSharedData, Surface, Vertex};
-use crate::engine::State;
+use crate::{
+    utils::pool::*,
+    math::{vec4::*, vec3::*, vec2::*, mat4::*, quat::*, triangulator::*},
+    scene::{*, node::*},
+    renderer::surface::{SurfaceSharedData, Surface, Vertex},
+    engine::State
+};
 
 pub enum FbxAttribute {
     Double(f64),

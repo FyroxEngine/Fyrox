@@ -226,9 +226,9 @@ impl Engine {
             renderer,
             events: VecDeque::new(),
             running: true,
+            user_interface: UserInterface::new(default_font.clone()),
             default_font,
             font_cache,
-            user_interface: UserInterface::new(),
         }
     }
 

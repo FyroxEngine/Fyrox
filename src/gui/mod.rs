@@ -1,16 +1,25 @@
 pub mod draw;
 
-use crate::utils::pool::{Pool, Handle};
-use crate::math::vec2::Vec2;
+use crate::{
+    utils::{
+        pool::{Pool, Handle},
+        rcpool::RcHandle,
+    },
+    math::{
+        vec2::Vec2,
+        Rect,
+    },
+    gui::draw::{Color, DrawingContext, FormattedText, CommandKind, FormattedTextBuilder},
+    resource::{
+        Resource,
+        ttf::Font,
+    },
+};
 use glutin::{VirtualKeyCode, MouseButton, WindowEvent};
-use crate::gui::draw::{Color, DrawingContext, FormattedText, CommandKind, FormattedTextBuilder, Command};
-use crate::math::Rect;
 use serde::export::PhantomData;
-use crate::utils::rcpool::RcHandle;
-use crate::resource::Resource;
-use crate::resource::ttf::Font;
+use std::any::Any;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
     Stretch,
     Left,
@@ -18,7 +27,7 @@ pub enum HorizontalAlignment {
     Right,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum VerticalAlignment {
     Stretch,
     Top,
@@ -26,7 +35,7 @@ pub enum VerticalAlignment {
     Bottom,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Thickness {
     left: f32,
     top: f32,
@@ -45,17 +54,20 @@ impl Thickness {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Visibility {
     Visible,
     Collapsed,
     Hidden,
 }
 
+#[derive(Debug)]
 pub struct Text {
     need_update: bool,
     text: String,
     font: Handle<Font>,
+    vertical_alignment: VerticalAlignment,
+    horizontal_alignment: HorizontalAlignment,
     formatted_text: Option<FormattedText>,
 }
 
@@ -64,6 +76,8 @@ impl Text {
         Text {
             text: String::from(text),
             need_update: true,
+            vertical_alignment: VerticalAlignment::Top,
+            horizontal_alignment: HorizontalAlignment::Left,
             formatted_text: Some(FormattedTextBuilder::new().build()),
             font: Handle::none(),
         }
@@ -83,8 +97,17 @@ impl Text {
         self.font = font;
         self.need_update = true;
     }
+
+    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) {
+        self.vertical_alignment = valign;
+    }
+
+    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) {
+        self.horizontal_alignment = halign;
+    }
 }
 
+#[derive(Debug)]
 pub struct Border {
     stroke_thickness: Thickness,
     stroke_color: Color,
@@ -96,6 +119,7 @@ pub struct Image {
 
 pub struct Button {}
 
+#[derive(Debug)]
 pub enum UINodeKind {
     Base,
     /// TODO
@@ -124,6 +148,7 @@ pub enum UINodeKind {
     SlideSelector,
     /// TODO
     CheckBox,
+    UserControl(Box<dyn Any>)
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -173,7 +198,7 @@ pub struct UINode {
     children: Vec<Handle<UINode>>,
     parent: Handle<UINode>,
     /// Indices of commands in command buffer emitted by the node.
-    geometry: Vec<usize>,
+    command_indices: Vec<usize>,
     is_mouse_over: bool,
     event_handlers: [Option<Box<EventHandler>>; RoutedEventHandlerType::Count as usize],
 }
@@ -204,7 +229,7 @@ pub enum RoutedEventKind {
         amount: u32,
     },
     MouseLeave,
-    MouseEnter
+    MouseEnter,
 }
 
 pub struct RoutedEvent {
@@ -215,6 +240,7 @@ pub struct RoutedEvent {
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
+    default_font: Handle<Font>,
 
     /// Every UI node will live on the window-sized canvas.
     root_canvas: Handle<UINode>,
@@ -285,25 +311,76 @@ impl<'a, T> Iterator for CollectionViewIterator<'a, T> {
     }
 }
 
-impl UserInterface {
-    pub fn new() -> UserInterface {
-        let mut nodes = Pool::new();
+struct UINodeBuilder {
 
+}
+
+impl UINodeBuilder {
+
+}
+
+impl UserInterface {
+    pub fn new(default_font: Handle<Font>) -> UserInterface {
+        let mut nodes = Pool::new();
         UserInterface {
+            default_font,
             root_canvas: nodes.spawn(UINode::new(UINodeKind::Canvas)),
             nodes,
             drawing_context: DrawingContext::new(),
             picked_node: Handle::none(),
-            prev_picked_node: Handle::none()
+            prev_picked_node: Handle::none(),
         }
     }
 
     pub fn add_node(&mut self, node: UINode) -> Handle<UINode> {
         let node_handle = self.nodes.spawn(node);
-        if let Some(root) = self.nodes.borrow_mut(&self.root_canvas) {
-            root.children.push(node_handle.clone());
-        }
+        self.link_nodes(&node_handle, &self.root_canvas.clone());
         node_handle
+    }
+
+    pub fn create_button(&mut self) -> Handle<UINode> {
+        let border = Border {stroke_color: Color::opaque(200, 200, 200), stroke_thickness: Thickness{left: 1.0, right: 1.0, top: 1.0, bottom: 1.0}};
+        let mut text = Text::new("Test button");
+        text.set_font(self.default_font.clone());
+        text.set_horizontal_alignment(HorizontalAlignment::Center);
+        text.set_vertical_alignment(VerticalAlignment::Center);
+        let mut back = UINode::new(UINodeKind::Border(border));
+        back.set_width(200.0);
+        back.set_height(50.0);
+        back.color = Color::opaque(120, 120, 120);
+        let back_handle = self.add_node(back);
+        let text_handle = self.add_node(UINode::new( UINodeKind::Text(text)));
+        self.link_nodes(&text_handle, &back_handle);
+        back_handle
+    }
+
+    /// Links specified child with specified parent.
+    #[inline]
+    pub fn link_nodes(&mut self, child_handle: &Handle<UINode>, parent_handle: &Handle<UINode>) {
+        self.unlink_node(child_handle);
+        if let Some(child) = self.nodes.borrow_mut(child_handle) {
+            child.parent = parent_handle.clone();
+            if let Some(parent) = self.nodes.borrow_mut(parent_handle) {
+                parent.children.push(child_handle.clone());
+            }
+        }
+    }
+
+    /// Unlinks specified node from its parent, so node will become root.
+    #[inline]
+    pub fn unlink_node(&mut self, node_handle: &Handle<UINode>) {
+        let mut parent_handle: Handle<UINode> = Handle::none();
+        // Replace parent handle of child
+        if let Some(node) = self.nodes.borrow_mut(node_handle) {
+            parent_handle = node.parent.clone();
+            node.parent = Handle::none();
+        }
+        // Remove child from parent's children list
+        if let Some(parent) = self.nodes.borrow_mut(&parent_handle) {
+            if let Some(i) = parent.children.iter().position(|h| h == node_handle) {
+                parent.children.remove(i);
+            }
+        }
     }
 
     #[inline]
@@ -395,9 +472,8 @@ impl UserInterface {
     fn measure(&mut self, node_handle: &Handle<UINode>, available_size: &Vec2) {
         let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
         let mut node_kind: *const UINodeKind = std::ptr::null();
-        let mut size_for_child = Vec2::new();
-        let mut margin = Vec2::new();
-
+        let size_for_child;
+        let margin;
 
         match self.nodes.borrow_mut(&node_handle) {
             None => return,
@@ -408,29 +484,37 @@ impl UserInterface {
                 };
 
                 size_for_child = Vec2 {
-                    x: if node.width > 0.0 {
-                        node.width
-                    } else {
-                        maxf(0.0, available_size.x - margin.x)
+                    x: {
+                        let w = if node.width > 0.0 {
+                            node.width
+                        } else {
+                            maxf(0.0, available_size.x - margin.x)
+                        };
+
+                        if w > node.max_size.x {
+                            node.max_size.x
+                        } else if w < node.min_size.x {
+                            node.min_size.x
+                        } else {
+                            w
+                        }
                     },
-                    y: if node.height > 0.0 {
-                        node.height
-                    } else {
-                        maxf(0.0, available_size.y - margin.y)
+                    y: {
+                        let h = if node.height > 0.0 {
+                            node.height
+                        } else {
+                            maxf(0.0, available_size.y - margin.y)
+                        };
+
+                        if h > node.max_size.y {
+                            node.max_size.y
+                        } else if h < node.min_size.y {
+                            node.min_size.y
+                        } else {
+                            h
+                        }
                     },
                 };
-
-                if size_for_child.x > node.max_size.x {
-                    size_for_child.x = node.max_size.x;
-                } else if size_for_child.x < node.min_size.x {
-                    size_for_child.x = node.min_size.x;
-                }
-
-                if size_for_child.y > node.max_size.y {
-                    size_for_child.y = node.max_size.y;
-                } else if size_for_child.y < node.min_size.y {
-                    size_for_child.y = node.min_size.y;
-                }
 
                 if node.visibility == Visibility::Visible {
                     // Remember immutable pointer to collection of children nodes on which we'll continue
@@ -536,13 +620,13 @@ impl UserInterface {
     }
 
     fn arrange(&mut self, node_handle: &Handle<UINode>, final_rect: &Rect<f32>) {
-        let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
+        let children: UnsafeCollectionView<Handle<UINode>>;
 
-        let mut size = Vec2::new();
-        let mut size_without_margin = Vec2::new();
-        let mut origin_x = 0.0;
-        let mut origin_y = 0.0;
-        let mut node_kind: *const UINodeKind = std::ptr::null();
+        let mut size;
+        let size_without_margin;
+        let mut origin_x;
+        let mut origin_y;
+        let node_kind: *const UINodeKind;
 
         match self.nodes.borrow_mut(node_handle) {
             None => return,
@@ -650,24 +734,22 @@ impl UserInterface {
         self.update_transform(&root_canvas_handle);
     }
 
-    fn draw_node(&mut self, node_handle: &Handle<UINode>, font_cache: &Pool<Font>) {
+    fn draw_node(&mut self, node_handle: &Handle<UINode>, font_cache: &Pool<Font>, nesting: u8) {
         let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
 
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
+            let bounds = node.get_screen_bounds();
+
+            self.drawing_context.set_nesting(nesting);
+            node.command_indices.push(self.drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9)));
+
+
             match &mut node.kind {
                 UINodeKind::Border(border) => {
-                    let bounds = Rect::new(
-                        node.screen_position.x,
-                        node.screen_position.y,
-                        node.actual_size.x,
-                        node.actual_size.y);
                     self.drawing_context.push_rect_filled(&bounds, None, node.color);
                     self.drawing_context.push_rect_vary(&bounds, border.stroke_thickness, border.stroke_color);
-                    if let Some(command_index) = self.drawing_context.commit(CommandKind::Geometry, 0) {
-                        node.geometry.push(command_index);
-                    }
+                    node.command_indices.push(self.drawing_context.commit(CommandKind::Geometry, 0).unwrap());
                 }
-                UINodeKind::Image => {}
                 UINodeKind::Text(text) => {
                     if text.need_update {
                         if let Some(font) = font_cache.borrow(&text.font) {
@@ -676,13 +758,15 @@ impl UserInterface {
                                 .with_font(font)
                                 .with_text(text.text.as_str())
                                 .with_color(node.color)
+                                .with_horizontal_alignment(text.horizontal_alignment)
+                                .with_vertical_alignment(text.vertical_alignment)
                                 .build();
                             text.formatted_text = Some(formatted_text);
                         }
                         text.need_update = true; // TODO
                     }
                     if let Some(command_index) = self.drawing_context.draw_text(node.screen_position, text.formatted_text.as_ref().unwrap()) {
-                        node.geometry.push(command_index);
+                        node.command_indices.push(command_index);
                     }
                 }
                 _ => ()
@@ -693,15 +777,31 @@ impl UserInterface {
 
         // Continue on children
         for child_node in children.iter() {
-            self.draw_node(child_node, font_cache);
+            self.draw_node(child_node, font_cache, nesting + 1);
         }
+
+        self.drawing_context.revert_clip_geom();
     }
 
     pub fn draw(&mut self, font_cache: &Pool<Font>) -> &DrawingContext {
         self.drawing_context.clear();
 
         let root_canvas = self.root_canvas.clone();
-        self.draw_node(&root_canvas, font_cache);
+        self.draw_node(&root_canvas, font_cache, 1);
+
+        self.drawing_context.set_nesting(0);
+
+        let picked_bounds =
+            if let Some(picked_node) = self.nodes.borrow(&self.picked_node) {
+                Some(picked_node.get_screen_bounds())
+            } else {
+                None
+            };
+
+        if let Some(picked_bounds) = picked_bounds {
+            self.drawing_context.push_rect(&picked_bounds, 1.0, Color::white());
+            self.drawing_context.commit(CommandKind::Geometry, 0);
+        }
 
         &self.drawing_context
     }
@@ -714,7 +814,7 @@ impl UserInterface {
                 return clipped;
             }
 
-            for command_index in node.geometry.iter() {
+            for command_index in node.command_indices.iter() {
                 if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
                     if *command.get_kind() == CommandKind::Clip {
                         if self.drawing_context.is_command_contains_point(command, pt) {
@@ -727,7 +827,7 @@ impl UserInterface {
             }
 
             // Point can be clipped by parent's clipping geometry.
-            if let Some(parent) = self.nodes.borrow(&node.parent) {
+            if !node.parent.is_none() {
                 if !clipped {
                     clipped |= self.is_node_clipped(&node.parent, pt);
                 }
@@ -742,9 +842,21 @@ impl UserInterface {
             if node.visibility != Visibility::Visible {
                 return false;
             }
+
+            if !self.is_node_clipped(node_handle, pt) {
+                for command_index in node.command_indices.iter() {
+                    if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
+                        if *command.get_kind() == CommandKind::Geometry {
+                            if self.drawing_context.is_command_contains_point(command, pt) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        true
+        false
     }
 
     fn pick_node(&self, node_handle: &Handle<UINode>, pt: &Vec2, level: &mut i32) -> Handle<UINode> {
@@ -807,6 +919,7 @@ impl UserInterface {
             WindowEvent::CursorMoved { position, .. } => {
                 let pos = Vec2::make(position.x as f32, position.y as f32);
                 self.picked_node = self.hit_test(&pos);
+
                 // Fire mouse leave for previously picked node
                 if self.picked_node != self.prev_picked_node {
                     let mut route_mouse_leave = false;
@@ -820,7 +933,7 @@ impl UserInterface {
                     if route_mouse_leave {
                         let mut evt = RoutedEvent {
                             handled: false,
-                            kind: RoutedEventKind::MouseLeave
+                            kind: RoutedEventKind::MouseLeave,
                         };
                         self.route_event(self.prev_picked_node.clone(), RoutedEventHandlerType::MouseLeave, &mut evt);
                     }
@@ -854,9 +967,9 @@ impl UINode {
             visibility: Visibility::Visible,
             children: Vec::new(),
             parent: Handle::none(),
-            geometry: Vec::new(),
+            command_indices: Vec::new(),
             event_handlers: Default::default(),
-            is_mouse_over: false
+            is_mouse_over: false,
         }
     }
 
@@ -868,11 +981,27 @@ impl UINode {
         self.height = height;
     }
 
+    pub fn set_desired_local_position(&mut self, pos: Vec2) {
+        self.desired_local_position = pos;
+    }
+
     pub fn get_kind(&self) -> &UINodeKind {
         &self.kind
     }
 
+    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) {
+        self.vertical_alignment = valign;
+    }
+
+    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) {
+        self.horizontal_alignment = halign;
+    }
+
     pub fn get_kind_mut(&mut self) -> &mut UINodeKind {
         &mut self.kind
+    }
+
+    pub fn get_screen_bounds(&self) -> Rect<f32> {
+        Rect::new(self.screen_position.x, self.screen_position.y, self.actual_size.x, self.actual_size.y)
     }
 }

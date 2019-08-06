@@ -10,6 +10,7 @@ pub mod triangulator;
 use serde::{Serialize, Deserialize};
 use vec2::*;
 use vec3::*;
+use std::ops::{Add, Sub, Mul};
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub struct Rect<T> {
@@ -19,7 +20,7 @@ pub struct Rect<T> {
     pub h: T,
 }
 
-impl<T> Rect<T> where T: Default {
+impl<T> Rect<T> where T: Default + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Copy {
     pub fn new(x: T, y: T, w: T, h: T) -> Rect<T> {
         Rect { x, y, w, h }
     }
@@ -30,6 +31,24 @@ impl<T> Rect<T> where T: Default {
             y: T::default(),
             w: T::default(),
             h: T::default(),
+        }
+    }
+
+    pub fn inflate(&self, dw: T, dh: T) -> Rect<T> {
+        Rect {
+            x: self.x - dw,
+            y: self.y - dh,
+            w: self.w + dw + dw,
+            h: self.h + dh + dh
+        }
+    }
+
+    pub fn deflate(&self, dw: T, dh: T) -> Rect<T> {
+        Rect {
+            x: self.x + dw,
+            y: self.y + dh,
+            w: self.w - (dw + dw),
+            h: self.h - (dh + dh)
         }
     }
 }

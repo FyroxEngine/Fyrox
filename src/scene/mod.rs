@@ -1,13 +1,15 @@
 pub mod node;
 pub mod animation;
 
-use crate::utils::pool::*;
-use crate::math::mat4::*;
+use crate::{
+    utils::pool::*,
+    math::mat4::*,
+    physics::Physics,
+    engine::State
+};
 use node::*;
-use crate::physics::Physics;
 
 use serde::{Serialize, Deserialize};
-use crate::engine::State;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {

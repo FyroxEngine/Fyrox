@@ -1,10 +1,10 @@
-///
-/// Generic triangulator.
-///
-
-use crate::math::vec2::*;
-use crate::math::vec3::*;
-use crate::math;
+use crate::{
+    math::{
+        vec2::*,
+        vec3::*,
+        self
+    }
+};
 use std::fmt;
 
 ///

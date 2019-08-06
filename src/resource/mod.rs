@@ -4,8 +4,10 @@ pub mod model;
 pub mod ttf;
 
 use std::path::*;
-use crate::resource::texture::*;
-use crate::resource::model::{Model};
+use crate::{
+    resource::texture::*,
+    resource::model::{Model}
+};
 
 pub enum ResourceKind {
     Base,

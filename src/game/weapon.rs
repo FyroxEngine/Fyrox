@@ -1,11 +1,15 @@
-use crate::utils::pool::Handle;
-use crate::scene::node::Node;
-use crate::scene::Scene;
-use crate::engine::State;
+use crate::{
+    utils::pool::Handle,
+    scene::{
+        node::Node,
+        Scene
+    },
+    engine::State,
+    resource::ResourceKind,
+    math::vec3::Vec3,
+    game::GameTime
+};
 use std::path::Path;
-use crate::resource::ResourceKind;
-use crate::math::vec3::Vec3;
-use crate::game::GameTime;
 
 pub enum WeaponKind {
     M4,

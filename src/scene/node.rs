@@ -1,14 +1,18 @@
-use crate::math::vec3::*;
-use crate::math::mat4::*;
-use crate::math::quat::*;
-use crate::renderer::surface::*;
-use crate::utils::pool::*;
-use crate::math::*;
-use crate::math::vec2::*;
-use crate::physics::Body;
+use crate::{
+    math::{
+        vec3::*,
+        mat4::*,
+        quat::*,
+        *,
+        vec2::*
+    },
+    renderer::surface::*,
+    utils::pool::*,
+    physics::Body,
+    engine::State
+};
 
 use serde::{Serialize, Deserialize};
-use crate::engine::State;
 
 #[derive(Serialize, Deserialize)]
 pub struct Light {
@@ -67,7 +71,7 @@ impl Default for Camera {
             z_far,
             view_matrix: Mat4::identity(),
             projection_matrix: Mat4::perspective(fov.to_radians(), 1.0, z_near, z_far),
-            viewport: Rect::<f32> { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
+            viewport: Rect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
         }
     }
 }

@@ -2,19 +2,19 @@ pub mod level;
 pub mod player;
 pub mod weapon;
 
-use std::fs::File;
-use std::path::Path;
-use std::fmt::Write;
+use std::{
+    fs::File,
+    path::Path,
+    fmt::Write,
+    time::{Instant}
+};
 
 use crate::game::level::Level;
 
 use crate::engine::{Engine, duration_to_seconds_f64};
-use std::time::{Duration, Instant};
-use crate::gui::draw::{FormattedText, FormattedTextBuilder};
-use crate::math::Rect;
-use crate::math::vec2::Vec2;
 use crate::gui::{UINode, UINodeKind, Text};
 use crate::utils::pool::Handle;
+use crate::math::vec2::Vec2;
 
 pub struct Game {
     engine: Engine,
@@ -37,6 +37,12 @@ impl Game {
         let mut ui_node = UINode::new(UINodeKind::Text(text));
         ui_node.set_width(200.0);
         ui_node.set_height(200.0);
+
+        let button_handle = engine.get_ui_mut().create_button();
+        if let Some(button) = engine.get_ui_mut().get_node_mut(&button_handle) {
+            button.set_desired_local_position(Vec2::make(100.0, 100.0));
+        }
+
         Game {
             debug_text: engine.get_ui_mut().add_node(ui_node),
             engine,
@@ -55,6 +61,7 @@ impl Game {
 
     pub fn update(&mut self, time: &GameTime) {
         self.level.update(&mut self.engine, time);
+        self.engine.update(time.delta);
     }
 
     pub fn run(&mut self) {
@@ -84,10 +91,11 @@ impl Game {
                             } => self.engine.stop(),
                             _ => ()
                         }
+
+                        self.engine.get_ui_mut().process_event(&event);
                     }
                 }
                 self.update(&game_time);
-                self.engine.update(fixed_timestep);
             }
 
             debug_string.clear();

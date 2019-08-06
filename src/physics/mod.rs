@@ -1,7 +1,11 @@
-use crate::math::vec3::Vec3;
-use crate::utils::pool::{Pool, Handle};
-use crate::math::ray::Ray;
-use crate::math::plane::Plane;
+use crate::{
+    math::{
+        vec3::Vec3,
+        ray::Ray,
+        plane::Plane
+    },
+    utils::pool::{Pool, Handle},
+};
 use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize)]

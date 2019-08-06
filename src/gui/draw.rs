@@ -1,11 +1,14 @@
-use crate::math::vec2::Vec2;
-use crate::math::Rect;
-use crate::gui::{Thickness, HorizontalAlignment, VerticalAlignment, UINode};
-use crate::resource::ttf::Font;
+use crate::{
+    math::{
+        vec2::Vec2,
+        Rect
+    },
+    gui::{Thickness, HorizontalAlignment, VerticalAlignment},
+    resource::ttf::Font
+};
 use std::os::raw::c_void;
-use crate::utils::pool::Handle;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -14,6 +17,14 @@ pub struct Color {
 }
 
 impl Color {
+    pub fn opaque(r: u8, g: u8, b: u8) -> Color {
+        Color {r, g, b, a: 255}
+    }
+
+    pub fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
+        Color {r, g, b, a}
+    }
+
     pub fn white() -> Color {
         Color { r: 255, g: 255, b: 255, a: 255 }
     }
@@ -40,12 +51,13 @@ impl Vertex {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum CommandKind {
     Geometry,
     Clip,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct Command {
     kind: CommandKind,
     texture: u32,
@@ -85,19 +97,20 @@ pub struct DrawingContext {
     vertex_buffer: Vec<Vertex>,
     index_buffer: Vec<i32>,
     command_buffer: Vec<Command>,
-    clip_cmd_stack: Vec<i32>,
+    clip_cmd_stack: Vec<usize>,
     opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
     current_nesting: u8,
 }
 
+#[derive(Debug)]
 struct TextGlyph {
     bounds: Rect<f32>,
     tex_coords: [Vec2; 4],
     color: Color,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct TextLine {
     begin: usize,
     end: usize,
@@ -116,6 +129,7 @@ impl TextLine {
     }
 }
 
+#[derive(Debug)]
 pub struct FormattedText {
     texture: u32,
     /// Text in UTF32 format.
@@ -424,6 +438,11 @@ impl DrawingContext {
     }
 
     #[inline]
+    pub fn set_nesting(&mut self, nesting: u8) {
+        self.current_nesting = nesting;
+    }
+
+    #[inline]
     fn push_triangle(&mut self, a: i32, b: i32, c: i32) {
         self.index_buffer.push(a);
         self.index_buffer.push(b);
@@ -447,7 +466,7 @@ impl DrawingContext {
     pub fn is_command_contains_point(&self, command: &Command, pos: &Vec2) -> bool {
         let last = command.index_offset + command.triangle_count * 3;
 
-        /* check each triangle from command for intersection with mouse pointer */
+        // Check each triangle from command for intersection with mouse pointer
         for j in (command.index_offset..last).step_by(3) {
             let va = match self.vertex_buffer.get(self.index_buffer[j] as usize) {
                 Some(v) => v,
@@ -462,7 +481,7 @@ impl DrawingContext {
                 None => return false
             };
 
-            /* check if point is in triangle */
+            // Check if point is in triangle.
             let v0 = vc.pos - va.pos;
             let v1 = vb.pos - va.pos;
             let v2 = *pos - va.pos;
@@ -480,9 +499,9 @@ impl DrawingContext {
                 return false;
             }
 
-            let invDenom = 1.0 / denom;
-            let u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-            let v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+            let inv_denom = 1.0 / denom;
+            let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
+            let v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
 
             if (u >= 0.0) && (v >= 0.0) && (u + v < 1.0) {
                 return true;
@@ -586,5 +605,29 @@ impl DrawingContext {
             self.push_rect_filled(&final_bounds, Some(&element.tex_coords), element.color);
         }
         return self.commit(CommandKind::Geometry, formatted_text.texture);
+    }
+
+    pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) -> usize {
+        self.push_rect_filled(clip_rect, None, Color::black());
+        let command_index = self.commit(CommandKind::Clip, 0).unwrap();
+        self.clip_cmd_stack.push(command_index);
+        command_index
+    }
+
+    pub fn ready_to_draw(&self) -> bool {
+        self.clip_cmd_stack.is_empty() && self.triangles_to_commit == 0 && self.opacity_stack.is_empty()
+    }
+
+    pub fn revert_clip_geom(&mut self) {
+        // Remove last clip command index
+        self.clip_cmd_stack.pop();
+        if let Some(last_index) = self.clip_cmd_stack.last() {
+            if let Some(last_clip_command) = self.command_buffer.get(*last_index) {
+                assert_eq!(last_clip_command.kind, CommandKind::Clip);
+                // Re-commit last clipping command
+                let clip_command = last_clip_command.clone();
+                self.command_buffer.push(clip_command);
+            }
+        }
     }
 }

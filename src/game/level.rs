@@ -1,13 +1,17 @@
-use crate::utils::pool::*;
-use crate::math::vec3::*;
-use crate::scene::node::*;
-use crate::scene::*;
-use crate::engine::*;
-use crate::physics::{StaticGeometry, StaticTriangle};
-use crate::game::player::Player;
+use crate::{
+    utils::pool::*,
+    math::vec3::*,
+    scene::{
+        node::*,
+        *
+    },
+    engine::*,
+    physics::{StaticGeometry, StaticTriangle},
+    game::player::Player,
+    resource::ResourceKind,
+    game::GameTime
+};
 use std::path::Path;
-use crate::resource::ResourceKind;
-use crate::game::GameTime;
 
 pub struct Level {
     scene: Handle<Scene>,

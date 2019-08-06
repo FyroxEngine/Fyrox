@@ -1,20 +1,30 @@
 use glutin::ContextTrait;
-use crate::renderer::gl;
-use crate::renderer::gl::types::*;
-use std::ffi::{CStr, CString, c_void};
-use crate::math::vec2::*;
-use crate::utils::pool::*;
-use crate::scene::node::*;
-use crate::renderer::surface::*;
-use crate::engine::{ResourceManager, State, duration_to_seconds_f32};
-use crate::math::{vec3::*};
-use crate::resource::ResourceKind;
-use std::mem::size_of;
-use crate::resource::ttf::Font;
-use crate::gui::draw::{DrawingContext, CommandKind, Color};
-use crate::math::mat4::Mat4;
-use std::time::{Instant, Duration};
-use std::thread;
+use crate::{
+    renderer::{
+        gl,
+        gl::types::*,
+        surface::*
+    },
+    math::{
+        vec2::*,
+        vec3::*,
+        mat4::Mat4
+    },
+    utils::pool::*,
+    scene::node::*,
+    engine::{ResourceManager, State, duration_to_seconds_f32},
+    resource::{
+        ResourceKind,
+        ttf::Font
+    },
+    gui::draw::{DrawingContext, CommandKind, Color},
+};
+use std::{
+    ffi::{CStr, CString, c_void},
+    mem::size_of,
+    time::{Instant, Duration},
+    thread
+};
 
 // Welcome to the kingdom of Unsafe Code
 
@@ -160,7 +170,7 @@ pub struct Renderer {
     traversal_stack: Vec<Handle<Node>>,
     frame_rate_limit: usize,
     ui_render_buffers: UIRenderBuffers,
-    statistics: Statistics
+    statistics: Statistics,
 }
 
 fn create_flat_shader() -> FlatShader {
@@ -510,7 +520,7 @@ impl Renderer {
             let client_size = self.context.get_inner_size().unwrap();
 
             gl::ClearColor(0.0, 0.63, 0.91, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 
             for scene in state.get_scenes().iter() {
                 // Prepare for render - fill lists of nodes participating in rendering
@@ -582,7 +592,6 @@ impl Renderer {
             gl::Disable(gl::DEPTH_TEST);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            gl::Enable(gl::STENCIL_TEST);
             gl::Disable(gl::CULL_FACE);
 
             gl::UseProgram(self.ui_shader.program.id);
@@ -591,7 +600,7 @@ impl Renderer {
             let index_bytes = drawing_context.get_indices_bytes();
             let vertex_bytes = drawing_context.get_vertices_bytes();
 
-            /* upload to gpu */
+            // Upload to GPU.
             gl::BindVertexArray(self.ui_render_buffers.vao);
 
             gl::BindBuffer(gl::ARRAY_BUFFER, self.ui_render_buffers.vbo);
@@ -601,28 +610,19 @@ impl Renderer {
             gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, index_bytes, drawing_context.get_indices_ptr(), gl::DYNAMIC_DRAW);
 
             let mut offset = 0;
-            gl::VertexAttribPointer(0,
-                                    2,
-                                    gl::FLOAT,
-                                    gl::FALSE,
+            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE,
                                     drawing_context.get_vertex_size(),
                                     offset as *const c_void);
             gl::EnableVertexAttribArray(0);
             offset += std::mem::size_of::<Vec2>();
 
-            gl::VertexAttribPointer(1,
-                                    2,
-                                    gl::FLOAT,
-                                    gl::FALSE,
+            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
                                     drawing_context.get_vertex_size(),
                                     offset as *const c_void);
             gl::EnableVertexAttribArray(1);
             offset += std::mem::size_of::<Vec2>();
 
-            gl::VertexAttribPointer(2,
-                                    4,
-                                    gl::UNSIGNED_BYTE,
-                                    gl::TRUE,
+            gl::VertexAttribPointer(2, 4, gl::UNSIGNED_BYTE, gl::TRUE,
                                     drawing_context.get_vertex_size(),
                                     offset as *const c_void);
             gl::EnableVertexAttribArray(2);
@@ -637,16 +637,15 @@ impl Renderer {
 
             for cmd in drawing_context.get_command_buffer() {
                 let index_count = cmd.get_triangle_count() * 3;
+                if cmd.get_nesting() != 0 {
+                    gl::Enable(gl::STENCIL_TEST);
+                } else {
+                    gl::Disable(gl::STENCIL_TEST);
+                }
                 match cmd.get_kind() {
                     CommandKind::Clip => {
-                        let is_root_nesting = cmd.get_nesting() == 1;
-                        if is_root_nesting {
+                        if cmd.get_nesting() == 1 {
                             gl::Clear(gl::STENCIL_BUFFER_BIT);
-                        }
-                        if cmd.get_nesting() != 0 {
-                            gl::Enable(gl::STENCIL_TEST);
-                        } else {
-                            gl::Disable(gl::STENCIL_TEST);
                         }
                         gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
                         // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
@@ -654,6 +653,7 @@ impl Renderer {
                         gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
                         // Draw clipping geometry to stencil buffer
                         gl::StencilMask(0xFF);
+                        gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
                     }
                     CommandKind::Geometry => {
                         // Make sure to draw geometry only on clipping geometry with current nesting level
@@ -667,18 +667,19 @@ impl Renderer {
                             gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
                         }
 
+                        gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
                         // Do not draw geometry to stencil buffer
                         gl::StencilMask(0x00);
                     }
                 }
 
-                gl::DrawElements(gl::TRIANGLES,
-                                 index_count as i32,
-                                 gl::UNSIGNED_INT,
-                                 (cmd.get_index_offset() * std::mem::size_of::<GLuint>()) as *const c_void);
+                let index_offset_bytes = cmd.get_index_offset() * std::mem::size_of::<GLuint>();
+                gl::DrawElements(gl::TRIANGLES, index_count as i32, gl::UNSIGNED_INT,
+                                 index_offset_bytes as *const c_void);
 
-                gl::BindVertexArray(0);
             }
+            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+            gl::BindVertexArray(0);
             gl::Disable(gl::STENCIL_TEST);
             gl::Disable(gl::BLEND);
             gl::Enable(gl::DEPTH_TEST);

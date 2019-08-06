@@ -1,6 +1,10 @@
 use std::ops;
-use crate::math::vec3::*;
-use crate::math::quat::*;
+use crate::{
+    math::{
+        vec3::*,
+        quat::*
+    }
+};
 use serde::{Serialize, Deserialize};
 
 #[derive(Copy, Clone, Serialize, Deserialize)]

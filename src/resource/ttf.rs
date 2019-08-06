@@ -1,13 +1,19 @@
 // TTF loader and rasterizer
 
-use crate::math::vec2::Vec2;
-use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::path::{Path};
-use std::fs::File;
-use std::io::Read;
-use crate::math::Rect;
-use crate::utils::pool::{Pool, Handle};
+use crate::{
+    math::{
+        vec2::Vec2,
+        Rect
+    },
+    utils::pool::{Pool, Handle}
+};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    path::{Path},
+    fs::File,
+    io::Read
+};
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -24,6 +30,7 @@ struct Polygon {
     points: Vec<Point>
 }
 
+#[derive(Debug)]
 pub struct FontGlyph {
     bitmap_top: f32,
     bitmap_left: f32,
@@ -75,6 +82,7 @@ struct Bitmap {
     height: usize,
 }
 
+#[derive(Debug)]
 pub struct Font {
     height: f32,
     glyphs: Vec<FontGlyph>,

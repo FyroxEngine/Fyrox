@@ -1,13 +1,21 @@
-use crate::utils::pool::*;
-use crate::math::vec2::*;
-use crate::math::vec3::*;
-use crate::math::quat::*;
-use crate::scene::node::*;
-use crate::scene::*;
-use crate::physics::Body;
-use crate::game::weapon::{Weapon, WeaponKind};
-use crate::engine::State;
-use crate::game::GameTime;
+use crate::{
+    utils::pool::*,
+    math::{
+        vec2::*,
+        vec3::*,
+        quat::*
+    },
+    scene::{
+        node::*,
+        *
+    },
+    physics::Body,
+    game::{
+        weapon::{Weapon, WeaponKind},
+        GameTime
+    },
+    engine::State,
+};
 
 pub struct Controller {
     move_forward: bool,
