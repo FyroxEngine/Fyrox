@@ -15,7 +15,7 @@ use crate::{
         ttf::Font,
     },
 };
-use glutin::{VirtualKeyCode, MouseButton, WindowEvent};
+use glutin::{VirtualKeyCode, MouseButton, WindowEvent, ElementState};
 use serde::export::PhantomData;
 use std::any::Any;
 
@@ -117,9 +117,26 @@ pub struct Image {
     texture: RcHandle<Resource>
 }
 
-pub struct Button {}
+pub type ButtonClickEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
 
-#[derive(Debug)]
+pub struct Button {
+    click: Option<Box<ButtonClickEventHandler>>,
+    was_pressed: bool,
+}
+
+impl Button {
+    pub fn new() -> Button {
+        Button {
+            click: None,
+            was_pressed: false,
+        }
+    }
+
+    pub fn set_on_click(&mut self, handler: Box<ButtonClickEventHandler>) {
+        self.click = Some(handler);
+    }
+}
+
 pub enum UINodeKind {
     Base,
     /// TODO
@@ -129,7 +146,7 @@ pub enum UINodeKind {
     /// TODO
     Window,
     /// TODO
-    Button,
+    Button(Button),
     /// TODO
     ScrollBar,
     /// TODO
@@ -148,7 +165,7 @@ pub enum UINodeKind {
     SlideSelector,
     /// TODO
     CheckBox,
-    UserControl(Box<dyn Any>)
+    UserControl(Box<dyn Any>),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -156,6 +173,8 @@ pub enum RoutedEventHandlerType {
     MouseMove,
     MouseEnter,
     MouseLeave,
+    MouseDown,
+    MouseUp,
     Count,
 }
 
@@ -237,15 +256,25 @@ pub struct RoutedEvent {
     handled: bool,
 }
 
+impl RoutedEvent {
+    pub fn new(kind: RoutedEventKind) -> RoutedEvent {
+        RoutedEvent {
+            kind,
+            handled: false,
+        }
+    }
+}
+
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
     default_font: Handle<Font>,
-
+    visual_debug: bool,
     /// Every UI node will live on the window-sized canvas.
     root_canvas: Handle<UINode>,
     picked_node: Handle<UINode>,
     prev_picked_node: Handle<UINode>,
+    captured_node: Handle<UINode>,
 }
 
 #[inline]
@@ -311,19 +340,13 @@ impl<'a, T> Iterator for CollectionViewIterator<'a, T> {
     }
 }
 
-struct UINodeBuilder {
-
-}
-
-impl UINodeBuilder {
-
-}
-
 impl UserInterface {
     pub fn new(default_font: Handle<Font>) -> UserInterface {
         let mut nodes = Pool::new();
         UserInterface {
+            visual_debug: false,
             default_font,
+            captured_node: Handle::none(),
             root_canvas: nodes.spawn(UINode::new(UINodeKind::Canvas)),
             nodes,
             drawing_context: DrawingContext::new(),
@@ -338,20 +361,98 @@ impl UserInterface {
         node_handle
     }
 
-    pub fn create_button(&mut self) -> Handle<UINode> {
-        let border = Border {stroke_color: Color::opaque(200, 200, 200), stroke_thickness: Thickness{left: 1.0, right: 1.0, top: 1.0, bottom: 1.0}};
-        let mut text = Text::new("Test button");
+    pub fn create_button(&mut self, text: &str) -> Handle<UINode> {
+        let normal_color = Color::opaque(120, 120, 120);
+        let pressed_color = Color::opaque(100, 100, 100);
+        let hover_color = Color::opaque(160, 160, 160);
+        let mut button_node = UINode::new(UINodeKind::Button(Button::new()));
+        button_node.set_width(200.0);
+        button_node.set_height(50.0);
+        button_node.set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
+            ui.capture_mouse(&handle);
+            if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                if let UINodeKind::Button(button) = button_node.get_kind_mut() {
+                    button.was_pressed = true;
+                }
+            }
+        }));
+        button_node.set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
+            // Take-Call-PutBack trick to bypass borrow checker
+            let mut click_handler = None;
+
+            if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                if let UINodeKind::Button(button) = button_node.get_kind_mut() {
+                    click_handler = button.click.take();
+                    button.was_pressed = false;
+                }
+            }
+
+            if let Some(ref mut handler) = click_handler {
+                handler(ui, handle.clone());
+                evt.handled = true;
+            }
+
+            // Second check required because event handler can remove node.
+            if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                if let UINodeKind::Button(button) = button_node.get_kind_mut() {
+                    button.click = click_handler;
+                }
+            }
+
+            ui.release_mouse_capture();
+        }));
+        let button_handle = self.add_node(button_node);
+        let border = Border { stroke_color: Color::opaque(200, 200, 200), stroke_thickness: Thickness { left: 2.0, right: 2.0, top: 2.0, bottom: 2.0 } };
+        let mut text = Text::new(text);
         text.set_font(self.default_font.clone());
         text.set_horizontal_alignment(HorizontalAlignment::Center);
         text.set_vertical_alignment(VerticalAlignment::Center);
         let mut back = UINode::new(UINodeKind::Border(border));
-        back.set_width(200.0);
-        back.set_height(50.0);
-        back.color = Color::opaque(120, 120, 120);
+        back.set_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
+            if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                back.color = hover_color;
+            }
+        }));
+        back.set_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
+            if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                back.color = normal_color;
+            }
+        }));
+        back.set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
+            if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                back.color = pressed_color;
+            }
+        }));
+        back.set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
+            if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                if back.is_mouse_over {
+                    back.color = hover_color;
+                } else {
+                    back.color = normal_color;
+                }
+            }
+        }));
+        back.color = normal_color;
         let back_handle = self.add_node(back);
-        let text_handle = self.add_node(UINode::new( UINodeKind::Text(text)));
+        let text_handle = self.add_node(UINode::new(UINodeKind::Text(text)));
         self.link_nodes(&text_handle, &back_handle);
-        back_handle
+        self.link_nodes(&back_handle, &button_handle);
+        button_handle
+    }
+
+    pub fn capture_mouse(&mut self, node: &Handle<UINode>) -> bool {
+        if self.captured_node.is_none() {
+            if self.nodes.is_valid_handle(node) {
+                self.captured_node = node.clone();
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn release_mouse_capture(&mut self) {
+        self.captured_node = Handle::none();
     }
 
     /// Links specified child with specified parent.
@@ -789,18 +890,20 @@ impl UserInterface {
         let root_canvas = self.root_canvas.clone();
         self.draw_node(&root_canvas, font_cache, 1);
 
-        self.drawing_context.set_nesting(0);
+        if self.visual_debug {
+            self.drawing_context.set_nesting(0);
 
-        let picked_bounds =
-            if let Some(picked_node) = self.nodes.borrow(&self.picked_node) {
-                Some(picked_node.get_screen_bounds())
-            } else {
-                None
-            };
+            let picked_bounds =
+                if let Some(picked_node) = self.nodes.borrow(&self.picked_node) {
+                    Some(picked_node.get_screen_bounds())
+                } else {
+                    None
+                };
 
-        if let Some(picked_bounds) = picked_bounds {
-            self.drawing_context.push_rect(&picked_bounds, 1.0, Color::white());
-            self.drawing_context.commit(CommandKind::Geometry, 0);
+            if let Some(picked_bounds) = picked_bounds {
+                self.drawing_context.push_rect(&picked_bounds, 1.0, Color::white());
+                self.drawing_context.commit(CommandKind::Geometry, 0);
+            }
         }
 
         &self.drawing_context
@@ -884,7 +987,13 @@ impl UserInterface {
 
     pub fn hit_test(&self, pt: &Vec2) -> Handle<UINode> {
         let mut level = 0;
-        self.pick_node(&self.root_canvas, pt, &mut level)
+        let node =
+            if self.nodes.is_valid_handle(&self.captured_node) {
+                self.captured_node.clone()
+            } else {
+                self.root_canvas.clone()
+            };
+        self.pick_node(&node, pt, &mut level)
     }
 
     fn route_event(&mut self, node_handle: Handle<UINode>, event_type: RoutedEventHandlerType, event_args: &mut RoutedEvent) {
@@ -909,7 +1018,7 @@ impl UserInterface {
         }
 
         // Route event up on hierarchy (bubbling strategy) until is not handled.
-        if !event_args.handled {
+        if !event_args.handled && !parent.is_none() {
             self.route_event(parent, event_type, event_args);
         }
     }
@@ -922,25 +1031,68 @@ impl UserInterface {
 
                 // Fire mouse leave for previously picked node
                 if self.picked_node != self.prev_picked_node {
-                    let mut route_mouse_leave = false;
+                    let mut fire_mouse_leave = false;
                     if let Some(prev_picked_node) = self.nodes.borrow_mut(&self.prev_picked_node) {
                         if prev_picked_node.is_mouse_over {
                             prev_picked_node.is_mouse_over = false;
-                            route_mouse_leave = true;
+                            fire_mouse_leave = true;
                         }
                     }
 
-                    if route_mouse_leave {
-                        let mut evt = RoutedEvent {
-                            handled: false,
-                            kind: RoutedEventKind::MouseLeave,
-                        };
+                    if fire_mouse_leave {
+                        let mut evt = RoutedEvent::new(RoutedEventKind::MouseLeave);
                         self.route_event(self.prev_picked_node.clone(), RoutedEventHandlerType::MouseLeave, &mut evt);
                     }
+                }
+
+                if !self.picked_node.is_none() {
+                    let mut fire_mouse_enter = false;
+                    if let Some(picked_node) = self.nodes.borrow_mut(&self.picked_node) {
+                        if !picked_node.is_mouse_over {
+                            picked_node.is_mouse_over = true;
+                            fire_mouse_enter = true;
+                        }
+                    }
+
+                    if fire_mouse_enter {
+                        let mut evt = RoutedEvent::new(RoutedEventKind::MouseEnter);
+                        self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseEnter, &mut evt);
+                    }
+
+                    // Fire mouse move
+                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseMove { pos });
+                    self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseMove, &mut evt);
                 }
             }
             _ => ()
         }
+
+        if !self.picked_node.is_none() {
+            match event {
+                WindowEvent::MouseInput { button, state, .. } => {
+                    match state {
+                        ElementState::Pressed => {
+                            let mut evt = RoutedEvent::new(RoutedEventKind::MouseDown {
+                                pos: Vec2::new(),
+                                button: *button,
+                            });
+                            self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseDown, &mut evt);
+                        }
+                        ElementState::Released => {
+                            let mut evt = RoutedEvent::new(RoutedEventKind::MouseUp {
+                                pos: Vec2::new(),
+                                button: *button,
+                            });
+                            self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseUp, &mut evt);
+                        }
+                    }
+                }
+                _ => ()
+            }
+        }
+
+        self.prev_picked_node = self.picked_node.clone();
+
         false
     }
 }
@@ -1003,5 +1155,9 @@ impl UINode {
 
     pub fn get_screen_bounds(&self) -> Rect<f32> {
         Rect::new(self.screen_position.x, self.screen_position.y, self.actual_size.x, self.actual_size.y)
+    }
+
+    pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<EventHandler>) {
+        self.event_handlers[handler_type as usize] = Some(handler);
     }
 }

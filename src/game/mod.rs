@@ -38,9 +38,14 @@ impl Game {
         ui_node.set_width(200.0);
         ui_node.set_height(200.0);
 
-        let button_handle = engine.get_ui_mut().create_button();
+        let button_handle = engine.get_ui_mut().create_button("Test button");
         if let Some(button) = engine.get_ui_mut().get_node_mut(&button_handle) {
             button.set_desired_local_position(Vec2::make(100.0, 100.0));
+            if let UINodeKind::Button(btn) = button.get_kind_mut() {
+                btn.set_on_click(Box::new(|_ui, _handle| {
+                    println!("Clicked!");
+                }));
+            }
         }
 
         Game {

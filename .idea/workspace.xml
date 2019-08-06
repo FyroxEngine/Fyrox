@@ -6,25 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/level.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/level.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/game/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/player.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/player.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/weapon.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/weapon.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/draw.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/draw.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/math/mat4.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/mat4.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/math/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/math/triangulator.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/triangulator.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/physics/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/physics/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/surface.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/surface.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

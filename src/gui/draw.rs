@@ -520,7 +520,7 @@ impl DrawingContext {
 
         let index = self.get_index_origin();
         self.push_triangle(index, index + 1, index + 2);
-        self.push_triangle(index, index + 2, index + 3);
+        self.push_triangle(index + 2, index + 1, index + 3);
     }
 
     pub fn push_rect(&mut self, rect: &Rect<f32>, thickness: f32, color: Color) {
