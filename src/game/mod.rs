@@ -9,12 +9,14 @@ use std::{
     time::{Instant}
 };
 
-use crate::game::level::Level;
-
-use crate::engine::{Engine, duration_to_seconds_f64};
-use crate::gui::{UINode, UINodeKind, Text};
-use crate::utils::pool::Handle;
-use crate::math::vec2::Vec2;
+use crate::{
+    engine::{Engine, duration_to_seconds_f64},
+    game::level::Level,
+    gui::{UINode, UINodeKind, Text, Column, SizeMode, Row},
+    utils::pool::Handle,
+    math::vec2::Vec2
+};
+use crate::gui::{GridBuilder, ButtonBuilder, Thickness};
 
 pub struct Game {
     engine: Engine,
@@ -38,18 +40,39 @@ impl Game {
         ui_node.set_width(200.0);
         ui_node.set_height(200.0);
 
-        let button_handle = engine.get_ui_mut().create_button("Test button");
-        if let Some(button) = engine.get_ui_mut().get_node_mut(&button_handle) {
-            button.set_desired_local_position(Vec2::make(100.0, 100.0));
-            if let UINodeKind::Button(btn) = button.get_kind_mut() {
-                btn.set_on_click(Box::new(|_ui, _handle| {
-                    println!("Clicked!");
-                }));
-            }
-        }
+        let ui = engine.get_ui_mut();
+        let grid_handle = GridBuilder::new()
+            .add_column(Column::new(SizeMode::Stretch, 0.0))
+            .add_row(Row::new(SizeMode::Strict, 50.0))
+            .add_row(Row::new(SizeMode::Strict, 50.0))
+            .with_width(300.0)
+            .with_height(400.0)
+            .build(ui);
+
+        ButtonBuilder::new()
+            .with_text("New Game")
+            .on_column(0)
+            .on_row(0)
+            .with_margin(Thickness::uniform(4.0))
+            .with_parent(&grid_handle)
+            .with_click(Box::new(|_ui, _handle| {
+                println!("New Game Clicked!");
+            }))
+            .build(ui);
+
+        ButtonBuilder::new()
+            .with_text("Quit")
+            .on_column(0)
+            .on_row(1)
+            .with_margin(Thickness::uniform(4.0))
+            .with_parent(&grid_handle)
+            .with_click(Box::new(|_ui, _handle| {
+                println!("Quit Clicked!");
+            }))
+            .build(ui);
 
         Game {
-            debug_text: engine.get_ui_mut().add_node(ui_node),
+            debug_text: ui.add_node(ui_node),
             engine,
             level
         }

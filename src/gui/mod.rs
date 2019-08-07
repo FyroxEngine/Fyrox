@@ -4,6 +4,7 @@ use crate::{
     utils::{
         pool::{Pool, Handle},
         rcpool::RcHandle,
+        UnsafeCollectionView,
     },
     math::{
         vec2::Vec2,
@@ -16,8 +17,6 @@ use crate::{
     },
 };
 use glutin::{VirtualKeyCode, MouseButton, WindowEvent, ElementState};
-use serde::export::PhantomData;
-use std::any::Any;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -52,6 +51,15 @@ impl Thickness {
             bottom: 0.0,
         }
     }
+
+    pub fn uniform(v: f32) -> Thickness {
+        Thickness {
+            left: v,
+            top: v,
+            right: v,
+            bottom: v,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -83,27 +91,31 @@ impl Text {
         }
     }
 
-    pub fn set_text(&mut self, text: &str) {
+    pub fn set_text(&mut self, text: &str) -> &mut Self {
         self.text.clear();
         self.text += text;
         self.need_update = true;
+        self
     }
 
     pub fn get_text(&self) -> &str {
         self.text.as_str()
     }
 
-    pub fn set_font(&mut self, font: Handle<Font>) {
+    pub fn set_font(&mut self, font: Handle<Font>) -> &mut Self {
         self.font = font;
         self.need_update = true;
+        self
     }
 
-    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) {
+    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
         self.vertical_alignment = valign;
+        self
     }
 
-    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) {
+    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) -> &mut Self {
         self.horizontal_alignment = halign;
+        self
     }
 }
 
@@ -111,6 +123,30 @@ impl Text {
 pub struct Border {
     stroke_thickness: Thickness,
     stroke_color: Color,
+}
+
+impl Border {
+    pub fn new() -> Border {
+        Border {
+            stroke_thickness: Thickness {
+                left: 1.0,
+                right: 1.0,
+                top: 1.0,
+                bottom: 1.0,
+            },
+            stroke_color: Color::white(),
+        }
+    }
+
+    pub fn set_stroke_thickness(&mut self, thickness: Thickness) -> &mut Self {
+        self.stroke_thickness = thickness;
+        self
+    }
+
+    pub fn set_stroke_color(&mut self, color: Color) -> &mut Self {
+        self.stroke_color = color;
+        self
+    }
 }
 
 pub struct Image {
@@ -137,15 +173,379 @@ impl Button {
     }
 }
 
+pub enum ButtonContent {
+    Text(String),
+    Node(Handle<UINode>),
+}
+
+pub struct ButtonBuilder {
+    content: Option<ButtonContent>,
+    click: Option<Box<ButtonClickEventHandler>>,
+    common: CommonBuilderFields
+}
+
+struct CommonBuilderFields {
+    width: Option<f32>,
+    height: Option<f32>,
+    vertical_alignment: Option<VerticalAlignment>,
+    horizontal_alignment: Option<HorizontalAlignment>,
+    max_size: Option<Vec2>,
+    min_size: Option<Vec2>,
+    color: Option<Color>,
+    row: Option<usize>,
+    column: Option<usize>,
+    margin: Option<Thickness>,
+    parent: Option<Handle<UINode>>
+}
+
+impl CommonBuilderFields {
+    pub fn new() -> Self {
+        Self {
+            width: None,
+            height: None,
+            vertical_alignment: None,
+            horizontal_alignment: None,
+            max_size: None,
+            min_size: None,
+            color: None,
+            row: None,
+            column: None,
+            margin: None,
+            parent: None,
+        }
+    }
+
+    pub fn apply(&self, ui: &mut UserInterface, node_handle: &Handle<UINode>) {
+        if let Some(node) = ui.nodes.borrow_mut(node_handle) {
+            if let Some(width) = self.width {
+                node.width = width;
+            }
+            if let Some(height) = self.height {
+                node.height = height;
+            }
+            if let Some(valign) = self.vertical_alignment {
+                node.vertical_alignment = valign;
+            }
+            if let Some(halign) = self.horizontal_alignment {
+                node.horizontal_alignment = halign;
+            }
+            if let Some(max_size) = self.max_size {
+                node.max_size = max_size;
+            }
+            if let Some(min_size) = self.min_size {
+                node.min_size = min_size;
+            }
+            if let Some(color) = self.color {
+                node.color = color;
+            }
+            if let Some(row) = self.row {
+                node.row = row;
+            }
+            if let Some(column) = self.column {
+                node.column = column;
+            }
+            if let Some(margin) = self.margin {
+                node.margin = margin;
+            }
+        }
+        if let Some(ref parent) = self.parent {
+            ui.link_nodes(node_handle, &parent);
+        }
+    }
+}
+
+macro_rules! impl_default_builder_methods {
+    () => (
+        pub fn with_width(mut self, width: f32) -> Self {
+            self.common.width = Some(width);
+            self
+        }
+
+        pub fn with_height(mut self, height: f32) -> Self {
+            self.common.height = Some(height);
+            self
+        }
+
+        pub fn with_vertical_alignment(mut self, valign: VerticalAlignment) -> Self {
+            self.common.vertical_alignment = Some(valign);
+            self
+        }
+
+        pub fn with_horizontal_alignment(mut self, halign: HorizontalAlignment) -> Self {
+            self.common.horizontal_alignment = Some(halign);
+            self
+        }
+
+        pub fn with_max_size(mut self, max_size: Vec2) -> Self {
+            self.common.max_size = Some(max_size);
+            self
+        }
+
+        pub fn with_min_size(mut self, min_size: Vec2) -> Self {
+            self.common.min_size = Some(min_size);
+            self
+        }
+
+        pub fn with_color(mut self, color: Color) -> Self {
+            self.common.color = Some(color);
+            self
+        }
+
+        pub fn on_row(mut self, row: usize) -> Self {
+            self.common.row = Some(row);
+            self
+        }
+
+        pub fn on_column(mut self, column: usize) -> Self {
+            self.common.column = Some(column);
+            self
+        }
+
+        pub fn with_margin(mut self, margin: Thickness) -> Self {
+            self.common.margin = Some(margin);
+            self
+        }
+
+        pub fn with_parent(mut self, parent: &Handle<UINode>) -> Self {
+            self.common.parent = Some(parent.clone());
+            self
+        }
+    )
+}
+
+impl ButtonBuilder {
+    pub fn new() -> Self {
+        Self {
+            content: None,
+            click: None,
+            common: CommonBuilderFields::new(),
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn with_text(mut self, text: &str) -> Self {
+        self.content = Some(ButtonContent::Text(text.to_owned()));
+        self
+    }
+
+    pub fn with_node(mut self, node: Handle<UINode>) -> Self {
+        self.content = Some(ButtonContent::Node(node));
+        self
+    }
+
+    pub fn with_click(mut self, handler: Box<ButtonClickEventHandler>) -> Self {
+        self.click = Some(handler);
+        self
+    }
+
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        let normal_color = Color::opaque(120, 120, 120);
+        let pressed_color = Color::opaque(100, 100, 100);
+        let hover_color = Color::opaque(160, 160, 160);
+
+        let mut button = Button::new();
+        button.click = self.click;
+
+        let mut button_node = UINode::new(UINodeKind::Button(button));
+        button_node
+            .set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
+                ui.capture_mouse(&handle);
+                if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                    if let UINodeKind::Button(button) = button_node.get_kind_mut() {
+                        button.was_pressed = true;
+                    }
+                }
+            }))
+            .set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
+                // Take-Call-PutBack trick to bypass borrow checker
+                let mut click_handler = None;
+
+                if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                    if let UINodeKind::Button(button) = button_node.get_kind_mut() {
+                        click_handler = button.click.take();
+                        button.was_pressed = false;
+                    }
+                }
+
+                if let Some(ref mut handler) = click_handler {
+                    handler(ui, handle.clone());
+                    evt.handled = true;
+                }
+
+                // Second check required because event handler can remove node.
+                if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                    if let UINodeKind::Button(button) = button_node.get_kind_mut() {
+                        button.click = click_handler;
+                    }
+                }
+
+                ui.release_mouse_capture();
+            }));
+
+
+
+        let mut border = Border::new();
+        border.set_stroke_color(Color::opaque(200, 200, 200))
+            .set_stroke_thickness(Thickness { left: 2.0, right: 2.0, top: 2.0, bottom: 2.0 });
+
+        let mut back = UINode::new(UINodeKind::Border(border));
+        back.set_color(normal_color)
+            .set_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
+                if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    back.color = hover_color;
+                }
+            }))
+            .set_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
+                if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    back.color = normal_color;
+                }
+            }))
+            .set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
+                if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    back.color = pressed_color;
+                }
+            }))
+            .set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
+                if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    if back.is_mouse_over {
+                        back.color = hover_color;
+                    } else {
+                        back.color = normal_color;
+                    }
+                }
+            }));
+
+        let back_handle = ui.add_node(back);
+        let button_handle = ui.add_node(button_node);
+        self.common.apply(ui, &button_handle);
+        if let Some(content) = self.content {
+            let content_handle = match content {
+                ButtonContent::Text(txt) => {
+                    let mut text = Text::new(txt.as_str());
+                    text.set_font(ui.default_font.clone())
+                        .set_horizontal_alignment(HorizontalAlignment::Center)
+                        .set_vertical_alignment(VerticalAlignment::Center);
+                    ui.add_node(UINode::new(UINodeKind::Text(text)))
+                }
+                ButtonContent::Node(node) => {
+                    node
+                }
+            };
+            ui.link_nodes(&content_handle, &back_handle);
+        }
+        ui.link_nodes(&back_handle, &button_handle);
+        button_handle
+    }
+}
+
+#[derive(PartialEq)]
+pub enum SizeMode {
+    Strict,
+    Auto,
+    Stretch,
+}
+
+pub struct Column {
+    size_mode: SizeMode,
+    desired_width: f32,
+    actual_width: f32,
+    x: f32,
+}
+
+impl Column {
+    pub fn new(size_mode: SizeMode, desired_width: f32) -> Column {
+        Column {
+            size_mode,
+            desired_width,
+            actual_width: 0.0,
+            x: 0.0,
+        }
+    }
+}
+
+pub struct Row {
+    size_mode: SizeMode,
+    desired_height: f32,
+    actual_height: f32,
+    y: f32,
+}
+
+impl Row {
+    pub fn new(size_mode: SizeMode, desired_height: f32) -> Row {
+        Row {
+            size_mode,
+            desired_height,
+            actual_height: 0.0,
+            y: 0.0,
+        }
+    }
+}
+
+pub struct Grid {
+    rows: Vec<Row>,
+    columns: Vec<Column>,
+    draw_borders: bool,
+}
+
+pub struct GridBuilder {
+    rows: Vec<Row>,
+    columns: Vec<Column>,
+    common: CommonBuilderFields
+}
+
+impl GridBuilder {
+    pub fn new() -> Self {
+        GridBuilder {
+            rows: Vec::new(),
+            columns: Vec::new(),
+            common: CommonBuilderFields::new(),
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn add_row(mut self, row: Row) -> Self {
+        self.rows.push(row);
+        self
+    }
+
+    pub fn add_column(mut self, column: Column) -> Self {
+        self.columns.push(column);
+        self
+    }
+
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        let node = UINode::new(UINodeKind::Grid(Grid {
+            columns: self.columns,
+            rows: self.rows,
+            draw_borders: false,
+        }));
+
+        let handle = ui.add_node(node);
+        self.common.apply(ui, &handle);
+        handle
+    }
+}
+
+impl Grid {
+    pub fn add_row(&mut self, row: Row) -> &mut Self {
+        self.rows.push(row);
+        self
+    }
+
+    pub fn add_column(&mut self, column: Column) -> &mut Self {
+        self.columns.push(column);
+        self
+    }
+}
+
 pub enum UINodeKind {
     Base,
-    /// TODO
     Text(Text),
-    /// TODO
     Border(Border),
     /// TODO
     Window,
-    /// TODO
     Button(Button),
     /// TODO
     ScrollBar,
@@ -155,8 +555,8 @@ pub enum UINodeKind {
     TextBox,
     /// TODO
     Image,
-    /// TODO Automatically arranges children by rows and columns
-    Grid,
+    /// Automatically arranges children by rows and columns
+    Grid(Grid),
     /// TODO Allows user to directly set position and size of a node
     Canvas,
     /// TODO Allows user to scroll content
@@ -165,7 +565,6 @@ pub enum UINodeKind {
     SlideSelector,
     /// TODO
     CheckBox,
-    UserControl(Box<dyn Any>),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -279,64 +678,19 @@ pub struct UserInterface {
 
 #[inline]
 fn maxf(a: f32, b: f32) -> f32 {
-    if a > b { a } else { b }
+    if a > b {
+        a
+    } else {
+        b
+    }
 }
 
 #[inline]
 fn minf(a: f32, b: f32) -> f32 {
-    if a < b { a } else { b }
-}
-
-struct UnsafeCollectionView<T> {
-    items: *const T,
-    len: usize,
-}
-
-impl<T> UnsafeCollectionView<T> {
-    fn empty() -> UnsafeCollectionView<T> {
-        UnsafeCollectionView {
-            items: std::ptr::null(),
-            len: 0,
-        }
-    }
-
-    fn from_vec(vec: &Vec<T>) -> UnsafeCollectionView<T> {
-        UnsafeCollectionView {
-            items: vec.as_ptr(),
-            len: vec.len(),
-        }
-    }
-
-    fn iter(&self) -> CollectionViewIterator<T> {
-        unsafe {
-            CollectionViewIterator {
-                current: self.items,
-                end: self.items.offset(self.len as isize),
-                marker: PhantomData,
-            }
-        }
-    }
-}
-
-struct CollectionViewIterator<'a, T> {
-    current: *const T,
-    end: *const T,
-    marker: PhantomData<&'a T>,
-}
-
-impl<'a, T> Iterator for CollectionViewIterator<'a, T> {
-    type Item = &'a T;
-
-    fn next(&mut self) -> Option<&'a T> {
-        unsafe {
-            if self.current != self.end {
-                let value = self.current;
-                self.current = self.current.offset(1);
-                Some(&*value)
-            } else {
-                None
-            }
-        }
+    if a < b {
+        a
+    } else {
+        b
     }
 }
 
@@ -359,85 +713,6 @@ impl UserInterface {
         let node_handle = self.nodes.spawn(node);
         self.link_nodes(&node_handle, &self.root_canvas.clone());
         node_handle
-    }
-
-    pub fn create_button(&mut self, text: &str) -> Handle<UINode> {
-        let normal_color = Color::opaque(120, 120, 120);
-        let pressed_color = Color::opaque(100, 100, 100);
-        let hover_color = Color::opaque(160, 160, 160);
-        let mut button_node = UINode::new(UINodeKind::Button(Button::new()));
-        button_node.set_width(200.0);
-        button_node.set_height(50.0);
-        button_node.set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-            ui.capture_mouse(&handle);
-            if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
-                if let UINodeKind::Button(button) = button_node.get_kind_mut() {
-                    button.was_pressed = true;
-                }
-            }
-        }));
-        button_node.set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
-            // Take-Call-PutBack trick to bypass borrow checker
-            let mut click_handler = None;
-
-            if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
-                if let UINodeKind::Button(button) = button_node.get_kind_mut() {
-                    click_handler = button.click.take();
-                    button.was_pressed = false;
-                }
-            }
-
-            if let Some(ref mut handler) = click_handler {
-                handler(ui, handle.clone());
-                evt.handled = true;
-            }
-
-            // Second check required because event handler can remove node.
-            if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
-                if let UINodeKind::Button(button) = button_node.get_kind_mut() {
-                    button.click = click_handler;
-                }
-            }
-
-            ui.release_mouse_capture();
-        }));
-        let button_handle = self.add_node(button_node);
-        let border = Border { stroke_color: Color::opaque(200, 200, 200), stroke_thickness: Thickness { left: 2.0, right: 2.0, top: 2.0, bottom: 2.0 } };
-        let mut text = Text::new(text);
-        text.set_font(self.default_font.clone());
-        text.set_horizontal_alignment(HorizontalAlignment::Center);
-        text.set_vertical_alignment(VerticalAlignment::Center);
-        let mut back = UINode::new(UINodeKind::Border(border));
-        back.set_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
-            if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                back.color = hover_color;
-            }
-        }));
-        back.set_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
-            if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                back.color = normal_color;
-            }
-        }));
-        back.set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-            if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                back.color = pressed_color;
-            }
-        }));
-        back.set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
-            if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                if back.is_mouse_over {
-                    back.color = hover_color;
-                } else {
-                    back.color = normal_color;
-                }
-            }
-        }));
-        back.color = normal_color;
-        let back_handle = self.add_node(back);
-        let text_handle = self.add_node(UINode::new(UINodeKind::Text(text)));
-        self.link_nodes(&text_handle, &back_handle);
-        self.link_nodes(&back_handle, &button_handle);
-        button_handle
     }
 
     pub fn capture_mouse(&mut self, node: &Handle<UINode>) -> bool {
@@ -504,10 +779,29 @@ impl UserInterface {
         &mut self.drawing_context
     }
 
+    fn default_measure_override(&mut self, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
+        let mut size = Vec2::new();
+
+        for child_handle in children.iter() {
+            self.measure(child_handle, &available_size);
+
+            if let Some(child) = self.nodes.borrow(child_handle) {
+                if child.desired_size.x > size.x {
+                    size.x = child.desired_size.x;
+                }
+                if child.desired_size.y > size.y {
+                    size.y = child.desired_size.y;
+                }
+            }
+        }
+
+        size
+    }
+
     /// Performs recursive kind-specific measurement of children nodes
     ///
     /// Returns desired size.
-    fn measure_override(&mut self, node_kind: &UINodeKind, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
+    fn measure_override(&mut self, node_kind: &mut UINodeKind, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
         match node_kind {
             // TODO: Type-specific measure
             UINodeKind::Border(border) => {
@@ -548,31 +842,184 @@ impl UserInterface {
 
                 Vec2::new()
             }
-            // Default measure
-            _ => {
-                let mut size = Vec2::new();
+            UINodeKind::Grid(grid) => {
+                // In case of no rows or columns, grid acts like default panel.
+                if grid.columns.is_empty() || grid.rows.is_empty() {
+                    return self.default_measure_override(children, available_size);
+                }
 
+                // Step 1. Measure every children with relaxed constraints (size of grid).
                 for child_handle in children.iter() {
-                    self.measure(child_handle, &available_size);
+                    self.measure(child_handle, available_size);
+                }
 
-                    if let Some(child) = self.nodes.borrow(child_handle) {
-                        if child.desired_size.x > size.x {
-                            size.x = child.desired_size.x;
+                // Step 2. Calculate width of columns and heights of rows.
+                let mut preset_width = 0.0;
+                let mut preset_height = 0.0;
+
+                // Step 2.1. Calculate size of strict-sized and auto-sized columns.
+                for (i, col) in grid.columns.iter_mut().enumerate() {
+                    if col.size_mode == SizeMode::Strict {
+                        col.actual_width = col.desired_width;
+                        preset_width += col.actual_width;
+                    } else if col.size_mode == SizeMode::Auto {
+                        col.actual_width = col.desired_width;
+                        for child_handle in children.iter() {
+                            if let Some(child) = self.nodes.borrow(child_handle) {
+                                if child.column == i && child.visibility == Visibility::Visible {
+                                    if child.desired_size.x > col.actual_width {
+                                        col.actual_width = child.desired_size.x;
+                                    }
+                                }
+                            }
                         }
-                        if child.desired_size.y > size.y {
-                            size.y = child.desired_size.y;
+                        preset_width += col.actual_width;
+                    }
+                }
+
+                // Step 2.2. Calculate size of strict-sized and auto-sized rows.
+                for (i, row) in grid.rows.iter_mut().enumerate() {
+                    if row.size_mode == SizeMode::Strict {
+                        row.actual_height = row.desired_height;
+                        preset_height += row.actual_height;
+                    } else if row.size_mode == SizeMode::Auto {
+                        row.actual_height = row.desired_height;
+                        for child_handle in children.iter() {
+                            if let Some(child) = self.nodes.borrow(child_handle) {
+                                if child.row == i && child.visibility == Visibility::Visible {
+                                    if child.desired_size.y > row.actual_height {
+                                        row.actual_height = child.desired_size.y;
+                                    }
+                                }
+                            }
+                        }
+                        preset_height += row.actual_height;
+                    }
+                }
+
+                // Step 2.3. Fit stretch-sized columns
+
+                let mut rest_width = 0.0;
+                if available_size.x.is_infinite() {
+                    for child_handle in children.iter() {
+                        if let Some(child) = self.nodes.borrow(child_handle) {
+                            if let Some(column) = grid.columns.get(child.column) {
+                                if column.size_mode == SizeMode::Stretch {
+                                    rest_width += child.desired_size.x;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    rest_width = available_size.x - preset_width;
+                }
+
+                // count columns first
+                let mut stretch_sized_columns = 0;
+                for column in grid.columns.iter() {
+                    if column.size_mode == SizeMode::Stretch {
+                        stretch_sized_columns += 1;
+                    }
+                }
+                if stretch_sized_columns > 0 {
+                    let width_per_col = rest_width / stretch_sized_columns as f32;
+                    for column in grid.columns.iter_mut() {
+                        if column.size_mode == SizeMode::Stretch {
+                            column.actual_width = width_per_col;
                         }
                     }
                 }
 
-                size
+                // Step 2.4. Fit stretch-sized rows.
+                let mut stretch_sized_rows = 0;
+                let mut rest_height = 0.0;
+                if available_size.y.is_infinite() {
+                    for child_handle in children.iter() {
+                        if let Some(child) = self.nodes.borrow(child_handle) {
+                            if let Some(row) = grid.rows.get(child.row) {
+                                if row.size_mode == SizeMode::Stretch {
+                                    rest_height += child.desired_size.y;
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    rest_height = available_size.y - preset_height;
+                }
+                // count rows first
+                for row in grid.rows.iter() {
+                    if row.size_mode == SizeMode::Stretch {
+                        stretch_sized_rows += 1;
+                    }
+                }
+                if stretch_sized_rows > 0 {
+                    let height_per_row = rest_height / stretch_sized_rows as f32;
+                    for row in grid.rows.iter_mut() {
+                        if row.size_mode == SizeMode::Stretch {
+                            row.actual_height = height_per_row;
+                        }
+                    }
+                }
+
+                // Step 2.5. Calculate positions of each column.
+                let mut y = 0.0;
+                for row in grid.rows.iter_mut() {
+                    row.y = y;
+                    y += row.actual_height;
+                }
+
+                // Step 2.6. Calculate positions of each row.
+                let mut x = 0.0;
+                for column in grid.columns.iter_mut() {
+                    column.x = x;
+                    x += column.actual_width;
+                }
+
+                // Step 3. Re-measure children with new constraints.
+                for child_handle in children.iter() {
+                    let size_for_child = {
+                        if let Some(child) = self.nodes.borrow(child_handle) {
+                            Vec2 {
+                                x: grid.columns[child.column].actual_width,
+                                y: grid.rows[child.row].actual_height,
+                            }
+                        } else {
+                            Vec2 {
+                                x: match grid.columns.first() {
+                                    Some(column) => column.actual_width,
+                                    None => 0.0
+                                },
+                                y: match grid.rows.first() {
+                                    Some(row) => row.actual_height,
+                                    None => 0.0
+                                },
+                            }
+                        }
+                    };
+                    self.measure(child_handle, &size_for_child);
+                }
+
+                // Step 4. Calculate desired size of grid.
+                let mut desired_size = Vec2::new();
+                for column in grid.columns.iter() {
+                    desired_size.x += column.actual_width;
+                }
+                for row in grid.rows.iter() {
+                    desired_size.y += row.actual_height;
+                }
+
+                desired_size
+            }
+            // Default measure
+            _ => {
+                self.default_measure_override(children, available_size)
             }
         }
     }
 
     fn measure(&mut self, node_handle: &Handle<UINode>, available_size: &Vec2) {
         let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
-        let mut node_kind: *const UINodeKind = std::ptr::null();
+        let mut node_kind: *mut UINodeKind = std::ptr::null_mut();
         let size_for_child;
         let margin;
 
@@ -624,7 +1071,7 @@ impl UserInterface {
                     // during measure pass. Also this step *cannot* be performed in parallel so we don't
                     // have to bother about thread-safety here.
                     children = UnsafeCollectionView::from_vec(&node.children);
-                    node_kind = &node.kind as *const UINodeKind;
+                    node_kind = &mut node.kind as *mut UINodeKind;
                 } else {
                     // We do not have any children so node want to collapse into point.
                     node.desired_size = Vec2::make(0.0, 0.0);
@@ -632,7 +1079,7 @@ impl UserInterface {
             }
         }
 
-        let desired_size = self.measure_override(unsafe { &*node_kind }, &children, &size_for_child);
+        let desired_size = self.measure_override(unsafe { &mut *node_kind }, &children, &size_for_child);
 
         if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             node.desired_size = desired_size;
@@ -698,6 +1145,38 @@ impl UserInterface {
                             child.desired_local_position.y,
                             child.desired_size.x,
                             child.desired_size.y));
+                    }
+
+                    if let Some(rect) = final_rect {
+                        self.arrange(child_handle, &rect);
+                    }
+                }
+
+                *final_size
+            }
+            UINodeKind::Grid(grid) => {
+                if grid.columns.is_empty() || grid.rows.is_empty() {
+                    let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
+                    for child_handle in children.iter() {
+                        self.arrange(child_handle, &rect);
+                    }
+                    return *final_size;
+                }
+
+                for child_handle in children.iter() {
+                    let mut final_rect = None;
+
+                    if let Some(child) = self.nodes.borrow(&child_handle) {
+                        if let Some(column) = grid.columns.get(child.column) {
+                            if let Some(row) = grid.rows.get(child.row) {
+                                final_rect = Some(Rect::new(
+                                    column.x,
+                                    row.y,
+                                    column.actual_width,
+                                    row.actual_height,
+                                ));
+                            }
+                        }
                     }
 
                     if let Some(rect) = final_rect {
@@ -1125,39 +1604,60 @@ impl UINode {
         }
     }
 
-    pub fn set_width(&mut self, width: f32) {
+    #[inline]
+    pub fn set_color(&mut self, color: Color) -> &mut Self {
+        self.color = color;
+        self
+    }
+
+    #[inline]
+    pub fn set_width(&mut self, width: f32) -> &mut Self {
         self.width = width;
+        self
     }
 
-    pub fn set_height(&mut self, height: f32) {
+    #[inline]
+    pub fn set_height(&mut self, height: f32) -> &mut Self {
         self.height = height;
+        self
     }
 
-    pub fn set_desired_local_position(&mut self, pos: Vec2) {
+    #[inline]
+    pub fn set_desired_local_position(&mut self, pos: Vec2) -> &mut Self {
         self.desired_local_position = pos;
+        self
     }
 
+    #[inline]
     pub fn get_kind(&self) -> &UINodeKind {
         &self.kind
     }
 
-    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) {
+    #[inline]
+    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
         self.vertical_alignment = valign;
+        self
     }
 
-    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) {
+    #[inline]
+    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) -> &mut Self {
         self.horizontal_alignment = halign;
+        self
     }
 
+    #[inline]
     pub fn get_kind_mut(&mut self) -> &mut UINodeKind {
         &mut self.kind
     }
 
+    #[inline]
     pub fn get_screen_bounds(&self) -> Rect<f32> {
         Rect::new(self.screen_position.x, self.screen_position.y, self.actual_size.x, self.actual_size.y)
     }
 
-    pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<EventHandler>) {
+    #[inline]
+    pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<EventHandler>) -> &mut Self {
         self.event_handlers[handler_type as usize] = Some(handler);
+        self
     }
 }
