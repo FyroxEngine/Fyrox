@@ -10,6 +10,7 @@ use crate::{
 use node::*;
 
 use serde::{Serialize, Deserialize};
+use crate::utils::UnsafeCollectionView;
 
 #[derive(Serialize, Deserialize)]
 pub struct Scene {
@@ -50,18 +51,31 @@ impl Scene {
         handle
     }
 
-    /// Destroys node
+    /// Destroys node and its children recursively.
     #[inline]
     pub fn remove_node(&mut self, node_handle: Handle<Node>, state: &mut State) {
+        let mut children = UnsafeCollectionView::empty();
+
         if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             self.physics.remove_body(node.get_body());
 
             if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
                 for surf in mesh.get_surfaces() {
+                    state.release_resource(surf.get_texture_resource_handle());
+
                     state.get_surface_data_storage_mut().release(surf.get_data_handle());
                 }
+                state.release_resource(mesh.get_resource());
             }
+
+            children = UnsafeCollectionView::from_vec(&node.children);
         }
+
+        // Free children recursively
+        for child_handle in children.iter() {
+            self.remove_node(child_handle.clone(), state);
+        }
+
         self.nodes.free(node_handle);
     }
 

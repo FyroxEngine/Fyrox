@@ -13,6 +13,8 @@ use crate::{
 };
 
 use serde::{Serialize, Deserialize};
+use crate::utils::rcpool::RcHandle;
+use crate::resource::Resource;
 
 #[derive(Serialize, Deserialize)]
 pub struct Light {
@@ -117,13 +119,15 @@ impl Camera {
 
 #[derive(Serialize, Deserialize)]
 pub struct Mesh {
-    surfaces: Vec<Surface>
+    surfaces: Vec<Surface>,
+    resource: RcHandle<Resource>
 }
 
 impl Default for Mesh {
     fn default() -> Mesh {
         Mesh {
-            surfaces: Vec::new()
+            surfaces: Vec::new(),
+            resource: RcHandle::none(),
         }
     }
 }
@@ -147,8 +151,14 @@ impl Mesh {
     #[inline]
     pub fn make_copy(&self, state: &State) -> Mesh {
         Mesh {
-            surfaces: self.surfaces.iter().map(|surf| surf.make_copy(state)).collect()
+            surfaces: self.surfaces.iter().map(|surf| surf.make_copy(state)).collect(),
+            resource: state.get_resource_manager().share_resource_handle(&self.resource)
         }
+    }
+
+    #[inline]
+    pub fn get_resource(&self) -> &RcHandle<Resource> {
+        &self.resource
     }
 }
 

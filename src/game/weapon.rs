@@ -33,10 +33,13 @@ impl Weapon {
 
         let mut weapon_model = Handle::none();
         let model_resource_handle = state.request_resource(model_path);
-        if let Some(resource) = state.get_resource_manager().borrow_resource(&model_resource_handle) {
-            if let ResourceKind::Model(model) = resource.borrow_kind() {
-                weapon_model = model.instantiate(state, scene);
+        if model_resource_handle.is_some() {
+            if let Some(resource) = state.get_resource_manager().borrow_resource(&model_resource_handle) {
+                if let ResourceKind::Model(model) = resource.borrow_kind() {
+                    weapon_model = model.instantiate(state, scene);
+                }
             }
+            state.release_resource(&model_resource_handle);
         }
 
         Weapon {

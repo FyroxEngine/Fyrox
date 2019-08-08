@@ -24,7 +24,7 @@ impl Level {
         let mut scene = Scene::new();
 
         let map_model_handle = engine.get_state_mut().request_resource(Path::new("data/models/map.fbx"));
-        if !map_model_handle.is_none() {
+        if map_model_handle.is_some() {
             // Instantiate map
             let mut map_root_handle = Handle::none();
             if let Some(resource) = engine.get_state().get_resource_manager().borrow_resource(&map_model_handle) {
@@ -65,11 +65,12 @@ impl Level {
                 }
                 scene.get_physics_mut().add_static_geometry(static_geometry);
             }
+            engine.get_state_mut().release_resource(&map_model_handle);
         }
 
         let mut ripper_handles: Vec<Handle<Node>> = Vec::new();
         let ripper_model_handle = engine.get_state_mut().request_resource(Path::new("data/models/ripper.fbx"));
-        if !ripper_model_handle.is_none() {
+        if ripper_model_handle.is_some() {
             if let Some(ripper_model_resource) = engine.get_state().get_resource_manager().borrow_resource(&ripper_model_handle) {
                 if let ResourceKind::Model(ripper_model) = ripper_model_resource.borrow_kind() {
                     for _ in 0..4 {
@@ -77,6 +78,7 @@ impl Level {
                     }
                 }
             }
+            engine.get_state_mut().release_resource(&ripper_model_handle);
         }
         for (i, handle) in ripper_handles.iter().enumerate() {
             if let Some(node) = scene.get_node_mut(&handle) {
@@ -88,6 +90,10 @@ impl Level {
             player: Player::new(engine.get_state_mut(), &mut scene),
             scene: engine.get_state_mut().add_scene(scene),
         }
+    }
+
+    pub fn destroy(&mut self, engine: &mut Engine) {
+        engine.get_state_mut().destroy_scene(&self.scene);
     }
 
     pub fn get_player(&self) -> &Player {

@@ -10,7 +10,7 @@ use crate::{
 use std::path::Path;
 
 pub struct Model {
-    scene: Scene
+    scene: Scene,
 }
 
 impl Model {
@@ -24,7 +24,7 @@ impl Model {
         return self.scene.copy_node(&self.scene.get_root(), state, dest_scene);
     }
 
-    pub fn get_scene(&self) -> &Scene {
-        &self.scene
+    pub fn get_scene_mut(&mut self) -> &mut Scene {
+        &mut self.scene
     }
 }

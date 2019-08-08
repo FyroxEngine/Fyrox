@@ -1,18 +1,26 @@
-use crate::scene::*;
-use crate::utils::pool::*;
-use crate::renderer::renderer::*;
-use crate::resource::*;
-use std::path::*;
-use crate::resource::texture::*;
+use crate::{
+    scene::*,
+    utils::pool::*,
+    renderer::{
+        renderer::*,
+        surface::SurfaceSharedData
+    },
+    resource::{
+        *,
+        texture::*,
+        model::Model,
+        ttf::Font
+    },
+    utils::rcpool::{RcPool, RcHandle},
+    gui::UserInterface,
+    math::vec2::Vec2
+};
+use std::{
+    path::*,
+    collections::VecDeque,
+    time::Duration
+};
 use serde::{Serialize, Deserialize};
-use crate::utils::rcpool::{RcPool, RcHandle};
-use std::collections::VecDeque;
-use crate::renderer::surface::SurfaceSharedData;
-use crate::resource::model::Model;
-use crate::resource::ttf::Font;
-use crate::gui::UserInterface;
-use std::time::Duration;
-use crate::math::vec2::Vec2;
 
 pub struct ResourceManager {
     resources: RcPool<Resource>,
@@ -80,6 +88,12 @@ impl ResourceManager {
     }
 
     #[inline]
+    #[must_use]
+    pub fn release_resource(&mut self, resource_handle: &RcHandle<Resource>) -> Option<Resource> {
+        self.resources.release(resource_handle)
+    }
+
+    #[inline]
     pub fn get_textures_path(&self) -> &Path {
         self.textures_path.as_path()
     }
@@ -123,7 +137,7 @@ impl State {
                             self.resource_manager.add_resource(Resource::new(path, ResourceKind::Texture(texture)))
                         }
                         Err(_) => {
-                            println!("Unable to load texture!");
+                            println!("Unable to load texture {}!", path.display());
                             RcHandle::none()
                         }
                     }
@@ -131,22 +145,41 @@ impl State {
                 "fbx" => {
                     match Model::load(path, self) {
                         Ok(model) => {
-                            self.resource_manager.add_resource(Resource::new(path, ResourceKind::Model(model)))
+                           self.resource_manager.add_resource(Resource::new(path, ResourceKind::Model(model)))
                         }
                         Err(_) => {
-                            println!("Unable to load model!");
+                            println!("Unable to load model from {}!", path.display());
                             RcHandle::none()
                         }
                     }
                 }
                 _ => {
-                    println!("Unknown resource type!");
+                    println!("Unknown resource type {}!", path.display());
                     RcHandle::none()
                 }
             }
         }
 
+        if resource_handle.is_some() {
+            println!("Resource {} is loaded!", path.display());
+        }
+
         resource_handle
+    }
+
+    #[inline]
+    pub fn release_resource(&mut self, handle: &RcHandle<Resource>) {
+        if let Some(mut resource) = self.resource_manager.release_resource(handle) {
+            match resource.borrow_kind_mut() {
+                ResourceKind::Model(model) => {
+                    self.destroy_scene_internal(model.get_scene_mut());
+                }
+                ResourceKind::Texture(texture) => {
+                    
+                }
+            }
+            println!("Resource destroyed: {}!", resource.get_path().display());
+        }
     }
 
     #[inline]
@@ -198,6 +231,18 @@ impl State {
             return Some(scene);
         }
         None
+    }
+
+    #[inline]
+    fn destroy_scene_internal(&mut self, scene: &mut Scene) {
+        scene.remove_node(scene.get_root(), self);
+    }
+
+    #[inline]
+    pub fn destroy_scene(&mut self, handle: &Handle<Scene>) {
+        if let Some(mut scene) = self.scenes.take(handle) {
+            self.destroy_scene_internal(&mut scene);
+        }
     }
 }
 

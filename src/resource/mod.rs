@@ -10,7 +10,6 @@ use crate::{
 };
 
 pub enum ResourceKind {
-    Base,
     Texture(Texture),
     Model(Model),
 }

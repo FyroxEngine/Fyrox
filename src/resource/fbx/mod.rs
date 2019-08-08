@@ -633,7 +633,7 @@ fn find_node(pool: &Pool<FbxNode>, stack: &mut Vec<Handle<FbxNode>>, root: &Hand
             }
         }
     }
-    Err(format!("Unable to find {} node", name))
+    Err(format!("FBX DOM: Unable to find {} node", name))
 }
 
 /// Searches node by specified name and borrows a reference to it
@@ -651,7 +651,7 @@ fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, stack: &mut Vec<Handle<FbxN
             }
         }
     }
-    Err(format!("Unable to find {} node", name))
+    Err(format!("FBX DOM: Unable to find {} node", name))
 }
 
 /// Links child component with parent component so parent will know about child

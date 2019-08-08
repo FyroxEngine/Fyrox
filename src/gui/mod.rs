@@ -80,9 +80,9 @@ pub struct Text {
 }
 
 impl Text {
-    pub fn new(text: &str) -> Text {
+    pub fn new() -> Text {
         Text {
-            text: String::from(text),
+            text: String::new(),
             need_update: true,
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,
@@ -118,6 +118,209 @@ impl Text {
         self
     }
 }
+
+struct CommonBuilderFields {
+    width: Option<f32>,
+    height: Option<f32>,
+    desired_position: Option<Vec2>,
+    vertical_alignment: Option<VerticalAlignment>,
+    horizontal_alignment: Option<HorizontalAlignment>,
+    max_size: Option<Vec2>,
+    min_size: Option<Vec2>,
+    color: Option<Color>,
+    row: Option<usize>,
+    column: Option<usize>,
+    margin: Option<Thickness>,
+    parent: Option<Handle<UINode>>
+}
+
+impl CommonBuilderFields {
+    pub fn new() -> Self {
+        Self {
+            width: None,
+            height: None,
+            vertical_alignment: None,
+            horizontal_alignment: None,
+            max_size: None,
+            min_size: None,
+            color: None,
+            row: None,
+            column: None,
+            margin: None,
+            parent: None,
+            desired_position: None,
+        }
+    }
+
+    pub fn apply(&self, ui: &mut UserInterface, node_handle: &Handle<UINode>) {
+        if let Some(node) = ui.nodes.borrow_mut(node_handle) {
+            if let Some(width) = self.width {
+                node.width = width;
+            }
+            if let Some(height) = self.height {
+                node.height = height;
+            }
+            if let Some(valign) = self.vertical_alignment {
+                node.vertical_alignment = valign;
+            }
+            if let Some(halign) = self.horizontal_alignment {
+                node.horizontal_alignment = halign;
+            }
+            if let Some(max_size) = self.max_size {
+                node.max_size = max_size;
+            }
+            if let Some(min_size) = self.min_size {
+                node.min_size = min_size;
+            }
+            if let Some(color) = self.color {
+                node.color = color;
+            }
+            if let Some(row) = self.row {
+                node.row = row;
+            }
+            if let Some(column) = self.column {
+                node.column = column;
+            }
+            if let Some(margin) = self.margin {
+                node.margin = margin;
+            }
+            if let Some(desired_position) = self.desired_position {
+                node.desired_local_position = desired_position;
+            }
+        }
+        if let Some(ref parent) = self.parent {
+            ui.link_nodes(node_handle, &parent);
+        }
+    }
+}
+
+macro_rules! impl_default_builder_methods {
+    () => (
+        pub fn with_width(mut self, width: f32) -> Self {
+            self.common.width = Some(width);
+            self
+        }
+
+        pub fn with_height(mut self, height: f32) -> Self {
+            self.common.height = Some(height);
+            self
+        }
+
+        pub fn with_vertical_alignment(mut self, valign: VerticalAlignment) -> Self {
+            self.common.vertical_alignment = Some(valign);
+            self
+        }
+
+        pub fn with_horizontal_alignment(mut self, halign: HorizontalAlignment) -> Self {
+            self.common.horizontal_alignment = Some(halign);
+            self
+        }
+
+        pub fn with_max_size(mut self, max_size: Vec2) -> Self {
+            self.common.max_size = Some(max_size);
+            self
+        }
+
+        pub fn with_min_size(mut self, min_size: Vec2) -> Self {
+            self.common.min_size = Some(min_size);
+            self
+        }
+
+        pub fn with_color(mut self, color: Color) -> Self {
+            self.common.color = Some(color);
+            self
+        }
+
+        pub fn on_row(mut self, row: usize) -> Self {
+            self.common.row = Some(row);
+            self
+        }
+
+        pub fn on_column(mut self, column: usize) -> Self {
+            self.common.column = Some(column);
+            self
+        }
+
+        pub fn with_margin(mut self, margin: Thickness) -> Self {
+            self.common.margin = Some(margin);
+            self
+        }
+
+        pub fn with_parent(mut self, parent: &Handle<UINode>) -> Self {
+            self.common.parent = Some(parent.clone());
+            self
+        }
+
+        pub fn with_desired_position(mut self, desired_position: Vec2) -> Self {
+            self.common.desired_position = Some(desired_position);
+            self
+        }
+    )
+}
+
+pub struct TextBuilder {
+    text: Option<String>,
+    font: Option<Handle<Font>>,
+    common: CommonBuilderFields,
+    vertical_text_alignment: Option<VerticalAlignment>,
+    horizontal_text_alignment: Option<HorizontalAlignment>,
+}
+
+impl TextBuilder {
+    pub fn new() -> Self {
+        Self {
+            text: None,
+            font: None,
+            vertical_text_alignment: None,
+            horizontal_text_alignment: None,
+            common: CommonBuilderFields::new()
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn with_text(mut self, text: &str) -> Self {
+        self.text = Some(text.to_owned());
+        self
+    }
+
+    pub fn with_font(mut self, font: Handle<Font>) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        let mut text = Text::new();
+        if let Some(font) = self.font {
+            text.set_font(font.clone());
+        } else {
+            text.set_font(ui.default_font.clone());
+        }
+        if let Some(txt) = self.text {
+            text.set_text(txt.as_str());
+        }
+        if let Some(valign) = self.vertical_text_alignment {
+            text.set_vertical_alignment(valign);
+        }
+        if let Some(halign) = self.horizontal_text_alignment {
+            text.set_horizontal_alignment(halign);
+        }
+        let handle = ui.add_node(UINode::new(UINodeKind::Text(text)));
+        self.common.apply(ui, &handle);
+        handle
+    }
+
+    pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
+        self.vertical_text_alignment = Some(valign);
+        self
+    }
+
+    pub fn with_horizontal_text_alignment(mut self, halign: HorizontalAlignment) -> Self {
+        self.horizontal_text_alignment = Some(halign);
+        self
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Border {
@@ -184,134 +387,6 @@ pub struct ButtonBuilder {
     common: CommonBuilderFields
 }
 
-struct CommonBuilderFields {
-    width: Option<f32>,
-    height: Option<f32>,
-    vertical_alignment: Option<VerticalAlignment>,
-    horizontal_alignment: Option<HorizontalAlignment>,
-    max_size: Option<Vec2>,
-    min_size: Option<Vec2>,
-    color: Option<Color>,
-    row: Option<usize>,
-    column: Option<usize>,
-    margin: Option<Thickness>,
-    parent: Option<Handle<UINode>>
-}
-
-impl CommonBuilderFields {
-    pub fn new() -> Self {
-        Self {
-            width: None,
-            height: None,
-            vertical_alignment: None,
-            horizontal_alignment: None,
-            max_size: None,
-            min_size: None,
-            color: None,
-            row: None,
-            column: None,
-            margin: None,
-            parent: None,
-        }
-    }
-
-    pub fn apply(&self, ui: &mut UserInterface, node_handle: &Handle<UINode>) {
-        if let Some(node) = ui.nodes.borrow_mut(node_handle) {
-            if let Some(width) = self.width {
-                node.width = width;
-            }
-            if let Some(height) = self.height {
-                node.height = height;
-            }
-            if let Some(valign) = self.vertical_alignment {
-                node.vertical_alignment = valign;
-            }
-            if let Some(halign) = self.horizontal_alignment {
-                node.horizontal_alignment = halign;
-            }
-            if let Some(max_size) = self.max_size {
-                node.max_size = max_size;
-            }
-            if let Some(min_size) = self.min_size {
-                node.min_size = min_size;
-            }
-            if let Some(color) = self.color {
-                node.color = color;
-            }
-            if let Some(row) = self.row {
-                node.row = row;
-            }
-            if let Some(column) = self.column {
-                node.column = column;
-            }
-            if let Some(margin) = self.margin {
-                node.margin = margin;
-            }
-        }
-        if let Some(ref parent) = self.parent {
-            ui.link_nodes(node_handle, &parent);
-        }
-    }
-}
-
-macro_rules! impl_default_builder_methods {
-    () => (
-        pub fn with_width(mut self, width: f32) -> Self {
-            self.common.width = Some(width);
-            self
-        }
-
-        pub fn with_height(mut self, height: f32) -> Self {
-            self.common.height = Some(height);
-            self
-        }
-
-        pub fn with_vertical_alignment(mut self, valign: VerticalAlignment) -> Self {
-            self.common.vertical_alignment = Some(valign);
-            self
-        }
-
-        pub fn with_horizontal_alignment(mut self, halign: HorizontalAlignment) -> Self {
-            self.common.horizontal_alignment = Some(halign);
-            self
-        }
-
-        pub fn with_max_size(mut self, max_size: Vec2) -> Self {
-            self.common.max_size = Some(max_size);
-            self
-        }
-
-        pub fn with_min_size(mut self, min_size: Vec2) -> Self {
-            self.common.min_size = Some(min_size);
-            self
-        }
-
-        pub fn with_color(mut self, color: Color) -> Self {
-            self.common.color = Some(color);
-            self
-        }
-
-        pub fn on_row(mut self, row: usize) -> Self {
-            self.common.row = Some(row);
-            self
-        }
-
-        pub fn on_column(mut self, column: usize) -> Self {
-            self.common.column = Some(column);
-            self
-        }
-
-        pub fn with_margin(mut self, margin: Thickness) -> Self {
-            self.common.margin = Some(margin);
-            self
-        }
-
-        pub fn with_parent(mut self, parent: &Handle<UINode>) -> Self {
-            self.common.parent = Some(parent.clone());
-            self
-        }
-    )
-}
 
 impl ButtonBuilder {
     pub fn new() -> Self {
@@ -383,8 +458,6 @@ impl ButtonBuilder {
                 ui.release_mouse_capture();
             }));
 
-
-
         let mut border = Border::new();
         border.set_stroke_color(Color::opaque(200, 200, 200))
             .set_stroke_thickness(Thickness { left: 2.0, right: 2.0, top: 2.0, bottom: 2.0 });
@@ -422,11 +495,11 @@ impl ButtonBuilder {
         if let Some(content) = self.content {
             let content_handle = match content {
                 ButtonContent::Text(txt) => {
-                    let mut text = Text::new(txt.as_str());
-                    text.set_font(ui.default_font.clone())
-                        .set_horizontal_alignment(HorizontalAlignment::Center)
-                        .set_vertical_alignment(VerticalAlignment::Center);
-                    ui.add_node(UINode::new(UINodeKind::Text(text)))
+                    TextBuilder::new()
+                        .with_text(txt.as_str())
+                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .build(ui)
                 }
                 ButtonContent::Node(node) => {
                     node

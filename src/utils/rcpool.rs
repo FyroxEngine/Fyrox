@@ -101,6 +101,7 @@ impl<T> RcPool<T> {
     const INVALID_GENERATION: u32 = 0;
 
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         RcPool {
             records: Vec::<RcPoolRecord<T>>::new(),
@@ -109,6 +110,7 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn spawn(&mut self, payload: T) -> RcHandle<T> {
         if let Some(free_index) = self.free_stack.pop() {
             let record = &mut self.records[free_index as usize];
@@ -143,6 +145,7 @@ impl<T> RcPool<T> {
     /// Creates copy of specified handle.
     /// Internally increases reference count of record.
     /// If input handle was invalid then RcHandle::none will be returned.
+    #[must_use]
     pub fn share_handle(&self, handle: &RcHandle<T>) -> RcHandle<T> {
         if let Some(record) = self.records.get(handle.index as usize) {
             record.ref_count.set(record.ref_count.get() + 1);
@@ -156,49 +159,83 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn borrow(&self, handle: &RcHandle<T>) -> Option<&T> {
         if let Some(record) = self.records.get(handle.index as usize) {
             if record.generation == handle.generation {
                 if let Some(payload) = &record.payload {
                     return Some(payload);
+                } else {
+                    println!("RcPool: Payload was empty!");
                 }
+            } else if handle.generation != RcPool::<T>::INVALID_GENERATION {
+                println!("RcPool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
+        } else {
+            println!("RcPool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
         }
         None
     }
 
     #[inline]
+    #[must_use]
     pub fn borrow_mut(&mut self, handle: &RcHandle<T>) -> Option<&mut T> {
+        let record_count = self.records.len();
         if let Some(record) = self.records.get_mut(handle.index as usize) {
             if record.generation == handle.generation {
                 if let Some(payload) = &mut record.payload {
                     return Some(payload);
+                } else {
+                    println!("RcPool: Payload was empty!");
                 }
+            } else if handle.generation != RcPool::<T>::INVALID_GENERATION {
+                println!("RcPool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
+        } else {
+            println!("RcPool: Invalid index: got {}, but valid range is 0..{}", handle.index, record_count);
         }
         None
     }
 
-    /// Decreases reference count of record and if it is zero - destroys object.
+    /// Decreases reference count of record and if it is zero - moves out of pool.
     #[inline]
-    pub fn release(&mut self, handle: &RcHandle<T>) {
+    #[must_use]
+    pub fn release(&mut self, handle: &RcHandle<T>) -> Option<T> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
-            record.ref_count.set(record.ref_count.get() - 1);
-            if record.ref_count.get() == 0 {
-                // Remember this index as free
-                self.free_stack.push(handle.index);
-                // Move out payload and drop it so it will be destroyed
-                record.payload.take();
+            if record.generation == handle.generation {
+                record.ref_count.set(record.ref_count.get() - 1);
+                if record.ref_count.get() == 0 {
+                    // Remember this index as free
+                    self.free_stack.push(handle.index);
+                    return record.payload.take();
+                }
+            } else if handle.generation != RcPool::<T>::INVALID_GENERATION {
+                println!("RcPool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
+        } else {
+            println!("RcPool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
         }
+        None
     }
 
     #[inline]
+    #[must_use]
     pub fn get_capacity(&self) -> usize {
         self.records.len()
     }
 
     #[inline]
+    #[must_use]
+    pub fn get_ref_count(&self, handle: &RcHandle<T>) -> Option<u32> {
+        if let Some(record) = self.records.get(handle.index as usize) {
+            Some(record.ref_count.get())
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub fn at_mut(&mut self, n: usize) -> Option<&mut T> {
         if let Some(record) = self.records.get_mut(n) {
             if let Some(ref mut payload) = record.payload {
@@ -209,6 +246,7 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn at(&self, n: usize) -> Option<&T> {
         if let Some(record) = self.records.get(n) {
             if let Some(ref payload) = record.payload {
@@ -219,6 +257,7 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn handle_from_index(&mut self, n: usize) -> RcHandle<T> {
         if let Some(record) = self.records.get_mut(n) {
             if record.generation != 0 {
@@ -230,6 +269,7 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn is_valid_handle(&self, handle: &RcHandle<T>) -> bool {
         if let Some(record) = self.records.get(handle.index as usize) {
             return record.payload.is_some() && record.generation == handle.generation;
@@ -238,6 +278,7 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn iter(&self) -> RcPoolIterator<T> {
         RcPoolIterator {
             pool: self,
@@ -246,6 +287,7 @@ impl<T> RcPool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn iter_mut(&mut self) -> RcPoolIteratorMut<T> {
         unsafe {
             RcPoolIteratorMut {

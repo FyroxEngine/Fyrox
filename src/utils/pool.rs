@@ -103,6 +103,7 @@ impl<T> Pool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn spawn(&mut self, payload: T) -> Handle<T> {
         if let Some(free_index) = self.free_stack.pop() {
             let record = &mut self.records[free_index as usize];
@@ -133,25 +134,50 @@ impl<T> Pool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn borrow(&self, handle: &Handle<T>) -> Option<&T> {
+        // Make sure that empty handles won't trigger diagnostic messages
+        if handle.is_none() {
+            return None;
+        }
+
         if let Some(record) = self.records.get(handle.index as usize) {
             if record.generation == handle.generation {
                 if let Some(payload) = &record.payload {
                     return Some(payload);
+                } else {
+                    println!("Pool: Payload was empty!");
                 }
+            } else if handle.generation != Pool::<T>::INVALID_GENERATION {
+                println!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
+        } else {
+            println!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
         }
         None
     }
 
     #[inline]
+    #[must_use]
     pub fn borrow_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
+        // Make sure that empty handles won't trigger diagnostic messages
+        if handle.is_none() {
+            return None;
+        }
+
+        let record_count = self.records.len();
         if let Some(record) = self.records.get_mut(handle.index as usize) {
             if record.generation == handle.generation {
                 if let Some(payload) = &mut record.payload {
                     return Some(payload);
+                } else {
+                    println!("Pool: Payload was empty!");
                 }
+            } else if handle.generation != Pool::<T>::INVALID_GENERATION {
+                println!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
+        } else {
+            println!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, record_count);
         }
         None
     }
@@ -167,11 +193,13 @@ impl<T> Pool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn get_capacity(&self) -> usize {
         self.records.len()
     }
 
     #[inline]
+    #[must_use]
     pub fn at_mut(&mut self, n: usize) -> Option<&mut T> {
         if let Some(record) = self.records.get_mut(n) {
             if let Some(ref mut payload) = record.payload {
@@ -182,6 +210,7 @@ impl<T> Pool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn at(&self, n: usize) -> Option<&T> {
         if let Some(record) = self.records.get(n) {
             if let Some(ref payload) = record.payload {
@@ -192,6 +221,7 @@ impl<T> Pool<T> {
     }
 
     #[inline]
+    #[must_use]
     pub fn handle_from_index(&self, n: usize) -> Handle<T> {
         if let Some(record) = self.records.get(n) {
             if record.generation != 0 {
@@ -199,6 +229,18 @@ impl<T> Pool<T> {
             }
         }
         Handle::none()
+    }
+
+    /// Moves object by specified handle out of the pool.
+    #[inline]
+    #[must_use]
+    pub fn take(&mut self, handle: &Handle<T>) -> Option<T> {
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            self.free_stack.push(handle.index);
+            record.payload.take()
+        } else {
+            None
+        }
     }
 
     #[inline]
@@ -209,6 +251,7 @@ impl<T> Pool<T> {
         false
     }
 
+    #[must_use]
     pub fn iter(&self) -> PoolIterator<T> {
         PoolIterator {
             pool: self,
@@ -216,6 +259,7 @@ impl<T> Pool<T> {
         }
     }
 
+    #[must_use]
     pub fn iter_mut(&mut self) -> PoolIteratorMut<T> {
         unsafe {
             PoolIteratorMut {
@@ -302,11 +346,13 @@ fn pool_sanity_tests() {
 #[test]
 fn pool_iterator_mut_test() {
     let mut pool: Pool<String> = Pool::new();
-    pool.spawn(format!("Foobar"));
+    let foobar = pool.spawn(format!("Foobar"));
     let d = pool.spawn(format!("Foo"));
     pool.free(d);
-    pool.spawn(format!("Baz"));
+    let baz = pool.spawn(format!("Baz"));
     for s in pool.iter_mut() {
         println!("{}", s);
     }
+    pool.free(foobar);
+    pool.free(baz);
 }
