@@ -7,14 +7,16 @@ use crate::{
         vec2::*
     },
     renderer::surface::*,
-    utils::pool::*,
+    utils::{
+        pool::*,
+        rcpool::RcHandle
+    },
     physics::Body,
-    engine::State
+    engine::State,
+    resource::Resource
 };
 
 use serde::{Serialize, Deserialize};
-use crate::utils::rcpool::RcHandle;
-use crate::resource::Resource;
 
 #[derive(Serialize, Deserialize)]
 pub struct Light {
@@ -120,14 +122,12 @@ impl Camera {
 #[derive(Serialize, Deserialize)]
 pub struct Mesh {
     surfaces: Vec<Surface>,
-    resource: RcHandle<Resource>
 }
 
 impl Default for Mesh {
     fn default() -> Mesh {
         Mesh {
-            surfaces: Vec::new(),
-            resource: RcHandle::none(),
+            surfaces: Vec::new()
         }
     }
 }
@@ -151,14 +151,8 @@ impl Mesh {
     #[inline]
     pub fn make_copy(&self, state: &State) -> Mesh {
         Mesh {
-            surfaces: self.surfaces.iter().map(|surf| surf.make_copy(state)).collect(),
-            resource: state.get_resource_manager().share_resource_handle(&self.resource)
+            surfaces: self.surfaces.iter().map(|surf| surf.make_copy(state)).collect()
         }
-    }
-
-    #[inline]
-    pub fn get_resource(&self) -> &RcHandle<Resource> {
-        &self.resource
     }
 }
 
@@ -189,7 +183,8 @@ pub struct Node {
     pub(crate) children: Vec<Handle<Node>>,
     pub(super) local_transform: Mat4,
     pub(crate) global_transform: Mat4,
-    body: Handle<Body>
+    body: Handle<Body>,
+    resource: RcHandle<Resource>
 }
 
 impl Node {
@@ -212,7 +207,8 @@ impl Node {
             global_visibility: true,
             local_transform: Mat4::identity(),
             global_transform: Mat4::identity(),
-            body: Handle::none()
+            body: Handle::none(),
+            resource: RcHandle::none()
         }
     }
 
@@ -260,7 +256,8 @@ impl Node {
             global_visibility: self.global_visibility,
             children: Vec::new(),
             parent: Handle::none(),
-            body: Handle::none()
+            body: Handle::none(),
+            resource: state.get_resource_manager().share_resource_handle(&self.resource)
         }
     }
 
@@ -277,6 +274,16 @@ impl Node {
     #[inline]
     pub fn borrow_kind(&self) -> &NodeKind {
         &self.kind
+    }
+
+    #[inline]
+    pub fn set_resource(&mut self, resource_handle: RcHandle<Resource>) {
+        self.resource = resource_handle;
+    }
+
+    #[inline]
+    pub fn get_resource(&mut self) -> &RcHandle<Resource> {
+        &self.resource
     }
 
     #[inline]

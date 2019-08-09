@@ -175,7 +175,7 @@ impl State {
                     self.destroy_scene_internal(model.get_scene_mut());
                 }
                 ResourceKind::Texture(texture) => {
-                    
+
                 }
             }
             println!("Resource destroyed: {}!", resource.get_path().display());

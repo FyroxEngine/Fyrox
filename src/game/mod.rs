@@ -86,67 +86,67 @@ impl Game {
             .with_width(300.0)
             .with_height(400.0)
             .with_desired_position(Vec2::make(200.0, 200.0))
-            .build(ui);
-
-        let menu_state = self.menu.state.clone();
-        ButtonBuilder::new()
-            .with_text("New Game")
-            .on_column(0)
-            .on_row(0)
-            .with_margin(Thickness::uniform(4.0))
-            .with_parent(&grid_handle)
-            .with_click(Box::new(move |_ui, _handle| {
-                if let Ok(mut state) = menu_state.try_borrow_mut() {
-                    state.start_new_game = true;
-                }
-            }))
-            .build(ui);
-
-        ButtonBuilder::new()
-            .with_text("Save Game")
-            .on_column(0)
-            .on_row(1)
-            .with_margin(Thickness::uniform(4.0))
-            .with_parent(&grid_handle)
-            .with_click(Box::new(|_ui, _handle| {
-                println!("Save Game Clicked!");
-            }))
-            .build(ui);
-
-        ButtonBuilder::new()
-            .with_text("Load Game")
-            .on_column(0)
-            .on_row(2)
-            .with_margin(Thickness::uniform(4.0))
-            .with_parent(&grid_handle)
-            .with_click(Box::new(|_ui, _handle| {
-                println!("Load Game Clicked!");
-            }))
-            .build(ui);
-
-        ButtonBuilder::new()
-            .with_text("Settings")
-            .on_column(0)
-            .on_row(3)
-            .with_margin(Thickness::uniform(4.0))
-            .with_parent(&grid_handle)
-            .with_click(Box::new(|_ui, _handle| {
-                println!("Settings Clicked!");
-            }))
-            .build(ui);
-
-        let menu_state = self.menu.state.clone();
-        ButtonBuilder::new()
-            .with_text("Quit")
-            .on_column(0)
-            .on_row(4)
-            .with_margin(Thickness::uniform(4.0))
-            .with_parent(&grid_handle)
-            .with_click(Box::new(move |_ui, _handle| {
-                if let Ok(mut state) = menu_state.try_borrow_mut() {
-                    state.quit_game = true;
-                }
-            }))
+            .with_child( {
+                let menu_state = self.menu.state.clone();
+                ButtonBuilder::new()
+                    .with_text("New Game")
+                    .on_column(0)
+                    .on_row(0)
+                    .with_margin(Thickness::uniform(4.0))
+                    .with_click(Box::new(move |_ui, _handle| {
+                        if let Ok(mut state) = menu_state.try_borrow_mut() {
+                            state.start_new_game = true;
+                        }
+                    }))
+                    .build(ui)
+            })
+            .with_child({
+                ButtonBuilder::new()
+                    .with_text("Save Game")
+                    .on_column(0)
+                    .on_row(1)
+                    .with_margin(Thickness::uniform(4.0))
+                    .with_click(Box::new(|_ui, _handle| {
+                        println!("Save Game Clicked!");
+                    }))
+                    .build(ui)
+            })
+            .with_child({
+                ButtonBuilder::new()
+                    .with_text("Load Game")
+                    .on_column(0)
+                    .on_row(2)
+                    .with_margin(Thickness::uniform(4.0))
+                    .with_click(Box::new(|_ui, _handle| {
+                        println!("Load Game Clicked!");
+                    }))
+                    .build(ui)
+            })
+            .with_child({
+                ButtonBuilder::new()
+                    .with_text("Settings")
+                    .on_column(0)
+                    .on_row(3)
+                    .with_margin(Thickness::uniform(4.0))
+                    .with_click(Box::new(|_ui, _handle| {
+                        println!("Settings Clicked!");
+                    }))
+                    .build(ui)
+            })
+            .with_child({
+                let menu_state = self.menu.state.clone();
+                ButtonBuilder::new()
+                    .with_text("Quit")
+                    .on_column(0)
+                    .on_row(4)
+                    .with_margin(Thickness::uniform(4.0))
+                    .with_click(Box::new(move |_ui, _handle| {
+                        if let Ok(mut state) = menu_state.try_borrow_mut() {
+                            state.quit_game = true;
+                        }
+                    }))
+                    .build(ui)
+            })
             .build(ui);
     }
 

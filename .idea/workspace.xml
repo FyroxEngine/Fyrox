@@ -11,13 +11,11 @@
       <change beforePath="$PROJECT_DIR$/src/game/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/game/weapon.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/weapon.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/utils/pool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/pool.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/rcpool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/rcpool.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

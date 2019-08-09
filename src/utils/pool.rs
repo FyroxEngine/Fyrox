@@ -3,6 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 use serde::{Serialize, Deserialize};
+use std::fmt::{Debug, Formatter};
 
 ///
 /// Pool allows to create as many objects as you want in contiguous memory
@@ -19,7 +20,7 @@ pub struct Pool<T: Sized> {
 /// It stores index of object and additional information that
 /// allows to ensure that handle is still valid.
 ///
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,
@@ -29,6 +30,12 @@ pub struct Handle<T> {
     /// Type holder.
     #[serde(skip)]
     type_marker: PhantomData<T>,
+}
+
+impl<T> Debug for Handle<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{} {}]", self.index, self.generation)
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -80,6 +87,11 @@ impl<T> Handle<T> {
     #[inline]
     pub fn is_none(&self) -> bool {
         self.index == 0 && self.generation == Pool::<T>::INVALID_GENERATION
+    }
+
+    #[inline]
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
     }
 
     fn make(index: u32, generation: u32) -> Self {

@@ -8,10 +8,10 @@ use crate::{
     engine::*,
     physics::{StaticGeometry, StaticTriangle},
     game::player::Player,
-    resource::ResourceKind,
     game::GameTime
 };
 use std::path::Path;
+use crate::resource::model::Model;
 
 pub struct Level {
     scene: Handle<Scene>,
@@ -26,12 +26,7 @@ impl Level {
         let map_model_handle = engine.get_state_mut().request_resource(Path::new("data/models/map.fbx"));
         if map_model_handle.is_some() {
             // Instantiate map
-            let mut map_root_handle = Handle::none();
-            if let Some(resource) = engine.get_state().get_resource_manager().borrow_resource(&map_model_handle) {
-                if let ResourceKind::Model(model) = resource.borrow_kind() {
-                    map_root_handle = model.instantiate(engine.get_state(), &mut scene);
-                }
-            }
+            let map_root_handle = Model::instantiate(&map_model_handle, engine.get_state(), &mut scene).unwrap_or(Handle::none());
 
             // Create collision geometry
             let polygon_handle = scene.find_node_by_name(&map_root_handle, "Polygon");
@@ -71,13 +66,10 @@ impl Level {
         let mut ripper_handles: Vec<Handle<Node>> = Vec::new();
         let ripper_model_handle = engine.get_state_mut().request_resource(Path::new("data/models/ripper.fbx"));
         if ripper_model_handle.is_some() {
-            if let Some(ripper_model_resource) = engine.get_state().get_resource_manager().borrow_resource(&ripper_model_handle) {
-                if let ResourceKind::Model(ripper_model) = ripper_model_resource.borrow_kind() {
-                    for _ in 0..4 {
-                        ripper_handles.push(ripper_model.instantiate(engine.get_state(), &mut scene));
-                    }
-                }
+            for _ in 0..4 {
+                ripper_handles.push(Model::instantiate(&ripper_model_handle, engine.get_state(), &mut scene).unwrap_or(Handle::none()));
             }
+
             engine.get_state_mut().release_resource(&ripper_model_handle);
         }
         for (i, handle) in ripper_handles.iter().enumerate() {

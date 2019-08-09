@@ -5,8 +5,10 @@ pub mod ttf;
 
 use std::path::*;
 use crate::{
-    resource::texture::*,
-    resource::model::{Model}
+    resource::{
+        texture::*,
+        model::{Model}
+    }
 };
 
 pub enum ResourceKind {

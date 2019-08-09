@@ -10,13 +10,24 @@ use crate::{
         vec2::Vec2,
         Rect,
     },
-    gui::draw::{Color, DrawingContext, FormattedText, CommandKind, FormattedTextBuilder},
+    gui::draw::{
+        Color,
+        DrawingContext,
+        FormattedText,
+        CommandKind,
+        FormattedTextBuilder,
+    },
     resource::{
         Resource,
         ttf::Font,
     },
 };
-use glutin::{VirtualKeyCode, MouseButton, WindowEvent, ElementState};
+use glutin::{
+    VirtualKeyCode,
+    MouseButton,
+    WindowEvent,
+    ElementState,
+};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -119,7 +130,7 @@ impl Text {
     }
 }
 
-struct CommonBuilderFields {
+pub struct CommonBuilderFields {
     width: Option<f32>,
     height: Option<f32>,
     desired_position: Option<Vec2>,
@@ -131,7 +142,8 @@ struct CommonBuilderFields {
     row: Option<usize>,
     column: Option<usize>,
     margin: Option<Thickness>,
-    parent: Option<Handle<UINode>>
+    event_handlers: Option<EventHandlerList>,
+    children: Vec<Handle<UINode>>,
 }
 
 impl CommonBuilderFields {
@@ -147,12 +159,13 @@ impl CommonBuilderFields {
             row: None,
             column: None,
             margin: None,
-            parent: None,
             desired_position: None,
+            event_handlers: Some(Default::default()),
+            children: Vec::new(),
         }
     }
 
-    pub fn apply(&self, ui: &mut UserInterface, node_handle: &Handle<UINode>) {
+    pub fn apply(&mut self, ui: &mut UserInterface, node_handle: &Handle<UINode>) {
         if let Some(node) = ui.nodes.borrow_mut(node_handle) {
             if let Some(width) = self.width {
                 node.width = width;
@@ -187,9 +200,12 @@ impl CommonBuilderFields {
             if let Some(desired_position) = self.desired_position {
                 node.desired_local_position = desired_position;
             }
+            if self.event_handlers.is_some() {
+                node.event_handlers = self.event_handlers.take().unwrap();
+            }
         }
-        if let Some(ref parent) = self.parent {
-            ui.link_nodes(node_handle, &parent);
+        for child_handle in self.children.iter() {
+            ui.link_nodes(child_handle, node_handle);
         }
     }
 }
@@ -246,16 +262,47 @@ macro_rules! impl_default_builder_methods {
             self
         }
 
-        pub fn with_parent(mut self, parent: &Handle<UINode>) -> Self {
-            self.common.parent = Some(parent.clone());
-            self
-        }
-
         pub fn with_desired_position(mut self, desired_position: Vec2) -> Self {
             self.common.desired_position = Some(desired_position);
             self
         }
+
+        pub fn with_child(mut self, handle: Handle<UINode>) -> Self {
+            if handle.is_some() {
+                self.common.children.push(handle);
+            }
+            self
+        }
+
+        pub fn with_handler(mut self, handler_type: RoutedEventHandlerType, handler: Box<EventHandler>) -> Self {
+            if let Some(ref mut handlers) = self.common.event_handlers {
+                handlers[handler_type as usize] = Some(handler);
+            }
+            self
+        }
     )
+}
+
+pub struct GenericNodeBuilder {
+    kind: UINodeKind,
+    common: CommonBuilderFields,
+}
+
+impl GenericNodeBuilder {
+    pub fn new(kind: UINodeKind, common: CommonBuilderFields) -> Self {
+        Self {
+            kind,
+            common,
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
+        let handle = ui.add_node(UINode::new(self.kind));
+        self.common.apply(ui, &handle);
+        handle
+    }
 }
 
 pub struct TextBuilder {
@@ -273,7 +320,7 @@ impl TextBuilder {
             font: None,
             vertical_text_alignment: None,
             horizontal_text_alignment: None,
-            common: CommonBuilderFields::new()
+            common: CommonBuilderFields::new(),
         }
     }
 
@@ -289,7 +336,7 @@ impl TextBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let mut text = Text::new();
         if let Some(font) = self.font {
             text.set_font(font.clone());
@@ -321,6 +368,46 @@ impl TextBuilder {
     }
 }
 
+pub struct BorderBuilder {
+    stroke_thickness: Option<Thickness>,
+    stroke_color: Option<Color>,
+    common: CommonBuilderFields,
+}
+
+impl BorderBuilder {
+    pub fn new() -> Self {
+        Self {
+            stroke_color: None,
+            stroke_thickness: None,
+            common: CommonBuilderFields::new(),
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn with_stroke_thickness(mut self, stroke_thickness: Thickness) -> Self {
+        self.stroke_thickness = Some(stroke_thickness);
+        self
+    }
+
+    pub fn with_stroke_color(mut self, color: Color) -> Self {
+        self.stroke_color = Some(color);
+        self
+    }
+
+    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
+        let mut border = Border::new();
+        if let Some(stroke_color) = self.stroke_color {
+            border.stroke_color = stroke_color;
+        }
+        if let Some(stroke_thickness) = self.stroke_thickness {
+            border.stroke_thickness = stroke_thickness;
+        }
+        let handle = ui.add_node(UINode::new(UINodeKind::Border(border)));
+        self.common.apply(ui, &handle);
+        handle
+    }
+}
 
 #[derive(Debug)]
 pub struct Border {
@@ -359,18 +446,10 @@ pub struct Image {
 pub type ButtonClickEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
 
 pub struct Button {
-    click: Option<Box<ButtonClickEventHandler>>,
-    was_pressed: bool,
+    click: Option<Box<ButtonClickEventHandler>>
 }
 
 impl Button {
-    pub fn new() -> Button {
-        Button {
-            click: None,
-            was_pressed: false,
-        }
-    }
-
     pub fn set_on_click(&mut self, handler: Box<ButtonClickEventHandler>) {
         self.click = Some(handler);
     }
@@ -384,9 +463,8 @@ pub enum ButtonContent {
 pub struct ButtonBuilder {
     content: Option<ButtonContent>,
     click: Option<Box<ButtonClickEventHandler>>,
-    common: CommonBuilderFields
+    common: CommonBuilderFields,
 }
-
 
 impl ButtonBuilder {
     pub fn new() -> Self {
@@ -414,32 +492,23 @@ impl ButtonBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let normal_color = Color::opaque(120, 120, 120);
         let pressed_color = Color::opaque(100, 100, 100);
         let hover_color = Color::opaque(160, 160, 160);
 
-        let mut button = Button::new();
-        button.click = self.click;
-
-        let mut button_node = UINode::new(UINodeKind::Button(button));
-        button_node
-            .set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
+        GenericNodeBuilder::new(
+            UINodeKind::Button(Button { click: self.click }), self.common)
+            .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
                 ui.capture_mouse(&handle);
-                if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
-                    if let UINodeKind::Button(button) = button_node.get_kind_mut() {
-                        button.was_pressed = true;
-                    }
-                }
             }))
-            .set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
+            .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
                 // Take-Call-PutBack trick to bypass borrow checker
                 let mut click_handler = None;
 
                 if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
                     if let UINodeKind::Button(button) = button_node.get_kind_mut() {
                         click_handler = button.click.take();
-                        button.was_pressed = false;
                     }
                 }
 
@@ -456,59 +525,116 @@ impl ButtonBuilder {
                 }
 
                 ui.release_mouse_capture();
-            }));
-
-        let mut border = Border::new();
-        border.set_stroke_color(Color::opaque(200, 200, 200))
-            .set_stroke_thickness(Thickness { left: 2.0, right: 2.0, top: 2.0, bottom: 2.0 });
-
-        let mut back = UINode::new(UINodeKind::Border(border));
-        back.set_color(normal_color)
-            .set_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
-                if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                    back.color = hover_color;
-                }
             }))
-            .set_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
-                if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                    back.color = normal_color;
-                }
-            }))
-            .set_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-                if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                    back.color = pressed_color;
-                }
-            }))
-            .set_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
-                if let Some(back) = ui.nodes.borrow_mut(&handle) {
-                    if back.is_mouse_over {
+            .with_child(BorderBuilder::new()
+                .with_stroke_color(Color::opaque(200, 200, 200))
+                .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
+                .with_color(normal_color)
+                .with_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
+                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
                         back.color = hover_color;
-                    } else {
+                    }
+                }))
+                .with_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
+                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
                         back.color = normal_color;
                     }
-                }
-            }));
+                }))
+                .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
+                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                        back.color = pressed_color;
+                    }
+                }))
+                .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
+                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                        if back.is_mouse_over {
+                            back.color = hover_color;
+                        } else {
+                            back.color = normal_color;
+                        }
+                    }
+                }))
+                .with_child(
+                    if let Some(content) = self.content {
+                        match content {
+                            ButtonContent::Text(txt) => {
+                                TextBuilder::new()
+                                    .with_text(txt.as_str())
+                                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .build(ui)
+                            }
+                            ButtonContent::Node(node) => node
+                        }
+                    } else {
+                        Handle::none()
+                    })
+                .build(ui))
+            .build(ui)
+    }
+}
 
-        let back_handle = ui.add_node(back);
-        let button_handle = ui.add_node(button_node);
-        self.common.apply(ui, &button_handle);
-        if let Some(content) = self.content {
-            let content_handle = match content {
-                ButtonContent::Text(txt) => {
-                    TextBuilder::new()
-                        .with_text(txt.as_str())
-                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .build(ui)
-                }
-                ButtonContent::Node(node) => {
-                    node
-                }
-            };
-            ui.link_nodes(&content_handle, &back_handle);
+pub struct ScrollBar {
+    min: f32,
+    max: f32,
+    value: f32,
+}
+
+impl ScrollBar {
+    pub fn new() -> Self {
+        Self {
+            min: 0.0,
+            max: 100.0,
+            value: 0.0,
         }
-        ui.link_nodes(&back_handle, &button_handle);
-        button_handle
+    }
+}
+
+pub struct ScrollBarBuilder {
+    min: Option<f32>,
+    max: Option<f32>,
+    value: Option<f32>,
+    common: CommonBuilderFields,
+}
+
+impl ScrollBarBuilder {
+    pub fn new() -> Self {
+        Self {
+            min: None,
+            max: None,
+            value: None,
+            common: CommonBuilderFields::new(),
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn with_min(mut self, min: f32) -> Self {
+        self.min = Some(min);
+        self
+    }
+
+    pub fn with_max(mut self, max: f32) -> Self {
+        self.max = Some(max);
+        self
+    }
+
+    pub fn with_value(mut self, value: f32) -> Self {
+        self.value = Some(value);
+        self
+    }
+
+    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
+        let scroll_bar = GenericNodeBuilder::new(UINodeKind::ScrollBar(ScrollBar::new()), self.common)
+            .build(ui);
+
+        let back = BorderBuilder::new()
+            .with_color(Color::opaque(120, 120, 120))
+            .with_stroke_thickness(Thickness::uniform(1.0))
+            .with_stroke_color(Color::opaque(200, 200, 200))
+            .build(ui);
+
+        scroll_bar
     }
 }
 
@@ -564,7 +690,7 @@ pub struct Grid {
 pub struct GridBuilder {
     rows: Vec<Row>,
     columns: Vec<Column>,
-    common: CommonBuilderFields
+    common: CommonBuilderFields,
 }
 
 impl GridBuilder {
@@ -588,7 +714,7 @@ impl GridBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let node = UINode::new(UINodeKind::Grid(Grid {
             columns: self.columns,
             rows: self.rows,
@@ -621,7 +747,7 @@ pub enum UINodeKind {
     Window,
     Button(Button),
     /// TODO
-    ScrollBar,
+    ScrollBar(ScrollBar),
     /// TODO
     ScrollViewer,
     /// TODO
@@ -640,7 +766,7 @@ pub enum UINodeKind {
     CheckBox,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub enum RoutedEventHandlerType {
     MouseMove,
     MouseEnter,
@@ -651,6 +777,8 @@ pub enum RoutedEventHandlerType {
 }
 
 pub type EventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>, &mut RoutedEvent);
+
+pub type EventHandlerList = [Option<Box<EventHandler>>; RoutedEventHandlerType::Count as usize];
 
 pub struct UINode {
     kind: UINodeKind,
@@ -691,7 +819,7 @@ pub struct UINode {
     /// Indices of commands in command buffer emitted by the node.
     command_indices: Vec<usize>,
     is_mouse_over: bool,
-    event_handlers: [Option<Box<EventHandler>>; RoutedEventHandlerType::Count as usize],
+    event_handlers: EventHandlerList,
 }
 
 pub enum RoutedEventKind {
@@ -1552,6 +1680,8 @@ impl UserInterface {
         let mut handler = None;
         let mut parent = Handle::none();
         let index = event_type as usize;
+
+        // println!("Routed {:?} on {:?}", event_type, node_handle);
 
         if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             // Take event handler.

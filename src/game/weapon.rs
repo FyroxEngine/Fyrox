@@ -5,11 +5,11 @@ use crate::{
         Scene
     },
     engine::State,
-    resource::ResourceKind,
     math::vec3::Vec3,
     game::GameTime
 };
 use std::path::Path;
+use crate::resource::model::Model;
 
 pub enum WeaponKind {
     M4,
@@ -34,11 +34,7 @@ impl Weapon {
         let mut weapon_model = Handle::none();
         let model_resource_handle = state.request_resource(model_path);
         if model_resource_handle.is_some() {
-            if let Some(resource) = state.get_resource_manager().borrow_resource(&model_resource_handle) {
-                if let ResourceKind::Model(model) = resource.borrow_kind() {
-                    weapon_model = model.instantiate(state, scene);
-                }
-            }
+            weapon_model = Model::instantiate(&model_resource_handle, state, scene).unwrap_or(Handle::none());
             state.release_resource(&model_resource_handle);
         }
 

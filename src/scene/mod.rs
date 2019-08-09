@@ -65,8 +65,9 @@ impl Scene {
 
                     state.get_surface_data_storage_mut().release(surf.get_data_handle());
                 }
-                state.release_resource(mesh.get_resource());
             }
+
+            state.release_resource(node.get_resource());
 
             children = UnsafeCollectionView::from_vec(&node.children);
         }
