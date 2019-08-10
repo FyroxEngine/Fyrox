@@ -131,3 +131,14 @@ pub fn is_point_inside_2d_triangle(point: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bo
 
     (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
 }
+
+
+pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
+    if v < min {
+        min
+    } else if v > max {
+        max
+    } else {
+        v
+    }
+}

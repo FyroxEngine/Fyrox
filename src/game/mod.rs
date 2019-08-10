@@ -12,7 +12,6 @@ use crate::{
         UINode,
         UINodeKind,
         Column,
-        SizeMode,
         Row,
         GridBuilder,
         ButtonBuilder,
@@ -30,6 +29,7 @@ use std::{
     time::Instant,
     rc::Rc,
 };
+use crate::gui::ScrollBarBuilder;
 
 pub struct MenuState {
     start_new_game: bool,
@@ -76,13 +76,14 @@ impl Game {
             .with_height(200.0)
             .build(ui);
 
-        let grid_handle = GridBuilder::new()
-            .add_column(Column::new(SizeMode::Stretch, 0.0))
-            .add_row(Row::new(SizeMode::Strict, 50.0))
-            .add_row(Row::new(SizeMode::Strict, 50.0))
-            .add_row(Row::new(SizeMode::Strict, 50.0))
-            .add_row(Row::new(SizeMode::Strict, 50.0))
-            .add_row(Row::new(SizeMode::Strict, 50.0))
+        GridBuilder::new()
+            .add_column(Column::stretch())
+            .add_row(Row::strict(50.0))
+            .add_row(Row::strict(50.0))
+            .add_row(Row::strict(50.0))
+            .add_row(Row::strict(50.0))
+            .add_row(Row::strict(50.0))
+            .add_row(Row::strict(50.0))
             .with_width(300.0)
             .with_height(400.0)
             .with_desired_position(Vec2::make(200.0, 200.0))
@@ -147,6 +148,10 @@ impl Game {
                     }))
                     .build(ui)
             })
+            .with_child(ScrollBarBuilder::new()
+                .on_row(5)
+                .with_margin(Thickness::uniform(4.0))
+                .build(ui))
             .build(ui);
     }
 

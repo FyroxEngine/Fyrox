@@ -21,6 +21,7 @@ use crate::{
         Resource,
         ttf::Font,
     },
+    math,
 };
 use glutin::{
     VirtualKeyCode,
@@ -28,6 +29,11 @@ use glutin::{
     WindowEvent,
     ElementState,
 };
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
+use crate::gui::Orientation::Horizontal;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -47,10 +53,10 @@ pub enum VerticalAlignment {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Thickness {
-    left: f32,
-    top: f32,
-    right: f32,
-    bottom: f32,
+    pub left: f32,
+    pub top: f32,
+    pub right: f32,
+    pub bottom: f32,
 }
 
 impl Thickness {
@@ -131,6 +137,7 @@ impl Text {
 }
 
 pub struct CommonBuilderFields {
+    name: Option<String>,
     width: Option<f32>,
     height: Option<f32>,
     desired_position: Option<Vec2>,
@@ -142,13 +149,14 @@ pub struct CommonBuilderFields {
     row: Option<usize>,
     column: Option<usize>,
     margin: Option<Thickness>,
-    event_handlers: Option<EventHandlerList>,
+    event_handlers: Option<RoutedEventHandlerList>,
     children: Vec<Handle<UINode>>,
 }
 
 impl CommonBuilderFields {
     pub fn new() -> Self {
         Self {
+            name: None,
             width: None,
             height: None,
             vertical_alignment: None,
@@ -202,6 +210,9 @@ impl CommonBuilderFields {
             }
             if self.event_handlers.is_some() {
                 node.event_handlers = self.event_handlers.take().unwrap();
+            }
+            if let Some(name) = self.name.take() {
+                node.name = name;
             }
         }
         for child_handle in self.children.iter() {
@@ -274,7 +285,12 @@ macro_rules! impl_default_builder_methods {
             self
         }
 
-        pub fn with_handler(mut self, handler_type: RoutedEventHandlerType, handler: Box<EventHandler>) -> Self {
+        pub fn with_name(mut self, name: &str) -> Self {
+            self.common.name = Some(String::from(name));
+            self
+        }
+
+        pub fn with_handler(mut self, handler_type: RoutedEventHandlerType, handler: Box<RoutedEventHandler>) -> Self {
             if let Some(ref mut handlers) = self.common.event_handlers {
                 handlers[handler_type as usize] = Some(handler);
             }
@@ -302,6 +318,24 @@ impl GenericNodeBuilder {
         let handle = ui.add_node(UINode::new(self.kind));
         self.common.apply(ui, &handle);
         handle
+    }
+}
+
+pub struct CanvasBuilder {
+    common: CommonBuilderFields
+}
+
+impl CanvasBuilder {
+    pub fn new() -> Self {
+        Self {
+            common: CommonBuilderFields::new()
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        GenericNodeBuilder::new(UINodeKind::Canvas, self.common).build(ui)
     }
 }
 
@@ -492,7 +526,7 @@ impl ButtonBuilder {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let normal_color = Color::opaque(120, 120, 120);
         let pressed_color = Color::opaque(100, 100, 100);
         let hover_color = Color::opaque(160, 160, 160);
@@ -574,18 +608,111 @@ impl ButtonBuilder {
     }
 }
 
-pub struct ScrollBar {
+pub struct ScrollBarState {
     min: f32,
     max: f32,
     value: f32,
+    step: f32,
+    orientation: Orientation,
+    is_dragging: bool,
+    offset: Vec2,
+}
+
+pub type ValueChanged = dyn FnMut(&mut UserInterface, Handle<UINode>, f32, f32);
+
+pub struct ScrollBar {
+    /// Shared scroll bar state wrapped into Rc.
+    /// It is required because multiple controls of scroll bar modifies it.
+    state: Rc<RefCell<ScrollBarState>>,
+    value_changed: Option<Box<ValueChanged>>,
 }
 
 impl ScrollBar {
+    const PART_CANVAS: &'static str = "PART_Canvas";
+    const PART_INDICATOR: &'static str = "PART_Indicator";
+
     pub fn new() -> Self {
         Self {
-            min: 0.0,
-            max: 100.0,
-            value: 0.0,
+            state: Rc::new(RefCell::new(ScrollBarState {
+                min: 0.0,
+                max: 100.0,
+                value: 0.0,
+                step: 1.0,
+                orientation: Horizontal,
+                is_dragging: false,
+                offset: Vec2::new(),
+            })),
+            value_changed: None,
+        }
+    }
+
+    pub fn set_value(ui: &mut UserInterface, handle: &Handle<UINode>, value: f32) {
+        let mut value_changed = None;
+        let old_value;
+        let new_value;
+        let min;
+        let max;
+        let orientation;
+
+        match ui.nodes.borrow_mut(handle) {
+            Some(scroll_bar_node) => {
+                match scroll_bar_node.get_kind_mut() {
+                    UINodeKind::ScrollBar(scroll_bar) => {
+                        if let Ok(mut state) = scroll_bar.state.try_borrow_mut() {
+                            orientation = state.orientation;
+                            min = state.min;
+                            max = state.max;
+                            old_value = state.value;
+                            new_value = math::clampf(value, state.min, state.max);
+                            if new_value != old_value {
+                                state.value = new_value;
+                                value_changed = scroll_bar.value_changed.take();
+                            }
+                        } else {
+                            println!("ScrollBar state is already borrowed!");
+                            return;
+                        }
+                    }
+                    _ => return
+                }
+            }
+            _ => return
+        }
+
+        if let Some(ref mut handler) = value_changed {
+            handler(ui, handle.clone(), new_value, old_value);
+        }
+
+        if let Some(scroll_bar_node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
+                scroll_bar.value_changed = value_changed.take();
+            }
+        }
+
+        // Update indicator
+        let percent = (new_value - min) / (max - min);
+
+        let field_size = match ui.borrow_by_name_down(handle, Self::PART_CANVAS) {
+            Some(canvas) => canvas.actual_size,
+            None => {
+                println!("Unable to find part canvas!");
+                return;
+            }
+        };
+
+        if let Some(node) = ui.borrow_by_name_down_mut(handle, Self::PART_INDICATOR) {
+            match orientation {
+                Orientation::Horizontal => {
+                    node.desired_local_position.x = percent * maxf(0.0, field_size.x - node.actual_size.x);
+                    node.desired_local_position.y = 0.0;
+                    node.height = field_size.y;
+                }
+                Orientation::Vertical => {
+                    node.desired_local_position.x = 0.0;
+                    node.desired_local_position.y = percent * maxf(0.0, field_size.y - node.actual_size.y);
+                    node.width = field_size.x;
+                }
+            }
         }
     }
 }
@@ -594,7 +721,15 @@ pub struct ScrollBarBuilder {
     min: Option<f32>,
     max: Option<f32>,
     value: Option<f32>,
+    step: Option<f32>,
+    orientation: Option<Orientation>,
     common: CommonBuilderFields,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Orientation {
+    Vertical,
+    Horizontal,
 }
 
 impl ScrollBarBuilder {
@@ -603,6 +738,8 @@ impl ScrollBarBuilder {
             min: None,
             max: None,
             value: None,
+            step: None,
+            orientation: None,
             common: CommonBuilderFields::new(),
         }
     }
@@ -624,17 +761,227 @@ impl ScrollBarBuilder {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let scroll_bar = GenericNodeBuilder::new(UINodeKind::ScrollBar(ScrollBar::new()), self.common)
-            .build(ui);
+    pub fn with_orientation(mut self, orientation: Orientation) -> Self {
+        self.orientation = Some(orientation);
+        self
+    }
 
-        let back = BorderBuilder::new()
-            .with_color(Color::opaque(120, 120, 120))
-            .with_stroke_thickness(Thickness::uniform(1.0))
-            .with_stroke_color(Color::opaque(200, 200, 200))
-            .build(ui);
+    pub fn with_step(mut self, step: f32) -> Self {
+        self.step = Some(step);
+        self
+    }
 
-        scroll_bar
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        let scroll_bar = ScrollBar::new();
+        let scroll_bar_state = scroll_bar.state.clone();
+        if let Some(orientation) = self.orientation {
+            scroll_bar_state.borrow_mut().orientation = orientation;
+        }
+        let orientation = scroll_bar_state.borrow().orientation;
+
+        GenericNodeBuilder::new(UINodeKind::ScrollBar(scroll_bar), self.common)
+            .with_child(BorderBuilder::new()
+                .with_color(Color::opaque(120, 120, 120))
+                .with_stroke_thickness(Thickness::uniform(1.0))
+                .with_stroke_color(Color::opaque(200, 200, 200))
+                .with_child(GridBuilder::new()
+                    .add_rows(match orientation {
+                        Orientation::Horizontal => vec![Row::stretch()],
+                        Orientation::Vertical => vec![Row::auto(),
+                                                      Row::stretch(),
+                                                      Row::auto()]
+                    })
+                    .add_columns(match orientation {
+                        Orientation::Horizontal => vec![Column::auto(),
+                                                        Column::stretch(),
+                                                        Column::auto()],
+                        Orientation::Vertical => vec![Column::stretch()]
+                    })
+                    .with_child(ButtonBuilder::new()
+                        .on_column(0)
+                        .on_row(0)
+                        .with_width(match orientation {
+                            Orientation::Horizontal => 30.0,
+                            Orientation::Vertical => std::f32::NAN
+                        })
+                        .with_height(match orientation {
+                            Orientation::Horizontal => std::f32::NAN,
+                            Orientation::Vertical => 30.0
+                        })
+                        .with_text("<")
+                        .with_click({
+                            let state = scroll_bar_state.clone();
+                            Box::new(move |ui, handle| {
+                                let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                    UINodeKind::ScrollBar(..) => true,
+                                    _ => false
+                                });
+
+                                let new_value = if let Ok(state) = state.try_borrow_mut() {
+                                    state.value - state.step
+                                } else {
+                                    println!("ScrollBar state is already borrowed!");
+                                    return
+                                };
+
+                                ScrollBar::set_value(ui, &scroll_bar, new_value);
+                            })
+                        })
+                        .build(ui)
+                    )
+                    .with_child(CanvasBuilder::new()
+                        .with_name(ScrollBar::PART_CANVAS)
+                        .on_column(match orientation {
+                            Orientation::Horizontal => 1,
+                            Orientation::Vertical => 0
+                        })
+                        .on_row(match orientation {
+                            Orientation::Horizontal => 0,
+                            Orientation::Vertical => 1
+                        })
+                        .with_child(BorderBuilder::new()
+                            .with_name(ScrollBar::PART_INDICATOR)
+                            .with_stroke_color(Color::opaque(50, 50, 50))
+                            .with_stroke_thickness(Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 })
+                            .with_color(Color::opaque(255, 255, 255))
+                            .with_width(30.0)
+                            .with_height(30.0)
+                            .with_handler(RoutedEventHandlerType::MouseDown, {
+                                let state = scroll_bar_state.clone();
+                                Box::new(move |ui, handle, evt| {
+                                    if let RoutedEventKind::MouseDown { pos, .. } = evt.kind {
+                                        if let Ok(mut state) = state.try_borrow_mut() {
+                                            state.is_dragging = true;
+                                            if let Some(node) = ui.nodes.borrow(&handle) {
+                                                state.offset = node.screen_position - pos;
+                                            }
+                                        }
+                                        ui.capture_mouse(&handle);
+                                        evt.handled = true;
+                                    }
+                                })
+                            })
+                            .with_handler(RoutedEventHandlerType::MouseUp, {
+                                let state = scroll_bar_state.clone();
+                                Box::new(move |ui, _handle, evt| {
+                                    if let Ok(mut state) = state.try_borrow_mut() {
+                                        state.is_dragging = false;
+                                    }
+                                    ui.release_mouse_capture();
+                                    evt.handled = true;
+                                })
+                            })
+                            .with_handler(RoutedEventHandlerType::MouseMove, {
+                                let state = scroll_bar_state.clone();
+                                Box::new(move |ui, handle, evt| {
+                                    let mouse_pos = match evt.kind {
+                                        RoutedEventKind::MouseMove { pos } => pos,
+                                        _ => return
+                                    };
+
+                                    let new_value;
+                                    if let Ok(mut state) = state.try_borrow_mut() {
+                                        let orientation = state.orientation;
+
+                                        if state.is_dragging {
+                                            let bar_size = match ui.nodes.borrow(&handle) {
+                                                Some(node) => node.actual_size,
+                                                None => return
+                                            };
+
+                                            let (field_pos, field_size) =
+                                                match ui.borrow_by_name_up(&handle, ScrollBar::PART_CANVAS) {
+                                                    Some(canvas) => (canvas.screen_position, canvas.actual_size),
+                                                    None => return
+                                                };
+
+                                            let percent = match orientation {
+                                                Orientation::Horizontal => {
+                                                    let span = field_size.x - bar_size.x;
+                                                    let offset = mouse_pos.x - field_pos.x + state.offset.x;
+                                                    if span > 0.0 {
+                                                        math::clampf(offset / span, 0.0, 1.0)
+                                                    } else {
+                                                        0.0
+                                                    }
+                                                }
+                                                Orientation::Vertical => {
+                                                    let span = field_size.y - bar_size.y;
+                                                    let offset = mouse_pos.y - field_pos.y + state.offset.y;
+                                                    if span > 0.0 {
+                                                        math::clampf(offset / span, 0.0, 1.0)
+                                                    } else {
+                                                        0.0
+                                                    }
+                                                }
+                                            };
+
+                                            new_value = percent * (state.max - state.min);
+
+                                            evt.handled = true;
+                                        } else {
+                                            return
+                                        }
+                                    } else {
+                                        println!("ScrollBar state is already borrowed!");
+                                        return
+                                    }
+
+                                    let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                        UINodeKind::ScrollBar(..) => true,
+                                        _ => false
+                                    });
+
+                                    ScrollBar::set_value(ui, &scroll_bar, new_value);
+                                })
+                            })
+                            .build(ui)
+                        )
+                        .build(ui)
+                    )
+                    .with_child(ButtonBuilder::new()
+                        .with_width(match orientation {
+                            Orientation::Horizontal => 30.0,
+                            Orientation::Vertical => std::f32::NAN
+                        })
+                        .with_height(match orientation {
+                            Orientation::Horizontal => std::f32::NAN,
+                            Orientation::Vertical => 30.0
+                        })
+                        .on_column(match orientation {
+                            Orientation::Horizontal => 2,
+                            Orientation::Vertical => 0
+                        })
+                        .on_row(match orientation {
+                            Orientation::Horizontal => 0,
+                            Orientation::Vertical => 2
+                        })
+                        .with_click({
+                            let state = scroll_bar_state.clone();
+                            Box::new(move |ui, handle| {
+                                let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                    UINodeKind::ScrollBar(..) => true,
+                                    _ => false
+                                });
+
+                                let new_value = if let Ok(state) = state.try_borrow_mut() {
+                                    state.value + state.step
+                                } else {
+                                    println!("ScrollBar state is already borrowed!");
+                                    return
+                                };
+
+                                ScrollBar::set_value(ui, &scroll_bar, new_value);
+                            })
+                        })
+                        .with_text(">")
+                        .build(ui)
+                    )
+                    .build(ui)
+                )
+                .build(ui)
+            )
+            .build(ui)
     }
 }
 
@@ -653,10 +1000,37 @@ pub struct Column {
 }
 
 impl Column {
-    pub fn new(size_mode: SizeMode, desired_width: f32) -> Column {
+    pub fn generic(size_mode: SizeMode, desired_width: f32) -> Self {
         Column {
             size_mode,
             desired_width,
+            actual_width: 0.0,
+            x: 0.0,
+        }
+    }
+
+    pub fn strict(desired_width: f32) -> Self {
+        Self {
+            size_mode: SizeMode::Strict,
+            desired_width,
+            actual_width: 0.0,
+            x: 0.0,
+        }
+    }
+
+    pub fn stretch() -> Self {
+        Self {
+            size_mode: SizeMode::Stretch,
+            desired_width: 0.0,
+            actual_width: 0.0,
+            x: 0.0,
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            size_mode: SizeMode::Auto,
+            desired_width: 0.0,
             actual_width: 0.0,
             x: 0.0,
         }
@@ -671,10 +1045,37 @@ pub struct Row {
 }
 
 impl Row {
-    pub fn new(size_mode: SizeMode, desired_height: f32) -> Row {
-        Row {
+    pub fn generic(size_mode: SizeMode, desired_height: f32) -> Self {
+        Self {
             size_mode,
             desired_height,
+            actual_height: 0.0,
+            y: 0.0,
+        }
+    }
+
+    pub fn strict(desired_height: f32) -> Self {
+        Self {
+            size_mode: SizeMode::Strict,
+            desired_height,
+            actual_height: 0.0,
+            y: 0.0,
+        }
+    }
+
+    pub fn stretch() -> Self {
+        Self {
+            size_mode: SizeMode::Stretch,
+            desired_height: 0.0,
+            actual_height: 0.0,
+            y: 0.0,
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            size_mode: SizeMode::Auto,
+            desired_height: 0.0,
             actual_height: 0.0,
             y: 0.0,
         }
@@ -711,6 +1112,16 @@ impl GridBuilder {
 
     pub fn add_column(mut self, column: Column) -> Self {
         self.columns.push(column);
+        self
+    }
+
+    pub fn add_rows(mut self, mut rows: Vec<Row>) -> Self {
+        self.rows.append(&mut rows);
+        self
+    }
+
+    pub fn add_columns(mut self, mut columns: Vec<Column>) -> Self {
+        self.columns.append(&mut columns);
         self
     }
 
@@ -776,11 +1187,12 @@ pub enum RoutedEventHandlerType {
     Count,
 }
 
-pub type EventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>, &mut RoutedEvent);
+pub type RoutedEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>, &mut RoutedEvent);
 
-pub type EventHandlerList = [Option<Box<EventHandler>>; RoutedEventHandlerType::Count as usize];
+pub type RoutedEventHandlerList = [Option<Box<RoutedEventHandler>>; RoutedEventHandlerType::Count as usize];
 
 pub struct UINode {
+    name: String,
     kind: UINodeKind,
     /// Desired position relative to parent node
     desired_local_position: Vec2,
@@ -819,7 +1231,7 @@ pub struct UINode {
     /// Indices of commands in command buffer emitted by the node.
     command_indices: Vec<usize>,
     is_mouse_over: bool,
-    event_handlers: EventHandlerList,
+    event_handlers: RoutedEventHandlerList,
 }
 
 pub enum RoutedEventKind {
@@ -827,12 +1239,12 @@ pub enum RoutedEventKind {
         pos: Vec2,
         button: MouseButton,
     },
-    MouseMove {
-        pos: Vec2
-    },
     MouseUp {
         pos: Vec2,
         button: MouseButton,
+    },
+    MouseMove {
+        pos: Vec2
     },
     Text {
         symbol: char
@@ -875,6 +1287,7 @@ pub struct UserInterface {
     picked_node: Handle<UINode>,
     prev_picked_node: Handle<UINode>,
     captured_node: Handle<UINode>,
+    mouse_position: Vec2,
 }
 
 #[inline]
@@ -904,6 +1317,7 @@ impl UserInterface {
             captured_node: Handle::none(),
             root_canvas: nodes.spawn(UINode::new(UINodeKind::Canvas)),
             nodes,
+            mouse_position: Vec2::new(),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::none(),
             prev_picked_node: Handle::none(),
@@ -1666,22 +2080,18 @@ impl UserInterface {
     }
 
     pub fn hit_test(&self, pt: &Vec2) -> Handle<UINode> {
-        let mut level = 0;
-        let node =
-            if self.nodes.is_valid_handle(&self.captured_node) {
-                self.captured_node.clone()
-            } else {
-                self.root_canvas.clone()
-            };
-        self.pick_node(&node, pt, &mut level)
+        if self.nodes.is_valid_handle(&self.captured_node) {
+            self.captured_node.clone()
+        } else {
+            let mut level = 0;
+            self.pick_node(&self.root_canvas, pt, &mut level)
+        }
     }
 
     fn route_event(&mut self, node_handle: Handle<UINode>, event_type: RoutedEventHandlerType, event_args: &mut RoutedEvent) {
         let mut handler = None;
         let mut parent = Handle::none();
         let index = event_type as usize;
-
-        // println!("Routed {:?} on {:?}", event_type, node_handle);
 
         if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             // Take event handler.
@@ -1705,11 +2115,80 @@ impl UserInterface {
         }
     }
 
+    /// Searches a node down on tree starting from give root that matches a criteria
+    /// defined by a given func.
+    pub fn find_by_criteria_down<Func>(&self, node_handle: &Handle<UINode>, func: &Func) -> Handle<UINode>
+        where Func: Fn(&UINode) -> bool {
+        if let Some(node) = self.nodes.borrow(node_handle) {
+            if func(node) {
+                return node_handle.clone();
+            }
+
+            for child_handle in node.children.iter() {
+                let result = self.find_by_criteria_down(child_handle, func);
+
+                if result.is_some() {
+                    return result;
+                }
+            }
+        }
+        Handle::none()
+    }
+
+    /// Searches a node up on tree starting from give root that matches a criteria
+    /// defined by a given func.
+    pub fn find_by_criteria_up<Func>(&self, node_handle: &Handle<UINode>, func: Func) -> Handle<UINode>
+        where Func: Fn(&UINode) -> bool {
+        if let Some(node) = self.nodes.borrow(node_handle) {
+            if func(node) {
+                return node_handle.clone();
+            }
+
+            return self.find_by_criteria_up(&node.parent, func);
+        }
+
+        Handle::none()
+    }
+
+    pub fn find_by_name_up(&self, node_handle: &Handle<UINode>, name: &str) -> Handle<UINode> {
+        self.find_by_criteria_up(node_handle, |node| node.name == name)
+    }
+
+    pub fn find_by_name_down(&self, node_handle: &Handle<UINode>, name: &str) -> Handle<UINode> {
+        self.find_by_criteria_down(node_handle, &|node| node.name == name)
+    }
+
+    pub fn borrow_by_name_up(&self, start_node_handle: &Handle<UINode>, name: &str) -> Option<&UINode> {
+        self.nodes.borrow(&self.find_by_name_up(start_node_handle, name))
+    }
+
+    pub fn borrow_by_name_up_mut(&mut self, start_node_handle: &Handle<UINode>, name: &str) -> Option<&mut UINode> {
+        self.nodes.borrow_mut(&self.find_by_name_up(start_node_handle, name))
+    }
+
+    pub fn borrow_by_name_down(&self, start_node_handle: &Handle<UINode>, name: &str) -> Option<&UINode> {
+        self.nodes.borrow(&self.find_by_name_down(start_node_handle, name))
+    }
+
+    pub fn borrow_by_name_down_mut(&mut self, start_node_handle: &Handle<UINode>, name: &str) -> Option<&mut UINode> {
+        self.nodes.borrow_mut(&self.find_by_name_down(start_node_handle, name))
+    }
+
+    pub fn borrow_by_criteria_up<Func>(&self, start_node_handle: &Handle<UINode>, func: Func) -> Option<&UINode>
+        where Func: Fn(&UINode) -> bool {
+        self.nodes.borrow(&self.find_by_criteria_up(start_node_handle, func))
+    }
+
+    pub fn borrow_by_criteria_up_mut<Func>(&mut self, start_node_handle: &Handle<UINode>, func: Func) -> Option<&mut UINode>
+        where Func: Fn(&UINode) -> bool {
+        self.nodes.borrow_mut(&self.find_by_criteria_up(start_node_handle, func))
+    }
+
     pub fn process_event(&mut self, event: &glutin::WindowEvent) -> bool {
         match event {
             WindowEvent::CursorMoved { position, .. } => {
-                let pos = Vec2::make(position.x as f32, position.y as f32);
-                self.picked_node = self.hit_test(&pos);
+                self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
+                self.picked_node = self.hit_test(&self.mouse_position);
 
                 // Fire mouse leave for previously picked node
                 if self.picked_node != self.prev_picked_node {
@@ -1742,7 +2221,9 @@ impl UserInterface {
                     }
 
                     // Fire mouse move
-                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseMove { pos });
+                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseMove {
+                        pos: self.mouse_position
+                    });
                     self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseMove, &mut evt);
                 }
             }
@@ -1755,14 +2236,14 @@ impl UserInterface {
                     match state {
                         ElementState::Pressed => {
                             let mut evt = RoutedEvent::new(RoutedEventKind::MouseDown {
-                                pos: Vec2::new(),
+                                pos: self.mouse_position,
                                 button: *button,
                             });
                             self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseDown, &mut evt);
                         }
                         ElementState::Released => {
                             let mut evt = RoutedEvent::new(RoutedEventKind::MouseUp {
-                                pos: Vec2::new(),
+                                pos: self.mouse_position,
                                 button: *button,
                             });
                             self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseUp, &mut evt);
@@ -1783,6 +2264,7 @@ impl UINode {
     pub fn new(kind: UINodeKind) -> UINode {
         UINode {
             kind,
+            name: String::new(),
             desired_local_position: Vec2::new(),
             width: std::f32::NAN,
             height: std::f32::NAN,
@@ -1859,7 +2341,7 @@ impl UINode {
     }
 
     #[inline]
-    pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<EventHandler>) -> &mut Self {
+    pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<RoutedEventHandler>) -> &mut Self {
         self.event_handlers[handler_type as usize] = Some(handler);
         self
     }

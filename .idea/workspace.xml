@@ -6,16 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/level.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/level.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/game/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/weapon.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/weapon.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/pool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/pool.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test.json" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -51,7 +45,7 @@
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.2" />
     <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
-    <property name="settings.editor.selected.configurable" value="editor.preferences.folding" />
+    <property name="settings.editor.selected.configurable" value="preferences.editor" />
     <property name="settings.editor.splitter.proportion" value="0.23435949" />
   </component>
   <component name="RunDashboard">
