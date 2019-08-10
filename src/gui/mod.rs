@@ -29,11 +29,7 @@ use glutin::{
     WindowEvent,
     ElementState,
 };
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
-use crate::gui::Orientation::Horizontal;
+use std::collections::VecDeque;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -608,7 +604,9 @@ impl ButtonBuilder {
     }
 }
 
-pub struct ScrollBarState {
+pub type ValueChanged = dyn FnMut(&mut UserInterface, Handle<UINode>, f32, f32);
+
+pub struct ScrollBar {
     min: f32,
     max: f32,
     value: f32,
@@ -616,14 +614,6 @@ pub struct ScrollBarState {
     orientation: Orientation,
     is_dragging: bool,
     offset: Vec2,
-}
-
-pub type ValueChanged = dyn FnMut(&mut UserInterface, Handle<UINode>, f32, f32);
-
-pub struct ScrollBar {
-    /// Shared scroll bar state wrapped into Rc.
-    /// It is required because multiple controls of scroll bar modifies it.
-    state: Rc<RefCell<ScrollBarState>>,
     value_changed: Option<Box<ValueChanged>>,
 }
 
@@ -633,15 +623,13 @@ impl ScrollBar {
 
     pub fn new() -> Self {
         Self {
-            state: Rc::new(RefCell::new(ScrollBarState {
-                min: 0.0,
-                max: 100.0,
-                value: 0.0,
-                step: 1.0,
-                orientation: Horizontal,
-                is_dragging: false,
-                offset: Vec2::new(),
-            })),
+            min: 0.0,
+            max: 100.0,
+            value: 0.0,
+            step: 1.0,
+            orientation: Orientation::Horizontal,
+            is_dragging: false,
+            offset: Vec2::new(),
             value_changed: None,
         }
     }
@@ -658,19 +646,14 @@ impl ScrollBar {
             Some(scroll_bar_node) => {
                 match scroll_bar_node.get_kind_mut() {
                     UINodeKind::ScrollBar(scroll_bar) => {
-                        if let Ok(mut state) = scroll_bar.state.try_borrow_mut() {
-                            orientation = state.orientation;
-                            min = state.min;
-                            max = state.max;
-                            old_value = state.value;
-                            new_value = math::clampf(value, state.min, state.max);
-                            if new_value != old_value {
-                                state.value = new_value;
-                                value_changed = scroll_bar.value_changed.take();
-                            }
-                        } else {
-                            println!("ScrollBar state is already borrowed!");
-                            return;
+                        orientation = scroll_bar.orientation;
+                        min = scroll_bar.min;
+                        max = scroll_bar.max;
+                        old_value = scroll_bar.value;
+                        new_value = math::clampf(value, min, max);
+                        if new_value != old_value {
+                            scroll_bar.value = new_value;
+                            value_changed = scroll_bar.value_changed.take();
                         }
                     }
                     _ => return
@@ -772,14 +755,13 @@ impl ScrollBarBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let scroll_bar = ScrollBar::new();
-        let scroll_bar_state = scroll_bar.state.clone();
+        let mut scroll_bar = ScrollBar::new();
         if let Some(orientation) = self.orientation {
-            scroll_bar_state.borrow_mut().orientation = orientation;
+            scroll_bar.orientation = orientation;
         }
-        let orientation = scroll_bar_state.borrow().orientation;
-
-        GenericNodeBuilder::new(UINodeKind::ScrollBar(scroll_bar), self.common)
+        let orientation = scroll_bar.orientation;
+        let min = scroll_bar.min;
+        let scroll_bar_handle = GenericNodeBuilder::new(UINodeKind::ScrollBar(scroll_bar), self.common)
             .with_child(BorderBuilder::new()
                 .with_color(Color::opaque(120, 120, 120))
                 .with_stroke_thickness(Thickness::uniform(1.0))
@@ -809,24 +791,25 @@ impl ScrollBarBuilder {
                             Orientation::Vertical => 30.0
                         })
                         .with_text("<")
-                        .with_click({
-                            let state = scroll_bar_state.clone();
-                            Box::new(move |ui, handle| {
-                                let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
-                                    UINodeKind::ScrollBar(..) => true,
-                                    _ => false
-                                });
+                        .with_click(Box::new(move |ui, handle| {
+                            let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                UINodeKind::ScrollBar(..) => true,
+                                _ => false
+                            });
 
-                                let new_value = if let Ok(state) = state.try_borrow_mut() {
-                                    state.value - state.step
+                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow(&scroll_bar_handle) {
+                                if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind() {
+                                    scroll_bar.value - scroll_bar.step
                                 } else {
-                                    println!("ScrollBar state is already borrowed!");
-                                    return
-                                };
+                                    return;
+                                }
+                            } else {
+                                println!("ScrollBar state is already borrowed!");
+                                return;
+                            };
 
-                                ScrollBar::set_value(ui, &scroll_bar, new_value);
-                            })
-                        })
+                            ScrollBar::set_value(ui, &scroll_bar_handle, new_value);
+                        }))
                         .build(ui)
                     )
                     .with_child(CanvasBuilder::new()
@@ -846,44 +829,55 @@ impl ScrollBarBuilder {
                             .with_color(Color::opaque(255, 255, 255))
                             .with_width(30.0)
                             .with_height(30.0)
-                            .with_handler(RoutedEventHandlerType::MouseDown, {
-                                let state = scroll_bar_state.clone();
-                                Box::new(move |ui, handle, evt| {
-                                    if let RoutedEventKind::MouseDown { pos, .. } = evt.kind {
-                                        if let Ok(mut state) = state.try_borrow_mut() {
-                                            state.is_dragging = true;
-                                            if let Some(node) = ui.nodes.borrow(&handle) {
-                                                state.offset = node.screen_position - pos;
-                                            }
+                            .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, evt| {
+                                let indicator_pos = if let Some(node) = ui.nodes.borrow(&handle) {
+                                    node.screen_position
+                                } else {
+                                    return;
+                                };
+
+                                if let RoutedEventKind::MouseDown { pos, .. } = evt.kind {
+                                    if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(&handle, |node| match node.kind {
+                                        UINodeKind::ScrollBar(..) => true,
+                                        _ => false
+                                    }) {
+                                        if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
+                                            scroll_bar.is_dragging = true;
+                                            scroll_bar.offset = indicator_pos - pos;
                                         }
-                                        ui.capture_mouse(&handle);
-                                        evt.handled = true;
                                     }
-                                })
-                            })
-                            .with_handler(RoutedEventHandlerType::MouseUp, {
-                                let state = scroll_bar_state.clone();
-                                Box::new(move |ui, _handle, evt| {
-                                    if let Ok(mut state) = state.try_borrow_mut() {
-                                        state.is_dragging = false;
-                                    }
-                                    ui.release_mouse_capture();
+
+                                    ui.capture_mouse(&handle);
                                     evt.handled = true;
-                                })
-                            })
-                            .with_handler(RoutedEventHandlerType::MouseMove, {
-                                let state = scroll_bar_state.clone();
-                                Box::new(move |ui, handle, evt| {
-                                    let mouse_pos = match evt.kind {
-                                        RoutedEventKind::MouseMove { pos } => pos,
-                                        _ => return
-                                    };
+                                }
+                            }))
+                            .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
+                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(&handle, |node| match node.kind {
+                                    UINodeKind::ScrollBar(..) => true,
+                                    _ => false
+                                }) {
+                                    if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
+                                        scroll_bar.is_dragging = false;
+                                    }
+                                }
+                                ui.release_mouse_capture();
+                                evt.handled = true;
+                            }))
+                            .with_handler(RoutedEventHandlerType::MouseMove, Box::new(move |ui, handle, evt| {
+                                let mouse_pos = match evt.kind {
+                                    RoutedEventKind::MouseMove { pos } => pos,
+                                    _ => return
+                                };
 
-                                    let new_value;
-                                    if let Ok(mut state) = state.try_borrow_mut() {
-                                        let orientation = state.orientation;
+                                let new_value;
+                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up(&handle, |node| match node.kind {
+                                    UINodeKind::ScrollBar(..) => true,
+                                    _ => false
+                                }) {
+                                    if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind() {
+                                        let orientation = scroll_bar.orientation;
 
-                                        if state.is_dragging {
+                                        if scroll_bar.is_dragging {
                                             let bar_size = match ui.nodes.borrow(&handle) {
                                                 Some(node) => node.actual_size,
                                                 None => return
@@ -898,7 +892,7 @@ impl ScrollBarBuilder {
                                             let percent = match orientation {
                                                 Orientation::Horizontal => {
                                                     let span = field_size.x - bar_size.x;
-                                                    let offset = mouse_pos.x - field_pos.x + state.offset.x;
+                                                    let offset = mouse_pos.x - field_pos.x + scroll_bar.offset.x;
                                                     if span > 0.0 {
                                                         math::clampf(offset / span, 0.0, 1.0)
                                                     } else {
@@ -907,7 +901,7 @@ impl ScrollBarBuilder {
                                                 }
                                                 Orientation::Vertical => {
                                                     let span = field_size.y - bar_size.y;
-                                                    let offset = mouse_pos.y - field_pos.y + state.offset.y;
+                                                    let offset = mouse_pos.y - field_pos.y + scroll_bar.offset.y;
                                                     if span > 0.0 {
                                                         math::clampf(offset / span, 0.0, 1.0)
                                                     } else {
@@ -916,25 +910,27 @@ impl ScrollBarBuilder {
                                                 }
                                             };
 
-                                            new_value = percent * (state.max - state.min);
+                                            new_value = percent * (scroll_bar.max - scroll_bar.min);
 
                                             evt.handled = true;
                                         } else {
-                                            return
+                                            return;
                                         }
                                     } else {
-                                        println!("ScrollBar state is already borrowed!");
-                                        return
+                                        return;
                                     }
+                                } else {
+                                    println!("ScrollBar state is already borrowed!");
+                                    return;
+                                }
 
-                                    let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
-                                        UINodeKind::ScrollBar(..) => true,
-                                        _ => false
-                                    });
+                                let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                    UINodeKind::ScrollBar(..) => true,
+                                    _ => false
+                                });
 
-                                    ScrollBar::set_value(ui, &scroll_bar, new_value);
-                                })
-                            })
+                                ScrollBar::set_value(ui, &scroll_bar, new_value);
+                            }))
                             .build(ui)
                         )
                         .build(ui)
@@ -956,24 +952,25 @@ impl ScrollBarBuilder {
                             Orientation::Horizontal => 0,
                             Orientation::Vertical => 2
                         })
-                        .with_click({
-                            let state = scroll_bar_state.clone();
-                            Box::new(move |ui, handle| {
-                                let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
-                                    UINodeKind::ScrollBar(..) => true,
-                                    _ => false
-                                });
+                        .with_click(Box::new(move |ui, handle| {
+                            let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                UINodeKind::ScrollBar(..) => true,
+                                _ => false
+                            });
 
-                                let new_value = if let Ok(state) = state.try_borrow_mut() {
-                                    state.value + state.step
+                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow(&scroll_bar_handle) {
+                                if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind() {
+                                    scroll_bar.value + scroll_bar.step
                                 } else {
-                                    println!("ScrollBar state is already borrowed!");
-                                    return
-                                };
+                                    return;
+                                }
+                            } else {
+                                println!("ScrollBar state is already borrowed!");
+                                return;
+                            };
 
-                                ScrollBar::set_value(ui, &scroll_bar, new_value);
-                            })
-                        })
+                            ScrollBar::set_value(ui, &scroll_bar_handle, new_value);
+                        }))
                         .with_text(">")
                         .build(ui)
                     )
@@ -981,7 +978,16 @@ impl ScrollBarBuilder {
                 )
                 .build(ui)
             )
-            .build(ui)
+            .build(ui);
+        // We have to defer update of scroll bar indicator, because it can't be update right now since
+        // we do not have enough information about environment.
+        ui.begin_invoke({
+            let scroll_bar_handle = scroll_bar_handle.clone();
+            Box::new(move |ui| {
+                ScrollBar::set_value(ui, &scroll_bar_handle, min);
+            })
+        });
+        scroll_bar_handle
     }
 }
 
@@ -1277,6 +1283,8 @@ impl RoutedEvent {
     }
 }
 
+pub type DeferredAction = dyn FnMut(&mut UserInterface);
+
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
@@ -1288,6 +1296,7 @@ pub struct UserInterface {
     prev_picked_node: Handle<UINode>,
     captured_node: Handle<UINode>,
     mouse_position: Vec2,
+    deferred_actions: VecDeque<Box<DeferredAction>>,
 }
 
 #[inline]
@@ -1321,6 +1330,7 @@ impl UserInterface {
             drawing_context: DrawingContext::new(),
             picked_node: Handle::none(),
             prev_picked_node: Handle::none(),
+            deferred_actions: VecDeque::new(),
         }
     }
 
@@ -1343,6 +1353,10 @@ impl UserInterface {
 
     pub fn release_mouse_capture(&mut self) {
         self.captured_node = Handle::none();
+    }
+
+    pub fn begin_invoke(&mut self, action: Box<DeferredAction>) {
+        self.deferred_actions.push_back(action)
     }
 
     /// Links specified child with specified parent.
@@ -1927,6 +1941,9 @@ impl UserInterface {
         self.measure(&root_canvas_handle, screen_size);
         self.arrange(&root_canvas_handle, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
         self.update_transform(&root_canvas_handle);
+        while let Some(mut action) = self.deferred_actions.pop_front() {
+            action(self)
+        }
     }
 
     fn draw_node(&mut self, node_handle: &Handle<UINode>, font_cache: &Pool<Font>, nesting: u8) {
