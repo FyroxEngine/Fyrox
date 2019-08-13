@@ -19,6 +19,12 @@ pub struct RcPool<T: Sized> {
     free_stack: Vec<u32>,
 }
 
+impl<T> Default for RcPool<T> {
+    fn default() -> Self {
+        RcPool::new()
+    }
+}
+
 ///
 /// Handle is some sort of non-owning reference to content in a pool.
 /// It stores index of object and additional information that
@@ -218,6 +224,19 @@ impl<T> RcPool<T> {
         None
     }
 
+    pub fn replace(&mut self, handle: &RcHandle<T>, payload: T) -> Option<T> {
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            if record.generation == handle.generation {
+                return record.payload.replace(payload);
+            } else if handle.generation != RcPool::<T>::INVALID_GENERATION {
+                println!("RcPool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
+            }
+        } else {
+            println!("RcPool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
+        }
+        None
+    }
+
     #[inline]
     #[must_use]
     pub fn get_capacity(&self) -> usize {
@@ -232,6 +251,12 @@ impl<T> RcPool<T> {
         } else {
             None
         }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn alive_count(&self) -> usize {
+        self.records.iter().count()
     }
 
     #[inline]

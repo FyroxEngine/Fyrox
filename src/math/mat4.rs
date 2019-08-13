@@ -12,6 +12,12 @@ pub struct Mat4 {
     pub f: [f32; 16]
 }
 
+impl Default for Mat4 {
+    fn default() -> Self {
+        Mat4::identity()
+    }
+}
+
 impl Mat4 {
     pub fn identity() -> Self {
         Self {

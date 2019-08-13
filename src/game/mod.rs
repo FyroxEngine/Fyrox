@@ -17,6 +17,7 @@ use crate::{
         ButtonBuilder,
         Thickness,
         TextBuilder,
+        ScrollBarBuilder
     },
     utils::pool::Handle,
     math::vec2::Vec2,
@@ -29,11 +30,12 @@ use std::{
     time::Instant,
     rc::Rc,
 };
-use crate::gui::ScrollBarBuilder;
 
 pub struct MenuState {
-    start_new_game: bool,
-    quit_game: bool
+    save_game: Option<()>,
+    load_game: Option<()>,
+    start_new_game: Option<()>,
+    quit_game: Option<()>
 }
 
 pub struct Menu {
@@ -57,8 +59,10 @@ impl Game {
         let engine = Engine::new();
         let mut game = Game {
             menu: Menu { state: Rc::new(RefCell::new(MenuState {
-                start_new_game: false,
-                quit_game: false,
+                start_new_game: None,
+                quit_game: None,
+                save_game: None,
+                load_game: None,
             })) },
             debug_text: Handle::none(),
             engine,
@@ -96,30 +100,36 @@ impl Game {
                     .with_margin(Thickness::uniform(4.0))
                     .with_click(Box::new(move |_ui, _handle| {
                         if let Ok(mut state) = menu_state.try_borrow_mut() {
-                            state.start_new_game = true;
+                            state.start_new_game = Some(());
                         }
                     }))
                     .build(ui)
             })
             .with_child({
+                let menu_state = self.menu.state.clone();
                 ButtonBuilder::new()
                     .with_text("Save Game")
                     .on_column(0)
                     .on_row(1)
                     .with_margin(Thickness::uniform(4.0))
-                    .with_click(Box::new(|_ui, _handle| {
-                        println!("Save Game Clicked!");
+                    .with_click(Box::new(move |_ui, _handle| {
+                        if let Ok(mut state) = menu_state.try_borrow_mut() {
+                            state.save_game = Some(());
+                        }
                     }))
                     .build(ui)
             })
             .with_child({
+                let menu_state = self.menu.state.clone();
                 ButtonBuilder::new()
                     .with_text("Load Game")
                     .on_column(0)
                     .on_row(2)
                     .with_margin(Thickness::uniform(4.0))
-                    .with_click(Box::new(|_ui, _handle| {
-                        println!("Load Game Clicked!");
+                    .with_click(Box::new(move |_ui, _handle| {
+                        if let Ok(mut state) = menu_state.try_borrow_mut() {
+                            state.load_game = Some(());
+                        }
                     }))
                     .build(ui)
             })
@@ -143,7 +153,7 @@ impl Game {
                     .with_margin(Thickness::uniform(4.0))
                     .with_click(Box::new(move |_ui, _handle| {
                         if let Ok(mut state) = menu_state.try_borrow_mut() {
-                            state.quit_game = true;
+                            state.quit_game = Some(());
                         }
                     }))
                     .build(ui)
@@ -155,12 +165,21 @@ impl Game {
             .build(ui);
     }
 
-    pub fn make_save(&self) {
-        match File::create(Path::new("test.json")) {
+    pub fn save_game(&self) {
+        match File::create(Path::new("save.json")) {
             Ok(file) => {
-                serde_json::to_writer_pretty(file, self.engine.get_state()).unwrap();
+                self.engine.save(file)
             }
             Err(_) => println!("unable to create a save"),
+        }
+    }
+
+    pub fn load_game(&mut self) {
+        match File::open(Path::new("save.json")) {
+            Ok(file) => {
+                self.engine.load(file)
+            }
+            Err(_) => println!("failed to load a save!")
         }
     }
 
@@ -177,14 +196,21 @@ impl Game {
 
     pub fn update_menu(&mut self) {
         if let Ok(mut state) = self.menu.state.clone().try_borrow_mut() {
-            if state.start_new_game {
-                state.start_new_game = false;
+            if let Some(_) = state.start_new_game.take() {
                 self.start_new_game();
             }
 
-            if state.quit_game {
+            if let Some(_) = state.quit_game.take() {
                 self.destroy_level();
                 self.engine.stop();
+            }
+
+            if let Some(_) = state.save_game.take() {
+                self.save_game();
+            }
+
+            if let Some(_) = state.load_game.take() {
+                self.load_game();
             }
         }
     }
@@ -247,5 +273,6 @@ impl Game {
             // Render at max speed
             self.engine.render();
         }
+        self.destroy_level();
     }
 }

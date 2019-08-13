@@ -1,6 +1,12 @@
 use crate::{
     scene::*,
-    utils::pool::*,
+    utils::{
+        pool::*,
+        rcpool::{
+            RcPool,
+            RcHandle
+        }
+    },
     renderer::{
         renderer::*,
         surface::SurfaceSharedData
@@ -11,7 +17,6 @@ use crate::{
         model::Model,
         ttf::Font
     },
-    utils::rcpool::{RcPool, RcHandle},
     gui::UserInterface,
     math::vec2::Vec2
 };
@@ -20,8 +25,13 @@ use std::{
     collections::VecDeque,
     time::Duration
 };
-use serde::{Serialize, Deserialize};
+use serde::{
+    Serialize,
+    Deserialize
+};
+use std::any::{Any, TypeId};
 
+#[derive(Serialize, Deserialize)]
 pub struct ResourceManager {
     resources: RcPool<Resource>,
     /// Path to textures, extensively used for resource files
@@ -102,9 +112,8 @@ impl ResourceManager {
 #[derive(Serialize, Deserialize)]
 pub struct State {
     scenes: Pool<Scene>,
-    surf_data_storage: RcPool<SurfaceSharedData>,
-
     #[serde(skip)]
+    surf_data_storage: RcPool<SurfaceSharedData>,
     resource_manager: ResourceManager,
 }
 
@@ -174,11 +183,47 @@ impl State {
                 ResourceKind::Model(model) => {
                     self.destroy_scene_internal(model.get_scene_mut());
                 }
-                ResourceKind::Texture(texture) => {
-
-                }
+                ResourceKind::Texture(texture) => ()
             }
             println!("Resource destroyed: {}!", resource.get_path().display());
+        }
+    }
+
+    fn clear(&mut self) {
+        for i in 0..self.scenes.get_capacity() {
+            if let Some(mut scene) = self.scenes.take_at(i) {
+                self.destroy_scene_internal(&mut scene);
+            }
+        }
+
+        if self.surf_data_storage.alive_count() != 0 {
+            println!("Not all shared surface data was freed! {} left alive!", self.surf_data_storage.alive_count());
+        }
+    }
+
+    fn resolve(&mut self) {
+        // Reload all resources first.
+        for i in 0..self.resource_manager.resources.get_capacity() {
+            let path;
+            let id;
+            if let Some(resource) = self.resource_manager.resources.at(i) {
+                path = PathBuf::from(resource.get_path());
+                match resource.borrow_kind() {
+                    ResourceKind::Model(model) => id = model.type_id(),
+                    ResourceKind::Texture(texture) => id = texture.type_id()
+                }
+            } else {
+                continue
+            }
+
+            let handle = self.resource_manager.resources.handle_from_index(i);
+            if id == TypeId::of::<Model>() {
+                let model = Model::load(path.as_path(), self).unwrap();
+                let resource = Resource::new(path.as_path(), ResourceKind::Model(model));
+                self.resource_manager.resources.replace(&handle, resource);
+            } else if id == TypeId::of::<Texture>() {
+
+            }
         }
     }
 
@@ -248,7 +293,7 @@ impl State {
 
 pub struct Engine {
     renderer: Renderer,
-    state: State,
+    pub state: State,
     events: VecDeque<glutin::Event>,
     running: bool,
     font_cache: Pool<Font>,
@@ -334,6 +379,16 @@ impl Engine {
 
     pub fn get_rendering_statisting(&self) -> &Statistics {
         self.renderer.get_statistics()
+    }
+
+    pub fn save<W>(&self, writer: W) where W: std::io::Write {
+        serde_json::to_writer_pretty(writer, &self.state).unwrap();
+    }
+
+    pub fn load<R>(&mut self, reader: R) where R: std::io::Read {
+        self.state.clear();
+        self.state = serde_json::from_reader(reader).unwrap();
+        self.state.resolve();
     }
 
     pub fn render(&mut self) {

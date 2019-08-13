@@ -3,6 +3,7 @@ pub mod fbx;
 pub mod model;
 pub mod ttf;
 
+use serde::{Serialize, Deserialize};
 use std::path::*;
 use crate::{
     resource::{
@@ -11,11 +12,13 @@ use crate::{
     }
 };
 
+#[derive(Serialize, Deserialize)]
 pub enum ResourceKind {
     Texture(Texture),
     Model(Model),
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Resource {
     path: PathBuf,
     kind: ResourceKind

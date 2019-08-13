@@ -14,7 +14,11 @@ use crate::{
 };
 use std::path::Path;
 
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize)]
 pub struct Model {
+    #[serde(skip)]
     scene: Scene,
 }
 

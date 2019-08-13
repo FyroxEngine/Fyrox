@@ -29,9 +29,8 @@ pub struct Scene {
     stack: Vec<Handle<Node>>,
 }
 
-impl Scene {
-    #[inline]
-    pub fn new() -> Scene {
+impl Default for Scene {
+    fn default() -> Self {
         let mut nodes: Pool<Node> = Pool::new();
         let root = nodes.spawn(Node::new(NodeKind::Base));
         Scene {
@@ -40,6 +39,13 @@ impl Scene {
             root,
             physics: Physics::new(),
         }
+    }
+}
+
+impl Scene {
+    #[inline]
+    pub fn new() -> Scene {
+        Scene::default()
     }
 
     /// Transfers ownership of node into scene.

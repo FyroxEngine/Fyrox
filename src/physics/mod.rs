@@ -35,6 +35,7 @@ impl StaticGeometry {
 
 #[derive(Serialize, Deserialize)]
 pub struct StaticTriangle {
+    #[serde(skip)]
     points: [Vec3; 3],
     #[serde(skip)]
     ca: Vec3,

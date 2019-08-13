@@ -181,7 +181,9 @@ pub struct Node {
     pub(super) global_visibility: bool,
     pub(super) parent: Handle<Node>,
     pub(crate) children: Vec<Handle<Node>>,
+    #[serde(skip)]
     pub(super) local_transform: Mat4,
+    #[serde(skip)]
     pub(crate) global_transform: Mat4,
     body: Handle<Body>,
     resource: RcHandle<Resource>
