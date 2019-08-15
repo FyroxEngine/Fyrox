@@ -4,7 +4,7 @@ use crate::{
     math::{vec4::*, vec3::*, vec2::*, mat4::*, quat::*, triangulator::*},
     scene::{*, node::*},
     renderer::surface::{SurfaceSharedData, Surface, Vertex},
-    engine::State
+    engine::State,
 };
 
 pub enum FbxAttribute {
@@ -291,18 +291,18 @@ struct FbxNode {
 
 impl FbxNode {
     fn get_vec3_at(&self, n: usize) -> Result<Vec3, String> {
-        return Ok(Vec3 {
+        Ok(Vec3 {
             x: self.get_attrib(n)?.as_f32()?,
             y: self.get_attrib(n + 1)?.as_f32()?,
             z: self.get_attrib(n + 2)?.as_f32()?,
-        });
+        })
     }
 
     fn get_vec2_at(&self, n: usize) -> Result<Vec2, String> {
-        return Ok(Vec2 {
+        Ok(Vec2 {
             x: self.get_attrib(n)?.as_f32()?,
             y: self.get_attrib(n + 1)?.as_f32()?,
-        });
+        })
     }
 
     fn get_attrib(&self, n: usize) -> Result<&FbxAttribute, String> {
@@ -448,7 +448,7 @@ impl FbxGeometry {
             }
         }
 
-        return Ok(geom);
+        Ok(geom)
     }
 }
 
@@ -559,7 +559,7 @@ impl FbxModel {
                 _ => () // Unused properties
             }
         }
-        return Ok(model);
+        Ok(model)
     }
 }
 
@@ -807,12 +807,10 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
                         return Err(String::from("FBX: Failed to fetch node by handle when committing attribute"));
                     }
                     value.clear();
+                } else if !read_value {
+                    name.push(symbol);
                 } else {
-                    if !read_value {
-                        name.push(symbol);
-                    } else {
-                        value.push(symbol);
-                    }
+                    value.push(symbol);
                 }
             }
         }
@@ -912,7 +910,7 @@ fn prepare_next_face(geom: &FbxGeometry,
         }
     }
 
-    return vertex_per_face;
+    vertex_per_face
 }
 
 fn convert_vertex(geom: &FbxGeometry,
@@ -1057,7 +1055,7 @@ impl Fbx {
             }
         }
 
-        return Ok(());
+        Ok(())
     }
 
     fn convert_light(&self, light: &mut Light, fbx_light: &FbxLight) {

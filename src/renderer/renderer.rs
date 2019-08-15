@@ -635,7 +635,7 @@ impl Renderer {
                                     1.0);
             gl::UniformMatrix4fv(self.ui_shader.wvp_matrix, 1, gl::FALSE, ortho.f.as_ptr() as *const f32);
 
-            for cmd in drawing_context.get_command_buffer() {
+            for cmd in drawing_context.get_commands() {
                 let index_count = cmd.get_triangle_count() * 3;
                 if cmd.get_nesting() != 0 {
                     gl::Enable(gl::STENCIL_TEST);

@@ -30,6 +30,7 @@ use std::{
     time::Instant,
     rc::Rc,
 };
+use crate::gui::ScrollViewerBuilder;
 
 pub struct MenuState {
     save_game: Option<()>,
@@ -77,6 +78,12 @@ impl Game {
 
         self.debug_text = TextBuilder::new()
             .with_width(200.0)
+            .with_height(200.0)
+            .build(ui);
+
+        ScrollViewerBuilder::new()
+            .with_desired_position(Vec2::make(550.0, 300.0))
+            .with_width(300.0)
             .with_height(200.0)
             .build(ui);
 

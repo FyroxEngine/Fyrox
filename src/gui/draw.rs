@@ -388,11 +388,6 @@ impl DrawingContext {
     }
 
     #[inline]
-    pub fn get_command_buffer(&self) -> &[Command] {
-        self.command_buffer.as_slice()
-    }
-
-    #[inline]
     pub fn get_vertices(&self) -> &[Vertex] {
         self.vertex_buffer.as_slice()
     }
@@ -508,7 +503,7 @@ impl DrawingContext {
             }
         }
 
-        return false;
+        false
     }
 
     pub fn push_line(&mut self, a: &Vec2, b: &Vec2, thickness: f32, color: Color) {
@@ -574,7 +569,7 @@ impl DrawingContext {
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    pub fn commit(&mut self, kind: CommandKind, texture: u32) -> Option<usize> {
+    pub fn commit(&mut self, kind: CommandKind, texture: u32) {
         if self.triangles_to_commit > 0 {
             let command = Command {
                 kind,
@@ -585,16 +580,12 @@ impl DrawingContext {
                 } else { 0 },
                 triangle_count: self.triangles_to_commit,
             };
-            let index = self.command_buffer.len();
             self.command_buffer.push(command);
             self.triangles_to_commit = 0;
-            Some(index)
-        } else {
-            None
         }
     }
 
-    pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) -> Option<usize> {
+    pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) {
         for element in formatted_text.glyphs.iter() {
             let final_bounds = Rect::new(
                 position.x + element.bounds.x,
@@ -604,14 +595,14 @@ impl DrawingContext {
 
             self.push_rect_filled(&final_bounds, Some(&element.tex_coords), element.color);
         }
-        return self.commit(CommandKind::Geometry, formatted_text.texture);
+        self.commit(CommandKind::Geometry, formatted_text.texture)
     }
 
-    pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) -> usize {
+    pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) {
         self.push_rect_filled(clip_rect, None, Color::black());
-        let command_index = self.commit(CommandKind::Clip, 0).unwrap();
-        self.clip_cmd_stack.push(command_index);
-        command_index
+        let index = self.command_buffer.len();
+        self.commit(CommandKind::Clip, 0);
+        self.clip_cmd_stack.push(index);
     }
 
     pub fn ready_to_draw(&self) -> bool {

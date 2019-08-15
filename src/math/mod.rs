@@ -110,11 +110,11 @@ pub fn vec3_to_vec2_by_plane(plane_class: PlaneClass, normal: Vec3, point: Vec3)
     }
 }
 
-pub fn is_point_inside_2d_triangle(point: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool {
-    let ba = b - a;
-    let ca = c - a;
+pub fn is_point_inside_2d_triangle(point: Vec2, pt_a: Vec2, pt_b: Vec2, pt_c: Vec2) -> bool {
+    let ba = pt_b - pt_a;
+    let ca = pt_c - pt_a;
 
-    let vp = point - a;
+    let vp = point - pt_a;
 
     let ba_dot_ba = ba.dot(ba);
     let ca_dot_ba = ca.dot(ba);

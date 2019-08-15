@@ -2,7 +2,7 @@ use crate::{
     math::{
         vec2::*,
         vec3::*,
-        self
+        self,
     }
 };
 use std::fmt;
@@ -80,10 +80,9 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
     let mut i = poly.head;
     loop {
         let vertex = &poly.vertices[i];
-        if i != prev.index && i != ear.index && i != next.index {
-            if math::is_point_inside_2d_triangle(vertex.position, prev.position, ear.position, next.position) {
-                return false;
-            }
+        if i != prev.index && i != ear.index && i != next.index &&
+            math::is_point_inside_2d_triangle(vertex.position, prev.position, ear.position, next.position) {
+            return false;
         }
         i = vertex.next;
         if i == poly.head {
@@ -91,7 +90,7 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
         }
     }
 
-    return true;
+    true
 }
 
 ///

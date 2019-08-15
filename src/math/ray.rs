@@ -43,7 +43,7 @@ impl Ray {
         let discr_root = discriminant.sqrt();
         let r1 = (-b + discr_root) / 2.0;
         let r2 = (-b - discr_root) / 2.0;
-        return Some((self.origin + self.dir.scale(r1), self.origin + self.dir.scale(r2)));
+        Some((self.origin + self.dir.scale(r1), self.origin + self.dir.scale(r2)))
     }
 
     /// Checks intersection with sphere.
@@ -54,7 +54,7 @@ impl Ray {
         let b = 2.0 * self.dir.dot(&d);
         let c = d.dot(&d) - radius * radius;
         let discriminant = b * b - 4.0 * a * c;
-        return discriminant >= 0.0;
+        discriminant >= 0.0
     }
 
     /// Returns t factor (at pt=o+d*t equation) for projection of given point at ray

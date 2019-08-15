@@ -3,16 +3,16 @@ use crate::{
     math::{
         vec2::*,
         vec3::*,
-        quat::*
+        quat::*,
     },
     scene::{
         node::*,
-        *
+        *,
     },
     physics::Body,
     game::{
         weapon::{Weapon, WeaponKind},
-        GameTime
+        GameTime,
     },
     engine::State,
 };
@@ -128,10 +128,8 @@ impl Player {
     }
 
     pub fn next_weapon(&mut self) {
-        if !self.weapons.is_empty() {
-            if self.current_weapon < self.weapons.len() - 1 {
-                self.current_weapon += 1;
-            }
+        if !self.weapons.is_empty() && self.current_weapon < self.weapons.len() - 1 {
+            self.current_weapon += 1;
         }
     }
 

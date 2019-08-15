@@ -3,16 +3,16 @@
 use crate::{
     math::{
         vec2::Vec2,
-        Rect
+        Rect,
     },
-    utils::pool::{Pool, Handle}
+    utils::pool::{Pool, Handle},
 };
 use std::{
     cmp::Ordering,
     collections::HashMap,
-    path::{Path},
+    path::Path,
     fs::File,
-    io::Read
+    io::Read,
 };
 
 const ON_CURVE_POINT: u8 = 1;
@@ -214,7 +214,7 @@ impl Bitmap {
             return 0.0;
         }
 
-        return self.pixels[y * self.width + x] as f32 / 255.0;
+        self.pixels[y * self.width + x] as f32 / 255.0
     }
 }
 
@@ -223,7 +223,7 @@ fn get_u16(p: *const u8) -> u16
     unsafe {
         let b0 = *p as u32;
         let b1 = *p.offset(1) as u32;
-        return (b0 * 256 + b1) as u16;
+        (b0 * 256 + b1) as u16
     }
 }
 
@@ -232,7 +232,7 @@ fn get_i16(p: *const u8) -> i16
     unsafe {
         let b0 = *p as i32;
         let b1 = *p.offset(1) as i32;
-        return (b0 * 256 + b1) as i16;
+        (b0 * 256 + b1) as i16
     }
 }
 
@@ -243,7 +243,7 @@ fn get_u32(p: *const u8) -> u32
         let b1 = *p.offset(1) as u32;
         let b2 = *p.offset(2) as u32;
         let b3 = *p.offset(3) as u32;
-        return (b0 << 24) + (b1 << 16) + (b2 << 8) + b3;
+        (b0 << 24) + (b1 << 16) + (b2 << 8) + b3
     }
 }
 
@@ -280,7 +280,7 @@ fn segmented_mapping(subtable: *const u8, unicode: u32) -> usize {
             }
         }
 
-        return 0;
+        0
     }
 }
 
@@ -292,7 +292,7 @@ fn direct_mapping(subtable: *const u8, unicode: u32) -> usize {
         }
     }
 
-    return 0;
+    0
 }
 
 fn dense_mapping(subtable: *const u8, unicode: u32) -> usize {
@@ -306,7 +306,7 @@ fn dense_mapping(subtable: *const u8, unicode: u32) -> usize {
         }
     }
 
-    return 0;
+    0
 }
 
 fn line_line_intersection(a: &Line2, b: &Line2) -> Option<Point> {
@@ -393,8 +393,8 @@ fn polygons_to_scanlines(polys: &Vec<Polygon>, width: f32, height: f32, scale: f
         if intersections.len() > 0 {
             for i in (0..(intersections.len() - 1)).step_by(2) {
                 let line = Line2 {
-                    begin: Point { x: intersections[i].x, y: y, flags: 0 },
-                    end: Point { x: intersections[i + 1].x, y: y, flags: 0 },
+                    begin: Point { x: intersections[i].x, y, flags: 0 },
+                    end: Point { x: intersections[i + 1].x, y, flags: 0 },
                 };
                 lines.push(line);
             }
@@ -447,7 +447,7 @@ fn raster_scanlines(w: usize, h: usize, lines: &Vec<Line2>) -> Bitmap {
         }
     }
 
-    return out_bitmap;
+    out_bitmap
 }
 
 impl TrueType {
@@ -521,7 +521,7 @@ impl TrueType {
             }
         }
 
-        return 0;
+        0
     }
 
     fn get_glyph_offset(&self, index: usize) -> isize {
@@ -673,11 +673,9 @@ impl TrueType {
                             let dx = *coords as i32;
                             coords = coords.offset(1);
                             x += if (pt.flags & 16) != 0 { dx } else { -dx };
-                        } else {
-                            if (pt.flags & 16) == 0 {
-                                x += get_i16(coords) as i32;
-                                coords = coords.offset(2);
-                            }
+                        } else if (pt.flags & 16) == 0 {
+                            x += get_i16(coords) as i32;
+                            coords = coords.offset(2);
                         }
                         pt.x = x as f32;
                     }
@@ -690,12 +688,11 @@ impl TrueType {
                             let dy = *coords as i32;
                             coords = coords.offset(1);
                             y += if (pt.flags & 32) != 0 { dy } else { -dy };
-                        } else {
-                            if (pt.flags & 32) == 0 {
-                                y += get_i16(coords) as i32;
-                                coords = coords.offset(2);
-                            }
+                        } else if (pt.flags & 32) == 0 {
+                            y += get_i16(coords) as i32;
+                            coords = coords.offset(2);
                         }
+
                         pt.y = y as f32;
                     }
 
@@ -941,7 +938,7 @@ impl Font {
     }
 
     #[inline]
-    pub fn set_texture_id(&mut self, id: u32)  {
+    pub fn set_texture_id(&mut self, id: u32) {
         self.texture_id = id;
     }
 
@@ -1057,7 +1054,7 @@ impl FontGlyph {
 #[test]
 fn font_test() {
     use image::ColorType;
-    use std::path::{PathBuf};
+    use std::path::PathBuf;
 
     let font = Font::load(Path::new("data/fonts/font.ttf"), 40.0, (0..255).collect()).unwrap();
     let raster_path = Path::new("data/raster");

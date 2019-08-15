@@ -84,6 +84,7 @@ pub enum Visibility {
 
 #[derive(Debug)]
 pub struct Text {
+    owner_handle: Handle<UINode>,
     need_update: bool,
     text: String,
     font: Handle<Font>,
@@ -92,9 +93,30 @@ pub struct Text {
     formatted_text: Option<FormattedText>,
 }
 
+impl Drawable for Text {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
+        if self.need_update {
+            if let Some(font) = font_cache.borrow(&self.font) {
+                let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
+                    .with_size(Vec2::make(bounds.w, bounds.h))
+                    .with_font(font)
+                    .with_text(self.text.as_str())
+                    .with_color(color)
+                    .with_horizontal_alignment(self.horizontal_alignment)
+                    .with_vertical_alignment(self.vertical_alignment)
+                    .build();
+                self.formatted_text = Some(formatted_text);
+            }
+            self.need_update = true; // TODO
+        }
+        drawing_context.draw_text(Vec2::make(bounds.x, bounds.y), self.formatted_text.as_ref().unwrap());
+    }
+}
+
 impl Text {
     pub fn new() -> Text {
         Text {
+            owner_handle: Handle::none(),
             text: String::new(),
             need_update: true,
             vertical_alignment: VerticalAlignment::Top,
@@ -331,7 +353,7 @@ impl CanvasBuilder {
     impl_default_builder_methods!();
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        GenericNodeBuilder::new(UINodeKind::Canvas(Canvas {}), self.common).build(ui)
+        GenericNodeBuilder::new(UINodeKind::Canvas(Canvas::new()), self.common).build(ui)
     }
 }
 
@@ -439,15 +461,28 @@ impl BorderBuilder {
     }
 }
 
-pub trait Layout {
+trait Layout {
     fn measure_override(&mut self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2;
     fn arrange_override(&self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, final_size: &Vec2) -> Vec2;
 }
 
+trait Drawable {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color);
+}
+
 #[derive(Debug)]
 pub struct Border {
+    owner_handle: Handle<UINode>,
     stroke_thickness: Thickness,
     stroke_color: Color,
+}
+
+impl Drawable for Border {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
+        drawing_context.push_rect_filled(&bounds, None, color);
+        drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.stroke_color);
+        drawing_context.commit(CommandKind::Geometry, 0);
+    }
 }
 
 impl Layout for Border {
@@ -496,28 +531,25 @@ impl Layout for Border {
 impl Layout for UINodeKind {
     fn measure_override(&mut self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
         match self {
-            UINodeKind::Border(border) => border.measure_override(ui, children, available_size),
-            UINodeKind::Canvas(canvas) => canvas.measure_override(ui, children, available_size),
-            UINodeKind::Grid(grid) => grid.measure_override(ui, children, available_size),
+            UINodeKind::Border(border) => border.measure_override( ui, children, available_size),
+            UINodeKind::Canvas(canvas) => canvas.measure_override( ui, children, available_size),
+            UINodeKind::Grid(grid) => grid.measure_override( ui, children, available_size),
+            UINodeKind::ScrollContentPresenter(scp) => scp.measure_override( ui, children, available_size),
+            UINodeKind::ScrollViewer(scroll_viewer) => scroll_viewer.measure_override( ui, children, available_size),
+            UINodeKind::ScrollBar(scroll_bar) => scroll_bar.measure_override( ui, children, available_size),
             _ => ui.default_measure_override(children, available_size)
         }
     }
 
     fn arrange_override(&self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, final_size: &Vec2) -> Vec2 {
         match self {
-            UINodeKind::Border(border) => border.arrange_override(ui, children, final_size),
-            UINodeKind::Canvas(canvas) => canvas.arrange_override(ui, children, final_size),
-            UINodeKind::Grid(grid) => grid.arrange_override(ui, children, final_size),
-            // Default arrangement
-            _ => {
-                let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
-
-                for child_handle in children.iter() {
-                    ui.arrange(child_handle, &final_rect);
-                }
-
-                *final_size
-            }
+            UINodeKind::Border(border) => border.arrange_override( ui, children, final_size),
+            UINodeKind::Canvas(canvas) => canvas.arrange_override( ui, children, final_size),
+            UINodeKind::Grid(grid) => grid.arrange_override( ui, children, final_size),
+            UINodeKind::ScrollContentPresenter(scp) => scp.arrange_override( ui, children, final_size),
+            UINodeKind::ScrollViewer(scroll_viewer) => scroll_viewer.arrange_override( ui, children, final_size),
+            UINodeKind::ScrollBar(scroll_bar) => scroll_bar.arrange_override( ui, children, final_size),
+            _ => ui.default_arrange_override(children, final_size)
         }
     }
 }
@@ -525,6 +557,7 @@ impl Layout for UINodeKind {
 impl Border {
     pub fn new() -> Border {
         Border {
+            owner_handle: Handle::none(),
             stroke_thickness: Thickness {
                 left: 1.0,
                 right: 1.0,
@@ -547,16 +580,25 @@ impl Border {
 }
 
 pub struct Image {
-    texture: RcHandle<Resource>
+    owner_handle: Handle<UINode>,
+    texture: RcHandle<Resource>,
 }
 
 pub type ButtonClickEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
 
 pub struct Button {
-    click: Option<Box<ButtonClickEventHandler>>
+    owner_handle: Handle<UINode>,
+    click: Option<Box<ButtonClickEventHandler>>,
 }
 
 impl Button {
+    pub fn new() -> Self {
+        Self {
+            owner_handle: Handle::none(),
+            click: None,
+        }
+    }
+
     pub fn set_on_click(&mut self, handler: Box<ButtonClickEventHandler>) {
         self.click = Some(handler);
     }
@@ -604,8 +646,11 @@ impl ButtonBuilder {
         let pressed_color = Color::opaque(100, 100, 100);
         let hover_color = Color::opaque(160, 160, 160);
 
+        let mut button = Button::new();
+        button.click = self.click;
+
         GenericNodeBuilder::new(
-            UINodeKind::Button(Button { click: self.click }), self.common)
+            UINodeKind::Button(button), self.common)
             .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
                 ui.capture_mouse(&handle);
             }))
@@ -681,9 +726,8 @@ impl ButtonBuilder {
     }
 }
 
-pub type ValueChanged = dyn FnMut(&mut UserInterface, Handle<UINode>, f32, f32);
-
 pub struct ScrollBar {
+    owner_handle: Handle<UINode>,
     min: f32,
     max: f32,
     value: f32,
@@ -691,15 +735,16 @@ pub struct ScrollBar {
     orientation: Orientation,
     is_dragging: bool,
     offset: Vec2,
-    value_changed: Option<Box<ValueChanged>>,
+    value_changed: bool,
 }
 
 impl ScrollBar {
-    const PART_CANVAS: &'static str = "PART_Canvas";
-    const PART_INDICATOR: &'static str = "PART_Indicator";
+    pub const PART_CANVAS: &'static str = "PART_Canvas";
+    pub const PART_INDICATOR: &'static str = "PART_Indicator";
 
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
+            owner_handle: Handle::none(),
             min: 0.0,
             max: 100.0,
             value: 0.0,
@@ -707,73 +752,56 @@ impl ScrollBar {
             orientation: Orientation::Horizontal,
             is_dragging: false,
             offset: Vec2::new(),
-            value_changed: None,
+            value_changed: false,
         }
     }
 
-    pub fn set_value(ui: &mut UserInterface, handle: &Handle<UINode>, value: f32) {
-        let mut value_changed = None;
-        let old_value;
-        let new_value;
-        let min;
-        let max;
-        let orientation;
-
-        match ui.nodes.borrow_mut(handle) {
-            Some(scroll_bar_node) => {
-                match scroll_bar_node.get_kind_mut() {
-                    UINodeKind::ScrollBar(scroll_bar) => {
-                        orientation = scroll_bar.orientation;
-                        min = scroll_bar.min;
-                        max = scroll_bar.max;
-                        old_value = scroll_bar.value;
-                        new_value = math::clampf(value, min, max);
-                        if new_value != old_value {
-                            scroll_bar.value = new_value;
-                            value_changed = scroll_bar.value_changed.take();
-                        }
-                    }
-                    _ => return
-                }
-            }
-            _ => return
+    pub fn set_value(&mut self, value: f32) {
+        let old_value = self.value;
+        let new_value = math::clampf(value, self.min, self.max);
+        if new_value != old_value {
+            self.value = new_value;
+            self.value_changed = true;
         }
+    }
+}
 
-        if let Some(ref mut handler) = value_changed {
-            handler(ui, handle.clone(), new_value, old_value);
-        }
+impl Layout for ScrollBar {
+    fn measure_override(&mut self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
+        ui.default_measure_override(children, available_size)
+    }
 
-        if let Some(scroll_bar_node) = ui.nodes.borrow_mut(handle) {
-            if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
-                scroll_bar.value_changed = value_changed.take();
-            }
-        }
+    fn arrange_override(&self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, final_size: &Vec2) -> Vec2 {
+        let size = ui.default_arrange_override(children, final_size);
 
-        // Update indicator
-        let percent = (new_value - min) / (max - min);
+        // Adjust indicator position according to current value
+        let percent = (self.value - self.min) / (self.max - self.min);
 
-        let field_size = match ui.borrow_by_name_down(handle, Self::PART_CANVAS) {
+        let field_size = match ui.borrow_by_name_down(&self.owner_handle, Self::PART_CANVAS) {
             Some(canvas) => canvas.actual_size,
-            None => {
-                println!("Unable to find part canvas!");
-                return;
-            }
+            None => return size
         };
 
-        if let Some(node) = ui.borrow_by_name_down_mut(handle, Self::PART_INDICATOR) {
-            match orientation {
+        if let Some(node) = ui.borrow_by_name_down_mut(&self.owner_handle, Self::PART_INDICATOR) {
+            match self.orientation {
                 Orientation::Horizontal => {
-                    node.desired_local_position.x = percent * maxf(0.0, field_size.x - node.actual_size.x);
-                    node.desired_local_position.y = 0.0;
+                    node.set_desired_local_position(Vec2::make(
+                        percent * maxf(0.0, field_size.x - node.actual_size.x),
+                        0.0)
+                    );
                     node.height = field_size.y;
                 }
                 Orientation::Vertical => {
-                    node.desired_local_position.x = 0.0;
-                    node.desired_local_position.y = percent * maxf(0.0, field_size.y - node.actual_size.y);
+                    node.set_desired_local_position(Vec2::make(
+                        0.0,
+                        percent * maxf(0.0, field_size.y - node.actual_size.y))
+                    );
                     node.width = field_size.x;
                 }
             }
         }
+
+        size
     }
 }
 
@@ -867,25 +895,21 @@ impl ScrollBarBuilder {
                             Orientation::Horizontal => std::f32::NAN,
                             Orientation::Vertical => 30.0
                         })
-                        .with_text("<")
+                        .with_text(match orientation {
+                            Orientation::Horizontal => "<",
+                            Orientation::Vertical => "^"
+                        })
                         .with_click(Box::new(move |ui, handle| {
                             let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
                                 UINodeKind::ScrollBar(..) => true,
                                 _ => false
                             });
 
-                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow(&scroll_bar_handle) {
-                                if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind() {
-                                    scroll_bar.value - scroll_bar.step
-                                } else {
-                                    return;
+                            if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                                if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
+                                    scroll_bar.set_value(scroll_bar.value - scroll_bar.step);
                                 }
-                            } else {
-                                println!("ScrollBar state is already borrowed!");
-                                return;
-                            };
-
-                            ScrollBar::set_value(ui, &scroll_bar_handle, new_value);
+                            }
                         }))
                         .build(ui)
                     )
@@ -902,7 +926,10 @@ impl ScrollBarBuilder {
                         .with_child(BorderBuilder::new()
                             .with_name(ScrollBar::PART_INDICATOR)
                             .with_stroke_color(Color::opaque(50, 50, 50))
-                            .with_stroke_thickness(Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 })
+                            .with_stroke_thickness(match orientation {
+                                Orientation::Horizontal => Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 },
+                                Orientation::Vertical => Thickness { left: 0.0, top: 1.0, right: 0.0, bottom: 1.0 }
+                            })
                             .with_color(Color::opaque(255, 255, 255))
                             .with_width(30.0)
                             .with_height(30.0)
@@ -946,26 +973,25 @@ impl ScrollBarBuilder {
                                     _ => return
                                 };
 
-                                let new_value;
-                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up(&handle, |node| match node.kind {
+                                let (field_pos, field_size) =
+                                    match ui.borrow_by_name_up(&handle, ScrollBar::PART_CANVAS) {
+                                        Some(canvas) => (canvas.screen_position, canvas.actual_size),
+                                        None => return
+                                    };
+
+                                let bar_size = match ui.nodes.borrow(&handle) {
+                                    Some(node) => node.actual_size,
+                                    None => return
+                                };
+
+                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(&handle, |node| match node.kind {
                                     UINodeKind::ScrollBar(..) => true,
                                     _ => false
                                 }) {
-                                    if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind() {
+                                    if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
                                         let orientation = scroll_bar.orientation;
 
                                         if scroll_bar.is_dragging {
-                                            let bar_size = match ui.nodes.borrow(&handle) {
-                                                Some(node) => node.actual_size,
-                                                None => return
-                                            };
-
-                                            let (field_pos, field_size) =
-                                                match ui.borrow_by_name_up(&handle, ScrollBar::PART_CANVAS) {
-                                                    Some(canvas) => (canvas.screen_position, canvas.actual_size),
-                                                    None => return
-                                                };
-
                                             let percent = match orientation {
                                                 Orientation::Horizontal => {
                                                     let span = field_size.x - bar_size.x;
@@ -987,26 +1013,14 @@ impl ScrollBarBuilder {
                                                 }
                                             };
 
-                                            new_value = percent * (scroll_bar.max - scroll_bar.min);
+                                            let new_value = percent * (scroll_bar.max - scroll_bar.min);
 
                                             evt.handled = true;
-                                        } else {
-                                            return;
+
+                                            scroll_bar.set_value(new_value);
                                         }
-                                    } else {
-                                        return;
                                     }
-                                } else {
-                                    println!("ScrollBar state is already borrowed!");
-                                    return;
                                 }
-
-                                let scroll_bar = ui.find_by_criteria_up(&handle, |node| match node.kind {
-                                    UINodeKind::ScrollBar(..) => true,
-                                    _ => false
-                                });
-
-                                ScrollBar::set_value(ui, &scroll_bar, new_value);
                             }))
                             .build(ui)
                         )
@@ -1035,20 +1049,16 @@ impl ScrollBarBuilder {
                                 _ => false
                             });
 
-                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow(&scroll_bar_handle) {
-                                if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind() {
-                                    scroll_bar.value + scroll_bar.step
-                                } else {
-                                    return;
+                            if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                                if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
+                                    scroll_bar.set_value(scroll_bar.value + scroll_bar.step);
                                 }
-                            } else {
-                                println!("ScrollBar state is already borrowed!");
-                                return;
-                            };
-
-                            ScrollBar::set_value(ui, &scroll_bar_handle, new_value);
+                            }
                         }))
-                        .with_text(">")
+                        .with_text(match orientation {
+                            Orientation::Horizontal => ">",
+                            Orientation::Vertical => "v"
+                        })
                         .build(ui)
                     )
                     .build(ui)
@@ -1056,27 +1066,70 @@ impl ScrollBarBuilder {
                 .build(ui)
             )
             .build(ui);
-        // We have to defer update of scroll bar indicator, because it can't be update right now since
-        // we do not have enough information about environment.
-        ui.begin_invoke({
-            let scroll_bar_handle = scroll_bar_handle.clone();
-            Box::new(move |ui| {
-                ScrollBar::set_value(ui, &scroll_bar_handle, min);
-            })
-        });
+
         scroll_bar_handle
     }
 }
 
 pub struct ScrollContentPresenter {
+    owner_handle: Handle<UINode>,
     scroll: Vec2,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
 
+impl Layout for ScrollContentPresenter {
+    fn measure_override(&mut self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
+        let size_for_child = Vec2::make(
+            if self.horizontal_scroll_allowed {
+                std::f32::INFINITY
+            } else {
+                available_size.x
+            },
+            if self.vertical_scroll_allowed {
+                std::f32::INFINITY
+            } else {
+                available_size.y
+            },
+        );
+
+        let mut desired_size = Vec2::new();
+        for child_handle in children.iter() {
+            ui.measure(child_handle, &size_for_child);
+
+            if let Some(child) = ui.nodes.borrow(child_handle) {
+                if child.desired_size.x > desired_size.x {
+                    desired_size.x = child.desired_size.x;
+                }
+                if child.desired_size.y > desired_size.y {
+                    desired_size.y = child.desired_size.y;
+                }
+            }
+        }
+
+        desired_size
+    }
+
+    fn arrange_override(&self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, final_size: &Vec2) -> Vec2 {
+        let child_rect = Rect::new(
+            -self.scroll.x,
+            -self.scroll.y,
+            final_size.x + self.scroll.x,
+            final_size.y + self.scroll.y,
+        );
+
+        for child_handle in children.iter() {
+            ui.arrange(child_handle, &child_rect);
+        }
+
+        *final_size
+    }
+}
+
 impl ScrollContentPresenter {
     pub fn new() -> Self {
         Self {
+            owner_handle: Handle::none(),
             scroll: Vec2::new(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: true,
@@ -1128,6 +1181,129 @@ impl ScrollContentPresenterBuilder {
         }
         GenericNodeBuilder::new(UINodeKind::ScrollContentPresenter(scp), self.common)
             .with_child(self.content.unwrap_or(Handle::none()))
+            .build(ui)
+    }
+}
+
+pub struct ScrollViewer {
+    owner_handle: Handle<UINode>,
+}
+
+impl ScrollViewer {
+    pub const PART_CONTENT_PRESENTER: &'static str = "PART_ContentPresenter";
+    pub const PART_V_SCROLL_BAR: &'static str = "PART_VScrollBar";
+    pub const PART_H_SCROLL_BAR: &'static str = "PART_HScrollBar";
+
+    pub fn new() -> Self {
+        Self {
+            owner_handle: Handle::none(),
+        }
+    }
+}
+
+impl Layout for ScrollViewer {
+    fn measure_override(&mut self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, available_size: &Vec2) -> Vec2 {
+        // Use default measure.
+        let desired_size = ui.default_measure_override(children, available_size);
+
+        // Try to find parts in children first.
+        let mut content_presenter_handle = Handle::none();
+        let mut horizontal_scroll_bar_handle = Handle::none();
+        let mut vertical_scroll_bar_handle = Handle::none();
+
+        let cp = ui.find_by_name_down(&self.owner_handle, ScrollViewer::PART_CONTENT_PRESENTER);
+        if cp.is_some() {
+            content_presenter_handle = cp;
+        }
+
+        let hor_scroll_bar = ui.find_by_name_down(&self.owner_handle, ScrollViewer::PART_H_SCROLL_BAR);
+        if hor_scroll_bar.is_some() {
+            horizontal_scroll_bar_handle = hor_scroll_bar;
+        }
+
+        let ver_scroll_bar = ui.find_by_name_down(&self.owner_handle, ScrollViewer::PART_V_SCROLL_BAR);
+        if ver_scroll_bar.is_some() {
+            vertical_scroll_bar_handle = ver_scroll_bar;
+        }
+
+        let mut content_size = Vec2::new();
+        let mut available_size_for_content = Vec2::new();
+        if let Some(content_presenter) = ui.nodes.borrow(&content_presenter_handle) {
+            available_size_for_content = content_presenter.desired_size;
+            for content_handle in content_presenter.children.iter() {
+                if let Some(content) = ui.nodes.borrow(content_handle) {
+                    if content.desired_size.x > content_size.x {
+                        content_size.x = content.desired_size.x;
+                    }
+                    if content.desired_size.y > content_size.y {
+                        content_size.y = content.desired_size.y;
+                    }
+                }
+            }
+        }
+
+        // Then adjust scroll bars according to content size.
+
+        /*
+        if let Some(horizontal_scroll_bar) = ui.nodes.borrow_mut(&horizontal_scroll_bar_handle) {
+            if let Some()
+        }
+        let max = maxf(0.0, sv -> content -> desired_size.x - sv -> scroll_content_presenter -> desired_size.x);
+        de_gui_scroll_bar_set_max_value(sv -> hor_scroll_bar, max);
+
+        let max = maxf(0.0, sv -> content -> desired_size.y - sv -> scroll_content_presenter -> desired_size.y);
+        de_gui_scroll_bar_set_max_value(sv -> ver_scroll_bar, max);
+*/
+
+        desired_size
+    }
+
+    fn arrange_override(&self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, final_size: &Vec2) -> Vec2 {
+        ui.default_arrange_override(children, final_size)
+    }
+}
+
+pub struct ScrollViewerBuilder {
+    common: CommonBuilderFields
+}
+
+impl ScrollViewerBuilder {
+    pub fn new() -> Self {
+        Self {
+            common: CommonBuilderFields::new()
+        }
+    }
+
+    impl_default_builder_methods!();
+
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        GenericNodeBuilder::new(UINodeKind::ScrollViewer(ScrollViewer::new()), self.common)
+            .with_child(GridBuilder::new()
+                .add_row(Row::stretch())
+                .add_row(Row::strict(20.0))
+                .add_column(Column::stretch())
+                .add_column(Column::strict(20.0))
+                .with_child(ScrollContentPresenterBuilder::new()
+                    .with_name(ScrollViewer::PART_CONTENT_PRESENTER)
+                    .with_child(BorderBuilder::new()
+                        .with_color(Color::opaque(200, 0, 0))
+                        .build(ui))
+                    .on_row(0)
+                    .on_column(0)
+                    .build(ui))
+                .with_child(ScrollBarBuilder::new()
+                    .with_name(ScrollViewer::PART_H_SCROLL_BAR)
+                    .with_orientation(Orientation::Horizontal)
+                    .on_row(1)
+                    .on_column(0)
+                    .build(ui))
+                .with_child(ScrollBarBuilder::new()
+                    .with_name(ScrollViewer::PART_V_SCROLL_BAR)
+                    .with_orientation(Orientation::Vertical)
+                    .on_row(0)
+                    .on_column(1)
+                    .build(ui))
+                .build(ui))
             .build(ui)
     }
 }
@@ -1230,9 +1406,21 @@ impl Row {
 }
 
 pub struct Grid {
+    owner_handle: Handle<UINode>,
     rows: Vec<Row>,
     columns: Vec<Column>,
     draw_borders: bool,
+}
+
+impl Grid {
+    fn new() -> Self {
+        Self {
+            owner_handle: Handle::none(),
+            rows: Vec::new(),
+            columns: Vec::new(),
+            draw_borders: false,
+        }
+    }
 }
 
 impl Layout for Grid {
@@ -1260,10 +1448,8 @@ impl Layout for Grid {
                 col.actual_width = col.desired_width;
                 for child_handle in children.iter() {
                     if let Some(child) = ui.nodes.borrow(child_handle) {
-                        if child.column == i && child.visibility == Visibility::Visible {
-                            if child.desired_size.x > col.actual_width {
-                                col.actual_width = child.desired_size.x;
-                            }
+                        if child.column == i && child.visibility == Visibility::Visible && child.desired_size.x > col.actual_width {
+                            col.actual_width = child.desired_size.x;
                         }
                     }
                 }
@@ -1477,11 +1663,11 @@ impl GridBuilder {
     }
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let node = UINode::new(UINodeKind::Grid(Grid {
-            columns: self.columns,
-            rows: self.rows,
-            draw_borders: false,
-        }));
+        let mut grid = Grid::new();
+        grid.columns = self.columns;
+        grid.rows = self.rows;
+
+        let node = UINode::new(UINodeKind::Grid(grid));
 
         let handle = ui.add_node(node);
         self.common.apply(ui, &handle);
@@ -1501,7 +1687,17 @@ impl Grid {
     }
 }
 
-pub struct Canvas {}
+pub struct Canvas {
+    owner_handle: Handle<UINode>
+}
+
+impl Canvas {
+    pub fn new() -> Self {
+        Self {
+            owner_handle: Handle::none()
+        }
+    }
+}
 
 impl Layout for Canvas {
     fn measure_override(&mut self, ui: &mut UserInterface, children: &UnsafeCollectionView<Handle<UINode>>, _available_size: &Vec2) -> Vec2 {
@@ -1539,29 +1735,28 @@ impl Layout for Canvas {
 }
 
 pub enum UINodeKind {
-    Base,
     Text(Text),
     Border(Border),
-    /// TODO
-    Window,
     Button(Button),
     ScrollBar(ScrollBar),
-    /// TODO
-    ScrollViewer,
-    /// TODO
-    TextBox,
-    /// TODO
-    Image,
+    ScrollViewer(ScrollViewer),
+    Image(Image),
     /// Automatically arranges children by rows and columns
     Grid(Grid),
     /// Allows user to directly set position and size of a node
     Canvas(Canvas),
     /// Allows user to scroll content
     ScrollContentPresenter(ScrollContentPresenter),
-    /// TODO
-    SlideSelector,
-    /// TODO
-    CheckBox,
+}
+
+impl Drawable for UINodeKind {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
+        match self {
+            UINodeKind::Text(text) => text.draw(drawing_context, font_cache, bounds, color),
+            UINodeKind::Border(border) => border.draw(drawing_context, font_cache, bounds, color),
+            _ => ()
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -1698,25 +1893,46 @@ fn minf(a: f32, b: f32) -> f32 {
     }
 }
 
+struct ArrangeData {
+    size: Vec2,
+    size_without_margin: Vec2,
+    origin: Vec2
+}
+
 impl UserInterface {
     pub fn new(default_font: Handle<Font>) -> UserInterface {
-        let mut nodes = Pool::new();
-        UserInterface {
+        let mut ui = UserInterface {
             visual_debug: false,
             default_font,
             captured_node: Handle::none(),
-            root_canvas: nodes.spawn(UINode::new(UINodeKind::Canvas(Canvas {}))),
-            nodes,
+            root_canvas: Handle::none(),
+            nodes: Pool::new(),
             mouse_position: Vec2::new(),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::none(),
             prev_picked_node: Handle::none(),
             deferred_actions: VecDeque::new(),
-        }
+        };
+        ui.root_canvas = ui.add_node(UINode::new(UINodeKind::Canvas(Canvas::new())));
+        ui
     }
 
     pub fn add_node(&mut self, node: UINode) -> Handle<UINode> {
         let node_handle = self.nodes.spawn(node);
+        // Notify kind about owner. This is a bit hackish but it'll make a lot of things easier.
+        if let Some(node) = self.nodes.borrow_mut(&node_handle) {
+            match &mut node.kind {
+                UINodeKind::ScrollBar(scroll_bar) => scroll_bar.owner_handle = node_handle.clone(),
+                UINodeKind::Text(text) => text.owner_handle = node_handle.clone(),
+                UINodeKind::Border(border) => border.owner_handle = node_handle.clone(),
+                UINodeKind::Button(button) => button.owner_handle = node_handle.clone(),
+                UINodeKind::ScrollViewer(scroll_viewer) => scroll_viewer.owner_handle = node_handle.clone(),
+                UINodeKind::Image(image) => image.owner_handle = node_handle.clone(),
+                UINodeKind::Grid(grid) => grid.owner_handle = node_handle.clone(),
+                UINodeKind::Canvas(canvas) => canvas.owner_handle = node_handle.clone(),
+                UINodeKind::ScrollContentPresenter(scp) => scp.owner_handle = node_handle.clone(),
+            }
+        }
         self.link_nodes(&node_handle, &self.root_canvas.clone());
         node_handle
     }
@@ -1872,7 +2088,7 @@ impl UserInterface {
             }
         }
 
-        let desired_size = (unsafe { &mut *node_kind }).measure_override(self, &children, &size_for_child);
+        let desired_size = (unsafe { &mut *node_kind }).measure_override( self, &children, &size_for_child);
 
         if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             node.desired_size = desired_size;
@@ -1909,7 +2125,18 @@ impl UserInterface {
         }
     }
 
+    fn default_arrange_override(&mut self, children: &UnsafeCollectionView<Handle<UINode>>, final_size: &Vec2) -> Vec2 {
+        let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
+
+        for child_handle in children.iter() {
+            self.arrange(child_handle, &final_rect);
+        }
+
+        *final_size
+    }
+
     fn arrange(&mut self, node_handle: &Handle<UINode>, final_rect: &Rect<f32>) {
+       
         let children;
         let mut size;
         let size_without_margin;
@@ -2032,40 +2259,20 @@ impl UserInterface {
         let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
 
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
+            let start_index = self.drawing_context.get_commands().len();
             let bounds = node.get_screen_bounds();
 
             self.drawing_context.set_nesting(nesting);
-            node.command_indices.push(self.drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9)));
+            self.drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
 
-            match &mut node.kind {
-                UINodeKind::Border(border) => {
-                    self.drawing_context.push_rect_filled(&bounds, None, node.color);
-                    self.drawing_context.push_rect_vary(&bounds, border.stroke_thickness, border.stroke_color);
-                    node.command_indices.push(self.drawing_context.commit(CommandKind::Geometry, 0).unwrap());
-                }
-                UINodeKind::Text(text) => {
-                    if text.need_update {
-                        if let Some(font) = font_cache.borrow(&text.font) {
-                            let formatted_text = FormattedTextBuilder::reuse(text.formatted_text.take().unwrap())
-                                .with_size(node.actual_size)
-                                .with_font(font)
-                                .with_text(text.text.as_str())
-                                .with_color(node.color)
-                                .with_horizontal_alignment(text.horizontal_alignment)
-                                .with_vertical_alignment(text.vertical_alignment)
-                                .build();
-                            text.formatted_text = Some(formatted_text);
-                        }
-                        text.need_update = true; // TODO
-                    }
-                    if let Some(command_index) = self.drawing_context.draw_text(node.screen_position, text.formatted_text.as_ref().unwrap()) {
-                        node.command_indices.push(command_index);
-                    }
-                }
-                _ => ()
-            }
+            node.kind.draw(&mut self.drawing_context, font_cache, &bounds, node.color);
 
             children = UnsafeCollectionView::from_vec(&node.children);
+
+            let end_index = self.drawing_context.get_commands().len();
+            for i in start_index..end_index {
+                node.command_indices.push(i);
+            }
         }
 
         // Continue on children
@@ -2111,21 +2318,16 @@ impl UserInterface {
 
             for command_index in node.command_indices.iter() {
                 if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                    if *command.get_kind() == CommandKind::Clip {
-                        if self.drawing_context.is_command_contains_point(command, pt) {
-                            clipped = false;
-
-                            break;
-                        }
+                    if *command.get_kind() == CommandKind::Clip && self.drawing_context.is_command_contains_point(command, pt) {
+                        clipped = false;
+                        break;
                     }
                 }
             }
 
             // Point can be clipped by parent's clipping geometry.
-            if !node.parent.is_none() {
-                if !clipped {
-                    clipped |= self.is_node_clipped(&node.parent, pt);
-                }
+            if !node.parent.is_none() && !clipped {
+                clipped |= self.is_node_clipped(&node.parent, pt);
             }
         }
 
@@ -2141,10 +2343,8 @@ impl UserInterface {
             if !self.is_node_clipped(node_handle, pt) {
                 for command_index in node.command_indices.iter() {
                     if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                        if *command.get_kind() == CommandKind::Geometry {
-                            if self.drawing_context.is_command_contains_point(command, pt) {
-                                return true;
-                            }
+                        if *command.get_kind() == CommandKind::Geometry && self.drawing_context.is_command_contains_point(command, pt) {
+                            return true;
                         }
                     }
                 }
