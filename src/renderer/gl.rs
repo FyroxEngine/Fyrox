@@ -3,7 +3,7 @@
             pub use std::mem;
             pub use std::os::raw;
         }
-    
+
 
         #[inline(never)]
         fn metaloadfn(loadfn: &mut FnMut(&'static str) -> *const __gl_imports::raw::c_void,
@@ -22,7 +22,7 @@
 
         pub mod types {
             #![allow(non_camel_case_types, non_snake_case, dead_code, missing_copy_implementations)]
-    
+
 // Common types from OpenGL 1.1
 pub type GLenum = super::__gl_imports::raw::c_uint;
 pub type GLboolean = super::__gl_imports::raw::c_uchar;

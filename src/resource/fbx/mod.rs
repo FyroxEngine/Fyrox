@@ -825,8 +825,8 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
     })
 }
 
-fn string_to_mapping(value: &String) -> FbxMapping {
-    match value.as_str() {
+fn string_to_mapping(value: &str) -> FbxMapping {
+    match value {
         "ByPolygon" => FbxMapping::ByPolygon,
         "ByPolygonVertex" => FbxMapping::ByPolygonVertex,
         "ByVertex" => FbxMapping::ByVertex,
@@ -837,8 +837,8 @@ fn string_to_mapping(value: &String) -> FbxMapping {
     }
 }
 
-fn string_to_reference(value: &String) -> FbxReference {
-    match value.as_str() {
+fn string_to_reference(value: &str) -> FbxReference {
+    match value {
         "Direct" => FbxReference::Direct,
         "IndexToDirect" => FbxReference::IndexToDirect,
         "Index" => FbxReference::IndexToDirect,
@@ -1132,9 +1132,9 @@ impl Fbx {
                      model: &FbxModel,
                      state: &mut State,
                      scene: &mut Scene) -> Result<Handle<Node>, String> {
-        // Create node with of correct kind.
+        // Create node with correct kind.
         let mut node =
-            if model.geoms.len() != 0 {
+            if !model.geoms.is_empty() {
                 Node::new(NodeKind::Mesh(Mesh::default()))
             } else if !model.light.is_none() {
                 Node::new(NodeKind::Light(Light::default()))
@@ -1225,7 +1225,7 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
     println!("FBX: Trying to load {:?}", path);
 
     let now = Instant::now();
-    let ref mut fbx = read_ascii(path)?;
+    let mut fbx = read_ascii(path)?;
     println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
 
     let now = Instant::now();

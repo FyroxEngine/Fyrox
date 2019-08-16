@@ -221,7 +221,7 @@ impl Bitmap {
 fn get_u16(p: *const u8) -> u16
 {
     unsafe {
-        let b0 = *p as u32;
+        let b0 = u32::from(*p);
         let b1 = *p.offset(1) as u32;
         (b0 * 256 + b1) as u16
     }
@@ -733,13 +733,13 @@ fn eval_quad_bezier(p0: &Point, p1: &Point, p2: &Point, steps: usize) -> Vec<Poi
 impl TtfGlyph {
     fn fill_horizontal_metrics(&mut self, hhea_table: *const u8, hmtx_table: *const u8, glyph_index: usize) {
         unsafe {
-            let num_of_long_hor_metrics = get_u16(hhea_table.offset(34)) as usize;
+            let num_of_long_hor_metrics = get_u16(hhea_table.add(34)) as usize;
             if glyph_index < num_of_long_hor_metrics {
-                self.advance = get_u16(hmtx_table.offset(4 * glyph_index as isize));
-                self.left_side_bearing = get_i16(hmtx_table.offset((4 * glyph_index + 2) as isize));
+                self.advance = get_u16(hmtx_table.add(4 * glyph_index));
+                self.left_side_bearing = get_i16(hmtx_table.add(4 * glyph_index + 2));
             } else {
-                self.advance = get_u16(hmtx_table.offset(4 * (num_of_long_hor_metrics - 1) as isize));
-                self.left_side_bearing = get_i16(hmtx_table.offset((4 * num_of_long_hor_metrics + 2 * (glyph_index - num_of_long_hor_metrics)) as isize));
+                self.advance = get_u16(hmtx_table.add(4 * (num_of_long_hor_metrics - 1)));
+                self.left_side_bearing = get_i16(hmtx_table.add(4 * num_of_long_hor_metrics + 2 * (glyph_index - num_of_long_hor_metrics)));
             }
         }
     }

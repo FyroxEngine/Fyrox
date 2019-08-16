@@ -31,6 +31,7 @@ use glutin::{
 };
 use std::collections::VecDeque;
 use std::cell::{Cell, RefCell};
+use std::any::{TypeId, Any};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -708,6 +709,14 @@ impl ButtonBuilder {
     }
 }
 
+pub struct ValueChangedArgs {
+    source: Handle<UINode>,
+    old_value: f32,
+    new_value: f32,
+}
+
+pub type ValueChanged = dyn FnMut(&mut UserInterface, ValueChangedArgs);
+
 pub struct ScrollBar {
     owner_handle: Handle<UINode>,
     min: f32,
@@ -717,7 +726,7 @@ pub struct ScrollBar {
     orientation: Orientation,
     is_dragging: bool,
     offset: Vec2,
-    value_changed: bool,
+    value_changed: Option<Box<ValueChanged>>,
 }
 
 impl ScrollBar {
@@ -734,16 +743,88 @@ impl ScrollBar {
             orientation: Orientation::Horizontal,
             is_dragging: false,
             offset: Vec2::new(),
-            value_changed: false,
+            value_changed: None,
         }
     }
 
-    pub fn set_value(&mut self, value: f32) {
-        let old_value = self.value;
-        let new_value = math::clampf(value, self.min, self.max);
-        if new_value != old_value {
-            self.value = new_value;
-            self.value_changed = true;
+    pub fn set_value(handle: &Handle<UINode>, ui: &mut UserInterface, value: f32) {
+        let mut value_changed;
+        let args;
+
+        if let Some(node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
+                let old_value = scroll_bar.value;
+                let new_value = math::clampf(value, scroll_bar.min, scroll_bar.max);
+                if new_value != old_value {
+                    scroll_bar.value = new_value;
+                    value_changed = scroll_bar.value_changed.take();
+                    args = Some(ValueChangedArgs {
+                        old_value,
+                        new_value,
+                        source: handle.clone(),
+                    });
+                } else {
+                    return;
+                }
+            } else {
+                return;
+            }
+        } else {
+            return;
+        }
+
+        if let Some(ref mut handler) = value_changed {
+            if let Some(args) = args {
+                handler(ui, args)
+            }
+        }
+
+        if let Some(node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
+                scroll_bar.value_changed = value_changed;
+            }
+        }
+    }
+
+    pub fn set_max_value(handle: &Handle<UINode>, ui: &mut UserInterface, max: f32) {
+        let mut new_value = None;
+        if let Some(node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
+                scroll_bar.max = max;
+                if scroll_bar.max < scroll_bar.min {
+                    std::mem::swap(&mut scroll_bar.min, &mut scroll_bar.max);
+                }
+                let old_value = scroll_bar.value;
+                let clamped_new_value = math::clampf(scroll_bar.value, scroll_bar.min, scroll_bar.max);
+                if clamped_new_value != old_value {
+                    new_value = Some(clamped_new_value);
+                }
+            }
+        }
+
+        if let Some(new_value) = new_value {
+            ScrollBar::set_value(handle, ui, new_value);
+        }
+    }
+
+    pub fn set_min_value(handle: &Handle<UINode>, ui: &mut UserInterface, min: f32) {
+        let mut new_value = None;
+        if let Some(node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
+                scroll_bar.min = min;
+                if scroll_bar.min > scroll_bar.max {
+                    std::mem::swap(&mut scroll_bar.min, &mut scroll_bar.max);
+                }
+                let old_value = scroll_bar.value;
+                let clamped_new_value = math::clampf(scroll_bar.value, scroll_bar.min, scroll_bar.max);
+                if clamped_new_value != old_value {
+                    new_value = Some(clamped_new_value);
+                }
+            }
+        }
+
+        if let Some(new_value) = new_value {
+            ScrollBar::set_value(handle, ui, new_value);
         }
     }
 }
@@ -779,7 +860,7 @@ impl Layout for ScrollBar {
                         0.0,
                         percent * maxf(0.0, field_size.y - node.actual_size.get().y))
                     );
-                    node.width.set( field_size.x);
+                    node.width.set(field_size.x);
                 }
             }
         }
@@ -792,6 +873,7 @@ pub struct ScrollBarBuilder {
     min: Option<f32>,
     max: Option<f32>,
     value: Option<f32>,
+    value_changed: Option<Box<ValueChanged>>,
     step: Option<f32>,
     orientation: Option<Orientation>,
     common: CommonBuilderFields,
@@ -810,6 +892,7 @@ impl ScrollBarBuilder {
             max: None,
             value: None,
             step: None,
+            value_changed: None,
             orientation: None,
             common: CommonBuilderFields::new(),
         }
@@ -842,13 +925,19 @@ impl ScrollBarBuilder {
         self
     }
 
+    pub fn with_value_changed(mut self, value_changed: Box<ValueChanged>) -> Self {
+        self.value_changed = Some(value_changed);
+        self
+    }
+
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let mut scroll_bar = ScrollBar::new();
         if let Some(orientation) = self.orientation {
             scroll_bar.orientation = orientation;
         }
+        scroll_bar.value_changed = self.value_changed;
         let orientation = scroll_bar.orientation;
-        let scroll_bar_handle = GenericNodeBuilder::new(UINodeKind::ScrollBar(scroll_bar), self.common)
+        GenericNodeBuilder::new(UINodeKind::ScrollBar(scroll_bar), self.common)
             .with_child(BorderBuilder::new()
                 .with_color(Color::opaque(120, 120, 120))
                 .with_stroke_thickness(Thickness::uniform(1.0))
@@ -887,11 +976,17 @@ impl ScrollBarBuilder {
                                 _ => false
                             });
 
-                            if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
                                 if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
-                                    scroll_bar.set_value(scroll_bar.value - scroll_bar.step);
+                                    scroll_bar.value - scroll_bar.step
+                                } else {
+                                    return;
                                 }
-                            }
+                            } else {
+                                return;
+                            };
+
+                            ScrollBar::set_value(&scroll_bar_handle, ui, new_value);
                         }))
                         .build(ui)
                     )
@@ -966,10 +1061,14 @@ impl ScrollBarBuilder {
                                     None => return
                                 };
 
-                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(&handle, |node| match node.kind {
+                                let new_value;
+
+                                let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
                                     UINodeKind::ScrollBar(..) => true,
                                     _ => false
-                                }) {
+                                });
+
+                                if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
                                     if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
                                         let orientation = scroll_bar.orientation;
 
@@ -995,14 +1094,20 @@ impl ScrollBarBuilder {
                                                 }
                                             };
 
-                                            let new_value = percent * (scroll_bar.max - scroll_bar.min);
+                                            new_value = percent * (scroll_bar.max - scroll_bar.min);
 
                                             evt.handled = true;
-
-                                            scroll_bar.set_value(new_value);
+                                        } else {
+                                            return;
                                         }
+                                    } else {
+                                        return;
                                     }
+                                } else {
+                                    return;
                                 }
+
+                                ScrollBar::set_value(&scroll_bar_handle, ui, new_value);
                             }))
                             .build(ui)
                         )
@@ -1031,11 +1136,17 @@ impl ScrollBarBuilder {
                                 _ => false
                             });
 
-                            if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
                                 if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
-                                    scroll_bar.set_value(scroll_bar.value + scroll_bar.step);
+                                    scroll_bar.value + scroll_bar.step
+                                } else {
+                                    return;
                                 }
-                            }
+                            } else {
+                                return;
+                            };
+
+                            ScrollBar::set_value(&scroll_bar_handle, ui, new_value);
                         }))
                         .with_text(match orientation {
                             Orientation::Horizontal => ">",
@@ -1047,9 +1158,7 @@ impl ScrollBarBuilder {
                 )
                 .build(ui)
             )
-            .build(ui);
-
-        scroll_bar_handle
+            .build(ui)
     }
 }
 
@@ -1115,12 +1224,36 @@ impl Layout for ScrollContentPresenter {
 }
 
 impl ScrollContentPresenter {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             owner_handle: Handle::none(),
             scroll: Vec2::new(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: true,
+        }
+    }
+
+    pub fn set_scroll(handle: &Handle<UINode>, ui: &mut UserInterface, scroll: Vec2) {
+        if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
+                scp.scroll = scroll;
+            }
+        }
+    }
+
+    pub fn set_vertical_scroll(handle: &Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
+        if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
+                scp.scroll.y = scroll;
+            }
+        }
+    }
+
+    pub fn set_horizontal_scroll(handle: &Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
+        if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
+            if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
+                scp.scroll.x = scroll;
+            }
         }
     }
 }
@@ -1175,123 +1308,116 @@ impl ScrollContentPresenterBuilder {
 
 pub struct ScrollViewer {
     owner_handle: Handle<UINode>,
+    content_presenter: Handle<UINode>,
+    v_scroll_bar: Handle<UINode>,
+    h_scroll_bar: Handle<UINode>,
 }
 
 impl ScrollViewer {
-    pub const PART_CONTENT_PRESENTER: &'static str = "PART_ContentPresenter";
-    pub const PART_V_SCROLL_BAR: &'static str = "PART_VScrollBar";
-    pub const PART_H_SCROLL_BAR: &'static str = "PART_HScrollBar";
-
-    pub fn new() -> Self {
-        Self {
-            owner_handle: Handle::none(),
-        }
-    }
-}
-
-impl Layout for ScrollViewer {
-    fn measure_override(&self, ui: &UserInterface, available_size: &Vec2) -> Vec2 {
-        // Use default measure.
-        let desired_size = ui.default_measure_override(&self.owner_handle, available_size);
-
-        // Try to find parts in children first.
-        let mut content_presenter_handle = Handle::none();
+    pub fn update(handle: &Handle<UINode>, ui: &mut UserInterface) {
+        let mut content_size = Vec2::new();
+        let mut available_size_for_content = Vec2::new();
         let mut horizontal_scroll_bar_handle = Handle::none();
         let mut vertical_scroll_bar_handle = Handle::none();
 
-        let cp = ui.find_by_name_down(&self.owner_handle, ScrollViewer::PART_CONTENT_PRESENTER);
-        if cp.is_some() {
-            content_presenter_handle = cp;
-        }
-
-        let hor_scroll_bar = ui.find_by_name_down(&self.owner_handle, ScrollViewer::PART_H_SCROLL_BAR);
-        if hor_scroll_bar.is_some() {
-            horizontal_scroll_bar_handle = hor_scroll_bar;
-        }
-
-        let ver_scroll_bar = ui.find_by_name_down(&self.owner_handle, ScrollViewer::PART_V_SCROLL_BAR);
-        if ver_scroll_bar.is_some() {
-            vertical_scroll_bar_handle = ver_scroll_bar;
-        }
-
-        let mut content_size = Vec2::new();
-        let mut available_size_for_content = Vec2::new();
-        if let Some(content_presenter) = ui.nodes.borrow(&content_presenter_handle) {
-            available_size_for_content = content_presenter.desired_size.get();
-            for content_handle in content_presenter.children.iter() {
-                if let Some(content) = ui.nodes.borrow(content_handle) {
-                    let content_desired_size = content.desired_size.get();
-                    if content_desired_size.x > content_size.x {
-                        content_size.x = content_desired_size.x;
-                    }
-                    if content_desired_size.y > content_size.y {
-                        content_size.y = content_desired_size.y;
+        if let Some(node) = ui.nodes.borrow(handle) {
+            if let UINodeKind::ScrollViewer(scroll_viewer) = node.get_kind() {
+                horizontal_scroll_bar_handle = scroll_viewer.h_scroll_bar.clone();
+                vertical_scroll_bar_handle = scroll_viewer.v_scroll_bar.clone();
+                if let Some(content_presenter) = ui.nodes.borrow(&scroll_viewer.content_presenter) {
+                    available_size_for_content = content_presenter.desired_size.get();
+                    for content_handle in content_presenter.children.iter() {
+                        if let Some(content) = ui.nodes.borrow(content_handle) {
+                            let content_desired_size = content.desired_size.get();
+                            if content_desired_size.x > content_size.x {
+                                content_size.x = content_desired_size.x;
+                            }
+                            if content_desired_size.y > content_size.y {
+                                content_size.y = content_desired_size.y;
+                            }
+                        }
                     }
                 }
             }
         }
 
         // Then adjust scroll bars according to content size.
-
-        /*
-        if let Some(horizontal_scroll_bar) = ui.nodes.borrow_mut(&horizontal_scroll_bar_handle) {
-            if let Some()
-        }
-        let max = maxf(0.0, sv -> content -> desired_size.x - sv -> scroll_content_presenter -> desired_size.x);
-        de_gui_scroll_bar_set_max_value(sv -> hor_scroll_bar, max);
-
-        let max = maxf(0.0, sv -> content -> desired_size.y - sv -> scroll_content_presenter -> desired_size.y);
-        de_gui_scroll_bar_set_max_value(sv -> ver_scroll_bar, max);
-*/
-
-        desired_size
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2 {
-        ui.default_arrange_override(&self.owner_handle, final_size)
+        ScrollBar::set_max_value(&horizontal_scroll_bar_handle, ui, maxf(0.0, content_size.x - available_size_for_content.x));
+        ScrollBar::set_max_value(&vertical_scroll_bar_handle, ui, maxf(0.0, content_size.y - available_size_for_content.y));
     }
 }
 
 pub struct ScrollViewerBuilder {
-    common: CommonBuilderFields
+    common: CommonBuilderFields,
+    content: Option<Handle<UINode>>,
 }
 
 impl ScrollViewerBuilder {
     pub fn new() -> Self {
         Self {
-            common: CommonBuilderFields::new()
+            common: CommonBuilderFields::new(),
+            content: None,
         }
     }
 
     impl_default_builder_methods!();
 
+    pub fn with_content(mut self, content: Handle<UINode>) -> Self {
+        self.content = Some(content);
+        self
+    }
+
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        GenericNodeBuilder::new(UINodeKind::ScrollViewer(ScrollViewer::new()), self.common)
+        let content_presenter = ScrollContentPresenterBuilder::new()
+            .with_child(ButtonBuilder::new()
+                .with_text("TEST CONTENT")
+                .with_width(300.0)
+                .with_height(300.0)
+                .build(ui))
+            .on_row(0)
+            .on_column(0)
+            .build(ui);
+
+        let v_scroll_bar = ScrollBarBuilder::new()
+            .with_orientation(Orientation::Vertical)
+            .on_row(0)
+            .on_column(1)
+            .with_value_changed({
+                let content_presenter = content_presenter.clone();
+                Box::new(move |ui, args| {
+                    ScrollContentPresenter::set_vertical_scroll(&content_presenter, ui, args.new_value);
+                })
+            })
+            .build(ui);
+
+        let h_scroll_bar = ScrollBarBuilder::new()
+            .with_orientation(Orientation::Horizontal)
+            .on_row(1)
+            .on_column(0)
+            .with_value_changed({
+                let content_presenter = content_presenter.clone();
+                Box::new(move |ui, args| {
+                    ScrollContentPresenter::set_horizontal_scroll(&content_presenter, ui, args.new_value);
+                })
+            })
+            .build(ui);
+
+        let mut scroll_viewer = ScrollViewer {
+            owner_handle: Handle::none(),
+            v_scroll_bar: v_scroll_bar.clone(),
+            h_scroll_bar: h_scroll_bar.clone(),
+            content_presenter: content_presenter.clone(),
+        };
+
+        GenericNodeBuilder::new(UINodeKind::ScrollViewer(scroll_viewer), self.common)
             .with_child(GridBuilder::new()
                 .add_row(Row::stretch())
                 .add_row(Row::strict(20.0))
                 .add_column(Column::stretch())
                 .add_column(Column::strict(20.0))
-                .with_child(ScrollContentPresenterBuilder::new()
-                    .with_name(ScrollViewer::PART_CONTENT_PRESENTER)
-                    .with_child(BorderBuilder::new()
-                        .with_color(Color::opaque(200, 0, 0))
-                        .build(ui))
-                    .on_row(0)
-                    .on_column(0)
-                    .build(ui))
-                .with_child(ScrollBarBuilder::new()
-                    .with_name(ScrollViewer::PART_H_SCROLL_BAR)
-                    .with_orientation(Orientation::Horizontal)
-                    .on_row(1)
-                    .on_column(0)
-                    .build(ui))
-                .with_child(ScrollBarBuilder::new()
-                    .with_name(ScrollViewer::PART_V_SCROLL_BAR)
-                    .with_orientation(Orientation::Vertical)
-                    .on_row(0)
-                    .on_column(1)
-                    .build(ui))
+                .with_child(content_presenter)
+                .with_child(h_scroll_bar)
+                .with_child(v_scroll_bar)
                 .build(ui))
             .build(ui)
     }
@@ -1455,10 +1581,8 @@ impl Layout for Grid {
                     row.actual_height = row.desired_height;
                     for child_handle in node.children.iter() {
                         if let Some(child) = ui.nodes.borrow(child_handle) {
-                            if child.row == i && child.visibility == Visibility::Visible {
-                                if child.desired_size.get().y > row.actual_height {
-                                    row.actual_height = child.desired_size.get().y;
-                                }
+                            if child.row == i && child.visibility == Visibility::Visible && child.desired_size.get().y > row.actual_height {
+                                row.actual_height = child.desired_size.get().y;
                             }
                         }
                     }
@@ -1935,11 +2059,9 @@ impl UserInterface {
     }
 
     pub fn capture_mouse(&mut self, node: &Handle<UINode>) -> bool {
-        if self.captured_node.is_none() {
-            if self.nodes.is_valid_handle(node) {
-                self.captured_node = node.clone();
-                return true;
-            }
+        if self.captured_node.is_none() && self.nodes.is_valid_handle(node) {
+            self.captured_node = node.clone();
+            return true;
         }
 
         false
@@ -2072,7 +2194,6 @@ impl UserInterface {
                         UINodeKind::Canvas(canvas) => canvas.measure_override(self, &size_for_child),
                         UINodeKind::Grid(grid) => grid.measure_override(self, &size_for_child),
                         UINodeKind::ScrollContentPresenter(scp) => scp.measure_override(self, &size_for_child),
-                        UINodeKind::ScrollViewer(scroll_viewer) => scroll_viewer.measure_override(self, &size_for_child),
                         UINodeKind::ScrollBar(scroll_bar) => scroll_bar.measure_override(self, &size_for_child),
                         _ => self.default_measure_override(node_handle, &size_for_child)
                     };
@@ -2167,7 +2288,6 @@ impl UserInterface {
                     UINodeKind::Canvas(canvas) => canvas.arrange_override(self, &size),
                     UINodeKind::Grid(grid) => grid.arrange_override(self, &size),
                     UINodeKind::ScrollContentPresenter(scp) => scp.arrange_override(self, &size),
-                    UINodeKind::ScrollViewer(scroll_viewer) => scroll_viewer.arrange_override(self, &size),
                     UINodeKind::ScrollBar(scroll_bar) => scroll_bar.arrange_override(self, &size),
                     _ => self.default_arrange_override(node_handle, &size)
                 };
@@ -2228,6 +2348,7 @@ impl UserInterface {
         }
     }
 
+
     pub fn update(&mut self, screen_size: &Vec2) {
         let root_canvas_handle = self.root_canvas.clone();
         self.measure(&root_canvas_handle, screen_size);
@@ -2237,6 +2358,19 @@ impl UserInterface {
         // Do deferred actions. Some sort of simplest dispatcher.
         while let Some(mut action) = self.deferred_actions.pop_front() {
             action(self)
+        }
+
+        for i in 0..self.nodes.get_capacity() {
+            let id = if let Some(node) = self.nodes.at(i) {
+                node.get_kind_id()
+            } else {
+                continue;
+            };
+
+            let handle = self.nodes.handle_from_index(i);
+            if id == TypeId::of::<ScrollViewer>() {
+                ScrollViewer::update(&handle, self);
+            }
         }
     }
 
@@ -2359,7 +2493,7 @@ impl UserInterface {
             }
         }
 
-        return picked;
+        picked
     }
 
     pub fn hit_test(&self, pt: &Vec2) -> Handle<UINode> {
@@ -2471,6 +2605,14 @@ impl UserInterface {
     pub fn borrow_by_criteria_up_mut<Func>(&mut self, start_node_handle: &Handle<UINode>, func: Func) -> Option<&mut UINode>
         where Func: Fn(&UINode) -> bool {
         self.nodes.borrow_mut(&self.find_by_criteria_up(start_node_handle, func))
+    }
+
+    pub fn get_node_kind_id(&self, handle: &Handle<UINode>) -> TypeId {
+        if let Some(node) = self.nodes.borrow(handle) {
+            node.get_kind_id()
+        } else {
+            TypeId::of::<()>()
+        }
     }
 
     pub fn process_event(&mut self, event: &glutin::WindowEvent) -> bool {
@@ -2639,5 +2781,19 @@ impl UINode {
     pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<RoutedEventHandler>) -> &mut Self {
         self.event_handlers[handler_type as usize] = Some(handler);
         self
+    }
+
+    pub fn get_kind_id(&self) -> TypeId {
+        match &self.kind {
+            UINodeKind::ScrollBar(scroll_bar) => scroll_bar.type_id(),
+            UINodeKind::Text(text) => text.type_id(),
+            UINodeKind::Border(border) => border.type_id(),
+            UINodeKind::Button(button) => button.type_id(),
+            UINodeKind::ScrollViewer(scroll_viewer) => scroll_viewer.type_id(),
+            UINodeKind::Image(image) => image.type_id(),
+            UINodeKind::Grid(grid) => grid.type_id(),
+            UINodeKind::Canvas(canvas) => canvas.type_id(),
+            UINodeKind::ScrollContentPresenter(scp) => scp.type_id()
+        }
     }
 }
