@@ -8,19 +8,16 @@ use crate::{
         duration_to_seconds_f64,
     },
     game::level::Level,
-    gui::{
-        UINode,
-        UINodeKind,
-        Column,
-        Row,
-        GridBuilder,
-        ButtonBuilder,
-        Thickness,
-        TextBuilder,
-        ScrollBarBuilder
-    },
     utils::pool::Handle,
     math::vec2::Vec2,
+    gui::{
+        button::ButtonBuilder,
+        Thickness,
+        scroll_viewer::ScrollViewerBuilder,
+        grid::{GridBuilder, Column, Row},
+        text::TextBuilder,
+        scroll_bar::ScrollBarBuilder
+    }
 };
 use std::{
     cell::RefCell,
@@ -30,13 +27,13 @@ use std::{
     time::Instant,
     rc::Rc,
 };
-use crate::gui::ScrollViewerBuilder;
+use crate::gui::node::{UINode, UINodeKind};
 
 pub struct MenuState {
     save_game: Option<()>,
     load_game: Option<()>,
     start_new_game: Option<()>,
-    quit_game: Option<()>
+    quit_game: Option<()>,
 }
 
 pub struct Menu {
@@ -59,12 +56,14 @@ impl Game {
     pub fn new() -> Game {
         let engine = Engine::new();
         let mut game = Game {
-            menu: Menu { state: Rc::new(RefCell::new(MenuState {
-                start_new_game: None,
-                quit_game: None,
-                save_game: None,
-                load_game: None,
-            })) },
+            menu: Menu {
+                state: Rc::new(RefCell::new(MenuState {
+                    start_new_game: None,
+                    quit_game: None,
+                    save_game: None,
+                    load_game: None,
+                }))
+            },
             debug_text: Handle::none(),
             engine,
             level: None,
@@ -103,7 +102,7 @@ impl Game {
             .with_width(300.0)
             .with_height(400.0)
             .with_desired_position(Vec2::make(200.0, 200.0))
-            .with_child( {
+            .with_child({
                 let menu_state = self.menu.state.clone();
                 ButtonBuilder::new()
                     .with_text("New Game")
