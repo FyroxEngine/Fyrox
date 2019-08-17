@@ -200,10 +200,10 @@ impl Mat4 {
         };
 
         let mut det = f[0] * temp.f[0] + f[4] * temp.f[1] + f[8] * temp.f[2] + f[12] * temp.f[3];
-        if det.abs() > 0.000001 {
+        if det.abs() > 0.000_001 {
             det = 1.0 / det;
             for i in 0..16 {
-                temp.f[i] = temp.f[i] * det;
+                temp.f[i] *= det;
             }
             return Ok(temp);
         }

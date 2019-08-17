@@ -98,10 +98,7 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
 ///
 pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usize)>) {
     out_triangles.clear();
-    if vertices.len() < 3 {
-        // Nothing to do
-        return;
-    } else if vertices.len() == 3 {
+    if vertices.len() == 3 {
         // Triangulating a triangle?
         out_triangles.push((0, 1, 2));
     } else if vertices.len() == 4 {

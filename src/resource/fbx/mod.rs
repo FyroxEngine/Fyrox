@@ -6,6 +6,7 @@ use crate::{
     renderer::surface::{SurfaceSharedData, Surface, Vertex},
     engine::State,
 };
+use std::any::{Any, TypeId};
 
 pub enum FbxAttribute {
     Double(f64),
@@ -16,7 +17,7 @@ pub enum FbxAttribute {
     String(String), // ASCII Fbx always have every attribute in string form
 }
 
-const FBX_TIME_UNIT: f64 = 1.0 / 46186158000.0;
+const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
 impl FbxAttribute {
     pub fn as_i32(&self) -> Result<i32, String> {
@@ -39,7 +40,7 @@ impl FbxAttribute {
         match self {
             FbxAttribute::Double(val) => Ok(*val as i64),
             FbxAttribute::Float(val) => Ok(*val as i64),
-            FbxAttribute::Integer(val) => Ok(*val as i64),
+            FbxAttribute::Integer(val) => Ok(i64::from(*val)),
             FbxAttribute::Long(val) => Ok(*val as i64),
             FbxAttribute::Bool(val) => Ok(*val as i64),
             FbxAttribute::String(val) => {
@@ -54,8 +55,8 @@ impl FbxAttribute {
     pub fn as_f64(&self) -> Result<f64, String> {
         match self {
             FbxAttribute::Double(val) => Ok(*val),
-            FbxAttribute::Float(val) => Ok(*val as f64),
-            FbxAttribute::Integer(val) => Ok(*val as f64),
+            FbxAttribute::Float(val) => Ok(f64::from(*val)),
+            FbxAttribute::Integer(val) => Ok(f64::from(*val)),
             FbxAttribute::Long(val) => Ok(*val as f64),
             FbxAttribute::Bool(val) => Ok((*val as i64) as f64),
             FbxAttribute::String(val) => {
@@ -563,20 +564,6 @@ impl FbxModel {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
-enum FbxComponentTypeId {
-    Unknown,
-    Deformer,
-    SubDeformer,
-    Texture,
-    Light,
-    Model,
-    Material,
-    AnimationCurveNode,
-    AnimationCurve,
-    Geometry,
-}
-
 enum FbxComponent {
     Deformer(FbxDeformer),
     SubDeformer(FbxSubDeformer),
@@ -590,17 +577,17 @@ enum FbxComponent {
 }
 
 impl FbxComponent {
-    fn type_id(&self) -> FbxComponentTypeId {
+    fn type_id(&self) -> TypeId {
         match self {
-            FbxComponent::Deformer(_) => FbxComponentTypeId::Deformer,
-            FbxComponent::SubDeformer(_) => FbxComponentTypeId::SubDeformer,
-            FbxComponent::Texture(_) => FbxComponentTypeId::Texture,
-            FbxComponent::Light(_) => FbxComponentTypeId::Light,
-            FbxComponent::Model(_) => FbxComponentTypeId::Model,
-            FbxComponent::Material(_) => FbxComponentTypeId::Material,
-            FbxComponent::AnimationCurveNode(_) => FbxComponentTypeId::AnimationCurveNode,
-            FbxComponent::AnimationCurve(_) => FbxComponentTypeId::AnimationCurve,
-            FbxComponent::Geometry(_) => FbxComponentTypeId::Geometry
+            FbxComponent::Deformer(deformer) => deformer.type_id(),
+            FbxComponent::SubDeformer(subdeformer) => subdeformer.type_id(),
+            FbxComponent::Texture(texture) => texture.type_id(),
+            FbxComponent::Light(light) => light.type_id(),
+            FbxComponent::Model(model) => model.type_id(),
+            FbxComponent::Material(material) => material.type_id(),
+            FbxComponent::AnimationCurveNode(anim_curve_node) => anim_curve_node.type_id(),
+            FbxComponent::AnimationCurve(anim_curve) => anim_curve.type_id(),
+            FbxComponent::Geometry(geometry) => geometry.type_id()
         }
     }
 }
@@ -655,46 +642,49 @@ fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, stack: &mut Vec<Handle<FbxN
 }
 
 /// Links child component with parent component so parent will know about child
-fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: &Handle<FbxComponent>, child_type_id: FbxComponentTypeId) {
+fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: &Handle<FbxComponent>, child_type_id: TypeId) {
     match parent {
         // Link model with other components
         FbxComponent::Model(model) => {
-            match child_type_id {
-                FbxComponentTypeId::Geometry => model.geoms.push(child_handle.clone()),
-                FbxComponentTypeId::Material => model.materials.push(child_handle.clone()),
-                FbxComponentTypeId::AnimationCurveNode => model.animation_curve_nodes.push(child_handle.clone()),
-                FbxComponentTypeId::Light => model.light = child_handle.clone(),
-                FbxComponentTypeId::Model => model.children.push(child_handle.clone()),
-                _ => ()
+            if child_type_id == TypeId::of::<FbxGeometry>() {
+                model.geoms.push(child_handle.clone())
+            } else if child_type_id == TypeId::of::<FbxMaterial>() {
+                model.materials.push(child_handle.clone())
+            } else if child_type_id == TypeId::of::<FbxAnimationCurveNode>() {
+                model.animation_curve_nodes.push(child_handle.clone())
+            }else if child_type_id == TypeId::of::<FbxLight>() {
+                model.light = child_handle.clone()
+            } else if child_type_id == TypeId::of::<FbxModel>() {
+                model.children.push(child_handle.clone())
             }
         }
         // Link material with textures
         FbxComponent::Material(material) => {
-            if child_type_id == FbxComponentTypeId::Texture {
+            if child_type_id == TypeId::of::<FbxTexture>() {
                 material.diffuse_texture = child_handle.clone();
             }
         }
         // Link animation curve node with animation curve
         FbxComponent::AnimationCurveNode(anim_curve_node) => {
-            if child_type_id == FbxComponentTypeId::AnimationCurve {
+            if child_type_id == TypeId::of::<FbxAnimationCurve>() {
                 anim_curve_node.curves.push(child_handle.clone());
             }
         }
         // Link deformer with sub-deformers
         FbxComponent::Deformer(deformer) => {
-            if child_type_id == FbxComponentTypeId::SubDeformer {
+            if child_type_id == TypeId::of::<FbxSubDeformer>() {
                 deformer.sub_deformers.push(child_handle.clone());
             }
         }
         // Link geometry with deformers
         FbxComponent::Geometry(geometry) => {
-            if child_type_id == FbxComponentTypeId::Deformer {
+            if child_type_id == TypeId::of::<FbxDeformer>() {
                 geometry.deformers.push(child_handle.clone());
             }
         }
         // Link sub-deformer with model
         FbxComponent::SubDeformer(sub_deformer) => {
-            if child_type_id == FbxComponentTypeId::Model {
+            if child_type_id == TypeId::of::<FbxModel>() {
                 sub_deformer.model = child_handle.clone();
             }
         }
@@ -740,7 +730,7 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
             }
 
             // Ignore comments and empty lines
-            if buffer.len() == 0 || buffer[0] == b';' {
+            if buffer.is_empty() || buffer[0] == b';' {
                 continue;
             }
 
@@ -773,7 +763,7 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
                     // Enter child scope
                     parent_handle = node_handle.clone();
                     // Commit attribute if we have one
-                    if value.len() > 0 {
+                    if !value.is_empty() {
                         if let Some(node) = nodes.borrow_mut(&node_handle) {
                             if let Ok(string_value) = String::from_utf8(value.clone()) {
                                 let attrib = FbxAttribute::String(string_value);
@@ -1059,9 +1049,9 @@ impl Fbx {
     }
 
     fn convert_light(&self, light: &mut Light, fbx_light: &FbxLight) {
-        light.set_color(Vec3::make(fbx_light.color.r as f32 / 255.0,
-                                   fbx_light.color.g as f32 / 255.0,
-                                   fbx_light.color.b as f32 / 255.0));
+        light.set_color(Vec3::make(f32::from(fbx_light.color.r) / 255.0,
+                                   f32::from(fbx_light.color.g) / 255.0,
+                                   f32::from(fbx_light.color.b) / 255.0));
         light.set_radius(fbx_light.radius);
     }
 

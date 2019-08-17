@@ -85,6 +85,11 @@ impl Game {
             .with_desired_position(Vec2::make(550.0, 300.0))
             .with_width(300.0)
             .with_height(200.0)
+            .with_content(ButtonBuilder::new()
+                .with_width(300.0)
+                .with_height(300.0)
+                .with_text("TEST BUTTON")
+                .build(ui))
             .build(ui);
 
         GridBuilder::new()
@@ -203,20 +208,20 @@ impl Game {
 
     pub fn update_menu(&mut self) {
         if let Ok(mut state) = self.menu.state.clone().try_borrow_mut() {
-            if let Some(_) = state.start_new_game.take() {
+            if state.start_new_game.take().is_some() {
                 self.start_new_game();
             }
 
-            if let Some(_) = state.quit_game.take() {
+            if state.quit_game.take().is_some() {
                 self.destroy_level();
                 self.engine.stop();
             }
 
-            if let Some(_) = state.save_game.take() {
+            if state.save_game.take().is_some() {
                 self.save_game();
             }
 
-            if let Some(_) = state.load_game.take() {
+            if state.load_game.take().is_some() {
                 self.load_game();
             }
         }

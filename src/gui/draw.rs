@@ -152,7 +152,7 @@ impl FormattedText {
         }
     }
 
-    fn build(&mut self, text: &str, font: &Font, size: &Vec2, color: Color,
+    fn build(&mut self, text: &str, font: &Font, size: Vec2, color: Color,
              vertical_alignment: VerticalAlignment, horizontal_alignment: HorizontalAlignment) {
         // Convert text to UTF32.
         self.text.clear();
@@ -170,10 +170,10 @@ impl FormattedText {
                     Some(glyph) => glyph.get_advance(),
                     None => font.get_height()
                 };
-            let is_new_line = *code == b'\n' as u32 || *code == '\r' as u32;
+            let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
             let new_width = current_line.width + advance;
             if new_width > size.x || is_new_line {
-                self.lines.push(current_line.clone());
+                self.lines.push(current_line);
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin + 1;
                 current_line.width = advance;
@@ -231,7 +231,7 @@ impl FormattedText {
                             };
                             let text_glyph = TextGlyph {
                                 bounds: rect,
-                                tex_coords: glyph.get_tex_coords().clone(),
+                                tex_coords: *glyph.get_tex_coords(),
                                 color,
                             };
                             self.glyphs.push(text_glyph);
@@ -343,7 +343,7 @@ impl<'a> FormattedTextBuilder<'a> {
                 self.formatted_text.build(
                     text,
                     font,
-                    &self.size,
+                    self.size,
                     self.color,
                     self.vertical_alignment,
                     self.horizontal_alignment,
@@ -355,8 +355,8 @@ impl<'a> FormattedTextBuilder<'a> {
     }
 }
 
-fn get_line_thickness_vector(a: &Vec2, b: &Vec2, thickness: f32) -> Vec2 {
-    if let Some(dir) = (*b - *a).normalized() {
+fn get_line_thickness_vector(a: Vec2, b: Vec2, thickness: f32) -> Vec2 {
+    if let Some(dir) = (b - a).normalized() {
         dir.perpendicular().scale(thickness * 0.5)
     } else {
         Vec2::new()
@@ -458,7 +458,7 @@ impl DrawingContext {
         &self.command_buffer
     }
 
-    pub fn is_command_contains_point(&self, command: &Command, pos: &Vec2) -> bool {
+    pub fn is_command_contains_point(&self, command: &Command, pos: Vec2) -> bool {
         let last = command.index_offset + command.triangle_count * 3;
 
         // Check each triangle from command for intersection with mouse pointer
@@ -479,7 +479,7 @@ impl DrawingContext {
             // Check if point is in triangle.
             let v0 = vc.pos - va.pos;
             let v1 = vb.pos - va.pos;
-            let v2 = *pos - va.pos;
+            let v2 = pos - va.pos;
 
             let dot00 = v0.dot(v0);
             let dot01 = v0.dot(v1);
@@ -506,12 +506,12 @@ impl DrawingContext {
         false
     }
 
-    pub fn push_line(&mut self, a: &Vec2, b: &Vec2, thickness: f32, color: Color) {
+    pub fn push_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color) {
         let perp = get_line_thickness_vector(a, b, thickness);
-        self.push_vertex(*a - perp, Vec2::make(0.0, 0.0), color);
-        self.push_vertex(*b - perp, Vec2::make(1.0, 0.0), color);
-        self.push_vertex(*a + perp, Vec2::make(1.0, 1.0), color);
-        self.push_vertex(*b + perp, Vec2::make(0.0, 1.0), color);
+        self.push_vertex(a - perp, Vec2::make(0.0, 0.0), color);
+        self.push_vertex(b - perp, Vec2::make(1.0, 0.0), color);
+        self.push_vertex(a + perp, Vec2::make(1.0, 1.0), color);
+        self.push_vertex(b + perp, Vec2::make(0.0, 1.0), color);
 
         let index = self.get_index_origin();
         self.push_triangle(index, index + 1, index + 2);
@@ -531,12 +531,12 @@ impl DrawingContext {
         let left_bottom_off = Vec2::make(rect.x, rect.y + rect.h - offset);
 
         // Horizontal lines
-        self.push_line(&left_top_off, &right_top_off, thickness, color);
-        self.push_line(&right_bottom_off, &left_bottom_off, thickness, color);
+        self.push_line(left_top_off, right_top_off, thickness, color);
+        self.push_line(right_bottom_off, left_bottom_off, thickness, color);
 
-        // Vertical lines
-        self.push_line(&right_top, &right_bottom, thickness, color);
-        self.push_line(&left_bottom, &left_top, thickness, color);
+        // Vertical line
+        self.push_line(right_top, right_bottom, thickness, color);
+        self.push_line(left_bottom, left_top, thickness, color);
     }
 
     pub fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness, color: Color) {
@@ -550,12 +550,12 @@ impl DrawingContext {
         let left_bottom_off = Vec2::make(rect.x, rect.y + rect.h - thickness.bottom * 0.5);
 
         // Horizontal lines
-        self.push_line(&left_top_off, &right_top_off, thickness.top, color);
-        self.push_line(&right_bottom_off, &left_bottom_off, thickness.bottom, color);
+        self.push_line(left_top_off, right_top_off, thickness.top, color);
+        self.push_line(right_bottom_off, left_bottom_off, thickness.bottom, color);
 
         // Vertical lines
-        self.push_line(&right_top, &right_bottom, thickness.right, color);
-        self.push_line(&left_bottom, &left_top, thickness.left, color);
+        self.push_line(right_top, right_bottom, thickness.right, color);
+        self.push_line(left_bottom, left_top, thickness.left, color);
     }
 
     pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>, color: Color) {
@@ -575,7 +575,7 @@ impl DrawingContext {
                 kind,
                 texture,
                 nesting: self.current_nesting,
-                index_offset: if self.index_buffer.len() > 0 {
+                index_offset: if !self.index_buffer.is_empty() {
                     self.index_buffer.len() - self.triangles_to_commit * 3
                 } else { 0 },
                 triangle_count: self.triangles_to_commit,
@@ -616,7 +616,7 @@ impl DrawingContext {
             if let Some(last_clip_command) = self.command_buffer.get(*last_index) {
                 assert_eq!(last_clip_command.kind, CommandKind::Clip);
                 // Re-commit last clipping command
-                let clip_command = last_clip_command.clone();
+                let clip_command = *last_clip_command;
                 self.command_buffer.push(clip_command);
             }
         }

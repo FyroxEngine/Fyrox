@@ -298,7 +298,7 @@ impl<T> Pool<T> {
         unsafe {
             PoolIteratorMut {
                 ptr: self.records.as_mut_ptr(),
-                end: self.records.as_mut_ptr().offset(self.records.len() as isize),
+                end: self.records.as_mut_ptr().add(self.records.len()),
                 marker: PhantomData,
             }
         }

@@ -206,7 +206,7 @@ impl Body {
 
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
         let friction =
-            if self.contacts.len() > 0 {
+            if !self.contacts.is_empty() {
                 self.friction
             } else {
                 air_friction

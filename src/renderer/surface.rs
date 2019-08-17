@@ -344,9 +344,9 @@ impl SurfaceSharedData {
 impl Drop for SurfaceSharedData {
     fn drop(&mut self) {
         unsafe {
-            gl::DeleteBuffers(1, &mut self.vbo);
-            gl::DeleteBuffers(1, &mut self.ebo);
-            gl::DeleteVertexArrays(1, &mut self.vao);
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteBuffers(1, &self.ebo);
+            gl::DeleteVertexArrays(1, &self.vao);
         }
     }
 }

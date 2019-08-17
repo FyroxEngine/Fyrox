@@ -21,32 +21,32 @@ impl Vec2 {
     }
 
     #[inline]
-    pub fn dot(&self, other: Self) -> f32 {
+    pub fn dot(self, other: Self) -> f32 {
         self.x * other.x + self.y * other.y
     }
 
     #[inline]
-    pub fn len(&self) -> f32 {
-        self.dot(*self).sqrt()
+    pub fn len(self) -> f32 {
+        self.dot(self).sqrt()
     }
 
     #[inline]
-    pub fn angle(&self, other: Self) -> f32 {
+    pub fn angle(self, other: Self) -> f32 {
         (self.dot(other) / (self.len() * other.len())).acos()
     }
 
     #[inline]
-    pub fn perpendicular(&self) -> Vec2 {
+    pub fn perpendicular(self) -> Vec2 {
         Vec2 { x: self.y, y: -self.x }
     }
 
     #[inline]
-    pub fn scale(&self, scalar: f32) -> Vec2 {
+    pub fn scale(self, scalar: f32) -> Vec2 {
         Vec2 { x: self.x * scalar, y: self.y * scalar }
     }
 
     #[inline]
-    pub fn normalized(&self) -> Option<Vec2> {
+    pub fn normalized(self) -> Option<Vec2> {
         let len = self.len();
         if len >= std::f32::EPSILON {
             let inv_len = 1.0 / len;

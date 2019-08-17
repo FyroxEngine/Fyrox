@@ -75,7 +75,7 @@ impl Scene {
 
             state.release_resource(node.get_resource());
 
-            children = UnsafeCollectionView::from_vec(&node.children);
+            children = UnsafeCollectionView::from_slice(&node.children);
         }
 
         // Free children recursively

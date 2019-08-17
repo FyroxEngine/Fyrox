@@ -214,7 +214,7 @@ impl Bitmap {
             return 0.0;
         }
 
-        self.pixels[y * self.width + x] as f32 / 255.0
+        f32::from(self.pixels[y * self.width + x]) / 255.0
     }
 }
 
@@ -222,7 +222,7 @@ fn get_u16(p: *const u8) -> u16
 {
     unsafe {
         let b0 = u32::from(*p);
-        let b1 = *p.offset(1) as u32;
+        let b1 = u32::from(*p.offset(1));
         (b0 * 256 + b1) as u16
     }
 }
@@ -230,8 +230,8 @@ fn get_u16(p: *const u8) -> u16
 fn get_i16(p: *const u8) -> i16
 {
     unsafe {
-        let b0 = *p as i32;
-        let b1 = *p.offset(1) as i32;
+        let b0 = i32::from(*p);
+        let b1 = i32::from(*p.offset(1));
         (b0 * 256 + b1) as i16
     }
 }
@@ -239,21 +239,21 @@ fn get_i16(p: *const u8) -> i16
 fn get_u32(p: *const u8) -> u32
 {
     unsafe {
-        let b0 = *p as u32;
-        let b1 = *p.offset(1) as u32;
-        let b2 = *p.offset(2) as u32;
-        let b3 = *p.offset(3) as u32;
+        let b0 = u32::from(*p);
+        let b1 = u32::from(*p.offset(1));
+        let b2 = u32::from(*p.offset(2));
+        let b3 = u32::from(*p.offset(3));
         (b0 << 24) + (b1 << 16) + (b2 << 8) + b3
     }
 }
 
 fn fourcc(d: u8, c: u8, b: u8, a: u8) -> u32 {
-    ((d as u32) << 24) | ((c as u32) << 16) | ((b as u32) << 8) | (a as u32)
+    (u32::from(d) << 24) | (u32::from(c) << 16) | (u32::from(b) << 8) | (u32::from(a))
 }
 
 fn segmented_mapping(subtable: *const u8, unicode: u32) -> usize {
     unsafe {
-        let segment_count = (get_u16(subtable.offset(6)) / 2) as u32;
+        let segment_count = u32::from(get_u16(subtable.offset(6)) / 2);
         let end_codes = subtable.offset(14);
         let start_codes = subtable.offset((16 + 2 * segment_count) as isize);
         let id_delta = subtable.offset((16 + 4 * segment_count) as isize);
@@ -261,18 +261,18 @@ fn segmented_mapping(subtable: *const u8, unicode: u32) -> usize {
 
         let mut segment = 0;
         while segment < segment_count {
-            if get_u16(end_codes.offset(2 * segment as isize)) as u32 >= unicode {
+            if u32::from(get_u16(end_codes.offset(2 * segment as isize))) >= unicode {
                 break;
             }
             segment += 1;
         }
 
         if segment != segment_count {
-            let start_code = get_u16(start_codes.offset(2 * segment as isize)) as u32;
+            let start_code = u32::from(get_u16(start_codes.offset(2 * segment as isize)));
             if start_code <= unicode {
-                let range_offset = (get_u16(id_range_offset.offset(2 * segment as isize)) / 2) as u32;
+                let range_offset = u32::from(get_u16(id_range_offset.offset(2 * segment as isize)) / 2);
                 if range_offset == 0 {
-                    return ((unicode + get_u16(id_delta.offset(2 * segment as isize)) as u32) & 0xFFFF) as usize;
+                    return ((unicode + u32::from(get_u16(id_delta.offset(2 * segment as isize)))) & 0xFFFF) as usize;
                 } else {
                     let offset = 2 * (segment + range_offset + (unicode - start_code));
                     return get_u16(id_range_offset.offset(offset as isize)) as usize;
@@ -297,8 +297,8 @@ fn direct_mapping(subtable: *const u8, unicode: u32) -> usize {
 
 fn dense_mapping(subtable: *const u8, unicode: u32) -> usize {
     unsafe {
-        let first = get_u16(subtable.offset(6)) as u32;
-        let entry_count = get_u16(subtable.offset(8)) as u32;
+        let first = u32::from(get_u16(subtable.offset(6)));
+        let entry_count = u32::from(get_u16(subtable.offset(8)));
         let indices = subtable.offset(10);
 
         if unicode > first && unicode < first + entry_count {
@@ -327,7 +327,7 @@ fn line_line_intersection(a: &Line2, b: &Line2) -> Option<Point> {
     }
 }
 
-fn polygons_to_scanlines(polys: &Vec<Polygon>, width: f32, height: f32, scale: f32) -> Vec<Line2> {
+fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32) -> Vec<Line2> {
     let bias = 0.0001;
     let y_oversample = 5.0;
     let y_step = 1.0 / y_oversample;
@@ -351,7 +351,7 @@ fn polygons_to_scanlines(polys: &Vec<Polygon>, width: f32, height: f32, scale: f
         scanline.end.y = y;
 
         /* Find all intersection points for current y */
-        for poly in polys.iter() {
+        for poly in polys {
             for j in (0..poly.points.len()).step_by(2) {
                 let begin = poly.points.get(j).unwrap();
                 let end = poly.points.get(j + 1).unwrap();
@@ -390,7 +390,7 @@ fn polygons_to_scanlines(polys: &Vec<Polygon>, width: f32, height: f32, scale: f
         }
 
         /* Convert intersection points into scanlines */
-        if intersections.len() > 0 {
+        if !intersections.is_empty() {
             for i in (0..(intersections.len() - 1)).step_by(2) {
                 let line = Line2 {
                     begin: Point { x: intersections[i].x, y, flags: 0 },
@@ -406,19 +406,19 @@ fn polygons_to_scanlines(polys: &Vec<Polygon>, width: f32, height: f32, scale: f
     lines
 }
 
-fn raster_scanlines(w: usize, h: usize, lines: &Vec<Line2>) -> Bitmap {
+fn raster_scanlines(w: usize, h: usize, lines: &[Line2]) -> Bitmap {
     let mut bitmap = Bitmap::new(w, h);
 
-    /* Antialised scanline rasterization. */
-    for scanline in lines.iter() {
+    // Antialised scanline rasterization.
+    for scanline in lines {
         let yi = scanline.begin.y as usize;
 
-        /* Calculate new opacity for pixel at the begin of scanline. */
+        // Calculate new opacity for pixel at the begin of scanline.
         let bx = scanline.begin.x;
         let begin_opacity = 0.5 * ((bx.ceil() - bx) + bitmap.get_fpixel(bx as usize, yi));
         bitmap.set_pixel(bx as usize, yi, (255.0 * begin_opacity) as u8);
 
-        /* Calculate new opacity for pixel at the end of scanline. */
+        // Calculate new opacity for pixel at the end of scanline.
         let ex = scanline.end.x;
         let end_opacity = 0.5 * ((ex - ex.floor()) + bitmap.get_fpixel(ex as usize, yi));
         bitmap.set_pixel(ex as usize, yi, (255.0 * end_opacity) as u8);
@@ -537,7 +537,7 @@ impl TrueType {
 
     fn em_to_pixels(&self, pixels: f32) -> f32 {
         unsafe {
-            let units_per_em = get_u16(self.head_table.offset(18)) as f32;
+            let units_per_em = f32::from(get_u16(self.head_table.offset(18)));
             pixels / units_per_em
         }
     }
@@ -556,13 +556,13 @@ impl TrueType {
             };
         }
 
-        let height = ((scale * (glyph.y_max - glyph.y_min) as f32) + 1.0) as usize;
-        let width = ((scale * (glyph.x_max - glyph.x_min) as f32) + 1.0) as usize;
+        let height = ((scale * f32::from(glyph.y_max - glyph.y_min)) + 1.0) as usize;
+        let width = ((scale * f32::from(glyph.x_max - glyph.x_min)) + 1.0) as usize;
 
         let lines = polygons_to_scanlines(
             &glyph.contours,
-            (glyph.x_max - glyph.x_min) as f32,
-            (glyph.y_max - glyph.y_min) as f32,
+            f32::from(glyph.x_max - glyph.x_min),
+            f32::from(glyph.y_max - glyph.y_min),
             scale,
         );
 
@@ -571,9 +571,9 @@ impl TrueType {
             pixels: final_bitmap.pixels,
             bitmap_width: final_bitmap.width as f32,
             bitmap_height: final_bitmap.height as f32,
-            advance: glyph.advance as f32 * scale,
-            bitmap_left: glyph.x_min as f32 * scale,
-            bitmap_top: glyph.y_min as f32 * scale,
+            advance: f32::from(glyph.advance) * scale,
+            bitmap_left: f32::from(glyph.x_min) * scale,
+            bitmap_top: f32::from(glyph.y_min) * scale,
             has_outline: glyph.has_outline,
             tex_coords: [Vec2::new(); 4],
         }
@@ -670,11 +670,11 @@ impl TrueType {
                     for j in 0..(point_count as usize) {
                         let pt = points.get_mut(j).unwrap();
                         if (pt.flags & 2) != 0 {
-                            let dx = *coords as i32;
+                            let dx = i32::from(*coords);
                             coords = coords.offset(1);
                             x += if (pt.flags & 16) != 0 { dx } else { -dx };
                         } else if (pt.flags & 16) == 0 {
-                            x += get_i16(coords) as i32;
+                            x += i32::from(get_i16(coords));
                             coords = coords.offset(2);
                         }
                         pt.x = x as f32;
@@ -685,11 +685,11 @@ impl TrueType {
                     for j in 0..(point_count as usize) {
                         let pt = points.get_mut(j).unwrap();
                         if (pt.flags & 4) != 0 {
-                            let dy = *coords as i32;
+                            let dy = i32::from(*coords);
                             coords = coords.offset(1);
                             y += if (pt.flags & 32) != 0 { dy } else { -dy };
                         } else if (pt.flags & 32) == 0 {
-                            y += get_i16(coords) as i32;
+                            y += i32::from(get_i16(coords));
                             coords = coords.offset(2);
                         }
 
@@ -805,8 +805,8 @@ impl TtfGlyph {
                     let pt = points.get_unchecked(k as usize);
 
                     let off_pt = Point {
-                        x: pt.x - self.x_min as f32,
-                        y: pt.y - self.y_min as f32,
+                        x: pt.x - f32::from(self.x_min),
+                        y: pt.y - f32::from(self.y_min),
                         flags: pt.flags,
                     };
 
@@ -834,7 +834,7 @@ impl TtfGlyph {
                         let middle = Point {
                             flags: ON_CURVE_POINT,
                             x: (first.x + last.x) / 2.0,
-                            y: glyph_height as f32 - (first.y + last.y) / 2.0,
+                            y: f32::from(glyph_height) - (first.y + last.y) / 2.0,
                         };
 
                         unpacked_contour.points.push(middle);
@@ -855,7 +855,7 @@ impl TtfGlyph {
                     let flipped = Point {
                         flags: p0.flags,
                         x: p0.x,
-                        y: glyph_height as f32 - p0.y,
+                        y: f32::from(glyph_height) - p0.y,
                     };
                     unpacked_contour.points.push(flipped);
 
@@ -863,7 +863,7 @@ impl TtfGlyph {
                         let middle = Point {
                             flags: ON_CURVE_POINT,
                             x: (p0.x + p1.x) / 2.0,
-                            y: glyph_height as f32 - (p0.y + p1.y) / 2.0,
+                            y: f32::from(glyph_height) - (p0.y + p1.y) / 2.0,
                         };
                         unpacked_contour.points.push(middle);
                     }
@@ -888,9 +888,9 @@ impl Font {
             let mut font = Font {
                 height,
                 glyphs: Vec::new(),
-                ascender: scale * ttf.get_ascender() as f32,
-                descender: scale * ttf.get_descender() as f32,
-                line_gap: scale * ttf.get_line_gap() as f32,
+                ascender: scale * f32::from(ttf.get_ascender()),
+                descender: scale * f32::from(ttf.get_descender()),
+                line_gap: scale * f32::from(ttf.get_line_gap()),
                 char_map: HashMap::new(),
                 texture_id: 0,
                 atlas: Vec::new(),

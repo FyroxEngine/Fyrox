@@ -23,12 +23,7 @@ use crate::{
     },
     math,
 };
-use glutin::{
-    VirtualKeyCode,
-    MouseButton,
-    WindowEvent,
-    ElementState,
-};
+use glutin::{VirtualKeyCode, MouseButton, WindowEvent, ElementState, MouseScrollDelta};
 use std::collections::VecDeque;
 use std::cell::{Cell, RefCell};
 use std::any::{TypeId, Any};
@@ -464,8 +459,8 @@ impl BorderBuilder {
 }
 
 trait Layout {
-    fn measure_override(&self, ui: &UserInterface, available_size: &Vec2) -> Vec2;
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2;
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2;
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2;
 }
 
 trait Drawable {
@@ -488,7 +483,7 @@ impl Drawable for Border {
 }
 
 impl Layout for Border {
-    fn measure_override(&self, ui: &UserInterface, available_size: &Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
@@ -500,7 +495,7 @@ impl Layout for Border {
 
         if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, &size_for_child);
+                ui.measure(child_handle, size_for_child);
 
                 if let Some(child) = ui.nodes.borrow(child_handle) {
                     let child_desired_size = child.desired_size.get();
@@ -520,7 +515,7 @@ impl Layout for Border {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let rect_for_child = Rect::new(
             self.stroke_thickness.left, self.stroke_thickness.top,
             final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
@@ -533,7 +528,7 @@ impl Layout for Border {
             }
         }
 
-        *final_size
+        final_size
     }
 }
 
@@ -830,11 +825,11 @@ impl ScrollBar {
 }
 
 impl Layout for ScrollBar {
-    fn measure_override(&self, ui: &UserInterface, available_size: &Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         ui.default_measure_override(&self.owner_handle, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let size = ui.default_arrange_override(&self.owner_handle, final_size);
 
 
@@ -1170,7 +1165,7 @@ pub struct ScrollContentPresenter {
 }
 
 impl Layout for ScrollContentPresenter {
-    fn measure_override(&self, ui: &UserInterface, available_size: &Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::make(
             if self.horizontal_scroll_allowed {
                 std::f32::INFINITY
@@ -1188,7 +1183,7 @@ impl Layout for ScrollContentPresenter {
 
         if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, &size_for_child);
+                ui.measure(child_handle, size_for_child);
 
                 if let Some(child) = ui.nodes.borrow(child_handle) {
                     let child_desired_size = child.desired_size.get();
@@ -1205,7 +1200,7 @@ impl Layout for ScrollContentPresenter {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let child_rect = Rect::new(
             -self.scroll.x,
             -self.scroll.y,
@@ -1219,7 +1214,7 @@ impl Layout for ScrollContentPresenter {
             }
         }
 
-        *final_size
+        final_size
     }
 }
 
@@ -1261,7 +1256,7 @@ impl ScrollContentPresenter {
 pub struct ScrollContentPresenterBuilder {
     vertical_scroll_allowed: Option<bool>,
     horizontal_scroll_allowed: Option<bool>,
-    content: Option<Handle<UINode>>,
+    content: Handle<UINode>,
     common: CommonBuilderFields,
 }
 
@@ -1271,14 +1266,14 @@ impl ScrollContentPresenterBuilder {
             vertical_scroll_allowed: None,
             horizontal_scroll_allowed: None,
             common: CommonBuilderFields::new(),
-            content: None,
+            content: Handle::none(),
         }
     }
 
     impl_default_builder_methods!();
 
     pub fn with_content(mut self, content: Handle<UINode>) -> Self {
-        self.content = Some(content);
+        self.content = content;
         self
     }
 
@@ -1301,13 +1296,14 @@ impl ScrollContentPresenterBuilder {
             scp.horizontal_scroll_allowed = horizontal_scroll_allowed;
         }
         GenericNodeBuilder::new(UINodeKind::ScrollContentPresenter(scp), self.common)
-            .with_child(self.content.unwrap_or(Handle::none()))
+            .with_child(self.content)
             .build(ui)
     }
 }
 
 pub struct ScrollViewer {
     owner_handle: Handle<UINode>,
+    content: Handle<UINode>,
     content_presenter: Handle<UINode>,
     v_scroll_bar: Handle<UINode>,
     h_scroll_bar: Handle<UINode>,
@@ -1349,31 +1345,27 @@ impl ScrollViewer {
 
 pub struct ScrollViewerBuilder {
     common: CommonBuilderFields,
-    content: Option<Handle<UINode>>,
+    content: Handle<UINode>,
 }
 
 impl ScrollViewerBuilder {
     pub fn new() -> Self {
         Self {
             common: CommonBuilderFields::new(),
-            content: None,
+            content: Handle::none(),
         }
     }
 
     impl_default_builder_methods!();
 
     pub fn with_content(mut self, content: Handle<UINode>) -> Self {
-        self.content = Some(content);
+        self.content = content;
         self
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let content_presenter = ScrollContentPresenterBuilder::new()
-            .with_child(ButtonBuilder::new()
-                .with_text("TEST CONTENT")
-                .with_width(300.0)
-                .with_height(300.0)
-                .build(ui))
+            .with_child(self.content.clone())
             .on_row(0)
             .on_column(0)
             .build(ui);
@@ -1402,7 +1394,8 @@ impl ScrollViewerBuilder {
             })
             .build(ui);
 
-        let mut scroll_viewer = ScrollViewer {
+        let scroll_viewer = ScrollViewer {
+            content: self.content.clone(),
             owner_handle: Handle::none(),
             v_scroll_bar: v_scroll_bar.clone(),
             h_scroll_bar: h_scroll_bar.clone(),
@@ -1537,7 +1530,7 @@ impl Grid {
 }
 
 impl Layout for Grid {
-    fn measure_override(&self, ui: &UserInterface, available_size: &Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             return ui.default_measure_override(&self.owner_handle, available_size);
@@ -1689,7 +1682,7 @@ impl Layout for Grid {
                         }
                     }
                 };
-                ui.measure(child_handle, &size_for_child);
+                ui.measure(child_handle, size_for_child);
             }
 
             // Step 4. Calculate desired size of grid.
@@ -1704,14 +1697,14 @@ impl Layout for Grid {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
             if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
                 let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
                 for child_handle in node.children.iter() {
                     ui.arrange(child_handle, &rect);
                 }
-                return *final_size;
+                return final_size;
             }
 
             for child_handle in node.children.iter() {
@@ -1736,7 +1729,7 @@ impl Layout for Grid {
             }
         }
 
-        *final_size
+        final_size
     }
 }
 
@@ -1815,7 +1808,7 @@ impl Canvas {
 }
 
 impl Layout for Canvas {
-    fn measure_override(&self, ui: &UserInterface, _available_size: &Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::make(
             std::f32::INFINITY,
             std::f32::INFINITY,
@@ -1823,14 +1816,14 @@ impl Layout for Canvas {
 
         if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, &size_for_child);
+                ui.measure(child_handle, size_for_child);
             }
         }
 
         Vec2::new()
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: &Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
             for child_handle in node.children.iter() {
                 let mut final_rect = None;
@@ -1849,7 +1842,7 @@ impl Layout for Canvas {
             }
         }
 
-        *final_size
+        final_size
     }
 }
 
@@ -1885,6 +1878,7 @@ pub enum RoutedEventHandlerType {
     MouseLeave,
     MouseDown,
     MouseUp,
+    MouseWheel,
     Count,
 }
 
@@ -1960,7 +1954,7 @@ pub enum RoutedEventKind {
     },
     MouseWheel {
         pos: Vec2,
-        amount: u32,
+        amount: f32,
     },
     MouseLeave,
     MouseEnter,
@@ -2124,12 +2118,12 @@ impl UserInterface {
         &mut self.drawing_context
     }
 
-    fn default_measure_override(&self, handle: &Handle<UINode>, available_size: &Vec2) -> Vec2 {
+    fn default_measure_override(&self, handle: &Handle<UINode>, available_size: Vec2) -> Vec2 {
         let mut size = Vec2::new();
 
         if let Some(node) = self.nodes.borrow(handle) {
             for child_handle in node.children.iter() {
-                self.measure(child_handle, &available_size);
+                self.measure(child_handle, available_size);
 
                 if let Some(child) = self.nodes.borrow(child_handle) {
                     let child_desired_size = child.desired_size.get();
@@ -2146,97 +2140,94 @@ impl UserInterface {
         size
     }
 
-    fn measure(&self, node_handle: &Handle<UINode>, available_size: &Vec2) {
-        match self.nodes.borrow(&node_handle) {
-            None => return,
-            Some(node) => {
-                let margin = Vec2 {
-                    x: node.margin.left + node.margin.right,
-                    y: node.margin.top + node.margin.bottom,
-                };
+    fn measure(&self, node_handle: &Handle<UINode>, available_size: Vec2) {
+        if let Some(node) = self.nodes.borrow(&node_handle) {
+            let margin = Vec2 {
+                x: node.margin.left + node.margin.right,
+                y: node.margin.top + node.margin.bottom,
+            };
 
-                let size_for_child = Vec2 {
-                    x: {
-                        let w = if node.width.get() > 0.0 {
-                            node.width.get()
-                        } else {
-                            maxf(0.0, available_size.x - margin.x)
-                        };
-
-                        if w > node.max_size.x {
-                            node.max_size.x
-                        } else if w < node.min_size.x {
-                            node.min_size.x
-                        } else {
-                            w
-                        }
-                    },
-                    y: {
-                        let h = if node.height.get() > 0.0 {
-                            node.height.get()
-                        } else {
-                            maxf(0.0, available_size.y - margin.y)
-                        };
-
-                        if h > node.max_size.y {
-                            node.max_size.y
-                        } else if h < node.min_size.y {
-                            node.min_size.y
-                        } else {
-                            h
-                        }
-                    },
-                };
-
-                if node.visibility == Visibility::Visible {
-                    let mut desired_size = match &node.kind {
-                        UINodeKind::Border(border) => border.measure_override(self, &size_for_child),
-                        UINodeKind::Canvas(canvas) => canvas.measure_override(self, &size_for_child),
-                        UINodeKind::Grid(grid) => grid.measure_override(self, &size_for_child),
-                        UINodeKind::ScrollContentPresenter(scp) => scp.measure_override(self, &size_for_child),
-                        UINodeKind::ScrollBar(scroll_bar) => scroll_bar.measure_override(self, &size_for_child),
-                        _ => self.default_measure_override(node_handle, &size_for_child)
+            let size_for_child = Vec2 {
+                x: {
+                    let w = if node.width.get() > 0.0 {
+                        node.width.get()
+                    } else {
+                        maxf(0.0, available_size.x - margin.x)
                     };
 
-                    if !node.width.get().is_nan() {
-                        desired_size.x = node.width.get();
+                    if w > node.max_size.x {
+                        node.max_size.x
+                    } else if w < node.min_size.x {
+                        node.min_size.x
+                    } else {
+                        w
                     }
+                },
+                y: {
+                    let h = if node.height.get() > 0.0 {
+                        node.height.get()
+                    } else {
+                        maxf(0.0, available_size.y - margin.y)
+                    };
 
-                    if desired_size.x > node.max_size.x {
-                        desired_size.x = node.max_size.x;
-                    } else if desired_size.x < node.min_size.x {
-                        desired_size.x = node.min_size.x;
+                    if h > node.max_size.y {
+                        node.max_size.y
+                    } else if h < node.min_size.y {
+                        node.min_size.y
+                    } else {
+                        h
                     }
+                },
+            };
 
-                    if desired_size.y > node.max_size.y {
-                        desired_size.y = node.max_size.y;
-                    } else if desired_size.y < node.min_size.y {
-                        desired_size.y = node.min_size.y;
-                    }
+            if node.visibility == Visibility::Visible {
+                let mut desired_size = match &node.kind {
+                    UINodeKind::Border(border) => border.measure_override(self, size_for_child),
+                    UINodeKind::Canvas(canvas) => canvas.measure_override(self, size_for_child),
+                    UINodeKind::Grid(grid) => grid.measure_override(self, size_for_child),
+                    UINodeKind::ScrollContentPresenter(scp) => scp.measure_override(self, size_for_child),
+                    UINodeKind::ScrollBar(scroll_bar) => scroll_bar.measure_override(self, size_for_child),
+                    _ => self.default_measure_override(node_handle, size_for_child)
+                };
 
-                    if !node.height.get().is_nan() {
-                        desired_size.y = node.height.get();
-                    }
-
-                    desired_size += margin;
-
-                    // Make sure that node won't go outside of available bounds.
-                    if desired_size.x > available_size.x {
-                        desired_size.x = available_size.x;
-                    }
-                    if desired_size.y > available_size.y {
-                        desired_size.y = available_size.y;
-                    }
-
-                    node.desired_size.set(desired_size);
-                } else {
-                    node.desired_size.set(Vec2::make(0.0, 0.0));
+                if !node.width.get().is_nan() {
+                    desired_size.x = node.width.get();
                 }
+
+                if desired_size.x > node.max_size.x {
+                    desired_size.x = node.max_size.x;
+                } else if desired_size.x < node.min_size.x {
+                    desired_size.x = node.min_size.x;
+                }
+
+                if desired_size.y > node.max_size.y {
+                    desired_size.y = node.max_size.y;
+                } else if desired_size.y < node.min_size.y {
+                    desired_size.y = node.min_size.y;
+                }
+
+                if !node.height.get().is_nan() {
+                    desired_size.y = node.height.get();
+                }
+
+                desired_size += margin;
+
+                // Make sure that node won't go outside of available bounds.
+                if desired_size.x > available_size.x {
+                    desired_size.x = available_size.x;
+                }
+                if desired_size.y > available_size.y {
+                    desired_size.y = available_size.y;
+                }
+
+                node.desired_size.set(desired_size);
+            } else {
+                node.desired_size.set(Vec2::make(0.0, 0.0));
             }
         }
     }
 
-    fn default_arrange_override(&self, handle: &Handle<UINode>, final_size: &Vec2) -> Vec2 {
+    fn default_arrange_override(&self, handle: &Handle<UINode>, final_size: Vec2) -> Vec2 {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
         if let Some(node) = self.nodes.borrow(handle) {
@@ -2245,83 +2236,80 @@ impl UserInterface {
             }
         }
 
-        *final_size
+        final_size
     }
 
     fn arrange(&self, node_handle: &Handle<UINode>, final_rect: &Rect<f32>) {
-        match self.nodes.borrow(node_handle) {
-            None => return,
-            Some(node) => {
-                if node.visibility != Visibility::Visible {
-                    return;
-                }
-
-                let margin_x = node.margin.left + node.margin.right;
-                let margin_y = node.margin.top + node.margin.bottom;
-
-                let mut origin_x = final_rect.x + node.margin.left;
-                let mut origin_y = final_rect.y + node.margin.top;
-
-                let mut size = Vec2 {
-                    x: maxf(0.0, final_rect.w - margin_x),
-                    y: maxf(0.0, final_rect.h - margin_y),
-                };
-
-                let size_without_margin = size;
-
-                if node.horizontal_alignment != HorizontalAlignment::Stretch {
-                    size.x = minf(size.x, node.desired_size.get().x - margin_x);
-                }
-                if node.vertical_alignment != VerticalAlignment::Stretch {
-                    size.y = minf(size.y, node.desired_size.get().y - margin_y);
-                }
-
-                if node.width.get() > 0.0 {
-                    size.x = node.width.get();
-                }
-                if node.height.get() > 0.0 {
-                    size.y = node.height.get();
-                }
-
-                size = match &node.kind {
-                    UINodeKind::Border(border) => border.arrange_override(self, &size),
-                    UINodeKind::Canvas(canvas) => canvas.arrange_override(self, &size),
-                    UINodeKind::Grid(grid) => grid.arrange_override(self, &size),
-                    UINodeKind::ScrollContentPresenter(scp) => scp.arrange_override(self, &size),
-                    UINodeKind::ScrollBar(scroll_bar) => scroll_bar.arrange_override(self, &size),
-                    _ => self.default_arrange_override(node_handle, &size)
-                };
-
-                if size.x > final_rect.w {
-                    size.x = final_rect.w;
-                }
-                if size.y > final_rect.h {
-                    size.y = final_rect.h;
-                }
-
-                match node.horizontal_alignment {
-                    HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
-                        origin_x += (size_without_margin.x - size.x) * 0.5;
-                    }
-                    HorizontalAlignment::Right => {
-                        origin_x += size_without_margin.x - size.x;
-                    }
-                    _ => ()
-                }
-
-                match node.vertical_alignment {
-                    VerticalAlignment::Center | VerticalAlignment::Stretch => {
-                        origin_y += (size_without_margin.y - size.y) * 0.5;
-                    }
-                    VerticalAlignment::Bottom => {
-                        origin_y += size_without_margin.y - size.y;
-                    }
-                    _ => ()
-                }
-
-                node.actual_size.set(size);
-                node.actual_local_position.set(Vec2 { x: origin_x, y: origin_y });
+        if let Some(node) = self.nodes.borrow(node_handle) {
+            if node.visibility != Visibility::Visible {
+                return;
             }
+
+            let margin_x = node.margin.left + node.margin.right;
+            let margin_y = node.margin.top + node.margin.bottom;
+
+            let mut origin_x = final_rect.x + node.margin.left;
+            let mut origin_y = final_rect.y + node.margin.top;
+
+            let mut size = Vec2 {
+                x: maxf(0.0, final_rect.w - margin_x),
+                y: maxf(0.0, final_rect.h - margin_y),
+            };
+
+            let size_without_margin = size;
+
+            if node.horizontal_alignment != HorizontalAlignment::Stretch {
+                size.x = minf(size.x, node.desired_size.get().x - margin_x);
+            }
+            if node.vertical_alignment != VerticalAlignment::Stretch {
+                size.y = minf(size.y, node.desired_size.get().y - margin_y);
+            }
+
+            if node.width.get() > 0.0 {
+                size.x = node.width.get();
+            }
+            if node.height.get() > 0.0 {
+                size.y = node.height.get();
+            }
+
+            size = match &node.kind {
+                UINodeKind::Border(border) => border.arrange_override(self, size),
+                UINodeKind::Canvas(canvas) => canvas.arrange_override(self, size),
+                UINodeKind::Grid(grid) => grid.arrange_override(self, size),
+                UINodeKind::ScrollContentPresenter(scp) => scp.arrange_override(self, size),
+                UINodeKind::ScrollBar(scroll_bar) => scroll_bar.arrange_override(self, size),
+                _ => self.default_arrange_override(node_handle, size)
+            };
+
+            if size.x > final_rect.w {
+                size.x = final_rect.w;
+            }
+            if size.y > final_rect.h {
+                size.y = final_rect.h;
+            }
+
+            match node.horizontal_alignment {
+                HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
+                    origin_x += (size_without_margin.x - size.x) * 0.5;
+                }
+                HorizontalAlignment::Right => {
+                    origin_x += size_without_margin.x - size.x;
+                }
+                _ => ()
+            }
+
+            match node.vertical_alignment {
+                VerticalAlignment::Center | VerticalAlignment::Stretch => {
+                    origin_y += (size_without_margin.y - size.y) * 0.5;
+                }
+                VerticalAlignment::Bottom => {
+                    origin_y += size_without_margin.y - size.y;
+                }
+                _ => ()
+            }
+
+            node.actual_size.set(size);
+            node.actual_local_position.set(Vec2 { x: origin_x, y: origin_y });
         }
     }
 
@@ -2330,7 +2318,7 @@ impl UserInterface {
 
         let mut screen_position = Vec2::new();
         if let Some(node) = self.nodes.borrow(node_handle) {
-            children = UnsafeCollectionView::from_vec(&node.children);
+            children = UnsafeCollectionView::from_slice(&node.children);
             if let Some(parent) = self.nodes.borrow(&node.parent) {
                 screen_position = node.actual_local_position.get() + parent.screen_position;
             } else {
@@ -2349,7 +2337,7 @@ impl UserInterface {
     }
 
 
-    pub fn update(&mut self, screen_size: &Vec2) {
+    pub fn update(&mut self, screen_size: Vec2) {
         let root_canvas_handle = self.root_canvas.clone();
         self.measure(&root_canvas_handle, screen_size);
         self.arrange(&root_canvas_handle, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
@@ -2386,7 +2374,7 @@ impl UserInterface {
 
             node.kind.draw(&mut self.drawing_context, font_cache, &bounds, node.color);
 
-            children = UnsafeCollectionView::from_vec(&node.children);
+            children = UnsafeCollectionView::from_slice(&node.children);
 
             let end_index = self.drawing_context.get_commands().len();
             for i in start_index..end_index {
@@ -2427,7 +2415,7 @@ impl UserInterface {
         &self.drawing_context
     }
 
-    fn is_node_clipped(&self, node_handle: &Handle<UINode>, pt: &Vec2) -> bool {
+    fn is_node_clipped(&self, node_handle: &Handle<UINode>, pt: Vec2) -> bool {
         let mut clipped = true;
 
         if let Some(node) = self.nodes.borrow(node_handle) {
@@ -2453,7 +2441,7 @@ impl UserInterface {
         clipped
     }
 
-    fn is_node_contains_point(&self, node_handle: &Handle<UINode>, pt: &Vec2) -> bool {
+    fn is_node_contains_point(&self, node_handle: &Handle<UINode>, pt: Vec2) -> bool {
         if let Some(node) = self.nodes.borrow(node_handle) {
             if node.visibility != Visibility::Visible {
                 return false;
@@ -2473,7 +2461,7 @@ impl UserInterface {
         false
     }
 
-    fn pick_node(&self, node_handle: &Handle<UINode>, pt: &Vec2, level: &mut i32) -> Handle<UINode> {
+    fn pick_node(&self, node_handle: &Handle<UINode>, pt: Vec2, level: &mut i32) -> Handle<UINode> {
         let mut picked = Handle::none();
         let mut topmost_picked_level = 0;
 
@@ -2496,7 +2484,7 @@ impl UserInterface {
         picked
     }
 
-    pub fn hit_test(&self, pt: &Vec2) -> Handle<UINode> {
+    pub fn hit_test(&self, pt: Vec2) -> Handle<UINode> {
         if self.nodes.is_valid_handle(&self.captured_node) {
             self.captured_node.clone()
         } else {
@@ -2616,50 +2604,48 @@ impl UserInterface {
     }
 
     pub fn process_event(&mut self, event: &glutin::WindowEvent) -> bool {
-        match event {
-            WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
-                self.picked_node = self.hit_test(&self.mouse_position);
+        if let WindowEvent::CursorMoved { position, .. } = event {
+            self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
+            self.picked_node = self.hit_test(self.mouse_position);
 
-                // Fire mouse leave for previously picked node
-                if self.picked_node != self.prev_picked_node {
-                    let mut fire_mouse_leave = false;
-                    if let Some(prev_picked_node) = self.nodes.borrow_mut(&self.prev_picked_node) {
-                        if prev_picked_node.is_mouse_over {
-                            prev_picked_node.is_mouse_over = false;
-                            fire_mouse_leave = true;
-                        }
-                    }
-
-                    if fire_mouse_leave {
-                        let mut evt = RoutedEvent::new(RoutedEventKind::MouseLeave);
-                        self.route_event(self.prev_picked_node.clone(), RoutedEventHandlerType::MouseLeave, &mut evt);
+            // Fire mouse leave for previously picked node
+            if self.picked_node != self.prev_picked_node {
+                let mut fire_mouse_leave = false;
+                if let Some(prev_picked_node) = self.nodes.borrow_mut(&self.prev_picked_node) {
+                    if prev_picked_node.is_mouse_over {
+                        prev_picked_node.is_mouse_over = false;
+                        fire_mouse_leave = true;
                     }
                 }
 
-                if !self.picked_node.is_none() {
-                    let mut fire_mouse_enter = false;
-                    if let Some(picked_node) = self.nodes.borrow_mut(&self.picked_node) {
-                        if !picked_node.is_mouse_over {
-                            picked_node.is_mouse_over = true;
-                            fire_mouse_enter = true;
-                        }
-                    }
-
-                    if fire_mouse_enter {
-                        let mut evt = RoutedEvent::new(RoutedEventKind::MouseEnter);
-                        self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseEnter, &mut evt);
-                    }
-
-                    // Fire mouse move
-                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseMove {
-                        pos: self.mouse_position
-                    });
-                    self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseMove, &mut evt);
+                if fire_mouse_leave {
+                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseLeave);
+                    self.route_event(self.prev_picked_node.clone(), RoutedEventHandlerType::MouseLeave, &mut evt);
                 }
             }
-            _ => ()
+
+            if !self.picked_node.is_none() {
+                let mut fire_mouse_enter = false;
+                if let Some(picked_node) = self.nodes.borrow_mut(&self.picked_node) {
+                    if !picked_node.is_mouse_over {
+                        picked_node.is_mouse_over = true;
+                        fire_mouse_enter = true;
+                    }
+                }
+
+                if fire_mouse_enter {
+                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseEnter);
+                    self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseEnter, &mut evt);
+                }
+
+                // Fire mouse move
+                let mut evt = RoutedEvent::new(RoutedEventKind::MouseMove {
+                    pos: self.mouse_position
+                });
+                self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseMove, &mut evt);
+            }
         }
+
 
         if !self.picked_node.is_none() {
             match event {
@@ -2681,6 +2667,17 @@ impl UserInterface {
                         }
                     }
                 }
+
+                WindowEvent::MouseWheel { delta, .. } => {
+                    if let MouseScrollDelta::LineDelta(_, y) = delta {
+                        let mut evt = RoutedEvent::new(RoutedEventKind::MouseWheel {
+                            pos: self.mouse_position,
+                            amount: *y,
+                        });
+                        self.route_event(self.picked_node.clone(), RoutedEventHandlerType::MouseWheel, &mut evt);
+                    }
+                }
+
                 _ => ()
             }
         }

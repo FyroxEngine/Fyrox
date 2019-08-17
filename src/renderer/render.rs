@@ -315,8 +315,8 @@ impl Renderer {
 
             let primary_monitor = events_loop.get_primary_monitor();
             let mut monitor_dimensions = primary_monitor.get_dimensions();
-            monitor_dimensions.height = monitor_dimensions.height * 0.6;
-            monitor_dimensions.width = monitor_dimensions.width * 0.6;
+            monitor_dimensions.height *= 0.6;
+            monitor_dimensions.width *= 0.6;
             let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
 
             let window_builder = glutin::WindowBuilder::new()
@@ -649,7 +649,7 @@ impl Renderer {
                         }
                         gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
                         // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
-                        gl::StencilFunc(gl::EQUAL, (cmd.get_nesting() - 1) as i32, 0xFF);
+                        gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting() - 1), 0xFF);
                         gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
                         // Draw clipping geometry to stencil buffer
                         gl::StencilMask(0xFF);
@@ -657,7 +657,7 @@ impl Renderer {
                     }
                     CommandKind::Geometry => {
                         // Make sure to draw geometry only on clipping geometry with current nesting level
-                        gl::StencilFunc(gl::EQUAL, cmd.get_nesting() as i32, 0xFF);
+                        gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting()), 0xFF);
 
                         if cmd.get_texture() != 0 {
                             gl::ActiveTexture(gl::TEXTURE0);

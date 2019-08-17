@@ -266,31 +266,25 @@ impl Player {
             }
 
             WindowEvent::MouseInput { button, state, .. } => {
-                match button {
-                    MouseButton::Left => {
-                        match state {
-                            ElementState::Pressed => {
-                                self.controller.shoot = true;
-                            }
-                            ElementState::Released => {
-                                self.controller.shoot = false;
-                            }
+                if let MouseButton::Left = button {
+                    match state {
+                        ElementState::Pressed => {
+                            self.controller.shoot = true;
+                        }
+                        ElementState::Released => {
+                            self.controller.shoot = false;
                         }
                     }
-                    _ => ()
                 }
             }
 
             WindowEvent::MouseWheel { delta, .. } => {
-                match delta {
-                    MouseScrollDelta::LineDelta(_, y) => {
-                        if *y < 0.0 {
-                            self.prev_weapon();
-                        } else if *y > 0.0 {
-                            self.next_weapon();
-                        }
+                if let MouseScrollDelta::LineDelta(_, y) = delta {
+                    if *y < 0.0 {
+                        self.prev_weapon();
+                    } else if *y > 0.0 {
+                        self.next_weapon();
                     }
-                    _ => ()
                 }
             }
 

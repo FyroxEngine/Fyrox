@@ -8,7 +8,7 @@ use crate::{
         }
     },
     renderer::{
-        renderer::*,
+        render::*,
         surface::SurfaceSharedData
     },
     resource::{
@@ -345,7 +345,7 @@ impl Engine {
             scene.update(aspect_ratio, dt);
         }
 
-        self.user_interface.update(&Vec2::make(client_size.width as f32, client_size.height as f32));
+        self.user_interface.update(Vec2::make(client_size.width as f32, client_size.height as f32));
     }
 
     pub fn poll_events(&mut self) {
@@ -410,7 +410,7 @@ impl Engine {
 }
 
 pub fn duration_to_seconds_f64(duration: Duration) -> f64 {
-    duration.as_secs() as f64 + duration.subsec_nanos() as f64 / 1_000_000_000.0
+    duration.as_secs() as f64 + f64::from(duration.subsec_nanos()) / 1_000_000_000.0
 }
 
 pub fn duration_to_seconds_f32(duration: Duration) -> f32 {

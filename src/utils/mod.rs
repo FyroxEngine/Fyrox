@@ -16,7 +16,7 @@ impl<T> UnsafeCollectionView<T> {
         }
     }
 
-    pub fn from_vec(vec: &Vec<T>) -> UnsafeCollectionView<T> {
+    pub fn from_slice(vec: &[T]) -> UnsafeCollectionView<T> {
         UnsafeCollectionView {
             items: vec.as_ptr(),
             len: vec.len(),
@@ -27,7 +27,7 @@ impl<T> UnsafeCollectionView<T> {
         unsafe {
             UnsafeCollectionViewIterator {
                 current: self.items,
-                end: self.items.offset(self.len as isize),
+                end: self.items.add(self.len),
                 marker: PhantomData,
             }
         }
