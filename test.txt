@@ -1,0 +1,10 @@
+__ROOT__[Fields=0, Children=2]: 
+	SharedResource[Fields=3, Children=1]: Id<u64 = 1800001388368>, KindId<u8 = 0>, ResData<u16 = 0>, 
+		KindData[Fields=1, Children=0]: Data<u64 = 555>, 
+	Objects[Fields=1, Children=2]: Length<u32 = 2>, 
+		Item0[Fields=1, Children=1]: Bar<u64 = 123>, 
+			SharedResource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+				Data[Fields=1, Children=0]: Id<u64 = 1800001388368>, 
+		Item1[Fields=1, Children=1]: Bar<u64 = 123>, 
+			SharedResource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+				Data[Fields=1, Children=0]: Id<u64 = 1800001388368>, 

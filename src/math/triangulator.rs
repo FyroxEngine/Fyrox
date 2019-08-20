@@ -164,7 +164,6 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usi
     }
 }
 
-#[test]
 fn quadrilaterals_triangulation_non_concave() {
     let polygon = vec![
         Vec3::make(0.0, 0.0, 1.0),
@@ -179,7 +178,6 @@ fn quadrilaterals_triangulation_non_concave() {
     assert_ne!(ref_indices.len(), 0);
 }
 
-#[test]
 fn quadrilaterals_triangulation_concave() {
     let polygon = vec![
         Vec3::make(0.0, 2.0, 1.0),
@@ -194,7 +192,6 @@ fn quadrilaterals_triangulation_concave() {
     assert_ne!(ref_indices.len(), 0);
 }
 
-//#[test]
 fn ear_clip_test() {
     let polygon = vec![
         Vec3::make(0.0, 0.0, 1.0),

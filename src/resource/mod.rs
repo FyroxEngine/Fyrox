@@ -11,6 +11,7 @@ use crate::{
         model::{Model}
     }
 };
+use std::any::{TypeId, Any};
 
 #[derive(Serialize, Deserialize)]
 pub enum ResourceKind {
@@ -45,6 +46,13 @@ impl Resource {
     #[inline]
     pub fn borrow_kind_mut(&mut self) -> &mut ResourceKind {
         &mut self.kind
+    }
+
+    pub fn get_kind_id(&self) -> TypeId {
+        match &self.kind {
+            ResourceKind::Model(model) => model.type_id(),
+            ResourceKind::Texture(texture) => texture.type_id()
+        }
     }
 }
 

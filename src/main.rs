@@ -7,6 +7,9 @@ extern crate glutin;
 // Fast string -> number conversion
 extern crate lexical;
 
+extern crate byteorder;
+extern crate base64;
+
 // Serialization
 extern crate serde;
 extern crate serde_json;

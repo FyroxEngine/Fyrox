@@ -1,35 +1,39 @@
 use crate::{
-    scene::*,
+    scene::{
+        *,
+        node::NodeKind
+    },
     utils::{
         pool::*,
         rcpool::{
             RcPool,
-            RcHandle
-        }
+            RcHandle,
+        },
     },
     renderer::{
         render::*,
-        surface::SurfaceSharedData
+        surface::SurfaceSharedData,
+        surface::Surface
     },
     resource::{
         *,
         texture::*,
         model::Model,
-        ttf::Font
+        ttf::Font,
     },
     gui::UserInterface,
-    math::vec2::Vec2
+    math::vec2::Vec2,
 };
 use std::{
     path::*,
     collections::VecDeque,
-    time::Duration
+    time::Duration,
+    any::TypeId
 };
 use serde::{
     Serialize,
-    Deserialize
+    Deserialize,
 };
-use std::any::{Any, TypeId};
 
 #[derive(Serialize, Deserialize)]
 pub struct ResourceManager {
@@ -154,7 +158,7 @@ impl State {
                 "fbx" => {
                     match Model::load(path, self) {
                         Ok(model) => {
-                           self.resource_manager.add_resource(Resource::new(path, ResourceKind::Model(model)))
+                            self.resource_manager.add_resource(Resource::new(path, ResourceKind::Model(model)))
                         }
                         Err(_) => {
                             println!("Unable to load model from {}!", path.display());
@@ -202,27 +206,52 @@ impl State {
     }
 
     fn resolve(&mut self) {
-        // Reload all resources first.
+        let mut resources_to_reload = Vec::new();
         for i in 0..self.resource_manager.resources.get_capacity() {
-            let path;
-            let id;
-            if let Some(resource) = self.resource_manager.resources.at(i) {
-                path = PathBuf::from(resource.get_path());
-                match resource.borrow_kind() {
-                    ResourceKind::Model(model) => id = model.type_id(),
-                    ResourceKind::Texture(texture) => id = texture.type_id()
-                }
-            } else {
-                continue
-            }
-
             let handle = self.resource_manager.resources.handle_from_index(i);
+            if handle.is_some() {
+                resources_to_reload.push(handle);
+            }
+        }
+
+        // Reload all resources first.
+        for resource_handle in resources_to_reload.iter() {
+            let (path, id) =
+                if let Some(resource) = self.resource_manager.resources.borrow(resource_handle) {
+                    (PathBuf::from(resource.get_path()), resource.get_kind_id())
+                } else {
+                    continue;
+                };
+
             if id == TypeId::of::<Model>() {
                 let model = Model::load(path.as_path(), self).unwrap();
                 let resource = Resource::new(path.as_path(), ResourceKind::Model(model));
-                self.resource_manager.resources.replace(&handle, resource);
-            } else if id == TypeId::of::<Texture>() {
+                self.resource_manager.resources.replace(&resource_handle, resource);
+            } else if id == TypeId::of::<Texture>() {}
+        }
 
+        for scene in self.scenes.iter_mut() {
+            for node in scene.nodes.iter_mut() {
+                let node_name = String::from(node.get_name());
+                if let Some(resource) = self.resource_manager.borrow_resource(node.get_resource()) {
+                    if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+                        if let ResourceKind::Model(model) = resource.borrow_kind() {
+                            let resource_node_handle = model.find_node_by_name(node_name.as_str());
+                            if let Some(resource_node) = model.get_scene().get_node(&resource_node_handle) {
+                                if let NodeKind::Mesh(resource_mesh) = resource_node.borrow_kind() {
+                                    let surfaces = mesh.get_surfaces_mut();
+                                    surfaces.clear();
+                                    for resource_surface in resource_mesh.get_surfaces() {
+                                        surfaces.push(Surface {
+                                            data: self.surf_data_storage.share_handle(&resource_surface.get_data_handle()),
+                                            texture: self.resource_manager.share_resource_handle(&resource_surface.get_texture_resource_handle()),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -16,18 +16,17 @@ use crate::{
         scroll_viewer::ScrollViewerBuilder,
         grid::{GridBuilder, Column, Row},
         text::TextBuilder,
-        scroll_bar::ScrollBarBuilder
-    }
+        scroll_bar::ScrollBarBuilder,
+    },
 };
+use crate::gui::node::{UINode, UINodeKind};
 use std::{
     cell::RefCell,
     fs::File,
     path::Path,
-    fmt::Write,
     time::Instant,
     rc::Rc,
 };
-use crate::gui::node::{UINode, UINodeKind};
 
 pub struct MenuState {
     save_game: Option<()>,
@@ -51,6 +50,7 @@ pub struct GameTime {
     elapsed: f64,
     delta: f64,
 }
+
 
 impl Game {
     pub fn new() -> Game {
@@ -270,6 +270,7 @@ impl Game {
             }
 
             debug_string.clear();
+            use std::fmt::Write;
             write!(debug_string, "Frame time: {:.2} ms\nFPS: {}\nUp time: {:.2} s",
                    self.engine.get_rendering_statisting().frame_time * 1000.0,
                    self.engine.get_rendering_statisting().current_fps,

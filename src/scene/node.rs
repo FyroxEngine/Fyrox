@@ -148,6 +148,8 @@ impl Mesh {
         self.surfaces.push(surface);
     }
 
+
+
     #[inline]
     pub fn make_copy(&self, state: &State) -> Mesh {
         Mesh {
@@ -177,14 +179,14 @@ pub struct Node {
     rotation_pivot: Vec3,
     scaling_offset: Vec3,
     scaling_pivot: Vec3,
-    pub(super) visibility: bool,
-    pub(super) global_visibility: bool,
-    pub(super) parent: Handle<Node>,
-    pub(crate) children: Vec<Handle<Node>>,
+    pub(in crate::scene) visibility: bool,
+    pub(in crate::scene) global_visibility: bool,
+    pub(in crate::scene) parent: Handle<Node>,
+    pub(in crate::scene) children: Vec<Handle<Node>>,
     #[serde(skip)]
-    pub(super) local_transform: Mat4,
+    pub(in crate::scene) local_transform: Mat4,
     #[serde(skip)]
-    pub(crate) global_transform: Mat4,
+    pub(in crate::scene) global_transform: Mat4,
     body: Handle<Body>,
     resource: RcHandle<Resource>
 }
@@ -366,6 +368,16 @@ impl Node {
     #[inline]
     pub fn offset(&mut self, vec: Vec3) {
         self.local_position += vec;
+    }
+
+    #[inline]
+    pub fn get_children(&self) -> &[Handle<Node>] {
+        &self.children
+    }
+
+    #[inline]
+    pub fn get_global_transform(&self) -> &Mat4 {
+        &self.global_transform
     }
 
     #[inline]

@@ -356,7 +356,6 @@ impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
     }
 }
 
-#[test]
 fn pool_sanity_tests() {
     let mut pool: Pool<String> = Pool::new();
     let foobar_handle = pool.spawn(String::from("Foobar"));
@@ -377,7 +376,6 @@ fn pool_sanity_tests() {
     assert_eq!(pool.borrow(&at_foobar_index).unwrap(), "AtFoobarIndex");
 }
 
-#[test]
 fn pool_iterator_mut_test() {
     let mut pool: Pool<String> = Pool::new();
     let foobar = pool.spawn(format!("Foobar"));

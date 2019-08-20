@@ -353,8 +353,8 @@ impl Drop for SurfaceSharedData {
 
 #[derive(Serialize, Deserialize)]
 pub struct Surface {
-    data: RcHandle<SurfaceSharedData>,
-    texture: RcHandle<Resource>,
+    pub data: RcHandle<SurfaceSharedData>,
+    pub texture: RcHandle<Resource>,
 }
 
 impl Surface {

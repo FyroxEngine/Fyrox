@@ -3,27 +3,42 @@ use crate::{
     renderer::{
         gl,
         gl::types::*,
-        surface::*
+        surface::*,
     },
     math::{
         vec2::*,
         vec3::*,
-        mat4::Mat4
+        mat4::Mat4,
     },
     utils::pool::*,
     scene::node::*,
-    engine::{ResourceManager, State, duration_to_seconds_f32},
+    engine::{
+        ResourceManager,
+        State,
+        duration_to_seconds_f32,
+    },
     resource::{
         ResourceKind,
-        ttf::Font
+        ttf::Font,
     },
-    gui::draw::{DrawingContext, CommandKind, Color},
+    gui::draw::{
+        DrawingContext,
+        CommandKind,
+        Color,
+    },
 };
 use std::{
-    ffi::{CStr, CString, c_void},
+    ffi::{
+        CStr,
+        CString,
+        c_void,
+    },
     mem::size_of,
-    time::{Instant, Duration},
-    thread
+    time::{
+        Instant,
+        Duration,
+    },
+    thread,
 };
 
 // Welcome to the kingdom of Unsafe Code
@@ -310,44 +325,43 @@ fn create_white_dummy() -> GLuint {
 
 impl Renderer {
     pub fn new() -> Self {
+        let events_loop = glutin::EventsLoop::new();
+
+        let primary_monitor = events_loop.get_primary_monitor();
+        let mut monitor_dimensions = primary_monitor.get_dimensions();
+        monitor_dimensions.height *= 0.6;
+        monitor_dimensions.width *= 0.6;
+        let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
+
+        let window_builder = glutin::WindowBuilder::new()
+            .with_title("RG3D")
+            .with_dimensions(window_size)
+            .with_resizable(false);
+
+        let context = glutin::ContextBuilder::new()
+            .with_vsync(true)
+            .build_windowed(window_builder, &events_loop)
+            .unwrap();
+
         unsafe {
-            let events_loop = glutin::EventsLoop::new();
-
-            let primary_monitor = events_loop.get_primary_monitor();
-            let mut monitor_dimensions = primary_monitor.get_dimensions();
-            monitor_dimensions.height *= 0.6;
-            monitor_dimensions.width *= 0.6;
-            let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
-
-            let window_builder = glutin::WindowBuilder::new()
-                .with_title("RG3D")
-                .with_dimensions(window_size)
-                .with_resizable(false);
-
-            let context = glutin::ContextBuilder::new()
-                .with_vsync(true)
-                .build_windowed(window_builder, &events_loop)
-                .unwrap();
-
             context.make_current().unwrap();
             gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
-
             gl::Enable(gl::DEPTH_TEST);
+        }
 
-            Self {
-                context,
-                events_loop,
-                flat_shader: create_flat_shader(),
-                ui_shader: create_ui_shader(),
-                traversal_stack: Vec::new(),
-                cameras: Vec::new(),
-                lights: Vec::new(),
-                meshes: Vec::new(),
-                frame_rate_limit: 60,
-                statistics: Statistics::default(),
-                white_dummy: create_white_dummy(),
-                ui_render_buffers: create_ui_render_buffers(),
-            }
+        Self {
+            context,
+            events_loop,
+            flat_shader: create_flat_shader(),
+            ui_shader: create_ui_shader(),
+            traversal_stack: Vec::new(),
+            cameras: Vec::new(),
+            lights: Vec::new(),
+            meshes: Vec::new(),
+            frame_rate_limit: 60,
+            statistics: Statistics::default(),
+            white_dummy: create_white_dummy(),
+            ui_render_buffers: create_ui_render_buffers(),
         }
     }
 
@@ -539,7 +553,7 @@ impl Renderer {
                             _ => ()
                         }
                         // Queue children for render
-                        for child_handle in node.children.iter() {
+                        for child_handle in node.get_children() {
                             self.traversal_stack.push(child_handle.clone());
                         }
                     }
@@ -569,7 +583,7 @@ impl Renderer {
                                         continue;
                                     }
 
-                                    let mvp = view_projection * node.global_transform;
+                                    let mvp = view_projection * *node.get_global_transform();
 
                                     gl::UseProgram(self.flat_shader.program.id);
                                     gl::UniformMatrix4fv(self.flat_shader.wvp_matrix, 1, gl::FALSE, &mvp.f as *const GLfloat);
@@ -676,7 +690,6 @@ impl Renderer {
                 let index_offset_bytes = cmd.get_index_offset() * std::mem::size_of::<GLuint>();
                 gl::DrawElements(gl::TRIANGLES, index_count as i32, gl::UNSIGNED_INT,
                                  index_offset_bytes as *const c_void);
-
             }
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
             gl::BindVertexArray(0);

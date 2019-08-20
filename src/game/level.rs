@@ -31,7 +31,7 @@ impl Level {
             // Create collision geometry
             let polygon_handle = scene.find_node_by_name(&map_root_handle, "Polygon");
             if let Some(polygon) = scene.get_node(&polygon_handle) {
-                let global_transform = polygon.global_transform;
+                let global_transform = polygon.get_global_transform();
                 let mut static_geometry = StaticGeometry::new();
                 if let NodeKind::Mesh(mesh) = polygon.borrow_kind() {
                     for surface in mesh.get_surfaces() {
