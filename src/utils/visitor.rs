@@ -67,8 +67,11 @@ impl FieldKind {
                 format!("<quat = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
             FieldKind::Mat4(data) => {
-                // Lazy
-                format!("<mat4>, ")
+                let mut out = String::from("<mat4 = ");
+                for f in &data.f {
+                    out += format!("{}; ", f).as_str();
+                }
+                out
             }
             FieldKind::Data(data) => {
                 base64::encode(data)
@@ -134,6 +137,8 @@ pub enum VisitError {
     NotSupportedFormat,
     InvalidName,
     TypeMismatch,
+    RcIsNonUnique,
+    RefCellAlreadyMutableBorrowed,
     User(String),
 }
 
@@ -162,7 +167,7 @@ impl Field {
     fn save(field: &Field, file: &mut File) -> VisitResult {
         let name = field.name.as_bytes();
         file.write_u32::<LittleEndian>(name.len() as u32)?;
-        file.write(name)?;
+        file.write_all(name)?;
         match &field.kind {
             FieldKind::U8(data) => {
                 file.write_u8(1)?;
@@ -226,7 +231,7 @@ impl Field {
             FieldKind::Data(data) => {
                 file.write_u8(14)?;
                 file.write_u32::<LittleEndian>(data.len() as u32)?;
-                file.write(data.as_slice());
+                file.write_all(data.as_slice())?;
             }
         }
         Ok(())
@@ -372,17 +377,13 @@ impl Visitor {
             } else {
                 Err(VisitError::FieldDoesNotExist(name.to_owned()))
             }
+        } else if self.find_field(name).is_some() {
+            Err(VisitError::FieldAlreadyExists(name.to_owned()))
+        } else if let Some(node) = self.current_node() {
+            node.fields.push(Field::new(name, value.write()));
+            Ok(())
         } else {
-            if let Some(_) = self.find_field(name) {
-                Err(VisitError::FieldAlreadyExists(name.to_owned()))
-            } else {
-                if let Some(node) = self.current_node() {
-                    node.fields.push(Field::new(name, value.write()));
-                    Ok(())
-                } else {
-                    Err(VisitError::NoActiveNode)
-                }
-            }
+            Err(VisitError::NoActiveNode)
         }
     }
 
@@ -467,23 +468,32 @@ impl Visitor {
                     return Err(VisitError::TypeMismatch);
                 }
             } else {
-                self.rc_map.insert(raw as u64, rc.clone());
+                // Deserialize inner data. At this point Rc must be unique.
+                if let Some(data) = Rc::get_mut(rc) {
+                    data.visit("Data", self)?;
+                } else {
+                    return Err(VisitError::RcIsNonUnique);
+                }
 
-                // Deserialize inner data.
-                let raw = Rc::into_raw(rc.clone()) as *const T as *mut T;
-                unsafe { &mut *raw }.visit("Data", self)?;
-                unsafe { Rc::from_raw(raw) };
+                // Remember that we already visited data Rc store.
+                self.rc_map.insert(raw as u64, rc.clone());
             }
         } else {
+            // Take raw pointer to inner data.
             let raw = Rc::into_raw(rc.clone()) as *const T as *mut T;
             unsafe { Rc::from_raw(raw); };
+
+            // Save it as id.
             let mut index = raw as u64;
             self.visit_u64("Id", &mut index)?;
 
             if !self.rc_map.contains_key(&index) {
-                self.rc_map.insert(index, rc.clone());
-                // Serialize inner data.
+                // Serialize inner data using raw pointer. This violates borrowing rules,
+                // but should be fine since visitor is not multithreaded (it simply cannot
+                // be multithreaded by its nature)
                 unsafe { &mut *raw }.visit("Data", self)?;
+
+                self.rc_map.insert(index, rc.clone());
             }
         }
 
@@ -520,9 +530,25 @@ impl Visitor {
         Ok(())
     }
 
-    //pub fn visit_string(&mut self, name: &str, string: &mut String) -> VisitResult {
+    pub fn visit_string(&mut self, name: &str, string: &mut String) -> VisitResult {
+        self.enter_region(name)?;
 
-    //}
+        let mut len = string.as_bytes().len() as u32;
+        self.visit_u32("Length", &mut len)?;
+
+        let mut data = if self.reading {
+            Vec::new()
+        } else {
+            Vec::from(string.as_bytes())
+        };
+
+        self.visit_data("Data", &mut data)?;
+
+        if self.reading {
+            *string = String::from_utf8(data)?;
+        }
+        self.leave_region()
+    }
 
     pub fn visit_option<T>(&mut self, name: &str, opt: &mut Option<T>) -> VisitResult
         where T: Default + Visit + 'static {
@@ -595,14 +621,14 @@ impl Visitor {
 
     pub fn save_binary(&self, path: &Path) -> VisitResult {
         let mut file = File::create(path)?;
-        file.write(Self::MAGIC.as_bytes())?;
+        file.write_all(Self::MAGIC.as_bytes())?;
         let mut stack = Vec::new();
         stack.push(self.root.clone());
         while let Some(node_handle) = stack.pop() {
             if let Some(node) = self.nodes.borrow(&node_handle) {
                 let name = node.name.as_bytes();
                 file.write_u32::<LittleEndian>(name.len() as u32)?;
-                file.write(name)?;
+                file.write_all(name)?;
 
                 file.write_u32::<LittleEndian>(node.fields.len() as u32)?;
                 for field in node.fields.iter() {
@@ -657,7 +683,7 @@ impl Visitor {
     pub fn load_binary(path: &Path) -> Result<Self, VisitError> {
         let mut file = File::open(path)?;
         let mut magic: [u8; 4] = Default::default();
-        file.read(&mut magic)?;
+        file.read_exact(&mut magic)?;
         if !magic.eq(Self::MAGIC.as_bytes()) {
             return Err(VisitError::NotSupportedFormat);
         }
@@ -676,7 +702,11 @@ impl Visitor {
 
 impl<T> Visit for RefCell<T> where T: Visit + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.borrow_mut().visit(name, visitor)
+        if let Ok(mut data) = self.try_borrow_mut() {
+            data.visit(name, visitor)
+        } else {
+            Err(VisitError::RefCellAlreadyMutableBorrowed)
+        }
     }
 }
 
@@ -691,10 +721,10 @@ mod test {
     use std::{
         rc::Rc,
         path::Path,
+        fs::File,
+        io::Write,
     };
     use crate::utils::visitor::{Visitor, Visit, VisitResult, VisitError};
-    use std::fs::File;
-    use std::io::Write;
 
     pub struct Model {
         data: u64
@@ -806,32 +836,37 @@ mod test {
         }
     }
 
-
-    fn visitor_save_test() {
-        let mut visitor = Visitor::new();
-        let mut resource = Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })));
-        visitor.visit_rc("SharedResource", &mut resource).unwrap();
-
-        let mut objects = vec![
-            Foo::new(resource.clone()),
-            Foo::new(resource)
-        ];
-
-        visitor.visit_vec("Objects", &mut objects).unwrap();
-
-        visitor.save_binary(Path::new("test.bin")).unwrap();
-        if let Ok(mut file) = File::create(Path::new("test.txt")) {
-            file.write(visitor.save_text().as_bytes()).unwrap();
-        }
-    }
-
     #[test]
-    fn visitor_load_test() {
-        let mut visitor = Visitor::load_binary(Path::new("test.bin")).unwrap();
-        let mut resource: Rc<Resource> = Rc::new(Default::default());
-        visitor.visit_rc("SharedResource", &mut resource).unwrap();
+    fn visitor_test() {
+        let path = Path::new("test.bin");
 
-        let mut objects: Vec<Foo> = Vec::new();
-        visitor.visit_vec("Objects", &mut objects).unwrap();
+        // Save
+        {
+            let mut visitor = Visitor::new();
+            let mut resource = Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })));
+            visitor.visit_rc("SharedResource", &mut resource).unwrap();
+
+            let mut objects = vec![
+                Foo::new(resource.clone()),
+                Foo::new(resource)
+            ];
+
+            visitor.visit_vec("Objects", &mut objects).unwrap();
+
+            visitor.save_binary(path).unwrap();
+            if let Ok(mut file) = File::create(Path::new("test.txt")) {
+                file.write(visitor.save_text().as_bytes()).unwrap();
+            }
+        }
+
+        // Load
+        {
+            let mut visitor = Visitor::load_binary(path).unwrap();
+            let mut resource: Rc<Resource> = Rc::new(Default::default());
+            visitor.visit_rc("SharedResource", &mut resource).unwrap();
+
+            let mut objects: Vec<Foo> = Vec::new();
+            visitor.visit_vec("Objects", &mut objects).unwrap();
+        }
     }
 }
