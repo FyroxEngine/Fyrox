@@ -1,15 +1,14 @@
 use std::{
     marker::PhantomData,
     hash::{Hash, Hasher},
+    fmt::{Debug, Formatter},
 };
-use serde::{Serialize, Deserialize};
-use std::fmt::{Debug, Formatter};
+use crate::utils::visitor::{Visit, VisitResult, Visitor};
 
 ///
 /// Pool allows to create as many objects as you want in contiguous memory
 /// block. It allows to create and delete objects very fast.
 ///
-#[derive(Serialize, Deserialize)]
 pub struct Pool<T: Sized> {
     records: Vec<PoolRecord<T>>,
     free_stack: Vec<u32>,
@@ -20,7 +19,6 @@ pub struct Pool<T: Sized> {
 /// It stores index of object and additional information that
 /// allows to ensure that handle is still valid.
 ///
-#[derive(Serialize, Deserialize)]
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,
@@ -28,8 +26,24 @@ pub struct Handle<T> {
     /// index of handle then this is valid handle.
     generation: u32,
     /// Type holder.
-    #[serde(skip)]
     type_marker: PhantomData<T>,
+}
+
+impl<T> Visit for Handle<T> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.index.visit("Index", visitor)?;
+        self.generation.visit("Generation", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl<T> Default for Handle<T> {
+    fn default() -> Self {
+        Self::none()
+    }
 }
 
 impl<T> Debug for Handle<T> {
@@ -38,7 +52,6 @@ impl<T> Debug for Handle<T> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 struct PoolRecord<T: Sized> {
     /// Generation number, used to keep info about lifetime.
     /// The handle is valid only if record it points to is of the
@@ -47,6 +60,26 @@ struct PoolRecord<T: Sized> {
     generation: u32,
     /// Actual payload.
     payload: Option<T>,
+}
+
+impl<T> Default for PoolRecord<T> {
+    fn default() -> Self {
+        Self {
+            generation: Pool::<T>::INVALID_GENERATION,
+            payload: None,
+        }
+    }
+}
+
+impl<T> Visit for PoolRecord<T> where T: Visit + Default + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.generation.visit("Generation", visitor)?;
+        self.payload.visit("Payload", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 impl<T> Clone for Handle<T> {
@@ -62,6 +95,15 @@ impl<T> Clone for Handle<T> {
 impl<T> PartialEq for Handle<T> {
     fn eq(&self, other: &Handle<T>) -> bool {
         self.generation == other.generation && self.index == other.index
+    }
+}
+
+impl<T> Visit for Pool<T> where T: Default + Visit + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+        self.records.visit("Records", visitor)?;
+        self.free_stack.visit("FreeStack", visitor)?;
+        visitor.leave_region()
     }
 }
 
@@ -356,35 +398,42 @@ impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
     }
 }
 
-fn pool_sanity_tests() {
-    let mut pool: Pool<String> = Pool::new();
-    let foobar_handle = pool.spawn(String::from("Foobar"));
-    assert_eq!(foobar_handle.index, 0);
-    assert_ne!(foobar_handle.generation, Pool::<String>::INVALID_GENERATION);
-    let foobar_handle_copy = foobar_handle.clone();
-    assert_eq!(foobar_handle.index, foobar_handle_copy.index);
-    assert_eq!(foobar_handle.generation, foobar_handle_copy.generation);
-    let baz_handle = pool.spawn(String::from("Baz"));
-    assert_eq!(pool.borrow(&foobar_handle).unwrap(), "Foobar");
-    assert_eq!(pool.borrow(&baz_handle).unwrap(), "Baz");
-    pool.free(foobar_handle);
-    assert_eq!(pool.is_valid_handle(&foobar_handle_copy), false);
-    assert_eq!(pool.is_valid_handle(&baz_handle), true);
-    let at_foobar_index = pool.spawn(String::from("AtFoobarIndex"));
-    assert_eq!(at_foobar_index.index, 0);
-    assert_ne!(at_foobar_index.generation, Pool::<String>::INVALID_GENERATION);
-    assert_eq!(pool.borrow(&at_foobar_index).unwrap(), "AtFoobarIndex");
-}
+#[cfg(test)]
+mod test {
+    use crate::utils::pool::Pool;
 
-fn pool_iterator_mut_test() {
-    let mut pool: Pool<String> = Pool::new();
-    let foobar = pool.spawn(format!("Foobar"));
-    let d = pool.spawn(format!("Foo"));
-    pool.free(d);
-    let baz = pool.spawn(format!("Baz"));
-    for s in pool.iter_mut() {
-        println!("{}", s);
+    #[test]
+    fn pool_sanity_tests() {
+        let mut pool: Pool<String> = Pool::new();
+        let foobar_handle = pool.spawn(String::from("Foobar"));
+        assert_eq!(foobar_handle.index, 0);
+        assert_ne!(foobar_handle.generation, Pool::<String>::INVALID_GENERATION);
+        let foobar_handle_copy = foobar_handle.clone();
+        assert_eq!(foobar_handle.index, foobar_handle_copy.index);
+        assert_eq!(foobar_handle.generation, foobar_handle_copy.generation);
+        let baz_handle = pool.spawn(String::from("Baz"));
+        assert_eq!(pool.borrow(&foobar_handle).unwrap(), "Foobar");
+        assert_eq!(pool.borrow(&baz_handle).unwrap(), "Baz");
+        pool.free(foobar_handle);
+        assert_eq!(pool.is_valid_handle(&foobar_handle_copy), false);
+        assert_eq!(pool.is_valid_handle(&baz_handle), true);
+        let at_foobar_index = pool.spawn(String::from("AtFoobarIndex"));
+        assert_eq!(at_foobar_index.index, 0);
+        assert_ne!(at_foobar_index.generation, Pool::<String>::INVALID_GENERATION);
+        assert_eq!(pool.borrow(&at_foobar_index).unwrap(), "AtFoobarIndex");
     }
-    pool.free(foobar);
-    pool.free(baz);
+
+    #[test]
+    fn pool_iterator_mut_test() {
+        let mut pool: Pool<String> = Pool::new();
+        let foobar = pool.spawn(format!("Foobar"));
+        let d = pool.spawn(format!("Foo"));
+        pool.free(d);
+        let baz = pool.spawn(format!("Baz"));
+        for s in pool.iter_mut() {
+            println!("{}", s);
+        }
+        pool.free(foobar);
+        pool.free(baz);
+    }
 }

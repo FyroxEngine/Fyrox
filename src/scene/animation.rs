@@ -3,8 +3,11 @@ use crate::{
         vec3::Vec3,
         quat::Quat
     },
-    utils::rcpool::RcHandle,
     resource::Resource
+};
+use std::{
+    rc::Weak,
+    cell::RefCell
 };
 
 pub struct KeyFrame {
@@ -25,5 +28,5 @@ pub struct Animation {
     time_position: f32,
     weight: f32,
     fade_step: f32,
-    resource: RcHandle<Resource>
+    resource: Weak<RefCell<Resource>>
 }

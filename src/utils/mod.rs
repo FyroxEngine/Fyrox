@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 pub mod pool;
-pub mod rcpool;
 pub mod visitor;
 
 pub struct UnsafeCollectionView<T> {

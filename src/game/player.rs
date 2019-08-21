@@ -16,6 +16,7 @@ use crate::{
     },
     engine::State,
 };
+use crate::utils::visitor::{Visit, Visitor, VisitResult};
 
 pub struct Controller {
     move_forward: bool,
@@ -63,7 +64,58 @@ pub struct Player {
     weapons: Vec<Weapon>,
     camera_offset: Vec3,
     camera_dest_offset: Vec3,
-    current_weapon: usize,
+    current_weapon: u32,
+}
+
+impl Default for Player {
+    fn default() -> Self {
+        Self {
+            camera: Default::default(),
+            camera_pivot: Default::default(),
+            pivot: Default::default(),
+            body: Default::default(),
+            weapon_pivot: Default::default(),
+            controller: Default::default(),
+            yaw: 0.0,
+            dest_yaw: 0.0,
+            pitch: 0.0,
+            dest_pitch: 0.0,
+            run_speed_multiplier: 0.0,
+            stand_body_radius: 0.0,
+            crouch_body_radius: 0.0,
+            move_speed: 0.0,
+            weapons: vec![],
+            camera_offset: Default::default(),
+            camera_dest_offset: Default::default(),
+            current_weapon: 0
+        }
+    }
+}
+
+impl Visit for Player {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.camera.visit("Camera", visitor)?;
+        self.camera_pivot.visit("CameraPivot", visitor)?;
+        self.pivot.visit("Pivot", visitor)?;
+        self.body.visit("Body", visitor)?;
+        self.weapon_pivot.visit("WeaponPivot", visitor)?;
+        self.yaw.visit("Yaw", visitor)?;
+        self.dest_yaw.visit("DestYaw", visitor)?;
+        self.pitch.visit("Pitch", visitor)?;
+        self.dest_pitch.visit("DestPitch", visitor)?;
+        self.run_speed_multiplier.visit("RunSpeedMultiplier", visitor)?;
+        self.stand_body_radius.visit("StandBodyRadius", visitor)?;
+        self.crouch_body_radius.visit("CrouchBodyRadius", visitor)?;
+        self.move_speed.visit("MoveSpeed", visitor)?;
+        self.weapons.visit("Weapons", visitor)?;
+        self.camera_offset.visit("CameraOffset", visitor)?;
+        self.camera_dest_offset.visit("CameraDestOffset", visitor)?;
+        self.current_weapon.visit("CurrentWeapon", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 impl Player {
@@ -128,7 +180,7 @@ impl Player {
     }
 
     pub fn next_weapon(&mut self) {
-        if !self.weapons.is_empty() && self.current_weapon < self.weapons.len() - 1 {
+        if !self.weapons.is_empty() && (self.current_weapon as usize) < self.weapons.len() - 1 {
             self.current_weapon += 1;
         }
     }
@@ -215,7 +267,7 @@ impl Player {
 
         for (i, weapon) in self.weapons.iter().enumerate() {
             if let Some(model) = scene.get_node_mut(&weapon.get_model()) {
-                model.set_visibility(i == self.current_weapon);
+                model.set_visibility(i == self.current_weapon as usize);
             }
         }
 
@@ -230,7 +282,7 @@ impl Player {
             camera_pivot.set_local_rotation(Quat::from_axis_angle(Vec3::right(), self.pitch.to_radians()));
         }
 
-        if let Some(current_weapon) = self.weapons.get_mut(self.current_weapon) {
+        if let Some(current_weapon) = self.weapons.get_mut(self.current_weapon as usize) {
             if self.controller.shoot {
                 current_weapon.shoot(time);
             }

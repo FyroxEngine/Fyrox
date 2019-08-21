@@ -1,8 +1,7 @@
 use crate::math::vec3::*;
 use std::ops;
-use serde::{Serialize, Deserialize};
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone)]
 pub struct Quat {
     pub x: f32,
     pub y: f32,

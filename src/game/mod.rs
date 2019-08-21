@@ -18,15 +18,18 @@ use crate::{
         text::TextBuilder,
         scroll_bar::ScrollBarBuilder,
     },
+    gui::node::{UINode, UINodeKind},
+    utils::visitor::Visitor
 };
-use crate::gui::node::{UINode, UINodeKind};
 use std::{
     cell::RefCell,
     fs::File,
     path::Path,
     time::Instant,
     rc::Rc,
+    io::Write
 };
+use crate::utils::visitor::{VisitResult, Visit};
 
 pub struct MenuState {
     save_game: Option<()>,
@@ -50,7 +53,6 @@ pub struct GameTime {
     elapsed: f64,
     delta: f64,
 }
-
 
 impl Game {
     pub fn new() -> Game {
@@ -176,21 +178,43 @@ impl Game {
             .build(ui);
     }
 
-    pub fn save_game(&self) {
-        match File::create(Path::new("save.json")) {
-            Ok(file) => {
-                self.engine.save(file)
-            }
-            Err(_) => println!("unable to create a save"),
+    pub fn save_game(&mut self) -> VisitResult {
+        let mut visitor = Visitor::new();
+
+        // Visit engine state first.
+        self.engine.visit("Engine", &mut visitor)?;
+
+        self.level.visit("Level", &mut visitor)?;
+
+        // Debug output
+        if let Ok(mut file) = File::create(Path::new("save.txt")) {
+            file.write_all(visitor.save_text().as_bytes()).unwrap();
         }
+
+        visitor.save_binary(Path::new("save.bin"))
     }
 
     pub fn load_game(&mut self) {
-        match File::open(Path::new("save.json")) {
-            Ok(file) => {
-                self.engine.load(file)
+        match Visitor::load_binary(Path::new("save.bin")) {
+            Ok(mut visitor) => {
+                // Clean up.
+                self.destroy_level();
+
+                // Load engine state first
+                match self.engine.visit("Engine", &mut visitor) {
+                    Ok(_) => println!("Engine state successfully loaded!"),
+                    Err(e) => println!("Failed to load engine state! Reason: {}", e)
+                }
+                // Then load game state.
+
+                match self.level.visit("Level", &mut visitor) {
+                    Ok(_) => println!("Game state successfully loaded!"),
+                    Err(e) => println!("Failed to load game state! Reason: {}", e)
+                }
             }
-            Err(_) => println!("failed to load a save!")
+            Err(e) => {
+                println!("failed to load a save, reason: {}", e);
+            }
         }
     }
 
@@ -217,7 +241,10 @@ impl Game {
             }
 
             if state.save_game.take().is_some() {
-                self.save_game();
+                match self.save_game() {
+                    Ok(_) => println!("successfully saved"),
+                    Err(e) => println!("failed to make a save, reason: {}", e),
+                }
             }
 
             if state.load_game.take().is_some() {
@@ -250,7 +277,9 @@ impl Game {
                 while let Some(event) = self.engine.pop_event() {
                     if let glutin::Event::WindowEvent { event, .. } = event {
                         if let Some(ref mut level) = self.level {
-                            level.get_player_mut().process_event(&event);
+                            if let Some(player) = level.get_player_mut(){
+                                player.process_event(&event);
+                            }
                         }
                         match event {
                             glutin::WindowEvent::CloseRequested => self.engine.stop(),

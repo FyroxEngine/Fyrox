@@ -7,6 +7,8 @@ use crate::{
     engine::State,
 };
 use std::any::{Any, TypeId};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub enum FbxAttribute {
     Double(f64),
@@ -652,7 +654,7 @@ fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: &Ha
                 model.materials.push(child_handle.clone())
             } else if child_type_id == TypeId::of::<FbxAnimationCurveNode>() {
                 model.animation_curve_nodes.push(child_handle.clone())
-            }else if child_type_id == TypeId::of::<FbxLight>() {
+            } else if child_type_id == TypeId::of::<FbxLight>() {
                 model.light = child_handle.clone()
             } else if child_type_id == TypeId::of::<FbxModel>() {
                 model.children.push(child_handle.clone())
@@ -905,7 +907,6 @@ fn prepare_next_face(geom: &FbxGeometry,
 
 fn convert_vertex(geom: &FbxGeometry,
                   mesh: &mut Mesh,
-                  state: &mut State,
                   geometric_transform: &Mat4,
                   material_index: usize,
                   origin: usize,
@@ -943,21 +944,15 @@ fn convert_vertex(geom: &FbxGeometry,
     };
 
     let surface = mesh.get_surfaces_mut().get_mut(material).unwrap();
-    let data_storage = state.get_surface_data_storage_mut();
-    match data_storage.borrow_mut(surface.get_data_handle()) {
-        Some(surface_data) => {
-            surface_data.insert_vertex(Vertex {
-                position,
-                normal,
-                tex_coord: uv,
-                tangent: Vec4 { x: tangent.x, y: tangent.y, z: tangent.z, w: 1.0 },
-                // FIXME
-                bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_indices: [0, 0, 0, 0], // Correct indices will be calculated later
-            });
-        }
-        None => println!("Unable to get surface data!")
-    }
+    surface.get_data().borrow_mut().insert_vertex(Vertex {
+        position,
+        normal,
+        tex_coord: uv,
+        tangent: Vec4 { x: tangent.x, y: tangent.y, z: tangent.z, w: 1.0 },
+        // FIXME
+        bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+        bone_indices: [0, 0, 0, 0], // Correct indices will be calculated later
+    });
 }
 
 impl Fbx {
@@ -1061,16 +1056,18 @@ impl Fbx {
                        model: &FbxModel) {
         // Create surfaces per material
         if model.materials.is_empty() {
-            mesh.add_surface(Surface::new(state.get_surface_data_storage_mut().spawn(SurfaceSharedData::new())));
+            mesh.add_surface(Surface::new(Rc::new(RefCell::new(SurfaceSharedData::new()))));
         } else {
             for material_handle in model.materials.iter() {
-                let mut surface = Surface::new(state.get_surface_data_storage_mut().spawn(SurfaceSharedData::new()));
+                let mut surface = Surface::new(Rc::new(RefCell::new(SurfaceSharedData::new())));
                 if let FbxComponent::Material(material) = self.component_pool.borrow(&material_handle).unwrap() {
                     if let Some(texture_handle) = self.component_pool.borrow(&material.diffuse_texture) {
                         if let FbxComponent::Texture(texture) = texture_handle {
                             if texture.filename.is_relative() {
                                 let fullpath = state.get_resource_manager_mut().get_textures_path().join(&texture.filename);
-                                surface.set_texture(state.request_resource(fullpath.as_path()));
+                                if let Some(texture_resource) = state.request_resource(fullpath.as_path()) {
+                                    surface.set_texture(texture_resource);
+                                }
                             }
                         }
                     }
@@ -1106,9 +1103,9 @@ impl Fbx {
                         let triangle = &triangles[i];
                         let relative_triangle = &relative_triangles[i];
 
-                        convert_vertex(geom, mesh, state, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
-                        convert_vertex(geom, mesh, state, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
-                        convert_vertex(geom, mesh, state, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
+                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
+                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
+                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
                     }
                     if geom.material_mapping == FbxMapping::ByPolygon {
                         material_index += 1;

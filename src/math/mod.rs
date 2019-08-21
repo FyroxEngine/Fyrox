@@ -7,12 +7,12 @@ pub mod ray;
 pub mod plane;
 pub mod triangulator;
 
-use serde::{Serialize, Deserialize};
 use vec2::*;
 use vec3::*;
 use std::ops::{Add, Sub, Mul};
+use crate::utils::visitor::{Visit, VisitResult, Visitor};
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Rect<T> {
     pub x: T,
     pub y: T,
@@ -50,6 +50,19 @@ impl<T> Rect<T> where T: Default + Add<Output = T> + Sub<Output = T> + Mul<Outpu
             w: self.w - (dw + dw),
             h: self.h - (dh + dh)
         }
+    }
+}
+
+impl<T> Visit for Rect<T> where T: Default + Visit + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.x.visit("X", visitor)?;
+        self.y.visit("Y", visitor)?;
+        self.w.visit("W", visitor)?;
+        self.h.visit("H", visitor)?;
+
+        visitor.leave_region()
     }
 }
 

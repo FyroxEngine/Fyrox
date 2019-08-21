@@ -13,7 +13,6 @@ use crate::{
     utils::pool::*,
     scene::node::*,
     engine::{
-        ResourceManager,
         State,
         duration_to_seconds_f32,
     },
@@ -369,10 +368,10 @@ impl Renderer {
         &self.statistics
     }
 
-    fn draw_surface(&self, surf: &Surface, data: &SurfaceSharedData, resource_manager: &ResourceManager) {
+    fn draw_surface(&self, surf: &Surface) {
         unsafe {
-            if let Some(resource) = resource_manager.borrow_resource(surf.get_texture_resource_handle()) {
-                if let ResourceKind::Texture(texture) = resource.borrow_kind() {
+            if let Some(resource) = surf.get_texture() {
+                if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
                     gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                 } else {
                     gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
@@ -380,62 +379,66 @@ impl Renderer {
             } else {
                 gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
             }
+
+            let data_rc = surf.get_data();
+            let mut data = data_rc.borrow_mut();
+
+            if data.need_upload {
+                let total_size_bytes = data.get_vertices().len() * std::mem::size_of::<Vertex>();
+
+                gl::BindVertexArray(data.get_vertex_array_object());
+
+                // Upload indices
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, data.get_element_buffer_object());
+                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
+                               (data.get_indices().len() * std::mem::size_of::<i32>()) as GLsizeiptr,
+                               data.get_indices().as_ptr() as *const GLvoid,
+                               gl::STATIC_DRAW);
+
+                // Upload vertices
+                gl::BindBuffer(gl::ARRAY_BUFFER, data.get_vertex_buffer_object());
+                gl::BufferData(gl::ARRAY_BUFFER,
+                               total_size_bytes as GLsizeiptr,
+                               data.get_vertices().as_ptr() as *const GLvoid,
+                               gl::STATIC_DRAW);
+
+                let mut offset = 0;
+
+                // Positions
+                gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(0);
+                offset += size_of::<Vec3>();
+
+                // Texture coordinates
+                gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(1);
+                offset += size_of::<Vec2>();
+
+                // Normals
+                gl::VertexAttribPointer(2, 3, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(2);
+                offset += size_of::<Vec3>();
+
+                // Tangents
+                gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(3);
+
+                gl::BindVertexArray(0);
+
+                check_gl_error();
+
+                data.need_upload = false;
+            }
+
             gl::BindVertexArray(data.get_vertex_array_object());
             gl::DrawElements(gl::TRIANGLES,
                              data.get_indices().len() as GLint,
                              gl::UNSIGNED_INT,
                              std::ptr::null());
-        }
-    }
-
-    fn upload_surface_data(&self, ssd: &mut SurfaceSharedData) {
-        let total_size_bytes = ssd.get_vertices().len() * std::mem::size_of::<Vertex>();
-
-        unsafe {
-            gl::BindVertexArray(ssd.get_vertex_array_object());
-
-            // Upload indices
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ssd.get_element_buffer_object());
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                           (ssd.get_indices().len() * std::mem::size_of::<i32>()) as GLsizeiptr,
-                           ssd.get_indices().as_ptr() as *const GLvoid,
-                           gl::STATIC_DRAW);
-
-            // Upload vertices
-            gl::BindBuffer(gl::ARRAY_BUFFER, ssd.get_vertex_buffer_object());
-            gl::BufferData(gl::ARRAY_BUFFER,
-                           total_size_bytes as GLsizeiptr,
-                           ssd.get_vertices().as_ptr() as *const GLvoid,
-                           gl::STATIC_DRAW);
-
-            let mut offset = 0;
-
-            // Positions
-            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(0);
-            offset += size_of::<Vec3>();
-
-            // Texture coordinates
-            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(1);
-            offset += size_of::<Vec2>();
-
-            // Normals
-            gl::VertexAttribPointer(2, 3, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(2);
-            offset += size_of::<Vec3>();
-
-            // Tangents
-            gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
-                                    size_of::<Vertex>() as GLint, offset as *const c_void);
-            gl::EnableVertexAttribArray(3);
-
-            gl::BindVertexArray(0);
-
-            check_gl_error();
         }
     }
 
@@ -518,13 +521,6 @@ impl Renderer {
                 }
             }
         });
-
-        for data in state.get_surface_data_storage_mut().iter_mut() {
-            if data.need_upload {
-                self.upload_surface_data(data);
-                data.need_upload = false;
-            }
-        }
     }
 
     pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
@@ -590,9 +586,7 @@ impl Renderer {
 
                                     if let NodeKind::Mesh(mesh) = node.borrow_kind() {
                                         for surface in mesh.get_surfaces().iter() {
-                                            if let Some(data) = state.get_surface_data_storage().borrow(surface.get_data_handle()) {
-                                                self.draw_surface(surface, data, state.get_resource_manager());
-                                            }
+                                            self.draw_surface(surface);
                                         }
                                     }
                                 }

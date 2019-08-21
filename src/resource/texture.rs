@@ -1,7 +1,5 @@
 use std::path::*;
 
-use serde::{Serialize, Deserialize};
-
 pub struct Rgba8 {
     pub r: u8,
     pub g: u8,
@@ -9,18 +7,24 @@ pub struct Rgba8 {
     pub a: u8,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Texture {
-    #[serde(skip)]
     pub(crate) width: u32,
-    #[serde(skip)]
     pub(crate) height: u32,
-    #[serde(skip)]
     pub(crate) gpu_tex: u32,
-    #[serde(skip)]
     pub(crate) need_upload: bool,
-    #[serde(skip)]
     pub(crate) pixels: Vec<Rgba8>,
+}
+
+impl Default for Texture {
+    fn default() -> Self {
+        Self {
+            width: 0,
+            height: 0,
+            gpu_tex: 0,
+            need_upload: false,
+            pixels: Vec::new()
+        }
+    }
 }
 
 impl Texture {

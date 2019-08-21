@@ -5,9 +5,8 @@ use crate::{
         quat::*
     }
 };
-use serde::{Serialize, Deserialize};
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone)]
 pub struct Mat4 {
     pub f: [f32; 16]
 }

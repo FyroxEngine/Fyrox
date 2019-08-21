@@ -4,21 +4,26 @@ use crate::{
         mat4::*,
         quat::*,
         *,
-        vec2::*
+        vec2::*,
     },
     renderer::surface::*,
     utils::{
         pool::*,
-        rcpool::RcHandle
+        visitor::{
+            Visit,
+            VisitResult,
+            Visitor,
+        },
     },
     physics::Body,
-    engine::State,
-    resource::Resource
+    resource::Resource,
 };
+use std::{
+    cell::RefCell,
+    rc::Rc,
+};
+use crate::utils::visitor::VisitError;
 
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize)]
 pub struct Light {
     radius: f32,
     color: Vec3,
@@ -30,6 +35,17 @@ impl Default for Light {
             radius: 10.0,
             color: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
         }
+    }
+}
+
+impl Visit for Light {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.radius.visit("Radius", visitor)?;
+        self.color.visit("Color", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
@@ -48,12 +64,11 @@ impl Light {
     pub fn make_copy(&self) -> Light {
         Light {
             radius: self.radius,
-            color: self.color
+            color: self.color,
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Camera {
     fov: f32,
     z_near: f32,
@@ -77,6 +92,17 @@ impl Default for Camera {
             projection_matrix: Mat4::perspective(fov.to_radians(), 1.0, z_near, z_far),
             viewport: Rect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
         }
+    }
+}
+
+impl Visit for Camera {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+        self.fov.visit("Fov", visitor)?;
+        self.z_near.visit("ZNear", visitor)?;
+        self.z_far.visit("ZFar", visitor)?;
+        self.viewport.visit("Viewport", visitor)?;
+        visitor.leave_region()
     }
 }
 
@@ -119,7 +145,6 @@ impl Camera {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Mesh {
     surfaces: Vec<Surface>,
 }
@@ -129,6 +154,14 @@ impl Default for Mesh {
         Mesh {
             surfaces: Vec::new()
         }
+    }
+}
+
+impl Visit for Mesh {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+        // No need to serialize surfaces, correct ones will be assigned on resolve stage.
+        visitor.leave_region()
     }
 }
 
@@ -148,25 +181,32 @@ impl Mesh {
         self.surfaces.push(surface);
     }
 
-
-
     #[inline]
-    pub fn make_copy(&self, state: &State) -> Mesh {
+    pub fn make_copy(&self) -> Mesh {
         Mesh {
-            surfaces: self.surfaces.iter().map(|surf| surf.make_copy(state)).collect()
+            surfaces: self.surfaces.iter().map(|surf| surf.make_copy()).collect()
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub enum NodeKind {
     Base,
     Light(Light),
     Camera(Camera),
-    Mesh(Mesh)
+    Mesh(Mesh),
 }
 
-#[derive(Serialize, Deserialize)]
+impl Visit for NodeKind {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        match self {
+            NodeKind::Base => Ok(()),
+            NodeKind::Light(light) => light.visit(name, visitor),
+            NodeKind::Camera(camera) => camera.visit(name, visitor),
+            NodeKind::Mesh(mesh) => mesh.visit(name, visitor),
+        }
+    }
+}
+
 pub struct Node {
     name: String,
     kind: NodeKind,
@@ -183,12 +223,36 @@ pub struct Node {
     pub(in crate::scene) global_visibility: bool,
     pub(in crate::scene) parent: Handle<Node>,
     pub(in crate::scene) children: Vec<Handle<Node>>,
-    #[serde(skip)]
     pub(in crate::scene) local_transform: Mat4,
-    #[serde(skip)]
     pub(in crate::scene) global_transform: Mat4,
     body: Handle<Body>,
-    resource: RcHandle<Resource>
+    resource: Option<Rc<RefCell<Resource>>>,
+}
+
+impl Default for Node {
+    fn default() -> Self {
+        Self {
+            kind: NodeKind::Base,
+            name: String::new(),
+            children: Vec::new(),
+            parent: Handle::none(),
+            local_position: Vec3::new(),
+            local_scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+            local_rotation: Quat::new(),
+            pre_rotation: Quat::new(),
+            post_rotation: Quat::new(),
+            rotation_offset: Vec3::new(),
+            rotation_pivot: Vec3::new(),
+            scaling_offset: Vec3::new(),
+            scaling_pivot: Vec3::new(),
+            visibility: true,
+            global_visibility: true,
+            local_transform: Mat4::identity(),
+            global_transform: Mat4::identity(),
+            body: Handle::none(),
+            resource: None,
+        }
+    }
 }
 
 impl Node {
@@ -212,7 +276,7 @@ impl Node {
             local_transform: Mat4::identity(),
             global_transform: Mat4::identity(),
             body: Handle::none(),
-            resource: RcHandle::none()
+            resource: None,
         }
     }
 
@@ -236,12 +300,12 @@ impl Node {
 
     /// Creates copy of node without copying children nodes and physics body.
     /// Children nodes has to be copied explicitly.
-    pub fn make_copy(&self, state: &State) -> Node {
+    pub fn make_copy(&self) -> Node {
         Node {
             kind: match &self.kind {
                 NodeKind::Camera(camera) => NodeKind::Camera(camera.make_copy()),
                 NodeKind::Light(light) => NodeKind::Light(light.make_copy()),
-                NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.make_copy(state)),
+                NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.make_copy()),
                 NodeKind::Base => NodeKind::Base
             },
             name: self.name.clone(),
@@ -261,7 +325,10 @@ impl Node {
             children: Vec::new(),
             parent: Handle::none(),
             body: Handle::none(),
-            resource: state.get_resource_manager().share_resource_handle(&self.resource)
+            resource: match &self.resource {
+                Some(resource) => Some(Rc::clone(resource)),
+                None => None
+            },
         }
     }
 
@@ -281,13 +348,16 @@ impl Node {
     }
 
     #[inline]
-    pub fn set_resource(&mut self, resource_handle: RcHandle<Resource>) {
-        self.resource = resource_handle;
+    pub fn set_resource(&mut self, resource_handle: Rc<RefCell<Resource>>) {
+        self.resource = Some(resource_handle);
     }
 
     #[inline]
-    pub fn get_resource(&mut self) -> &RcHandle<Resource> {
-        &self.resource
+    pub fn get_resource(&mut self) -> Option<Rc<RefCell<Resource>>> {
+        match &self.resource {
+            Some(resource) => Some(Rc::clone(resource)),
+            None => None
+        }
     }
 
     #[inline]
@@ -414,5 +484,47 @@ impl Node {
             y: self.global_transform.f[5],
             z: self.global_transform.f[6],
         }
+    }
+}
+
+impl Visit for Node {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut kind_id: u8 = match &self.kind {
+            NodeKind::Base => 0,
+            NodeKind::Light(_) => 1,
+            NodeKind::Camera(_) => 2,
+            NodeKind::Mesh(_) => 3,
+        };
+        kind_id.visit("KindId", visitor)?;
+        if visitor.is_reading() {
+            self.kind = match kind_id {
+                0 => NodeKind::Base,
+                1 => NodeKind::Light(Default::default()),
+                2 => NodeKind::Camera(Default::default()),
+                3 => NodeKind::Mesh(Default::default()),
+                _ => return Err(VisitError::User(format!("invalid node kind {}", kind_id)))
+            }
+        }
+
+        self.kind.visit("Kind", visitor)?;
+        self.name.visit("Name", visitor)?;
+        self.local_scale.visit("LocalScale", visitor)?;
+        self.local_position.visit("LocalPosition", visitor)?;
+        self.local_rotation.visit("LocalRotation", visitor)?;
+        self.pre_rotation.visit("PreRotation", visitor)?;
+        self.post_rotation.visit("PostRotation", visitor)?;
+        self.rotation_offset.visit("RotationOffset", visitor)?;
+        self.rotation_pivot.visit("RotationPivot", visitor)?;
+        self.scaling_offset.visit("ScalingOffset", visitor)?;
+        self.scaling_pivot.visit("ScalingPivot", visitor)?;
+        self.visibility.visit("Visibility", visitor)?;
+        self.parent.visit("Parent", visitor)?;
+        self.children.visit("Children", visitor)?;
+        self.body.visit("Body", visitor)?;
+        self.resource.visit("Resource", visitor)?;
+
+        visitor.leave_region()
     }
 }

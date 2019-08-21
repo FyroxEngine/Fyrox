@@ -4,19 +4,49 @@ use crate::{
         ray::Ray,
         plane::Plane
     },
-    utils::pool::{Pool, Handle},
+    utils::pool::{
+        Pool,
+        Handle
+    },
+    utils::visitor::{
+        Visit,
+        VisitResult,
+        Visitor
+    }
 };
-use serde::{Serialize, Deserialize};
+use crate::utils::visitor::VisitError;
 
-#[derive(Serialize, Deserialize)]
 pub struct Contact {
     pub body: Handle<Body>,
     pub position: Vec3,
     pub normal: Vec3,
-    pub triangle_index: usize,
+    pub triangle_index: u32,
 }
 
-#[derive(Serialize, Deserialize)]
+impl Default for Contact {
+    fn default() -> Self {
+        Self {
+            body: Handle::none(),
+            position: Vec3::new(),
+            normal: Vec3::make(0.0, 1.0, 0.0),
+            triangle_index: 0,
+        }
+    }
+}
+
+impl Visit for Contact {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.body.visit("Body", visitor)?;
+        self.position.visit("Position", visitor)?;
+        self.normal.visit("Normal", visitor)?;
+        self.triangle_index.visit("TriangleIndex", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 pub struct StaticGeometry {
     triangles: Vec<StaticTriangle>
 }
@@ -33,26 +63,72 @@ impl StaticGeometry {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+impl Default for StaticGeometry {
+    fn default() -> Self {
+        Self {
+            triangles: Vec::new(),
+        }
+    }
+}
+
+impl Visit for StaticGeometry {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.triangles.visit("Triangles", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 pub struct StaticTriangle {
-    #[serde(skip)]
     points: [Vec3; 3],
-    #[serde(skip)]
     ca: Vec3,
-    #[serde(skip)]
     ba: Vec3,
-    #[serde(skip)]
     ca_dot_ca: f32,
-    #[serde(skip)]
     ca_dot_ba: f32,
-    #[serde(skip)]
     ba_dot_ba: f32,
-    #[serde(skip)]
     edges: [Ray; 3],
-    #[serde(skip)]
     inv_denom: f32,
-    #[serde(skip)]
     plane: Plane,
+}
+
+impl Default for StaticTriangle {
+    fn default() -> Self {
+        Self {
+            points: Default::default(),
+            ca: Default::default(),
+            ba: Default::default(),
+            ca_dot_ca: 0.0,
+            ca_dot_ba: 0.0,
+            ba_dot_ba: 0.0,
+            edges: Default::default(),
+            inv_denom: 0.0,
+            plane: Default::default()
+        }
+    }
+}
+
+impl Visit for StaticTriangle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut a = self.points[0];
+        a.visit("A", visitor)?;
+
+        let mut b = self.points[1];
+        b.visit("B", visitor)?;
+
+        let mut c = self.points[2];
+        c.visit("C", visitor)?;
+
+        *self = match Self::from_points(a, b, c) {
+            None => return Err(VisitError::User(String::from("invalid triangle"))),
+            Some(triangle) => triangle,
+        };
+
+        visitor.leave_region()
+    }
 }
 
 impl StaticTriangle {
@@ -98,7 +174,6 @@ impl StaticTriangle {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Body {
     position: Vec3,
     last_position: Vec3,
@@ -109,6 +184,32 @@ pub struct Body {
     radius: f32,
     sqr_radius: f32,
     speed_limit: f32,
+}
+
+impl Default for Body {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Visit for Body {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.position.visit("Position", visitor)?;
+        self.last_position.visit("LastPosition", visitor)?;
+        self.acceleration.visit("Acceleration", visitor)?;
+        self.contacts.visit("Contacts", visitor)?;
+        self.friction.visit("Friction", visitor)?;
+        self.gravity.visit("Gravity", visitor)?;
+        self.radius.visit("Radius", visitor)?;
+        if visitor.is_reading() {
+            self.sqr_radius = self.radius * self.radius;
+        }
+        self.speed_limit.visit("SpeedLimit", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 impl Body {
@@ -277,62 +378,72 @@ impl Body {
                     body: Handle::none(),
                     position: intersection_point,
                     normal: push_vector,
-                    triangle_index,
+                    triangle_index: triangle_index as u32,
                 })
             }
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Physics {
-    body_pool: Pool<Body>,
-    static_geom_pool: Pool<StaticGeometry>,
+    bodies: Pool<Body>,
+    static_geoms: Pool<StaticGeometry>,
+}
+
+impl Visit for Physics {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.bodies.visit("Bodies", visitor)?;
+        self.static_geoms.visit("StaticGeoms", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 impl Physics {
     pub fn new() -> Physics {
         Physics {
-            body_pool: Pool::new(),
-            static_geom_pool: Pool::new(),
+            bodies: Pool::new(),
+            static_geoms: Pool::new(),
         }
     }
 
     pub fn add_body(&mut self, body: Body) -> Handle<Body> {
-        self.body_pool.spawn(body)
+        self.bodies.spawn(body)
     }
 
     pub fn remove_body(&mut self, body_handle: Handle<Body>) {
-        self.body_pool.free(body_handle);
+        self.bodies.free(body_handle);
     }
 
     pub fn add_static_geometry(&mut self, static_geom: StaticGeometry) -> Handle<StaticGeometry> {
-        self.static_geom_pool.spawn(static_geom)
+        self.static_geoms.spawn(static_geom)
     }
 
     pub fn remove_static_geometry(&mut self, static_geom: Handle<StaticGeometry>) {
-        self.static_geom_pool.free(static_geom);
+        self.static_geoms.free(static_geom);
     }
 
     pub fn borrow_body(&self, handle: &Handle<Body>) -> Option<&Body> {
-        self.body_pool.borrow(handle)
+        self.bodies.borrow(handle)
     }
 
     pub fn borrow_body_mut(&mut self, handle: &Handle<Body>) -> Option<&mut Body> {
-        self.body_pool.borrow_mut(handle)
+        self.bodies.borrow_mut(handle)
     }
 
     pub fn step(&mut self, delta_time: f32) {
         let dt2 = delta_time * delta_time;
         let air_friction = 0.003;
 
-        for body in self.body_pool.iter_mut() {
+        for body in self.bodies.iter_mut() {
             body.acceleration += body.gravity;
             body.verlet(dt2, air_friction);
 
             body.contacts.clear();
 
-            for static_geometry in self.static_geom_pool.iter() {
+            for static_geometry in self.static_geoms.iter() {
                 for (n, triangle) in static_geometry.triangles.iter().enumerate() {
                     body.solve_triangle_collision(&triangle, n);
                 }

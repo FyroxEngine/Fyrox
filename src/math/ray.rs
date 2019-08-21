@@ -1,7 +1,5 @@
 use crate::math::vec3::Vec3;
-use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
 pub struct Ray {
     pub origin: Vec3,
     pub dir: Vec3,

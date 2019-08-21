@@ -5,10 +5,11 @@ use crate::{
         gl::types::*
     },
     resource::*,
-    utils::rcpool::{RcHandle},
-    engine::State
 };
-use serde::{Serialize, Deserialize};
+use std::{
+    rc::Rc,
+    cell::RefCell
+};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -21,20 +22,14 @@ pub struct Vertex {
     pub bone_indices: [u8; 4],
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct SurfaceSharedData {
     pub need_upload: bool,
-    #[serde(skip)]
     vbo: GLuint,
-    #[serde(skip)]
     vao: GLuint,
-    #[serde(skip)]
     ebo: GLuint,
 
     // Skip vertices and indices for now, later it can be useful for dynamic surfaces.
-    #[serde(skip)]
     vertices: Vec<Vertex>,
-    #[serde(skip)]
     indices: Vec<i32>,
 }
 
@@ -351,41 +346,46 @@ impl Drop for SurfaceSharedData {
     }
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct Surface {
-    pub data: RcHandle<SurfaceSharedData>,
-    pub texture: RcHandle<Resource>,
+    pub data: Rc<RefCell<SurfaceSharedData>>,
+    pub texture: Option<Rc<RefCell<Resource>>>,
 }
 
 impl Surface {
     #[inline]
-    pub fn new(data: RcHandle<SurfaceSharedData>) -> Self {
+    pub fn new(data: Rc<RefCell<SurfaceSharedData>>) -> Self {
         Self {
             data,
-            texture: RcHandle::none(),
+            texture: None,
         }
     }
 
     #[inline]
-    pub fn get_data_handle(&self) -> &RcHandle<SurfaceSharedData> {
-        &self.data
+    pub fn get_data(&self) -> Rc<RefCell<SurfaceSharedData>> {
+        Rc::clone(&self.data)
     }
 
     #[inline]
-    pub fn get_texture_resource_handle(&self) -> &RcHandle<Resource> {
-        &self.texture
+    pub fn get_texture(&self) -> Option<Rc<RefCell<Resource>>> {
+        match &self.texture {
+            Some(resource) => Some(Rc::clone(resource)),
+            None => None
+        }
     }
 
     #[inline]
-    pub fn set_texture(&mut self, tex: RcHandle<Resource>) {
-        self.texture = tex;
+    pub fn set_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+        self.texture = Some(tex);
     }
 
     #[inline]
-    pub fn make_copy(&self, state: &State) -> Surface {
+    pub fn make_copy(&self) -> Surface {
         Surface {
-            data: state.get_surface_data_storage().share_handle(&self.data),
-            texture: state.get_resource_manager().share_resource_handle(&self.texture)
+            data: Rc::clone(&self.data),
+            texture: match &self.texture {
+                Some(resource) => Some(Rc::clone(resource)),
+                None => None
+            }
         }
     }
 }

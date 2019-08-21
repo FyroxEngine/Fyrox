@@ -1,13 +1,16 @@
 use crate::{
     utils::{
         pool::Handle,
-        rcpool::RcHandle
     },
     resource::Resource,
     gui::node::UINode
 };
+use std::{
+    rc::Weak,
+    cell::RefCell
+};
 
 pub struct Image {
     pub(in crate::gui) owner_handle: Handle<UINode>,
-    texture: RcHandle<Resource>,
+    texture: Weak<RefCell<Resource>>,
 }

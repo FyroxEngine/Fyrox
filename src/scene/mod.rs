@@ -2,17 +2,21 @@ pub mod node;
 pub mod animation;
 
 use crate::{
-    utils::pool::*,
+    utils::{
+        UnsafeCollectionView,
+        visitor::{
+            Visit,
+            VisitResult,
+            Visitor
+        }
+    },
     math::mat4::*,
     physics::Physics,
-    engine::State
+    engine::State,
 };
 use node::*;
+use crate::utils::pool::{Handle, Pool};
 
-use serde::{Serialize, Deserialize};
-use crate::utils::UnsafeCollectionView;
-
-#[derive(Serialize, Deserialize)]
 pub struct Scene {
     /// Nodes pool, every node lies inside pool. User-code may borrow
     /// a reference to a node using handle.
@@ -25,12 +29,23 @@ pub struct Scene {
     physics: Physics,
 
     /// Tree traversal stack.
-    #[serde(skip)]
     stack: Vec<Handle<Node>>,
 }
 
 impl Default for Scene {
     fn default() -> Self {
+       Self {
+           nodes: Pool::new(),
+           root: Default::default(),
+           physics: Physics::new(),
+           stack: Vec::new()
+       }
+    }
+}
+
+impl Scene {
+    #[inline]
+    pub fn new() -> Scene {
         let mut nodes: Pool<Node> = Pool::new();
         let root = nodes.spawn(Node::new(NodeKind::Base));
         Scene {
@@ -39,13 +54,6 @@ impl Default for Scene {
             root,
             physics: Physics::new(),
         }
-    }
-}
-
-impl Scene {
-    #[inline]
-    pub fn new() -> Scene {
-        Scene::default()
     }
 
     /// Transfers ownership of node into scene.
@@ -64,17 +72,6 @@ impl Scene {
 
         if let Some(node) = self.nodes.borrow_mut(&node_handle) {
             self.physics.remove_body(node.get_body());
-
-            if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
-                for surf in mesh.get_surfaces() {
-                    state.release_resource(surf.get_texture_resource_handle());
-
-                    state.get_surface_data_storage_mut().release(surf.get_data_handle());
-                }
-            }
-
-            state.release_resource(node.get_resource());
-
             children = UnsafeCollectionView::from_slice(&node.children);
         }
 
@@ -160,16 +157,16 @@ impl Scene {
     /// Creates a full copy of node with all children.
     /// This is relatively heavy operation!
     /// In case if some error happened it returns Handle::none
-    pub fn copy_node(&self, root_handle: &Handle<Node>, state: &State, dest_scene: &mut Scene) -> Handle<Node> {
+    pub fn copy_node(&self, root_handle: &Handle<Node>, dest_scene: &mut Scene) -> Handle<Node> {
         match self.get_node(root_handle) {
             Some(src_node) => {
-                let mut dest_node = src_node.make_copy(state);
+                let mut dest_node = src_node.make_copy();
                 if let Some(src_body) = self.physics.borrow_body(&src_node.get_body()) {
                     dest_node.set_body(dest_scene.physics.add_body(src_body.make_copy()));
                 }
                 let dest_copy_handle = dest_scene.add_node(dest_node);
                 for src_child_handle in &src_node.children {
-                    let dest_child_handle = self.copy_node(src_child_handle, state, dest_scene);
+                    let dest_child_handle = self.copy_node(src_child_handle, dest_scene);
                     if !dest_child_handle.is_none() {
                         dest_scene.link_nodes(&dest_child_handle, &dest_copy_handle);
                     }
@@ -243,3 +240,12 @@ impl Scene {
     }
 }
 
+impl Visit for Scene {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+        self.root.visit("Root", visitor)?;
+        self.nodes.visit("Nodes", visitor)?;
+        self.physics.visit("Physics", visitor)?;
+        visitor.leave_region()
+    }
+}

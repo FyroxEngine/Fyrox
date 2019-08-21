@@ -3,13 +3,21 @@ use std::{
     collections::HashMap,
     fs::File,
     any::Any,
-    path::Path,
+    path::{
+        Path,
+        PathBuf,
+    },
     cell::RefCell,
     io::{
         Write,
         Read,
     },
     string::FromUtf8Error,
+    fmt::{
+        Display,
+        Formatter,
+    },
+    rc::Weak,
 };
 use byteorder::{
     ReadBytesExt,
@@ -31,6 +39,7 @@ use crate::{
 };
 
 pub enum FieldKind {
+    Bool(bool),
     U8(u8),
     I8(i8),
     U16(u16),
@@ -50,6 +59,7 @@ pub enum FieldKind {
 impl FieldKind {
     fn as_string(&self) -> String {
         match self {
+            FieldKind::Bool(data) => format!("<bool = {}", data),
             FieldKind::U8(data) => format!("<u8 = {}>, ", data),
             FieldKind::I8(data) => format!("<i8 = {}>, ", data),
             FieldKind::U16(data) => format!("<u16 = {}>, ", data),
@@ -74,20 +84,24 @@ impl FieldKind {
                 out
             }
             FieldKind::Data(data) => {
-                base64::encode(data)
+                let out = match String::from_utf8(data.clone()) {
+                    Ok(s) => s,
+                    Err(_) => base64::encode(data)
+                };
+                format!("<data = {}>, ", out)
             }
         }
     }
 }
 
-trait FieldData {
+pub trait FieldData {
     fn read(&mut self, kind: &FieldKind) -> VisitResult;
     fn write(&self) -> FieldKind;
 }
 
 macro_rules! impl_field_data (($type_name:ty, $($kind:tt)*) => {
     impl FieldData for $type_name {
-        fn read(&mut self, kind: &FieldKind) -> VisitResult {
+        fn read(& mut self, kind: &FieldKind) -> VisitResult {
             match kind {
                 $($kind)*(data) => {
                     *self = data.clone();
@@ -103,6 +117,12 @@ macro_rules! impl_field_data (($type_name:ty, $($kind:tt)*) => {
     }
 });
 
+/// Proxy struct for plain data, we can't use Vec<u8> directly,
+/// because it will serialize each byte as separate node.
+pub struct Data<'a> {
+    vec: &'a mut Vec<u8>
+}
+
 impl_field_data!(u64, FieldKind::U64);
 impl_field_data!(i64, FieldKind::I64);
 impl_field_data!(u32, FieldKind::U32);
@@ -116,7 +136,51 @@ impl_field_data!(f64, FieldKind::F64);
 impl_field_data!(Vec3, FieldKind::Vec3);
 impl_field_data!(Quat, FieldKind::Quat);
 impl_field_data!(Mat4, FieldKind::Mat4);
-impl_field_data!(Vec<u8>, FieldKind::Data);
+impl_field_data!(bool, FieldKind::Bool);
+
+impl<T> Visit for T where T: FieldData + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        if visitor.reading {
+            if let Some(field) = visitor.find_field(name) {
+                self.read(&field.kind)
+            } else {
+                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+            }
+        } else if visitor.find_field(name).is_some() {
+            Err(VisitError::FieldAlreadyExists(name.to_owned()))
+        } else if let Some(node) = visitor.current_node() {
+            node.fields.push(Field::new(name, self.write()));
+            Ok(())
+        } else {
+            Err(VisitError::NoActiveNode)
+        }
+    }
+}
+
+impl<'a> Visit for Data<'a> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        if visitor.reading {
+            if let Some(field) = visitor.find_field(name) {
+                match &field.kind {
+                    FieldKind::Data(data) => {
+                        *self.vec = data.clone();
+                        Ok(())
+                    }
+                    _ => Err(VisitError::FieldTypeDoesNotMatch)
+                }
+            } else {
+                Err(VisitError::FieldDoesNotExist(name.to_owned()))
+            }
+        } else if visitor.find_field(name).is_some() {
+            Err(VisitError::FieldAlreadyExists(name.to_owned()))
+        } else if let Some(node) = visitor.current_node() {
+            node.fields.push(Field::new(name, FieldKind::Data(self.vec.clone())));
+            Ok(())
+        } else {
+            Err(VisitError::NoActiveNode)
+        }
+    }
+}
 
 pub struct Field {
     name: String,
@@ -140,6 +204,30 @@ pub enum VisitError {
     RcIsNonUnique,
     RefCellAlreadyMutableBorrowed,
     User(String),
+    UnexpectedRcNullIndex,
+}
+
+impl Display for VisitError {
+    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
+        match self {
+            VisitError::Io(io) => write!(f, "io error: {}", io),
+            VisitError::UnknownFieldType(type_index) => write!(f, "unknown field type {}", type_index),
+            VisitError::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
+            VisitError::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
+            VisitError::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
+            VisitError::InvalidCurrentNode => write!(f, "invalid current node"),
+            VisitError::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
+            VisitError::RegionDoesNotExist(name) => write!(f, "region does not exists {}", name),
+            VisitError::NoActiveNode => write!(f, "no active node"),
+            VisitError::NotSupportedFormat => write!(f, "not supported format"),
+            VisitError::InvalidName => write!(f, "invalid name"),
+            VisitError::TypeMismatch => write!(f, "type mismatch"),
+            VisitError::RcIsNonUnique => write!(f, "rc is non unique"),
+            VisitError::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
+            VisitError::User(msg) => write!(f, "user defined error: {}", msg),
+            VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index")
+        }
+    }
 }
 
 impl From<std::io::Error> for VisitError {
@@ -233,6 +321,10 @@ impl Field {
                 file.write_u32::<LittleEndian>(data.len() as u32)?;
                 file.write_all(data.as_slice())?;
             }
+            FieldKind::Bool(data) => {
+                file.write_u8(15)?;
+                file.write_u8(if *data { 1 } else { 0 })?;
+            }
         }
         Ok(())
     }
@@ -283,6 +375,7 @@ impl Field {
                 }
                 vec
             }),
+            15 => FieldKind::Bool(file.read_u8()? != 0),
             _ => return Err(VisitError::UnknownFieldType(id))
         }))
     }
@@ -333,16 +426,10 @@ pub trait Visit {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult;
 }
 
-macro_rules! impl_generic_visit (($name:ident, $type_name:ty) => {
-    pub fn $name(&mut self, name: &str, value: &mut $type_name) -> VisitResult {
-        self.visit_generic(name, value)
-    }
-});
-
 impl Visitor {
     const MAGIC: &'static str = "RG3D";
 
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut nodes = Pool::new();
         let root = nodes.spawn(Node::new("__ROOT__", Handle::none()));
         Self {
@@ -365,42 +452,13 @@ impl Visitor {
         None
     }
 
+    pub fn is_reading(&self) -> bool {
+        self.reading
+    }
+
     fn current_node(&mut self) -> Option<&mut Node> {
         self.nodes.borrow_mut(&self.current_node)
     }
-
-    fn visit_generic<T>(&mut self, name: &str, value: &mut T) -> VisitResult
-        where T: FieldData {
-        if self.reading {
-            if let Some(field) = self.find_field(name) {
-                value.read(&field.kind)
-            } else {
-                Err(VisitError::FieldDoesNotExist(name.to_owned()))
-            }
-        } else if self.find_field(name).is_some() {
-            Err(VisitError::FieldAlreadyExists(name.to_owned()))
-        } else if let Some(node) = self.current_node() {
-            node.fields.push(Field::new(name, value.write()));
-            Ok(())
-        } else {
-            Err(VisitError::NoActiveNode)
-        }
-    }
-
-    impl_generic_visit!(visit_u64, u64);
-    impl_generic_visit!(visit_i64, i64);
-    impl_generic_visit!(visit_u32, u32);
-    impl_generic_visit!(visit_i32, i32);
-    impl_generic_visit!(visit_u16, u16);
-    impl_generic_visit!(visit_i16, i16);
-    impl_generic_visit!(visit_u8, u8);
-    impl_generic_visit!(visit_i8, i8);
-    impl_generic_visit!(visit_f32, f32);
-    impl_generic_visit!(visit_f64, f64);
-    impl_generic_visit!(visit_vec3, Vec3);
-    impl_generic_visit!(visit_quat, Quat);
-    impl_generic_visit!(visit_mat4, Mat4);
-    impl_generic_visit!(visit_data, Vec<u8>);
 
     pub fn enter_region(&mut self, name: &str) -> VisitResult {
         if self.reading {
@@ -454,158 +512,15 @@ impl Visitor {
         Ok(())
     }
 
-    pub fn visit_rc<T>(&mut self, name: &str, rc: &mut Rc<T>) -> VisitResult
-        where T: Visit + 'static {
-        self.enter_region(name)?;
-
-        if self.reading {
-            let mut raw = 0;
-            self.visit_u64("Id", &mut raw)?;
-            if let Some(ptr) = self.rc_map.get(&raw) {
-                if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
-                    *rc = res;
-                } else {
-                    return Err(VisitError::TypeMismatch);
-                }
-            } else {
-                // Deserialize inner data. At this point Rc must be unique.
-                if let Some(data) = Rc::get_mut(rc) {
-                    data.visit("Data", self)?;
-                } else {
-                    return Err(VisitError::RcIsNonUnique);
-                }
-
-                // Remember that we already visited data Rc store.
-                self.rc_map.insert(raw as u64, rc.clone());
-            }
-        } else {
-            // Take raw pointer to inner data.
-            let raw = Rc::into_raw(rc.clone()) as *const T as *mut T;
-            unsafe { Rc::from_raw(raw); };
-
-            // Save it as id.
-            let mut index = raw as u64;
-            self.visit_u64("Id", &mut index)?;
-
-            if !self.rc_map.contains_key(&index) {
-                // Serialize inner data using raw pointer. This violates borrowing rules,
-                // but should be fine since visitor is not multithreaded (it simply cannot
-                // be multithreaded by its nature)
-                unsafe { &mut *raw }.visit("Data", self)?;
-
-                self.rc_map.insert(index, rc.clone());
-            }
-        }
-
-        self.leave_region()?;
-
-        Ok(())
-    }
-
-    pub fn visit_vec<T>(&mut self, name: &str, vec: &mut Vec<T>) -> VisitResult
-        where T: Default + Visit + 'static {
-        self.enter_region(name)?;
-
-        let mut len = vec.len() as u32;
-        self.visit_u32("Length", &mut len)?;
-
-        if self.reading {
-            for index in 0..len {
-                let region_name = format!("Item{}", index);
-                self.enter_region(region_name.as_str())?;
-                let mut object = T::default();
-                object.visit("Data", self)?;
-                vec.push(object);
-                self.leave_region()?;
-            }
-        } else {
-            for (index, item) in vec.iter_mut().enumerate() {
-                let region_name = format!("Item{}", index);
-                self.enter_region(region_name.as_str())?;
-                item.visit("Data", self)?;
-                self.leave_region()?;
-            }
-        }
-        self.leave_region()?;
-        Ok(())
-    }
-
-    pub fn visit_string(&mut self, name: &str, string: &mut String) -> VisitResult {
-        self.enter_region(name)?;
-
-        let mut len = string.as_bytes().len() as u32;
-        self.visit_u32("Length", &mut len)?;
-
-        let mut data = if self.reading {
-            Vec::new()
-        } else {
-            Vec::from(string.as_bytes())
-        };
-
-        self.visit_data("Data", &mut data)?;
-
-        if self.reading {
-            *string = String::from_utf8(data)?;
-        }
-        self.leave_region()
-    }
-
-    pub fn visit_option<T>(&mut self, name: &str, opt: &mut Option<T>) -> VisitResult
-        where T: Default + Visit + 'static {
-        self.enter_region(name)?;
-
-        let mut is_some = if opt.is_some() { 1 } else { 0 };
-        self.visit_u8("IsSome", &mut is_some)?;
-
-        if is_some != 0 {
-            if self.reading {
-                let mut value = T::default();
-                value.visit("Data", self)?;
-                *opt = Some(value);
-            } else {
-                opt.as_mut().unwrap().visit("Data", self)?;
-            }
-        }
-
-        self.leave_region()?;
-        Ok(())
-    }
-
     fn print_node(&self, node_handle: &Handle<Node>, nesting: usize, out_string: &mut String) {
         let offset = (0..nesting).map(|_| { "\t" }).collect::<String>();
         if let Some(node) = self.nodes.borrow(&node_handle) {
             *out_string += format!("{}{}[Fields={}, Children={}]: ", offset, node.name, node.fields.len(), node.children.len()).as_str();
             for field in node.fields.iter() {
-                *out_string += field.name.as_str();
-
-                match &field.kind {
-                    FieldKind::U8(data) => *out_string += format!("<u8 = {}>, ", data).as_str(),
-                    FieldKind::I8(data) => *out_string += format!("<i8 = {}>, ", data).as_str(),
-                    FieldKind::U16(data) => *out_string += format!("<u16 = {}>, ", data).as_str(),
-                    FieldKind::I16(data) => *out_string += format!("<i16 = {}>, ", data).as_str(),
-                    FieldKind::U32(data) => *out_string += format!("<u32 = {}>, ", data).as_str(),
-                    FieldKind::I32(data) => *out_string += format!("<i32 = {}>, ", data).as_str(),
-                    FieldKind::U64(data) => *out_string += format!("<u64 = {}>, ", data).as_str(),
-                    FieldKind::I64(data) => *out_string += format!("<i64 = {}>, ", data).as_str(),
-                    FieldKind::F32(data) => *out_string += format!("<f32 = {}>, ", data).as_str(),
-                    FieldKind::F64(data) => *out_string += format!("<f64 = {}>, ", data).as_str(),
-                    FieldKind::Vec3(data) => {
-                        *out_string += format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z).as_str()
-                    }
-                    FieldKind::Quat(data) => {
-                        *out_string += format!("<quat = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w).as_str()
-                    }
-                    FieldKind::Mat4(data) => {
-                        // Lazy
-                        *out_string += format!("<mat4>, ").as_str()
-                    }
-                    FieldKind::Data(data) => {
-                        *out_string += base64::encode(data).as_str();
-                    }
-                }
+                *out_string += field.as_string().as_str();
             }
 
-            *out_string += format!("\n").as_str();
+            *out_string += "\n";
 
             for child_handle in node.children.iter() {
                 self.print_node(child_handle, nesting + 1, out_string);
@@ -653,12 +568,10 @@ impl Visitor {
 
         let mut node = Node::default();
         node.name = String::from_utf8(raw_name)?;
-        println!("{}", node.name);
 
         let field_count = file.read_u32::<LittleEndian>()? as usize;
         for _ in 0..field_count {
             let field = Field::load(file)?;
-            println!("Field: {}", field.as_string());
             node.fields.push(field);
         }
 
@@ -710,9 +623,210 @@ impl<T> Visit for RefCell<T> where T: Visit + 'static {
     }
 }
 
+impl<T> Visit for Vec<T> where T: Default + Visit + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut len = self.len() as u32;
+        len.visit("Length", visitor)?;
+
+        if visitor.reading {
+            for index in 0..len {
+                let region_name = format!("Item{}", index);
+                visitor.enter_region(region_name.as_str())?;
+                let mut object = T::default();
+                object.visit("ItemData", visitor)?;
+                self.push(object);
+                visitor.leave_region()?;
+            }
+        } else {
+            for (index, item) in self.iter_mut().enumerate() {
+                let region_name = format!("Item{}", index);
+                visitor.enter_region(region_name.as_str())?;
+                item.visit("ItemData", visitor)?;
+                visitor.leave_region()?;
+            }
+        }
+        visitor.leave_region()?;
+        Ok(())
+    }
+}
+
+impl<T> Visit for Option<T> where T: Default + Visit + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut is_some = if self.is_some() { 1u8 } else { 0u8 };
+        is_some.visit("IsSome", visitor)?;
+
+        if is_some != 0 {
+            if visitor.reading {
+                let mut value = T::default();
+                value.visit("Data", visitor)?;
+                *self = Some(value);
+            } else {
+                self.as_mut().unwrap().visit("Data", visitor)?;
+            }
+        }
+
+        visitor.leave_region()?;
+        Ok(())
+    }
+}
+
+impl Visit for String {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut len = self.as_bytes().len() as u32;
+        len.visit("Length", visitor)?;
+
+        let mut data = if visitor.reading {
+            Vec::new()
+        } else {
+            Vec::from(self.as_bytes())
+        };
+
+        let mut proxy = Data { vec: &mut data };
+        proxy.visit("Data", visitor)?;
+
+        if visitor.reading {
+            *self = String::from_utf8(data)?;
+        }
+        visitor.leave_region()
+    }
+}
+
+impl Visit for PathBuf {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let bytes = if let Some(path_str) = self.as_os_str().to_str() {
+            path_str.as_bytes()
+        } else {
+            return Err(VisitError::InvalidName);
+        };
+
+        let mut len = bytes.len() as u32;
+        len.visit("Length", visitor)?;
+
+        let mut data = if visitor.reading {
+            Vec::new()
+        } else {
+            Vec::from(bytes)
+        };
+
+        let mut proxy = Data { vec: &mut data };
+        proxy.visit("Data", visitor)?;
+
+        if visitor.reading {
+            *self = PathBuf::from(String::from_utf8(data)?);
+        }
+
+        visitor.leave_region()
+    }
+}
+
 impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.visit_rc(name, self)
+        visitor.enter_region(name)?;
+
+        if visitor.reading {
+            let mut raw = 0u64;
+            raw.visit("Id", visitor)?;
+            if raw == 0 {
+                return Err(VisitError::UnexpectedRcNullIndex);
+            }
+            if let Some(ptr) = visitor.rc_map.get(&raw) {
+                if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
+                    *self = res;
+                } else {
+                    return Err(VisitError::TypeMismatch);
+                }
+            } else {
+                // Deserialize inner data. At this point Rc must be unique.
+                if let Some(data) = Rc::get_mut(self) {
+                    data.visit("RcData", visitor)?;
+                } else {
+                    return Err(VisitError::RcIsNonUnique);
+                }
+
+                // Remember that we already visited data Rc store.
+                visitor.rc_map.insert(raw as u64, self.clone());
+            }
+        } else {
+            // Take raw pointer to inner data.
+            let raw = Rc::into_raw(self.clone()) as *const T as *mut T;
+            unsafe { Rc::from_raw(raw); };
+
+            // Save it as id.
+            let mut index = raw as u64;
+            index.visit("Id", visitor)?;
+
+            if !visitor.rc_map.contains_key(&index) {
+                // Serialize inner data using raw pointer. This violates borrowing rules,
+                // but should be fine since visitor is not multithreaded (it simply cannot
+                // be multithreaded by its nature)
+                unsafe { &mut *raw }.visit("RcData", visitor)?;
+
+                visitor.rc_map.insert(index, self.clone());
+            }
+        }
+
+        visitor.leave_region()?;
+
+        Ok(())
+    }
+}
+
+impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        if visitor.reading {
+            let mut raw = 0u64;
+            raw.visit("Id", visitor)?;
+
+            if raw != 0 {
+                if let Some(ptr) = visitor.rc_map.get(&raw) {
+                    if let Ok(res) = Rc::downcast::<T>(ptr.clone()) {
+                        *self = Rc::downgrade(&res);
+                    } else {
+                        return Err(VisitError::TypeMismatch);
+                    }
+                } else {
+                    // Create new value wrapped into Rc and deserialize it.
+                    let mut rc = Rc::new(T::default());
+                    Rc::get_mut(&mut rc).unwrap().visit("RcData", visitor)?;
+                    visitor.rc_map.insert(raw as u64, rc.clone());
+                    *self = Rc::downgrade(&rc);
+                }
+            }
+        } else if let Some(rc) = Weak::upgrade(self) {
+            // Take raw pointer to inner data.
+            let raw = Rc::into_raw(rc.clone()) as *const T as *mut T;
+            unsafe { Rc::from_raw(raw); };
+
+            // Save it as id.
+            let mut index = raw as u64;
+            index.visit("Id", visitor)?;
+
+            if !visitor.rc_map.contains_key(&index) {
+                // Serialize inner data using raw pointer. This violates borrowing rules,
+                // but should be fine since visitor is not multithreaded (it simply cannot
+                // be multithreaded by its nature)
+                unsafe { &mut *raw }.visit("RcData", visitor)?;
+
+                visitor.rc_map.insert(index, rc.clone());
+            }
+        } else {
+            let mut index = 0u64;
+            index.visit("Id", visitor)?;
+        }
+
+        visitor.leave_region()?;
+
+        Ok(())
     }
 }
 
@@ -724,7 +838,7 @@ mod test {
         fs::File,
         io::Write,
     };
-    use crate::utils::visitor::{Visitor, Visit, VisitResult, VisitError};
+    use crate::utils::visitor::{Visitor, Visit, VisitResult, VisitError, Data};
 
     pub struct Model {
         data: u64
@@ -737,7 +851,8 @@ mod test {
     impl Visit for Texture {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             visitor.enter_region(name)?;
-            visitor.visit_data("Data", &mut self.data)?;
+            let mut proxy = Data { vec: &mut self.data };
+            proxy.visit("Data", visitor)?;
             visitor.leave_region()
         }
     }
@@ -745,7 +860,7 @@ mod test {
     impl Visit for Model {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             visitor.enter_region(name)?;
-            visitor.visit_u64("Data", &mut self.data)?;
+            self.data.visit("Data", visitor)?;
             visitor.leave_region()
         }
     }
@@ -792,16 +907,15 @@ mod test {
     impl Visit for Resource {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             if visitor.reading {} else {
-                let mut kind_id = match &self.kind {
+                let mut kind_id: u8 = match &self.kind {
                     ResourceKind::Unknown => return Err(VisitError::User(format!("Invalid resource!"))),
                     ResourceKind::Model(model) => 0,
                     ResourceKind::Texture(texture) => 1
                 };
-
-                visitor.visit_u8("KindId", &mut kind_id)?;
+                kind_id.visit("KindId", visitor)?;
                 self.kind.visit("KindData", visitor)?;
             }
-            visitor.visit_u16("ResData", &mut self.data)
+            self.data.visit("ResData", visitor)
         }
     }
 
@@ -830,8 +944,8 @@ mod test {
 
     impl Visit for Foo {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-            visitor.visit_u64("Bar", &mut self.bar)?;
-            visitor.visit_option("SharedResource", &mut self.shared_resource)?;
+            self.bar.visit("Bar", visitor)?;
+            self.shared_resource.visit("SharedResource", visitor)?;
             Ok(())
         }
     }
@@ -844,14 +958,14 @@ mod test {
         {
             let mut visitor = Visitor::new();
             let mut resource = Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })));
-            visitor.visit_rc("SharedResource", &mut resource).unwrap();
+            resource.visit("SharedResource", &mut visitor).unwrap();
 
             let mut objects = vec![
                 Foo::new(resource.clone()),
                 Foo::new(resource)
             ];
 
-            visitor.visit_vec("Objects", &mut objects).unwrap();
+            objects.visit("Objects", &mut visitor).unwrap();
 
             visitor.save_binary(path).unwrap();
             if let Ok(mut file) = File::create(Path::new("test.txt")) {
@@ -863,10 +977,10 @@ mod test {
         {
             let mut visitor = Visitor::load_binary(path).unwrap();
             let mut resource: Rc<Resource> = Rc::new(Default::default());
-            visitor.visit_rc("SharedResource", &mut resource).unwrap();
+            resource.visit("SharedResource", &mut visitor).unwrap();
 
             let mut objects: Vec<Foo> = Vec::new();
-            visitor.visit_vec("Objects", &mut objects).unwrap();
+            objects.visit("Objects", &mut visitor).unwrap();
         }
     }
 }

@@ -1,20 +1,14 @@
 use crate::{
-    scene::{
-        *,
-        node::NodeKind
-    },
+    scene::*,
     utils::{
         pool::*,
-        rcpool::{
-            RcPool,
-            RcHandle,
+        visitor::{
+            Visitor,
+            VisitResult,
+            Visit,
         },
     },
-    renderer::{
-        render::*,
-        surface::SurfaceSharedData,
-        surface::Surface
-    },
+    renderer::render::*,
     resource::{
         *,
         texture::*,
@@ -28,96 +22,78 @@ use std::{
     path::*,
     collections::VecDeque,
     time::Duration,
-    any::TypeId
+    cell::RefCell,
+    rc::Rc,
 };
-use serde::{
-    Serialize,
-    Deserialize,
-};
+use crate::scene::node::NodeKind;
+use std::any::TypeId;
 
-#[derive(Serialize, Deserialize)]
 pub struct ResourceManager {
-    resources: RcPool<Resource>,
+    resources: Vec<Rc<RefCell<Resource>>>,
     /// Path to textures, extensively used for resource files
     /// which stores path in weird format (either relative or absolute) which
     /// is obviously not good for engine.
     textures_path: PathBuf,
 }
 
-impl Default for ResourceManager {
-    fn default() -> Self {
+impl ResourceManager {
+    pub fn new() -> ResourceManager {
         Self {
-            resources: RcPool::new(),
+            resources: Vec::new(),
             textures_path: PathBuf::from("data/textures/"),
         }
     }
-}
-
-impl ResourceManager {
-    pub fn new() -> ResourceManager {
-        ResourceManager::default()
-    }
 
     #[inline]
-    pub fn for_each_texture_mut<Func>(&mut self, mut func: Func) where Func: FnMut(&mut Texture) {
-        for resource in self.resources.iter_mut() {
-            if let ResourceKind::Texture(texture) = resource.borrow_kind_mut() {
+    pub fn for_each_texture_mut<Func>(&self, mut func: Func) where Func: FnMut(&mut Texture) {
+        for resource in self.resources.iter() {
+            if let ResourceKind::Texture(texture) = resource.borrow_mut().borrow_kind_mut() {
                 func(texture);
             }
         }
     }
 
     #[inline]
-    fn add_resource(&mut self, resource: Resource) -> RcHandle<Resource> {
-        self.resources.spawn(resource)
+    fn add_resource(&mut self, resource: Rc<RefCell<Resource>>) {
+        self.resources.push(resource)
     }
 
     /// Searches for a resource of specified path, if found - returns handle to resource
     /// and increases reference count of resource.
     #[inline]
-    fn find_resource(&mut self, path: &Path) -> RcHandle<Resource> {
-        for i in 0..self.resources.get_capacity() {
-            if let Some(resource) = self.resources.at(i) {
-                if resource.get_path() == path {
-                    return self.resources.handle_from_index(i);
-                }
+    fn find_resource(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
+        for resource in self.resources.iter() {
+            if resource.borrow().get_path() == path {
+                return Some(resource.clone());
             }
         }
-        RcHandle::none()
-    }
-
-    #[inline]
-    pub fn borrow_resource(&self, resource_handle: &RcHandle<Resource>) -> Option<&Resource> {
-        self.resources.borrow(resource_handle)
-    }
-
-    #[inline]
-    pub fn borrow_resource_mut(&mut self, resource_handle: &RcHandle<Resource>) -> Option<&mut Resource> {
-        self.resources.borrow_mut(resource_handle)
-    }
-
-    #[inline]
-    pub fn share_resource_handle(&self, resource_handle: &RcHandle<Resource>) -> RcHandle<Resource> {
-        self.resources.share_handle(resource_handle)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn release_resource(&mut self, resource_handle: &RcHandle<Resource>) -> Option<Resource> {
-        self.resources.release(resource_handle)
+        None
     }
 
     #[inline]
     pub fn get_textures_path(&self) -> &Path {
         self.textures_path.as_path()
     }
+
+    pub fn update(&mut self) {
+        self.resources.retain(|resource| {
+            Rc::strong_count(resource) > 1
+        })
+    }
 }
 
-#[derive(Serialize, Deserialize)]
+impl Visit for ResourceManager {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.resources.visit("Resources", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 pub struct State {
     scenes: Pool<Scene>,
-    #[serde(skip)]
-    surf_data_storage: RcPool<SurfaceSharedData>,
     resource_manager: ResourceManager,
 }
 
@@ -127,69 +103,49 @@ impl State {
         State {
             scenes: Pool::new(),
             resource_manager: ResourceManager::new(),
-            surf_data_storage: RcPool::new(),
         }
     }
 
-    /// Returns handle of existing resource, or if resource is not loaded yet,
-    /// loads it and returns it handle. If resource could not be loaded, returns
-    /// none handle.
-    pub fn request_resource(&mut self, path: &Path) -> RcHandle<Resource> {
-        let mut resource_handle = self.resource_manager.find_resource(path);
+    pub fn request_resource(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
+        match self.resource_manager.find_resource(path) {
+            Some(resource) => Some(resource),
+            None => {
+                // No such resource, try to load it.
+                let extension = path.extension().
+                    and_then(|os| os.to_str()).
+                    map_or(String::from(""), |s| s.to_ascii_lowercase());
 
-        if resource_handle.is_none() {
-            // No such resource, try to load it.
-            let extension = path.extension().
-                and_then(|os| os.to_str()).
-                map_or(String::from(""), |s| s.to_ascii_lowercase());
-
-            resource_handle = match extension.as_str() {
-                "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => {
-                    match Texture::load(path) {
+                match extension.as_str() {
+                    "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load(path) {
                         Ok(texture) => {
-                            self.resource_manager.add_resource(Resource::new(path, ResourceKind::Texture(texture)))
+                            let resource = Rc::new(RefCell::new(Resource::new(path, ResourceKind::Texture(texture))));
+                            self.resource_manager.add_resource(resource.clone());
+                            println!("Texture {} is loaded!", path.display());
+                            Some(resource)
                         }
                         Err(_) => {
                             println!("Unable to load texture {}!", path.display());
-                            RcHandle::none()
+                            None
                         }
                     }
-                }
-                "fbx" => {
-                    match Model::load(path, self) {
+                    "fbx" => match Model::load(path, self) {
                         Ok(model) => {
-                            self.resource_manager.add_resource(Resource::new(path, ResourceKind::Model(model)))
+                            let resource = Rc::new(RefCell::new(Resource::new(path, ResourceKind::Model(model))));
+                            self.resource_manager.add_resource(resource.clone());
+                            println!("Model {} is loaded!", path.display());
+                            Some(resource)
                         }
                         Err(_) => {
                             println!("Unable to load model from {}!", path.display());
-                            RcHandle::none()
+                            None
                         }
+                    },
+                    _ => {
+                        println!("Unknown resource type {}!", path.display());
+                        None
                     }
                 }
-                _ => {
-                    println!("Unknown resource type {}!", path.display());
-                    RcHandle::none()
-                }
             }
-        }
-
-        if resource_handle.is_some() {
-            println!("Resource {} is loaded!", path.display());
-        }
-
-        resource_handle
-    }
-
-    #[inline]
-    pub fn release_resource(&mut self, handle: &RcHandle<Resource>) {
-        if let Some(mut resource) = self.resource_manager.release_resource(handle) {
-            match resource.borrow_kind_mut() {
-                ResourceKind::Model(model) => {
-                    self.destroy_scene_internal(model.get_scene_mut());
-                }
-                ResourceKind::Texture(texture) => ()
-            }
-            println!("Resource destroyed: {}!", resource.get_path().display());
         }
     }
 
@@ -199,53 +155,55 @@ impl State {
                 self.destroy_scene_internal(&mut scene);
             }
         }
-
-        if self.surf_data_storage.alive_count() != 0 {
-            println!("Not all shared surface data was freed! {} left alive!", self.surf_data_storage.alive_count());
-        }
     }
 
     fn resolve(&mut self) {
-        let mut resources_to_reload = Vec::new();
-        for i in 0..self.resource_manager.resources.get_capacity() {
-            let handle = self.resource_manager.resources.handle_from_index(i);
-            if handle.is_some() {
-                resources_to_reload.push(handle);
-            }
-        }
+        let resources_to_reload = self.resource_manager.resources.clone();
 
-        // Reload all resources first.
-        for resource_handle in resources_to_reload.iter() {
-            let (path, id) =
-                if let Some(resource) = self.resource_manager.resources.borrow(resource_handle) {
-                    (PathBuf::from(resource.get_path()), resource.get_kind_id())
-                } else {
-                    continue;
-                };
+        for resource in resources_to_reload {
+            let path = PathBuf::from(resource.borrow().get_path());
+            let id = resource.borrow().get_kind_id();
 
             if id == TypeId::of::<Model>() {
-                let model = Model::load(path.as_path(), self).unwrap();
-                let resource = Resource::new(path.as_path(), ResourceKind::Model(model));
-                self.resource_manager.resources.replace(&resource_handle, resource);
-            } else if id == TypeId::of::<Texture>() {}
+                let new_model = match Model::load(path.as_path(), self) {
+                    Ok(new_model) => new_model,
+                    Err(e) => {
+                        println!("Unable to reload {:?} model! Reason: {}", path, e);
+                        continue;
+                    }
+                };
+
+                if let ResourceKind::Model(model) = resource.borrow_mut().borrow_kind_mut() {
+                    *model = new_model;
+                }
+            } else if id == TypeId::of::<Texture>() {
+                let new_texture = match Texture::load(path.as_path()) {
+                    Ok(texture) => texture,
+                    Err(e) => {
+                        println!("Unable to reload {:?} texture! Reason: {}", path, e);
+                        continue;
+                    }
+                };
+
+                if let ResourceKind::Texture(texture) = resource.borrow_mut().borrow_kind_mut() {
+                    *texture = new_texture;
+                }
+            }
         }
 
         for scene in self.scenes.iter_mut() {
             for node in scene.nodes.iter_mut() {
                 let node_name = String::from(node.get_name());
-                if let Some(resource) = self.resource_manager.borrow_resource(node.get_resource()) {
+                if let Some(resource) = node.get_resource() {
                     if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
-                        if let ResourceKind::Model(model) = resource.borrow_kind() {
+                        if let ResourceKind::Model(model) = resource.borrow().borrow_kind() {
                             let resource_node_handle = model.find_node_by_name(node_name.as_str());
                             if let Some(resource_node) = model.get_scene().get_node(&resource_node_handle) {
                                 if let NodeKind::Mesh(resource_mesh) = resource_node.borrow_kind() {
                                     let surfaces = mesh.get_surfaces_mut();
                                     surfaces.clear();
                                     for resource_surface in resource_mesh.get_surfaces() {
-                                        surfaces.push(Surface {
-                                            data: self.surf_data_storage.share_handle(&resource_surface.get_data_handle()),
-                                            texture: self.resource_manager.share_resource_handle(&resource_surface.get_texture_resource_handle()),
-                                        });
+                                        surfaces.push(resource_surface.make_copy());
                                     }
                                 }
                             }
@@ -267,11 +225,6 @@ impl State {
     }
 
     #[inline]
-    pub fn get_surface_data_storage(&self) -> &RcPool<SurfaceSharedData> {
-        &self.surf_data_storage
-    }
-
-    #[inline]
     pub fn get_resource_manager_mut(&mut self) -> &mut ResourceManager {
         &mut self.resource_manager
     }
@@ -279,11 +232,6 @@ impl State {
     #[inline]
     pub fn get_resource_manager(&self) -> &ResourceManager {
         &self.resource_manager
-    }
-
-    #[inline]
-    pub fn get_surface_data_storage_mut(&mut self) -> &mut RcPool<SurfaceSharedData> {
-        &mut self.surf_data_storage
     }
 
     #[inline]
@@ -317,6 +265,17 @@ impl State {
         if let Some(mut scene) = self.scenes.take(handle) {
             self.destroy_scene_internal(&mut scene);
         }
+    }
+}
+
+impl Visit for State {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.resource_manager.visit("ResourceManager", visitor)?;
+        self.scenes.visit("Scenes", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
@@ -370,6 +329,8 @@ impl Engine {
         let client_size = self.renderer.context.get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
 
+        self.state.resource_manager.update();
+
         for scene in self.state.scenes.iter_mut() {
             scene.update(aspect_ratio, dt);
         }
@@ -410,16 +371,6 @@ impl Engine {
         self.renderer.get_statistics()
     }
 
-    pub fn save<W>(&self, writer: W) where W: std::io::Write {
-        serde_json::to_writer_pretty(writer, &self.state).unwrap();
-    }
-
-    pub fn load<R>(&mut self, reader: R) where R: std::io::Read {
-        self.state.clear();
-        self.state = serde_json::from_reader(reader).unwrap();
-        self.state.resolve();
-    }
-
     pub fn render(&mut self) {
         self.renderer.upload_font_cache(&mut self.font_cache);
         self.renderer.upload_resources(&mut self.state);
@@ -435,6 +386,25 @@ impl Engine {
     #[inline]
     pub fn pop_event(&mut self) -> Option<glutin::Event> {
         self.events.pop_front()
+    }
+}
+
+impl Visit for Engine {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        // Make sure to delete unused resources.
+        if visitor.is_reading() {
+            self.state.resource_manager.update();
+        }
+
+        self.state.visit("State", visitor)?;
+
+        if visitor.is_reading() {
+            self.state.resolve();
+        }
+
+        visitor.leave_region()
     }
 }
 

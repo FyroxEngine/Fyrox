@@ -1,25 +1,32 @@
 use crate::{
     scene::{
         Scene,
-        node::Node
+        node::Node,
     },
     utils::pool::Handle,
     engine::State,
     resource::{
         fbx,
         Resource,
-        ResourceKind
+        ResourceKind,
     },
-    utils::rcpool::RcHandle,
 };
-use std::path::Path;
+use std::{
+    path::Path,
+    cell::RefCell,
+    rc::Rc
+};
 
-use serde::{Serialize, Deserialize};
-
-#[derive(Serialize, Deserialize)]
 pub struct Model {
-    #[serde(skip)]
     scene: Scene,
+}
+
+impl Default for Model {
+    fn default() -> Self {
+        Self {
+            scene: Scene::new(),
+        }
+    }
 }
 
 impl Model {
@@ -30,24 +37,23 @@ impl Model {
     }
 
     /// Tries to instantiate model from given resource. Returns non-none handle on success.
-    pub fn instantiate(resource_handle: &RcHandle<Resource>, state: &State, dest_scene: &mut Scene) -> Result<Handle<Node>, ()> {
-        if let Some(resource) = state.get_resource_manager().borrow_resource(resource_handle) {
-            if let ResourceKind::Model(model) = resource.borrow_kind() {
-                let root = model.scene.copy_node(&model.scene.get_root(), state, dest_scene);
+    pub fn instantiate(resource_rc: Rc<RefCell<Resource>>, dest_scene: &mut Scene) -> Result<Handle<Node>, ()> {
+        let resource = resource_rc.borrow();
+        if let ResourceKind::Model(model) = resource.borrow_kind() {
+            let root = model.scene.copy_node(&model.scene.get_root(), dest_scene);
 
-                // Notify instantiated nodes about resource they were created from.
-                let mut stack = Vec::new();
-                stack.push(root.clone());
-                while let Some(node_handle) = stack.pop() {
-                    if let Some(node) = dest_scene.nodes.borrow_mut(&node_handle) {
-                        node.set_resource(state.get_resource_manager().share_resource_handle(resource_handle));
-                        for child_handle in node.get_children() {
-                            stack.push(child_handle.clone());
-                        }
+            // Notify instantiated nodes about resource they were created from.
+            let mut stack = Vec::new();
+            stack.push(root.clone());
+            while let Some(node_handle) = stack.pop() {
+                if let Some(node) = dest_scene.nodes.borrow_mut(&node_handle) {
+                    node.set_resource(Rc::clone(&resource_rc));
+                    for child_handle in node.get_children() {
+                        stack.push(child_handle.clone());
                     }
                 }
-                return Ok(root);
             }
+            return Ok(root);
         }
         Err(())
     }
