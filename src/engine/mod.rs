@@ -396,6 +396,7 @@ impl Visit for Engine {
         // Make sure to delete unused resources.
         if visitor.is_reading() {
             self.state.resource_manager.update();
+            self.state.scenes.clear();
         }
 
         self.state.visit("State", visitor)?;

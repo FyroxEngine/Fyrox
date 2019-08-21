@@ -200,13 +200,13 @@ impl<T> Pool<T> {
                 if let Some(payload) = &record.payload {
                     return Some(payload);
                 } else {
-                    println!("Pool: Payload was empty!");
+                    panic!("Pool: Payload was empty!");
                 }
             } else if handle.generation != Pool::<T>::INVALID_GENERATION {
-                println!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
+                panic!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
         } else {
-            println!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
+            panic!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
         }
         None
     }
@@ -225,13 +225,13 @@ impl<T> Pool<T> {
                 if let Some(payload) = &mut record.payload {
                     return Some(payload);
                 } else {
-                    println!("Pool: Payload was empty!");
+                    panic!("Pool: Payload was empty!");
                 }
             } else if handle.generation != Pool::<T>::INVALID_GENERATION {
-                println!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
+                panic!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
             }
         } else {
-            println!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, record_count);
+            panic!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, record_count);
         }
         None
     }
