@@ -18,6 +18,12 @@ pub enum RotationOrder {
     ZYX,
 }
 
+impl Default for Quat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Quat {
     pub fn new() -> Self {
         Quat {
@@ -60,6 +66,41 @@ impl Quat {
             RotationOrder::ZXY => qy * qx * qz,
             RotationOrder::ZYX => qx * qy * qz,
         }
+    }
+
+    pub fn dot(&self, other: &Quat) -> f32 {
+        self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
+    }
+
+    pub fn angle(&self, other: &Quat) -> f32 {
+        let s = (self.sqr_len() * other.sqr_len()).sqrt();
+        return (self.dot(other) / s).acos();
+    }
+
+    pub fn slerp(&self, other: &Quat, t: f32) -> Quat {
+        let theta = self.angle(other);
+        if theta.abs() > 0.00001 {
+            let d = 1.0 / theta.sin();
+            let s0 = ((1.0 - t) * theta).sin();
+            let s1 = (t * theta).sin();
+            if self.dot(other) < 0.0 {
+                return Self {
+                    x: (self.x * s0 - other.x * s1) * d,
+                    y: (self.y * s0 - other.y * s1) * d,
+                    z: (self.z * s0 - other.z * s1) * d,
+                    w: (self.w * s0 - other.w * s1) * d,
+                };
+            } else {
+                return Self {
+                    x: (self.x * s0 + other.x * s1) * d,
+                    y: (self.y * s0 + other.y * s1) * d,
+                    z: (self.z * s0 + other.z * s1) * d,
+                    w: (self.w * s0 + other.w * s1) * d,
+                };
+            }
+        }
+        // Fallback
+        *self
     }
 }
 

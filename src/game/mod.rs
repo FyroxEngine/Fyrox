@@ -8,18 +8,31 @@ use crate::{
         duration_to_seconds_f64,
     },
     game::level::Level,
-    utils::pool::Handle,
+    utils::{
+        pool::Handle,
+        visitor::{
+            Visitor,
+            VisitResult,
+            Visit
+        }
+    },
     math::vec2::Vec2,
     gui::{
         button::ButtonBuilder,
         Thickness,
         scroll_viewer::ScrollViewerBuilder,
-        grid::{GridBuilder, Column, Row},
+        grid::{
+            GridBuilder,
+            Column,
+            Row
+        },
         text::TextBuilder,
         scroll_bar::ScrollBarBuilder,
     },
-    gui::node::{UINode, UINodeKind},
-    utils::visitor::Visitor
+    gui::node::{
+        UINode,
+        UINodeKind
+    },
 };
 use std::{
     cell::RefCell,
@@ -29,7 +42,6 @@ use std::{
     rc::Rc,
     io::Write
 };
-use crate::utils::visitor::{VisitResult, Visit};
 
 pub struct MenuState {
     save_game: Option<()>,

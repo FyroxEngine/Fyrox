@@ -1,17 +1,21 @@
 use glutin::ContextTrait;
+use std::{
+    ffi::{
+        CString,
+        c_void,
+    },
+    mem::size_of,
+    time::{
+        Instant,
+        Duration,
+    },
+    thread,
+};
 use crate::{
-    renderer::{
-        gl,
-        gl::types::*,
-        surface::*,
+    utils::pool::{
+        Handle,
+        Pool,
     },
-    math::{
-        vec2::*,
-        vec3::*,
-        mat4::Mat4,
-    },
-    utils::pool::*,
-    scene::node::*,
     engine::{
         State,
         duration_to_seconds_f32,
@@ -25,19 +29,24 @@ use crate::{
         CommandKind,
         Color,
     },
-};
-use std::{
-    ffi::{
-        CStr,
-        CString,
-        c_void,
+    scene::node::{
+        Node,
+        NodeKind,
     },
-    mem::size_of,
-    time::{
-        Instant,
-        Duration,
+    renderer::{
+        surface::{
+            Surface,
+            Vertex,
+        },
+        gl,
+        gl::types::*,
+        gpu_program::GpuProgram,
     },
-    thread,
+    math::{
+        vec3::Vec3,
+        mat4::Mat4,
+        vec2::Vec2,
+    },
 };
 
 // Welcome to the kingdom of Unsafe Code
@@ -47,80 +56,6 @@ pub fn check_gl_error() {
         match gl::GetError() {
             gl::NO_ERROR => (),
             _ => panic!("unknown opengl error!")
-        }
-    }
-}
-
-pub struct GpuProgram {
-    id: GLuint,
-    name_buf: Vec<u8>,
-}
-
-impl GpuProgram {
-    pub fn create_shader(actual_type: GLuint, source: &CStr) -> Result<GLuint, String> {
-        unsafe {
-            let shader = gl::CreateShader(actual_type);
-            gl::ShaderSource(shader, 1, &source.as_ptr(), std::ptr::null());
-            gl::CompileShader(shader);
-
-            let mut status = 1;
-            gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
-            if status == 0 {
-                let mut log_len = 0;
-                gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
-                let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-                gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
-                Err(String::from_utf8_unchecked(buffer))
-            } else {
-                println!("Shader compiled!");
-                Ok(shader)
-            }
-        }
-    }
-
-    pub fn from_source(vertex_source: &CStr, fragment_source: &CStr) -> Result<GpuProgram, String> {
-        unsafe {
-            let vertex_shader = Self::create_shader(gl::VERTEX_SHADER, vertex_source).unwrap();
-            let fragment_shader = Self::create_shader(gl::FRAGMENT_SHADER, fragment_source).unwrap();
-            let program: GLuint = gl::CreateProgram();
-            gl::AttachShader(program, vertex_shader);
-            gl::DeleteShader(vertex_shader);
-            gl::AttachShader(program, fragment_shader);
-            gl::DeleteShader(fragment_shader);
-            gl::LinkProgram(program);
-            let mut status = 1;
-            gl::GetProgramiv(program, gl::LINK_STATUS, &mut status);
-            if status == 0 {
-                let mut log_len = 0;
-                gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
-                let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-                gl::GetProgramInfoLog(program, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
-                Err(String::from_utf8_unchecked(buffer))
-            } else {
-                Ok(Self {
-                    id: program,
-                    name_buf: Vec::new(),
-                })
-            }
-        }
-    }
-
-    pub fn get_uniform_location(&mut self, name: &str) -> GLint {
-        // Form c string in special buffer to reduce memory allocations
-        let buf = &mut self.name_buf;
-        buf.clear();
-        buf.extend_from_slice(name.as_bytes());
-        buf.push(0);
-        unsafe {
-            gl::GetUniformLocation(self.id, buf.as_ptr() as *const i8)
-        }
-    }
-}
-
-impl Drop for GpuProgram {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteProgram(self.id);
         }
     }
 }
@@ -523,78 +458,9 @@ impl Renderer {
         });
     }
 
-    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
-        let frame_start_time = Instant::now();
-
+    fn render_ui(&mut self, drawing_context: &DrawingContext) {
         unsafe {
             let client_size = self.context.get_inner_size().unwrap();
-
-            gl::ClearColor(0.0, 0.63, 0.91, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-
-            for scene in state.get_scenes().iter() {
-                // Prepare for render - fill lists of nodes participating in rendering
-                // by traversing scene graph
-                self.meshes.clear();
-                self.lights.clear();
-                self.cameras.clear();
-                self.traversal_stack.clear();
-                self.traversal_stack.push(scene.root.clone());
-                while let Some(node_handle) = self.traversal_stack.pop() {
-                    if let Some(node) = scene.get_node(&node_handle) {
-                        match node.borrow_kind() {
-                            NodeKind::Mesh(_) => self.meshes.push(node_handle),
-                            NodeKind::Light(_) => self.lights.push(node_handle),
-                            NodeKind::Camera(_) => self.cameras.push(node_handle),
-                            _ => ()
-                        }
-                        // Queue children for render
-                        for child_handle in node.get_children() {
-                            self.traversal_stack.push(child_handle.clone());
-                        }
-                    }
-                }
-
-                gl::UseProgram(self.flat_shader.program.id);
-
-                // Render scene from each camera
-                for camera_handle in self.cameras.iter() {
-                    if let Some(camera_node) = scene.get_node(&camera_handle) {
-                        if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
-
-                            // Setup viewport
-                            let viewport = camera.get_viewport_pixels(
-                                Vec2 {
-                                    x: client_size.width as f32,
-                                    y: client_size.height as f32,
-                                });
-                            gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
-
-
-                            let view_projection = camera.get_view_projection_matrix();
-
-                            for mesh_handle in self.meshes.iter() {
-                                if let Some(node) = scene.get_node(&mesh_handle) {
-                                    if !node.get_global_visibility() {
-                                        continue;
-                                    }
-
-                                    let mvp = view_projection * *node.get_global_transform();
-
-                                    gl::UseProgram(self.flat_shader.program.id);
-                                    gl::UniformMatrix4fv(self.flat_shader.wvp_matrix, 1, gl::FALSE, &mvp.f as *const GLfloat);
-
-                                    if let NodeKind::Mesh(mesh) = node.borrow_kind() {
-                                        for surface in mesh.get_surfaces().iter() {
-                                            self.draw_surface(surface);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
 
             // Render UI on top of everything
             gl::Disable(gl::DEPTH_TEST);
@@ -690,6 +556,81 @@ impl Renderer {
             gl::Disable(gl::STENCIL_TEST);
             gl::Disable(gl::BLEND);
             gl::Enable(gl::DEPTH_TEST);
+        }
+    }
+
+    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
+        let frame_start_time = Instant::now();
+
+        unsafe {
+            let client_size = self.context.get_inner_size().unwrap();
+
+            gl::ClearColor(0.0, 0.63, 0.91, 1.0);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+
+            for scene in state.get_scenes().iter() {
+                // Prepare for render - fill lists of nodes participating in rendering
+                // by traversing scene graph
+                self.meshes.clear();
+                self.lights.clear();
+                self.cameras.clear();
+                self.traversal_stack.clear();
+                self.traversal_stack.push(scene.get_root().clone());
+                while let Some(node_handle) = self.traversal_stack.pop() {
+                    if let Some(node) = scene.get_node(&node_handle) {
+                        match node.borrow_kind() {
+                            NodeKind::Mesh(_) => self.meshes.push(node_handle),
+                            NodeKind::Light(_) => self.lights.push(node_handle),
+                            NodeKind::Camera(_) => self.cameras.push(node_handle),
+                            _ => ()
+                        }
+                        // Queue children for render
+                        for child_handle in node.get_children() {
+                            self.traversal_stack.push(child_handle.clone());
+                        }
+                    }
+                }
+
+                gl::UseProgram(self.flat_shader.program.id);
+
+                // Render scene from each camera
+                for camera_handle in self.cameras.iter() {
+                    if let Some(camera_node) = scene.get_node(&camera_handle) {
+                        if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
+                            // Setup viewport
+                            let viewport = camera.get_viewport_pixels(
+                                Vec2 {
+                                    x: client_size.width as f32,
+                                    y: client_size.height as f32,
+                                });
+                            gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
+
+                            let view_projection = camera.get_view_projection_matrix();
+
+                            for mesh_handle in self.meshes.iter() {
+                                if let Some(node) = scene.get_node(&mesh_handle) {
+                                    if !node.get_global_visibility() {
+                                        continue;
+                                    }
+
+                                    let mvp = view_projection * *node.get_global_transform();
+
+                                    gl::UseProgram(self.flat_shader.program.id);
+                                    gl::UniformMatrix4fv(self.flat_shader.wvp_matrix, 1, gl::FALSE, &mvp.f as *const GLfloat);
+
+                                    if let NodeKind::Mesh(mesh) = node.borrow_kind() {
+                                        for surface in mesh.get_surfaces().iter() {
+                                            self.draw_surface(surface);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.render_ui(drawing_context);
         }
 
         check_gl_error();

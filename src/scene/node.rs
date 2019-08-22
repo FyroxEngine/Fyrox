@@ -227,6 +227,9 @@ pub struct Node {
     pub(in crate::scene) global_transform: Mat4,
     body: Handle<Body>,
     resource: Option<Rc<RefCell<Resource>>>,
+    /// Handle to node in scene of model resource from which this node
+    /// was instantiated from.
+    original: Handle<Node>
 }
 
 impl Default for Node {
@@ -251,6 +254,7 @@ impl Default for Node {
             global_transform: Mat4::identity(),
             body: Handle::none(),
             resource: None,
+            original: Handle::none()
         }
     }
 }
@@ -277,6 +281,7 @@ impl Node {
             global_transform: Mat4::identity(),
             body: Handle::none(),
             resource: None,
+            original: Handle::none()
         }
     }
 
@@ -300,7 +305,7 @@ impl Node {
 
     /// Creates copy of node without copying children nodes and physics body.
     /// Children nodes has to be copied explicitly.
-    pub fn make_copy(&self) -> Node {
+    pub fn make_copy(&self, original: Handle<Node>) -> Node {
         Node {
             kind: match &self.kind {
                 NodeKind::Camera(camera) => NodeKind::Camera(camera.make_copy()),
@@ -329,7 +334,13 @@ impl Node {
                 Some(resource) => Some(Rc::clone(resource)),
                 None => None
             },
+            original
         }
+    }
+
+    #[inline]
+    pub fn get_original_handle(&self) -> Handle<Node> {
+        self.original.clone()
     }
 
     #[inline]
@@ -358,6 +369,21 @@ impl Node {
             Some(resource) => Some(Rc::clone(resource)),
             None => None
         }
+    }
+
+    #[inline]
+    pub fn get_local_position(&self) -> Vec3 {
+        self.local_position
+    }
+
+    #[inline]
+    pub fn get_local_rotation(&self) -> Quat {
+        self.local_rotation
+    }
+
+    #[inline]
+    pub fn get_local_scale(&self) -> Vec3 {
+        self.local_scale
     }
 
     #[inline]

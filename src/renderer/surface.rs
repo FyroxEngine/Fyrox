@@ -2,13 +2,13 @@ use crate::{
     math::{vec2::*, vec3::*, vec4::*},
     renderer::{
         gl,
-        gl::types::*
+        gl::types::*,
     },
     resource::*,
 };
 use std::{
     rc::Rc,
-    cell::RefCell
+    cell::RefCell,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -27,8 +27,6 @@ pub struct SurfaceSharedData {
     vbo: GLuint,
     vao: GLuint,
     ebo: GLuint,
-
-    // Skip vertices and indices for now, later it can be useful for dynamic surfaces.
     vertices: Vec<Vertex>,
     indices: Vec<i32>,
 }
@@ -104,8 +102,76 @@ impl SurfaceSharedData {
         self.indices.as_slice()
     }
 
-    pub fn calculate_tangents(&self) {
+    pub fn calculate_tangents(&mut self) {
+        let mut tan1 = vec![Vec3::new(); self.vertices.len()];
+        let mut tan2 = vec![Vec3::new(); self.vertices.len()];
 
+        for i in (0..self.indices.len()).step_by(3) {
+            let i1 = self.indices[i] as usize;
+            let i2 = self.indices[i + 1] as usize;
+            let i3 = self.indices[i + 2] as usize;
+
+            let v1 = &self.vertices[i1].position;
+            let v2 = &self.vertices[i2].position;
+            let v3 = &self.vertices[i3].position;
+
+            let w1 = &self.vertices[i1].tex_coord;
+            let w2 = &self.vertices[i2].tex_coord;
+            let w3 = &self.vertices[i3].tex_coord;
+
+            let x1 = v2.x - v1.x;
+            let x2 = v3.x - v1.x;
+            let y1 = v2.y - v1.y;
+            let y2 = v3.y - v1.y;
+            let z1 = v2.z - v1.z;
+            let z2 = v3.z - v1.z;
+
+            let s1 = w2.x - w1.x;
+            let s2 = w3.x - w1.x;
+            let t1 = w2.y - w1.y;
+            let t2 = w3.y - w1.y;
+
+            let r = 1.0 / (s1 * t2 - s2 * t1);
+
+            let sdir = Vec3::make(
+                (t2 * x1 - t1 * x2) * r,
+                (t2 * y1 - t1 * y2) * r,
+                (t2 * z1 - t1 * z2) * r,
+            );
+
+            tan1[i1] += sdir;
+            tan1[i2] += sdir;
+            tan1[i3] += sdir;
+
+            let tdir = Vec3::make(
+                (s1 * x2 - s2 * x1) * r,
+                (s1 * y2 - s2 * y1) * r,
+                (s1 * z2 - s2 * z1) * r,
+            );
+            tan2[i1] += tdir;
+            tan2[i2] += tdir;
+            tan2[i3] += tdir;
+        }
+
+        for i in 0..self.vertices.len() {
+            let n = &self.vertices[i].normal;
+            let t = tan1[i];
+
+            // Gram-Schmidt orthogonalize
+            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap();
+
+            self.vertices[i].tangent = Vec4 {
+                x: tangent.x,
+                y: tangent.y,
+                z: tangent.z,
+                // Handedness
+                w: if n.cross(&t).dot(&tan2[i]) < 0.0 {
+                    -1.0
+                } else {
+                    1.0
+                },
+            };
+        }
     }
 
     pub fn make_cube() -> Self {
@@ -385,7 +451,7 @@ impl Surface {
             texture: match &self.texture {
                 Some(resource) => Some(Rc::clone(resource)),
                 None => None
-            }
+            },
         }
     }
 }

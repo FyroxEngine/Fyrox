@@ -1,4 +1,5 @@
 use std::ops;
+use crate::math::lerpf;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Vec3 {
@@ -90,11 +91,11 @@ impl Vec3 {
     }
 
     #[inline]
-    pub fn normalized(&self) -> Option<Vec3> {
+    pub fn normalized(&self) -> Option<Self> {
         let len = self.len();
         if len >= std::f32::EPSILON {
             let inv_len = 1.0 / len;
-            return Some(Vec3 {
+            return Some(Self {
                 x: self.x * inv_len,
                 y: self.y * inv_len,
                 z: self.z * inv_len,
@@ -106,13 +107,13 @@ impl Vec3 {
     /// Returns normalized vector and its original length. May fail if vector is
     /// degenerate.
     #[inline]
-    pub fn normalized_ex(&self) -> (Option<Vec3>, f32) {
+    pub fn normalized_ex(&self) -> (Option<Self>, f32) {
         let len = self.len();
 
         let normalized =
             if len >= std::f32::EPSILON {
                 let inv_len = 1.0 / len;
-                Some(Vec3 {
+                Some(Self {
                     x: self.x * inv_len,
                     y: self.y * inv_len,
                     z: self.z * inv_len,
@@ -125,12 +126,20 @@ impl Vec3 {
     }
 
     #[inline]
-    pub fn normalized_unchecked(&self) -> Vec3 {
+    pub fn normalized_unchecked(&self) -> Self {
         let inv_len = 1.0 / self.len();
-        Vec3 {
+        Self {
             x: self.x * inv_len,
             y: self.y * inv_len,
             z: self.z * inv_len,
+        }
+    }
+
+    pub fn lerp(&self, other: &Self, t: f32) -> Self {
+        Self {
+            x: lerpf(self.x, other.x, t),
+            y: lerpf(self.y, other.y, t),
+            z: lerpf(self.z, other.z, t),
         }
     }
 }
@@ -153,6 +162,18 @@ impl ops::AddAssign<Self> for Vec3 {
         self.x += b.x;
         self.y += b.y;
         self.z += b.z;
+    }
+}
+
+impl ops::Mul<Self> for Vec3 {
+    type Output = Self;
+
+    fn mul(self, rhs: Vec3) -> Self::Output {
+        Self {
+            x: self.x * rhs.x,
+            y: self.y * rhs.y,
+            z: self.z * rhs.z
+        }
     }
 }
 

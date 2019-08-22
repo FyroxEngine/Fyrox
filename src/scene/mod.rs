@@ -7,39 +7,46 @@ use crate::{
         visitor::{
             Visit,
             VisitResult,
-            Visitor
-        }
+            Visitor,
+        },
+        pool::{
+            Handle,
+            Pool,
+        },
     },
-    math::mat4::*,
+    math::mat4::Mat4,
     physics::Physics,
     engine::State,
+    scene::{
+        animation::Animation,
+        node::Node,
+        node::NodeKind,
+    },
 };
-use node::*;
-use crate::utils::pool::{Handle, Pool};
+use crate::math::vec3::Vec3;
 
 pub struct Scene {
     /// Nodes pool, every node lies inside pool. User-code may borrow
     /// a reference to a node using handle.
-    pub(crate) nodes: Pool<Node>,
-
+    nodes: Pool<Node>,
     /// Root node of scene. Each node added to scene will be attached
     /// to root.
-    pub(crate) root: Handle<Node>,
-
+    root: Handle<Node>,
+    animations: Pool<Animation>,
     physics: Physics,
-
     /// Tree traversal stack.
     stack: Vec<Handle<Node>>,
 }
 
 impl Default for Scene {
     fn default() -> Self {
-       Self {
-           nodes: Pool::new(),
-           root: Default::default(),
-           physics: Physics::new(),
-           stack: Vec::new()
-       }
+        Self {
+            nodes: Pool::new(),
+            root: Default::default(),
+            physics: Physics::new(),
+            stack: Vec::new(),
+            animations: Pool::new(),
+        }
     }
 }
 
@@ -52,6 +59,7 @@ impl Scene {
             nodes,
             stack: Vec::new(),
             root,
+            animations: Pool::new(),
             physics: Physics::new(),
         }
     }
@@ -63,6 +71,16 @@ impl Scene {
         let handle = self.nodes.spawn(node);
         self.link_nodes(&handle, &self.root.clone());
         handle
+    }
+
+    #[inline]
+    pub fn get_nodes(&mut self) -> &Pool<Node> {
+        &self.nodes
+    }
+
+    #[inline]
+    pub fn get_nodes_mut(&mut self) -> &mut Pool<Node> {
+        &mut self.nodes
     }
 
     /// Destroys node and its children recursively.
@@ -101,6 +119,26 @@ impl Scene {
     #[inline]
     pub fn get_physics_mut(&mut self) -> &mut Physics {
         &mut self.physics
+    }
+
+    #[inline]
+    pub fn add_animation(&mut self, animation: Animation) -> Handle<Animation> {
+        self.animations.spawn(animation)
+    }
+
+    #[inline]
+    pub fn get_animation(&self, handle: &Handle<Animation>) -> Option<&Animation> {
+        self.animations.borrow(handle)
+    }
+
+    #[inline]
+    pub fn get_animation_mut(&mut self, handle: &Handle<Animation>) -> Option<&mut Animation> {
+        self.animations.borrow_mut(handle)
+    }
+
+    #[inline]
+    pub fn get_animations(&self) -> &Pool<Animation> {
+        &self.animations
     }
 
     /// Links specified child with specified parent.
@@ -160,7 +198,7 @@ impl Scene {
     pub fn copy_node(&self, root_handle: &Handle<Node>, dest_scene: &mut Scene) -> Handle<Node> {
         match self.get_node(root_handle) {
             Some(src_node) => {
-                let mut dest_node = src_node.make_copy();
+                let mut dest_node = src_node.make_copy(root_handle.clone());
                 if let Some(src_body) = self.physics.borrow_body(&src_node.get_body()) {
                     dest_node.set_body(dest_scene.physics.add_body(src_body.make_copy()));
                 }
@@ -177,6 +215,7 @@ impl Scene {
         }
     }
 
+    #[inline]
     pub fn get_root(&self) -> Handle<Node> {
         self.root.clone()
     }
@@ -224,9 +263,41 @@ impl Scene {
         }
     }
 
+    pub fn update_animations(&mut self, dt: f32) {
+        // Reset local transform of animated nodes first
+        for animation in self.animations.iter() {
+            for track in animation.get_tracks() {
+                if let Some(node) = self.nodes.borrow_mut(&track.get_node()) {
+                    node.set_local_position(Default::default());
+                    node.set_local_rotation(Default::default());
+                    node.set_local_scale(Vec3::make(1.0, 1.0, 1.0));
+                }
+            }
+        }
+
+        // Then apply animation.
+        for animation in self.animations.iter_mut() {
+            let next_time_pos = animation.get_time_position() + dt * animation.get_speed();
+
+            for track in animation.get_tracks() {
+                if let Some(keyframe) = track.get_key_frame(animation.get_time_position()) {
+                    if let Some(node) = self.nodes.borrow_mut(&track.get_node()) {
+                        node.set_local_position(node.get_local_position() + keyframe.position);
+                        node.set_local_rotation(node.get_local_rotation() * keyframe.rotation);
+                        node.set_local_scale(node.get_local_scale() * keyframe.scale);
+                    }
+                }
+            }
+
+            animation.set_time_position(next_time_pos);
+            animation.update_fading(dt);
+        }
+    }
+
     pub fn update(&mut self, aspect_ratio: f32, dt: f64) {
         self.update_physics(dt);
 
+        self.update_animations(dt as f32);
         self.update_nodes();
 
         for node in self.nodes.iter_mut() {
@@ -245,6 +316,7 @@ impl Visit for Scene {
         visitor.enter_region(name)?;
         self.root.visit("Root", visitor)?;
         self.nodes.visit("Nodes", visitor)?;
+        self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
         visitor.leave_region()
     }

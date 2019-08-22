@@ -4,8 +4,8 @@ use crate::{
         visitor::{
             Visit,
             VisitResult,
-        },
-        visitor::Visitor,
+            Visitor
+        }
     },
     math::vec3::*,
     scene::{

@@ -1,14 +1,37 @@
-use std::{path::{PathBuf, Path}, fs::File, io::Read, collections::HashMap, time::Instant};
+use std::{
+    path::{PathBuf, Path},
+    fs::File,
+    io::Read,
+    collections::HashMap,
+    time::Instant,
+    any::{Any, TypeId},
+    cell::RefCell,
+    rc::Rc,
+};
 use crate::{
     utils::pool::*,
-    math::{vec4::*, vec3::*, vec2::*, mat4::*, quat::*, triangulator::*},
+    math::{
+        vec4::Vec4,
+        vec3::Vec3,
+        vec2::Vec2,
+        mat4::Mat4,
+        quat::{
+            Quat,
+            RotationOrder,
+        },
+        triangulator::triangulate,
+    },
     scene::{*, node::*},
-    renderer::surface::{SurfaceSharedData, Surface, Vertex},
+    renderer::surface::{
+        SurfaceSharedData,
+        Surface,
+        Vertex,
+    },
     engine::State,
 };
-use std::any::{Any, TypeId};
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::scene::animation::{Track, KeyFrame, Animation};
+
+// TODO: Add binary FBX support
 
 pub enum FbxAttribute {
     Double(f64),
@@ -234,8 +257,46 @@ impl FbxAnimationCurve {
 
         Ok(curve)
     }
+
+    fn eval(&self, time: f32) -> f32 {
+        if self.keys.is_empty() {
+            println!("FBX: Trying to evaluate curve with no keys!");
+
+            return 0.0;
+        }
+
+        if time <= self.keys[0].time {
+            return self.keys[0].value;
+        }
+
+        if time >= self.keys[self.keys.len() - 1].time {
+            return self.keys[self.keys.len() - 1].value;
+        }
+
+        // Do linear search for span
+        for i in 0..self.keys.len() {
+            let cur = &self.keys[i];
+            if cur.time >= time {
+                let next = &self.keys[i + 1];
+
+                // calculate interpolation coefficient
+                let time_span = next.time - cur.time;
+                let k = (time - cur.time) / time_span;
+
+                // TODO: for now assume that we have only linear transitions
+                let val_span = next.value - cur.value;
+                return cur.value + k * val_span;
+            }
+        }
+
+        // Must be unreached
+        println!("FBX: How the hell did you get here?!");
+
+        return 0.0;
+    }
 }
 
+#[derive(PartialEq)]
 enum FbxAnimationCurveNodeType {
     Unknown,
     Translation,
@@ -255,16 +316,50 @@ impl FbxAnimationCurveNode {
         match nodes.borrow(node_handle) {
             Some(node) =>
                 Ok(FbxAnimationCurveNode {
-                    actual_type: match node.get_attrib(0)?.as_string().as_str() {
-                        "T" | "AnimCurveNode::T" => FbxAnimationCurveNodeType::Translation,
-                        "R" | "AnimCurveNode::R" => FbxAnimationCurveNodeType::Rotation,
-                        "S" | "AnimCurveNode::S" => FbxAnimationCurveNodeType::Scale,
-                        _ => FbxAnimationCurveNodeType::Unknown
+                    actual_type: match node.get_attrib(1)?.as_string().as_str() {
+                        "T" | "AnimCurveNode::T" => { FbxAnimationCurveNodeType::Translation }
+                        "R" | "AnimCurveNode::R" => { FbxAnimationCurveNodeType::Rotation }
+                        "S" | "AnimCurveNode::S" => { FbxAnimationCurveNodeType::Scale }
+                        _ => { FbxAnimationCurveNodeType::Unknown }
                     },
                     curves: Vec::new(),
                 }),
             None => Err(String::from("Invalid FBX node handle!"))
         }
+    }
+
+    pub fn eval_vec3(&self, components: &Pool<FbxComponent>, time: f32) -> Vec3 {
+        let x = if let Some(x) = components.borrow(&self.curves[0]) {
+            if let FbxComponent::AnimationCurve(curve) = x {
+                curve.eval(time)
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        let y = if let Some(y) = components.borrow(&self.curves[1]) {
+            if let FbxComponent::AnimationCurve(curve) = y {
+                curve.eval(time)
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        let z = if let Some(z) = components.borrow(&self.curves[2]) {
+            if let FbxComponent::AnimationCurve(curve) = z {
+                curve.eval(time)
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        Vec3::make(x, y, z)
     }
 }
 
@@ -821,8 +916,7 @@ fn string_to_mapping(value: &str) -> FbxMapping {
     match value {
         "ByPolygon" => FbxMapping::ByPolygon,
         "ByPolygonVertex" => FbxMapping::ByPolygonVertex,
-        "ByVertex" => FbxMapping::ByVertex,
-        "ByVertice" => FbxMapping::ByVertex,
+        "ByVertex" | "ByVertice" => FbxMapping::ByVertex,
         "ByEdge" => FbxMapping::ByEdge,
         "AllSame" => FbxMapping::AllSame,
         _ => FbxMapping::Unknown
@@ -1130,7 +1224,8 @@ impl Fbx {
             };
 
         node.set_name(model.name.clone());
-        node.set_local_rotation(quat_from_euler(model.rotation));
+        let node_local_rotation = quat_from_euler(model.rotation);
+        node.set_local_rotation(node_local_rotation);
         node.set_local_scale(model.scale);
         node.set_local_position(model.translation);
         node.set_post_rotation(quat_from_euler(model.post_rotation));
@@ -1153,7 +1248,90 @@ impl Fbx {
             _ => ()
         }
 
-        Ok(scene.add_node(node))
+        let node_handle = scene.add_node(node);
+
+        // Convert animations
+        if !model.animation_curve_nodes.is_empty() {
+            // Find supported curve nodes (translation, rotation, scale)
+            let mut lcl_translation = None;
+            let mut lcl_rotation = None;
+            let mut lcl_scale = None;
+            for anim_curve_node_handle in model.animation_curve_nodes.iter() {
+                if let Some(component) = self.component_pool.borrow(anim_curve_node_handle) {
+                    if let FbxComponent::AnimationCurveNode(curve_node) = component {
+                        if curve_node.actual_type == FbxAnimationCurveNodeType::Rotation {
+                            lcl_rotation = Some(curve_node);
+                        } else if curve_node.actual_type == FbxAnimationCurveNodeType::Translation {
+                            lcl_translation = Some(curve_node);
+                        } else if curve_node.actual_type == FbxAnimationCurveNodeType::Scale {
+                            lcl_scale = Some(curve_node);
+                        }
+                    }
+                }
+            }
+
+            // Convert to engine format
+            let mut track = Track::new();
+            track.set_node(node_handle.clone());
+
+            let mut time = 0.0;
+            loop {
+                let translation =
+                    if let Some(curve) = lcl_translation {
+                        curve.eval_vec3(&self.component_pool, time)
+                    } else {
+                        model.translation
+                    };
+
+                let rotation =
+                    if let Some(curve) = lcl_rotation {
+                        quat_from_euler(curve.eval_vec3(&self.component_pool, time))
+                    } else {
+                        node_local_rotation
+                    };
+
+                let scale = if let Some(curve) = lcl_scale {
+                    curve.eval_vec3(&self.component_pool, time)
+                } else {
+                    model.scale
+                };
+
+                track.add_key_frame(KeyFrame::new(time, translation, scale, rotation));
+
+                let mut next_time = std::f32::MAX;
+                for node in &[lcl_translation, lcl_rotation, lcl_scale] {
+                    if let Some(node) = node {
+                        for curve_handle in node.curves.iter() {
+                            if let Some(curve_component) = self.component_pool.borrow(curve_handle) {
+                                if let FbxComponent::AnimationCurve(curve) = curve_component {
+                                    for key in curve.keys.iter() {
+                                        if key.time > time {
+                                            let distance = key.time - time;
+                                            if distance < next_time - key.time {
+                                                next_time = key.time;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if next_time >= std::f32::MAX {
+                    break;
+                }
+
+                time = next_time;
+            }
+
+            let animation_handle = scene.get_animations().handle_from_index(0);
+            if let Some(animation) = scene.get_animation_mut(&animation_handle) {
+                animation.add_track(track);
+            }
+        }
+
+        Ok(node_handle)
     }
 
     ///
@@ -1164,6 +1342,7 @@ impl Fbx {
                    scene: &mut Scene)
                    -> Result<Handle<Node>, String> {
         let root = scene.add_node(Node::new(NodeKind::Base));
+        scene.add_animation(Animation::default());
         let mut fbx_model_to_node_map: HashMap<Handle<FbxComponent>, Handle<Node>> = HashMap::new();
         for component_handle in self.components.iter() {
             if let Some(component) = self.component_pool.borrow(&component_handle) {

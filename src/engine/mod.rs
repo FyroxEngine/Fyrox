@@ -1,32 +1,44 @@
 use crate::{
-    scene::*,
+    scene::{
+        node::NodeKind,
+        Scene
+    },
+    gui::UserInterface,
+    math::vec2::Vec2,
+    resource::{
+        Resource,
+        ResourceKind,
+        model::Model,
+        ttf::Font,
+        texture::Texture
+    },
     utils::{
-        pool::*,
+        pool::{
+            Pool,
+            Handle
+        },
         visitor::{
             Visitor,
             VisitResult,
             Visit,
         },
     },
-    renderer::render::*,
-    resource::{
-        *,
-        texture::*,
-        model::Model,
-        ttf::Font,
+    renderer::render::{
+        Renderer,
+        Statistics
     },
-    gui::UserInterface,
-    math::vec2::Vec2,
 };
 use std::{
-    path::*,
     collections::VecDeque,
     time::Duration,
     cell::RefCell,
     rc::Rc,
+    any::TypeId,
+    path::{
+        PathBuf,
+        Path
+    }
 };
-use crate::scene::node::NodeKind;
-use std::any::TypeId;
 
 pub struct ResourceManager {
     resources: Vec<Rc<RefCell<Resource>>>,
@@ -192,7 +204,7 @@ impl State {
         }
 
         for scene in self.scenes.iter_mut() {
-            for node in scene.nodes.iter_mut() {
+            for node in scene.get_nodes_mut().iter_mut() {
                 let node_name = String::from(node.get_name());
                 if let Some(resource) = node.get_resource() {
                     if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {

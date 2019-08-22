@@ -20,7 +20,7 @@ pub struct Rect<T> {
     pub h: T,
 }
 
-impl<T> Rect<T> where T: Default + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Copy {
+impl<T> Rect<T> where T: Default + Add<Output=T> + Sub<Output=T> + Mul<Output=T> + Copy {
     pub fn new(x: T, y: T, w: T, h: T) -> Rect<T> {
         Rect { x, y, w, h }
     }
@@ -39,7 +39,7 @@ impl<T> Rect<T> where T: Default + Add<Output = T> + Sub<Output = T> + Mul<Outpu
             x: self.x - dw,
             y: self.y - dh,
             w: self.w + dw + dw,
-            h: self.h + dh + dh
+            h: self.h + dh + dh,
         }
     }
 
@@ -48,7 +48,7 @@ impl<T> Rect<T> where T: Default + Add<Output = T> + Sub<Output = T> + Mul<Outpu
             x: self.x + dw,
             y: self.y + dh,
             w: self.w - (dw + dw),
-            h: self.h - (dh + dh)
+            h: self.h - (dh + dh),
         }
     }
 }
@@ -154,4 +154,34 @@ pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
     } else {
         v
     }
+}
+
+pub fn wrapf(mut n: f32, mut min_limit: f32, mut max_limit: f32) -> f32 {
+    if n >= min_limit && n <= max_limit {
+        return n;
+    }
+
+    if max_limit == 0.0 && min_limit == 0.0 {
+        return 0.0;
+    }
+
+    max_limit = max_limit - min_limit;
+
+    let offset = min_limit;
+    min_limit = 0.0;
+    n = n - offset;
+
+    let num_of_max = (n / max_limit).abs().floor();
+
+    if n >= max_limit {
+        n = n - num_of_max * max_limit;
+    } else if n < min_limit {
+        n = ((num_of_max + 1.0) * max_limit) + n;
+    }
+
+    return n + offset;
+}
+
+pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
 }

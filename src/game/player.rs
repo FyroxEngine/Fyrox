@@ -1,22 +1,35 @@
 use crate::{
-    utils::pool::*,
-    math::{
-        vec2::*,
-        vec3::*,
-        quat::*,
-    },
-    scene::{
-        node::*,
-        *,
-    },
     physics::Body,
     game::{
-        weapon::{Weapon, WeaponKind},
+        weapon::{
+            Weapon,
+            WeaponKind,
+        },
         GameTime,
     },
     engine::State,
+    utils::{
+        visitor::{
+            Visit,
+            Visitor,
+            VisitResult,
+        },
+        pool::Handle,
+    },
+    math::{
+        vec2::Vec2,
+        vec3::Vec3,
+        quat::Quat,
+    },
+    scene::{
+        node::{
+            Node,
+            NodeKind,
+            Camera,
+        },
+        Scene,
+    },
 };
-use crate::utils::visitor::{Visit, Visitor, VisitResult};
 
 pub struct Controller {
     move_forward: bool,
@@ -87,7 +100,7 @@ impl Default for Player {
             weapons: vec![],
             camera_offset: Default::default(),
             camera_dest_offset: Default::default(),
-            current_weapon: 0
+            current_weapon: 0,
         }
     }
 }
