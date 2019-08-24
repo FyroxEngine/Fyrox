@@ -58,7 +58,7 @@ impl Level {
         // Create test scene
         let mut scene = Scene::new();
 
-        let map_model_handle = engine.get_state_mut().request_resource(Path::new("data/models/map.fbx"));
+        let map_model_handle = engine.get_state_mut().request_resource(Path::new("data/models/dm6.fbx"));
         if map_model_handle.is_some() {
             // Instantiate map
             let map_root_handle = Model::instantiate(map_model_handle.unwrap(), &mut scene).unwrap_or(Handle::none());
@@ -94,6 +94,8 @@ impl Level {
                     }
                 }
                 scene.get_physics_mut().add_static_geometry(static_geometry);
+            } else {
+                println!("Unable to find Polygon node to build collision shape for level!");
             }
         }
 

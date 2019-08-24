@@ -6,10 +6,16 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/textures/box.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/textures/floor.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/textures/mesh.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/save.bin" beforeDir="false" afterPath="$PROJECT_DIR$/save.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/save.txt" beforeDir="false" afterPath="$PROJECT_DIR$/save.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/game/level.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/game/level.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/pool.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/pool.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/visitor.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/visitor.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test.bin" beforeDir="false" afterPath="$PROJECT_DIR$/test.bin" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/test.txt" beforeDir="false" afterPath="$PROJECT_DIR$/test.txt" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -48,7 +54,7 @@
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.2" />
     <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
-    <property name="settings.editor.selected.configurable" value="preferences.editor" />
+    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
     <property name="settings.editor.splitter.proportion" value="0.23435949" />
   </component>
   <component name="RunDashboard">
@@ -108,17 +114,6 @@
       <envs />
       <method v="2" />
     </configuration>
-    <list>
-      <item itemvalue="Cargo Command.Release" />
-      <item itemvalue="Cargo Command.Clippy" />
-      <item itemvalue="Cargo Command.Test" />
-      <item itemvalue="Cargo Command.Debug" />
-    </list>
-    <recent_temporary>
-      <list>
-        <item itemvalue="Cargo Command.Debug" />
-      </list>
-    </recent_temporary>
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />

@@ -1,5 +1,8 @@
 use std::{
-    rc::Rc,
+    rc::{
+        Rc,
+        Weak
+    },
     collections::HashMap,
     fs::File,
     any::Any,
@@ -17,7 +20,6 @@ use std::{
         Display,
         Formatter,
     },
-    rc::Weak,
 };
 use byteorder::{
     ReadBytesExt,
@@ -331,10 +333,9 @@ impl Field {
 
     fn load(file: &mut File) -> Result<Field, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
-        let mut raw_name = Vec::new();
-        for _ in 0..name_len {
-            raw_name.push(file.read_u8()?);
-        }
+        let mut raw_name = Vec::with_capacity(name_len);
+        unsafe { raw_name.set_len(name_len) };
+        file.read_exact(raw_name.as_mut_slice())?;
         let id = file.read_u8()?;
         Ok(Field::new(String::from_utf8(raw_name)?.as_str(), match id {
             1 => FieldKind::U8(file.read_u8()?),
@@ -370,9 +371,8 @@ impl Field {
             14 => FieldKind::Data({
                 let len = file.read_u32::<LittleEndian>()? as usize;
                 let mut vec = Vec::with_capacity(len);
-                for _ in 0..len {
-                    vec.push(file.read_u8()?);
-                }
+                unsafe { vec.set_len(len) };
+                file.read_exact(vec.as_mut_slice())?;
                 vec
             }),
             15 => FieldKind::Bool(file.read_u8()? != 0),
@@ -561,10 +561,9 @@ impl Visitor {
 
     fn load_node_binary(&mut self, file: &mut File) -> Result<Handle<Node>, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
-        let mut raw_name = Vec::new();
-        for _ in 0..name_len {
-            raw_name.push(file.read_u8()?);
-        }
+        let mut raw_name = Vec::with_capacity(name_len);
+        unsafe { raw_name.set_len(name_len) };
+        file.read_exact(raw_name.as_mut_slice())?;
 
         let mut node = Node::default();
         node.name = String::from_utf8(raw_name)?;

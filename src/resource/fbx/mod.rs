@@ -18,6 +18,7 @@ use std::{
     },
     cell::RefCell,
     rc::Rc,
+    fmt::Formatter
 };
 use crate::{
     utils::pool::{
@@ -55,7 +56,6 @@ use byteorder::{
     ReadBytesExt,
     LittleEndian,
 };
-use std::fmt::Formatter;
 
 pub enum FbxAttribute {
     Double(f64),
@@ -64,6 +64,19 @@ pub enum FbxAttribute {
     Long(i64),
     Bool(bool),
     String(String), // ASCII Fbx always have every attribute in string form
+}
+
+impl std::fmt::Display for FbxAttribute {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            FbxAttribute::Double(double) => write!(f, "{}", double),
+            FbxAttribute::Float(float) => write!(f, "{}", float),
+            FbxAttribute::Integer(integer) => write!(f, "{}", integer),
+            FbxAttribute::Long(long) => write!(f, "{}", long),
+            FbxAttribute::Bool(boolean) => write!(f, "{}", boolean),
+            FbxAttribute::String(string) => write!(f, "{}", string),
+        }
+    }
 }
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
@@ -1002,7 +1015,7 @@ fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxEr
         let mut compressed = Vec::with_capacity(compressed_length);
         unsafe { compressed.set_len(compressed_length) };
         file.read_exact(compressed.as_mut_slice())?;
-        let decompressed = inflate::inflate_bytes(&compressed)?;
+        let decompressed = inflate::inflate_bytes_zlib(&compressed)?;
         let mut cursor = Cursor::new(decompressed);
         for _ in 0..length {
             array.push(read_attrib(type_code, &mut cursor)?);
@@ -1017,7 +1030,13 @@ fn read_string<R>(file: &mut R) -> Result<FbxAttribute, FbxError> where R: Read 
     let mut raw_string = Vec::with_capacity(length);
     unsafe { raw_string.set_len(length); };
     file.read_exact(raw_string.as_mut_slice())?;
-    Ok(FbxAttribute::String(String::from_utf8(raw_string)?))
+    // Find null terminator. It is required because for some reason some strings
+    // have additional data after null terminator like this: Omni004\x0\x1Model.
+    if let Some(null_terminator_pos) = raw_string.iter().position(|c| *c == 0) {
+        raw_string.truncate(null_terminator_pos);
+    }
+    let string = String::from_utf8(raw_string)?;
+    Ok(FbxAttribute::String(string))
 }
 
 /// Read binary FBX DOM using this specification:
@@ -1067,7 +1086,11 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
             b'S' => if let Some(node) = pool.borrow_mut(&node_handle) {
                 node.attribs.push(read_string(file)?)
             },
-            b'R' => (), // Ignore Raw data
+            b'R' => {
+                // Ignore Raw data
+                let length = file.read_u32::<LittleEndian>()? as i64;
+                file.seek(SeekFrom::Current(length))?;
+            },
             _ => ()
         }
     }
@@ -1090,10 +1113,8 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
         // Check if we have a null-record
         let mut null_record = [0; 13];
         file.read_exact(&mut null_record)?;
-        for i in &null_record {
-            if *i != 0 {
-                return Err(FbxError::InvalidNullRecord);
-            }
+        if !null_record.iter().all(|i| *i == 0) {
+            return Err(FbxError::InvalidNullRecord);
         }
     }
 
@@ -1466,6 +1487,7 @@ impl Fbx {
             };
 
         node.set_name(model.name.clone());
+        println!("{}", model.name);
         let node_local_rotation = quat_from_euler(model.rotation);
         node.set_local_rotation(node_local_rotation);
         node.set_local_scale(model.scale);
@@ -1610,7 +1632,6 @@ impl Fbx {
         Ok(root)
     }
 
-    /// TODO: format trait maybe?
     pub fn print(&mut self) {
         let mut stack: Vec<Handle<FbxNode>> = Vec::new();
         stack.push(self.root.clone());
@@ -1636,7 +1657,7 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
 
 
             let now = Instant::now();
-            let is_bin =  is_binary(path)?;
+            let is_bin = is_binary(path)?;
 
             let buf_len = file.metadata()?.len() as usize;
             let mut file_content = Vec::with_capacity(buf_len);
