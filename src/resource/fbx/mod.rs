@@ -8,7 +8,7 @@ use std::{
         Read,
         Cursor,
         Seek,
-        SeekFrom
+        SeekFrom,
     },
     collections::HashMap,
     time::Instant,
@@ -53,8 +53,9 @@ use crate::{
 };
 use byteorder::{
     ReadBytesExt,
-    LittleEndian
+    LittleEndian,
 };
+use std::fmt::Formatter;
 
 pub enum FbxAttribute {
     Double(f64),
@@ -824,7 +825,7 @@ fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: &Ha
     }
 }
 
-fn read_ascii(path: &Path) -> Result<Fbx, String> {
+fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError> where R: Read + Seek {
     let mut nodes: Pool<FbxNode> = Pool::new();
     let root_handle = nodes.spawn(FbxNode {
         name: String::from("__ROOT__"),
@@ -837,102 +838,87 @@ fn read_ascii(path: &Path) -> Result<Fbx, String> {
     let mut buffer: Vec<u8> = Vec::new();
     let mut name: Vec<u8> = Vec::new();
     let mut value: Vec<u8> = Vec::new();
-    if let Ok(ref mut file) = File::open(path) {
-        let mut read_ptr: usize = 0;
-        let mut file_content: Vec<u8> = Vec::with_capacity(file.metadata().unwrap().len() as usize);
-        file.read_to_end(&mut file_content).unwrap();
 
-        // Read line by line
-        while read_ptr < file_content.len() {
-            // Read line, trim spaces (but leave spaces in quotes)
-            buffer.clear();
+    // Read line by line
+    while reader.seek(SeekFrom::Current(0))? < buf_len {
+        // Read line, trim spaces (but leave spaces in quotes)
+        buffer.clear();
 
-            let mut read_all = false;
-            while read_ptr < file_content.len() {
-                let symbol = unsafe { *file_content.get_unchecked(read_ptr) };
-                read_ptr += 1;
-                if symbol == b'\n' {
-                    break;
-                } else if symbol == b'"' {
-                    read_all = !read_all;
-                } else if read_all || !symbol.is_ascii_whitespace() {
-                    buffer.push(symbol);
-                }
+        let mut read_all = false;
+        while reader.seek(SeekFrom::Current(0))? < buf_len {
+            let symbol = reader.read_u8()?;
+            if symbol == b'\n' {
+                break;
+            } else if symbol == b'"' {
+                read_all = !read_all;
+            } else if read_all || !symbol.is_ascii_whitespace() {
+                buffer.push(symbol);
             }
+        }
 
-            // Ignore comments and empty lines
-            if buffer.is_empty() || buffer[0] == b';' {
-                continue;
+        // Ignore comments and empty lines
+        if buffer.is_empty() || buffer[0] == b';' {
+            continue;
+        }
+
+        // Parse string
+        let mut read_value = false;
+        name.clear();
+        for i in 0..buffer.len() {
+            let symbol = unsafe { *buffer.get_unchecked(i as usize) };
+            if i == 0 && (symbol == b'-' || symbol.is_ascii_digit()) {
+                read_value = true;
             }
-
-            // Parse string
-            let mut read_value = false;
-            name.clear();
-            for i in 0..buffer.len() {
-                let symbol = unsafe { *buffer.get_unchecked(i as usize) };
-                if i == 0 && (symbol == b'-' || symbol.is_ascii_digit()) {
-                    read_value = true;
+            if symbol == b':' && !read_value {
+                read_value = true;
+                let name_copy = String::from_utf8(name.clone())?;
+                let node = FbxNode {
+                    name: name_copy,
+                    attribs: Vec::new(),
+                    parent: parent_handle.clone(),
+                    children: Vec::new(),
+                };
+                node_handle = nodes.spawn(node);
+                name.clear();
+                if let Some(parent) = nodes.borrow_mut(&parent_handle) {
+                    parent.children.push(node_handle.clone());
                 }
-                if symbol == b':' && !read_value {
-                    read_value = true;
-                    if let Ok(name_copy) = String::from_utf8(name.clone()) {
-                        let node = FbxNode {
-                            name: name_copy,
-                            attribs: Vec::new(),
-                            parent: parent_handle.clone(),
-                            children: Vec::new(),
-                        };
-                        node_handle = nodes.spawn(node);
-                        name.clear();
-                        if let Some(parent) = nodes.borrow_mut(&parent_handle) {
-                            parent.children.push(node_handle.clone());
-                        }
-                    } else {
-                        return Err(String::from("FBX: Node name is not valid utf8 string!"));
-                    }
-                } else if symbol == b'{' {
-                    // Enter child scope
-                    parent_handle = node_handle.clone();
-                    // Commit attribute if we have one
-                    if !value.is_empty() {
-                        if let Some(node) = nodes.borrow_mut(&node_handle) {
-                            if let Ok(string_value) = String::from_utf8(value.clone()) {
-                                let attrib = FbxAttribute::String(string_value);
-                                node.attribs.push(attrib);
-                            } else {
-                                return Err(String::from("FBX: Attribute is not valid utf8 string!"));
-                            }
-                        } else {
-                            return Err(String::from("FBX: Failed to fetch node by handle when entering child scope"));
-                        }
-                        value.clear();
-                    }
-                } else if symbol == b'}' {
-                    // Exit child scope
-                    if let Some(parent) = nodes.borrow_mut(&parent_handle) {
-                        parent_handle = parent.parent.clone();
-                    }
-                } else if symbol == b',' || (i == buffer.len() - 1) {
-                    // Commit attribute
-                    if symbol != b',' {
-                        value.push(symbol);
-                    }
+            } else if symbol == b'{' {
+                // Enter child scope
+                parent_handle = node_handle.clone();
+                // Commit attribute if we have one
+                if !value.is_empty() {
                     if let Some(node) = nodes.borrow_mut(&node_handle) {
-                        if let Ok(string_value) = String::from_utf8(value.clone()) {
-                            let attrib = FbxAttribute::String(string_value);
-                            node.attribs.push(attrib);
-                        } else {
-                            return Err(String::from("FBX: Attribute is not valid utf8 string!"));
-                        }
+                        let string_value = String::from_utf8(value.clone())?;
+                        let attrib = FbxAttribute::String(string_value);
+                        node.attribs.push(attrib);
                     } else {
-                        return Err(String::from("FBX: Failed to fetch node by handle when committing attribute"));
+                        return Err(FbxError::InvalidPoolHandle(node_handle.get_index(), node_handle.get_generation()));
                     }
                     value.clear();
-                } else if !read_value {
-                    name.push(symbol);
-                } else {
+                }
+            } else if symbol == b'}' {
+                // Exit child scope
+                if let Some(parent) = nodes.borrow_mut(&parent_handle) {
+                    parent_handle = parent.parent.clone();
+                }
+            } else if symbol == b',' || (i == buffer.len() - 1) {
+                // Commit attribute
+                if symbol != b',' {
                     value.push(symbol);
                 }
+                if let Some(node) = nodes.borrow_mut(&node_handle) {
+                    let string_value = String::from_utf8(value.clone())?;
+                    let attrib = FbxAttribute::String(string_value);
+                    node.attribs.push(attrib);
+                } else {
+                    return Err(FbxError::InvalidPoolHandle(node_handle.get_index(), node_handle.get_generation()));
+                }
+                value.clear();
+            } else if !read_value {
+                name.push(symbol);
+            } else {
+                value.push(symbol);
             }
         }
     }
@@ -953,6 +939,21 @@ pub enum FbxError {
     InvalidString,
     Custom(String),
     UnsupportedVersion(u32),
+    InvalidPoolHandle(u32, u32),
+}
+
+impl std::fmt::Display for FbxError {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        match self {
+            FbxError::Io(io) => write!(f, "Io error: {}", io),
+            FbxError::UnknownAttributeType(attrib_type) => write!(f, "Unknown attribute type {}", attrib_type),
+            FbxError::InvalidNullRecord => write!(f, "Invalid null record"),
+            FbxError::InvalidString => write!(f, "Invalid string"),
+            FbxError::Custom(err) => write!(f, "{}", err),
+            FbxError::UnsupportedVersion(ver) => write!(f, "Unsupported version {}", ver),
+            FbxError::InvalidPoolHandle(index, gen) => write!(f, "Invalid pool handle {}; {}", index, gen),
+        }
+    }
 }
 
 impl From<std::io::Error> for FbxError {
@@ -986,7 +987,8 @@ fn read_attrib<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>
     }
 }
 
-fn read_array(type_code: u8, file: &mut File) -> Result<Vec<FbxAttribute>, FbxError> {
+fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxError>
+    where R: Read {
     let length = file.read_u32::<LittleEndian>()? as usize;
     let encoding = file.read_u32::<LittleEndian>()?;
     let compressed_length = file.read_u32::<LittleEndian>()? as usize;
@@ -1010,7 +1012,7 @@ fn read_array(type_code: u8, file: &mut File) -> Result<Vec<FbxAttribute>, FbxEr
     Ok(array)
 }
 
-fn read_string(file: &mut File) -> Result<FbxAttribute, FbxError> {
+fn read_string<R>(file: &mut R) -> Result<FbxAttribute, FbxError> where R: Read {
     let length = file.read_u32::<LittleEndian>()? as usize;
     let mut raw_string = Vec::with_capacity(length);
     unsafe { raw_string.set_len(length); };
@@ -1022,7 +1024,8 @@ fn read_string(file: &mut File) -> Result<FbxAttribute, FbxError> {
 /// https://code.blender.org/2013/08/fbx-binary-file-format-specification/
 /// In case of success returns Ok(valid_handle), in case if no more nodes
 /// are present returns Ok(none_handle), in case of error returns some FbxError.
-fn read_binary_node(file: &mut File, pool: &mut Pool<FbxNode>) -> Result<Handle<FbxNode>, FbxError> {
+fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<FbxNode>, FbxError>
+    where R: Read + Seek {
     let end_offset = u64::from(file.read_u32::<LittleEndian>()?);
     if end_offset == 0 {
         // Footer found. We're done.
@@ -1097,7 +1100,16 @@ fn read_binary_node(file: &mut File, pool: &mut Pool<FbxNode>) -> Result<Handle<
     Ok(node_handle)
 }
 
-fn read_binary(file: &mut File) -> Result<Fbx, FbxError> {
+fn is_binary(path: &Path) -> Result<bool, FbxError> {
+    let mut file = File::open(path)?;
+    let mut magic = [0; 18];
+    file.read_exact(&mut magic)?;
+    let fbx_magic = b"Kaydara FBX Binary";
+    Ok(magic == *fbx_magic)
+}
+
+fn read_binary<R>(file: &mut R) -> Result<Fbx, FbxError>
+    where R: Read + Seek {
     let total_length = file.seek(SeekFrom::End(0))?;
     file.seek(SeekFrom::Start(0))?;
 
@@ -1570,7 +1582,7 @@ impl Fbx {
     pub fn convert(&self,
                    state: &mut State,
                    scene: &mut Scene)
-                   -> Result<Handle<Node>, String> {
+                   -> Result<Handle<Node>, FbxError> {
         let root = scene.add_node(Node::new(NodeKind::Base));
         scene.add_animation(Animation::default());
         let mut fbx_model_to_node_map: HashMap<Handle<FbxComponent>, Handle<Node>> = HashMap::new();
@@ -1615,24 +1627,41 @@ impl Fbx {
 }
 
 pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
-                     -> Result<Handle<Node>, String> {
+                     -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
-    println!("FBX: Trying to load {:?}", path);
+    match File::open(path) {
+        Ok(mut file) => {
+            println!("FBX: Trying to load {:?}", path);
 
-    let now = Instant::now();
-    let mut fbx = read_ascii(path)?;
-    println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
 
-    let now = Instant::now();
-    fbx.prepare()?;
-    println!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis());
+            let now = Instant::now();
+            let is_bin =  is_binary(path)?;
 
-    let now = Instant::now();
-    let result = fbx.convert(state, scene);
-    println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
+            let buf_len = file.metadata()?.len() as usize;
+            let mut file_content = Vec::with_capacity(buf_len);
+            file.read_to_end(&mut file_content)?;
+            let mut reader = Cursor::new(file_content);
 
-    println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+            let mut fbx = if is_bin {
+                read_binary(&mut reader)?
+            } else {
+                read_ascii(&mut reader, buf_len as u64)?
+            };
+            println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
 
-    result
+            let now = Instant::now();
+            fbx.prepare()?;
+            println!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis());
+
+            let now = Instant::now();
+            let result = fbx.convert(state, scene);
+            println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
+
+            println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+
+            result
+        }
+        Err(e) => Err(FbxError::from(e))
+    }
 }

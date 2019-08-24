@@ -137,6 +137,14 @@ impl<T> Handle<T> {
         !self.is_none()
     }
 
+    pub fn get_index(&self) -> u32 {
+        self.index
+    }
+
+    pub fn get_generation(&self) -> u32 {
+        self.generation
+    }
+
     fn make(index: u32, generation: u32) -> Self {
         Handle {
             index,

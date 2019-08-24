@@ -135,8 +135,8 @@ impl State {
                             println!("Texture {} is loaded!", path.display());
                             Some(resource)
                         }
-                        Err(_) => {
-                            println!("Unable to load texture {}!", path.display());
+                        Err(e) => {
+                            println!("Unable to load texture {}! Reason {}", path.display(), e);
                             None
                         }
                     }
@@ -147,8 +147,8 @@ impl State {
                             println!("Model {} is loaded!", path.display());
                             Some(resource)
                         }
-                        Err(_) => {
-                            println!("Unable to load model from {}!", path.display());
+                        Err(e) => {
+                            println!("Unable to load model from {}! Reason {}", path.display(), e);
                             None
                         }
                     },

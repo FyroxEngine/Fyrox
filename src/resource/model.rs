@@ -9,7 +9,8 @@ use crate::{
         fbx,
         Resource,
         ResourceKind,
-    },
+        fbx::FbxError
+    }
 };
 use std::{
     path::Path,
@@ -30,7 +31,7 @@ impl Default for Model {
 }
 
 impl Model {
-    pub fn load(path: &Path, state: &mut State) -> Result<Model, String> {
+    pub fn load(path: &Path, state: &mut State) -> Result<Model, FbxError> {
         let mut scene = Scene::new();
         fbx::load_to_scene(&mut scene, state, path)?;
         Ok(Model { scene })
