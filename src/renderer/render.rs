@@ -40,7 +40,10 @@ use crate::{
         },
         gl,
         gl::types::*,
-        gpu_program::GpuProgram,
+        gpu_program::{
+            GpuProgram,
+            UniformLocation,
+        },
     },
     math::{
         vec3::Vec3,
@@ -48,8 +51,6 @@ use crate::{
         vec2::Vec2,
     },
 };
-
-// Welcome to the kingdom of Unsafe Code
 
 pub fn check_gl_error() {
     unsafe {
@@ -62,20 +63,64 @@ pub fn check_gl_error() {
 
 struct UIShader {
     program: GpuProgram,
-    wvp_matrix: GLint,
-    diffuse_texture: GLint,
+    wvp_matrix: UniformLocation,
+    diffuse_texture: UniformLocation,
 }
 
 struct FlatShader {
     program: GpuProgram,
-    wvp_matrix: GLint,
-    diffuse_texture: GLint,
+    wvp_matrix: UniformLocation,
+    diffuse_texture: UniformLocation,
+}
+
+struct DeferredLightingShader {
+    program: GpuProgram,
+    wvp_matrix: UniformLocation,
+    depth_sampler: UniformLocation,
+    color_sampler: UniformLocation,
+    normal_sampler: UniformLocation,
+    spot_shadow_texture: UniformLocation,
+    point_shadow_texture: UniformLocation,
+    light_view_proj_matrix: UniformLocation,
+    light_type: UniformLocation,
+    soft_shadows: UniformLocation,
+    shadow_map_inv_size: UniformLocation,
+    light_position: UniformLocation,
+    light_radius: UniformLocation,
+    light_color: UniformLocation,
+    light_direction: UniformLocation,
+    light_cone_angle_cos: UniformLocation,
+    inv_view_proj_matrix: UniformLocation,
+    camera_position: UniformLocation,
+}
+
+struct GBufferShader {
+    program: GpuProgram,
+    world_matrix: UniformLocation,
+    wvp_matrix: UniformLocation,
+    use_skeletal_animation: UniformLocation,
+    bone_matrices: UniformLocation,
+    diffuse_texture: UniformLocation,
+    normal_texture: UniformLocation,
 }
 
 struct UIRenderBuffers {
     vbo: GLuint,
     vao: GLuint,
     ebo: GLuint,
+}
+
+struct GBuffer {
+    fbo: GLuint,
+    depth_rt: GLuint,
+    depth_buffer: GLuint,
+    depth_texture: GLuint,
+    color_rt: GLuint,
+    color_texture: GLuint,
+    normal_rt: GLuint,
+    normal_texture: GLuint,
+    opt_fbo: GLuint,
+    frame_texture: GLuint,
 }
 
 pub struct Statistics {
@@ -107,6 +152,9 @@ pub struct Renderer {
     pub(crate) context: glutin::WindowedContext,
     flat_shader: FlatShader,
     ui_shader: UIShader,
+    deferred_light_shader: DeferredLightingShader,
+    gbuffer_shader: GBufferShader,
+    gbuffer: GBuffer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     white_dummy: GLuint,
@@ -207,6 +255,290 @@ fn create_ui_shader() -> UIShader {
     }
 }
 
+fn create_g_buffer_shader() -> GBufferShader {
+    let fragment_source = CString::new(r#"
+        #version 330 core
+
+        layout(location = 0) out float outDepth;
+        layout(location = 1) out vec4 outColor;
+        layout(location = 2) out vec4 outNormal;
+    
+        uniform sampler2D diffuseTexture;
+        uniform sampler2D normalTexture;
+        uniform sampler2D specularTexture;
+    
+        in vec4 position;
+        in vec3 normal;
+        in vec2 texCoord;
+        in vec3 tangent;
+        in vec3 binormal;
+    
+        void main()
+        {
+        	outDepth = position.z / position.w;
+        	outColor = texture2D(diffuseTexture, texCoord);
+           if(outColor.a < 0.5) discard;
+        	outColor.a = 1;
+           vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);
+           mat3 tangentSpace = mat3(tangent, binormal, normal);
+        	outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
+           outNormal.w = texture2D(specularTexture, texCoord).r;
+        }
+    "#).unwrap();
+
+    let vertex_source = CString::new(r#"
+        #version 330 core
+
+        layout(location = 0) in vec3 vertexPosition;
+        layout(location = 1) in vec2 vertexTexCoord;
+        layout(location = 2) in vec3 vertexNormal;
+        layout(location = 3) in vec4 vertexTangent;
+        layout(location = 4) in vec4 boneWeights;
+        layout(location = 5) in vec4 boneIndices;
+    
+        uniform mat4 worldMatrix;
+        uniform mat4 worldViewProjection;
+        uniform bool useSkeletalAnimation;
+        uniform mat4 boneMatrices[60];
+    
+        out vec4 position;
+        out vec3 normal;
+        out vec2 texCoord;
+        out vec3 tangent;
+        out vec3 binormal;
+    
+        void main()
+        {
+           vec4 localPosition = vec4(0);
+           vec3 localNormal = vec3(0);
+           vec3 localTangent = vec3(0);
+           if(useSkeletalAnimation)
+           {
+               vec4 vertex = vec4(vertexPosition, 1.0);
+    
+               int i0 = int(boneIndices.x);
+               int i1 = int(boneIndices.y);
+               int i2 = int(boneIndices.z);
+               int i3 = int(boneIndices.w);
+    
+               localPosition += boneMatrices[i0] * vertex * boneWeights.x;
+               localPosition += boneMatrices[i1] * vertex * boneWeights.y;
+               localPosition += boneMatrices[i2] * vertex * boneWeights.z;
+               localPosition += boneMatrices[i3] * vertex * boneWeights.w;
+    
+               localNormal += mat3(boneMatrices[i0]) * vertexNormal * boneWeights.x;
+               localNormal += mat3(boneMatrices[i1]) * vertexNormal * boneWeights.y;
+               localNormal += mat3(boneMatrices[i2]) * vertexNormal * boneWeights.z;
+               localNormal += mat3(boneMatrices[i3]) * vertexNormal * boneWeights.w;
+    
+               localTangent += mat3(boneMatrices[i0]) * vertexTangent.xyz * boneWeights.x;
+               localTangent += mat3(boneMatrices[i1]) * vertexTangent.xyz * boneWeights.y;
+               localTangent += mat3(boneMatrices[i2]) * vertexTangent.xyz * boneWeights.z;
+               localTangent += mat3(boneMatrices[i3]) * vertexTangent.xyz * boneWeights.w;
+           }
+           else
+           {
+               localPosition = vec4(vertexPosition, 1.0);
+               localNormal = vertexNormal;
+               localTangent = vertexTangent.xyz;
+           }
+           gl_Position = worldViewProjection * localPosition;
+           normal = normalize(mat3(worldMatrix) * localNormal);
+           tangent = normalize(mat3(worldMatrix) * localTangent);
+           binormal = normalize(vertexTangent.w * cross(tangent, normal));
+           texCoord = vertexTexCoord;
+           position = gl_Position;
+        }
+    "#).unwrap();
+
+    let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
+
+    GBufferShader {
+        world_matrix: program.get_uniform_location("worldMatrix"),
+        wvp_matrix: program.get_uniform_location("worldViewProjection"),
+        use_skeletal_animation: program.get_uniform_location("useSkeletalAnimation"),
+        bone_matrices: program.get_uniform_location("boneMatrices"),
+        diffuse_texture: program.get_uniform_location("diffuseTexture"),
+        normal_texture: program.get_uniform_location("normalTexture"),
+        program,
+    }
+}
+
+fn create_deferred_lighting_shaders() -> DeferredLightingShader {
+    let fragment_source = CString::new(r#"
+        #version 330 core
+
+        uniform sampler2D depthTexture;
+        uniform sampler2D colorTexture;
+        uniform sampler2D normalTexture;
+        uniform sampler2D spotShadowTexture;
+        uniform samplerCube pointShadowTexture;
+
+        uniform mat4 lightViewProjMatrix;
+        uniform vec3 lightPos;
+        uniform float lightRadius;
+        uniform vec4 lightColor;
+        uniform vec3 lightDirection;
+        uniform float coneAngleCos;
+        uniform mat4 invViewProj;
+        uniform vec3 cameraPosition;
+        uniform int lightType;
+        uniform bool softShadows;
+        uniform float shadowMapInvSize;
+
+        in vec2 texCoord;
+        out vec4 FragColor;
+
+        vec3 GetProjection(vec3 worldPosition, mat4 viewProjectionMatrix)
+        {
+           vec4 projPos = viewProjectionMatrix * vec4(worldPosition, 1);
+           projPos /= projPos.w;
+           return vec3(projPos.x * 0.5 + 0.5, projPos.y * 0.5 + 0.5, projPos.z * 0.5 + 0.5);
+        }
+
+        void main()
+        {
+            vec4 normalSpecular = texture2D(normalTexture, texCoord);
+            vec3 normal = normalize(normalSpecular.xyz * 2.0 - 1.0);
+
+            vec4 screenPosition;
+            screenPosition.x = texCoord.x * 2.0 - 1.0;
+            screenPosition.y = texCoord.y * 2.0 - 1.0;
+            screenPosition.z = texture2D(depthTexture, texCoord).r;
+            screenPosition.w = 1.0;
+
+            vec4 worldPosition = invViewProj * screenPosition;
+            worldPosition /= worldPosition.w;
+
+            vec3 lightVector = lightPos - worldPosition.xyz;
+            float distanceToLight = length(lightVector);
+            float d = min(distanceToLight, lightRadius);
+            vec3 normLightVector = lightVector / d;
+            vec3 h = normalize(lightVector + (cameraPosition - worldPosition.xyz));
+            vec3 specular = normalSpecular.w * vec3(0.4 * pow(clamp(dot(normal, h), 0.0, 1.0), 80));
+            float y = dot(lightDirection, normLightVector);
+            float k = max(dot(normal, normLightVector), 0);
+            float attenuation = 1.0 + cos((d / lightRadius) * 3.14159);
+            if (y < coneAngleCos)
+            {
+                attenuation *= smoothstep(coneAngleCos - 0.1, coneAngleCos, y);
+            }
+
+            float shadow = 1.0;
+            if (lightType == 2) /* Spot light shadows */
+            {
+              vec3 lightSpacePosition = GetProjection(worldPosition.xyz, lightViewProjMatrix);
+              const float bias = 0.00005;
+              if (softShadows)
+              {
+                 for (float y = -1.5; y <= 1.5; y += 0.5)
+                 {
+                    for (float x = -1.5; x <= 1.5; x += 0.5)
+                    {
+                       vec2 fetchTexCoord = lightSpacePosition.xy + vec2(x, y) * shadowMapInvSize;
+                       if (lightSpacePosition.z - bias > texture(spotShadowTexture, fetchTexCoord).r)
+                       {
+                          shadow += 1.0;
+                       }
+                    }
+                 }
+
+                 shadow = clamp(1.0 - shadow / 9.0, 0.0, 1.0);
+              }
+              else
+              {
+                 if (lightSpacePosition.z - bias > texture(spotShadowTexture, lightSpacePosition.xy).r)
+                 {
+                    shadow = 0.0;
+                 }
+              }
+            }
+            else if(lightType == 0) /* Point light shadows */
+            {
+              const float bias = 0.01;
+              if (softShadows)
+              {
+                 const int samples = 20;
+
+                 const vec3 directions[samples] = vec3[samples] (
+                    vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1),
+                    vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+                    vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+                    vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+                    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+                 );
+
+                 const float diskRadius = 0.0025;
+
+                 for (int i = 0; i < samples; ++i)
+                 {
+                    vec3 fetchDirection = -normLightVector + directions[i] * diskRadius;
+                    float shadowDistanceToLight = texture(pointShadowTexture, fetchDirection).r;
+                    if (distanceToLight - bias > shadowDistanceToLight)
+                    {
+                       shadow += 1.0;
+                    }
+                 }
+
+                 shadow = clamp(1.0 - shadow / float(samples), 0.0, 1.0);
+              }
+              else
+              {
+                 float shadowDistanceToLight = texture(pointShadowTexture, -normLightVector).r;
+                 if (distanceToLight - bias > shadowDistanceToLight)
+                 {
+                    shadow = 0.0;
+                 }
+              }
+           }
+
+           FragColor = texture2D(colorTexture, texCoord);
+           FragColor.xyz += specular;
+           FragColor *= k * shadow * attenuation * lightColor;
+        }
+    "#).unwrap();
+
+    let vertex_source = CString::new(r#"
+        #version 330 core
+
+        layout(location = 0) in vec3 vertexPosition;
+        layout(location = 1) in vec2 vertexTexCoord;
+
+        uniform mat4 worldViewProjection;
+
+        out vec2 texCoord;
+
+        void main()
+        {
+            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
+            texCoord = vertexTexCoord;
+        }
+    "#).unwrap();
+
+    let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
+
+    DeferredLightingShader {
+        wvp_matrix: program.get_uniform_location("worldViewProjection"),
+        depth_sampler: program.get_uniform_location("depthTexture"),
+        color_sampler: program.get_uniform_location("colorTexture"),
+        normal_sampler: program.get_uniform_location("normalTexture"),
+        spot_shadow_texture: program.get_uniform_location("spotShadowTexture"),
+        point_shadow_texture: program.get_uniform_location("pointShadowTexture"),
+        light_view_proj_matrix: program.get_uniform_location("lightViewProjMatrix"),
+        light_type: program.get_uniform_location("lightType"),
+        soft_shadows: program.get_uniform_location("softShadows"),
+        shadow_map_inv_size: program.get_uniform_location("shadowMapInvSize"),
+        light_position: program.get_uniform_location("lightPos"),
+        light_radius: program.get_uniform_location("lightRadius"),
+        light_color: program.get_uniform_location("lightColor"),
+        light_direction: program.get_uniform_location("lightDirection"),
+        light_cone_angle_cos: program.get_uniform_location("coneAngleCos"),
+        inv_view_proj_matrix: program.get_uniform_location("invViewProj"),
+        camera_position: program.get_uniform_location("cameraPosition"),
+        program,
+    }
+}
+
 fn create_ui_render_buffers() -> UIRenderBuffers {
     unsafe {
         let mut ui_render_buffers = UIRenderBuffers {
@@ -220,6 +552,118 @@ fn create_ui_render_buffers() -> UIRenderBuffers {
         gl::GenBuffers(1, &mut ui_render_buffers.ebo);
 
         ui_render_buffers
+    }
+}
+
+
+fn create_gbuffer(width: i32, height: i32) -> GBuffer
+{
+    unsafe {
+        let mut fbo = 0;
+        gl::GenFramebuffers(1, &mut fbo);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+
+        let buffers = [
+            gl::COLOR_ATTACHMENT0,
+            gl::COLOR_ATTACHMENT1,
+            gl::COLOR_ATTACHMENT2
+        ];
+        gl::DrawBuffers(3, buffers.as_ptr());
+
+        let mut depth_rt = 0;
+        gl::GenRenderbuffers(1, &mut depth_rt);
+        gl::BindRenderbuffer(gl::RENDERBUFFER, depth_rt);
+        gl::RenderbufferStorage(gl::RENDERBUFFER, gl::R32F, width, height);
+        gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, depth_rt);
+
+        let mut color_rt = 0;
+        gl::GenRenderbuffers(1, &mut color_rt);
+        gl::BindRenderbuffer(gl::RENDERBUFFER, color_rt);
+        gl::RenderbufferStorage(gl::RENDERBUFFER, gl::RGBA8, width, height);
+        gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::RENDERBUFFER, color_rt);
+
+        let mut normal_rt= 0;
+        gl::GenRenderbuffers(1, &mut normal_rt);
+        gl::BindRenderbuffer(gl::RENDERBUFFER, normal_rt);
+        gl::RenderbufferStorage(gl::RENDERBUFFER, gl::RGBA8, width, height);
+        gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::RENDERBUFFER, normal_rt);
+
+        let mut depth_buffer = 0;
+        gl::GenRenderbuffers(1, &mut depth_buffer);
+        gl::BindRenderbuffer(gl::RENDERBUFFER, depth_buffer);
+        gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
+        gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
+
+        let mut depth_texture = 0;
+        gl::GenTextures(1, &mut depth_texture);
+        gl::BindTexture(gl::TEXTURE_2D, depth_texture);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::R32F as i32, width, height, 0, gl::BGRA, gl::FLOAT, std::ptr::null());
+
+        gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, depth_texture, 0);
+
+        let mut color_texture = 0;
+        gl::GenTextures(1, &mut color_texture);
+        gl::BindTexture(gl::TEXTURE_2D, color_texture);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
+
+        gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::TEXTURE_2D, color_texture, 0);
+
+        let mut normal_texture = 0;
+        gl::GenTextures(1, &mut normal_texture);
+        gl::BindTexture(gl::TEXTURE_2D, normal_texture);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
+
+        gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::TEXTURE_2D, normal_texture, 0);
+
+        if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+            panic!("Unable to construct G-Buffer FBO.");
+        }
+
+        gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+        /* Create another framebuffer for stencil optimizations */
+        let mut opt_fbo = 0;
+        gl::GenFramebuffers(1, &mut opt_fbo);
+        gl::BindFramebuffer(gl::FRAMEBUFFER, opt_fbo);
+
+        let light_buffers = [gl::COLOR_ATTACHMENT0];
+        gl::DrawBuffers(1, light_buffers.as_ptr());
+
+        let mut frame_texture = 0;
+        gl::GenTextures(1, &mut frame_texture);
+        gl::BindTexture(gl::TEXTURE_2D, frame_texture);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+        gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
+
+        gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, frame_texture, 0);
+
+        gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
+
+        if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+            panic!("Unable to initialize Stencil FBO.");
+        }
+
+        gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+        GBuffer {
+            fbo,
+            depth_rt,
+            depth_buffer,
+            depth_texture,
+            color_rt,
+            color_texture,
+            normal_rt,
+            normal_texture,
+            opt_fbo,
+            frame_texture
+        }
     }
 }
 
@@ -263,8 +707,8 @@ impl Renderer {
 
         let primary_monitor = events_loop.get_primary_monitor();
         let mut monitor_dimensions = primary_monitor.get_dimensions();
-        monitor_dimensions.height *= 0.6;
-        monitor_dimensions.width *= 0.6;
+        monitor_dimensions.height *= 0.7;
+        monitor_dimensions.width *= 0.7;
         let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
 
         let window_builder = glutin::WindowBuilder::new()
@@ -288,6 +732,9 @@ impl Renderer {
             events_loop,
             flat_shader: create_flat_shader(),
             ui_shader: create_ui_shader(),
+            deferred_light_shader: create_deferred_lighting_shaders(),
+            gbuffer_shader: create_g_buffer_shader(),
+            gbuffer: create_gbuffer(window_size.width as i32, window_size.height as i32),
             traversal_stack: Vec::new(),
             cameras: Vec::new(),
             lights: Vec::new(),
@@ -305,7 +752,7 @@ impl Renderer {
 
     fn draw_surface(&self, surf: &Surface) {
         unsafe {
-            if let Some(resource) = surf.get_texture() {
+            if let Some(resource) = surf.get_diffuse_texture() {
                 if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
                     gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                 } else {
@@ -468,7 +915,7 @@ impl Renderer {
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             gl::Disable(gl::CULL_FACE);
 
-            gl::UseProgram(self.ui_shader.program.id);
+            self.ui_shader.program.bind();
             gl::ActiveTexture(gl::TEXTURE0);
 
             let index_bytes = drawing_context.get_indices_bytes();
@@ -507,7 +954,7 @@ impl Renderer {
                                     0.0,
                                     -1.0,
                                     1.0);
-            gl::UniformMatrix4fv(self.ui_shader.wvp_matrix, 1, gl::FALSE, ortho.f.as_ptr() as *const f32);
+            self.ui_shader.program.set_mat4(self.ui_shader.wvp_matrix, &ortho);
 
             for cmd in drawing_context.get_commands() {
                 let index_count = cmd.get_triangle_count() * 3;
@@ -535,7 +982,7 @@ impl Renderer {
 
                         if cmd.get_texture() != 0 {
                             gl::ActiveTexture(gl::TEXTURE0);
-                            gl::Uniform1i(self.ui_shader.diffuse_texture, 0);
+                            self.ui_shader.program.set_int(self.ui_shader.diffuse_texture, 0);
                             gl::BindTexture(gl::TEXTURE_2D, cmd.get_texture());
                         } else {
                             gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
@@ -591,7 +1038,7 @@ impl Renderer {
                     }
                 }
 
-                gl::UseProgram(self.flat_shader.program.id);
+                self.flat_shader.program.bind();
 
                 // Render scene from each camera
                 for camera_handle in self.cameras.iter() {
@@ -615,8 +1062,8 @@ impl Renderer {
 
                                     let mvp = view_projection * *node.get_global_transform();
 
-                                    gl::UseProgram(self.flat_shader.program.id);
-                                    gl::UniformMatrix4fv(self.flat_shader.wvp_matrix, 1, gl::FALSE, &mvp.f as *const GLfloat);
+                                    self.flat_shader.program.bind();
+                                    self.flat_shader.program.set_mat4(self.flat_shader.wvp_matrix, &mvp);
 
                                     if let NodeKind::Mesh(mesh) = node.borrow_kind() {
                                         for surface in mesh.get_surfaces().iter() {

@@ -9,6 +9,7 @@ extern crate lexical;
 
 extern crate byteorder;
 extern crate base64;
+extern crate inflate;
 
 mod utils;
 mod math;

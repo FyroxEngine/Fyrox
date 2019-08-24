@@ -2,22 +2,25 @@ use crate::{
     math::{
         vec3::Vec3,
         quat::Quat,
+        clampf,
+        lerpf,
+        wrapf,
     },
     resource::Resource,
-    utils::visitor::{
-        Visit,
-        VisitResult,
-        Visitor,
+    utils::{
+        visitor::{
+            Visit,
+            VisitResult,
+            Visitor,
+        },
+        pool::Handle,
     },
     scene::node::Node,
-    utils::pool::Handle,
-    math::clampf,
 };
 use std::{
     rc::Rc,
     cell::RefCell,
 };
-use crate::math::{lerpf, wrapf};
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -33,7 +36,7 @@ impl KeyFrame {
             time,
             position,
             scale,
-            rotation
+            rotation,
         }
     }
 }
@@ -157,18 +160,16 @@ impl Track {
 
         if right_index == 0 {
             return Some(*self.frames.first().unwrap());
-        } else {
-            if let Some(left) = self.frames.get(right_index - 1) {
-                if let Some(right) = self.frames.get(right_index) {
-                    let interpolator = (time - left.time) / (right.time - left.time);
+        } else if let Some(left) = self.frames.get(right_index - 1) {
+            if let Some(right) = self.frames.get(right_index) {
+                let interpolator = (time - left.time) / (right.time - left.time);
 
-                    return Some(KeyFrame {
-                        time: lerpf(left.time, right.time, interpolator),
-                        position: left.position.lerp(&right.position, interpolator),
-                        scale: left.scale.lerp(&right.scale, interpolator),
-                        rotation: left.rotation.slerp(&right.rotation, interpolator),
-                    });
-                }
+                return Some(KeyFrame {
+                    time: lerpf(left.time, right.time, interpolator),
+                    position: left.position.lerp(&right.position, interpolator),
+                    scale: left.scale.lerp(&right.scale, interpolator),
+                    rotation: left.rotation.slerp(&right.rotation, interpolator),
+                });
             }
         }
 
@@ -199,7 +200,7 @@ impl Clone for Animation {
             fade_step: self.fade_step,
             looped: self.looped,
             enabled: self.enabled,
-            resource: self.resource.clone()
+            resource: self.resource.clone(),
         }
     }
 }
@@ -238,7 +239,7 @@ impl Animation {
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
-    
+
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -250,7 +251,7 @@ impl Animation {
     pub fn get_tracks_mut(&mut self) -> &mut [Track] {
         &mut self.tracks
     }
-    
+
     pub fn update_fading(&mut self, dt: f32) {
         if self.fade_step != 0.0 {
             self.weight += self.fade_step * dt;

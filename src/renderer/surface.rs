@@ -1,5 +1,9 @@
 use crate::{
-    math::{vec2::*, vec3::*, vec4::*},
+    math::{
+        vec2::Vec2,
+        vec3::Vec3,
+        vec4::Vec4,
+    },
     renderer::{
         gl,
         gl::types::*,
@@ -413,8 +417,10 @@ impl Drop for SurfaceSharedData {
 }
 
 pub struct Surface {
-    pub data: Rc<RefCell<SurfaceSharedData>>,
-    pub texture: Option<Rc<RefCell<Resource>>>,
+    data: Rc<RefCell<SurfaceSharedData>>,
+    diffuse_texture: Option<Rc<RefCell<Resource>>>,
+    normal_texture: Option<Rc<RefCell<Resource>>>,
+    specular_texture: Option<Rc<RefCell<Resource>>>
 }
 
 impl Surface {
@@ -422,7 +428,9 @@ impl Surface {
     pub fn new(data: Rc<RefCell<SurfaceSharedData>>) -> Self {
         Self {
             data,
-            texture: None,
+            diffuse_texture: None,
+            normal_texture: None,
+            specular_texture: None,
         }
     }
 
@@ -432,23 +440,31 @@ impl Surface {
     }
 
     #[inline]
-    pub fn get_texture(&self) -> Option<Rc<RefCell<Resource>>> {
-        match &self.texture {
+    pub fn get_diffuse_texture(&self) -> Option<Rc<RefCell<Resource>>> {
+        match &self.diffuse_texture {
             Some(resource) => Some(Rc::clone(resource)),
             None => None
         }
     }
 
     #[inline]
-    pub fn set_texture(&mut self, tex: Rc<RefCell<Resource>>) {
-        self.texture = Some(tex);
+    pub fn set_diffuse_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+        self.diffuse_texture = Some(tex);
     }
 
     #[inline]
     pub fn make_copy(&self) -> Surface {
         Surface {
             data: Rc::clone(&self.data),
-            texture: match &self.texture {
+            diffuse_texture: match &self.diffuse_texture {
+                Some(resource) => Some(Rc::clone(resource)),
+                None => None
+            },
+            normal_texture: match &self.normal_texture {
+                Some(resource) => Some(Rc::clone(resource)),
+                None => None
+            },
+            specular_texture: match &self.specular_texture {
                 Some(resource) => Some(Rc::clone(resource)),
                 None => None
             },

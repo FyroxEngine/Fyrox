@@ -165,21 +165,21 @@ pub fn wrapf(mut n: f32, mut min_limit: f32, mut max_limit: f32) -> f32 {
         return 0.0;
     }
 
-    max_limit = max_limit - min_limit;
+    max_limit -= min_limit;
 
     let offset = min_limit;
     min_limit = 0.0;
-    n = n - offset;
+    n -= offset;
 
     let num_of_max = (n / max_limit).abs().floor();
 
     if n >= max_limit {
-        n = n - num_of_max * max_limit;
+        n -= num_of_max * max_limit;
     } else if n < min_limit {
-        n = ((num_of_max + 1.0) * max_limit) + n;
+        n += (num_of_max + 1.0) * max_limit;
     }
 
-    return n + offset;
+    n + offset
 }
 
 pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {

@@ -909,8 +909,8 @@ mod test {
             if visitor.reading {} else {
                 let mut kind_id: u8 = match &self.kind {
                     ResourceKind::Unknown => return Err(VisitError::User(format!("Invalid resource!"))),
-                    ResourceKind::Model(model) => 0,
-                    ResourceKind::Texture(texture) => 1
+                    ResourceKind::Model(_) => 0,
+                    ResourceKind::Texture(_) => 1
                 };
                 kind_id.visit("KindId", visitor)?;
                 self.kind.visit("KindData", visitor)?;

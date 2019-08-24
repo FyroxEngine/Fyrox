@@ -74,7 +74,7 @@ impl Quat {
 
     pub fn angle(&self, other: &Quat) -> f32 {
         let s = (self.sqr_len() * other.sqr_len()).sqrt();
-        return (self.dot(other) / s).acos();
+        (self.dot(other) / s).acos()
     }
 
     pub fn slerp(&self, other: &Quat, t: f32) -> Quat {

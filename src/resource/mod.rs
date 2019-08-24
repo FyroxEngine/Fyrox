@@ -5,15 +5,22 @@ pub mod ttf;
 
 use std::{
     path::*,
-    any::{TypeId, Any}
+    any::{
+        TypeId,
+        Any,
+    },
 };
 use crate::{
     resource::{
         texture::*,
-        model::{Model}
-    }
+        model::Model,
+    },
+    utils::visitor::{
+        Visit,
+        Visitor,
+        VisitResult,
+    },
 };
-use crate::utils::visitor::{Visit, Visitor, VisitResult};
 
 pub enum ResourceKind {
     Unknown,
@@ -23,7 +30,7 @@ pub enum ResourceKind {
 
 pub struct Resource {
     path: PathBuf,
-    kind: ResourceKind
+    kind: ResourceKind,
 }
 
 impl Resource {
@@ -72,7 +79,7 @@ impl Visit for Resource {
         visitor.enter_region(name)?;
 
         let mut kind: u8 = if visitor.is_reading() {
-           0
+            0
         } else {
             match &mut self.kind {
                 ResourceKind::Unknown => panic!("must not get here"),
