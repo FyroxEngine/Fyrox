@@ -1,3 +1,6 @@
+pub mod fbx_ascii;
+pub mod fbx_binary;
+
 use std::{
     path::{
         PathBuf,
@@ -7,8 +10,6 @@ use std::{
     io::{
         Read,
         Cursor,
-        Seek,
-        SeekFrom,
     },
     collections::HashMap,
     time::Instant,
@@ -18,7 +19,7 @@ use std::{
     },
     cell::RefCell,
     rc::Rc,
-    fmt::Formatter
+    fmt::Formatter,
 };
 use crate::{
     utils::pool::{
@@ -52,10 +53,7 @@ use crate::{
     },
     engine::State,
 };
-use byteorder::{
-    ReadBytesExt,
-    LittleEndian,
-};
+use crate::gui::draw::Color;
 
 pub enum FbxAttribute {
     Double(f64),
@@ -178,16 +176,15 @@ struct FbxSubDeformer {
 }
 
 impl FbxSubDeformer {
-    fn read(sub_deformer_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>,
-            stack: &mut Vec<Handle<FbxNode>>) -> Result<Self, String> {
-        let indices_handle = find_node(nodes, stack, sub_deformer_handle, "Indexes")?;
-        let indices = find_and_borrow_node(nodes, stack, &indices_handle, "a")?;
+    fn read(sub_deformer_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+        let indices_handle = find_node(nodes, sub_deformer_handle, "Indexes")?;
+        let indices = find_and_borrow_node(nodes, &indices_handle, "a")?;
 
-        let weights_handle = find_node(nodes, stack, sub_deformer_handle, "Weights")?;
-        let weights = find_and_borrow_node(nodes, stack, &weights_handle, "a")?;
+        let weights_handle = find_node(nodes, sub_deformer_handle, "Weights")?;
+        let weights = find_and_borrow_node(nodes, &weights_handle, "a")?;
 
-        let transform_handle = find_node(nodes, stack, sub_deformer_handle, "Transform")?;
-        let transform_node = find_and_borrow_node(nodes, stack, &transform_handle, "a")?;
+        let transform_handle = find_node(nodes, sub_deformer_handle, "Transform")?;
+        let transform_node = find_and_borrow_node(nodes, &transform_handle, "a")?;
 
         if transform_node.attrib_count() != 16 {
             return Err(format!("FBX: Wrong transform size! Expect 16, got {}", transform_node.attrib_count()));
@@ -222,12 +219,11 @@ struct FbxTexture {
 }
 
 impl FbxTexture {
-    fn read(texture_node_hanle: &Handle<FbxNode>, nodes: &Pool<FbxNode>,
-            stack: &mut Vec<Handle<FbxNode>>) -> Result<Self, String> {
+    fn read(texture_node_hanle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         let mut texture = FbxTexture {
             filename: PathBuf::new()
         };
-        if let Ok(relative_file_name_node) = find_and_borrow_node(nodes, stack, texture_node_hanle, "RelativeFilename") {
+        if let Ok(relative_file_name_node) = find_and_borrow_node(nodes, texture_node_hanle, "RelativeFilename") {
             let relative_filename = relative_file_name_node.get_attrib(0)?.as_string();
             let path = Path::new(relative_filename.as_str());
             if let Some(filename) = path.file_name() {
@@ -255,8 +251,7 @@ struct FbxDeformer {
 }
 
 impl FbxDeformer {
-    fn read(_sub_deformer_handle: &Handle<FbxNode>, _nodes: &Pool<FbxNode>,
-            _stack: &mut Vec<Handle<FbxNode>>) -> Result<Self, String> {
+    fn read(_sub_deformer_handle: &Handle<FbxNode>, _nodes: &Pool<FbxNode>) -> Result<Self, String> {
         Ok(FbxDeformer {
             sub_deformers: Vec::new()
         })
@@ -268,14 +263,12 @@ struct FbxAnimationCurve {
 }
 
 impl FbxAnimationCurve {
-    pub fn read(curve_handle: &Handle<FbxNode>,
-                nodes: &Pool<FbxNode>,
-                stack: &mut Vec<Handle<FbxNode>>) -> Result<Self, String> {
-        let key_time_handle = find_node(nodes, stack, curve_handle, "KeyTime")?;
-        let key_time_array = find_and_borrow_node(nodes, stack, &key_time_handle, "a")?;
+    pub fn read(curve_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+        let key_time_handle = find_node(nodes, curve_handle, "KeyTime")?;
+        let key_time_array = find_and_borrow_node(nodes, &key_time_handle, "a")?;
 
-        let key_value_handle = find_node(nodes, stack, curve_handle, "KeyValueFloat")?;
-        let key_value_array = find_and_borrow_node(nodes, stack, &key_value_handle, "a")?;
+        let key_value_handle = find_node(nodes, curve_handle, "KeyValueFloat")?;
+        let key_value_array = find_and_borrow_node(nodes, &key_value_handle, "a")?;
 
         if key_time_array.attrib_count() != key_value_array.attrib_count() {
             return Err(String::from("FBX: Animation curve contains wrong key data!"));
@@ -347,9 +340,7 @@ struct FbxAnimationCurveNode {
 }
 
 impl FbxAnimationCurveNode {
-    pub fn read(node_handle: &Handle<FbxNode>,
-                nodes: &Pool<FbxNode>,
-                _stack: &mut Vec<Handle<FbxNode>>) -> Result<Self, String> {
+    pub fn read(node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         match nodes.borrow(node_handle) {
             Some(node) =>
                 Ok(FbxAnimationCurveNode {
@@ -492,9 +483,7 @@ struct FbxGeometry {
 }
 
 impl FbxGeometry {
-    pub fn read(geom_node_handle: &Handle<FbxNode>,
-                nodes: &Pool<FbxNode>,
-                stack: &mut Vec<Handle<FbxNode>>) -> Result<FbxGeometry, String> {
+    pub fn read(geom_node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxGeometry, String> {
         let mut geom = FbxGeometry {
             vertices: Vec::new(),
             indices: Vec::new(),
@@ -518,8 +507,8 @@ impl FbxGeometry {
         };
 
         // Read vertices
-        let vertices_node_handle = find_node(nodes, stack, geom_node_handle, "Vertices")?;
-        let vertices_array_node = find_and_borrow_node(nodes, stack, &vertices_node_handle, "a")?;
+        let vertices_node_handle = find_node(nodes, geom_node_handle, "Vertices")?;
+        let vertices_array_node = find_and_borrow_node(nodes, &vertices_node_handle, "a")?;
         let vertex_count = vertices_array_node.attrib_count() / 3;
         geom.vertices = Vec::with_capacity(vertex_count);
         for i in 0..vertex_count {
@@ -527,8 +516,8 @@ impl FbxGeometry {
         }
 
         // Read faces
-        let indices_node_handle = find_node(nodes, stack, geom_node_handle, "PolygonVertexIndex")?;
-        let indices_array_node = find_and_borrow_node(nodes, stack, &indices_node_handle, "a")?;
+        let indices_node_handle = find_node(nodes, geom_node_handle, "PolygonVertexIndex")?;
+        let indices_array_node = find_and_borrow_node(nodes, &indices_node_handle, "a")?;
         let index_count = indices_array_node.attrib_count();
         geom.indices = Vec::with_capacity(index_count);
         for i in 0..index_count {
@@ -537,15 +526,15 @@ impl FbxGeometry {
         }
 
         // Read normals (normals can not exist)
-        if let Ok(layer_element_normal_node_handle) = find_node(nodes, stack, geom_node_handle, "LayerElementNormal") {
-            let map_type_node = find_and_borrow_node(nodes, stack, &layer_element_normal_node_handle, "MappingInformationType")?;
+        if let Ok(layer_element_normal_node_handle) = find_node(nodes, geom_node_handle, "LayerElementNormal") {
+            let map_type_node = find_and_borrow_node(nodes, &layer_element_normal_node_handle, "MappingInformationType")?;
             geom.normal_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
 
-            let ref_type_node = find_and_borrow_node(nodes, stack, &layer_element_normal_node_handle, "ReferenceInformationType")?;
+            let ref_type_node = find_and_borrow_node(nodes, &layer_element_normal_node_handle, "ReferenceInformationType")?;
             geom.normal_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
 
-            let normals_node_handle = find_node(nodes, stack, &layer_element_normal_node_handle, "Normals")?;
-            let normals_array_node = find_and_borrow_node(nodes, stack, &normals_node_handle, "a")?;
+            let normals_node_handle = find_node(nodes, &layer_element_normal_node_handle, "Normals")?;
+            let normals_array_node = find_and_borrow_node(nodes, &normals_node_handle, "a")?;
             let count = normals_array_node.attrib_count() / 3;
             for i in 0..count {
                 geom.normals.push(normals_array_node.get_vec3_at(i * 3)?);
@@ -555,15 +544,15 @@ impl FbxGeometry {
         // todo: read tangents
 
         // Read UVs
-        if let Ok(layer_element_uv_node_handle) = find_node(nodes, stack, geom_node_handle, "LayerElementUV") {
-            let map_type_node = find_and_borrow_node(nodes, stack, &layer_element_uv_node_handle, "MappingInformationType")?;
+        if let Ok(layer_element_uv_node_handle) = find_node(nodes, geom_node_handle, "LayerElementUV") {
+            let map_type_node = find_and_borrow_node(nodes, &layer_element_uv_node_handle, "MappingInformationType")?;
             geom.uv_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
 
-            let ref_type_node = find_and_borrow_node(nodes, stack, &layer_element_uv_node_handle, "ReferenceInformationType")?;
+            let ref_type_node = find_and_borrow_node(nodes, &layer_element_uv_node_handle, "ReferenceInformationType")?;
             geom.uv_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
 
-            let uvs_node_handle = find_node(nodes, stack, &layer_element_uv_node_handle, "UV")?;
-            let uvs_array_node = find_and_borrow_node(nodes, stack, &uvs_node_handle, "a")?;
+            let uvs_node_handle = find_node(nodes, &layer_element_uv_node_handle, "UV")?;
+            let uvs_array_node = find_and_borrow_node(nodes, &uvs_node_handle, "a")?;
             let count = uvs_array_node.attrib_count() / 2;
             for i in 0..count {
                 let uv = uvs_array_node.get_vec2_at(i * 2)?;
@@ -571,8 +560,8 @@ impl FbxGeometry {
             }
 
             if geom.uv_reference == FbxReference::IndexToDirect {
-                let uv_index_node = find_node(nodes, stack, &layer_element_uv_node_handle, "UVIndex")?;
-                let uv_index_array_node = find_and_borrow_node(nodes, stack, &uv_index_node, "a")?;
+                let uv_index_node = find_node(nodes, &layer_element_uv_node_handle, "UVIndex")?;
+                let uv_index_array_node = find_and_borrow_node(nodes, &uv_index_node, "a")?;
                 for i in 0..uv_index_array_node.attrib_count() {
                     geom.uv_index.push(uv_index_array_node.get_attrib(i)?.as_i32()?);
                 }
@@ -580,15 +569,15 @@ impl FbxGeometry {
         }
 
         // Read materials
-        if let Ok(layer_element_material_node_handle) = find_node(nodes, stack, geom_node_handle, "LayerElementMaterial") {
-            let map_type_node = find_and_borrow_node(nodes, stack, &layer_element_material_node_handle, "MappingInformationType")?;
+        if let Ok(layer_element_material_node_handle) = find_node(nodes, geom_node_handle, "LayerElementMaterial") {
+            let map_type_node = find_and_borrow_node(nodes, &layer_element_material_node_handle, "MappingInformationType")?;
             geom.material_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
 
-            let ref_type_node = find_and_borrow_node(nodes, stack, &layer_element_material_node_handle, "ReferenceInformationType")?;
+            let ref_type_node = find_and_borrow_node(nodes, &layer_element_material_node_handle, "ReferenceInformationType")?;
             geom.material_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
 
-            let materials_node_handle = find_node(nodes, stack, &layer_element_material_node_handle, "Materials")?;
-            let materials_array_node = find_and_borrow_node(nodes, stack, &materials_node_handle, "a")?;
+            let materials_node_handle = find_node(nodes, &layer_element_material_node_handle, "Materials")?;
+            let materials_array_node = find_and_borrow_node(nodes, &materials_node_handle, "a")?;
             for i in 0..materials_array_node.attrib_count() {
                 geom.materials.push(materials_array_node.get_attrib(i)?.as_i32()?);
             }
@@ -599,25 +588,62 @@ impl FbxGeometry {
 }
 
 enum FbxLightType {
-    Point,
-    Directional,
-    Spot,
-    Area,
-    Volume,
-}
-
-struct FbxColor {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
+    Point = 0,
+    Directional = 1,
+    Spot = 2,
+    Area = 3,
+    Volume = 4,
 }
 
 struct FbxLight {
     actual_type: FbxLightType,
-    color: FbxColor,
+    color: Color,
     radius: f32,
     cone_angle: f32,
+}
+
+impl FbxLight {
+    pub fn read(light_node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+        let mut light = Self {
+            actual_type: FbxLightType::Point,
+            color: Color::white(),
+            radius: 10.0,
+            cone_angle: std::f32::consts::PI,
+        };
+
+        let props = find_and_borrow_node(nodes, light_node_handle, "Properties70")?;
+        for prop_handle in props.children.iter() {
+            if let Some(prop) = nodes.borrow(prop_handle) {
+                match prop.get_attrib(0)?.as_string().as_str() {
+                    "DecayStart" => light.radius = prop.get_attrib(4)?.as_f64()? as f32,
+                    "Color" => {
+                        let r = (prop.get_attrib(4)?.as_f64()? * 255.0) as u8;
+                        let g = (prop.get_attrib(5)?.as_f64()? * 255.0) as u8;
+                        let b = (prop.get_attrib(6)?.as_f64()? * 255.0) as u8;
+                        light.color = Color::from_rgba(r, g, b, 255);
+                    }
+                    "HotSpot" => light.cone_angle = (prop.get_attrib(4)?.as_f64()? as f32).to_degrees(),
+                    "LightType" => {
+                        let type_code = prop.get_attrib(4)?.as_i32()?;
+                        light.actual_type = match type_code {
+                            0 => FbxLightType::Point,
+                            1 => FbxLightType::Directional,
+                            2 => FbxLightType::Spot,
+                            3 => FbxLightType::Area,
+                            4 => FbxLightType::Volume,
+                            _ => {
+                                println!("FBX: Unknown light type {}, fallback to Point!", type_code);
+                                FbxLightType::Point
+                            }
+                        };
+                    }
+                    _ => ()
+                }
+            }
+        }
+
+        Ok(light)
+    }
 }
 
 struct FbxModel {
@@ -647,9 +673,7 @@ struct FbxModel {
 }
 
 impl FbxModel {
-    pub fn read(model_node_handle: &Handle<FbxNode>,
-                nodes: &Pool<FbxNode>,
-                stack: &mut Vec<Handle<FbxNode>>) -> Result<FbxModel, String> {
+    pub fn read(model_node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxModel, String> {
         let mut name = String::from("Unnamed");
 
         let model_node = nodes.borrow(&model_node_handle).unwrap();
@@ -684,7 +708,7 @@ impl FbxModel {
             light: Handle::none(),
         };
 
-        let properties70_node_handle = find_node(nodes, stack, model_node_handle, "Properties70")?;
+        let properties70_node_handle = find_node(nodes, model_node_handle, "Properties70")?;
         let properties70_node = nodes.borrow(&properties70_node_handle).unwrap();
         for property_handle in properties70_node.children.iter() {
             let property_node = nodes.borrow(&property_handle).unwrap();
@@ -751,38 +775,34 @@ pub struct Fbx {
 }
 
 /// Searches node by specified name and returns its handle if found
-/// Uses provided stack to do depth search
-fn find_node(pool: &Pool<FbxNode>, stack: &mut Vec<Handle<FbxNode>>, root: &Handle<FbxNode>, name: &str) -> Result<Handle<FbxNode>, String> {
-    stack.clear();
-    stack.push(root.clone());
-    while let Some(handle) = stack.pop() {
-        if let Some(node) = pool.borrow(&handle) {
-            if node.name == name {
-                return Ok(handle);
-            }
-            for child_handle in node.children.iter() {
-                stack.push(child_handle.clone());
+fn find_node(pool: &Pool<FbxNode>, root: &Handle<FbxNode>, name: &str) -> Result<Handle<FbxNode>, String> {
+    if let Some(node) = pool.borrow(root) {
+        if node.name == name {
+            return Ok(root.clone());
+        }
+        for child_handle in node.children.iter() {
+            if let Ok(result) = find_node(pool, child_handle, name) {
+                return Ok(result);
             }
         }
     }
+
     Err(format!("FBX DOM: Unable to find {} node", name))
 }
 
 /// Searches node by specified name and borrows a reference to it
-/// Uses provided stack to do depth search
-fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, stack: &mut Vec<Handle<FbxNode>>, root: &Handle<FbxNode>, name: &str) -> Result<&'a FbxNode, String> {
-    stack.clear();
-    stack.push(root.clone());
-    while let Some(handle) = stack.pop() {
-        if let Some(node) = pool.borrow(&handle) {
-            if node.name == name {
-                return Ok(node);
-            }
-            for child_handle in node.children.iter() {
-                stack.push(child_handle.clone());
+fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, root: &Handle<FbxNode>, name: &str) -> Result<&'a FbxNode, String> {
+    if let Some(node) = pool.borrow(root) {
+        if node.name == name {
+            return Ok(node);
+        }
+        for child_handle in node.children.iter() {
+            if let Ok(result) = find_and_borrow_node(pool, child_handle, name) {
+                return Ok(result);
             }
         }
     }
+
     Err(format!("FBX DOM: Unable to find {} node", name))
 }
 
@@ -838,113 +858,6 @@ fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: &Ha
     }
 }
 
-fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError> where R: Read + Seek {
-    let mut nodes: Pool<FbxNode> = Pool::new();
-    let root_handle = nodes.spawn(FbxNode {
-        name: String::from("__ROOT__"),
-        children: Vec::new(),
-        parent: Handle::none(),
-        attribs: Vec::new(),
-    });
-    let mut parent_handle: Handle<FbxNode> = root_handle.clone();
-    let mut node_handle: Handle<FbxNode> = Handle::none();
-    let mut buffer: Vec<u8> = Vec::new();
-    let mut name: Vec<u8> = Vec::new();
-    let mut value: Vec<u8> = Vec::new();
-
-    // Read line by line
-    while reader.seek(SeekFrom::Current(0))? < buf_len {
-        // Read line, trim spaces (but leave spaces in quotes)
-        buffer.clear();
-
-        let mut read_all = false;
-        while reader.seek(SeekFrom::Current(0))? < buf_len {
-            let symbol = reader.read_u8()?;
-            if symbol == b'\n' {
-                break;
-            } else if symbol == b'"' {
-                read_all = !read_all;
-            } else if read_all || !symbol.is_ascii_whitespace() {
-                buffer.push(symbol);
-            }
-        }
-
-        // Ignore comments and empty lines
-        if buffer.is_empty() || buffer[0] == b';' {
-            continue;
-        }
-
-        // Parse string
-        let mut read_value = false;
-        name.clear();
-        for i in 0..buffer.len() {
-            let symbol = unsafe { *buffer.get_unchecked(i as usize) };
-            if i == 0 && (symbol == b'-' || symbol.is_ascii_digit()) {
-                read_value = true;
-            }
-            if symbol == b':' && !read_value {
-                read_value = true;
-                let name_copy = String::from_utf8(name.clone())?;
-                let node = FbxNode {
-                    name: name_copy,
-                    attribs: Vec::new(),
-                    parent: parent_handle.clone(),
-                    children: Vec::new(),
-                };
-                node_handle = nodes.spawn(node);
-                name.clear();
-                if let Some(parent) = nodes.borrow_mut(&parent_handle) {
-                    parent.children.push(node_handle.clone());
-                }
-            } else if symbol == b'{' {
-                // Enter child scope
-                parent_handle = node_handle.clone();
-                // Commit attribute if we have one
-                if !value.is_empty() {
-                    if let Some(node) = nodes.borrow_mut(&node_handle) {
-                        let string_value = String::from_utf8(value.clone())?;
-                        let attrib = FbxAttribute::String(string_value);
-                        node.attribs.push(attrib);
-                    } else {
-                        return Err(FbxError::InvalidPoolHandle(node_handle.get_index(), node_handle.get_generation()));
-                    }
-                    value.clear();
-                }
-            } else if symbol == b'}' {
-                // Exit child scope
-                if let Some(parent) = nodes.borrow_mut(&parent_handle) {
-                    parent_handle = parent.parent.clone();
-                }
-            } else if symbol == b',' || (i == buffer.len() - 1) {
-                // Commit attribute
-                if symbol != b',' {
-                    value.push(symbol);
-                }
-                if let Some(node) = nodes.borrow_mut(&node_handle) {
-                    let string_value = String::from_utf8(value.clone())?;
-                    let attrib = FbxAttribute::String(string_value);
-                    node.attribs.push(attrib);
-                } else {
-                    return Err(FbxError::InvalidPoolHandle(node_handle.get_index(), node_handle.get_generation()));
-                }
-                value.clear();
-            } else if !read_value {
-                name.push(symbol);
-            } else {
-                value.push(symbol);
-            }
-        }
-    }
-
-    Ok(Fbx {
-        nodes,
-        root: root_handle,
-        component_pool: Pool::new(),
-        components: Vec::new(),
-        index_to_component: HashMap::new(),
-    })
-}
-
 pub enum FbxError {
     Io(std::io::Error),
     UnknownAttributeType(u8),
@@ -985,192 +898,6 @@ impl From<std::string::FromUtf8Error> for FbxError {
     fn from(_: std::string::FromUtf8Error) -> Self {
         FbxError::InvalidString
     }
-}
-
-fn read_attrib<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>
-    where R: Read {
-    match type_code {
-        b'f' | b'F' => Ok(FbxAttribute::Float(file.read_f32::<LittleEndian>()?)),
-        b'd' | b'D' => Ok(FbxAttribute::Double(file.read_f64::<LittleEndian>()?)),
-        b'l' | b'L' => Ok(FbxAttribute::Long(file.read_i64::<LittleEndian>()?)),
-        b'i' | b'I' => Ok(FbxAttribute::Integer(file.read_i32::<LittleEndian>()?)),
-        b'Y' => Ok(FbxAttribute::Integer(i32::from(file.read_i16::<LittleEndian>()?))),
-        b'b' | b'C' => Ok(FbxAttribute::Bool(file.read_u8()? != 0)),
-        _ => Err(FbxError::UnknownAttributeType(type_code))
-    }
-}
-
-fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxError>
-    where R: Read {
-    let length = file.read_u32::<LittleEndian>()? as usize;
-    let encoding = file.read_u32::<LittleEndian>()?;
-    let compressed_length = file.read_u32::<LittleEndian>()? as usize;
-    let mut array = Vec::new();
-
-    if encoding == 0 {
-        for _ in 0..length {
-            array.push(read_attrib(type_code, file)?);
-        }
-    } else {
-        let mut compressed = Vec::with_capacity(compressed_length);
-        unsafe { compressed.set_len(compressed_length) };
-        file.read_exact(compressed.as_mut_slice())?;
-        let decompressed = inflate::inflate_bytes_zlib(&compressed)?;
-        let mut cursor = Cursor::new(decompressed);
-        for _ in 0..length {
-            array.push(read_attrib(type_code, &mut cursor)?);
-        }
-    }
-
-    Ok(array)
-}
-
-fn read_string<R>(file: &mut R) -> Result<FbxAttribute, FbxError> where R: Read {
-    let length = file.read_u32::<LittleEndian>()? as usize;
-    let mut raw_string = Vec::with_capacity(length);
-    unsafe { raw_string.set_len(length); };
-    file.read_exact(raw_string.as_mut_slice())?;
-    // Find null terminator. It is required because for some reason some strings
-    // have additional data after null terminator like this: Omni004\x0\x1Model.
-    if let Some(null_terminator_pos) = raw_string.iter().position(|c| *c == 0) {
-        raw_string.truncate(null_terminator_pos);
-    }
-    let string = String::from_utf8(raw_string)?;
-    Ok(FbxAttribute::String(string))
-}
-
-/// Read binary FBX DOM using this specification:
-/// https://code.blender.org/2013/08/fbx-binary-file-format-specification/
-/// In case of success returns Ok(valid_handle), in case if no more nodes
-/// are present returns Ok(none_handle), in case of error returns some FbxError.
-fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<FbxNode>, FbxError>
-    where R: Read + Seek {
-    let end_offset = u64::from(file.read_u32::<LittleEndian>()?);
-    if end_offset == 0 {
-        // Footer found. We're done.
-        return Ok(Handle::none());
-    }
-
-    let num_attrib = file.read_u32::<LittleEndian>()? as usize;
-    let _attrib_list_len = file.read_u32::<LittleEndian>()?;
-
-    // Read name.
-    let name_len = file.read_u8()? as usize;
-    let mut raw_name = Vec::with_capacity(name_len);
-    unsafe { raw_name.set_len(name_len) };
-    file.read_exact(raw_name.as_mut_slice())?;
-
-    let mut node = FbxNode::default();
-    node.name = String::from_utf8(raw_name)?;
-    let node_handle = pool.spawn(node);
-
-    // Read attributes.
-    for _ in 0..num_attrib {
-        let type_code = file.read_u8()?;
-        match type_code {
-            b'C' | b'Y' | b'I' | b'F' | b'D' | b'L' => {
-                if let Some(node) = pool.borrow_mut(&node_handle) {
-                    node.attribs.push(read_attrib(type_code, file)?)
-                }
-            }
-            b'f' | b'd' | b'l' | b'i' | b'b' => {
-                let mut a = FbxNode::default();
-                a.name = String::from("a");
-                a.attribs = read_array(type_code, file)?;
-                a.parent = node_handle.clone();
-                let a_handle = pool.spawn(a);
-                if let Some(node) = pool.borrow_mut(&node_handle) {
-                    node.children.push(a_handle);
-                }
-            }
-            b'S' => if let Some(node) = pool.borrow_mut(&node_handle) {
-                node.attribs.push(read_string(file)?)
-            },
-            b'R' => {
-                // Ignore Raw data
-                let length = file.read_u32::<LittleEndian>()? as i64;
-                file.seek(SeekFrom::Current(length))?;
-            },
-            _ => ()
-        }
-    }
-
-    if file.seek(SeekFrom::Current(0))? < end_offset {
-        let null_record_position = end_offset - 13;
-        while file.seek(SeekFrom::Current(0))? < null_record_position {
-            let child_handle = read_binary_node(file, pool)?;
-            if child_handle.is_none() {
-                return Ok(child_handle);
-            }
-            if let Some(child) = pool.borrow_mut(&child_handle) {
-                child.parent = node_handle.clone();
-            }
-            if let Some(node) = pool.borrow_mut(&node_handle) {
-                node.children.push(child_handle.clone());
-            }
-        }
-
-        // Check if we have a null-record
-        let mut null_record = [0; 13];
-        file.read_exact(&mut null_record)?;
-        if !null_record.iter().all(|i| *i == 0) {
-            return Err(FbxError::InvalidNullRecord);
-        }
-    }
-
-    Ok(node_handle)
-}
-
-fn is_binary(path: &Path) -> Result<bool, FbxError> {
-    let mut file = File::open(path)?;
-    let mut magic = [0; 18];
-    file.read_exact(&mut magic)?;
-    let fbx_magic = b"Kaydara FBX Binary";
-    Ok(magic == *fbx_magic)
-}
-
-fn read_binary<R>(file: &mut R) -> Result<Fbx, FbxError>
-    where R: Read + Seek {
-    let total_length = file.seek(SeekFrom::End(0))?;
-    file.seek(SeekFrom::Start(0))?;
-
-    // Ignore all stuff until version.
-    let mut temp = [0; 23];
-    file.read_exact(&mut temp)?;
-
-    // Verify version.
-    let version = file.read_u32::<LittleEndian>()?;
-    if version < 7100 || version > 7400 {
-        return Err(FbxError::UnsupportedVersion(version));
-    }
-
-    let mut nodes = Pool::new();
-    let mut root = FbxNode::default();
-    root.name = String::from("__ROOT__");
-    let root_handle = nodes.spawn(root);
-
-    // FBX document can have multiple root nodes, so we must read the file
-    // until the end.
-    while file.seek(SeekFrom::Current(0))? < total_length {
-        let root_child = read_binary_node(file, &mut nodes)?;
-        if root_child.is_none() {
-            break;
-        }
-        if let Some(child) = nodes.borrow_mut(&root_child) {
-            child.parent = root_handle.clone();
-        }
-        if let Some(root) = nodes.borrow_mut(&root_handle) {
-            root.children.push(root_child.clone());
-        }
-    }
-
-    Ok(Fbx {
-        nodes,
-        root: root_handle,
-        index_to_component: Default::default(),
-        component_pool: Pool::new(),
-        components: Vec::new(),
-    })
 }
 
 fn string_to_mapping(value: &str) -> FbxMapping {
@@ -1314,19 +1041,16 @@ impl Fbx {
     /// Parses FBX DOM and filling internal lists to prepare
     /// for conversion to engine format
     fn prepare(&mut self) -> Result<(), String> {
-        // Search-stack for internal routines
-        let mut traversal_stack: Vec<Handle<FbxNode>> = Vec::new();
-
         // Check version
-        let header_handle = find_node(&self.nodes, &mut traversal_stack, &self.root, "FBXHeaderExtension")?;
-        let version = find_and_borrow_node(&self.nodes, &mut traversal_stack, &header_handle, "FBXVersion")?;
+        let header_handle = find_node(&self.nodes, &self.root, "FBXHeaderExtension")?;
+        let version = find_and_borrow_node(&self.nodes, &header_handle, "FBXVersion")?;
         let version = version.get_attrib(0)?.as_i32()?;
         if version < 7100 {
             return Err(format!("FBX: Unsupported {} version. Version must be >= 7100", version));
         }
 
         // Read objects
-        let objects_node = find_and_borrow_node(&self.nodes, &mut traversal_stack, &self.root, "Objects")?;
+        let objects_node = find_and_borrow_node(&self.nodes, &self.root, "Objects")?;
         for object_handle in objects_node.children.iter() {
             let object = self.nodes.borrow(&object_handle).unwrap();
             let index = object.get_attrib(0)?.as_i64()?;
@@ -1334,11 +1058,11 @@ impl Fbx {
             match object.name.as_str() {
                 "Geometry" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Geometry(
-                        FbxGeometry::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                        FbxGeometry::read(object_handle, &self.nodes)?));
                 }
                 "Model" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Model(
-                        FbxModel::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                        FbxModel::read(object_handle, &self.nodes)?));
                 }
                 "Material" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Material(
@@ -1346,28 +1070,33 @@ impl Fbx {
                 }
                 "Texture" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Texture(
-                        FbxTexture::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                        FbxTexture::read(object_handle, &self.nodes)?));
                 }
                 "NodeAttribute" => {
-                    //println!("reading a NodeAttribute");
+                    if object.attrib_count() > 2 {
+                        if object.get_attrib(2)?.as_string() == "Light" {
+                            component_handle = self.component_pool.spawn(FbxComponent::Light(
+                                FbxLight::read(object_handle, &self.nodes)?));
+                        }
+                    }
                 }
                 "AnimationCurve" => {
                     component_handle = self.component_pool.spawn(FbxComponent::AnimationCurve(
-                        FbxAnimationCurve::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                        FbxAnimationCurve::read(object_handle, &self.nodes)?));
                 }
                 "AnimationCurveNode" => {
                     component_handle = self.component_pool.spawn(FbxComponent::AnimationCurveNode(
-                        FbxAnimationCurveNode::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                        FbxAnimationCurveNode::read(object_handle, &self.nodes)?));
                 }
                 "Deformer" => {
                     match object.get_attrib(2)?.as_string().as_str() {
                         "Cluster" => {
                             component_handle = self.component_pool.spawn(FbxComponent::SubDeformer(
-                                FbxSubDeformer::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                                FbxSubDeformer::read(object_handle, &self.nodes)?));
                         }
                         "Skin" => {
                             component_handle = self.component_pool.spawn(FbxComponent::Deformer(
-                                FbxDeformer::read(object_handle, &self.nodes, &mut traversal_stack)?));
+                                FbxDeformer::read(object_handle, &self.nodes)?));
                         }
                         _ => ()
                     }
@@ -1381,7 +1110,7 @@ impl Fbx {
         }
 
         // Read connections
-        let connections_node = find_and_borrow_node(&self.nodes, &mut traversal_stack, &self.root, "Connections")?;
+        let connections_node = find_and_borrow_node(&self.nodes, &self.root, "Connections")?;
         for connection_handle in connections_node.children.iter() {
             let connection = self.nodes.borrow(&connection_handle).unwrap();
             let child_index = connection.get_attrib(1)?.as_i64()?;
@@ -1399,10 +1128,9 @@ impl Fbx {
     }
 
     fn convert_light(&self, light: &mut Light, fbx_light: &FbxLight) {
-        light.set_color(Vec3::make(f32::from(fbx_light.color.r) / 255.0,
-                                   f32::from(fbx_light.color.g) / 255.0,
-                                   f32::from(fbx_light.color.b) / 255.0));
+        light.set_color(Color::opaque(fbx_light.color.r,fbx_light.color.g, fbx_light.color.b));
         light.set_radius(fbx_light.radius);
+        light.set_cone_angle(fbx_light.cone_angle);
     }
 
     fn create_surfaces(&self,
@@ -1487,7 +1215,6 @@ impl Fbx {
             };
 
         node.set_name(model.name.clone());
-        println!("{}", model.name);
         let node_local_rotation = quat_from_euler(model.rotation);
         node.set_local_rotation(node_local_rotation);
         node.set_local_scale(model.scale);
@@ -1655,9 +1382,8 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
         Ok(mut file) => {
             println!("FBX: Trying to load {:?}", path);
 
-
             let now = Instant::now();
-            let is_bin = is_binary(path)?;
+            let is_bin = fbx_binary::is_binary(path)?;
 
             let buf_len = file.metadata()?.len() as usize;
             let mut file_content = Vec::with_capacity(buf_len);
@@ -1665,9 +1391,9 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
             let mut reader = Cursor::new(file_content);
 
             let mut fbx = if is_bin {
-                read_binary(&mut reader)?
+                fbx_binary::read_binary(&mut reader)?
             } else {
-                read_ascii(&mut reader, buf_len as u64)?
+                fbx_ascii::read_ascii(&mut reader, buf_len as u64)?
             };
             println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
 

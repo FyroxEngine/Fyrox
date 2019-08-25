@@ -36,6 +36,7 @@ pub struct Scene {
     physics: Physics,
     /// Tree traversal stack.
     stack: Vec<Handle<Node>>,
+    active_camera: Handle<Node>
 }
 
 impl Default for Scene {
@@ -46,6 +47,7 @@ impl Default for Scene {
             physics: Physics::new(),
             stack: Vec::new(),
             animations: Pool::new(),
+            active_camera: Handle::none(),
         }
     }
 }
@@ -61,6 +63,7 @@ impl Scene {
             root,
             animations: Pool::new(),
             physics: Physics::new(),
+            active_camera: Handle::none(),
         }
     }
 
@@ -70,6 +73,11 @@ impl Scene {
     pub fn add_node(&mut self, node: Node) -> Handle<Node> {
         let handle = self.nodes.spawn(node);
         self.link_nodes(&handle, &self.root.clone());
+        if let Some(node) = self.nodes.borrow(&handle) {
+            if let NodeKind::Camera(_) = node.borrow_kind() {
+                self.active_camera = handle.clone();
+            }
+        }
         handle
     }
 
@@ -81,6 +89,10 @@ impl Scene {
     #[inline]
     pub fn get_nodes_mut(&mut self) -> &mut Pool<Node> {
         &mut self.nodes
+    }
+
+    pub fn get_active_camera(&self) -> Option<&Node> {
+        self.nodes.borrow(&self.active_camera)
     }
 
     /// Destroys node and its children recursively.
@@ -315,6 +327,7 @@ impl Visit for Scene {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
         self.root.visit("Root", visitor)?;
+        self.active_camera.visit("ActiveCamera", visitor)?;
         self.nodes.visit("Nodes", visitor)?;
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;

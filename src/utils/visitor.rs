@@ -905,6 +905,7 @@ mod test {
 
     impl Visit for Resource {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+            visitor.enter_region(name)?;
             if visitor.reading {} else {
                 let mut kind_id: u8 = match &self.kind {
                     ResourceKind::Unknown => return Err(VisitError::User(format!("Invalid resource!"))),
@@ -914,7 +915,8 @@ mod test {
                 kind_id.visit("KindId", visitor)?;
                 self.kind.visit("KindData", visitor)?;
             }
-            self.data.visit("ResData", visitor)
+            self.data.visit("ResData", visitor)?;
+            visitor.leave_region()
         }
     }
 
@@ -943,9 +945,10 @@ mod test {
 
     impl Visit for Foo {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+            visitor.enter_region(name)?;
             self.bar.visit("Bar", visitor)?;
             self.shared_resource.visit("SharedResource", visitor)?;
-            Ok(())
+            visitor.leave_region()
         }
     }
 

@@ -1,4 +1,17 @@
+use std::{
+    cell::RefCell,
+    rc::Rc,
+};
 use crate::{
+    utils::{
+        visitor::{
+            VisitError,
+            Visit,
+            VisitResult,
+            Visitor
+        },
+        pool::*,
+    },
     math::{
         vec3::*,
         mat4::*,
@@ -7,33 +20,25 @@ use crate::{
         vec2::*,
     },
     renderer::surface::*,
-    utils::{
-        pool::*,
-        visitor::{
-            Visit,
-            VisitResult,
-            Visitor,
-        },
-    },
     physics::Body,
     resource::Resource,
+    gui::draw::Color
 };
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
-use crate::utils::visitor::VisitError;
 
 pub struct Light {
     radius: f32,
-    color: Vec3,
+    color: Color,
+    cone_angle: f32,
+    cone_angle_cos: f32,
 }
 
 impl Default for Light {
     fn default() -> Light {
         Light {
             radius: 10.0,
-            color: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
+            color: Color::white(),
+            cone_angle: std::f32::consts::PI,
+            cone_angle_cos: -1.0
         }
     }
 }
@@ -44,6 +49,8 @@ impl Visit for Light {
 
         self.radius.visit("Radius", visitor)?;
         self.color.visit("Color", visitor)?;
+        self.cone_angle.visit("ConeAngle", visitor)?;
+        self.cone_angle_cos.visit("ConeAngleCos", visitor)?;
 
         visitor.leave_region()
     }
@@ -56,8 +63,28 @@ impl Light {
     }
 
     #[inline]
-    pub fn set_color(&mut self, color: Vec3) {
+    pub fn get_radius(&self) -> f32 {
+        self.radius
+    }
+
+    #[inline]
+    pub fn set_color(&mut self, color: Color) {
         self.color = color;
+    }
+
+    #[inline]
+    pub fn get_color(&self) -> Color {
+        self.color
+    }
+
+    #[inline]
+    pub fn get_cone_angle_cos(&self) -> f32 {
+        self.cone_angle_cos
+    }
+
+    pub fn set_cone_angle(&mut self, cone_angle: f32) {
+        self.cone_angle = cone_angle;
+        self.cone_angle_cos = cone_angle.cos();
     }
 
     #[inline]
@@ -65,6 +92,8 @@ impl Light {
         Light {
             radius: self.radius,
             color: self.color,
+            cone_angle: self.cone_angle,
+            cone_angle_cos: self.cone_angle_cos
         }
     }
 }

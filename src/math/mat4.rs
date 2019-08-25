@@ -6,7 +6,7 @@ use crate::{
     }
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Mat4 {
     pub f: [f32; 16]
 }

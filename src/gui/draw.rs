@@ -1,12 +1,22 @@
+use std::os::raw::c_void;
 use crate::{
+    math::vec4::Vec4,
     math::{
         vec2::Vec2,
-        Rect
+        Rect,
     },
-    gui::{Thickness, HorizontalAlignment, VerticalAlignment},
-    resource::ttf::Font
+    gui::{
+        Thickness,
+        HorizontalAlignment,
+        VerticalAlignment,
+    },
+    resource::ttf::Font,
+    utils::visitor::{
+        Visit,
+        Visitor,
+        VisitResult,
+    },
 };
-use std::os::raw::c_void;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Color {
@@ -18,11 +28,11 @@ pub struct Color {
 
 impl Color {
     pub fn opaque(r: u8, g: u8, b: u8) -> Color {
-        Color {r, g, b, a: 255}
+        Color { r, g, b, a: 255 }
     }
 
     pub fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
-        Color {r, g, b, a}
+        Color { r, g, b, a }
     }
 
     pub fn white() -> Color {
@@ -31,6 +41,28 @@ impl Color {
 
     pub fn black() -> Color {
         Color { r: 0, g: 0, b: 0, a: 255 }
+    }
+
+    pub fn as_frgba(&self) -> Vec4 {
+        Vec4 {
+            x: self.r as f32 / 255.0,
+            y: self.g as f32 / 255.0,
+            z: self.b as f32 / 255.0,
+            w: self.a as f32 / 255.0,
+        }
+    }
+}
+
+impl Visit for Color {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.r.visit("R", visitor)?;
+        self.g.visit("G", visitor)?;
+        self.b.visit("B", visitor)?;
+        self.a.visit("A", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
@@ -63,7 +95,7 @@ pub struct Command {
     texture: u32,
     index_offset: usize,
     triangle_count: usize,
-    nesting: u8
+    nesting: u8,
 }
 
 impl Command {

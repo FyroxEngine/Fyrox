@@ -8,6 +8,8 @@ use crate::{
     math::mat4::Mat4,
 };
 use std::ffi::CStr;
+use crate::math::vec4::Vec4;
+use crate::math::vec3::Vec3;
 
 pub struct GpuProgram {
     id: GLuint,
@@ -94,9 +96,33 @@ impl GpuProgram {
         }
     }
 
+    pub fn set_mat4_array(&self, location: UniformLocation, mat: &[Mat4]) {
+        unsafe {
+            gl::UniformMatrix4fv(location.id, mat.len() as i32, gl::FALSE, &mat[0].f as *const GLfloat);
+        }
+    }
+
     pub fn set_int(&self, location: UniformLocation, value: i32) {
         unsafe {
             gl::Uniform1i(location.id, value);
+        }
+    }
+
+    pub fn set_vec4(&self, location: UniformLocation, value: &Vec4) {
+        unsafe {
+            gl::Uniform4f(location.id, value.x, value.y, value.z, value.w);
+        }
+    }
+
+    pub fn set_float(&self, location: UniformLocation, value: f32) {
+        unsafe {
+            gl::Uniform1f(location.id, value)
+        }
+    }
+
+    pub fn set_vec3(&self, location: UniformLocation, value: &Vec3) {
+        unsafe {
+            gl::Uniform3f(location.id, value.x, value.y, value.z)
         }
     }
 }

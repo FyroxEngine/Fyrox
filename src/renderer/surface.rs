@@ -178,6 +178,124 @@ impl SurfaceSharedData {
         }
     }
 
+    pub fn make_unit_xy_quad() -> Self {
+        let mut data = Self::new();
+
+        data.vertices = vec![
+            Vertex {
+                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 0.0, y: 1.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 1.0, y: 1.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 1.0, y: 1.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 1.0, y: 0.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 0.0, y: 0.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_indices: [0, 0, 0, 0],
+            }
+        ];
+
+        data.indices = vec![
+            0, 1, 2,
+            0, 2, 3
+        ];
+
+        data
+    }
+
+    pub fn insert_vertex_pos_tex(&mut self, pos: &Vec3, tex: &Vec2) {
+        self.insert_vertex(Vertex {
+            position: *pos,
+            tex_coord: *tex,
+            normal: Vec3::make(0.0, 1.0, 0.0),
+            tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+            bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+            bone_indices: Default::default(),
+        })
+    }
+
+    pub fn calculate_normals(&mut self) {
+        for m in (0..self.indices.len()).step_by(3) {
+            let ia = self.indices[m] as usize;
+            let ib = self.indices[m + 1] as usize;
+            let ic = self.indices[m + 2] as usize;
+
+            let a = self.vertices[ia].position;
+            let b = self.vertices[ib].position;
+            let c = self.vertices[ic].position;
+
+            let normal = (b - a).cross(&(c - a)).normalized().unwrap();
+
+            self.vertices[ia].normal = normal;
+            self.vertices[ib].normal = normal;
+            self.vertices[ic].normal = normal;
+        }
+    }
+
+    pub fn make_sphere(slices: usize, stacks: usize, r: f32) -> Self {
+        let mut data = Self::new();
+
+        let d_theta = std::f32::consts::PI / slices as f32;
+        let d_phi = 2.0 * std::f32::consts::PI / stacks as f32;
+        let d_tc_y = 1.0 / stacks as f32;
+        let d_tc_x = 1.0 / slices as f32;
+
+        for i in 0..stacks {
+            for j in 0..slices {
+                let nj = j + 1;
+                let ni = i + 1;
+
+                let k0 = r * (d_theta * i as f32).sin();
+                let k1 = (d_phi * j as f32).cos();
+                let k2 = (d_phi * j as f32).sin();
+                let k3 = r * (d_theta * i as f32).cos();
+
+                let k4 = r * (d_theta * ni as f32).sin();
+                let k5 = (d_phi * nj as f32).cos();
+                let k6 = (d_phi * nj as f32).sin();
+                let k7 = r * (d_theta * ni as f32).cos();
+
+                if i != (stacks - 1) {
+                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), &Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k1, k4 * k2, k7), &Vec2::make(d_tc_x * j as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), &Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                }
+
+                if i != 0 {
+                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), &Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k5, k0 * k6, k3), &Vec2::make(d_tc_x * nj as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), &Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
+                }
+            }
+        }
+
+        data.calculate_normals();
+        data.calculate_tangents();
+
+        data
+    }
+
     pub fn make_cube() -> Self {
         let mut data = Self::new();
 
@@ -419,8 +537,7 @@ impl Drop for SurfaceSharedData {
 pub struct Surface {
     data: Rc<RefCell<SurfaceSharedData>>,
     diffuse_texture: Option<Rc<RefCell<Resource>>>,
-    normal_texture: Option<Rc<RefCell<Resource>>>,
-    specular_texture: Option<Rc<RefCell<Resource>>>
+    normal_texture: Option<Rc<RefCell<Resource>>>
 }
 
 impl Surface {
@@ -430,7 +547,6 @@ impl Surface {
             data,
             diffuse_texture: None,
             normal_texture: None,
-            specular_texture: None,
         }
     }
 
@@ -442,6 +558,14 @@ impl Surface {
     #[inline]
     pub fn get_diffuse_texture(&self) -> Option<Rc<RefCell<Resource>>> {
         match &self.diffuse_texture {
+            Some(resource) => Some(Rc::clone(resource)),
+            None => None
+        }
+    }
+
+    #[inline]
+    pub fn get_normal_texture(&self) -> Option<Rc<RefCell<Resource>>> {
+        match &self.normal_texture {
             Some(resource) => Some(Rc::clone(resource)),
             None => None
         }
@@ -463,11 +587,7 @@ impl Surface {
             normal_texture: match &self.normal_texture {
                 Some(resource) => Some(Rc::clone(resource)),
                 None => None
-            },
-            specular_texture: match &self.specular_texture {
-                Some(resource) => Some(Rc::clone(resource)),
-                None => None
-            },
+            }
         }
     }
 }
