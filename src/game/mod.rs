@@ -317,7 +317,7 @@ impl Game {
                    self.engine.get_rendering_statisting().current_fps,
                    game_time.elapsed).unwrap();
 
-            if let Some(ui_node) = self.engine.get_ui_mut().get_node_mut(&self.debug_text) {
+            if let Some(ui_node) = self.engine.get_ui_mut().get_node_mut(self.debug_text) {
                 if let UINodeKind::Text(text) = ui_node.get_kind_mut() {
                     text.set_text(debug_string.as_str());
                 }

@@ -64,8 +64,8 @@ impl Level {
             let map_root_handle = Model::instantiate(map_model_handle.unwrap(), &mut scene).unwrap_or(Handle::none());
 
             // Create collision geometry
-            let polygon_handle = scene.find_node_by_name(&map_root_handle, "Polygon");
-            if let Some(polygon) = scene.get_node(&polygon_handle) {
+            let polygon_handle = scene.find_node_by_name(map_root_handle, "Polygon");
+            if let Some(polygon) = scene.get_node(polygon_handle) {
                 let global_transform = polygon.get_global_transform();
                 let mut static_geometry = StaticGeometry::new();
                 if let NodeKind::Mesh(mesh) = polygon.borrow_kind() {
@@ -107,7 +107,7 @@ impl Level {
             }
         }
         for (i, handle) in ripper_handles.iter().enumerate() {
-            if let Some(node) = scene.get_node_mut(&handle) {
+            if let Some(node) = scene.get_node_mut(*handle) {
                 node.set_local_position(Vec3::make(-0.25, 0.0, 3.0 - i as f32 * 1.75));
             }
         }
@@ -119,7 +119,7 @@ impl Level {
     }
 
     pub fn destroy(&mut self, engine: &mut Engine) {
-        engine.get_state_mut().destroy_scene(&self.scene);
+        engine.get_state_mut().destroy_scene(self.scene);
     }
 
     pub fn get_player(&self) -> Option<&Player> {
@@ -131,7 +131,7 @@ impl Level {
     }
 
     pub fn update(&mut self, engine: &mut Engine, time: &GameTime) {
-        if let Some(scene) = engine.get_state_mut().get_scene_mut(&self.scene) {
+        if let Some(scene) = engine.get_state_mut().get_scene_mut(self.scene) {
             if let Some(ref mut player) = self.player {
                 player.update(scene, time);
             }

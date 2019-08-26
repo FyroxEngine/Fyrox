@@ -26,7 +26,7 @@ pub struct ScrollViewer {
 }
 
 impl ScrollViewer {
-    pub fn update(handle: &Handle<UINode>, ui: &mut UserInterface) {
+    pub fn update(handle: Handle<UINode>, ui: &mut UserInterface) {
         let mut content_size = Vec2::new();
         let mut available_size_for_content = Vec2::new();
         let mut horizontal_scroll_bar_handle = Handle::none();
@@ -34,12 +34,12 @@ impl ScrollViewer {
 
         if let Some(node) = ui.nodes.borrow(handle) {
             if let UINodeKind::ScrollViewer(scroll_viewer) = node.get_kind() {
-                horizontal_scroll_bar_handle = scroll_viewer.h_scroll_bar.clone();
-                vertical_scroll_bar_handle = scroll_viewer.v_scroll_bar.clone();
-                if let Some(content_presenter) = ui.nodes.borrow(&scroll_viewer.content_presenter) {
+                horizontal_scroll_bar_handle = scroll_viewer.h_scroll_bar;
+                vertical_scroll_bar_handle = scroll_viewer.v_scroll_bar;
+                if let Some(content_presenter) = ui.nodes.borrow(scroll_viewer.content_presenter) {
                     available_size_for_content = content_presenter.desired_size.get();
                     for content_handle in content_presenter.children.iter() {
-                        if let Some(content) = ui.nodes.borrow(content_handle) {
+                        if let Some(content) = ui.nodes.borrow(*content_handle) {
                             let content_desired_size = content.desired_size.get();
                             if content_desired_size.x > content_size.x {
                                 content_size.x = content_desired_size.x;
@@ -54,8 +54,8 @@ impl ScrollViewer {
         }
 
         // Then adjust scroll bars according to content size.
-        ScrollBar::set_max_value(&horizontal_scroll_bar_handle, ui, maxf(0.0, content_size.x - available_size_for_content.x));
-        ScrollBar::set_max_value(&vertical_scroll_bar_handle, ui, maxf(0.0, content_size.y - available_size_for_content.y));
+        ScrollBar::set_max_value(horizontal_scroll_bar_handle, ui, maxf(0.0, content_size.x - available_size_for_content.x));
+        ScrollBar::set_max_value(vertical_scroll_bar_handle, ui, maxf(0.0, content_size.y - available_size_for_content.y));
     }
 }
 
@@ -81,7 +81,7 @@ impl ScrollViewerBuilder {
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let content_presenter = ScrollContentPresenterBuilder::new()
-            .with_child(self.content.clone())
+            .with_child(self.content)
             .on_row(0)
             .on_column(0)
             .build(ui);
@@ -91,9 +91,9 @@ impl ScrollViewerBuilder {
             .on_row(0)
             .on_column(1)
             .with_value_changed({
-                let content_presenter = content_presenter.clone();
+                let content_presenter = content_presenter;
                 Box::new(move |ui, args| {
-                    ScrollContentPresenter::set_vertical_scroll(&content_presenter, ui, args.new_value);
+                    ScrollContentPresenter::set_vertical_scroll(content_presenter, ui, args.new_value);
                 })
             })
             .build(ui);
@@ -103,19 +103,19 @@ impl ScrollViewerBuilder {
             .on_row(1)
             .on_column(0)
             .with_value_changed({
-                let content_presenter = content_presenter.clone();
+                let content_presenter = content_presenter;
                 Box::new(move |ui, args| {
-                    ScrollContentPresenter::set_horizontal_scroll(&content_presenter, ui, args.new_value);
+                    ScrollContentPresenter::set_horizontal_scroll(content_presenter, ui, args.new_value);
                 })
             })
             .build(ui);
 
         let scroll_viewer = ScrollViewer {
-            content: self.content.clone(),
+            content: self.content,
             owner_handle: Handle::none(),
-            v_scroll_bar: v_scroll_bar.clone(),
-            h_scroll_bar: h_scroll_bar.clone(),
-            content_presenter: content_presenter.clone(),
+            v_scroll_bar,
+            h_scroll_bar,
+            content_presenter,
         };
 
         GenericNodeBuilder::new(UINodeKind::ScrollViewer(scroll_viewer), self.common)

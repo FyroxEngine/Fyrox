@@ -210,7 +210,7 @@ impl State {
                     if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
                         if let ResourceKind::Model(model) = resource.borrow().borrow_kind() {
                             let resource_node_handle = model.find_node_by_name(node_name.as_str());
-                            if let Some(resource_node) = model.get_scene().get_node(&resource_node_handle) {
+                            if let Some(resource_node) = model.get_scene().get_node(resource_node_handle) {
                                 if let NodeKind::Mesh(resource_mesh) = resource_node.borrow_kind() {
                                     let surfaces = mesh.get_surfaces_mut();
                                     surfaces.clear();
@@ -252,7 +252,7 @@ impl State {
     }
 
     #[inline]
-    pub fn get_scene(&self, handle: &Handle<Scene>) -> Option<&Scene> {
+    pub fn get_scene(&self, handle: Handle<Scene>) -> Option<&Scene> {
         if let Some(scene) = self.scenes.borrow(handle) {
             return Some(scene);
         }
@@ -260,7 +260,7 @@ impl State {
     }
 
     #[inline]
-    pub fn get_scene_mut(&mut self, handle: &Handle<Scene>) -> Option<&mut Scene> {
+    pub fn get_scene_mut(&mut self, handle: Handle<Scene>) -> Option<&mut Scene> {
         if let Some(scene) = self.scenes.borrow_mut(handle) {
             return Some(scene);
         }
@@ -273,7 +273,7 @@ impl State {
     }
 
     #[inline]
-    pub fn destroy_scene(&mut self, handle: &Handle<Scene>) {
+    pub fn destroy_scene(&mut self, handle: Handle<Scene>) {
         if let Some(mut scene) = self.scenes.take(handle) {
             self.destroy_scene_internal(&mut scene);
         }
@@ -316,7 +316,7 @@ impl Engine {
             renderer,
             events: VecDeque::new(),
             running: true,
-            user_interface: UserInterface::new(default_font.clone()),
+            user_interface: UserInterface::new(default_font),
             default_font,
             font_cache,
         }
@@ -338,7 +338,7 @@ impl Engine {
     }
 
     pub fn update(&mut self, dt: f64) {
-        let client_size = self.renderer.context.get_inner_size().unwrap();
+        let client_size = self.renderer.context.window().get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
 
         self.state.resource_manager.update();
@@ -360,13 +360,13 @@ impl Engine {
     }
 
     #[inline]
-    pub fn get_font(&self, font_handle: &Handle<Font>) -> Option<&Font> {
+    pub fn get_font(&self, font_handle: Handle<Font>) -> Option<&Font> {
         self.font_cache.borrow(font_handle)
     }
 
     #[inline]
     pub fn get_default_font(&self) -> Handle<Font> {
-        self.default_font.clone()
+        self.default_font
     }
 
     #[inline]

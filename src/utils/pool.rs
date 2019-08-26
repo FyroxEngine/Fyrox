@@ -19,7 +19,6 @@ pub struct Pool<T: Sized> {
 /// It stores index of object and additional information that
 /// allows to ensure that handle is still valid.
 ///
-#[derive(Copy)]
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,
@@ -93,6 +92,10 @@ impl<T> Clone for Handle<T> {
     }
 }
 
+impl<T> Copy for Handle<T> {
+
+}
+
 impl<T> PartialEq for Handle<T> {
     fn eq(&self, other: &Handle<T>) -> bool {
         self.generation == other.generation && self.index == other.index
@@ -128,20 +131,20 @@ impl<T> Handle<T> {
     }
 
     #[inline]
-    pub fn is_none(&self) -> bool {
+    pub fn is_none(self) -> bool {
         self.index == 0 && self.generation == Pool::<T>::INVALID_GENERATION
     }
 
     #[inline]
-    pub fn is_some(&self) -> bool {
+    pub fn is_some(self) -> bool {
         !self.is_none()
     }
 
-    pub fn get_index(&self) -> u32 {
+    pub fn get_index(self) -> u32 {
         self.index
     }
 
-    pub fn get_generation(&self) -> u32 {
+    pub fn get_generation(self) -> u32 {
         self.generation
     }
 
@@ -198,7 +201,7 @@ impl<T> Pool<T> {
 
     #[inline]
     #[must_use]
-    pub fn borrow(&self, handle: &Handle<T>) -> Option<&T> {
+    pub fn borrow(&self, handle: Handle<T>) -> Option<&T> {
         // Make sure that empty handles won't trigger diagnostic messages
         if handle.is_none() {
             return None;
@@ -222,7 +225,7 @@ impl<T> Pool<T> {
 
     #[inline]
     #[must_use]
-    pub fn borrow_mut(&mut self, handle: &Handle<T>) -> Option<&mut T> {
+    pub fn borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
         // Make sure that empty handles won't trigger diagnostic messages
         if handle.is_none() {
             return None;
@@ -307,7 +310,7 @@ impl<T> Pool<T> {
     /// Moves object by specified handle out of the pool.
     #[inline]
     #[must_use]
-    pub fn take(&mut self, handle: &Handle<T>) -> Option<T> {
+    pub fn take(&mut self, handle: Handle<T>) -> Option<T> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
             self.free_stack.push(handle.index);
             record.payload.take()
@@ -329,7 +332,7 @@ impl<T> Pool<T> {
     }
 
     #[inline]
-    pub fn is_valid_handle(&self, handle: &Handle<T>) -> bool {
+    pub fn is_valid_handle(&self, handle: Handle<T>) -> bool {
         if let Some(record) = self.records.get(handle.index as usize) {
             return record.payload.is_some() && record.generation == handle.generation;
         }

@@ -425,11 +425,11 @@ impl Physics {
         self.static_geoms.free(static_geom);
     }
 
-    pub fn borrow_body(&self, handle: &Handle<Body>) -> Option<&Body> {
+    pub fn borrow_body(&self, handle: Handle<Body>) -> Option<&Body> {
         self.bodies.borrow(handle)
     }
 
-    pub fn borrow_body_mut(&mut self, handle: &Handle<Body>) -> Option<&mut Body> {
+    pub fn borrow_body_mut(&mut self, handle: Handle<Body>) -> Option<&mut Body> {
         self.bodies.borrow_mut(handle)
     }
 

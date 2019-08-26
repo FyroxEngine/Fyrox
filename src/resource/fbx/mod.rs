@@ -1,11 +1,9 @@
-pub mod fbx_ascii;
-pub mod fbx_binary;
+mod fbx_ascii;
+mod fbx_binary;
+mod texture;
 
 use std::{
-    path::{
-        PathBuf,
-        Path,
-    },
+    path::Path,
     fs::File,
     io::{
         Read,
@@ -52,8 +50,9 @@ use crate::{
         Vertex,
     },
     engine::State,
+    gui::draw::Color,
+    resource::fbx::texture::FbxTexture,
 };
-use crate::gui::draw::Color;
 
 pub enum FbxAttribute {
     Double(f64),
@@ -170,24 +169,27 @@ struct FbxTimeValuePair {
 
 struct FbxSubDeformer {
     model: Handle<FbxComponent>,
-    indices: Vec<i32>,
-    weights: Vec<f32>,
+    weights: Vec<(i32, f32)>,
     transform: Mat4,
 }
 
 impl FbxSubDeformer {
-    fn read(sub_deformer_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+    fn read(sub_deformer_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         let indices_handle = find_node(nodes, sub_deformer_handle, "Indexes")?;
-        let indices = find_and_borrow_node(nodes, &indices_handle, "a")?;
+        let indices = find_and_borrow_node(nodes, indices_handle, "a")?;
 
         let weights_handle = find_node(nodes, sub_deformer_handle, "Weights")?;
-        let weights = find_and_borrow_node(nodes, &weights_handle, "a")?;
+        let weights = find_and_borrow_node(nodes, weights_handle, "a")?;
 
         let transform_handle = find_node(nodes, sub_deformer_handle, "Transform")?;
-        let transform_node = find_and_borrow_node(nodes, &transform_handle, "a")?;
+        let transform_node = find_and_borrow_node(nodes, transform_handle, "a")?;
 
         if transform_node.attrib_count() != 16 {
             return Err(format!("FBX: Wrong transform size! Expect 16, got {}", transform_node.attrib_count()));
+        }
+
+        if indices.attrib_count() != weights.attrib_count() {
+            return Err(String::from("invalid sub deformer, weights count does not match index count"));
         }
 
         let mut transform = Mat4::identity();
@@ -197,40 +199,15 @@ impl FbxSubDeformer {
 
         let mut sub_deformer = FbxSubDeformer {
             model: Handle::none(),
-            indices: Vec::with_capacity(indices.attrib_count()),
             weights: Vec::with_capacity(weights.attrib_count()),
             transform,
         };
 
-        for i in 0..indices.attrib_count() {
-            sub_deformer.indices.push(indices.get_attrib(i)?.as_i32()?);
-        }
-
         for i in 0..weights.attrib_count() {
-            sub_deformer.weights.push(weights.get_attrib(i)?.as_f64()? as f32);
+            sub_deformer.weights.push((indices.get_attrib(i)?.as_i32()?, weights.get_attrib(i)?.as_f64()? as f32));
         }
 
         Ok(sub_deformer)
-    }
-}
-
-struct FbxTexture {
-    filename: PathBuf,
-}
-
-impl FbxTexture {
-    fn read(texture_node_hanle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
-        let mut texture = FbxTexture {
-            filename: PathBuf::new()
-        };
-        if let Ok(relative_file_name_node) = find_and_borrow_node(nodes, texture_node_hanle, "RelativeFilename") {
-            let relative_filename = relative_file_name_node.get_attrib(0)?.as_string();
-            let path = Path::new(relative_filename.as_str());
-            if let Some(filename) = path.file_name() {
-                texture.filename = PathBuf::from(filename);
-            }
-        }
-        Ok(texture)
     }
 }
 
@@ -239,7 +216,7 @@ struct FbxMaterial {
 }
 
 impl FbxMaterial {
-    fn read(_material_node_handle: &Handle<FbxNode>) -> Result<FbxMaterial, String> {
+    fn read(_material_node_handle: Handle<FbxNode>) -> Result<FbxMaterial, String> {
         Ok(FbxMaterial {
             diffuse_texture: Handle::none()
         })
@@ -251,7 +228,7 @@ struct FbxDeformer {
 }
 
 impl FbxDeformer {
-    fn read(_sub_deformer_handle: &Handle<FbxNode>, _nodes: &Pool<FbxNode>) -> Result<Self, String> {
+    fn read(_sub_deformer_handle: Handle<FbxNode>, _nodes: &Pool<FbxNode>) -> Result<Self, String> {
         Ok(FbxDeformer {
             sub_deformers: Vec::new()
         })
@@ -263,12 +240,12 @@ struct FbxAnimationCurve {
 }
 
 impl FbxAnimationCurve {
-    pub fn read(curve_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+    pub fn read(curve_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         let key_time_handle = find_node(nodes, curve_handle, "KeyTime")?;
-        let key_time_array = find_and_borrow_node(nodes, &key_time_handle, "a")?;
+        let key_time_array = find_and_borrow_node(nodes, key_time_handle, "a")?;
 
         let key_value_handle = find_node(nodes, curve_handle, "KeyValueFloat")?;
-        let key_value_array = find_and_borrow_node(nodes, &key_value_handle, "a")?;
+        let key_value_array = find_and_borrow_node(nodes, key_value_handle, "a")?;
 
         if key_time_array.attrib_count() != key_value_array.attrib_count() {
             return Err(String::from("FBX: Animation curve contains wrong key data!"));
@@ -340,7 +317,7 @@ struct FbxAnimationCurveNode {
 }
 
 impl FbxAnimationCurveNode {
-    pub fn read(node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+    pub fn read(node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         match nodes.borrow(node_handle) {
             Some(node) =>
                 Ok(FbxAnimationCurveNode {
@@ -357,7 +334,7 @@ impl FbxAnimationCurveNode {
     }
 
     pub fn eval_vec3(&self, components: &Pool<FbxComponent>, time: f32) -> Vec3 {
-        let x = if let Some(x) = components.borrow(&self.curves[0]) {
+        let x = if let Some(x) = components.borrow(self.curves[0]) {
             if let FbxComponent::AnimationCurve(curve) = x {
                 curve.eval(time)
             } else {
@@ -367,7 +344,7 @@ impl FbxAnimationCurveNode {
             0.0
         };
 
-        let y = if let Some(y) = components.borrow(&self.curves[1]) {
+        let y = if let Some(y) = components.borrow(self.curves[1]) {
             if let FbxComponent::AnimationCurve(curve) = y {
                 curve.eval(time)
             } else {
@@ -377,7 +354,7 @@ impl FbxAnimationCurveNode {
             0.0
         };
 
-        let z = if let Some(z) = components.borrow(&self.curves[2]) {
+        let z = if let Some(z) = components.borrow(self.curves[2]) {
             if let FbxComponent::AnimationCurve(curve) = z {
                 curve.eval(time)
             } else {
@@ -482,8 +459,38 @@ struct FbxGeometry {
     deformers: Vec<Handle<FbxComponent>>,
 }
 
+#[derive(Copy, Clone)]
+struct Weight {
+    value: f32,
+    affected_model: Handle<FbxComponent>,
+}
+
+impl Default for Weight {
+    fn default() -> Self {
+        Self {
+            value: 0.0,
+            affected_model: Handle::none()
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct BoneSet {
+    weights: [Weight; 4],
+    count: usize
+}
+
+impl Default for BoneSet {
+    fn default() -> Self {
+        Self {
+            weights: Default::default(),
+            count: 0
+        }
+    }
+}
+
 impl FbxGeometry {
-    pub fn read(geom_node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxGeometry, String> {
+    pub fn read(geom_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxGeometry, String> {
         let mut geom = FbxGeometry {
             vertices: Vec::new(),
             indices: Vec::new(),
@@ -508,7 +515,7 @@ impl FbxGeometry {
 
         // Read vertices
         let vertices_node_handle = find_node(nodes, geom_node_handle, "Vertices")?;
-        let vertices_array_node = find_and_borrow_node(nodes, &vertices_node_handle, "a")?;
+        let vertices_array_node = find_and_borrow_node(nodes, vertices_node_handle, "a")?;
         let vertex_count = vertices_array_node.attrib_count() / 3;
         geom.vertices = Vec::with_capacity(vertex_count);
         for i in 0..vertex_count {
@@ -517,7 +524,7 @@ impl FbxGeometry {
 
         // Read faces
         let indices_node_handle = find_node(nodes, geom_node_handle, "PolygonVertexIndex")?;
-        let indices_array_node = find_and_borrow_node(nodes, &indices_node_handle, "a")?;
+        let indices_array_node = find_and_borrow_node(nodes, indices_node_handle, "a")?;
         let index_count = indices_array_node.attrib_count();
         geom.indices = Vec::with_capacity(index_count);
         for i in 0..index_count {
@@ -527,14 +534,14 @@ impl FbxGeometry {
 
         // Read normals (normals can not exist)
         if let Ok(layer_element_normal_node_handle) = find_node(nodes, geom_node_handle, "LayerElementNormal") {
-            let map_type_node = find_and_borrow_node(nodes, &layer_element_normal_node_handle, "MappingInformationType")?;
+            let map_type_node = find_and_borrow_node(nodes, layer_element_normal_node_handle, "MappingInformationType")?;
             geom.normal_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
 
-            let ref_type_node = find_and_borrow_node(nodes, &layer_element_normal_node_handle, "ReferenceInformationType")?;
+            let ref_type_node = find_and_borrow_node(nodes, layer_element_normal_node_handle, "ReferenceInformationType")?;
             geom.normal_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
 
-            let normals_node_handle = find_node(nodes, &layer_element_normal_node_handle, "Normals")?;
-            let normals_array_node = find_and_borrow_node(nodes, &normals_node_handle, "a")?;
+            let normals_node_handle = find_node(nodes, layer_element_normal_node_handle, "Normals")?;
+            let normals_array_node = find_and_borrow_node(nodes, normals_node_handle, "a")?;
             let count = normals_array_node.attrib_count() / 3;
             for i in 0..count {
                 geom.normals.push(normals_array_node.get_vec3_at(i * 3)?);
@@ -545,14 +552,14 @@ impl FbxGeometry {
 
         // Read UVs
         if let Ok(layer_element_uv_node_handle) = find_node(nodes, geom_node_handle, "LayerElementUV") {
-            let map_type_node = find_and_borrow_node(nodes, &layer_element_uv_node_handle, "MappingInformationType")?;
+            let map_type_node = find_and_borrow_node(nodes, layer_element_uv_node_handle, "MappingInformationType")?;
             geom.uv_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
 
-            let ref_type_node = find_and_borrow_node(nodes, &layer_element_uv_node_handle, "ReferenceInformationType")?;
+            let ref_type_node = find_and_borrow_node(nodes, layer_element_uv_node_handle, "ReferenceInformationType")?;
             geom.uv_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
 
-            let uvs_node_handle = find_node(nodes, &layer_element_uv_node_handle, "UV")?;
-            let uvs_array_node = find_and_borrow_node(nodes, &uvs_node_handle, "a")?;
+            let uvs_node_handle = find_node(nodes, layer_element_uv_node_handle, "UV")?;
+            let uvs_array_node = find_and_borrow_node(nodes, uvs_node_handle, "a")?;
             let count = uvs_array_node.attrib_count() / 2;
             for i in 0..count {
                 let uv = uvs_array_node.get_vec2_at(i * 2)?;
@@ -560,8 +567,8 @@ impl FbxGeometry {
             }
 
             if geom.uv_reference == FbxReference::IndexToDirect {
-                let uv_index_node = find_node(nodes, &layer_element_uv_node_handle, "UVIndex")?;
-                let uv_index_array_node = find_and_borrow_node(nodes, &uv_index_node, "a")?;
+                let uv_index_node = find_node(nodes, layer_element_uv_node_handle, "UVIndex")?;
+                let uv_index_array_node = find_and_borrow_node(nodes, uv_index_node, "a")?;
                 for i in 0..uv_index_array_node.attrib_count() {
                     geom.uv_index.push(uv_index_array_node.get_attrib(i)?.as_i32()?);
                 }
@@ -570,20 +577,42 @@ impl FbxGeometry {
 
         // Read materials
         if let Ok(layer_element_material_node_handle) = find_node(nodes, geom_node_handle, "LayerElementMaterial") {
-            let map_type_node = find_and_borrow_node(nodes, &layer_element_material_node_handle, "MappingInformationType")?;
+            let map_type_node = find_and_borrow_node(nodes, layer_element_material_node_handle, "MappingInformationType")?;
             geom.material_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
 
-            let ref_type_node = find_and_borrow_node(nodes, &layer_element_material_node_handle, "ReferenceInformationType")?;
+            let ref_type_node = find_and_borrow_node(nodes, layer_element_material_node_handle, "ReferenceInformationType")?;
             geom.material_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
 
-            let materials_node_handle = find_node(nodes, &layer_element_material_node_handle, "Materials")?;
-            let materials_array_node = find_and_borrow_node(nodes, &materials_node_handle, "a")?;
+            let materials_node_handle = find_node(nodes, layer_element_material_node_handle, "Materials")?;
+            let materials_array_node = find_and_borrow_node(nodes, materials_node_handle, "a")?;
             for i in 0..materials_array_node.attrib_count() {
                 geom.materials.push(materials_array_node.get_attrib(i)?.as_i32()?);
             }
         }
 
         Ok(geom)
+    }
+
+    fn get_skin_data(&self, components: &Pool<FbxComponent>) -> Result<Vec<BoneSet>, FbxError> {
+        let mut out = vec![BoneSet::default(); self.vertices.len()];
+        for deformer_handle in self.deformers.iter() {
+            for sub_deformer_handle in components.borrow(*deformer_handle).ok_or(FbxError::InvalidPoolHandle)?.as_deformer()?.sub_deformers.iter() {
+                let sub_deformer = components.borrow(*sub_deformer_handle).ok_or(FbxError::InvalidPoolHandle)?.as_sub_deformer()?;
+                for (index, weight) in sub_deformer.weights.iter() {
+                    let mut bone_set = out.get_mut(*index as usize).ok_or(FbxError::IndexOutOfBounds)?;
+                    if bone_set.count < 4 {
+                        bone_set.weights[bone_set.count] = Weight {
+                            value: *weight,
+                            affected_model: sub_deformer.model
+                        };
+                        bone_set.count += 1;
+                    } else {
+                        return Err(FbxError::IndexOutOfBounds);
+                    }
+                }
+            }
+        }
+        Ok(out)
     }
 }
 
@@ -603,7 +632,7 @@ struct FbxLight {
 }
 
 impl FbxLight {
-    pub fn read(light_node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+    pub fn read(light_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         let mut light = Self {
             actual_type: FbxLightType::Point,
             color: Color::white(),
@@ -613,7 +642,7 @@ impl FbxLight {
 
         let props = find_and_borrow_node(nodes, light_node_handle, "Properties70")?;
         for prop_handle in props.children.iter() {
-            if let Some(prop) = nodes.borrow(prop_handle) {
+            if let Some(prop) = nodes.borrow(*prop_handle) {
                 match prop.get_attrib(0)?.as_string().as_str() {
                     "DecayStart" => light.radius = prop.get_attrib(4)?.as_f64()? as f32,
                     "Color" => {
@@ -673,10 +702,10 @@ struct FbxModel {
 }
 
 impl FbxModel {
-    pub fn read(model_node_handle: &Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxModel, String> {
+    pub fn read(model_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxModel, String> {
         let mut name = String::from("Unnamed");
 
-        let model_node = nodes.borrow(&model_node_handle).unwrap();
+        let model_node = nodes.borrow(model_node_handle).unwrap();
         if let Ok(name_attrib) = model_node.get_attrib(1) {
             name = name_attrib.as_string();
         }
@@ -709,9 +738,9 @@ impl FbxModel {
         };
 
         let properties70_node_handle = find_node(nodes, model_node_handle, "Properties70")?;
-        let properties70_node = nodes.borrow(&properties70_node_handle).unwrap();
+        let properties70_node = nodes.borrow(properties70_node_handle).unwrap();
         for property_handle in properties70_node.children.iter() {
-            let property_node = nodes.borrow(&property_handle).unwrap();
+            let property_node = nodes.borrow(*property_handle).unwrap();
             let name_attrib = property_node.get_attrib(0)?;
             match name_attrib.as_string().as_str() {
                 "Lcl Translation" => model.translation = property_node.get_vec3_at(4)?,
@@ -759,6 +788,42 @@ impl FbxComponent {
             FbxComponent::Geometry(geometry) => geometry.type_id()
         }
     }
+
+    fn as_deformer(&self) -> Result<&FbxDeformer, FbxError> {
+        if let FbxComponent::Deformer(deformer) = self { Ok(deformer) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_sub_deformer(&self) -> Result<&FbxSubDeformer, FbxError> {
+        if let FbxComponent::SubDeformer(sub_deformer) = self { Ok(sub_deformer) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_texture(&self) -> Result<&FbxTexture, FbxError> {
+        if let FbxComponent::Texture(texture) = self { Ok(texture) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_light(&self) -> Result<&FbxLight, FbxError> {
+        if let FbxComponent::Light(light) = self { Ok(light) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_model(&self) -> Result<&FbxModel, FbxError> {
+        if let FbxComponent::Model(model) = self { Ok(model) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_material(&self) -> Result<&FbxMaterial, FbxError> {
+        if let FbxComponent::Material(material) = self { Ok(material) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_animation_curve_node(&self) -> Result<&FbxAnimationCurveNode, FbxError> {
+        if let FbxComponent::AnimationCurveNode(acn) = self { Ok(acn) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_animation_curve(&self) -> Result<&FbxAnimationCurve, FbxError> {
+        if let FbxComponent::AnimationCurve(ac) = self { Ok(ac) } else { Err(FbxError::UnexpectedType) }
+    }
+
+    fn as_geometry(&self) -> Result<&FbxGeometry, FbxError> {
+        if let FbxComponent::Geometry(geom) = self { Ok(geom) } else { Err(FbxError::UnexpectedType) }
+    }
 }
 
 pub struct Fbx {
@@ -775,13 +840,13 @@ pub struct Fbx {
 }
 
 /// Searches node by specified name and returns its handle if found
-fn find_node(pool: &Pool<FbxNode>, root: &Handle<FbxNode>, name: &str) -> Result<Handle<FbxNode>, String> {
+fn find_node(pool: &Pool<FbxNode>, root: Handle<FbxNode>, name: &str) -> Result<Handle<FbxNode>, String> {
     if let Some(node) = pool.borrow(root) {
         if node.name == name {
-            return Ok(root.clone());
+            return Ok(root);
         }
         for child_handle in node.children.iter() {
-            if let Ok(result) = find_node(pool, child_handle, name) {
+            if let Ok(result) = find_node(pool, *child_handle, name) {
                 return Ok(result);
             }
         }
@@ -791,13 +856,13 @@ fn find_node(pool: &Pool<FbxNode>, root: &Handle<FbxNode>, name: &str) -> Result
 }
 
 /// Searches node by specified name and borrows a reference to it
-fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, root: &Handle<FbxNode>, name: &str) -> Result<&'a FbxNode, String> {
+fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, root: Handle<FbxNode>, name: &str) -> Result<&'a FbxNode, String> {
     if let Some(node) = pool.borrow(root) {
         if node.name == name {
             return Ok(node);
         }
         for child_handle in node.children.iter() {
-            if let Ok(result) = find_and_borrow_node(pool, child_handle, name) {
+            if let Ok(result) = find_and_borrow_node(pool, *child_handle, name) {
                 return Ok(result);
             }
         }
@@ -807,50 +872,50 @@ fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, root: &Handle<FbxNode>, nam
 }
 
 /// Links child component with parent component so parent will know about child
-fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: &Handle<FbxComponent>, child_type_id: TypeId) {
+fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: Handle<FbxComponent>, child_type_id: TypeId) {
     match parent {
         // Link model with other components
         FbxComponent::Model(model) => {
             if child_type_id == TypeId::of::<FbxGeometry>() {
-                model.geoms.push(child_handle.clone())
+                model.geoms.push(child_handle)
             } else if child_type_id == TypeId::of::<FbxMaterial>() {
-                model.materials.push(child_handle.clone())
+                model.materials.push(child_handle)
             } else if child_type_id == TypeId::of::<FbxAnimationCurveNode>() {
-                model.animation_curve_nodes.push(child_handle.clone())
+                model.animation_curve_nodes.push(child_handle)
             } else if child_type_id == TypeId::of::<FbxLight>() {
-                model.light = child_handle.clone()
+                model.light = child_handle
             } else if child_type_id == TypeId::of::<FbxModel>() {
-                model.children.push(child_handle.clone())
+                model.children.push(child_handle)
             }
         }
         // Link material with textures
         FbxComponent::Material(material) => {
             if child_type_id == TypeId::of::<FbxTexture>() {
-                material.diffuse_texture = child_handle.clone();
+                material.diffuse_texture = child_handle;
             }
         }
         // Link animation curve node with animation curve
         FbxComponent::AnimationCurveNode(anim_curve_node) => {
             if child_type_id == TypeId::of::<FbxAnimationCurve>() {
-                anim_curve_node.curves.push(child_handle.clone());
+                anim_curve_node.curves.push(child_handle);
             }
         }
         // Link deformer with sub-deformers
         FbxComponent::Deformer(deformer) => {
             if child_type_id == TypeId::of::<FbxSubDeformer>() {
-                deformer.sub_deformers.push(child_handle.clone());
+                deformer.sub_deformers.push(child_handle);
             }
         }
         // Link geometry with deformers
         FbxComponent::Geometry(geometry) => {
             if child_type_id == TypeId::of::<FbxDeformer>() {
-                geometry.deformers.push(child_handle.clone());
+                geometry.deformers.push(child_handle);
             }
         }
         // Link sub-deformer with model
         FbxComponent::SubDeformer(sub_deformer) => {
             if child_type_id == TypeId::of::<FbxModel>() {
-                sub_deformer.model = child_handle.clone();
+                sub_deformer.model = child_handle;
             }
         }
         // Ignore rest
@@ -864,8 +929,11 @@ pub enum FbxError {
     InvalidNullRecord,
     InvalidString,
     Custom(String),
-    UnsupportedVersion(u32),
-    InvalidPoolHandle(u32, u32),
+    UnsupportedVersion(i32),
+    InvalidPoolHandle,
+    UnexpectedType,
+    InvalidPath,
+    IndexOutOfBounds,
 }
 
 impl std::fmt::Display for FbxError {
@@ -877,7 +945,10 @@ impl std::fmt::Display for FbxError {
             FbxError::InvalidString => write!(f, "Invalid string"),
             FbxError::Custom(err) => write!(f, "{}", err),
             FbxError::UnsupportedVersion(ver) => write!(f, "Unsupported version {}", ver),
-            FbxError::InvalidPoolHandle(index, gen) => write!(f, "Invalid pool handle {}; {}", index, gen),
+            FbxError::InvalidPoolHandle => write!(f, "Invalid pool handle."),
+            FbxError::UnexpectedType => write!(f, "Unexpected type. This means that invalid cast has occured in fbx component."),
+            FbxError::InvalidPath => write!(f, "Invalid path. This means that some path was stored in invalid format."),
+            FbxError::IndexOutOfBounds => write!(f, "Index out of bounds.")
         }
     }
 }
@@ -1040,63 +1111,63 @@ fn convert_vertex(geom: &FbxGeometry,
 impl Fbx {
     /// Parses FBX DOM and filling internal lists to prepare
     /// for conversion to engine format
-    fn prepare(&mut self) -> Result<(), String> {
+    fn prepare(&mut self) -> Result<(), FbxError> {
         // Check version
-        let header_handle = find_node(&self.nodes, &self.root, "FBXHeaderExtension")?;
-        let version = find_and_borrow_node(&self.nodes, &header_handle, "FBXVersion")?;
+        let header_handle = find_node(&self.nodes, self.root, "FBXHeaderExtension")?;
+        let version = find_and_borrow_node(&self.nodes, header_handle, "FBXVersion")?;
         let version = version.get_attrib(0)?.as_i32()?;
-        if version < 7100 {
-            return Err(format!("FBX: Unsupported {} version. Version must be >= 7100", version));
+        if version < 7100 && version > 7400 {
+            return Err(FbxError::UnsupportedVersion(version));
         }
 
         // Read objects
-        let objects_node = find_and_borrow_node(&self.nodes, &self.root, "Objects")?;
+        let objects_node = find_and_borrow_node(&self.nodes, self.root, "Objects")?;
         for object_handle in objects_node.children.iter() {
-            let object = self.nodes.borrow(&object_handle).unwrap();
+            let object = self.nodes.borrow(*object_handle).unwrap();
             let index = object.get_attrib(0)?.as_i64()?;
             let mut component_handle: Handle<FbxComponent> = Handle::none();
             match object.name.as_str() {
                 "Geometry" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Geometry(
-                        FbxGeometry::read(object_handle, &self.nodes)?));
+                        FbxGeometry::read(*object_handle, &self.nodes)?));
                 }
                 "Model" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Model(
-                        FbxModel::read(object_handle, &self.nodes)?));
+                        FbxModel::read(*object_handle, &self.nodes)?));
                 }
                 "Material" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Material(
-                        FbxMaterial::read(object_handle)?));
+                        FbxMaterial::read(*object_handle)?));
                 }
                 "Texture" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Texture(
-                        FbxTexture::read(object_handle, &self.nodes)?));
+                        FbxTexture::read(*object_handle, &self.nodes)?));
                 }
                 "NodeAttribute" => {
                     if object.attrib_count() > 2 {
                         if object.get_attrib(2)?.as_string() == "Light" {
                             component_handle = self.component_pool.spawn(FbxComponent::Light(
-                                FbxLight::read(object_handle, &self.nodes)?));
+                                FbxLight::read(*object_handle, &self.nodes)?));
                         }
                     }
                 }
                 "AnimationCurve" => {
                     component_handle = self.component_pool.spawn(FbxComponent::AnimationCurve(
-                        FbxAnimationCurve::read(object_handle, &self.nodes)?));
+                        FbxAnimationCurve::read(*object_handle, &self.nodes)?));
                 }
                 "AnimationCurveNode" => {
                     component_handle = self.component_pool.spawn(FbxComponent::AnimationCurveNode(
-                        FbxAnimationCurveNode::read(object_handle, &self.nodes)?));
+                        FbxAnimationCurveNode::read(*object_handle, &self.nodes)?));
                 }
                 "Deformer" => {
                     match object.get_attrib(2)?.as_string().as_str() {
                         "Cluster" => {
                             component_handle = self.component_pool.spawn(FbxComponent::SubDeformer(
-                                FbxSubDeformer::read(object_handle, &self.nodes)?));
+                                FbxSubDeformer::read(*object_handle, &self.nodes)?));
                         }
                         "Skin" => {
                             component_handle = self.component_pool.spawn(FbxComponent::Deformer(
-                                FbxDeformer::read(object_handle, &self.nodes)?));
+                                FbxDeformer::read(*object_handle, &self.nodes)?));
                         }
                         _ => ()
                     }
@@ -1104,22 +1175,22 @@ impl Fbx {
                 _ => ()
             }
             if !component_handle.is_none() {
-                self.index_to_component.insert(index, component_handle.clone());
-                self.components.push(component_handle.clone());
+                self.index_to_component.insert(index, component_handle);
+                self.components.push(component_handle);
             }
         }
 
         // Read connections
-        let connections_node = find_and_borrow_node(&self.nodes, &self.root, "Connections")?;
+        let connections_node = find_and_borrow_node(&self.nodes, self.root, "Connections")?;
         for connection_handle in connections_node.children.iter() {
-            let connection = self.nodes.borrow(&connection_handle).unwrap();
+            let connection = self.nodes.borrow(*connection_handle).unwrap();
             let child_index = connection.get_attrib(1)?.as_i64()?;
             let parent_index = connection.get_attrib(2)?.as_i64()?;
             if let Some(parent_handle) = self.index_to_component.get(&parent_index) {
                 if let Some(child_handle) = self.index_to_component.get(&child_index) {
-                    let child_type_id = self.component_pool.borrow(child_handle).unwrap().type_id();
-                    let parent = self.component_pool.borrow_mut(parent_handle).unwrap();
-                    link_child_with_parent_component(parent, child_handle, child_type_id);
+                    let child_type_id = self.component_pool.borrow(*child_handle).unwrap().type_id();
+                    let parent = self.component_pool.borrow_mut(*parent_handle).unwrap();
+                    link_child_with_parent_component(parent, *child_handle, child_type_id);
                 }
             }
         }
@@ -1128,7 +1199,7 @@ impl Fbx {
     }
 
     fn convert_light(&self, light: &mut Light, fbx_light: &FbxLight) {
-        light.set_color(Color::opaque(fbx_light.color.r,fbx_light.color.g, fbx_light.color.b));
+        light.set_color(Color::opaque(fbx_light.color.r, fbx_light.color.g, fbx_light.color.b));
         light.set_radius(fbx_light.radius);
         light.set_cone_angle(fbx_light.cone_angle);
     }
@@ -1136,36 +1207,46 @@ impl Fbx {
     fn create_surfaces(&self,
                        mesh: &mut Mesh,
                        state: &mut State,
-                       model: &FbxModel) {
+                       model: &FbxModel) -> Result<(), FbxError> {
         // Create surfaces per material
         if model.materials.is_empty() {
             mesh.add_surface(Surface::new(Rc::new(RefCell::new(SurfaceSharedData::new()))));
         } else {
             for material_handle in model.materials.iter() {
                 let mut surface = Surface::new(Rc::new(RefCell::new(SurfaceSharedData::new())));
-                if let FbxComponent::Material(material) = self.component_pool.borrow(&material_handle).unwrap() {
-                    if let Some(texture_handle) = self.component_pool.borrow(&material.diffuse_texture) {
-                        if let FbxComponent::Texture(texture) = texture_handle {
-                            if texture.filename.is_relative() {
-                                //let file_name = texture.filename.file_name();
-                                //let extension = texture.filename.extension();
-                                let diffuse_path = state.get_resource_manager_mut().get_textures_path().join(&texture.filename);
-                                if let Some(texture_resource) = state.request_resource(diffuse_path.as_path()) {
-                                    surface.set_diffuse_texture(texture_resource);
-                                }
-                            }
+                let material = self.component_pool.borrow(*material_handle).ok_or(FbxError::InvalidPoolHandle)?.as_material()?;
+                let texture = self.component_pool.borrow(material.diffuse_texture).ok_or(FbxError::InvalidPoolHandle)?.as_texture()?;
+                let path = texture.get_file_path();
+                if path.is_relative() {
+                    let file_stem = path.file_stem().ok_or(FbxError::InvalidPath)?;
+                    let extention = path.extension().ok_or(FbxError::InvalidPath)?;
+
+                    let diffuse_path = state.get_resource_manager().get_textures_path().join(&path);
+                    if let Some(texture_resource) = state.request_resource(diffuse_path.as_path()) {
+                        surface.set_diffuse_texture(texture_resource);
+                    }
+
+                    let mut normal_map_name = file_stem.to_os_string();
+                    normal_map_name.push("_normal.");
+                    normal_map_name.push(extention);
+                    let normal_path = state.get_resource_manager().get_textures_path().join(normal_map_name);
+                    if normal_path.exists() {
+                        if let Some(texture_resource) = state.request_resource(normal_path.as_path()) {
+                            surface.set_normal_texture(texture_resource);
                         }
                     }
                 }
                 mesh.add_surface(surface);
             }
         }
+
+        Ok(())
     }
 
     fn convert_mesh(&self,
                     mesh: &mut Mesh,
                     state: &mut State,
-                    model: &FbxModel) {
+                    model: &FbxModel) -> Result<(), FbxError> {
         let geometric_transform = Mat4::translate(model.geometric_translation) *
             Mat4::from_quat(quat_from_euler(model.geometric_rotation)) *
             Mat4::scale(model.geometric_scale);
@@ -1175,35 +1256,41 @@ impl Fbx {
         let mut relative_triangles: Vec<(usize, usize, usize)> = Vec::new();
 
         for geom_handle in &model.geoms {
-            let geom_component = self.component_pool.borrow(&geom_handle).unwrap();
-            if let FbxComponent::Geometry(geom) = geom_component {
-                self.create_surfaces(mesh, state, model);
+            let geom = self.component_pool.borrow(*geom_handle).ok_or(FbxError::InvalidPoolHandle)?.as_geometry()?;
+            self.create_surfaces(mesh, state, model)?;
 
-                let mut material_index = 0;
-                let mut n = 0;
-                while n < geom.indices.len() {
-                    let origin = n;
-                    n += prepare_next_face(geom, n, &mut temp_vertices, &mut triangles, &mut relative_triangles);
-                    for i in 0..triangles.len() {
-                        let triangle = &triangles[i];
-                        let relative_triangle = &relative_triangles[i];
+            let mut material_index = 0;
+            let mut n = 0;
+            while n < geom.indices.len() {
+                let origin = n;
+                n += prepare_next_face(geom, n, &mut temp_vertices, &mut triangles, &mut relative_triangles);
+                for i in 0..triangles.len() {
+                    let triangle = &triangles[i];
+                    let relative_triangle = &relative_triangles[i];
 
-                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
-                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
-                        convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
-                    }
-                    if geom.material_mapping == FbxMapping::ByPolygon {
-                        material_index += 1;
-                    }
+                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
+                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
+                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
+                }
+                if geom.material_mapping == FbxMapping::ByPolygon {
+                    material_index += 1;
+                }
+            }
+
+            if geom.tangent_mapping == FbxMapping::Unknown {
+                for surface in mesh.get_surfaces_mut() {
+                    surface.get_data().borrow_mut().calculate_tangents();
                 }
             }
         }
+
+        Ok(())
     }
 
     fn convert_model(&self,
                      model: &FbxModel,
                      state: &mut State,
-                     scene: &mut Scene) -> Result<Handle<Node>, String> {
+                     scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         // Create node with correct kind.
         let mut node =
             if !model.geoms.is_empty() {
@@ -1228,13 +1315,13 @@ impl Fbx {
 
         match node.borrow_kind_mut() {
             NodeKind::Light(light) => {
-                let fbx_light_component = self.component_pool.borrow(&model.light).unwrap();
+                let fbx_light_component = self.component_pool.borrow(model.light).unwrap();
                 if let FbxComponent::Light(fbx_light) = fbx_light_component {
                     self.convert_light(light, fbx_light);
                 }
             }
             NodeKind::Mesh(mesh) => {
-                self.convert_mesh(mesh, state, model);
+                self.convert_mesh(mesh, state, model)?;
             }
             _ => ()
         }
@@ -1248,7 +1335,7 @@ impl Fbx {
             let mut lcl_rotation = None;
             let mut lcl_scale = None;
             for anim_curve_node_handle in model.animation_curve_nodes.iter() {
-                if let Some(component) = self.component_pool.borrow(anim_curve_node_handle) {
+                if let Some(component) = self.component_pool.borrow(*anim_curve_node_handle) {
                     if let FbxComponent::AnimationCurveNode(curve_node) = component {
                         if curve_node.actual_type == FbxAnimationCurveNodeType::Rotation {
                             lcl_rotation = Some(curve_node);
@@ -1263,7 +1350,7 @@ impl Fbx {
 
             // Convert to engine format
             let mut track = Track::new();
-            track.set_node(node_handle.clone());
+            track.set_node(node_handle);
 
             let mut time = 0.0;
             loop {
@@ -1293,7 +1380,7 @@ impl Fbx {
                 for node in &[lcl_translation, lcl_rotation, lcl_scale] {
                     if let Some(node) = node {
                         for curve_handle in node.curves.iter() {
-                            if let Some(curve_component) = self.component_pool.borrow(curve_handle) {
+                            if let Some(curve_component) = self.component_pool.borrow(*curve_handle) {
                                 if let FbxComponent::AnimationCurve(curve) = curve_component {
                                     for key in curve.keys.iter() {
                                         if key.time > time {
@@ -1317,7 +1404,7 @@ impl Fbx {
             }
 
             let animation_handle = scene.get_animations().handle_from_index(0);
-            if let Some(animation) = scene.get_animation_mut(&animation_handle) {
+            if let Some(animation) = scene.get_animation_mut(animation_handle) {
                 animation.add_track(track);
             }
         }
@@ -1336,21 +1423,21 @@ impl Fbx {
         scene.add_animation(Animation::default());
         let mut fbx_model_to_node_map: HashMap<Handle<FbxComponent>, Handle<Node>> = HashMap::new();
         for component_handle in self.components.iter() {
-            if let Some(component) = self.component_pool.borrow(&component_handle) {
+            if let Some(component) = self.component_pool.borrow(*component_handle) {
                 if let FbxComponent::Model(model) = component {
                     if let Ok(node) = self.convert_model(model, state, scene) {
-                        scene.link_nodes(&node, &root);
-                        fbx_model_to_node_map.insert(component_handle.clone(), node.clone());
+                        scene.link_nodes(node, root);
+                        fbx_model_to_node_map.insert(*component_handle, node);
                     }
                 }
             }
         }
         // Link according to hierarchy
         for (fbx_model_handle, node_handle) in fbx_model_to_node_map.iter() {
-            if let FbxComponent::Model(fbx_model) = self.component_pool.borrow(&fbx_model_handle).unwrap() {
+            if let FbxComponent::Model(fbx_model) = self.component_pool.borrow(*fbx_model_handle).unwrap() {
                 for fbx_child_handle in fbx_model.children.iter() {
                     if let Some(child_handle) = fbx_model_to_node_map.get(fbx_child_handle) {
-                        scene.link_nodes(&child_handle, &node_handle);
+                        scene.link_nodes(*child_handle, *node_handle);
                     }
                 }
             }
@@ -1361,9 +1448,9 @@ impl Fbx {
 
     pub fn print(&mut self) {
         let mut stack: Vec<Handle<FbxNode>> = Vec::new();
-        stack.push(self.root.clone());
+        stack.push(self.root);
         while let Some(handle) = stack.pop() {
-            let node = self.nodes.borrow(&handle).unwrap();
+            let node = self.nodes.borrow(handle).unwrap();
             println!("{}", node.name);
 
             // Continue printing children

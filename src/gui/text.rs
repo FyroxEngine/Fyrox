@@ -41,7 +41,7 @@ pub struct Text {
 impl Drawable for Text {
     fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
         if self.need_update {
-            if let Some(font) = font_cache.borrow(&self.font) {
+            if let Some(font) = font_cache.borrow(self.font) {
                 let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
                     .with_size(Vec2::make(bounds.w, bounds.h))
                     .with_font(font)
@@ -134,9 +134,9 @@ impl TextBuilder {
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let mut text = Text::new();
         if let Some(font) = self.font {
-            text.set_font(font.clone());
+            text.set_font(font);
         } else {
-            text.set_font(ui.default_font.clone());
+            text.set_font(ui.default_font);
         }
         if let Some(txt) = self.text {
             text.set_text(txt.as_str());
@@ -148,7 +148,7 @@ impl TextBuilder {
             text.set_horizontal_alignment(halign);
         }
         let handle = ui.add_node(UINode::new(UINodeKind::Text(text)));
-        self.common.apply(ui, &handle);
+        self.common.apply(ui, handle);
         handle
     }
 

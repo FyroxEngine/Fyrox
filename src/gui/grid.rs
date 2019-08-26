@@ -136,14 +136,14 @@ impl Layout for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
-            return ui.default_measure_override(&self.owner_handle, available_size);
+            return ui.default_measure_override(self.owner_handle, available_size);
         }
 
         let mut desired_size = Vec2::new();
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             // Step 1. Measure every children with relaxed constraints (size of grid).
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, available_size);
+                ui.measure(*child_handle, available_size);
             }
 
             // Step 2. Calculate width of columns and heights of rows.
@@ -158,7 +158,7 @@ impl Layout for Grid {
                 } else if col.size_mode == SizeMode::Auto {
                     col.actual_width = col.desired_width;
                     for child_handle in node.children.iter() {
-                        if let Some(child) = ui.nodes.borrow(child_handle) {
+                        if let Some(child) = ui.nodes.borrow(*child_handle) {
                             if child.column == i && child.visibility == Visibility::Visible && child.desired_size.get().x > col.actual_width {
                                 col.actual_width = child.desired_size.get().x;
                             }
@@ -176,7 +176,7 @@ impl Layout for Grid {
                 } else if row.size_mode == SizeMode::Auto {
                     row.actual_height = row.desired_height;
                     for child_handle in node.children.iter() {
-                        if let Some(child) = ui.nodes.borrow(child_handle) {
+                        if let Some(child) = ui.nodes.borrow(*child_handle) {
                             if child.row == i && child.visibility == Visibility::Visible && child.desired_size.get().y > row.actual_height {
                                 row.actual_height = child.desired_size.get().y;
                             }
@@ -191,7 +191,7 @@ impl Layout for Grid {
             let mut rest_width = 0.0;
             if available_size.x.is_infinite() {
                 for child_handle in node.children.iter() {
-                    if let Some(child) = ui.nodes.borrow(child_handle) {
+                    if let Some(child) = ui.nodes.borrow(*child_handle) {
                         if let Some(column) = self.columns.borrow().get(child.column) {
                             if column.size_mode == SizeMode::Stretch {
                                 rest_width += child.desired_size.get().x;
@@ -224,7 +224,7 @@ impl Layout for Grid {
             let mut rest_height = 0.0;
             if available_size.y.is_infinite() {
                 for child_handle in node.children.iter() {
-                    if let Some(child) = ui.nodes.borrow(child_handle) {
+                    if let Some(child) = ui.nodes.borrow(*child_handle) {
                         if let Some(row) = self.rows.borrow().get(child.row) {
                             if row.size_mode == SizeMode::Stretch {
                                 rest_height += child.desired_size.get().y;
@@ -267,7 +267,7 @@ impl Layout for Grid {
             // Step 3. Re-measure children with new constraints.
             for child_handle in node.children.iter() {
                 let size_for_child = {
-                    if let Some(child) = ui.nodes.borrow(child_handle) {
+                    if let Some(child) = ui.nodes.borrow(*child_handle) {
                         Vec2 {
                             x: self.columns.borrow()[child.column].actual_width,
                             y: self.rows.borrow()[child.row].actual_height,
@@ -285,7 +285,7 @@ impl Layout for Grid {
                         }
                     }
                 };
-                ui.measure(child_handle, size_for_child);
+                ui.measure(*child_handle, size_for_child);
             }
 
             // Step 4. Calculate desired size of grid.
@@ -301,11 +301,11 @@ impl Layout for Grid {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
                 let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
                 for child_handle in node.children.iter() {
-                    ui.arrange(child_handle, &rect);
+                    ui.arrange(*child_handle, &rect);
                 }
                 return final_size;
             }
@@ -313,7 +313,7 @@ impl Layout for Grid {
             for child_handle in node.children.iter() {
                 let mut final_rect = None;
 
-                if let Some(child) = ui.nodes.borrow(&child_handle) {
+                if let Some(child) = ui.nodes.borrow(*child_handle) {
                     if let Some(column) = self.columns.borrow().get(child.column) {
                         if let Some(row) = self.rows.borrow().get(child.row) {
                             final_rect = Some(Rect::new(
@@ -327,7 +327,7 @@ impl Layout for Grid {
                 }
 
                 if let Some(rect) = final_rect {
-                    ui.arrange(child_handle, &rect);
+                    ui.arrange(*child_handle, &rect);
                 }
             }
         }
@@ -381,7 +381,7 @@ impl GridBuilder {
         let node = UINode::new(UINodeKind::Grid(grid));
 
         let handle = ui.add_node(node);
-        self.common.apply(ui, &handle);
+        self.common.apply(ui, handle);
         handle
     }
 }

@@ -49,7 +49,7 @@ impl CommonBuilderFields {
         }
     }
 
-    pub fn apply(&mut self, ui: &mut UserInterface, node_handle: &Handle<UINode>) {
+    pub fn apply(&mut self, ui: &mut UserInterface, node_handle: Handle<UINode>) {
         if let Some(node) = ui.nodes.borrow_mut(node_handle) {
             if let Some(width) = self.width {
                 node.width.set(width);
@@ -92,7 +92,7 @@ impl CommonBuilderFields {
             }
         }
         for child_handle in self.children.iter() {
-            ui.link_nodes(child_handle, node_handle);
+            ui.link_nodes(*child_handle, node_handle);
         }
     }
 }
@@ -193,7 +193,7 @@ impl GenericNodeBuilder {
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let handle = ui.add_node(UINode::new(self.kind));
-        self.common.apply(ui, &handle);
+        self.common.apply(ui, handle);
         handle
     }
 }

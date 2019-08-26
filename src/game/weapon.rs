@@ -103,7 +103,7 @@ impl Weapon {
 
     #[inline]
     pub fn get_model(&self) -> Handle<Node> {
-        self.model.clone()
+        self.model
     }
 
     pub fn update(&mut self, scene: &mut Scene) {
@@ -111,7 +111,7 @@ impl Weapon {
         self.offset.y += (self.dest_offset.y - self.offset.y) * 0.2;
         self.offset.z += (self.dest_offset.z - self.offset.z) * 0.2;
 
-        if let Some(node) = scene.get_node_mut(&self.model) {
+        if let Some(node) = scene.get_node_mut(self.model) {
             node.set_local_position(self.offset);
         }
     }

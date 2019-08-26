@@ -369,7 +369,7 @@ impl Node {
 
     #[inline]
     pub fn get_original_handle(&self) -> Handle<Node> {
-        self.original.clone()
+        self.original
     }
 
     #[inline]
@@ -379,7 +379,7 @@ impl Node {
 
     #[inline]
     pub fn get_body(&self) -> Handle<Body> {
-        self.body.clone()
+        self.body
     }
 
     #[inline]

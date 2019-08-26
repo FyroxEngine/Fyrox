@@ -43,12 +43,12 @@ impl Color {
         Color { r: 0, g: 0, b: 0, a: 255 }
     }
 
-    pub fn as_frgba(&self) -> Vec4 {
+    pub fn as_frgba(self) -> Vec4 {
         Vec4 {
-            x: self.r as f32 / 255.0,
-            y: self.g as f32 / 255.0,
-            z: self.b as f32 / 255.0,
-            w: self.a as f32 / 255.0,
+            x: f32::from(self.r) / 255.0,
+            y: f32::from(self.g) / 255.0,
+            z: f32::from(self.b) / 255.0,
+            w: f32::from(self.a) / 255.0,
         }
     }
 }

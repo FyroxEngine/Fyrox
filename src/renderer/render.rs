@@ -1,4 +1,3 @@
-use glutin::ContextTrait;
 use crate::{
     utils::pool::{
         Handle,
@@ -52,6 +51,7 @@ use std::{
     thread,
     cell::RefCell,
 };
+use glutin::PossiblyCurrent;
 
 pub fn check_gl_error() {
     unsafe {
@@ -496,7 +496,7 @@ impl Default for Statistics {
 
 pub struct Renderer {
     pub(crate) events_loop: glutin::EventsLoop,
-    pub(crate) context: glutin::WindowedContext,
+    pub(crate) context: glutin::WindowedContext<PossiblyCurrent>,
     ui_shader: UIShader,
     deferred_light_shader: DeferredLightingShader,
     gbuffer_shader: GBufferShader,
@@ -943,36 +943,36 @@ impl Renderer {
             .with_dimensions(window_size)
             .with_resizable(false);
 
-        let context = glutin::ContextBuilder::new()
+        let context_wrapper = glutin::ContextBuilder::new()
             .with_vsync(true)
             .build_windowed(window_builder, &events_loop)
             .unwrap();
 
         unsafe {
-            context.make_current().unwrap();
+            let context = context_wrapper.make_current().unwrap();
             gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
             gl::Enable(gl::DEPTH_TEST);
-        }
 
-        Self {
-            context,
-            events_loop,
-            ui_shader: create_ui_shader(),
-            deferred_light_shader: DeferredLightingShader::new(),
-            gbuffer_shader: GBufferShader::new(),
-            ambient_light_shader: AmbientLightShader::new(),
-            flat_shader: FlatShader::new(),
-            gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32),
-            traversal_stack: Vec::new(),
-            lights: Vec::new(),
-            meshes: Vec::new(),
-            frame_rate_limit: 60,
-            statistics: Statistics::default(),
-            white_dummy: create_white_dummy(),
-            normal_dummy: create_normal_dummy(),
-            quad: RefCell::new(SurfaceSharedData::make_unit_xy_quad()),
-            sphere: RefCell::new(SurfaceSharedData::make_sphere(6, 6, 1.0)),
-            ui_render_buffers: create_ui_render_buffers(),
+            Self {
+                context,
+                events_loop,
+                ui_shader: create_ui_shader(),
+                deferred_light_shader: DeferredLightingShader::new(),
+                gbuffer_shader: GBufferShader::new(),
+                ambient_light_shader: AmbientLightShader::new(),
+                flat_shader: FlatShader::new(),
+                gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32),
+                traversal_stack: Vec::new(),
+                lights: Vec::new(),
+                meshes: Vec::new(),
+                frame_rate_limit: 60,
+                statistics: Statistics::default(),
+                white_dummy: create_white_dummy(),
+                normal_dummy: create_normal_dummy(),
+                quad: RefCell::new(SurfaceSharedData::make_unit_xy_quad()),
+                sphere: RefCell::new(SurfaceSharedData::make_sphere(6, 6, 1.0)),
+                ui_render_buffers: create_ui_render_buffers(),
+            }
         }
     }
 
@@ -1128,7 +1128,7 @@ impl Renderer {
 
     fn render_ui(&mut self, drawing_context: &DrawingContext) {
         unsafe {
-            let client_size = self.context.get_inner_size().unwrap();
+            let client_size = self.context.window().get_inner_size().unwrap();
 
             // Render UI on top of everything
             gl::Disable(gl::DEPTH_TEST);
@@ -1225,7 +1225,7 @@ impl Renderer {
 
     pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
         let frame_start_time = Instant::now();
-        let client_size = self.context.get_inner_size().unwrap();
+        let client_size = self.context.window().get_inner_size().unwrap();
 
         let frame_width = client_size.width as f32;
         let frame_height = client_size.height as f32;
@@ -1254,9 +1254,9 @@ impl Renderer {
                 self.meshes.clear();
                 self.lights.clear();
                 self.traversal_stack.clear();
-                self.traversal_stack.push(scene.get_root().clone());
+                self.traversal_stack.push(scene.get_root());
                 while let Some(node_handle) = self.traversal_stack.pop() {
-                    if let Some(node) = scene.get_node(&node_handle) {
+                    if let Some(node) = scene.get_node(node_handle) {
                         match node.borrow_kind() {
                             NodeKind::Mesh(_) => self.meshes.push(node_handle),
                             NodeKind::Light(_) => self.lights.push(node_handle),
@@ -1289,7 +1289,7 @@ impl Renderer {
                 let inv_view_projection = view_projection.inverse().unwrap();
 
                 for mesh_handle in self.meshes.iter() {
-                    if let Some(node) = scene.get_node(&mesh_handle) {
+                    if let Some(node) = scene.get_node(*mesh_handle) {
                         if !node.get_global_visibility() {
                             continue;
                         }
@@ -1364,7 +1364,7 @@ impl Renderer {
 
                 for light_handle in self.lights.iter() {
                     let light_node =
-                        if let Some(light_node) = scene.get_node(light_handle) {
+                        if let Some(light_node) = scene.get_node(*light_handle) {
                             light_node
                         } else {
                             continue;

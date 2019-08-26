@@ -138,7 +138,7 @@ impl Player {
         let mut camera_pivot = Node::new(NodeKind::Base);
         camera_pivot.set_local_position(Vec3 { x: 0.0, y: 1.0, z: 0.0 });
         let camera_pivot_handle = scene.add_node(camera_pivot);
-        scene.link_nodes(&camera_handle, &camera_pivot_handle);
+        scene.link_nodes(camera_handle, camera_pivot_handle);
 
         let mut pivot = Node::new(NodeKind::Base);
         pivot.set_local_position(Vec3 { x: -1.0, y: 0.0, z: 1.0 });
@@ -147,15 +147,15 @@ impl Player {
         let mut body = Body::new();
         body.set_radius(stand_body_radius);
         let body_handle = scene.get_physics_mut().add_body(body);
-        pivot.set_body(body_handle.clone());
+        pivot.set_body(body_handle);
 
         let pivot_handle = scene.add_node(pivot);
-        scene.link_nodes(&camera_pivot_handle, &pivot_handle);
+        scene.link_nodes(camera_pivot_handle, pivot_handle);
 
         let mut weapon_pivot = Node::new(NodeKind::Base);
         weapon_pivot.set_local_position(Vec3::make(-0.065, -0.052, 0.02));
         let weapon_pivot_handle = scene.add_node(weapon_pivot);
-        scene.link_nodes(&weapon_pivot_handle, &camera_handle);
+        scene.link_nodes(weapon_pivot_handle, camera_handle);
 
         let mut player = Player {
             camera: camera_handle,
@@ -188,7 +188,7 @@ impl Player {
     }
 
     pub fn add_weapon(&mut self, scene: &mut Scene, weapon: Weapon) {
-        scene.link_nodes(&weapon.get_model(), &self.weapon_pivot);
+        scene.link_nodes(weapon.get_model(), self.weapon_pivot);
         self.weapons.push(weapon);
     }
 
@@ -205,7 +205,7 @@ impl Player {
     }
 
     pub fn has_ground_contact(&self, scene: &Scene) -> bool {
-        if let Some(body) = scene.get_physics().borrow_body(&self.body) {
+        if let Some(body) = scene.get_physics().borrow_body(self.body) {
             for contact in body.get_contacts() {
                 if contact.normal.y >= 0.7 {
                     return true;
@@ -219,7 +219,7 @@ impl Player {
         let mut look = Vec3::zero();
         let mut side = Vec3::zero();
 
-        if let Some(pivot_node) = scene.get_node(&self.pivot) {
+        if let Some(pivot_node) = scene.get_node(self.pivot) {
             look = pivot_node.get_look_vector();
             side = pivot_node.get_side_vector();
         }
@@ -227,7 +227,7 @@ impl Player {
         let has_ground_contact = self.has_ground_contact(scene);
 
         let mut is_moving = false;
-        if let Some(body) = scene.get_physics_mut().borrow_body_mut(&self.body) {
+        if let Some(body) = scene.get_physics_mut().borrow_body_mut(self.body) {
             let mut velocity = Vec3::new();
             if self.controller.move_forward {
                 velocity += look;
@@ -274,12 +274,12 @@ impl Player {
         self.camera_offset.y += (self.camera_dest_offset.y - self.camera_offset.y) * 0.1;
         self.camera_offset.z += (self.camera_dest_offset.z - self.camera_offset.z) * 0.1;
 
-        if let Some(camera_node) = scene.get_node_mut(&self.camera) {
+        if let Some(camera_node) = scene.get_node_mut(self.camera) {
             camera_node.set_local_position(self.camera_offset);
         }
 
         for (i, weapon) in self.weapons.iter().enumerate() {
-            if let Some(model) = scene.get_node_mut(&weapon.get_model()) {
+            if let Some(model) = scene.get_node_mut(weapon.get_model()) {
                 model.set_visibility(i == self.current_weapon as usize);
             }
         }
@@ -287,11 +287,11 @@ impl Player {
         self.yaw += (self.dest_yaw - self.yaw) * 0.2;
         self.pitch += (self.dest_pitch - self.pitch) * 0.2;
 
-        if let Some(pivot_node) = scene.get_node_mut(&self.pivot) {
+        if let Some(pivot_node) = scene.get_node_mut(self.pivot) {
             pivot_node.set_local_rotation(Quat::from_axis_angle(Vec3::up(), self.yaw.to_radians()));
         }
 
-        if let Some(camera_pivot) = scene.get_node_mut(&self.camera_pivot) {
+        if let Some(camera_pivot) = scene.get_node_mut(self.camera_pivot) {
             camera_pivot.set_local_rotation(Quat::from_axis_angle(Vec3::right(), self.pitch.to_radians()));
         }
 

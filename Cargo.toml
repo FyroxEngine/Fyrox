@@ -11,7 +11,7 @@ opt-level = 0
 opt-level = 3
 
 [dependencies]
-glutin = "*"
+glutin = "0.21.0"
 image = "*"
 lexical = "*"
 byteorder = "*"

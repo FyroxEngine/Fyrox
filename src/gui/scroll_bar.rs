@@ -59,7 +59,7 @@ impl ScrollBar {
         }
     }
 
-    pub fn set_value(handle: &Handle<UINode>, ui: &mut UserInterface, value: f32) {
+    pub fn set_value(handle: Handle<UINode>, ui: &mut UserInterface, value: f32) {
         let mut value_changed;
         let args;
 
@@ -73,7 +73,7 @@ impl ScrollBar {
                     args = Some(ValueChangedArgs {
                         old_value,
                         new_value,
-                        source: handle.clone(),
+                        source: handle,
                     });
                 } else {
                     return;
@@ -98,7 +98,7 @@ impl ScrollBar {
         }
     }
 
-    pub fn set_max_value(handle: &Handle<UINode>, ui: &mut UserInterface, max: f32) {
+    pub fn set_max_value(handle: Handle<UINode>, ui: &mut UserInterface, max: f32) {
         let mut new_value = None;
         if let Some(node) = ui.nodes.borrow_mut(handle) {
             if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
@@ -119,7 +119,7 @@ impl ScrollBar {
         }
     }
 
-    pub fn set_min_value(handle: &Handle<UINode>, ui: &mut UserInterface, min: f32) {
+    pub fn set_min_value(handle: Handle<UINode>, ui: &mut UserInterface, min: f32) {
         let mut new_value = None;
         if let Some(node) = ui.nodes.borrow_mut(handle) {
             if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
@@ -143,22 +143,22 @@ impl ScrollBar {
 
 impl Layout for ScrollBar {
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        ui.default_measure_override(&self.owner_handle, available_size)
+        ui.default_measure_override(self.owner_handle, available_size)
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        let size = ui.default_arrange_override(&self.owner_handle, final_size);
+        let size = ui.default_arrange_override(self.owner_handle, final_size);
 
 
         // Adjust indicator position according to current value
         let percent = (self.value - self.min) / (self.max - self.min);
 
-        let field_size = match ui.borrow_by_name_down(&self.owner_handle, Self::PART_CANVAS) {
+        let field_size = match ui.borrow_by_name_down(self.owner_handle, Self::PART_CANVAS) {
             Some(canvas) => canvas.actual_size.get(),
             None => return size
         };
 
-        if let Some(node) = ui.borrow_by_name_down(&self.owner_handle, Self::PART_INDICATOR) {
+        if let Some(node) = ui.borrow_by_name_down(self.owner_handle, Self::PART_INDICATOR) {
             match self.orientation {
                 Orientation::Horizontal => {
                     node.set_desired_local_position(Vec2::make(
@@ -283,12 +283,12 @@ impl ScrollBarBuilder {
                             Orientation::Vertical => "^"
                         })
                         .with_click(Box::new(move |ui, handle| {
-                            let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                            let scroll_bar_handle = ui.find_by_criteria_up(handle, |node| match node.kind {
                                 UINodeKind::ScrollBar(..) => true,
                                 _ => false
                             });
 
-                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow_mut(scroll_bar_handle) {
                                 if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
                                     scroll_bar.value - scroll_bar.step
                                 } else {
@@ -298,7 +298,7 @@ impl ScrollBarBuilder {
                                 return;
                             };
 
-                            ScrollBar::set_value(&scroll_bar_handle, ui, new_value);
+                            ScrollBar::set_value(scroll_bar_handle, ui, new_value);
                         }))
                         .build(ui)
                     )
@@ -323,14 +323,14 @@ impl ScrollBarBuilder {
                             .with_width(30.0)
                             .with_height(30.0)
                             .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, evt| {
-                                let indicator_pos = if let Some(node) = ui.nodes.borrow(&handle) {
+                                let indicator_pos = if let Some(node) = ui.nodes.borrow(handle) {
                                     node.screen_position
                                 } else {
                                     return;
                                 };
 
                                 if let RoutedEventKind::MouseDown { pos, .. } = evt.kind {
-                                    if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(&handle, |node| match node.kind {
+                                    if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(handle, |node| match node.kind {
                                         UINodeKind::ScrollBar(..) => true,
                                         _ => false
                                     }) {
@@ -340,12 +340,12 @@ impl ScrollBarBuilder {
                                         }
                                     }
 
-                                    ui.capture_mouse(&handle);
+                                    ui.capture_mouse(handle);
                                     evt.handled = true;
                                 }
                             }))
                             .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
-                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(&handle, |node| match node.kind {
+                                if let Some(scroll_bar_node) = ui.borrow_by_criteria_up_mut(handle, |node| match node.kind {
                                     UINodeKind::ScrollBar(..) => true,
                                     _ => false
                                 }) {
@@ -363,24 +363,24 @@ impl ScrollBarBuilder {
                                 };
 
                                 let (field_pos, field_size) =
-                                    match ui.borrow_by_name_up(&handle, ScrollBar::PART_CANVAS) {
+                                    match ui.borrow_by_name_up(handle, ScrollBar::PART_CANVAS) {
                                         Some(canvas) => (canvas.screen_position, canvas.actual_size.get()),
                                         None => return
                                     };
 
-                                let bar_size = match ui.nodes.borrow(&handle) {
+                                let bar_size = match ui.nodes.borrow(handle) {
                                     Some(node) => node.actual_size.get(),
                                     None => return
                                 };
 
                                 let new_value;
 
-                                let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                                let scroll_bar_handle = ui.find_by_criteria_up(handle, |node| match node.kind {
                                     UINodeKind::ScrollBar(..) => true,
                                     _ => false
                                 });
 
-                                if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                                if let Some(scroll_bar_node) = ui.nodes.borrow_mut(scroll_bar_handle) {
                                     if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
                                         let orientation = scroll_bar.orientation;
 
@@ -419,7 +419,7 @@ impl ScrollBarBuilder {
                                     return;
                                 }
 
-                                ScrollBar::set_value(&scroll_bar_handle, ui, new_value);
+                                ScrollBar::set_value(scroll_bar_handle, ui, new_value);
                             }))
                             .build(ui)
                         )
@@ -443,12 +443,12 @@ impl ScrollBarBuilder {
                             Orientation::Vertical => 2
                         })
                         .with_click(Box::new(move |ui, handle| {
-                            let scroll_bar_handle = ui.find_by_criteria_up(&handle, |node| match node.kind {
+                            let scroll_bar_handle = ui.find_by_criteria_up(handle, |node| match node.kind {
                                 UINodeKind::ScrollBar(..) => true,
                                 _ => false
                             });
 
-                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow_mut(&scroll_bar_handle) {
+                            let new_value = if let Some(scroll_bar_node) = ui.nodes.borrow_mut(scroll_bar_handle) {
                                 if let UINodeKind::ScrollBar(scroll_bar) = scroll_bar_node.get_kind_mut() {
                                     scroll_bar.value + scroll_bar.step
                                 } else {
@@ -458,7 +458,7 @@ impl ScrollBarBuilder {
                                 return;
                             };
 
-                            ScrollBar::set_value(&scroll_bar_handle, ui, new_value);
+                            ScrollBar::set_value(scroll_bar_handle, ui, new_value);
                         }))
                         .with_text(match orientation {
                             Orientation::Horizontal => ">",

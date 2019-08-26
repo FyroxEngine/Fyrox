@@ -41,11 +41,11 @@ impl Layout for ScrollContentPresenter {
 
         let mut desired_size = Vec2::new();
 
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, size_for_child);
+                ui.measure(*child_handle, size_for_child);
 
-                if let Some(child) = ui.nodes.borrow(child_handle) {
+                if let Some(child) = ui.nodes.borrow(*child_handle) {
                     let child_desired_size = child.desired_size.get();
                     if child_desired_size.x > desired_size.x {
                         desired_size.x = child_desired_size.x;
@@ -68,9 +68,9 @@ impl Layout for ScrollContentPresenter {
             final_size.y + self.scroll.y,
         );
 
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.arrange(child_handle, &child_rect);
+                ui.arrange(*child_handle, &child_rect);
             }
         }
 
@@ -88,7 +88,7 @@ impl ScrollContentPresenter {
         }
     }
 
-    pub fn set_scroll(handle: &Handle<UINode>, ui: &mut UserInterface, scroll: Vec2) {
+    pub fn set_scroll(handle: Handle<UINode>, ui: &mut UserInterface, scroll: Vec2) {
         if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
             if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
                 scp.scroll = scroll;
@@ -96,7 +96,7 @@ impl ScrollContentPresenter {
         }
     }
 
-    pub fn set_vertical_scroll(handle: &Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
+    pub fn set_vertical_scroll(handle: Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
         if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
             if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
                 scp.scroll.y = scroll;
@@ -104,7 +104,7 @@ impl ScrollContentPresenter {
         }
     }
 
-    pub fn set_horizontal_scroll(handle: &Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
+    pub fn set_horizontal_scroll(handle: Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
         if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
             if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
                 scp.scroll.x = scroll;

@@ -84,25 +84,25 @@ impl ButtonBuilder {
         GenericNodeBuilder::new(
             UINodeKind::Button(button), self.common)
             .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-                ui.capture_mouse(&handle);
+                ui.capture_mouse(handle);
             }))
             .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
                 // Take-Call-PutBack trick to bypass borrow checker
                 let mut click_handler = None;
 
-                if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                if let Some(button_node) = ui.nodes.borrow_mut(handle) {
                     if let UINodeKind::Button(button) = button_node.get_kind_mut() {
                         click_handler = button.click.take();
                     }
                 }
 
                 if let Some(ref mut handler) = click_handler {
-                    handler(ui, handle.clone());
+                    handler(ui, handle);
                     evt.handled = true;
                 }
 
                 // Second check required because event handler can remove node.
-                if let Some(button_node) = ui.nodes.borrow_mut(&handle) {
+                if let Some(button_node) = ui.nodes.borrow_mut(handle) {
                     if let UINodeKind::Button(button) = button_node.get_kind_mut() {
                         button.click = click_handler;
                     }
@@ -115,22 +115,22 @@ impl ButtonBuilder {
                 .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
                 .with_color(normal_color)
                 .with_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    if let Some(back) = ui.nodes.borrow_mut(handle) {
                         back.color = hover_color;
                     }
                 }))
                 .with_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    if let Some(back) = ui.nodes.borrow_mut(handle) {
                         back.color = normal_color;
                     }
                 }))
                 .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    if let Some(back) = ui.nodes.borrow_mut(handle) {
                         back.color = pressed_color;
                     }
                 }))
                 .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(&handle) {
+                    if let Some(back) = ui.nodes.borrow_mut(handle) {
                         if back.is_mouse_over {
                             back.color = hover_color;
                         } else {

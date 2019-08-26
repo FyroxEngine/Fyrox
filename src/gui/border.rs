@@ -62,7 +62,7 @@ impl BorderBuilder {
             border.stroke_thickness = stroke_thickness;
         }
         let handle = ui.add_node(UINode::new(UINodeKind::Border(border)));
-        self.common.apply(ui, &handle);
+        self.common.apply(ui, handle);
         handle
     }
 }
@@ -86,11 +86,11 @@ impl Layout for Border {
         );
         let mut desired_size = Vec2::new();
 
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, size_for_child);
+                ui.measure(*child_handle, size_for_child);
 
-                if let Some(child) = ui.nodes.borrow(child_handle) {
+                if let Some(child) = ui.nodes.borrow(*child_handle) {
                     let child_desired_size = child.desired_size.get();
                     if child_desired_size.x > desired_size.x {
                         desired_size.x = child_desired_size.x;
@@ -115,9 +115,9 @@ impl Layout for Border {
             final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
         );
 
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.arrange(child_handle, &rect_for_child);
+                ui.arrange(*child_handle, &rect_for_child);
             }
         }
 

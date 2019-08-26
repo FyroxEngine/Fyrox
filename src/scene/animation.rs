@@ -78,7 +78,7 @@ impl Clone for Track {
             frames: self.frames.clone(),
             enabled: self.enabled,
             max_time: self.max_time,
-            node: self.node.clone(),
+            node: self.node,
         }
     }
 }
@@ -117,7 +117,7 @@ impl Track {
     }
 
     pub fn get_node(&self) -> Handle<Node> {
-        self.node.clone()
+        self.node
     }
 
     pub fn add_key_frame(&mut self, key_frame: KeyFrame) {

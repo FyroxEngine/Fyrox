@@ -17,6 +17,9 @@ use std::{
     cell::RefCell,
     rc::Rc
 };
+use crate::scene::node::NodeKind;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 
 pub struct Model {
     scene: Scene,
@@ -41,14 +44,30 @@ impl Model {
     pub fn instantiate(resource_rc: Rc<RefCell<Resource>>, dest_scene: &mut Scene) -> Result<Handle<Node>, ()> {
         let resource = resource_rc.borrow();
         if let ResourceKind::Model(model) = resource.borrow_kind() {
-            let root = model.scene.copy_node(&model.scene.get_root(), dest_scene);
+            let mut old_new_mapping = HashMap::new();
+            let root = model.scene.copy_node(model.scene.get_root(), dest_scene, &mut old_new_mapping);
 
-            // Notify instantiated nodes about resource they were created from.
+            println!("mapping size {}", old_new_mapping.len());
+            // Notify instantiated nodes about resource they were created from. Also do bones
+            // remapping for meshes.
             let mut stack = Vec::new();
-            stack.push(root.clone());
+            stack.push(root);
             while let Some(node_handle) = stack.pop() {
-                if let Some(node) = dest_scene.get_nodes_mut().borrow_mut(&node_handle) {
+                if let Some(node) = dest_scene.get_nodes_mut().borrow_mut(node_handle) {
                     node.set_resource(Rc::clone(&resource_rc));
+
+                    // Remap bones
+                    if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+                        for surface in mesh.get_surfaces_mut() {
+                            for bone_handle in surface.bones.iter_mut() {
+                                if let Entry::Occupied(entry) = old_new_mapping.entry(bone_handle.clone()) {
+                                    *bone_handle = *entry.get();
+                                }
+                            }
+                        }
+                    }
+
+                    // Continue on children.
                     for child_handle in node.get_children() {
                         stack.push(child_handle.clone());
                     }
@@ -75,6 +94,8 @@ impl Model {
                 dest_scene.add_animation(anim_copy);
             }
 
+
+
             return Ok(root);
         }
         Err(())
@@ -89,6 +110,6 @@ impl Model {
     }
 
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
-        self.scene.find_node_by_name(&self.scene.get_root(), name)
+        self.scene.find_node_by_name(self.scene.get_root(), name)
     }
 }

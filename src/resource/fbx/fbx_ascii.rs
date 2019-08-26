@@ -29,7 +29,7 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
         parent: Handle::none(),
         attribs: Vec::new(),
     });
-    let mut parent_handle: Handle<FbxNode> = root_handle.clone();
+    let mut parent_handle: Handle<FbxNode> = root_handle;
     let mut node_handle: Handle<FbxNode> = Handle::none();
     let mut buffer: Vec<u8> = Vec::new();
     let mut name: Vec<u8> = Vec::new();
@@ -71,44 +71,44 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
                 let node = FbxNode {
                     name: name_copy,
                     attribs: Vec::new(),
-                    parent: parent_handle.clone(),
+                    parent: parent_handle,
                     children: Vec::new(),
                 };
                 node_handle = nodes.spawn(node);
                 name.clear();
-                if let Some(parent) = nodes.borrow_mut(&parent_handle) {
-                    parent.children.push(node_handle.clone());
+                if let Some(parent) = nodes.borrow_mut(parent_handle) {
+                    parent.children.push(node_handle);
                 }
             } else if symbol == b'{' {
                 // Enter child scope
-                parent_handle = node_handle.clone();
+                parent_handle = node_handle;
                 // Commit attribute if we have one
                 if !value.is_empty() {
-                    if let Some(node) = nodes.borrow_mut(&node_handle) {
+                    if let Some(node) = nodes.borrow_mut(node_handle) {
                         let string_value = String::from_utf8(value.clone())?;
                         let attrib = FbxAttribute::String(string_value);
                         node.attribs.push(attrib);
                     } else {
-                        return Err(FbxError::InvalidPoolHandle(node_handle.get_index(), node_handle.get_generation()));
+                        return Err(FbxError::InvalidPoolHandle);
                     }
                     value.clear();
                 }
             } else if symbol == b'}' {
                 // Exit child scope
-                if let Some(parent) = nodes.borrow_mut(&parent_handle) {
-                    parent_handle = parent.parent.clone();
+                if let Some(parent) = nodes.borrow_mut(parent_handle) {
+                    parent_handle = parent.parent;
                 }
             } else if symbol == b',' || (i == buffer.len() - 1) {
                 // Commit attribute
                 if symbol != b',' {
                     value.push(symbol);
                 }
-                if let Some(node) = nodes.borrow_mut(&node_handle) {
+                if let Some(node) = nodes.borrow_mut(node_handle) {
                     let string_value = String::from_utf8(value.clone())?;
                     let attrib = FbxAttribute::String(string_value);
                     node.attribs.push(attrib);
                 } else {
-                    return Err(FbxError::InvalidPoolHandle(node_handle.get_index(), node_handle.get_generation()));
+                    return Err(FbxError::InvalidPoolHandle);
                 }
                 value.clear();
             } else if !read_value {

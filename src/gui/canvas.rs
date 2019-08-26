@@ -39,9 +39,9 @@ impl Layout for Canvas {
             std::f32::INFINITY,
         );
 
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
-                ui.measure(child_handle, size_for_child);
+                ui.measure(*child_handle, size_for_child);
             }
         }
 
@@ -49,11 +49,11 @@ impl Layout for Canvas {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
+        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
                 let mut final_rect = None;
 
-                if let Some(child) = ui.nodes.borrow(&child_handle) {
+                if let Some(child) = ui.nodes.borrow(*child_handle) {
                     final_rect = Some(Rect::new(
                         child.desired_local_position.get().x,
                         child.desired_local_position.get().y,
@@ -62,7 +62,7 @@ impl Layout for Canvas {
                 }
 
                 if let Some(rect) = final_rect {
-                    ui.arrange(child_handle, &rect);
+                    ui.arrange(*child_handle, &rect);
                 }
             }
         }

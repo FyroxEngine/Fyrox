@@ -133,15 +133,15 @@ impl RectPacker {
 
     fn find_free(&mut self, w: i32, h: i32) -> Option<Rect<i32>> {
         let mut unvisited: Vec<Handle<RectPackNode>> = Vec::new();
-        unvisited.push(self.root.clone());
+        unvisited.push(self.root);
         while let Some(node_handle) = unvisited.pop() {
             let mut left_bounds: Rect<i32> = Rect::default();
             let mut right_bounds: Rect<i32> = Rect::default();
 
-            if let Some(node) = self.nodes.borrow_mut(&node_handle) {
+            if let Some(node) = self.nodes.borrow_mut(node_handle) {
                 if node.split {
-                    unvisited.push(node.right.clone());
-                    unvisited.push(node.left.clone());
+                    unvisited.push(node.right);
+                    unvisited.push(node.left);
                     continue;
                 } else {
                     if node.filled || node.bounds.w < w || node.bounds.h < h {
@@ -166,16 +166,16 @@ impl RectPacker {
             }
 
             let left = self.nodes.spawn(RectPackNode::new(left_bounds));
-            if let Some(node) = self.nodes.borrow_mut(&node_handle) {
-                node.left = left.clone();
+            if let Some(node) = self.nodes.borrow_mut(node_handle) {
+                node.left = left;
             }
 
             let right = self.nodes.spawn(RectPackNode::new(right_bounds));
-            if let Some(node) = self.nodes.borrow_mut(&node_handle) {
-                node.right = right.clone();
+            if let Some(node) = self.nodes.borrow_mut(node_handle) {
+                node.right = right;
             }
 
-            unvisited.push(left.clone());
+            unvisited.push(left);
         }
 
         None

@@ -14,6 +14,8 @@ use std::{
     rc::Rc,
     cell::RefCell,
 };
+use crate::scene::node::Node;
+use crate::utils::pool::Handle;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -162,7 +164,7 @@ impl SurfaceSharedData {
             let t = tan1[i];
 
             // Gram-Schmidt orthogonalize
-            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap();
+            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap_or(Vec3::make(0.0,1.0,0.0));
 
             self.vertices[i].tangent = Vec4 {
                 x: tangent.x,
@@ -224,10 +226,10 @@ impl SurfaceSharedData {
         data
     }
 
-    pub fn insert_vertex_pos_tex(&mut self, pos: &Vec3, tex: &Vec2) {
+    pub fn insert_vertex_pos_tex(&mut self, pos: &Vec3, tex: Vec2) {
         self.insert_vertex(Vertex {
             position: *pos,
-            tex_coord: *tex,
+            tex_coord: tex,
             normal: Vec3::make(0.0, 1.0, 0.0),
             tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
             bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
@@ -277,15 +279,15 @@ impl SurfaceSharedData {
                 let k7 = r * (d_theta * ni as f32).cos();
 
                 if i != (stacks - 1) {
-                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), &Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k1, k4 * k2, k7), &Vec2::make(d_tc_x * j as f32, d_tc_y * ni as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), &Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k1, k4 * k2, k7), Vec2::make(d_tc_x * j as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
                 }
 
                 if i != 0 {
-                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), &Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k5, k0 * k6, k3), &Vec2::make(d_tc_x * nj as f32, d_tc_y * i as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), &Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k5, k0 * k6, k3), Vec2::make(d_tc_x * nj as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
                 }
             }
         }
@@ -537,7 +539,8 @@ impl Drop for SurfaceSharedData {
 pub struct Surface {
     data: Rc<RefCell<SurfaceSharedData>>,
     diffuse_texture: Option<Rc<RefCell<Resource>>>,
-    normal_texture: Option<Rc<RefCell<Resource>>>
+    normal_texture: Option<Rc<RefCell<Resource>>>,
+    pub bones: Vec<Handle<Node>>
 }
 
 impl Surface {
@@ -547,6 +550,7 @@ impl Surface {
             data,
             diffuse_texture: None,
             normal_texture: None,
+            bones: Vec::new(),
         }
     }
 
@@ -577,6 +581,11 @@ impl Surface {
     }
 
     #[inline]
+    pub fn set_normal_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+        self.normal_texture = Some(tex);
+    }
+
+    #[inline]
     pub fn make_copy(&self) -> Surface {
         Surface {
             data: Rc::clone(&self.data),
@@ -587,7 +596,9 @@ impl Surface {
             normal_texture: match &self.normal_texture {
                 Some(resource) => Some(Rc::clone(resource)),
                 None => None
-            }
+            },
+            // Note: Handles will be remapped on Resolve stage.
+            bones: self.bones.clone(),
         }
     }
 }
