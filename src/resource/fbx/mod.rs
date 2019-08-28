@@ -5,49 +5,37 @@ mod texture;
 use std::{
     path::Path,
     fs::File,
-    io::{
-        Read,
-        Cursor,
-    },
-    collections::HashMap,
+    io::{Read, Cursor},
+    collections::{HashMap, HashSet},
     time::Instant,
-    any::{
-        Any,
-        TypeId,
-    },
+    any::{Any, TypeId},
     cell::RefCell,
     rc::Rc,
     fmt::Formatter,
 };
 use crate::{
-    utils::pool::{
-        Handle,
-        Pool,
-    },
+    utils::pool::{Handle, Pool},
     math::{
         vec4::Vec4,
         vec3::Vec3,
         vec2::Vec2,
         mat4::Mat4,
-        quat::{
-            Quat,
-            RotationOrder,
-        },
+        quat::{Quat, RotationOrder},
         triangulator::triangulate,
     },
     scene::{
         *,
         node::*,
-        animation::{
-            Track,
-            KeyFrame,
-            Animation,
-        },
+        animation::{Track, KeyFrame, Animation},
     },
-    renderer::surface::{
-        SurfaceSharedData,
-        Surface,
-        Vertex,
+    renderer::{
+        surface::{
+            SurfaceSharedData,
+            Surface,
+            Vertex,
+            VertexWeightSet,
+            VertexWeight,
+        }
     },
     engine::State,
     gui::draw::Color,
@@ -459,35 +447,6 @@ struct FbxGeometry {
     deformers: Vec<Handle<FbxComponent>>,
 }
 
-#[derive(Copy, Clone)]
-struct Weight {
-    value: f32,
-    affected_model: Handle<FbxComponent>,
-}
-
-impl Default for Weight {
-    fn default() -> Self {
-        Self {
-            value: 0.0,
-            affected_model: Handle::none()
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct BoneSet {
-    weights: [Weight; 4],
-    count: usize
-}
-
-impl Default for BoneSet {
-    fn default() -> Self {
-        Self {
-            weights: Default::default(),
-            count: 0
-        }
-    }
-}
 
 impl FbxGeometry {
     pub fn read(geom_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxGeometry, String> {
@@ -563,7 +522,7 @@ impl FbxGeometry {
             let count = uvs_array_node.attrib_count() / 2;
             for i in 0..count {
                 let uv = uvs_array_node.get_vec2_at(i * 2)?;
-                geom.uvs.push(Vec2 { x: uv.x, y: -uv.y }); // Hack
+                geom.uvs.push(Vec2 { x: uv.x, y: -uv.y }); // Hack FIXME
             }
 
             if geom.uv_reference == FbxReference::IndexToDirect {
@@ -593,20 +552,21 @@ impl FbxGeometry {
         Ok(geom)
     }
 
-    fn get_skin_data(&self, components: &Pool<FbxComponent>) -> Result<Vec<BoneSet>, FbxError> {
-        let mut out = vec![BoneSet::default(); self.vertices.len()];
+    fn get_skin_data(&self, components: &Pool<FbxComponent>) -> Result<Vec<VertexWeightSet>, FbxError> {
+        let mut out = vec![VertexWeightSet::default(); self.vertices.len()];
         for deformer_handle in self.deformers.iter() {
-            for sub_deformer_handle in components.borrow(*deformer_handle).ok_or(FbxError::InvalidPoolHandle)?.as_deformer()?.sub_deformers.iter() {
-                let sub_deformer = components.borrow(*sub_deformer_handle).ok_or(FbxError::InvalidPoolHandle)?.as_sub_deformer()?;
+            for sub_deformer_handle in components.borrow(*deformer_handle)
+                .ok_or(FbxError::InvalidPoolHandle)?.as_deformer()?.sub_deformers.iter() {
+                let sub_deformer = components.borrow(*sub_deformer_handle)
+                    .ok_or(FbxError::InvalidPoolHandle)?.as_sub_deformer()?;
                 for (index, weight) in sub_deformer.weights.iter() {
-                    let mut bone_set = out.get_mut(*index as usize).ok_or(FbxError::IndexOutOfBounds)?;
-                    if bone_set.count < 4 {
-                        bone_set.weights[bone_set.count] = Weight {
-                            value: *weight,
-                            affected_model: sub_deformer.model
-                        };
-                        bone_set.count += 1;
-                    } else {
+                    let bone_set = out.get_mut(*index as usize)
+                        .ok_or(FbxError::IndexOutOfBounds)?;
+                    if !bone_set.push(VertexWeight {
+                        value: *weight,
+                        effector: sub_deformer.model.into(),
+                    }) {
+                        // TODO: Maybe it is better to ignore excessive bones?
                         return Err(FbxError::IndexOutOfBounds);
                     }
                 }
@@ -872,50 +832,48 @@ fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, root: Handle<FbxNode>, name
 }
 
 /// Links child component with parent component so parent will know about child
-fn link_child_with_parent_component(parent: &mut FbxComponent, child_handle: Handle<FbxComponent>, child_type_id: TypeId) {
+fn link_child_with_parent_component(parent: &mut FbxComponent, child: &mut FbxComponent, child_handle: Handle<FbxComponent>) {
     match parent {
         // Link model with other components
         FbxComponent::Model(model) => {
-            if child_type_id == TypeId::of::<FbxGeometry>() {
-                model.geoms.push(child_handle)
-            } else if child_type_id == TypeId::of::<FbxMaterial>() {
-                model.materials.push(child_handle)
-            } else if child_type_id == TypeId::of::<FbxAnimationCurveNode>() {
-                model.animation_curve_nodes.push(child_handle)
-            } else if child_type_id == TypeId::of::<FbxLight>() {
-                model.light = child_handle
-            } else if child_type_id == TypeId::of::<FbxModel>() {
-                model.children.push(child_handle)
+            match child {
+                FbxComponent::Geometry(_) => model.geoms.push(child_handle),
+                FbxComponent::Material(_) => model.materials.push(child_handle),
+                FbxComponent::AnimationCurveNode(_) => model.animation_curve_nodes.push(child_handle),
+                FbxComponent::Light(_) => model.light = child_handle,
+                FbxComponent::Model(_) => model.children.push(child_handle),
+                _ => ()
             }
         }
         // Link material with textures
         FbxComponent::Material(material) => {
-            if child_type_id == TypeId::of::<FbxTexture>() {
+            if let FbxComponent::Texture(_) = child {
                 material.diffuse_texture = child_handle;
             }
         }
         // Link animation curve node with animation curve
         FbxComponent::AnimationCurveNode(anim_curve_node) => {
-            if child_type_id == TypeId::of::<FbxAnimationCurve>() {
+            if let FbxComponent::AnimationCurve(_) = child {
                 anim_curve_node.curves.push(child_handle);
             }
         }
         // Link deformer with sub-deformers
         FbxComponent::Deformer(deformer) => {
-            if child_type_id == TypeId::of::<FbxSubDeformer>() {
+            if let FbxComponent::SubDeformer(_) = child {
                 deformer.sub_deformers.push(child_handle);
             }
         }
         // Link geometry with deformers
         FbxComponent::Geometry(geometry) => {
-            if child_type_id == TypeId::of::<FbxDeformer>() {
+            if let FbxComponent::Deformer(_) = child {
                 geometry.deformers.push(child_handle);
             }
         }
         // Link sub-deformer with model
         FbxComponent::SubDeformer(sub_deformer) => {
-            if child_type_id == TypeId::of::<FbxModel>() {
+            if let FbxComponent::Model(model) = child {
                 sub_deformer.model = child_handle;
+                model.inv_bind_transform = sub_deformer.transform;
             }
         }
         // Ignore rest
@@ -934,6 +892,8 @@ pub enum FbxError {
     UnexpectedType,
     InvalidPath,
     IndexOutOfBounds,
+    UnableToFindBone,
+    UnableToRemapModelToNode,
 }
 
 impl std::fmt::Display for FbxError {
@@ -948,7 +908,9 @@ impl std::fmt::Display for FbxError {
             FbxError::InvalidPoolHandle => write!(f, "Invalid pool handle."),
             FbxError::UnexpectedType => write!(f, "Unexpected type. This means that invalid cast has occured in fbx component."),
             FbxError::InvalidPath => write!(f, "Invalid path. This means that some path was stored in invalid format."),
-            FbxError::IndexOutOfBounds => write!(f, "Index out of bounds.")
+            FbxError::IndexOutOfBounds => write!(f, "Index out of bounds."),
+            FbxError::UnableToFindBone => write!(f, "Unable to find bone."),
+            FbxError::UnableToRemapModelToNode => write!(f, "Unable to remap model to node."),
         }
     }
 }
@@ -1064,26 +1026,35 @@ fn convert_vertex(geom: &FbxGeometry,
                   material_index: usize,
                   origin: usize,
                   index: usize,
-                  relative_index: usize) {
-    let position = geometric_transform.transform_vector(geom.vertices[index]);
+                  relative_index: usize,
+                  skin_data: &[VertexWeightSet]) -> Result<(), FbxError> {
+    let position = geometric_transform.transform_vector(*geom.vertices.get(index)
+        .ok_or(FbxError::IndexOutOfBounds)?);
 
     let normal = geometric_transform.transform_vector_normal(match geom.normal_mapping {
-        FbxMapping::ByPolygonVertex => geom.normals[origin + relative_index],
-        FbxMapping::ByVertex => geom.normals[index],
+        FbxMapping::ByPolygonVertex => *geom.normals.get(origin + relative_index)
+            .ok_or(FbxError::IndexOutOfBounds)?,
+        FbxMapping::ByVertex => *geom.normals.get(index).ok_or(FbxError::IndexOutOfBounds)?,
         _ => Vec3 { x: 0.0, y: 1.0, z: 0.0 }
     });
 
     let tangent = geometric_transform.transform_vector_normal(match geom.tangent_mapping {
-        FbxMapping::ByPolygonVertex => geom.tangents[origin + relative_index],
-        FbxMapping::ByVertex => geom.tangents[index],
+        FbxMapping::ByPolygonVertex => *geom.tangents.get(origin + relative_index)
+            .ok_or(FbxError::IndexOutOfBounds)?,
+        FbxMapping::ByVertex => *geom.tangents.get(index).ok_or(FbxError::IndexOutOfBounds)?,
         _ => Vec3 { x: 0.0, y: 1.0, z: 0.0 }
     });
 
     let uv = match geom.uv_mapping {
         FbxMapping::ByPolygonVertex => {
             match geom.uv_reference {
-                FbxReference::Direct => geom.uvs[origin + relative_index],
-                FbxReference::IndexToDirect => geom.uvs[geom.uv_index[origin + relative_index] as usize],
+                FbxReference::Direct => *geom.uvs.get(origin + relative_index)
+                    .ok_or(FbxError::IndexOutOfBounds)?,
+                FbxReference::IndexToDirect => {
+                    let uv_index = *geom.uv_index.get(origin + relative_index)
+                        .ok_or(FbxError::IndexOutOfBounds)? as usize;
+                    *geom.uvs.get(uv_index).ok_or(FbxError::IndexOutOfBounds)?
+                }
                 _ => Vec2 { x: 0.0, y: 0.0 }
             }
         }
@@ -1091,21 +1062,30 @@ fn convert_vertex(geom: &FbxGeometry,
     };
 
     let material = match geom.material_mapping {
-        FbxMapping::AllSame => geom.materials[0] as usize,
-        FbxMapping::ByPolygon => geom.materials[material_index] as usize,
+        FbxMapping::AllSame => *geom.materials.first().ok_or(FbxError::IndexOutOfBounds)? as usize,
+        FbxMapping::ByPolygon => *geom.materials.get(material_index).ok_or(FbxError::IndexOutOfBounds)? as usize,
         _ => 0
     };
 
     let surface = mesh.get_surfaces_mut().get_mut(material).unwrap();
-    surface.get_data().borrow_mut().insert_vertex(Vertex {
+
+    let is_unique_vertex = surface.get_data().borrow_mut().insert_vertex(Vertex {
         position,
         normal,
         tex_coord: uv,
         tangent: Vec4 { x: tangent.x, y: tangent.y, z: tangent.z, w: 1.0 },
-        // FIXME
-        bone_weights: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-        bone_indices: [0, 0, 0, 0], // Correct indices will be calculated later
+        // We can't get correct values for bone weights and indices because
+        // not all nodes are converted yet at this stage. Actual calculation
+        // will be performed later on after converting all nodes.
+        bone_weights: [0.0, 0.0, 0.0, 0.0],
+        bone_indices: [0, 0, 0, 0],
     });
+
+    if is_unique_vertex && !skin_data.is_empty() {
+        surface.vertex_weights.push(*skin_data.get(index).ok_or(FbxError::IndexOutOfBounds)?);
+    }
+
+    Ok(())
 }
 
 impl Fbx {
@@ -1188,9 +1168,10 @@ impl Fbx {
             let parent_index = connection.get_attrib(2)?.as_i64()?;
             if let Some(parent_handle) = self.index_to_component.get(&parent_index) {
                 if let Some(child_handle) = self.index_to_component.get(&child_index) {
-                    let child_type_id = self.component_pool.borrow(*child_handle).unwrap().type_id();
-                    let parent = self.component_pool.borrow_mut(*parent_handle).unwrap();
-                    link_child_with_parent_component(parent, *child_handle, child_type_id);
+                    let pair = self.component_pool.borrow_two_mut(*child_handle, *parent_handle).unwrap();
+                    let child = pair.0.unwrap();
+                    let parent = pair.1.unwrap();
+                    link_child_with_parent_component(parent, child, *child_handle);
                 }
             }
         }
@@ -1259,6 +1240,8 @@ impl Fbx {
             let geom = self.component_pool.borrow(*geom_handle).ok_or(FbxError::InvalidPoolHandle)?.as_geometry()?;
             self.create_surfaces(mesh, state, model)?;
 
+            let skin_data = geom.get_skin_data(&self.component_pool)?;
+
             let mut material_index = 0;
             let mut n = 0;
             while n < geom.indices.len() {
@@ -1268,9 +1251,9 @@ impl Fbx {
                     let triangle = &triangles[i];
                     let relative_triangle = &relative_triangles[i];
 
-                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0);
-                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1);
-                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2);
+                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0, &skin_data)?;
+                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1, &skin_data)?;
+                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2, &skin_data)?;
                 }
                 if geom.material_mapping == FbxMapping::ByPolygon {
                     material_index += 1;
@@ -1312,6 +1295,7 @@ impl Fbx {
         node.set_rotation_pivot(model.rotation_pivot);
         node.set_scaling_offset(model.scaling_offset);
         node.set_scaling_pivot(model.scaling_pivot);
+        node.set_inv_bind_pose_transform(model.inv_bind_transform);
 
         match node.borrow_kind_mut() {
             NodeKind::Light(light) => {
@@ -1419,16 +1403,17 @@ impl Fbx {
                    state: &mut State,
                    scene: &mut Scene)
                    -> Result<Handle<Node>, FbxError> {
+        let mut instantiated_nodes = Vec::new();
         let root = scene.add_node(Node::new(NodeKind::Base));
         scene.add_animation(Animation::default());
-        let mut fbx_model_to_node_map: HashMap<Handle<FbxComponent>, Handle<Node>> = HashMap::new();
+        let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {
             if let Some(component) = self.component_pool.borrow(*component_handle) {
                 if let FbxComponent::Model(model) = component {
-                    if let Ok(node) = self.convert_model(model, state, scene) {
-                        scene.link_nodes(node, root);
-                        fbx_model_to_node_map.insert(*component_handle, node);
-                    }
+                    let node = self.convert_model(model, state, scene)?;
+                    instantiated_nodes.push(node);
+                    scene.link_nodes(node, root);
+                    fbx_model_to_node_map.insert(*component_handle, node);
                 }
             }
         }
@@ -1443,6 +1428,53 @@ impl Fbx {
             }
         }
         scene.update_nodes();
+
+        // Remap handles from fbx model to handles of instantiated nodes
+        // on each surface of each mesh.
+        for handle in instantiated_nodes.iter() {
+            let node = scene.get_node_mut(*handle).ok_or(FbxError::InvalidPoolHandle)?;
+            if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+                let mut surface_bones = HashSet::new();
+                for surface in mesh.get_surfaces_mut() {
+                    for weight_set in surface.vertex_weights.iter_mut() {
+                        for weight in weight_set.iter_mut() {
+                            let fbx_model: Handle<FbxComponent> = weight.effector.into();
+                            let bone_handle = fbx_model_to_node_map.get(&fbx_model)
+                                .ok_or(FbxError::UnableToRemapModelToNode)?;
+                            surface_bones.insert(*bone_handle);
+                            weight.effector = (*bone_handle).into();
+                        }
+                    }
+                    surface.bones = surface_bones.iter().map(|h| *h).collect();
+
+                    // TODO: Add sanity check about unique owner of surface data.
+                    // At this point owner of surface data *must* be only one.
+                    // But who knows.
+                    let data_rc = surface.get_data();
+                    let mut data = data_rc.borrow_mut();
+                    if data.get_vertices().len() == surface.vertex_weights.len() {
+                        for (i, vertex) in data.get_vertices_mut().iter_mut().enumerate() {
+                            let weight_set = surface.vertex_weights.get_mut(i)
+                                .ok_or(FbxError::IndexOutOfBounds)?;
+                            for (k, weight) in weight_set.iter().enumerate() {
+                                vertex.bone_indices[k] = {
+                                    let mut index = None;
+                                    for (n, bone_handle) in surface.bones.iter().enumerate() {
+                                        if *bone_handle == weight.effector.into() {
+                                            index = Some(n);
+                                            break;
+                                        }
+                                    }
+                                    index.ok_or(FbxError::UnableToFindBone)? as u8
+                                };
+                                vertex.bone_weights[k] = weight.value;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(root)
     }
 

@@ -8,7 +8,7 @@ use crate::{
             VisitError,
             Visit,
             VisitResult,
-            Visitor
+            Visitor,
         },
         pool::*,
     },
@@ -22,7 +22,7 @@ use crate::{
     renderer::surface::*,
     physics::Body,
     resource::Resource,
-    gui::draw::Color
+    gui::draw::Color,
 };
 
 pub struct Light {
@@ -38,7 +38,7 @@ impl Default for Light {
             radius: 10.0,
             color: Color::white(),
             cone_angle: std::f32::consts::PI,
-            cone_angle_cos: -1.0
+            cone_angle_cos: -1.0,
         }
     }
 }
@@ -93,7 +93,7 @@ impl Light {
             radius: self.radius,
             color: self.color,
             cone_angle: self.cone_angle,
-            cone_angle_cos: self.cone_angle_cos
+            cone_angle_cos: self.cone_angle_cos,
         }
     }
 }
@@ -254,11 +254,12 @@ pub struct Node {
     pub(in crate::scene) children: Vec<Handle<Node>>,
     pub(in crate::scene) local_transform: Mat4,
     pub(in crate::scene) global_transform: Mat4,
+    inv_bind_pose_transform: Mat4,
     body: Handle<Body>,
     resource: Option<Rc<RefCell<Resource>>>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
-    original: Handle<Node>
+    original: Handle<Node>,
 }
 
 impl Default for Node {
@@ -281,9 +282,10 @@ impl Default for Node {
             global_visibility: true,
             local_transform: Mat4::identity(),
             global_transform: Mat4::identity(),
+            inv_bind_pose_transform: Mat4::identity(),
             body: Handle::none(),
             resource: None,
-            original: Handle::none()
+            original: Handle::none(),
         }
     }
 }
@@ -308,9 +310,10 @@ impl Node {
             global_visibility: true,
             local_transform: Mat4::identity(),
             global_transform: Mat4::identity(),
+            inv_bind_pose_transform: Mat4::identity(),
             body: Handle::none(),
             resource: None,
-            original: Handle::none()
+            original: Handle::none(),
         }
     }
 
@@ -356,6 +359,7 @@ impl Node {
             global_transform: self.global_transform,
             visibility: self.visibility,
             global_visibility: self.global_visibility,
+            inv_bind_pose_transform: self.inv_bind_pose_transform,
             children: Vec::new(),
             parent: Handle::none(),
             body: Handle::none(),
@@ -363,7 +367,7 @@ impl Node {
                 Some(resource) => Some(Rc::clone(resource)),
                 None => None
             },
-            original
+            original,
         }
     }
 
@@ -505,6 +509,14 @@ impl Node {
         &self.global_transform
     }
 
+    pub fn set_inv_bind_pose_transform(&mut self, transform: Mat4) {
+        self.inv_bind_pose_transform = transform;
+    }
+
+    pub fn get_inv_bind_pose_transform(&self) -> &Mat4 {
+        &self.inv_bind_pose_transform
+    }
+
     #[inline]
     pub fn get_global_position(&self) -> Vec3 {
         Vec3 {
@@ -579,6 +591,9 @@ impl Visit for Node {
         self.children.visit("Children", visitor)?;
         self.body.visit("Body", visitor)?;
         self.resource.visit("Resource", visitor)?;
+
+        // TODO: Is this needed?
+        self.inv_bind_pose_transform.visit("InvBindPoseTransform", visitor)?;
 
         visitor.leave_region()
     }

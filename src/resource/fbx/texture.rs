@@ -9,9 +9,9 @@ use crate::{
     },
     resource::fbx::{
         FbxNode,
-        find_and_borrow_node,
     },
 };
+use crate::resource::fbx::find_and_borrow_node;
 
 pub struct FbxTexture {
     filename: PathBuf,

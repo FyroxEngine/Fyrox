@@ -1,53 +1,26 @@
 use crate::{
-    utils::pool::{
-        Handle,
-        Pool,
-    },
-    engine::{
-        State,
-        duration_to_seconds_f32,
-    },
-    resource::{
-        ResourceKind,
-        ttf::Font,
-    },
-    gui::draw::{
-        DrawingContext,
-        CommandKind,
-        Color,
-    },
-    scene::node::{
-        Node,
-        NodeKind,
-    },
+    utils::pool::{Handle, Pool},
+    engine::{State, duration_to_seconds_f32},
+    resource::{ResourceKind, ttf::Font},
+    gui::draw::{DrawingContext, CommandKind, Color},
+    scene::node::{Node, NodeKind},
     renderer::{
-        surface::{
-            Vertex,
-            SurfaceSharedData,
-        },
+        surface::{Vertex, SurfaceSharedData},
         gl,
         gl::types::*,
-        gpu_program::{
-            GpuProgram,
-            UniformLocation,
-        },
+        gpu_program::{GpuProgram, UniformLocation},
     },
     math::{
         vec3::Vec3,
         mat4::Mat4,
         vec2::Vec2,
-    },
+        vec4::Vec4
+    }
 };
 use std::{
-    ffi::{
-        CString,
-        c_void,
-    },
+    ffi::{CString, c_void},
     mem::size_of,
-    time::{
-        Instant,
-        Duration,
-    },
+    time::{Instant, Duration},
     thread,
     cell::RefCell,
 };
@@ -518,6 +491,7 @@ pub struct Renderer {
     statistics: Statistics,
     quad: RefCell<SurfaceSharedData>,
     sphere: RefCell<SurfaceSharedData>,
+    bone_matrices: Vec<Mat4>,
 }
 
 struct FlatShader {
@@ -972,6 +946,7 @@ impl Renderer {
                 quad: RefCell::new(SurfaceSharedData::make_unit_xy_quad()),
                 sphere: RefCell::new(SurfaceSharedData::make_sphere(6, 6, 1.0)),
                 ui_render_buffers: create_ui_render_buffers(),
+                bone_matrices: Vec::new(),
             }
         }
     }
@@ -1025,6 +1000,18 @@ impl Renderer {
                 gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
                                         size_of::<Vertex>() as GLint, offset as *const c_void);
                 gl::EnableVertexAttribArray(3);
+                offset += size_of::<Vec4>();
+
+                // Bone weights
+                gl::VertexAttribPointer(4, 4, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(4);
+                offset += size_of::<Vec4>();
+
+                // Bone indices
+                gl::VertexAttribPointer(5, 4, gl::UNSIGNED_BYTE, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(5);
 
                 gl::BindVertexArray(0);
 
@@ -1290,19 +1277,41 @@ impl Renderer {
 
                 for mesh_handle in self.meshes.iter() {
                     if let Some(node) = scene.get_node(*mesh_handle) {
-                        if !node.get_global_visibility() {
-                            continue;
-                        }
-
-                        let world = *node.get_global_transform();
-                        let mvp = view_projection * world;
-
-                        self.gbuffer_shader.set_wvp_matrix(&mvp);
-                        self.gbuffer_shader.set_world_matrix(&world);
-                        self.gbuffer_shader.set_use_skeletal_animation(false);
-
                         if let NodeKind::Mesh(mesh) = node.borrow_kind() {
+                            if !node.get_global_visibility() {
+                                continue;
+                            }
+
                             for surface in mesh.get_surfaces().iter() {
+                                let is_skinned = !surface.bones.is_empty();
+
+                                let world = if is_skinned {
+                                    Mat4::identity()
+                                } else {
+                                    *node.get_global_transform()
+                                };
+                                let mvp = view_projection * world;
+
+                                self.gbuffer_shader.set_wvp_matrix(&mvp);
+                                self.gbuffer_shader.set_world_matrix(&world);
+
+                                self.gbuffer_shader.set_use_skeletal_animation(is_skinned);
+
+                                if is_skinned {
+                                    self.bone_matrices.clear();
+                                    for bone_handle in surface.bones.iter() {
+                                        if let Some(bone_node) = scene.get_node(*bone_handle) {
+                                            self.bone_matrices.push(
+                                                *bone_node.get_global_transform() *
+                                                    *bone_node.get_inv_bind_pose_transform());
+                                        } else {
+                                            self.bone_matrices.push(Mat4::identity())
+                                        }
+                                    }
+
+                                    self.gbuffer_shader.set_bone_matrices(&self.bone_matrices);
+                                }
+
                                 // Bind diffuse texture.
                                 gl::ActiveTexture(gl::TEXTURE0);
                                 if let Some(resource) = surface.get_diffuse_texture() {

@@ -1,15 +1,17 @@
+use std::ffi::CStr;
 use crate::{
+    math::{
+        vec4::Vec4,
+        mat4::Mat4,
+        vec3::Vec3
+    },
     renderer::{
         gl::types::GLuint,
         gl,
         gl::types::GLint,
         gl::types::GLfloat,
     },
-    math::mat4::Mat4,
 };
-use std::ffi::CStr;
-use crate::math::vec4::Vec4;
-use crate::math::vec3::Vec3;
 
 pub struct GpuProgram {
     id: GLuint,
@@ -98,7 +100,7 @@ impl GpuProgram {
 
     pub fn set_mat4_array(&self, location: UniformLocation, mat: &[Mat4]) {
         unsafe {
-            gl::UniformMatrix4fv(location.id, mat.len() as i32, gl::FALSE, &mat[0].f as *const GLfloat);
+            gl::UniformMatrix4fv(location.id, mat.len() as i32, gl::FALSE, mat[0].f.as_ptr() as *const GLfloat);
         }
     }
 

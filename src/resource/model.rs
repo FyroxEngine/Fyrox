@@ -1,25 +1,21 @@
 use crate::{
-    scene::{
-        Scene,
-        node::Node,
-    },
+    scene::{Scene, node::Node},
     utils::pool::Handle,
     engine::State,
     resource::{
         fbx,
         Resource,
         ResourceKind,
-        fbx::FbxError
-    }
+        fbx::FbxError,
+    },
+    scene::node::NodeKind,
 };
 use std::{
     path::Path,
     cell::RefCell,
-    rc::Rc
+    rc::Rc,
+    collections::{HashMap, hash_map::Entry},
 };
-use crate::scene::node::NodeKind;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
 
 pub struct Model {
     scene: Scene,
@@ -47,7 +43,6 @@ impl Model {
             let mut old_new_mapping = HashMap::new();
             let root = model.scene.copy_node(model.scene.get_root(), dest_scene, &mut old_new_mapping);
 
-            println!("mapping size {}", old_new_mapping.len());
             // Notify instantiated nodes about resource they were created from. Also do bones
             // remapping for meshes.
             let mut stack = Vec::new();
@@ -93,8 +88,6 @@ impl Model {
 
                 dest_scene.add_animation(anim_copy);
             }
-
-
 
             return Ok(root);
         }
