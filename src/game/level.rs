@@ -108,7 +108,7 @@ impl Level {
         }
         for (i, handle) in ripper_handles.iter().enumerate() {
             if let Some(node) = scene.get_node_mut(*handle) {
-                node.set_local_position(Vec3::make(-0.25, 0.0, 3.0 - i as f32 * 1.75));
+                node.set_local_position(Vec3::make(-0.25, -1.40, 3.0 - i as f32 * 1.40));
             }
         }
 
