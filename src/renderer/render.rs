@@ -443,6 +443,23 @@ impl GBuffer {
     }
 }
 
+impl Drop for GBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.fbo);
+            gl::DeleteRenderbuffers(1, &self.depth_buffer);
+            gl::DeleteRenderbuffers(1, &self.depth_rt);
+            gl::DeleteRenderbuffers(1, &self.normal_rt);
+            gl::DeleteRenderbuffers(1, &self.color_rt);
+            gl::DeleteTextures(1, &self.color_texture);
+            gl::DeleteTextures(1, &self.depth_texture);
+            gl::DeleteTextures(1, &self.normal_texture);
+            gl::DeleteFramebuffers(1, &self.opt_fbo);
+            gl::DeleteTextures(1, &self.frame_texture);
+        }
+    }
+}
+
 pub struct Statistics {
     pub frame_time: f32,
     pub mean_fps: usize,
@@ -468,8 +485,8 @@ impl Default for Statistics {
 }
 
 pub struct Renderer {
+    pub(crate) context: glutin::WindowedContext<PossiblyCurrent>, // Must be on top!
     pub(crate) events_loop: glutin::EventsLoop,
-    pub(crate) context: glutin::WindowedContext<PossiblyCurrent>,
     ui_shader: UIShader,
     deferred_light_shader: DeferredLightingShader,
     gbuffer_shader: GBufferShader,
@@ -915,7 +932,7 @@ impl Renderer {
         let window_builder = glutin::WindowBuilder::new()
             .with_title("RG3D")
             .with_dimensions(window_size)
-            .with_resizable(false);
+            .with_resizable(true);
 
         let context_wrapper = glutin::ContextBuilder::new()
             .with_vsync(true)
@@ -1208,6 +1225,16 @@ impl Renderer {
             }
             gl::BindVertexArray(0);
         }
+    }
+
+    /// Sets new frame size, should be called when received a Resize event.
+    pub fn set_frame_size(&mut self, new_size: Vec2) {
+        self.gbuffer = GBuffer::new(new_size.x as i32, new_size.y as i32);
+    }
+
+    pub fn get_frame_size(&self) -> Vec2 {
+        let client_size = self.context.window().get_inner_size().unwrap();
+        Vec2::make(client_size.width as f32, client_size.height as f32)
     }
 
     pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {

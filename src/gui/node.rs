@@ -1,8 +1,9 @@
+use std::{
+    cell::Cell,
+    any::{Any, TypeId},
+};
 use crate::{
-    math::{
-        vec2::Vec2,
-        Rect,
-    },
+    math::{vec2::Vec2, Rect},
     utils::pool::Handle,
     gui::{
         button::Button,
@@ -19,14 +20,14 @@ use crate::{
         image::Image,
         grid::Grid,
         scroll_content_presenter::ScrollContentPresenter,
-        event::{RoutedEventHandlerType, RoutedEventHandler},
+        event::{
+            RoutedEventHandlerType,
+            RoutedEventHandler,
+            RoutedEventHandlerList,
+        },
+        window::Window,
     },
 };
-use std::{
-    cell::Cell,
-    any::{Any, TypeId},
-};
-use crate::gui::event::RoutedEventHandlerList;
 
 pub enum UINodeKind {
     Text(Text),
@@ -41,6 +42,7 @@ pub enum UINodeKind {
     Canvas(Canvas),
     /// Allows user to scroll content
     ScrollContentPresenter(ScrollContentPresenter),
+    Window(Window),
 }
 
 /// Notes. Some fields wrapped into Cell's to be able to modify them while in measure/arrange
@@ -51,7 +53,7 @@ pub struct UINode {
     /// Desired position relative to parent node
     pub(in crate::gui) desired_local_position: Cell<Vec2>,
     /// Explicit width for node or automatic if NaN (means value is undefined). Default is NaN
-    pub(in crate::gui)  width: Cell<f32>,
+    pub(in crate::gui) width: Cell<f32>,
     /// Explicit height for node or automatic if NaN (means value is undefined). Default is NaN
     pub(in crate::gui) height: Cell<f32>,
     /// Screen position of the node
@@ -63,29 +65,29 @@ pub struct UINode {
     /// Actual size of the node after Arrange pass.
     pub(in crate::gui) actual_size: Cell<Vec2>,
     /// Minimum width and height
-    pub(in crate::gui)  min_size: Vec2,
+    pub(in crate::gui) min_size: Vec2,
     /// Maximum width and height
-    pub(in crate::gui)  max_size: Vec2,
+    pub(in crate::gui) max_size: Vec2,
     /// Overlay color of the node
     pub(in crate::gui) color: Color,
     /// Index of row to which this node belongs
-    pub(in crate::gui)  row: usize,
+    pub(in crate::gui) row: usize,
     /// Index of column to which this node belongs
-    pub(in crate::gui)  column: usize,
+    pub(in crate::gui) column: usize,
     /// Vertical alignment
-    pub(in crate::gui)  vertical_alignment: VerticalAlignment,
+    pub(in crate::gui) vertical_alignment: VerticalAlignment,
     /// Horizontal alignment
-    pub(in crate::gui)  horizontal_alignment: HorizontalAlignment,
+    pub(in crate::gui) horizontal_alignment: HorizontalAlignment,
     /// Margin (four sides)
-    pub(in crate::gui)  margin: Thickness,
+    pub(in crate::gui) margin: Thickness,
     /// Current visibility state
-    pub(in crate::gui)  visibility: Visibility,
+    pub(in crate::gui) visibility: Visibility,
     pub(in crate::gui) children: Vec<Handle<UINode>>,
-    pub(in crate::gui)  parent: Handle<UINode>,
+    pub(in crate::gui) parent: Handle<UINode>,
     /// Indices of commands in command buffer emitted by the node.
-    pub(in crate::gui)  command_indices: Vec<usize>,
+    pub(in crate::gui) command_indices: Vec<usize>,
     pub(in crate::gui) is_mouse_over: bool,
-    pub(in crate::gui)  event_handlers: RoutedEventHandlerList,
+    pub(in crate::gui) event_handlers: RoutedEventHandlerList,
     pub(in crate::gui) measure_valid: Cell<bool>,
     pub(in crate::gui) arrange_valid: Cell<bool>,
 }
@@ -172,6 +174,16 @@ impl UINode {
     }
 
     #[inline]
+    pub fn set_visibility(&mut self, visibility: Visibility) {
+        self.visibility = visibility;
+    }
+
+    #[inline]
+    pub fn get_visibility(&self) -> Visibility {
+        self.visibility
+    }
+
+    #[inline]
     pub fn get_kind_id(&self) -> TypeId {
         match &self.kind {
             UINodeKind::ScrollBar(scroll_bar) => scroll_bar.type_id(),
@@ -182,7 +194,8 @@ impl UINode {
             UINodeKind::Image(image) => image.type_id(),
             UINodeKind::Grid(grid) => grid.type_id(),
             UINodeKind::Canvas(canvas) => canvas.type_id(),
-            UINodeKind::ScrollContentPresenter(scp) => scp.type_id()
+            UINodeKind::ScrollContentPresenter(scp) => scp.type_id(),
+            UINodeKind::Window(window) => window.type_id()
         }
     }
 }

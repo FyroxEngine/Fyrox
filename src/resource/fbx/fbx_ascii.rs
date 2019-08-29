@@ -1,24 +1,16 @@
-use crate::{
-    resource::fbx::{
-        FbxNode,
-        Fbx,
-        FbxError,
-        FbxAttribute,
-    },
-    utils::pool::{
-        Pool,
-        Handle,
-    },
-};
 use std::{
-    io::{
-        Seek,
-        Read,
-        SeekFrom,
-    },
+    io::{Seek, Read, SeekFrom},
     collections::HashMap,
 };
 use byteorder::ReadBytesExt;
+use crate::{
+    resource::{
+        fbx::{FbxNode, Fbx},
+        fbx::attribute::FbxAttribute,
+        fbx::error::FbxError,
+    },
+    utils::pool::{Pool, Handle},
+};
 
 pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
     where R: Read + Seek {

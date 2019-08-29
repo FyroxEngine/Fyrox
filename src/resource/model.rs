@@ -6,7 +6,7 @@ use crate::{
         fbx,
         Resource,
         ResourceKind,
-        fbx::FbxError,
+        fbx::error::FbxError,
     },
     scene::node::NodeKind,
 };

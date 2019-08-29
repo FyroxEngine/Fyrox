@@ -379,8 +379,19 @@ impl Engine {
         &mut self.user_interface
     }
 
+    #[inline]
     pub fn get_rendering_statisting(&self) -> &Statistics {
         self.renderer.get_statistics()
+    }
+
+    #[inline]
+    pub fn set_frame_size(&mut self, new_size: Vec2) {
+        self.renderer.set_frame_size(new_size)
+    }
+
+    #[inline]
+    pub fn get_frame_size(&self) -> Vec2 {
+        self.renderer.get_frame_size()
     }
 
     pub fn render(&mut self) {

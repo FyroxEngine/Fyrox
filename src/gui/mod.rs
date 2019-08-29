@@ -12,24 +12,18 @@ pub mod scroll_bar;
 pub mod scroll_content_presenter;
 pub mod scroll_viewer;
 pub mod grid;
+pub mod window;
 
 use glutin::{
     WindowEvent,
     ElementState,
     MouseScrollDelta,
 };
-use std::{
-    collections::VecDeque,
-    any::{TypeId},
-};
+use std::{collections::VecDeque, any::TypeId};
 use crate::{
     gui::{
         node::{UINode, UINodeKind},
-        draw::{
-            Color,
-            DrawingContext,
-            CommandKind,
-        },
+        draw::{Color, DrawingContext, CommandKind},
         scroll_viewer::ScrollViewer,
         event::{RoutedEvent, RoutedEventKind, RoutedEventHandlerType},
         canvas::Canvas,
@@ -38,13 +32,8 @@ use crate::{
         pool::{Pool, Handle},
         UnsafeCollectionView,
     },
-    math::{
-        vec2::Vec2,
-        Rect,
-    },
-    resource::{
-        ttf::Font,
-    },
+    math::{vec2::Vec2, Rect},
+    resource::{ttf::Font},
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -94,7 +83,9 @@ impl Thickness {
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Visibility {
     Visible,
+    /// Collapses into a point so does not take space in layout and becomes invisible.
     Collapsed,
+    /// Keeps space for node in layout and becomes invisible.
     Hidden,
 }
 
@@ -183,6 +174,7 @@ impl UserInterface {
                 UINodeKind::Grid(grid) => grid.owner_handle = node_handle,
                 UINodeKind::Canvas(canvas) => canvas.owner_handle = node_handle,
                 UINodeKind::ScrollContentPresenter(scp) => scp.owner_handle = node_handle,
+                UINodeKind::Window(window) => window.owner_handle = node_handle,
             }
         }
         self.link_nodes(node_handle, self.root_canvas);
@@ -505,6 +497,10 @@ impl UserInterface {
         let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
 
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
+            if node.visibility != Visibility::Visible {
+                return;
+            }
+
             let start_index = self.drawing_context.get_commands().len();
             let bounds = node.get_screen_bounds();
 
@@ -747,6 +743,8 @@ impl UserInterface {
     }
 
     pub fn process_event(&mut self, event: &glutin::WindowEvent) -> bool {
+        let mut event_processed = false;
+
         if let WindowEvent::CursorMoved { position, .. } = event {
             self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
             self.picked_node = self.hit_test(self.mouse_position);
@@ -786,9 +784,10 @@ impl UserInterface {
                     pos: self.mouse_position
                 });
                 self.route_event(self.picked_node, RoutedEventHandlerType::MouseMove, &mut evt);
+
+                event_processed = true;
             }
         }
-
 
         if !self.picked_node.is_none() {
             match event {
@@ -800,6 +799,7 @@ impl UserInterface {
                                 button: *button,
                             });
                             self.route_event(self.picked_node, RoutedEventHandlerType::MouseDown, &mut evt);
+                            event_processed = true;
                         }
                         ElementState::Released => {
                             let mut evt = RoutedEvent::new(RoutedEventKind::MouseUp {
@@ -807,6 +807,7 @@ impl UserInterface {
                                 button: *button,
                             });
                             self.route_event(self.picked_node, RoutedEventHandlerType::MouseUp, &mut evt);
+                            event_processed = true;
                         }
                     }
                 }
@@ -818,6 +819,7 @@ impl UserInterface {
                             amount: *y,
                         });
                         self.route_event(self.picked_node, RoutedEventHandlerType::MouseWheel, &mut evt);
+                        event_processed = true;
                     }
                 }
 
@@ -827,7 +829,7 @@ impl UserInterface {
 
         self.prev_picked_node = self.picked_node;
 
-        false
+        event_processed
     }
 }
 

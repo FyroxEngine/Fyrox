@@ -84,7 +84,7 @@ impl ScrollContentPresenter {
             owner_handle: Handle::none(),
             scroll: Vec2::new(),
             vertical_scroll_allowed: true,
-            horizontal_scroll_allowed: true,
+            horizontal_scroll_allowed: false,
         }
     }
 

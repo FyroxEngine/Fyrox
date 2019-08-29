@@ -12,9 +12,8 @@ use crate::{
         border::BorderBuilder,
     },
     utils::pool::Handle,
+    math::vec2::{Vec2}
 };
-
-use crate::math::vec2::{Vec2};
 
 pub type ButtonClickEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
 
