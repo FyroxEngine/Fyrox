@@ -17,8 +17,8 @@ WARNING: Some places are semi-complete or just does not implemented yet, this en
 - Window (using glutin)
 - Object pool
 - Scene graph with pivot, camera, mesh nodes.
-- FBX Loader (ASCII only for now, binary coming soon)
-- TTF Loader
+- FBX Loader (both ASCII and binary)
+- TTF Loader (compound characters are not supported yet)
 - Advanced node-based UI with these nodes ("widgets")
 	- Border
 	- Button
@@ -31,7 +31,7 @@ WARNING: Some places are semi-complete or just does not implemented yet, this en
 	- Window 
 - Fonts
 - Position-based physics
-- Object visitor (built-in save/load)
+- Built-in save/load using object visitor 
 - Automatic resource management
 	- Texture
 	- Models
@@ -61,8 +61,9 @@ WARNING: Some places are semi-complete or just does not implemented yet, this en
 - lexical - fast text -> number parsing for ASCII FBX loader 
 - byteorder - read/write builtin rust types (u16, u32, f32, etc.)
 - base64 - encode binary data for object visitor's text output 
+- inflate - to decompress binary FBX data
 
-## Contibuting
+## Contributing
 
 Contributions are very welcome!
 

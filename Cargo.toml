@@ -12,8 +12,8 @@ opt-level = 3
 
 [dependencies]
 glutin = "0.21.0"
-image = "*"
-lexical = "*"
-byteorder = "*"
-base64 = "*"
-inflate = "*"
+image = "0.22.1"
+lexical = "3.0.0"
+byteorder = "1.3.2"
+base64 = "0.10.1"
+inflate = "0.4.5"
