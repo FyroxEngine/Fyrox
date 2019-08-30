@@ -1,9 +1,13 @@
 # What is this?
-3d shooter written in Rust. This project ports many features from DmitrysEngine (written in C), it will eventually be split for Engine and Game parts. 
+
+3d game engine written in Rust. This project ports many features from [DmitrysEngine](https://github.com/mrDIMAS/DmitrysEngine) (written in C).
 
 WARNING: Some places are semi-complete or just does not implemented yet, this engine is not in production-ready state yet.
 
 ## Screenshots
+
+These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter) which is a big demo for the engine.
+
 ![1](pics/1.png?raw=true "Game 1")
 
 ![2](pics/2.png?raw=true "Game 2")
@@ -47,12 +51,6 @@ WARNING: Some places are semi-complete or just does not implemented yet, this en
 - GJK-EPA based collision solver
 - Sound
 - Ray-cast for physics
-
-### Game
-
-- Player 
-- Weapons
-- Simple level
 
 ## Dependencies
 
