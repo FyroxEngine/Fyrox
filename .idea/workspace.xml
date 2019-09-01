@@ -6,107 +6,24 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/fonts/font.ttf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/ak47.FBX" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/cube.FBX" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/dm6.fbx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/m4.FBX" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/map.FBX" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/ripper.fbx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/models/skin_test.FBX" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/raster/_atlas.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/Ak47_Body.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/Ak47_Body_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/Ak47_Magazine.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/Ak47_Magazine_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/M4_Body.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/M4_Body_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/M4_Magazine.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/M4_Magazine_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/M4_Sight.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/M4_Sight_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/ammo_icon.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/barell.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks10.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks11b.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks11b_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks15.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks15_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks17floor.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks17floor2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/blocks9.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/box.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick2_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick3.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick3_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick4.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/brick_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/clang_floor.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/clang_floor2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/clang_floor3b.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/clouds.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/column.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/concrete.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/concrete2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/concrete_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/concretefloor1.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/crosshair.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/cube.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/fire.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/flare.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/floor.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/grass.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/grenade.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/grenade_specular.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/health_icon.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/lamp.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/largeblockfloor3.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/largeblockfloor3_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/largeblockfloor4.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/license.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/medkit.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/medkit_ao.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/medkit_metallic.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/medkit_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/medkit_roughness.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/mesh.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal1_1.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal2_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal3.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal3_3.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal4.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal4_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/metal5.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/moss.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/plants.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/rock.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/rock2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/rock3.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/skin.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/skin_normal.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/soldier.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/swat.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/wood.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/wood1.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/textures/wood2.tga" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/rg3d.iml" beforeDir="false" afterPath="$PROJECT_DIR$/rg3d.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/save.bin" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/save.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/level.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/player.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/game/weapon.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/attribute.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/attribute.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.bin" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/test.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/border.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/border.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/canvas.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/canvas.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/draw.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/draw.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/grid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/grid.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/node.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_bar.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_bar.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/window.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/vec2.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/math/vec2.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/render.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/render.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -160,7 +77,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Cargo Command.Debug">
+  <component name="RunManager" selected="Cargo Command.Release">
     <configuration name="Clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="channel" value="DEFAULT" />
       <option name="command" value="clippy" />
@@ -176,7 +93,7 @@
     </configuration>
     <configuration name="Debug" type="CargoCommandRunConfiguration" factoryName="Cargo Command" temporary="true">
       <option name="channel" value="DEFAULT" />
-      <option name="command" value="run --package rg3d --bin rg3d" />
+      <option name="command" value="build --package rg3d" />
       <option name="allFeatures" value="false" />
       <option name="nocapture" value="false" />
       <option name="emulateTerminal" value="false" />
@@ -189,7 +106,7 @@
     </configuration>
     <configuration name="Release" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="channel" value="DEFAULT" />
-      <option name="command" value="run --package rg3d --bin rg3d --release" />
+      <option name="command" value="build --package rg3d --release" />
       <option name="allFeatures" value="false" />
       <option name="nocapture" value="false" />
       <option name="emulateTerminal" value="false" />
@@ -213,6 +130,12 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
+    <list>
+      <item itemvalue="Cargo Command.Clippy" />
+      <item itemvalue="Cargo Command.Release" />
+      <item itemvalue="Cargo Command.Test" />
+      <item itemvalue="Cargo Command.Debug" />
+    </list>
     <recent_temporary>
       <list>
         <item itemvalue="Cargo Command.Debug" />

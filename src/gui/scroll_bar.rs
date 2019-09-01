@@ -54,7 +54,7 @@ impl ScrollBar {
             step: 1.0,
             orientation: Orientation::Horizontal,
             is_dragging: false,
-            offset: Vec2::new(),
+            offset: Vec2::zero(),
             value_changed: None,
         }
     }

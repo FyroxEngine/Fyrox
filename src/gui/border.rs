@@ -84,7 +84,7 @@ impl Layout for Border {
             available_size.x - margin_x,
             available_size.y - margin_y,
         );
-        let mut desired_size = Vec2::new();
+        let mut desired_size = Vec2::zero();
 
         if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {

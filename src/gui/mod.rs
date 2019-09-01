@@ -150,7 +150,7 @@ impl UserInterface {
             captured_node: Handle::none(),
             root_canvas: Handle::none(),
             nodes: Pool::new(),
-            mouse_position: Vec2::new(),
+            mouse_position: Vec2::zero(),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::none(),
             prev_picked_node: Handle::none(),
@@ -175,6 +175,7 @@ impl UserInterface {
                 UINodeKind::Canvas(canvas) => canvas.owner_handle = node_handle,
                 UINodeKind::ScrollContentPresenter(scp) => scp.owner_handle = node_handle,
                 UINodeKind::Window(window) => window.owner_handle = node_handle,
+                UINodeKind::User(user) => user.set_owner_handle(node_handle)
             }
         }
         self.link_nodes(node_handle, self.root_canvas);
@@ -248,7 +249,7 @@ impl UserInterface {
     }
 
     fn default_measure_override(&self, handle: Handle<UINode>, available_size: Vec2) -> Vec2 {
-        let mut size = Vec2::new();
+        let mut size = Vec2::zero();
 
         if let Some(node) = self.nodes.borrow(handle) {
             for child_handle in node.children.iter() {
@@ -448,7 +449,7 @@ impl UserInterface {
     fn update_transform(&mut self, node_handle: Handle<UINode>) {
         let mut children = UnsafeCollectionView::empty();
 
-        let mut screen_position = Vec2::new();
+        let mut screen_position = Vec2::zero();
         if let Some(node) = self.nodes.borrow(node_handle) {
             children = UnsafeCollectionView::from_slice(&node.children);
             if let Some(parent) = self.nodes.borrow(node.parent) {

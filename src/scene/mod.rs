@@ -16,7 +16,7 @@ use crate::{
     },
     math::mat4::Mat4,
     physics::Physics,
-    engine::State,
+    engine::state::State,
     scene::{
         animation::Animation,
         node::Node,
@@ -37,7 +37,7 @@ pub struct Scene {
     physics: Physics,
     /// Tree traversal stack.
     stack: Vec<Handle<Node>>,
-    active_camera: Handle<Node>
+    active_camera: Handle<Node>,
 }
 
 impl Default for Scene {
@@ -83,7 +83,7 @@ impl Scene {
     }
 
     #[inline]
-    pub fn get_nodes(&mut self) -> &Pool<Node> {
+    pub fn get_nodes(&self) -> &Pool<Node> {
         &self.nodes
     }
 
@@ -142,6 +142,25 @@ impl Scene {
     #[inline]
     pub fn get_animation(&self, handle: Handle<Animation>) -> Option<&Animation> {
         self.animations.borrow(handle)
+    }
+
+    /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
+    pub fn find_copy_of(&self, root_handle: Handle<Node>, node_handle: Handle<Node>) -> Handle<Node> {
+        if let Some(root) = self.nodes.borrow(root_handle) {
+            println!("original is {:?}", root.get_original_handle());
+            if root.get_original_handle() == node_handle {
+                return root_handle;
+            }
+
+            for child_handle in root.children.iter() {
+                let out = self.find_copy_of(*child_handle, node_handle);
+                if out.is_some() {
+
+                    return out;
+                }
+            }
+        }
+        Handle::none()
     }
 
     #[inline]
@@ -205,10 +224,51 @@ impl Scene {
         }
     }
 
+    /// Searches node with specified name starting from specified root node.
+    pub fn find_node_by_name_from_root(&self, name: &str) -> Handle<Node> {
+        self.find_node_by_name(self.root, name)
+    }
+
+    pub fn copy_node(&self, node_handle: Handle<Node>, dest_scene: &mut Scene) -> Handle<Node> {
+        let mut old_new_mapping: HashMap<Handle<Node>, Handle<Node>> = HashMap::new();
+        let root_handle = self.copy_node_internal(node_handle, dest_scene, &mut old_new_mapping);
+
+        // Iterate over instantiated nodes and remap bones handles.
+        for (_, new_node_handle) in old_new_mapping.iter() {
+            if let Some(node) = dest_scene.get_node_mut(*new_node_handle) {
+                if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+                    for surface in mesh.get_surfaces_mut() {
+                        for bone_handle in surface.bones.iter_mut() {
+                            if let Some(entry) = old_new_mapping.get(bone_handle) {
+                                *bone_handle = *entry;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /*
+        // Remap animation track nodes.
+        for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
+            // Find instantiated node that corresponds to node in resource
+            let nodes = dest_scene.get_nodes();
+            for k in 0..nodes.get_capacity() {
+                if let Some(node) = nodes.at(k) {
+                    if node.get_original_handle() == ref_track.get_node() {
+                        anim_copy.get_tracks_mut()[i].set_node(nodes.handle_from_index(k));
+                    }
+                }
+            }
+        }*/
+
+        root_handle
+    }
+
     /// Creates a full copy of node with all children.
     /// This is relatively heavy operation!
     /// In case if some error happened it returns Handle::none
-    pub fn copy_node(&self, root_handle: Handle<Node>, dest_scene: &mut Scene, old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>) -> Handle<Node> {
+    fn copy_node_internal(&self, root_handle: Handle<Node>, dest_scene: &mut Scene, old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>) -> Handle<Node> {
         match self.get_node(root_handle) {
             Some(src_node) => {
                 let mut dest_node = src_node.make_copy(root_handle.clone());
@@ -218,7 +278,7 @@ impl Scene {
                 let dest_copy_handle = dest_scene.add_node(dest_node);
                 old_new_mapping.insert(root_handle.clone(), dest_copy_handle);
                 for src_child_handle in &src_node.children {
-                    let dest_child_handle = self.copy_node(*src_child_handle, dest_scene, old_new_mapping);
+                    let dest_child_handle = self.copy_node_internal(*src_child_handle, dest_scene, old_new_mapping);
                     if !dest_child_handle.is_none() {
                         dest_scene.link_nodes(dest_child_handle, dest_copy_handle);
                     }

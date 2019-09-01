@@ -1,20 +1,18 @@
 use crate::{
     scene::{Scene, node::Node},
     utils::pool::Handle,
-    engine::State,
+    engine::state::State,
     resource::{
         fbx,
         Resource,
         ResourceKind,
         fbx::error::FbxError,
     },
-    scene::node::NodeKind,
 };
 use std::{
     path::Path,
     cell::RefCell,
     rc::Rc,
-    collections::{HashMap, hash_map::Entry},
 };
 
 pub struct Model {
@@ -40,28 +38,14 @@ impl Model {
     pub fn instantiate(resource_rc: Rc<RefCell<Resource>>, dest_scene: &mut Scene) -> Result<Handle<Node>, ()> {
         let resource = resource_rc.borrow();
         if let ResourceKind::Model(model) = resource.borrow_kind() {
-            let mut old_new_mapping = HashMap::new();
-            let root = model.scene.copy_node(model.scene.get_root(), dest_scene, &mut old_new_mapping);
+            let root = model.scene.copy_node(model.scene.get_root(), dest_scene);
 
-            // Notify instantiated nodes about resource they were created from. Also do bones
-            // remapping for meshes.
+            // Notify instantiated nodes about resource they were created from.
             let mut stack = Vec::new();
             stack.push(root);
             while let Some(node_handle) = stack.pop() {
                 if let Some(node) = dest_scene.get_nodes_mut().borrow_mut(node_handle) {
                     node.set_resource(Rc::clone(&resource_rc));
-
-                    // Remap bones
-                    if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
-                        for surface in mesh.get_surfaces_mut() {
-                            for bone_handle in surface.bones.iter_mut() {
-                                if let Entry::Occupied(entry) = old_new_mapping.entry(bone_handle.clone()) {
-                                    *bone_handle = *entry.get();
-                                }
-                            }
-                        }
-                    }
-
                     // Continue on children.
                     for child_handle in node.get_children() {
                         stack.push(child_handle.clone());

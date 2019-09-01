@@ -39,7 +39,7 @@ impl Layout for ScrollContentPresenter {
             },
         );
 
-        let mut desired_size = Vec2::new();
+        let mut desired_size = Vec2::zero();
 
         if let Some(node) = ui.nodes.borrow(self.owner_handle) {
             for child_handle in node.children.iter() {
@@ -82,7 +82,7 @@ impl ScrollContentPresenter {
     fn new() -> Self {
         Self {
             owner_handle: Handle::none(),
-            scroll: Vec2::new(),
+            scroll: Vec2::zero(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: false,
         }

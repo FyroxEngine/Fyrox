@@ -45,7 +45,7 @@ impl Layout for Canvas {
             }
         }
 
-        Vec2::new()
+        Vec2::zero()
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {

@@ -377,6 +377,11 @@ impl Node {
     }
 
     #[inline]
+    pub fn set_original_handle(&mut self, original: Handle<Node>) {
+        self.original = original;
+    }
+
+    #[inline]
     pub fn set_body(&mut self, body: Handle<Body>) {
         self.body = body;
     }
@@ -397,7 +402,7 @@ impl Node {
     }
 
     #[inline]
-    pub fn get_resource(&mut self) -> Option<Rc<RefCell<Resource>>> {
+    pub fn get_resource(&self) -> Option<Rc<RefCell<Resource>>> {
         match &self.resource {
             Some(resource) => Some(Rc::clone(resource)),
             None => None
@@ -492,6 +497,11 @@ impl Node {
     #[inline]
     pub fn set_local_scale(&mut self, scl: Vec3) {
         self.local_scale = scl;
+    }
+
+    #[inline]
+    pub fn get_parent(&self) -> Handle<Node> {
+        self.parent
     }
 
     #[inline]

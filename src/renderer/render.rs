@@ -1,6 +1,6 @@
 use crate::{
     utils::pool::{Handle, Pool},
-    engine::{State, duration_to_seconds_f32},
+    engine::{state::State, duration_to_seconds_f32},
     resource::{ResourceKind, ttf::Font},
     gui::draw::{DrawingContext, CommandKind, Color},
     scene::node::{Node, NodeKind},

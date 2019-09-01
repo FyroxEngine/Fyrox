@@ -29,6 +29,10 @@ use crate::{
     },
 };
 
+pub trait CustomUINodeKind : Any {
+    fn set_owner_handle(&mut self, handle: Handle<UINode>);
+}
+
 pub enum UINodeKind {
     Text(Text),
     Border(Border),
@@ -43,8 +47,26 @@ pub enum UINodeKind {
     /// Allows user to scroll content
     ScrollContentPresenter(ScrollContentPresenter),
     Window(Window),
+    /// Custom user-defined node kind, allows to build your own UI nodes.
+    User(Box<dyn CustomUINodeKind>)
 }
 
+/// UI node is a building block for all UI widgets. For example button could be a node with
+/// this structure
+///
+/// Border
+///    Text
+///
+/// or
+///
+/// Border
+///    SomeOtherNode
+///      Child1
+///      Child2
+///      ...
+///      ChildN
+///
+///
 /// Notes. Some fields wrapped into Cell's to be able to modify them while in measure/arrange
 /// stage. This is required evil, I can't just unwrap all the recursive calls in measure/arrange.
 pub struct UINode {
@@ -97,13 +119,13 @@ impl UINode {
         UINode {
             kind,
             name: String::new(),
-            desired_local_position: Cell::new(Vec2::new()),
+            desired_local_position: Cell::new(Vec2::zero()),
             width: Cell::new(std::f32::NAN),
             height: Cell::new(std::f32::NAN),
-            screen_position: Vec2::new(),
-            desired_size: Cell::new(Vec2::new()),
-            actual_local_position: Cell::new(Vec2::new()),
-            actual_size: Cell::new(Vec2::new()),
+            screen_position: Vec2::zero(),
+            desired_size: Cell::new(Vec2::zero()),
+            actual_local_position: Cell::new(Vec2::zero()),
+            actual_size: Cell::new(Vec2::zero()),
             min_size: Vec2::make(0.0, 0.0),
             max_size: Vec2::make(std::f32::INFINITY, std::f32::INFINITY),
             color: Color::white(),
@@ -195,7 +217,8 @@ impl UINode {
             UINodeKind::Grid(grid) => grid.type_id(),
             UINodeKind::Canvas(canvas) => canvas.type_id(),
             UINodeKind::ScrollContentPresenter(scp) => scp.type_id(),
-            UINodeKind::Window(window) => window.type_id()
+            UINodeKind::Window(window) => window.type_id(),
+            UINodeKind::User(user) => user.as_ref().type_id(),
         }
     }
 }

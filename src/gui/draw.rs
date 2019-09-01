@@ -280,7 +280,7 @@ impl FormattedText {
                         };
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
-                            tex_coords: [Vec2::new(); 4],
+                            tex_coords: [Vec2::zero(); 4],
                             color,
                         });
                         cursor.x += rect.w;
@@ -391,7 +391,7 @@ fn get_line_thickness_vector(a: Vec2, b: Vec2, thickness: f32) -> Vec2 {
     if let Some(dir) = (b - a).normalized() {
         dir.perpendicular().scale(thickness * 0.5)
     } else {
-        Vec2::new()
+        Vec2::zero()
     }
 }
 

@@ -27,8 +27,8 @@ pub struct ScrollViewer {
 
 impl ScrollViewer {
     pub fn update(handle: Handle<UINode>, ui: &mut UserInterface) {
-        let mut content_size = Vec2::new();
-        let mut available_size_for_content = Vec2::new();
+        let mut content_size = Vec2::zero();
+        let mut available_size_for_content = Vec2::zero();
         let mut horizontal_scroll_bar_handle = Handle::none();
         let mut vertical_scroll_bar_handle = Handle::none();
 

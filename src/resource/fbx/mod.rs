@@ -31,7 +31,7 @@ use crate::{
             Vertex, VertexWeightSet, VertexWeight,
         }
     },
-    engine::State,
+    engine::state::State,
     gui::draw::Color,
     resource::{
         fbx::{
