@@ -40,9 +40,11 @@ use crate::{
             error::FbxError,
         }
     },
-    scene::node::{Node, NodeKind, Mesh, Light},
     scene::Scene,
 };
+use crate::scene::node::{Node, NodeKind};
+use crate::scene::mesh::Mesh;
+use crate::scene::light::Light;
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -976,11 +978,9 @@ impl Fbx {
                         FbxTexture::read(*object_handle, &self.nodes)?));
                 }
                 "NodeAttribute" => {
-                    if object.attrib_count() > 2 {
-                        if object.get_attrib(2)?.as_string() == "Light" {
-                            component_handle = self.component_pool.spawn(FbxComponent::Light(
-                                FbxLight::read(*object_handle, &self.nodes)?));
-                        }
+                    if object.attrib_count() > 2 && object.get_attrib(2)?.as_string() == "Light" {
+                        component_handle = self.component_pool.spawn(FbxComponent::Light(
+                            FbxLight::read(*object_handle, &self.nodes)?));
                     }
                 }
                 "AnimationCurve" => {
@@ -1122,10 +1122,7 @@ impl Fbx {
         Ok(())
     }
 
-    fn convert_model(&self,
-                     model: &FbxModel,
-                     state: &mut State,
-                     scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
+    fn convert_model(&self, model: &FbxModel, state: &mut State, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         // Create node with correct kind.
         let mut node =
             if !model.geoms.is_empty() {
@@ -1251,10 +1248,7 @@ impl Fbx {
     ///
     /// Converts FBX DOM to native engine representation.
     ///
-    pub fn convert(&self,
-                   state: &mut State,
-                   scene: &mut Scene)
-                   -> Result<Handle<Node>, FbxError> {
+    pub fn convert(&self, state: &mut State, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         let mut instantiated_nodes = Vec::new();
         let root = scene.add_node(Node::new(NodeKind::Base));
         scene.add_animation(Animation::default());
@@ -1297,7 +1291,7 @@ impl Fbx {
                             weight.effector = (*bone_handle).into();
                         }
                     }
-                    surface.bones = surface_bones.iter().map(|h| *h).collect();
+                    surface.bones = surface_bones.iter().copied().collect();
 
                     // TODO: Add sanity check about unique owner of surface data.
                     // At this point owner of surface data *must* be only one.
@@ -1345,8 +1339,7 @@ impl Fbx {
     }
 }
 
-pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path)
-                     -> Result<Handle<Node>, FbxError> {
+pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
     match File::open(path) {

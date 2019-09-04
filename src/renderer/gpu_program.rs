@@ -3,7 +3,8 @@ use crate::{
     math::{
         vec4::Vec4,
         mat4::Mat4,
-        vec3::Vec3
+        vec3::Vec3,
+        vec2::Vec2
     },
     renderer::{
         gl::types::GLuint,
@@ -125,6 +126,12 @@ impl GpuProgram {
     pub fn set_vec3(&self, location: UniformLocation, value: &Vec3) {
         unsafe {
             gl::Uniform3f(location.id, value.x, value.y, value.z)
+        }
+    }
+
+    pub fn set_vec2(&self, location: UniformLocation, value: Vec2) {
+        unsafe {
+            gl::Uniform2f(location.id, value.x, value.y)
         }
     }
 }

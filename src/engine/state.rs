@@ -16,7 +16,7 @@ use crate::{
     scene::{
         Scene,
         node::NodeKind,
-        node::Node
+        node::Node,
     },
     utils::{
         pool::{Pool, Handle},
@@ -147,7 +147,7 @@ impl State {
             }
         }
 
-        // Resolve original handles. Original handle in a handle to a node in resource from which
+        // Resolve original handles. Original handle is a handle to a node in resource from which
         // a node was instantiated from. We can resolve it only by names of nodes, but this is not
         // reliable way of doing this, because some editors allow nodes to have same names for
         // objects, but here we'll assume that modellers will not create models with duplicated
@@ -185,7 +185,6 @@ impl State {
                 // TODO HACK: Fool borrow checker for now.
                 let mscene = unsafe { &mut *(scene as *mut Scene) };
 
-                // Try to find a for this node. Root in this case is a node that
                 let root_handle = Self::find_model_root(scene, node_handle);
 
                 if let Some(node) = scene.get_nodes_mut().at_mut(i) {

@@ -205,6 +205,12 @@ impl<T> Handle<T> {
     }
 }
 
+impl<T> Default for Pool<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> Pool<T> {
     #[inline]
     pub fn new() -> Self {

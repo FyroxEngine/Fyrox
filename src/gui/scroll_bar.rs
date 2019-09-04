@@ -197,6 +197,12 @@ pub enum Orientation {
     Horizontal,
 }
 
+impl Default for ScrollBarBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScrollBarBuilder {
     pub fn new() -> Self {
         Self {

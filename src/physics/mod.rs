@@ -401,6 +401,12 @@ impl Visit for Physics {
     }
 }
 
+impl Default for Physics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Physics {
     pub fn new() -> Physics {
         Physics {

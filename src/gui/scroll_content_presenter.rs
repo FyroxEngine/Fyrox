@@ -120,6 +120,12 @@ pub struct ScrollContentPresenterBuilder {
     common: CommonBuilderFields,
 }
 
+impl Default for ScrollContentPresenterBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScrollContentPresenterBuilder {
     pub fn new() -> Self {
         Self {

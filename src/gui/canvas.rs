@@ -75,6 +75,12 @@ pub struct CanvasBuilder {
     common: CommonBuilderFields
 }
 
+impl Default for CanvasBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CanvasBuilder {
     pub fn new() -> Self {
         Self {

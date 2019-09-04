@@ -244,6 +244,12 @@ impl From<FromUtf8Error> for VisitError {
     }
 }
 
+impl From<String> for VisitError {
+    fn from(s: String) -> Self {
+        VisitError::User(s)
+    }
+}
+
 pub type VisitResult = Result<(), VisitError>;
 
 impl Field {

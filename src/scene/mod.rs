@@ -1,5 +1,9 @@
 pub mod node;
 pub mod animation;
+pub mod mesh;
+pub mod camera;
+pub mod light;
+pub mod particle_system;
 
 use crate::{
     utils::{
@@ -14,7 +18,10 @@ use crate::{
             Pool,
         },
     },
-    math::mat4::Mat4,
+    math::{
+        mat4::Mat4,
+        vec3::Vec3,
+    },
     physics::Physics,
     engine::state::State,
     scene::{
@@ -23,7 +30,6 @@ use crate::{
         node::NodeKind,
     },
 };
-use crate::math::vec3::Vec3;
 use std::collections::HashMap;
 
 pub struct Scene {
@@ -147,7 +153,6 @@ impl Scene {
     /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
     pub fn find_copy_of(&self, root_handle: Handle<Node>, node_handle: Handle<Node>) -> Handle<Node> {
         if let Some(root) = self.nodes.borrow(root_handle) {
-            println!("original is {:?}", root.get_original_handle());
             if root.get_original_handle() == node_handle {
                 return root_handle;
             }
@@ -155,7 +160,6 @@ impl Scene {
             for child_handle in root.children.iter() {
                 let out = self.find_copy_of(*child_handle, node_handle);
                 if out.is_some() {
-
                     return out;
                 }
             }
@@ -248,20 +252,6 @@ impl Scene {
             }
         }
 
-        /*
-        // Remap animation track nodes.
-        for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
-            // Find instantiated node that corresponds to node in resource
-            let nodes = dest_scene.get_nodes();
-            for k in 0..nodes.get_capacity() {
-                if let Some(node) = nodes.at(k) {
-                    if node.get_original_handle() == ref_track.get_node() {
-                        anim_copy.get_tracks_mut()[i].set_node(nodes.handle_from_index(k));
-                    }
-                }
-            }
-        }*/
-
         root_handle
     }
 
@@ -294,8 +284,8 @@ impl Scene {
         self.root
     }
 
-    pub fn update_physics(&mut self, dt: f64) {
-        self.physics.step(dt as f32);
+    pub fn update_physics(&mut self, dt: f32) {
+        self.physics.step(dt);
 
         // Sync node positions with assigned physics bodies
         for node in self.nodes.iter_mut() {
@@ -368,18 +358,21 @@ impl Scene {
         }
     }
 
-    pub fn update(&mut self, aspect_ratio: f32, dt: f64) {
+    pub fn update(&mut self, aspect_ratio: f32, dt: f32) {
         self.update_physics(dt);
 
-        self.update_animations(dt as f32);
+        self.update_animations(dt);
         self.update_nodes();
 
         for node in self.nodes.iter_mut() {
             let eye = node.get_global_position();
             let look = node.get_look_vector();
             let up = node.get_up_vector();
-            if let NodeKind::Camera(camera) = node.borrow_kind_mut() {
-                camera.calculate_matrices(eye, look, up, aspect_ratio);
+
+            match node.borrow_kind_mut() {
+                NodeKind::Camera(camera) => camera.calculate_matrices(eye, look, up, aspect_ratio),
+                NodeKind::ParticleSystem(particle_system) => particle_system.update(dt),
+                _ => ()
             }
         }
     }

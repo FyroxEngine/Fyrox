@@ -1,4 +1,4 @@
-// TTF loader and rasterizer
+// TTF loader, rasterizer, atlas builder.
 
 use crate::{
     math::{

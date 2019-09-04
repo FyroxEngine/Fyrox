@@ -19,7 +19,6 @@ use std::{
     path::Path,
 };
 
-
 pub struct Engine {
     renderer: Renderer,
     pub state: State,
@@ -66,7 +65,7 @@ impl Engine {
         self.running
     }
 
-    pub fn update(&mut self, dt: f64) {
+    pub fn update(&mut self, dt: f32) {
         let client_size = self.renderer.context.window().get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
 

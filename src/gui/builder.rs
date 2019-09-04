@@ -29,6 +29,12 @@ pub struct CommonBuilderFields {
     pub(in crate::gui) children: Vec<Handle<UINode>>,
 }
 
+impl Default for CommonBuilderFields {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CommonBuilderFields {
     pub fn new() -> Self {
         Self {

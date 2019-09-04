@@ -14,8 +14,8 @@ use crate::{
         vec3::Vec3,
         mat4::Mat4,
         vec2::Vec2,
-        vec4::Vec4
-    }
+        vec4::Vec4,
+    },
 };
 use std::{
     ffi::{CString, c_void},
@@ -23,14 +23,27 @@ use std::{
     time::{Instant, Duration},
     thread,
     cell::RefCell,
+    fmt::Write,
 };
-use glutin::PossiblyCurrent;
+use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api};
+use crate::scene::particle_system::DrawData;
 
 pub fn check_gl_error() {
     unsafe {
-        match gl::GetError() {
-            gl::NO_ERROR => (),
-            _ => panic!("unknown opengl error!")
+        let error_code = gl::GetError();
+        if error_code != gl::NO_ERROR {
+            let mut message = String::new();
+            match error_code {
+                gl::INVALID_ENUM => write!(message, "GL_INVALID_ENUM error has occurred!").unwrap(),
+                gl::INVALID_VALUE => write!(message, "GL_INVALID_VALUE error has occurred!").unwrap(),
+                gl::INVALID_OPERATION => write!(message, "GL_INVALID_OPERATION error occurred!").unwrap(),
+                gl::STACK_OVERFLOW => write!(message, "GL_STACK_OVERFLOW error has occurred!").unwrap(),
+                gl::STACK_UNDERFLOW => write!(message, "GL_STACK_UNDERFLOW error has occurred!").unwrap(),
+                gl::OUT_OF_MEMORY => write!(message, "GL_OUT_OF_MEMORY error has occurred!").unwrap(),
+                _ => (),
+            };
+
+            panic!("{}", message);
         }
     }
 }
@@ -40,6 +53,7 @@ struct UIShader {
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
 }
+
 
 struct DeferredLightingShader {
     program: GpuProgram,
@@ -311,6 +325,136 @@ impl DeferredLightingShader {
     }
 }
 
+struct ParticleSystemShader {
+    program: GpuProgram,
+    view_projection_matrix: UniformLocation,
+    world_matrix: UniformLocation,
+    camera_side_vector: UniformLocation,
+    camera_up_vector: UniformLocation,
+    diffuse_texture: UniformLocation,
+    depth_buffer_texture: UniformLocation,
+    inv_screen_size: UniformLocation,
+    proj_params: UniformLocation,
+}
+
+impl ParticleSystemShader {
+    fn new() -> Self {
+        let vertex_source = CString::new(r#"
+            #version 330 core
+
+            layout(location = 0) in vec3 vertexPosition;
+            layout(location = 1) in vec2 vertexTexCoord;
+            layout(location = 2) in float particleSize;
+            layout(location = 3) in float particleRotation;
+            layout(location = 4) in vec4 vertexColor;
+
+            uniform mat4 viewProjectionMatrix;
+            uniform mat4 worldMatrix;
+            uniform vec3 cameraUpVector;
+            uniform vec3 cameraSideVector;
+
+            out vec2 texCoord;
+            out vec4 color;
+
+            vec2 rotateVec2(vec2 v, float angle)
+            {
+               float c = cos(angle);
+               float s = sin(angle);
+               mat2 m = mat2(c, -s, s, c);
+               return m * v;
+            }
+
+            void main()
+            {
+                color = vertexColor;
+                texCoord = vertexTexCoord;
+                vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, particleRotation);
+                vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0);
+                vec3 offset = (vertexOffset.x * cameraSideVector + vertexOffset.y * cameraUpVector) * particleSize;
+                gl_Position = viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
+            }"#).unwrap();
+
+        let fragment_source = CString::new(r#"
+            #version 330 core
+
+            uniform sampler2D diffuseTexture;
+            uniform sampler2D depthBufferTexture;
+            uniform vec2 invScreenSize;
+            uniform vec2 projParams;
+
+            out vec4 FragColor;
+            in vec2 texCoord;
+            in vec4 color;
+
+            float toProjSpace(float z)
+            {
+               float far = projParams.x;
+               float near = projParams.y;
+                return (far * near) / (far - z * (far + near));
+            }
+
+            void main()
+            {
+               float sceneDepth = toProjSpace(texture(depthBufferTexture, gl_FragCoord.xy * invScreenSize).r);
+               float depthOpacity = clamp((sceneDepth - gl_FragCoord.z / gl_FragCoord.w) * 2.0f, 0.0, 1.0);
+                FragColor = color * texture(diffuseTexture, texCoord).r;
+               FragColor.a *= depthOpacity;
+            }
+            "#).unwrap();
+
+        let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
+
+        Self {
+            view_projection_matrix: program.get_uniform_location("viewProjectionMatrix"),
+            world_matrix: program.get_uniform_location("worldMatrix"),
+            camera_side_vector: program.get_uniform_location("cameraSideVector"),
+            camera_up_vector: program.get_uniform_location("cameraUpVector"),
+            diffuse_texture: program.get_uniform_location("diffuseTexture"),
+            depth_buffer_texture: program.get_uniform_location("depthBufferTexture"),
+            inv_screen_size: program.get_uniform_location("invScreenSize"),
+            proj_params: program.get_uniform_location("projParams"),
+            program,
+        }
+    }
+
+    pub fn bind(&self) {
+        self.program.bind();
+    }
+
+    pub fn set_view_projection_matrix(&self, mat: &Mat4) {
+        self.program.set_mat4(self.view_projection_matrix, mat)
+    }
+
+    pub fn set_world_matrix(&self, mat: &Mat4) {
+        self.program.set_mat4(self.world_matrix, mat)
+    }
+
+    pub fn set_camera_side_vector(&self, vec: &Vec3) {
+        self.program.set_vec3(self.camera_side_vector, vec)
+    }
+
+    pub fn set_camera_up_vector(&self, vec: &Vec3) {
+        self.program.set_vec3(self.camera_up_vector, vec)
+    }
+
+    pub fn set_diffuse_texture(&self, id: i32) {
+        self.program.set_int(self.diffuse_texture, id)
+    }
+
+    pub fn set_depth_buffer_texture(&self, id: i32) {
+        self.program.set_int(self.depth_buffer_texture, id)
+    }
+
+    pub fn set_inv_screen_size(&self, size: Vec2) {
+        self.program.set_vec2(self.inv_screen_size, size)
+    }
+
+    pub fn set_proj_params(&self, far: f32, near: f32) {
+        let params = Vec2::make(far, near);
+        self.program.set_vec2(self.proj_params, params);
+    }
+}
+
 struct UIRenderBuffers {
     vbo: GLuint,
     vao: GLuint,
@@ -484,8 +628,158 @@ impl Default for Statistics {
     }
 }
 
+struct ParticleSystemRenderer {
+    shader: ParticleSystemShader,
+    draw_data: DrawData,
+    vbo: GLuint,
+    vao: GLuint,
+    ebo: GLuint,
+}
+
+impl ParticleSystemRenderer {
+    fn new() -> Self {
+        let mut vbo = 0;
+        let mut vao = 0;
+        let mut ebo = 0;
+
+        unsafe {
+            gl::GenBuffers(1, &mut vbo);
+            gl::GenBuffers(1, &mut ebo);
+            gl::GenVertexArrays(1, &mut vao);
+        }
+
+        Self {
+            shader: ParticleSystemShader::new(),
+            draw_data: Default::default(),
+            vbo,
+            vao,
+            ebo,
+        }
+    }
+
+    fn render(&mut self, state: &State, white_dummy: GLuint, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
+        unsafe {
+            gl::Disable(gl::CULL_FACE);
+            gl::Enable(gl::BLEND);
+            gl::DepthMask(gl::FALSE);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            self.shader.bind();
+
+            for scene in state.get_scenes().iter() {
+                let camera_node = match scene.get_active_camera() {
+                    Some(camera_node) => camera_node,
+                    None => continue
+                };
+
+                let camera =
+                    if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
+                        camera
+                    } else {
+                        continue;
+                    };
+
+                let inv_view = camera.get_inv_view_matrix().unwrap();
+
+                let camera_up = inv_view.up();
+                let camera_side = inv_view.side();
+                let camera_position = camera_node.get_global_position();
+
+                for node in scene.get_nodes().iter() {
+                    let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.borrow_kind() {
+                        particle_system
+                    } else {
+                        continue;
+                    };
+
+                    particle_system.generate_draw_data(&node.get_global_position(), &camera_position, &mut self.draw_data);
+
+                    if self.draw_data.get_indices().len() == 0 {
+                        continue;
+                    }
+
+                    // Upload buffers
+                    gl::BindVertexArray(self.vao);
+
+                    // Upload indices
+                    let total_indices_byte_size = size_of::<u32>() * self.draw_data.get_indices().len();
+                    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
+                    gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, total_indices_byte_size as isize, self.draw_data.get_indices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
+
+                    // Upload vertices
+                    let vertex_size = DrawData::vertex_size() as i32;
+                    let total_size_bytes = vertex_size as usize * self.draw_data.get_vertices().len();
+
+                    gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
+                    gl::BufferData(gl::ARRAY_BUFFER, total_size_bytes as isize, self.draw_data.get_vertices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
+
+                    // Setup attribute locations for shared data
+                    let mut offset = 0;
+
+                    gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
+                    gl::EnableVertexAttribArray(0);
+                    offset += size_of::<Vec3>();
+
+                    gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
+                    gl::EnableVertexAttribArray(1);
+                    offset += size_of::<Vec2>();
+
+                    gl::VertexAttribPointer(2, 1, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
+                    gl::EnableVertexAttribArray(2);
+                    offset += size_of::<f32>();
+
+                    gl::VertexAttribPointer(3, 1, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
+                    gl::EnableVertexAttribArray(3);
+                    offset += size_of::<f32>();
+
+                    gl::VertexAttribPointer(4, 4, gl::UNSIGNED_BYTE, gl::TRUE, vertex_size, offset as *const c_void);
+                    gl::EnableVertexAttribArray(4);
+
+                    self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
+                    self.shader.set_world_matrix(node.get_global_transform());
+                    self.shader.set_camera_up_vector(&camera_up);
+                    self.shader.set_camera_side_vector(&camera_side);
+
+                    gl::ActiveTexture(gl::TEXTURE0);
+                    if let Some(resource) = particle_system.get_texture() {
+                        if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
+                            gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
+                        } else {
+                            gl::BindTexture(gl::TEXTURE_2D, white_dummy);
+                        }
+                    } else {
+                        gl::BindTexture(gl::TEXTURE_2D, white_dummy);
+                    }
+                    self.shader.set_diffuse_texture(0);
+
+                    gl::ActiveTexture(gl::TEXTURE1);
+                    gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
+                    self.shader.set_depth_buffer_texture(1);
+                    self.shader.set_inv_screen_size(Vec2::make(1.0 / frame_width, 1.0 / frame_height));
+                    self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
+
+                    gl::DrawElements(gl::TRIANGLES, self.draw_data.get_indices().len() as i32, gl::UNSIGNED_INT, std::ptr::null());
+                }
+            }
+
+            gl::Disable(gl::BLEND);
+            gl::DepthMask(gl::TRUE);
+        }
+    }
+}
+
+impl Drop for ParticleSystemRenderer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.vbo);
+            gl::DeleteBuffers(1, &self.ebo);
+            gl::DeleteVertexArrays(1, &self.vao);
+        }
+    }
+}
+
 pub struct Renderer {
-    pub(crate) context: glutin::WindowedContext<PossiblyCurrent>, // Must be on top!
+    // Must be on top!
+    pub(crate) context: glutin::WindowedContext<PossiblyCurrent>,
     pub(crate) events_loop: glutin::EventsLoop,
     ui_shader: UIShader,
     deferred_light_shader: DeferredLightingShader,
@@ -493,6 +787,7 @@ pub struct Renderer {
     gbuffer: GBuffer,
     flat_shader: FlatShader,
     ambient_light_shader: AmbientLightShader,
+    particle_system_renderer: ParticleSystemRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     white_dummy: GLuint,
@@ -501,8 +796,7 @@ pub struct Renderer {
     /// count, it will performed once. Lists are valid while there is scene to render.
     lights: Vec<Handle<Node>>,
     meshes: Vec<Handle<Node>>,
-    /// Scene graph traversal stack.
-    traversal_stack: Vec<Handle<Node>>,
+    particle_systems: Vec<Handle<Node>>,
     frame_rate_limit: usize,
     ui_render_buffers: UIRenderBuffers,
     statistics: Statistics,
@@ -936,6 +1230,8 @@ impl Renderer {
 
         let context_wrapper = glutin::ContextBuilder::new()
             .with_vsync(true)
+            .with_gl_profile(GlProfile::Core)
+            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
             .build_windowed(window_builder, &events_loop)
             .unwrap();
 
@@ -953,9 +1249,9 @@ impl Renderer {
                 ambient_light_shader: AmbientLightShader::new(),
                 flat_shader: FlatShader::new(),
                 gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32),
-                traversal_stack: Vec::new(),
                 lights: Vec::new(),
                 meshes: Vec::new(),
+                particle_systems: Vec::new(),
                 frame_rate_limit: 60,
                 statistics: Statistics::default(),
                 white_dummy: create_white_dummy(),
@@ -964,6 +1260,7 @@ impl Renderer {
                 sphere: RefCell::new(SurfaceSharedData::make_sphere(6, 6, 1.0)),
                 ui_render_buffers: create_ui_render_buffers(),
                 bone_matrices: Vec::new(),
+                particle_system_renderer: ParticleSystemRenderer::new()
             }
         }
     }
@@ -1263,22 +1560,18 @@ impl Renderer {
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
 
             for scene in state.get_scenes().iter() {
-                // Prepare for render - fill lists of nodes participating in rendering
-                // by traversing scene graph
+                // Prepare for render - fill lists of nodes participating in rendering.
                 self.meshes.clear();
                 self.lights.clear();
-                self.traversal_stack.clear();
-                self.traversal_stack.push(scene.get_root());
-                while let Some(node_handle) = self.traversal_stack.pop() {
-                    if let Some(node) = scene.get_node(node_handle) {
+                self.particle_systems.clear();
+                for i in 0..scene.get_nodes().get_capacity() {
+                    if let Some(node) = scene.get_nodes().at(i) {
+                        let node_handle = scene.get_nodes().handle_from_index(i);
                         match node.borrow_kind() {
                             NodeKind::Mesh(_) => self.meshes.push(node_handle),
                             NodeKind::Light(_) => self.lights.push(node_handle),
+                            NodeKind::ParticleSystem(_) => self.particle_systems.push(node_handle),
                             _ => ()
-                        }
-                        // Queue children for render
-                        for child_handle in node.get_children() {
-                            self.traversal_stack.push(child_handle.clone());
                         }
                     }
                 }
@@ -1486,6 +1779,8 @@ impl Renderer {
             gl::BindTexture(gl::TEXTURE_2D, 0);
             gl::ActiveTexture(gl::TEXTURE2);
             gl::BindTexture(gl::TEXTURE_2D, 0);
+
+            self.particle_system_renderer.render(state, self.white_dummy, frame_width, frame_height, &self.gbuffer);
 
             // Finally render everything into back buffer.
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);

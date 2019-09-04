@@ -1,15 +1,12 @@
 #![allow(dead_code)]
 
-// Textures
 extern crate image;
-// Window
 extern crate glutin;
-// Fast string -> number conversion
 extern crate lexical;
-
 extern crate byteorder;
 extern crate base64;
 extern crate inflate;
+extern crate rand;
 
 pub mod utils;
 pub mod math;

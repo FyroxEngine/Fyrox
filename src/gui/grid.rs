@@ -342,6 +342,12 @@ pub struct GridBuilder {
     common: CommonBuilderFields,
 }
 
+impl Default for GridBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GridBuilder {
     pub fn new() -> Self {
         GridBuilder {

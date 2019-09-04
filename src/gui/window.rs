@@ -42,7 +42,7 @@ pub struct Window {
     /// Invoked when window is closed.
     closed_handler: Option<Box<ClosedEventHandler>>,
     /// Invoked when windows is minimized.
-    minimized_hanlder: Option<Box<MinimizedEventHandler>>
+    minimized_handler: Option<Box<MinimizedEventHandler>>
 }
 
 pub struct WindowBuilder<'a> {
@@ -65,6 +65,12 @@ pub struct WindowBuilder<'a> {
 pub enum WindowTitle<'a> {
     Text(&'a str),
     Node(Handle<UINode>),
+}
+
+impl<'a> Default for WindowBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> WindowBuilder<'a> {
@@ -118,10 +124,10 @@ impl<'a> WindowBuilder<'a> {
             mouse_click_pos: Vec2::zero(),
             initial_position: Vec2::zero(),
             is_dragged: false,
-            minimizing_handler: None,
-            closing_handler: None,
-            closed_handler: None,
-            minimized_hanlder: None
+            minimizing_handler: self.minimizing_handler,
+            closing_handler: self.closing_handler,
+            closed_handler: self.closed_handler,
+            minimized_handler: self.minimized_handler
         };
 
         GenericNodeBuilder::new(UINodeKind::Window(window), self.common)

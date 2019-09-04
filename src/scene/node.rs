@@ -5,7 +5,6 @@ use std::{
 use crate::{
     utils::{
         visitor::{
-            VisitError,
             Visit,
             VisitResult,
             Visitor,
@@ -13,216 +12,26 @@ use crate::{
         pool::*,
     },
     math::{
-        vec3::*,
-        mat4::*,
-        quat::*,
-        *,
-        vec2::*,
+        vec3::Vec3,
+        mat4::Mat4,
+        quat::Quat,
     },
-    renderer::surface::*,
     physics::Body,
     resource::Resource,
-    gui::draw::Color,
+    scene::{
+        camera::Camera,
+        mesh::Mesh,
+        light::Light,
+        particle_system::ParticleSystem
+    }
 };
-
-pub struct Light {
-    radius: f32,
-    color: Color,
-    cone_angle: f32,
-    cone_angle_cos: f32,
-}
-
-impl Default for Light {
-    fn default() -> Light {
-        Light {
-            radius: 10.0,
-            color: Color::white(),
-            cone_angle: std::f32::consts::PI,
-            cone_angle_cos: -1.0,
-        }
-    }
-}
-
-impl Visit for Light {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.radius.visit("Radius", visitor)?;
-        self.color.visit("Color", visitor)?;
-        self.cone_angle.visit("ConeAngle", visitor)?;
-        self.cone_angle_cos.visit("ConeAngleCos", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-impl Light {
-    #[inline]
-    pub fn set_radius(&mut self, radius: f32) {
-        self.radius = radius;
-    }
-
-    #[inline]
-    pub fn get_radius(&self) -> f32 {
-        self.radius
-    }
-
-    #[inline]
-    pub fn set_color(&mut self, color: Color) {
-        self.color = color;
-    }
-
-    #[inline]
-    pub fn get_color(&self) -> Color {
-        self.color
-    }
-
-    #[inline]
-    pub fn get_cone_angle_cos(&self) -> f32 {
-        self.cone_angle_cos
-    }
-
-    pub fn set_cone_angle(&mut self, cone_angle: f32) {
-        self.cone_angle = cone_angle;
-        self.cone_angle_cos = cone_angle.cos();
-    }
-
-    #[inline]
-    pub fn make_copy(&self) -> Light {
-        Light {
-            radius: self.radius,
-            color: self.color,
-            cone_angle: self.cone_angle,
-            cone_angle_cos: self.cone_angle_cos,
-        }
-    }
-}
-
-pub struct Camera {
-    fov: f32,
-    z_near: f32,
-    z_far: f32,
-    viewport: Rect<f32>,
-    view_matrix: Mat4,
-    projection_matrix: Mat4,
-}
-
-impl Default for Camera {
-    fn default() -> Camera {
-        let fov: f32 = 75.0;
-        let z_near: f32 = 0.025;
-        let z_far: f32 = 2048.0;
-
-        Camera {
-            fov,
-            z_near,
-            z_far,
-            view_matrix: Mat4::identity(),
-            projection_matrix: Mat4::perspective(fov.to_radians(), 1.0, z_near, z_far),
-            viewport: Rect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
-        }
-    }
-}
-
-impl Visit for Camera {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-        self.fov.visit("Fov", visitor)?;
-        self.z_near.visit("ZNear", visitor)?;
-        self.z_far.visit("ZFar", visitor)?;
-        self.viewport.visit("Viewport", visitor)?;
-        visitor.leave_region()
-    }
-}
-
-impl Camera {
-    #[inline]
-    pub fn calculate_matrices(&mut self, pos: Vec3, look: Vec3, up: Vec3, aspect: f32) {
-        if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
-            self.view_matrix = view_matrix;
-        } else {
-            self.view_matrix = Mat4::identity();
-        }
-        self.projection_matrix = Mat4::perspective(self.fov.to_radians(), aspect, self.z_near, self.z_far);
-    }
-
-    #[inline]
-    pub fn get_viewport_pixels(&self, client_size: Vec2) -> Rect<i32> {
-        Rect {
-            x: (self.viewport.x * client_size.x) as i32,
-            y: (self.viewport.y * client_size.y) as i32,
-            w: (self.viewport.w * client_size.x) as i32,
-            h: (self.viewport.h * client_size.y) as i32,
-        }
-    }
-
-    #[inline]
-    pub fn get_view_projection_matrix(&self) -> Mat4 {
-        self.projection_matrix * self.view_matrix
-    }
-
-    #[inline]
-    pub fn make_copy(&self) -> Camera {
-        Camera {
-            fov: self.fov,
-            z_near: self.z_near,
-            z_far: self.z_far,
-            viewport: self.viewport,
-            view_matrix: self.view_matrix,
-            projection_matrix: self.projection_matrix,
-        }
-    }
-}
-
-pub struct Mesh {
-    surfaces: Vec<Surface>,
-}
-
-impl Default for Mesh {
-    fn default() -> Mesh {
-        Mesh {
-            surfaces: Vec::new()
-        }
-    }
-}
-
-impl Visit for Mesh {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-        // No need to serialize surfaces, correct ones will be assigned on resolve stage.
-        visitor.leave_region()
-    }
-}
-
-impl Mesh {
-    #[inline]
-    pub fn get_surfaces(&self) -> &Vec<Surface> {
-        &self.surfaces
-    }
-
-    #[inline]
-    pub fn get_surfaces_mut(&mut self) -> &mut Vec<Surface> {
-        &mut self.surfaces
-    }
-
-    #[inline]
-    pub fn add_surface(&mut self, surface: Surface) {
-        self.surfaces.push(surface);
-    }
-
-    #[inline]
-    pub fn make_copy(&self) -> Mesh {
-        Mesh {
-            surfaces: self.surfaces.iter().map(|surf| surf.make_copy()).collect()
-        }
-    }
-}
 
 pub enum NodeKind {
     Base,
     Light(Light),
     Camera(Camera),
     Mesh(Mesh),
+    ParticleSystem(ParticleSystem)
 }
 
 impl Visit for NodeKind {
@@ -232,6 +41,7 @@ impl Visit for NodeKind {
             NodeKind::Light(light) => light.visit(name, visitor),
             NodeKind::Camera(camera) => camera.visit(name, visitor),
             NodeKind::Mesh(mesh) => mesh.visit(name, visitor),
+            NodeKind::ParticleSystem(particle_system) => particle_system.visit(name, visitor)
         }
     }
 }
@@ -340,10 +150,11 @@ impl Node {
     pub fn make_copy(&self, original: Handle<Node>) -> Node {
         Node {
             kind: match &self.kind {
-                NodeKind::Camera(camera) => NodeKind::Camera(camera.make_copy()),
-                NodeKind::Light(light) => NodeKind::Light(light.make_copy()),
-                NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.make_copy()),
-                NodeKind::Base => NodeKind::Base
+                NodeKind::Camera(camera) => NodeKind::Camera(camera.clone()),
+                NodeKind::Light(light) => NodeKind::Light(light.clone()),
+                NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.clone()),
+                NodeKind::Base => NodeKind::Base,
+                NodeKind::ParticleSystem(particle_system) => NodeKind::ParticleSystem(particle_system.clone())
             },
             name: self.name.clone(),
             local_position: self.local_position,
@@ -562,27 +373,37 @@ impl Node {
             z: self.global_transform.f[6],
         }
     }
+
+    pub fn get_kind_id(&self) -> u8 {
+        match &self.kind {
+            NodeKind::Base => 0,
+            NodeKind::Light(_) => 1,
+            NodeKind::Camera(_) => 2,
+            NodeKind::Mesh(_) => 3,
+            NodeKind::ParticleSystem(_) => 4,
+        }
+    }
+}
+
+fn default_kind_by_id(id: u8) -> Result<NodeKind, String> {
+    match id {
+        0 => Ok(NodeKind::Base),
+        1 => Ok(NodeKind::Light(Default::default())),
+        2 => Ok(NodeKind::Camera(Default::default())),
+        3 => Ok(NodeKind::Mesh(Default::default())),
+        4 => Ok(NodeKind::ParticleSystem(Default::default())),
+        _ => Err(format!("invalid node kind {}", id))
+    }
 }
 
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut kind_id: u8 = match &self.kind {
-            NodeKind::Base => 0,
-            NodeKind::Light(_) => 1,
-            NodeKind::Camera(_) => 2,
-            NodeKind::Mesh(_) => 3,
-        };
+        let mut kind_id: u8 = self.get_kind_id();
         kind_id.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            self.kind = match kind_id {
-                0 => NodeKind::Base,
-                1 => NodeKind::Light(Default::default()),
-                2 => NodeKind::Camera(Default::default()),
-                3 => NodeKind::Mesh(Default::default()),
-                _ => return Err(VisitError::User(format!("invalid node kind {}", kind_id)))
-            }
+            self.kind = default_kind_by_id(kind_id)?;
         }
 
         self.kind.visit("Kind", visitor)?;

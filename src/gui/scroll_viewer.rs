@@ -64,6 +64,12 @@ pub struct ScrollViewerBuilder {
     content: Handle<UINode>,
 }
 
+impl Default for ScrollViewerBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ScrollViewerBuilder {
     pub fn new() -> Self {
         Self {

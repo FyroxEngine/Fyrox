@@ -1,4 +1,4 @@
-# What is this?
+# RG3D
 
 3d game engine written in Rust. This project ports many features from [DmitrysEngine](https://github.com/mrDIMAS/DmitrysEngine) (written in C).
 
@@ -20,7 +20,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 - Window (using glutin)
 - Object pool
-- Scene graph with pivot, camera, mesh nodes.
+- Scene graph with pivot, camera, mesh, light, etc. nodes.
 - FBX Loader (both ASCII and binary)
 - TTF Loader (compound characters are not supported yet)
 - Advanced node-based UI with these nodes ("widgets")
@@ -43,11 +43,11 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Point light
 	- Spot light
 - Bump mapping
+- Particle systems (soft particles)
 
 ### What will be added soon? 
 
 - Shadows
-- Particles systems (soft particles)
 - GJK-EPA based collision solver
 - Sound
 - Ray-cast for physics
@@ -60,6 +60,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 - byteorder - read/write builtin rust types (u16, u32, f32, etc.)
 - base64 - encode binary data for object visitor's text output 
 - inflate - to decompress binary FBX data
+- rand - to generate random numbers in various places of the engine (mostly in particle systems)
 
 ## Contributing
 

@@ -23,13 +23,6 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new() -> Self {
-        Self {
-            owner_handle: Handle::none(),
-            click: None,
-        }
-    }
-
     pub fn set_on_click(&mut self, handler: Box<ButtonClickEventHandler>) {
         self.click = Some(handler);
     }
@@ -77,7 +70,10 @@ impl ButtonBuilder {
         let pressed_color = Color::opaque(100, 100, 100);
         let hover_color = Color::opaque(160, 160, 160);
 
-        let mut button = Button::new();
+        let mut button = Button {
+            owner_handle: Handle::none(),
+            click: None,
+        };
         button.click = self.click;
 
         GenericNodeBuilder::new(

@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 pub mod pool;
 pub mod visitor;
+pub mod color_gradient;
 
 pub struct UnsafeCollectionView<T> {
     items: *const T,

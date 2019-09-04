@@ -135,12 +135,23 @@ impl Vec3 {
         }
     }
 
+    #[inline]
     pub fn lerp(&self, other: &Self, t: f32) -> Self {
         Self {
             x: lerpf(self.x, other.x, t),
             y: lerpf(self.y, other.y, t),
             z: lerpf(self.z, other.z, t),
         }
+    }
+
+    #[inline]
+    pub fn distance(&self, other: &Self) -> f32 {
+        (*self - *other).len()
+    }
+
+    #[inline]
+    pub fn sqr_distance(&self, other: &Self) -> f32 {
+        (*self - *other).sqr_len()
     }
 }
 
@@ -172,7 +183,7 @@ impl ops::Mul<Self> for Vec3 {
         Self {
             x: self.x * rhs.x,
             y: self.y * rhs.y,
-            z: self.z * rhs.z
+            z: self.z * rhs.z,
         }
     }
 }

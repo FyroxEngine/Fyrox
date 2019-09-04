@@ -175,7 +175,9 @@ impl Mat4 {
         })
     }
 
-    pub fn inverse(&self) -> Result<Mat4, &str> {
+    /// Returns Ok(inverted_matrix) in case if matrix is invertible,
+    /// or Err(()) if matrix has determinant == 0 and so not invertible.
+    pub fn inverse(&self) -> Result<Mat4, ()> {
         let f = &self.f;
         let mut temp = Mat4 {
             f: [
@@ -199,14 +201,15 @@ impl Mat4 {
         };
 
         let mut det = f[0] * temp.f[0] + f[4] * temp.f[1] + f[8] * temp.f[2] + f[12] * temp.f[3];
-        if det.abs() > 0.000_001 {
+        if det.abs() >= std::f32::EPSILON {
             det = 1.0 / det;
             for i in 0..16 {
                 temp.f[i] *= det;
             }
             return Ok(temp);
         }
-        Err("matrix is not invertible, determinant == 0")
+
+        Err(())
     }
 
     pub fn transform_vector(&self, v: Vec3) -> Vec3 {
@@ -223,6 +226,21 @@ impl Mat4 {
             y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9],
             z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10]
         }
+    }
+
+    /// Returns "side" vector from basis. (points right)
+    pub fn side(&self) -> Vec3 {
+        Vec3::make(self.f[0], self.f[1], self.f[2])
+    }
+
+    /// Returns "up" vector from basis.
+    pub fn up(&self) -> Vec3 {
+        Vec3::make(self.f[4], self.f[5], self.f[6])
+    }
+
+    /// Returns "look" vector from basis. (points into screen)
+    pub fn look(&self) -> Vec3 {
+        Vec3::make(self.f[8], self.f[9], self.f[10])
     }
 }
 
