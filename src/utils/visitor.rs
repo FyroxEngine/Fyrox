@@ -1,7 +1,7 @@
 use std::{
     rc::{
         Rc,
-        Weak
+        Weak,
     },
     collections::HashMap,
     fs::File,
@@ -39,6 +39,7 @@ use crate::{
         }
     },
 };
+use std::cell::Cell;
 
 pub enum FieldKind {
     Bool(bool),
@@ -729,6 +730,17 @@ impl Visit for PathBuf {
         }
 
         visitor.leave_region()
+    }
+}
+
+impl<T> Visit for Cell<T> where T: Copy + Clone + Visit + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut value = self.get();
+        value.visit(name, visitor)?;
+        if visitor.is_reading() {
+            self.set(value);
+        }
+        Ok(())
     }
 }
 

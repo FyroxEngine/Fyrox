@@ -24,6 +24,7 @@ use rand::Rng;
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
+#[derive(Debug)]
 pub struct Vertex {
     position: Vec3,
     tex_coord: Vec2,
@@ -83,6 +84,7 @@ pub struct Particle {
     rotation_speed: f32,
     rotation: f32,
     color: Color,
+    emitter_index: u32,
     sqr_distance_to_camera: Cell<f32>,
 }
 
@@ -91,13 +93,14 @@ impl Default for Particle {
         Self {
             position: Default::default(),
             velocity: Default::default(),
-            size: 0.0,
+            size: 1.0,
             alive: true,
             size_modifier: 0.0,
             lifetime: 0.0,
-            initial_lifetime: 0.0,
+            initial_lifetime: 2.0,
             rotation_speed: 0.0,
             rotation: 0.0,
+            emitter_index: 0,
             color: Color::white(),
             sqr_distance_to_camera: Cell::new(0.0),
         }
@@ -118,6 +121,7 @@ impl Visit for Particle {
         self.rotation_speed.visit("RotSpeed", visitor)?;
         self.rotation.visit("Rotation", visitor)?;
         self.color.visit("Color", visitor)?;
+        self.emitter_index.visit("EmitterIndex", visitor)?;
 
         visitor.leave_region()
     }
@@ -139,6 +143,16 @@ impl BoxEmitter {
             half_width: width * 0.5,
             half_height: height * 0.5,
             half_depth: depth * 0.5,
+        }
+    }
+}
+
+impl Default for BoxEmitter {
+    fn default() -> Self {
+        Self {
+            half_width: 0.5,
+            half_height: 0.5,
+            half_depth: 0.5
         }
     }
 }
@@ -178,6 +192,14 @@ impl Clone for BoxEmitter {
 
 pub struct SphereEmitter {
     radius: f32,
+}
+
+impl Default for SphereEmitter {
+    fn default() -> Self {
+        Self {
+            radius: 0.5
+        }
+    }
 }
 
 impl SphereEmitter {
@@ -263,6 +285,15 @@ impl Visit for EmitterKind {
         };
         kind.visit("Id", visitor)?;
 
+        if visitor.is_reading() {
+            *self = match kind {
+                0 => EmitterKind::Unknown,
+                1 => EmitterKind::Box(Default::default()),
+                2 => EmitterKind::Sphere(Default::default()),
+                _ => return Err(VisitError::User(format!("invalid emitter kind id {}", kind)))
+            }
+        }
+
         match self {
             EmitterKind::Unknown => (),
             EmitterKind::Box(box_emitter) => box_emitter.visit("Data", visitor)?,
@@ -291,11 +322,11 @@ impl Visit for ParticleLimit {
         amount.visit("Amount", visitor)?;
 
         if visitor.is_reading() {
-            *self = match amount {
-                0 => ParticleLimit::Unlimited,
-                1 => ParticleLimit::Strict(amount as u32),
-                _ => return Err(VisitError::User(String::from("invalid particle limit!")))
-            }
+            *self = if amount < 0 {
+                ParticleLimit::Unlimited
+            } else {
+                ParticleLimit::Strict(amount as u32)
+            };
         }
 
         visitor.leave_region()
@@ -335,7 +366,7 @@ pub struct Emitter {
     /// Range of initial rotation for a particle
     min_rotation: f32,
     max_rotation: f32,
-    alive_particles: u32,
+    alive_particles: Cell<u32>,
     time: f32,
     particles_to_spawn: usize,
 }
@@ -345,7 +376,7 @@ impl Emitter {
         Self {
             kind,
             position: Vec3::zero(),
-            particle_spawn_rate: 5,
+            particle_spawn_rate: 25,
             max_particles: ParticleLimit::Unlimited,
             min_lifetime: 5.0,
             max_lifetime: 10.0,
@@ -363,7 +394,7 @@ impl Emitter {
             max_rotation_speed: 0.02,
             min_rotation: -std::f32::consts::PI,
             max_rotation: std::f32::consts::PI,
-            alive_particles: 0,
+            alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
         }
@@ -375,7 +406,8 @@ impl Emitter {
         let mut particle_count = (self.time / time_amount_per_particle) as u32;
         self.time -= time_amount_per_particle * particle_count as f32;
         if let ParticleLimit::Strict(max_particles) = self.max_particles {
-            if self.alive_particles < max_particles && self.alive_particles + particle_count > max_particles {
+            let alive_particles = self.alive_particles.get();
+            if alive_particles < max_particles && alive_particles + particle_count > max_particles {
                 particle_count = max_particles - particle_count;
             }
         }
@@ -404,7 +436,7 @@ impl Visit for Emitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        // kind
+        self.kind.visit("Kind", visitor)?;
         self.position.visit("Position", visitor)?;
         self.particle_spawn_rate.visit("SpawnRate", visitor)?;
         self.max_particles.visit("MaxParticles", visitor)?;
@@ -454,7 +486,7 @@ impl Clone for Emitter {
             max_rotation_speed: self.max_rotation_speed,
             min_rotation: self.min_rotation,
             max_rotation: self.max_rotation,
-            alive_particles: self.alive_particles,
+            alive_particles: self.alive_particles.clone(),
             time: self.time,
             particles_to_spawn: 0,
         }
@@ -484,7 +516,7 @@ impl Default for Emitter {
             max_rotation_speed: 0.02,
             min_rotation: -std::f32::consts::PI,
             max_rotation: std::f32::consts::PI,
-            alive_particles: 0,
+            alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
         }
@@ -532,9 +564,11 @@ impl ParticleSystem {
             emitter.tick(dt);
         }
 
-        for emitter in self.emitters.iter() {
+        for (i, emitter) in self.emitters.iter().enumerate() {
             for _ in 0..emitter.particles_to_spawn {
                 let mut particle = Particle::default();
+                particle.emitter_index = i as u32;
+                emitter.alive_particles.set(emitter.alive_particles.get() + 1);
                 emitter.emit(self, &mut particle);
                 if let Some(free_index) = self.free_particles.pop() {
                     self.particles[free_index as usize] = particle;
@@ -551,6 +585,9 @@ impl ParticleSystem {
                 particle.lifetime += dt;
                 if particle.lifetime >= particle.initial_lifetime {
                     self.free_particles.push(i as u32);
+                    if let Some(emitter) = self.emitters.get(particle.emitter_index as usize) {
+                        emitter.alive_particles.set(emitter.alive_particles.get() - 1);
+                    }
                     particle.alive = false;
                     particle.lifetime = particle.initial_lifetime;
                 } else {
@@ -598,8 +635,8 @@ impl ParticleSystem {
 
         draw_data.clear();
 
-        for i in sorted_particles.iter() {
-            let particle = self.particles.get(*i as usize).unwrap();
+        for (i, particle_index) in sorted_particles.iter().enumerate() {
+            let particle = self.particles.get(*particle_index as usize).unwrap();
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
@@ -633,7 +670,7 @@ impl ParticleSystem {
                 color: particle.color,
             });
 
-            let base_index = i * 4;
+            let base_index = (i * 4) as u32;
             draw_data.indices.push(base_index);
             draw_data.indices.push(base_index + 1);
             draw_data.indices.push(base_index + 2);
@@ -664,6 +701,8 @@ impl Visit for ParticleSystem {
         self.free_particles.visit("FreeParticles", visitor)?;
         self.texture.visit("Texture", visitor)?;
         self.emitters.visit("Emitters", visitor)?;
+        self.acceleration.visit("Acceleration", visitor)?;
+        self.color_over_lifetime.visit("ColorGradient", visitor)?;
 
         visitor.leave_region()
     }
