@@ -813,6 +813,10 @@ pub const FRAGMENT_SHADER_BIT: types::GLenum = 0x00000002;
 #[allow(dead_code, non_upper_case_globals)]
 pub const FRAGMENT_SHADER_DERIVATIVE_HINT: types::GLenum = 0x8B8B;
 #[allow(dead_code, non_upper_case_globals)]
+pub const TEXTURE_MAX_ANISOTROPY_EXT: types::GLenum = 0x84FE;
+#[allow(dead_code, non_upper_case_globals)]
+pub const MAX_TEXTURE_MAX_ANISOTROPY_EXT: types::GLenum = 0x84FF;
+#[allow(dead_code, non_upper_case_globals)]
 pub const FRAGMENT_SUBROUTINE: types::GLenum = 0x92EC;
 #[allow(dead_code, non_upper_case_globals)]
 pub const FRAGMENT_SUBROUTINE_UNIFORM: types::GLenum = 0x92F2;

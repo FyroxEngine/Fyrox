@@ -7,6 +7,8 @@ extern crate byteorder;
 extern crate base64;
 extern crate inflate;
 extern crate rand;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod utils;
 pub mod math;

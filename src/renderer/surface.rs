@@ -10,11 +10,16 @@ use crate::{
     },
     resource::*,
     scene::node::Node,
-    utils::pool::{Handle, ErasedHandle}
+    utils::pool::{Handle, ErasedHandle},
 };
 use std::{
     rc::Rc,
-    cell::RefCell,
+    cell::{
+        RefCell,
+        Cell
+    },
+    mem::size_of,
+    ffi::c_void,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -29,7 +34,7 @@ pub struct Vertex {
 }
 
 pub struct SurfaceSharedData {
-    pub need_upload: bool,
+    need_upload: Cell<bool>,
     vbo: GLuint,
     vao: GLuint,
     ebo: GLuint,
@@ -50,7 +55,7 @@ impl SurfaceSharedData {
         }
 
         Self {
-            need_upload: true,
+            need_upload: Cell::new(true),
             vbo,
             vao,
             ebo,
@@ -79,6 +84,77 @@ impl SurfaceSharedData {
         self.ebo
     }
 
+    pub fn draw(&self) {
+        unsafe {
+            if self.need_upload.get() {
+                let total_size_bytes = self.get_vertices().len() * std::mem::size_of::<Vertex>();
+
+                gl::BindVertexArray(self.get_vertex_array_object());
+
+                // Upload indices
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.get_element_buffer_object());
+                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
+                               (self.get_indices().len() * size_of::<i32>()) as GLsizeiptr,
+                               self.get_indices().as_ptr() as *const GLvoid,
+                               gl::STATIC_DRAW);
+
+                // Upload vertices
+                gl::BindBuffer(gl::ARRAY_BUFFER, self.get_vertex_buffer_object());
+                gl::BufferData(gl::ARRAY_BUFFER,
+                               total_size_bytes as GLsizeiptr,
+                               self.get_vertices().as_ptr() as *const GLvoid,
+                               gl::STATIC_DRAW);
+
+                let mut offset = 0;
+
+                // Positions
+                gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(0);
+                offset += size_of::<Vec3>();
+
+                // Texture coordinates
+                gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(1);
+                offset += size_of::<Vec2>();
+
+                // Normals
+                gl::VertexAttribPointer(2, 3, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(2);
+                offset += size_of::<Vec3>();
+
+                // Tangents
+                gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(3);
+                offset += size_of::<Vec4>();
+
+                // Bone weights
+                gl::VertexAttribPointer(4, 4, gl::FLOAT, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(4);
+                offset += size_of::<Vec4>();
+
+                // Bone indices
+                gl::VertexAttribPointer(5, 4, gl::UNSIGNED_BYTE, gl::FALSE,
+                                        size_of::<Vertex>() as GLint, offset as *const c_void);
+                gl::EnableVertexAttribArray(5);
+
+                gl::BindVertexArray(0);
+
+                self.need_upload.set(false);
+            } else {}
+
+            gl::BindVertexArray(self.get_vertex_array_object());
+            gl::DrawElements(gl::TRIANGLES,
+                             self.get_indices().len() as GLint,
+                             gl::UNSIGNED_INT,
+                             std::ptr::null());
+        }
+    }
+
     /// Inserts vertex or its index. Performs optimizing insertion with checking if such
     /// vertex already exists.
     /// Returns true if inserted vertex was unique.
@@ -98,7 +174,7 @@ impl SurfaceSharedData {
                 index
             }
         });
-        self.need_upload = true;
+        self.need_upload.set(true);
         is_unique
     }
 
@@ -173,7 +249,7 @@ impl SurfaceSharedData {
             let t = tan1[i];
 
             // Gram-Schmidt orthogonalize
-            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap_or(Vec3::make(0.0,1.0,0.0));
+            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap_or(Vec3::make(0.0, 1.0, 0.0));
 
             self.vertices[i].tangent = Vec4 {
                 x: tangent.x,
@@ -198,7 +274,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -206,7 +282,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -214,7 +290,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -222,7 +298,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             }
         ];
@@ -241,7 +317,7 @@ impl SurfaceSharedData {
             tex_coord: tex,
             normal: Vec3::make(0.0, 1.0, 0.0),
             tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-            bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+            bone_weights: [0.0, 0.0, 0.0, 0.0],
             bone_indices: Default::default(),
         });
     }
@@ -317,7 +393,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -325,7 +401,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -333,7 +409,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -341,7 +417,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
 
@@ -351,7 +427,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -359,7 +435,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -367,7 +443,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -375,7 +451,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
 
@@ -385,7 +461,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -393,7 +469,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -401,7 +477,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -409,7 +485,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
 
@@ -419,7 +495,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -427,7 +503,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -435,7 +511,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -443,7 +519,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
 
@@ -453,7 +529,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -461,7 +537,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -469,7 +545,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -477,7 +553,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
 
@@ -487,7 +563,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -495,7 +571,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -503,7 +579,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
@@ -511,7 +587,7 @@ impl SurfaceSharedData {
                 normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
                 tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-                bone_weights: [ 0.0, 0.0, 0.0, 0.0 ],
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
         ];
@@ -598,11 +674,11 @@ impl VertexWeightSet {
         self.count
     }
 
-    pub fn iter(&self) -> std::slice::Iter<VertexWeight>{
+    pub fn iter(&self) -> std::slice::Iter<VertexWeight> {
         self.weights[0..self.count].iter()
     }
 
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<VertexWeight>{
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<VertexWeight> {
         self.weights[0..self.count].iter_mut()
     }
 }
@@ -618,7 +694,7 @@ pub struct Surface {
     /// like so: iterate over all vertices and weight data and calculate index of node handle that
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     pub vertex_weights: Vec<VertexWeightSet>,
-    pub bones: Vec<Handle<Node>>
+    pub bones: Vec<Handle<Node>>,
 }
 
 impl Surface {

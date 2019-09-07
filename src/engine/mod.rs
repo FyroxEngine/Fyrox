@@ -18,6 +18,7 @@ use std::{
     time::Duration,
     path::Path,
 };
+use crate::renderer::error::RendererError;
 
 pub struct Engine {
     renderer: Renderer,
@@ -37,7 +38,7 @@ impl Engine {
             Path::new("data/fonts/font.ttf"),
             20.0,
             (0..255).collect()).unwrap());
-        let mut renderer = Renderer::new();
+        let mut renderer = Renderer::new().unwrap();
         renderer.upload_font_cache(&mut font_cache);
         Engine {
             state: State::new(),
@@ -113,7 +114,7 @@ impl Engine {
     }
 
     #[inline]
-    pub fn set_frame_size(&mut self, new_size: Vec2) {
+    pub fn set_frame_size(&mut self, new_size: Vec2) -> Result<(), RendererError>{
         self.renderer.set_frame_size(new_size)
     }
 
@@ -122,11 +123,11 @@ impl Engine {
         self.renderer.get_frame_size()
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self) -> Result<(), RendererError> {
         self.renderer.upload_font_cache(&mut self.font_cache);
         self.renderer.upload_resources(&mut self.state);
         self.user_interface.draw(&self.font_cache);
-        self.renderer.render(&self.state, &self.user_interface.get_drawing_context());
+        self.renderer.render(&self.state, &self.user_interface.get_drawing_context())
     }
 
     #[inline]

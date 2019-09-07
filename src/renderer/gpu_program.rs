@@ -4,7 +4,7 @@ use crate::{
         vec4::Vec4,
         mat4::Mat4,
         vec3::Vec3,
-        vec2::Vec2
+        vec2::Vec2,
     },
     renderer::{
         gl::types::GLuint,
@@ -13,8 +13,10 @@ use crate::{
         gl::types::GLfloat,
     },
 };
+use crate::renderer::error::RendererError;
 
 pub struct GpuProgram {
+    name: String,
     id: GLuint,
     name_buf: Vec<u8>,
 }
@@ -25,7 +27,7 @@ pub struct UniformLocation {
 }
 
 impl GpuProgram {
-    pub fn create_shader(actual_type: GLuint, source: &CStr) -> Result<GLuint, String> {
+    fn create_shader(name: String, actual_type: GLuint, source: &CStr) -> Result<GLuint, RendererError> {
         unsafe {
             let shader = gl::CreateShader(actual_type);
             gl::ShaderSource(shader, 1, &source.as_ptr(), std::ptr::null());
@@ -41,7 +43,10 @@ impl GpuProgram {
                 gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
                 let compilation_message = String::from_utf8_unchecked(buffer);
                 println!("Failed to compile shader: {}", compilation_message);
-                Err(compilation_message)
+                Err(RendererError::ShaderCompilationFailed {
+                    shader_name: name,
+                    error_message: compilation_message,
+                })
             } else {
                 println!("Shader compiled!");
                 Ok(shader)
@@ -49,10 +54,10 @@ impl GpuProgram {
         }
     }
 
-    pub fn from_source(vertex_source: &CStr, fragment_source: &CStr) -> Result<GpuProgram, String> {
+    pub fn from_source(name: &str, vertex_source: &CStr, fragment_source: &CStr) -> Result<GpuProgram, RendererError> {
         unsafe {
-            let vertex_shader = Self::create_shader(gl::VERTEX_SHADER, vertex_source)?;
-            let fragment_shader = Self::create_shader(gl::FRAGMENT_SHADER, fragment_source)?;
+            let vertex_shader = Self::create_shader(format!("{}_VertexShader", name), gl::VERTEX_SHADER, vertex_source)?;
+            let fragment_shader = Self::create_shader(format!("{}_FragmentShader", name), gl::FRAGMENT_SHADER, fragment_source)?;
             let program: GLuint = gl::CreateProgram();
             gl::AttachShader(program, vertex_shader);
             gl::DeleteShader(vertex_shader);
@@ -66,9 +71,13 @@ impl GpuProgram {
                 gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
                 let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
                 gl::GetProgramInfoLog(program, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
-                Err(String::from_utf8_unchecked(buffer))
+                Err(RendererError::ShaderLinkingFailed {
+                    shader_name: name.to_owned(),
+                    error_message: String::from_utf8_unchecked(buffer),
+                })
             } else {
                 Ok(Self {
+                    name: name.to_owned(),
                     id: program,
                     name_buf: Vec::new(),
                 })
@@ -76,14 +85,19 @@ impl GpuProgram {
         }
     }
 
-    pub fn get_uniform_location(&mut self, name: &str) -> UniformLocation {
+    pub fn get_uniform_location(&mut self, name: &str) -> Result<UniformLocation, RendererError> {
         // Form c string in special buffer to reduce memory allocations
         let buf = &mut self.name_buf;
         buf.clear();
         buf.extend_from_slice(name.as_bytes());
         buf.push(0);
         unsafe {
-            UniformLocation { id: gl::GetUniformLocation(self.id, buf.as_ptr() as *const i8) }
+            let id = gl::GetUniformLocation(self.id, buf.as_ptr() as *const i8);
+            if id < 0 {
+                Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
+            } else {
+                Ok(UniformLocation { id })
+            }
         }
     }
 

@@ -472,12 +472,12 @@ impl DrawingContext {
     }
 
     #[inline]
-    pub fn get_vertex_size(&self) -> i32 {
+    pub fn get_vertex_size() -> i32 {
         std::mem::size_of::<Vertex>() as i32
     }
 
     #[inline]
-    pub fn get_index_size(&self) -> i32 {
+    pub fn get_index_size() -> i32 {
         std::mem::size_of::<i32>() as i32
     }
 

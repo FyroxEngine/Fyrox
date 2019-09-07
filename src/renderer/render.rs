@@ -1,11 +1,13 @@
 use crate::{
-    utils::pool::{Handle, Pool},
+    utils::pool::Pool,
     engine::{state::State, duration_to_seconds_f32},
-    resource::{ResourceKind, ttf::Font},
-    gui::draw::{DrawingContext, CommandKind, Color},
-    scene::node::{Node, NodeKind},
+    resource::{ttf::Font},
+    gui::draw::{DrawingContext, Color},
+    scene::{
+        node::NodeKind,
+    },
     renderer::{
-        surface::{Vertex, SurfaceSharedData},
+        surface::SurfaceSharedData,
         gl,
         gl::types::*,
         gpu_program::{GpuProgram, UniformLocation},
@@ -14,595 +16,44 @@ use crate::{
         vec3::Vec3,
         mat4::Mat4,
         vec2::Vec2,
-        vec4::Vec4,
     },
 };
 use std::{
     ffi::{CString, c_void},
-    mem::size_of,
     time::{Instant, Duration},
     thread,
     cell::RefCell,
-    fmt::Write,
 };
 use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api};
-use crate::scene::particle_system::DrawData;
+use crate::renderer::ui_renderer::UIRenderer;
+use crate::renderer::particle_system_renderer::ParticleSystemRenderer;
+use crate::renderer::gbuffer::GBuffer;
+use crate::renderer::deferred_light_renderer::DeferredLightRenderer;
+use crate::renderer::error::RendererError;
 
-pub fn check_gl_error() {
+fn check_gl_error_internal(line: u32, file: &str) {
     unsafe {
         let error_code = gl::GetError();
         if error_code != gl::NO_ERROR {
-            let mut message = String::new();
             match error_code {
-                gl::INVALID_ENUM => write!(message, "GL_INVALID_ENUM error has occurred!").unwrap(),
-                gl::INVALID_VALUE => write!(message, "GL_INVALID_VALUE error has occurred!").unwrap(),
-                gl::INVALID_OPERATION => write!(message, "GL_INVALID_OPERATION error occurred!").unwrap(),
-                gl::STACK_OVERFLOW => write!(message, "GL_STACK_OVERFLOW error has occurred!").unwrap(),
-                gl::STACK_UNDERFLOW => write!(message, "GL_STACK_UNDERFLOW error has occurred!").unwrap(),
-                gl::OUT_OF_MEMORY => write!(message, "GL_OUT_OF_MEMORY error has occurred!").unwrap(),
+                gl::INVALID_ENUM => print!("GL_INVALID_ENUM"),
+                gl::INVALID_VALUE => print!("GL_INVALID_VALUE"),
+                gl::INVALID_OPERATION => print!("GL_INVALID_OPERATION"),
+                gl::STACK_OVERFLOW => print!("GL_STACK_OVERFLOW"),
+                gl::STACK_UNDERFLOW => print!("GL_STACK_UNDERFLOW"),
+                gl::OUT_OF_MEMORY => print!("GL_OUT_OF_MEMORY"),
                 _ => (),
             };
 
-            panic!("{}", message);
+            println!(" error has occurred! At line {} in file {}, stability is not guaranteed!", line, file);
         }
     }
 }
 
-struct UIShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    diffuse_texture: UniformLocation,
+macro_rules! check_gl_error {
+    () => (check_gl_error_internal(line!(), file!()))
 }
 
-
-struct DeferredLightingShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    depth_sampler: UniformLocation,
-    color_sampler: UniformLocation,
-    normal_sampler: UniformLocation,
-    spot_shadow_texture: UniformLocation,
-    point_shadow_texture: UniformLocation,
-    light_view_proj_matrix: UniformLocation,
-    light_type: UniformLocation,
-    soft_shadows: UniformLocation,
-    shadow_map_inv_size: UniformLocation,
-    light_position: UniformLocation,
-    light_radius: UniformLocation,
-    light_color: UniformLocation,
-    light_direction: UniformLocation,
-    light_cone_angle_cos: UniformLocation,
-    inv_view_proj_matrix: UniformLocation,
-    camera_position: UniformLocation,
-}
-
-impl DeferredLightingShader {
-    fn new() -> DeferredLightingShader {
-        let fragment_source = CString::new(r#"
-        #version 330 core
-
-        uniform sampler2D depthTexture;
-        uniform sampler2D colorTexture;
-        uniform sampler2D normalTexture;
-        uniform sampler2D spotShadowTexture;
-        uniform samplerCube pointShadowTexture;
-
-        uniform mat4 lightViewProjMatrix;
-        uniform vec3 lightPos;
-        uniform float lightRadius;
-        uniform vec4 lightColor;
-        uniform vec3 lightDirection;
-        uniform float coneAngleCos;
-        uniform mat4 invViewProj;
-        uniform vec3 cameraPosition;
-        uniform int lightType;
-        uniform bool softShadows;
-        uniform float shadowMapInvSize;
-
-        in vec2 texCoord;
-        out vec4 FragColor;
-
-        vec3 GetProjection(vec3 worldPosition, mat4 viewProjectionMatrix)
-        {
-           vec4 projPos = viewProjectionMatrix * vec4(worldPosition, 1);
-           projPos /= projPos.w;
-           return vec3(projPos.x * 0.5 + 0.5, projPos.y * 0.5 + 0.5, projPos.z * 0.5 + 0.5);
-        }
-
-        void main()
-        {
-            vec4 normalSpecular = texture2D(normalTexture, texCoord);
-            vec3 normal = normalize(normalSpecular.xyz * 2.0 - 1.0);
-
-            vec4 screenPosition;
-            screenPosition.x = texCoord.x * 2.0 - 1.0;
-            screenPosition.y = texCoord.y * 2.0 - 1.0;
-            screenPosition.z = texture2D(depthTexture, texCoord).r;
-            screenPosition.w = 1.0;
-
-            vec4 worldPosition = invViewProj * screenPosition;
-            worldPosition /= worldPosition.w;
-
-            vec3 lightVector = lightPos - worldPosition.xyz;
-            float distanceToLight = length(lightVector);
-            float d = min(distanceToLight, lightRadius);
-            vec3 normLightVector = lightVector / d;
-            vec3 h = normalize(lightVector + (cameraPosition - worldPosition.xyz));
-            vec3 specular = normalSpecular.w * vec3(0.4 * pow(clamp(dot(normal, h), 0.0, 1.0), 80));
-            float y = dot(lightDirection, normLightVector);
-            float k = max(dot(normal, normLightVector), 0);
-            float attenuation = 1.0 + cos((d / lightRadius) * 3.14159);
-            if (y < coneAngleCos)
-            {
-                attenuation *= smoothstep(coneAngleCos - 0.1, coneAngleCos, y);
-            }
-
-            float shadow = 1.0;
-            if (lightType == 2) /* Spot light shadows */
-            {
-              vec3 lightSpacePosition = GetProjection(worldPosition.xyz, lightViewProjMatrix);
-              const float bias = 0.00005;
-              if (softShadows)
-              {
-                 for (float y = -1.5; y <= 1.5; y += 0.5)
-                 {
-                    for (float x = -1.5; x <= 1.5; x += 0.5)
-                    {
-                       vec2 fetchTexCoord = lightSpacePosition.xy + vec2(x, y) * shadowMapInvSize;
-                       if (lightSpacePosition.z - bias > texture(spotShadowTexture, fetchTexCoord).r)
-                       {
-                          shadow += 1.0;
-                       }
-                    }
-                 }
-
-                 shadow = clamp(1.0 - shadow / 9.0, 0.0, 1.0);
-              }
-              else
-              {
-                 if (lightSpacePosition.z - bias > texture(spotShadowTexture, lightSpacePosition.xy).r)
-                 {
-                    shadow = 0.0;
-                 }
-              }
-            }
-            else if(lightType == 0) /* Point light shadows */
-            {
-              const float bias = 0.01;
-              if (softShadows)
-              {
-                 const int samples = 20;
-
-                 const vec3 directions[samples] = vec3[samples] (
-                    vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1),
-                    vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
-                    vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
-                    vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
-                    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
-                 );
-
-                 const float diskRadius = 0.0025;
-
-                 for (int i = 0; i < samples; ++i)
-                 {
-                    vec3 fetchDirection = -normLightVector + directions[i] * diskRadius;
-                    float shadowDistanceToLight = texture(pointShadowTexture, fetchDirection).r;
-                    if (distanceToLight - bias > shadowDistanceToLight)
-                    {
-                       shadow += 1.0;
-                    }
-                 }
-
-                 shadow = clamp(1.0 - shadow / float(samples), 0.0, 1.0);
-              }
-              else
-              {
-                 float shadowDistanceToLight = texture(pointShadowTexture, -normLightVector).r;
-                 if (distanceToLight - bias > shadowDistanceToLight)
-                 {
-                    shadow = 0.0;
-                 }
-              }
-           }
-
-           FragColor = texture2D(colorTexture, texCoord);
-           FragColor.xyz += specular;
-           FragColor *= k * shadow * attenuation * lightColor;
-        }
-    "#).unwrap();
-
-        let vertex_source = CString::new(r#"
-        #version 330 core
-
-        layout(location = 0) in vec3 vertexPosition;
-        layout(location = 1) in vec2 vertexTexCoord;
-
-        uniform mat4 worldViewProjection;
-
-        out vec2 texCoord;
-
-        void main()
-        {
-            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-            texCoord = vertexTexCoord;
-        }
-    "#).unwrap();
-
-        let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
-
-        Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection"),
-            depth_sampler: program.get_uniform_location("depthTexture"),
-            color_sampler: program.get_uniform_location("colorTexture"),
-            normal_sampler: program.get_uniform_location("normalTexture"),
-            spot_shadow_texture: program.get_uniform_location("spotShadowTexture"),
-            point_shadow_texture: program.get_uniform_location("pointShadowTexture"),
-            light_view_proj_matrix: program.get_uniform_location("lightViewProjMatrix"),
-            light_type: program.get_uniform_location("lightType"),
-            soft_shadows: program.get_uniform_location("softShadows"),
-            shadow_map_inv_size: program.get_uniform_location("shadowMapInvSize"),
-            light_position: program.get_uniform_location("lightPos"),
-            light_radius: program.get_uniform_location("lightRadius"),
-            light_color: program.get_uniform_location("lightColor"),
-            light_direction: program.get_uniform_location("lightDirection"),
-            light_cone_angle_cos: program.get_uniform_location("coneAngleCos"),
-            inv_view_proj_matrix: program.get_uniform_location("invViewProj"),
-            camera_position: program.get_uniform_location("cameraPosition"),
-            program,
-        }
-    }
-
-    fn bind(&self) {
-        self.program.bind();
-    }
-
-    fn set_wvp_matrix(&self, mat4: &Mat4) {
-        self.program.set_mat4(self.wvp_matrix, mat4)
-    }
-
-    fn set_depth_sampler_id(&self, id: i32) {
-        self.program.set_int(self.depth_sampler, id)
-    }
-
-    fn set_color_sampler_id(&self, id: i32) {
-        self.program.set_int(self.color_sampler, id)
-    }
-
-    fn set_normal_sampler_id(&self, id: i32) {
-        self.program.set_int(self.normal_sampler, id)
-    }
-
-    fn set_spot_shadow_texture(&self, id: i32) {
-        self.program.set_int(self.spot_shadow_texture, id)
-    }
-
-    fn set_point_shadow_texture(&self, id: i32) {
-        self.program.set_int(self.point_shadow_texture, id)
-    }
-
-    fn set_light_view_proj_matrix(&self, mat4: &Mat4) {
-        self.program.set_mat4(self.light_view_proj_matrix, mat4)
-    }
-
-    fn set_light_type(&self, light_type: i32) {
-        self.program.set_int(self.light_type, light_type)
-    }
-
-    fn set_soft_shadows_enabled(&self, enabled: bool) {
-        self.program.set_int(self.soft_shadows, if enabled { 1 } else { 0 })
-    }
-
-    fn set_shadow_map_inv_size(&self, value: f32) {
-        self.program.set_float(self.shadow_map_inv_size, value)
-    }
-
-    fn set_light_position(&self, pos: &Vec3) {
-        self.program.set_vec3(self.light_position, pos)
-    }
-
-    fn set_light_radius(&self, radius: f32) {
-        self.program.set_float(self.light_radius, radius)
-    }
-
-    fn set_light_color(&self, color: Color) {
-        self.program.set_vec4(self.light_color, &color.as_frgba())
-    }
-
-    fn set_light_direction(&self, direction: &Vec3) {
-        self.program.set_vec3(self.light_direction, direction)
-    }
-
-    fn set_light_cone_angle_cos(&self, cone_angle_cos: f32) {
-        self.program.set_float(self.light_cone_angle_cos, cone_angle_cos)
-    }
-
-    fn set_inv_view_proj_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.inv_view_proj_matrix, mat)
-    }
-
-    fn set_camera_position(&self, pos: &Vec3) {
-        self.program.set_vec3(self.camera_position, pos)
-    }
-}
-
-struct ParticleSystemShader {
-    program: GpuProgram,
-    view_projection_matrix: UniformLocation,
-    world_matrix: UniformLocation,
-    camera_side_vector: UniformLocation,
-    camera_up_vector: UniformLocation,
-    diffuse_texture: UniformLocation,
-    depth_buffer_texture: UniformLocation,
-    inv_screen_size: UniformLocation,
-    proj_params: UniformLocation,
-}
-
-impl ParticleSystemShader {
-    fn new() -> Self {
-        let vertex_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) in vec3 vertexPosition;
-            layout(location = 1) in vec2 vertexTexCoord;
-            layout(location = 2) in float particleSize;
-            layout(location = 3) in float particleRotation;
-            layout(location = 4) in vec4 vertexColor;
-
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 worldMatrix;
-            uniform vec3 cameraUpVector;
-            uniform vec3 cameraSideVector;
-
-            out vec2 texCoord;
-            out vec4 color;
-
-            vec2 rotateVec2(vec2 v, float angle)
-            {
-               float c = cos(angle);
-               float s = sin(angle);
-               mat2 m = mat2(c, -s, s, c);
-               return m * v;
-            }
-
-            void main()
-            {
-                color = vertexColor;
-                texCoord = vertexTexCoord;
-                vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, particleRotation);
-                vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0);
-                vec3 offset = (vertexOffset.x * cameraSideVector + vertexOffset.y * cameraUpVector) * particleSize;
-                gl_Position = viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
-            }"#).unwrap();
-
-        let fragment_source = CString::new(r#"
-            #version 330 core
-
-            uniform sampler2D diffuseTexture;
-            uniform sampler2D depthBufferTexture;
-            uniform vec2 invScreenSize;
-            uniform vec2 projParams;
-
-            out vec4 FragColor;
-            in vec2 texCoord;
-            in vec4 color;
-
-            float toProjSpace(float z)
-            {
-               float far = projParams.x;
-               float near = projParams.y;
-                return (far * near) / (far - z * (far + near));
-            }
-
-            void main()
-            {
-               float sceneDepth = toProjSpace(texture(depthBufferTexture, gl_FragCoord.xy * invScreenSize).r);
-               float depthOpacity = clamp((sceneDepth - gl_FragCoord.z / gl_FragCoord.w) * 2.0f, 0.0, 1.0);
-                FragColor = color * texture(diffuseTexture, texCoord).r;
-               FragColor.a *= depthOpacity;
-            }
-            "#).unwrap();
-
-        let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
-
-        Self {
-            view_projection_matrix: program.get_uniform_location("viewProjectionMatrix"),
-            world_matrix: program.get_uniform_location("worldMatrix"),
-            camera_side_vector: program.get_uniform_location("cameraSideVector"),
-            camera_up_vector: program.get_uniform_location("cameraUpVector"),
-            diffuse_texture: program.get_uniform_location("diffuseTexture"),
-            depth_buffer_texture: program.get_uniform_location("depthBufferTexture"),
-            inv_screen_size: program.get_uniform_location("invScreenSize"),
-            proj_params: program.get_uniform_location("projParams"),
-            program,
-        }
-    }
-
-    pub fn bind(&self) {
-        self.program.bind();
-    }
-
-    pub fn set_view_projection_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.view_projection_matrix, mat)
-    }
-
-    pub fn set_world_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_matrix, mat)
-    }
-
-    pub fn set_camera_side_vector(&self, vec: &Vec3) {
-        self.program.set_vec3(self.camera_side_vector, vec)
-    }
-
-    pub fn set_camera_up_vector(&self, vec: &Vec3) {
-        self.program.set_vec3(self.camera_up_vector, vec)
-    }
-
-    pub fn set_diffuse_texture(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
-    }
-
-    pub fn set_depth_buffer_texture(&self, id: i32) {
-        self.program.set_int(self.depth_buffer_texture, id)
-    }
-
-    pub fn set_inv_screen_size(&self, size: Vec2) {
-        self.program.set_vec2(self.inv_screen_size, size)
-    }
-
-    pub fn set_proj_params(&self, far: f32, near: f32) {
-        let params = Vec2::make(far, near);
-        self.program.set_vec2(self.proj_params, params);
-    }
-}
-
-struct UIRenderBuffers {
-    vbo: GLuint,
-    vao: GLuint,
-    ebo: GLuint,
-}
-
-struct GBuffer {
-    fbo: GLuint,
-    depth_rt: GLuint,
-    depth_buffer: GLuint,
-    depth_texture: GLuint,
-    color_rt: GLuint,
-    color_texture: GLuint,
-    normal_rt: GLuint,
-    normal_texture: GLuint,
-    opt_fbo: GLuint,
-    frame_texture: GLuint,
-}
-
-impl GBuffer {
-    fn new(width: i32, height: i32) -> Self
-    {
-        unsafe {
-            let mut fbo = 0;
-            gl::GenFramebuffers(1, &mut fbo);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
-
-            let buffers = [
-                gl::COLOR_ATTACHMENT0,
-                gl::COLOR_ATTACHMENT1,
-                gl::COLOR_ATTACHMENT2
-            ];
-            gl::DrawBuffers(3, buffers.as_ptr());
-
-            let mut depth_rt = 0;
-            gl::GenRenderbuffers(1, &mut depth_rt);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, depth_rt);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::R32F, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, depth_rt);
-
-            let mut color_rt = 0;
-            gl::GenRenderbuffers(1, &mut color_rt);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, color_rt);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::RGBA8, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::RENDERBUFFER, color_rt);
-
-            let mut normal_rt = 0;
-            gl::GenRenderbuffers(1, &mut normal_rt);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, normal_rt);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::RGBA8, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::RENDERBUFFER, normal_rt);
-
-            let mut depth_buffer = 0;
-            gl::GenRenderbuffers(1, &mut depth_buffer);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, depth_buffer);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
-
-            let mut depth_texture = 0;
-            gl::GenTextures(1, &mut depth_texture);
-            gl::BindTexture(gl::TEXTURE_2D, depth_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::R32F as i32, width, height, 0, gl::BGRA, gl::FLOAT, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, depth_texture, 0);
-
-            let mut color_texture = 0;
-            gl::GenTextures(1, &mut color_texture);
-            gl::BindTexture(gl::TEXTURE_2D, color_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::TEXTURE_2D, color_texture, 0);
-
-            let mut normal_texture = 0;
-            gl::GenTextures(1, &mut normal_texture);
-            gl::BindTexture(gl::TEXTURE_2D, normal_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::TEXTURE_2D, normal_texture, 0);
-
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Unable to construct G-Buffer FBO.");
-            }
-
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-
-            /* Create another framebuffer for stencil optimizations */
-            let mut opt_fbo = 0;
-            gl::GenFramebuffers(1, &mut opt_fbo);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, opt_fbo);
-
-            let light_buffers = [gl::COLOR_ATTACHMENT0];
-            gl::DrawBuffers(1, light_buffers.as_ptr());
-
-            let mut frame_texture = 0;
-            gl::GenTextures(1, &mut frame_texture);
-            gl::BindTexture(gl::TEXTURE_2D, frame_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, frame_texture, 0);
-
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
-
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Unable to initialize Stencil FBO.");
-            }
-
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-
-            GBuffer {
-                fbo,
-                depth_rt,
-                depth_buffer,
-                depth_texture,
-                color_rt,
-                color_texture,
-                normal_rt,
-                normal_texture,
-                opt_fbo,
-                frame_texture,
-            }
-        }
-    }
-}
-
-impl Drop for GBuffer {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteFramebuffers(1, &self.fbo);
-            gl::DeleteRenderbuffers(1, &self.depth_buffer);
-            gl::DeleteRenderbuffers(1, &self.depth_rt);
-            gl::DeleteRenderbuffers(1, &self.normal_rt);
-            gl::DeleteRenderbuffers(1, &self.color_rt);
-            gl::DeleteTextures(1, &self.color_texture);
-            gl::DeleteTextures(1, &self.depth_texture);
-            gl::DeleteTextures(1, &self.normal_texture);
-            gl::DeleteFramebuffers(1, &self.opt_fbo);
-            gl::DeleteTextures(1, &self.frame_texture);
-        }
-    }
-}
 
 pub struct Statistics {
     pub frame_time: f32,
@@ -628,191 +79,32 @@ impl Default for Statistics {
     }
 }
 
-struct ParticleSystemRenderer {
-    shader: ParticleSystemShader,
-    draw_data: DrawData,
-    vbo: GLuint,
-    vao: GLuint,
-    ebo: GLuint,
-}
-
-impl ParticleSystemRenderer {
-    fn new() -> Self {
-        let mut vbo = 0;
-        let mut vao = 0;
-        let mut ebo = 0;
-
-        unsafe {
-            gl::GenBuffers(1, &mut vbo);
-            gl::GenBuffers(1, &mut ebo);
-            gl::GenVertexArrays(1, &mut vao);
-        }
-
-        Self {
-            shader: ParticleSystemShader::new(),
-            draw_data: Default::default(),
-            vbo,
-            vao,
-            ebo,
-        }
-    }
-
-    fn render(&mut self, state: &State, white_dummy: GLuint, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
-        unsafe {
-            gl::Disable(gl::CULL_FACE);
-            gl::Enable(gl::BLEND);
-            gl::DepthMask(gl::FALSE);
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            self.shader.bind();
-
-            for scene in state.get_scenes().iter() {
-                let camera_node = match scene.get_active_camera() {
-                    Some(camera_node) => camera_node,
-                    None => continue
-                };
-
-                let camera =
-                    if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
-                        camera
-                    } else {
-                        continue;
-                    };
-
-                let inv_view = camera.get_inv_view_matrix().unwrap();
-
-                let camera_up = inv_view.up();
-                let camera_side = inv_view.side();
-                let camera_position = camera_node.get_global_position();
-
-                for node in scene.get_nodes().iter() {
-                    let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.borrow_kind() {
-                        particle_system
-                    } else {
-                        continue;
-                    };
-
-                    particle_system.generate_draw_data(&node.get_global_position(), &camera_position, &mut self.draw_data);
-
-                    if self.draw_data.get_indices().len() == 0 {
-                        continue;
-                    }
-
-                    // Upload buffers
-                    gl::BindVertexArray(self.vao);
-
-                    // Upload indices
-                    let total_indices_byte_size = size_of::<u32>() * self.draw_data.get_indices().len();
-                    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-                    gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, total_indices_byte_size as isize, self.draw_data.get_indices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
-
-                    // Upload vertices
-                    let vertex_size = DrawData::vertex_size() as i32;
-                    let total_size_bytes = vertex_size as usize * self.draw_data.get_vertices().len();
-
-                    gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-                    gl::BufferData(gl::ARRAY_BUFFER, total_size_bytes as isize, self.draw_data.get_vertices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
-
-                    // Setup attribute locations for shared data
-                    let mut offset = 0;
-
-                    gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-                    gl::EnableVertexAttribArray(0);
-                    offset += size_of::<Vec3>();
-
-                    gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-                    gl::EnableVertexAttribArray(1);
-                    offset += size_of::<Vec2>();
-
-                    gl::VertexAttribPointer(2, 1, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-                    gl::EnableVertexAttribArray(2);
-                    offset += size_of::<f32>();
-
-                    gl::VertexAttribPointer(3, 1, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-                    gl::EnableVertexAttribArray(3);
-                    offset += size_of::<f32>();
-
-                    gl::VertexAttribPointer(4, 4, gl::UNSIGNED_BYTE, gl::TRUE, vertex_size, offset as *const c_void);
-                    gl::EnableVertexAttribArray(4);
-
-                    self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                    self.shader.set_world_matrix(node.get_global_transform());
-                    self.shader.set_camera_up_vector(&camera_up);
-                    self.shader.set_camera_side_vector(&camera_side);
-
-                    gl::ActiveTexture(gl::TEXTURE0);
-                    if let Some(resource) = particle_system.get_texture() {
-                        if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
-                            gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, white_dummy);
-                        }
-                    } else {
-                        gl::BindTexture(gl::TEXTURE_2D, white_dummy);
-                    }
-                    self.shader.set_diffuse_texture(0);
-
-                    gl::ActiveTexture(gl::TEXTURE1);
-                    gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
-                    self.shader.set_depth_buffer_texture(1);
-                    self.shader.set_inv_screen_size(Vec2::make(1.0 / frame_width, 1.0 / frame_height));
-                    self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
-
-                    gl::DrawElements(gl::TRIANGLES, self.draw_data.get_indices().len() as i32, gl::UNSIGNED_INT, std::ptr::null());
-                }
-            }
-
-            gl::Disable(gl::BLEND);
-            gl::DepthMask(gl::TRUE);
-        }
-    }
-}
-
-impl Drop for ParticleSystemRenderer {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteBuffers(1, &self.vbo);
-            gl::DeleteBuffers(1, &self.ebo);
-            gl::DeleteVertexArrays(1, &self.vao);
-        }
-    }
-}
-
 pub struct Renderer {
     // Must be on top!
     pub(crate) context: glutin::WindowedContext<PossiblyCurrent>,
     pub(crate) events_loop: glutin::EventsLoop,
-    ui_shader: UIShader,
-    deferred_light_shader: DeferredLightingShader,
-    gbuffer_shader: GBufferShader,
+    deferred_light_renderer: DeferredLightRenderer,
     gbuffer: GBuffer,
     flat_shader: FlatShader,
-    ambient_light_shader: AmbientLightShader,
     particle_system_renderer: ParticleSystemRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     white_dummy: GLuint,
     normal_dummy: GLuint,
-    /// Separate lists of handles to nodes of specified kinds. Used reduce tree traversal
-    /// count, it will performed once. Lists are valid while there is scene to render.
-    lights: Vec<Handle<Node>>,
-    meshes: Vec<Handle<Node>>,
-    particle_systems: Vec<Handle<Node>>,
     frame_rate_limit: usize,
-    ui_render_buffers: UIRenderBuffers,
+    ui_renderer: UIRenderer,
     statistics: Statistics,
     quad: RefCell<SurfaceSharedData>,
-    sphere: RefCell<SurfaceSharedData>,
-    bone_matrices: Vec<Mat4>,
 }
 
-struct FlatShader {
+pub struct FlatShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
 }
 
 impl FlatShader {
-    fn new() -> Self {
+    pub fn new() -> Result<Self, RendererError> {
         let fragment_source = CString::new(r#"
         #version 330 core
 
@@ -826,7 +118,7 @@ impl FlatShader {
         {
             FragColor = texture(diffuseTexture, texCoord);
         }
-        "#).unwrap();
+        "#)?;
 
         let vertex_source = CString::new(r#"
         #version 330 core
@@ -843,305 +135,26 @@ impl FlatShader {
             texCoord = vertexTexCoord;
             gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
         }
-        "#).unwrap();
+        "#)?;
 
-        let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
-        Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection"),
-            diffuse_texture: program.get_uniform_location("diffuseTexture"),
+        let mut program = GpuProgram::from_source("FlatShader", &vertex_source, &fragment_source)?;
+        Ok(Self {
+            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
+            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
             program,
-        }
+        })
     }
 
-    fn bind(&self) {
+    pub fn bind(&self) {
         self.program.bind();
     }
 
-    fn set_wvp_matrix(&self, mat: &Mat4) {
+    pub fn set_wvp_matrix(&self, mat: &Mat4) {
         self.program.set_mat4(self.wvp_matrix, mat)
     }
 
-    fn set_diffuse_texture(&self, id: i32) {
+    pub fn set_diffuse_texture(&self, id: i32) {
         self.program.set_int(self.diffuse_texture, id)
-    }
-}
-
-fn create_ui_shader() -> UIShader {
-    let fragment_source = CString::new(r#"
-        #version 330 core
-
-        uniform sampler2D diffuseTexture;
-
-        out vec4 FragColor;
-        in vec2 texCoord;
-        in vec4 color;
-
-        void main()
-        {
-            FragColor = color;
-            FragColor.a *= texture(diffuseTexture, texCoord).r;
-        };"#).unwrap();
-
-
-    let vertex_source = CString::new(r#"
-        #version 330 core
-
-        layout(location = 0) in vec3 vertexPosition;
-        layout(location = 1) in vec2 vertexTexCoord;
-        layout(location = 2) in vec4 vertexColor;
-
-        uniform mat4 worldViewProjection;
-
-        out vec2 texCoord;
-        out vec4 color;
-
-        void main()
-        {
-            texCoord = vertexTexCoord;
-            color = vertexColor;
-            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-        };"#).unwrap();
-
-    let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
-    UIShader {
-        wvp_matrix: program.get_uniform_location("worldViewProjection"),
-        diffuse_texture: program.get_uniform_location("diffuseTexture"),
-        program,
-    }
-}
-
-struct GBufferShader {
-    program: GpuProgram,
-    world_matrix: UniformLocation,
-    wvp_matrix: UniformLocation,
-    use_skeletal_animation: UniformLocation,
-    bone_matrices: UniformLocation,
-    diffuse_texture: UniformLocation,
-    normal_texture: UniformLocation,
-}
-
-impl GBufferShader {
-    fn new() -> Self {
-        let fragment_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) out float outDepth;
-            layout(location = 1) out vec4 outColor;
-            layout(location = 2) out vec4 outNormal;
-
-            uniform sampler2D diffuseTexture;
-            uniform sampler2D normalTexture;
-            uniform sampler2D specularTexture;
-
-            in vec4 position;
-            in vec3 normal;
-            in vec2 texCoord;
-            in vec3 tangent;
-            in vec3 binormal;
-
-            void main()
-            {
-               outDepth = position.z / position.w;
-               outColor = texture2D(diffuseTexture, texCoord);
-               if(outColor.a < 0.5) discard;
-               outColor.a = 1;
-               vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);
-               mat3 tangentSpace = mat3(tangent, binormal, normal);
-               outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
-               outNormal.w = texture2D(specularTexture, texCoord).r;
-            }
-        "#).unwrap();
-
-        let vertex_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) in vec3 vertexPosition;
-            layout(location = 1) in vec2 vertexTexCoord;
-            layout(location = 2) in vec3 vertexNormal;
-            layout(location = 3) in vec4 vertexTangent;
-            layout(location = 4) in vec4 boneWeights;
-            layout(location = 5) in vec4 boneIndices;
-
-            uniform mat4 worldMatrix;
-            uniform mat4 worldViewProjection;
-            uniform bool useSkeletalAnimation;
-            uniform mat4 boneMatrices[60];
-
-            out vec4 position;
-            out vec3 normal;
-            out vec2 texCoord;
-            out vec3 tangent;
-            out vec3 binormal;
-
-            void main()
-            {
-               vec4 localPosition = vec4(0);
-               vec3 localNormal = vec3(0);
-               vec3 localTangent = vec3(0);
-               if(useSkeletalAnimation)
-               {
-                   vec4 vertex = vec4(vertexPosition, 1.0);
-
-                   int i0 = int(boneIndices.x);
-                   int i1 = int(boneIndices.y);
-                   int i2 = int(boneIndices.z);
-                   int i3 = int(boneIndices.w);
-
-                   localPosition += boneMatrices[i0] * vertex * boneWeights.x;
-                   localPosition += boneMatrices[i1] * vertex * boneWeights.y;
-                   localPosition += boneMatrices[i2] * vertex * boneWeights.z;
-                   localPosition += boneMatrices[i3] * vertex * boneWeights.w;
-
-                   localNormal += mat3(boneMatrices[i0]) * vertexNormal * boneWeights.x;
-                   localNormal += mat3(boneMatrices[i1]) * vertexNormal * boneWeights.y;
-                   localNormal += mat3(boneMatrices[i2]) * vertexNormal * boneWeights.z;
-                   localNormal += mat3(boneMatrices[i3]) * vertexNormal * boneWeights.w;
-
-                   localTangent += mat3(boneMatrices[i0]) * vertexTangent.xyz * boneWeights.x;
-                   localTangent += mat3(boneMatrices[i1]) * vertexTangent.xyz * boneWeights.y;
-                   localTangent += mat3(boneMatrices[i2]) * vertexTangent.xyz * boneWeights.z;
-                   localTangent += mat3(boneMatrices[i3]) * vertexTangent.xyz * boneWeights.w;
-               }
-               else
-               {
-                   localPosition = vec4(vertexPosition, 1.0);
-                   localNormal = vertexNormal;
-                   localTangent = vertexTangent.xyz;
-               }
-               gl_Position = worldViewProjection * localPosition;
-               normal = normalize(mat3(worldMatrix) * localNormal);
-               tangent = normalize(mat3(worldMatrix) * localTangent);
-               binormal = normalize(vertexTangent.w * cross(tangent, normal));
-               texCoord = vertexTexCoord;
-               position = gl_Position;
-            }
-        "#).unwrap();
-
-        let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
-
-        Self {
-            world_matrix: program.get_uniform_location("worldMatrix"),
-            wvp_matrix: program.get_uniform_location("worldViewProjection"),
-            use_skeletal_animation: program.get_uniform_location("useSkeletalAnimation"),
-            bone_matrices: program.get_uniform_location("boneMatrices"),
-            diffuse_texture: program.get_uniform_location("diffuseTexture"),
-            normal_texture: program.get_uniform_location("normalTexture"),
-            program,
-        }
-    }
-
-    fn bind(&self) {
-        self.program.bind()
-    }
-
-    fn set_world_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_matrix, mat)
-    }
-
-    fn set_wvp_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.wvp_matrix, mat)
-    }
-
-    fn set_use_skeletal_animation(&self, value: bool) {
-        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 })
-    }
-
-    fn set_bone_matrices(&self, matrices: &[Mat4]) {
-        self.program.set_mat4_array(self.bone_matrices, matrices);
-    }
-
-    fn set_diffuse_texture(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
-    }
-
-    fn set_normal_texture(&self, id: i32) {
-        self.program.set_int(self.normal_texture, id)
-    }
-}
-
-struct AmbientLightShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    diffuse_texture: UniformLocation,
-    ambient_color: UniformLocation,
-}
-
-impl AmbientLightShader {
-    fn new() -> Self {
-        let fragment_source = CString::new(r#"
-        #version 330 core
-
-        uniform sampler2D diffuseTexture;
-        uniform vec4 ambientColor;
-
-        out vec4 FragColor;
-        in vec2 texCoord;
-
-        void main()
-        {
-        	FragColor = ambientColor * texture(diffuseTexture, texCoord);
-        }
-        "#
-        ).unwrap();
-
-        let vertex_source = CString::new(r#"
-        #version 330 core
-
-        layout(location = 0) in vec3 vertexPosition;
-        layout(location = 1) in vec2 vertexTexCoord;
-
-        uniform mat4 worldViewProjection;
-
-        out vec2 texCoord;
-
-        void main()
-        {
-        	texCoord = vertexTexCoord;
-        	gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-        }
-        "#
-        ).unwrap();
-
-        let mut program = GpuProgram::from_source(&vertex_source, &fragment_source).unwrap();
-
-        Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection"),
-            diffuse_texture: program.get_uniform_location("diffuseTexture"),
-            ambient_color: program.get_uniform_location("ambientColor"),
-            program,
-        }
-    }
-
-    fn bind(&self) {
-        self.program.bind()
-    }
-
-    fn set_wvp_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.wvp_matrix, mat)
-    }
-
-    fn set_diffuse_texture(&self, i: i32) {
-        self.program.set_int(self.diffuse_texture, i)
-    }
-
-    fn set_ambient_color(&self, color: Color) {
-        self.program.set_vec4(self.ambient_color, &color.as_frgba())
-    }
-}
-
-fn create_ui_render_buffers() -> UIRenderBuffers {
-    unsafe {
-        let mut ui_render_buffers = UIRenderBuffers {
-            vbo: 0,
-            ebo: 0,
-            vao: 0,
-        };
-
-        gl::GenVertexArrays(1, &mut ui_render_buffers.vao);
-        gl::GenBuffers(1, &mut ui_render_buffers.vbo);
-        gl::GenBuffers(1, &mut ui_render_buffers.ebo);
-
-        ui_render_buffers
     }
 }
 
@@ -1214,7 +227,7 @@ fn create_normal_dummy() -> GLuint {
 }
 
 impl Renderer {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, RendererError> {
         let events_loop = glutin::EventsLoop::new();
 
         let primary_monitor = events_loop.get_primary_monitor();
@@ -1232,36 +245,30 @@ impl Renderer {
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
-            .build_windowed(window_builder, &events_loop)
-            .unwrap();
+            .build_windowed(window_builder, &events_loop)?;
 
         unsafe {
-            let context = context_wrapper.make_current().unwrap();
+            let context = match context_wrapper.make_current() {
+                Ok(context) => context,
+                Err((_, error)) => return Err(RendererError::from(error)),
+            };
             gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
             gl::Enable(gl::DEPTH_TEST);
 
-            Self {
+            Ok(Self {
                 context,
                 events_loop,
-                ui_shader: create_ui_shader(),
-                deferred_light_shader: DeferredLightingShader::new(),
-                gbuffer_shader: GBufferShader::new(),
-                ambient_light_shader: AmbientLightShader::new(),
-                flat_shader: FlatShader::new(),
-                gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32),
-                lights: Vec::new(),
-                meshes: Vec::new(),
-                particle_systems: Vec::new(),
+                deferred_light_renderer: DeferredLightRenderer::new()?,
+                flat_shader: FlatShader::new()?,
+                gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32)?,
                 frame_rate_limit: 60,
                 statistics: Statistics::default(),
                 white_dummy: create_white_dummy(),
                 normal_dummy: create_normal_dummy(),
                 quad: RefCell::new(SurfaceSharedData::make_unit_xy_quad()),
-                sphere: RefCell::new(SurfaceSharedData::make_sphere(6, 6, 1.0)),
-                ui_render_buffers: create_ui_render_buffers(),
-                bone_matrices: Vec::new(),
-                particle_system_renderer: ParticleSystemRenderer::new()
-            }
+                ui_renderer: UIRenderer::new()?,
+                particle_system_renderer: ParticleSystemRenderer::new()?,
+            })
         }
     }
 
@@ -1269,81 +276,8 @@ impl Renderer {
         &self.statistics
     }
 
-    fn draw_surface(&self, data: &mut SurfaceSharedData) {
-        unsafe {
-            if data.need_upload {
-                let total_size_bytes = data.get_vertices().len() * std::mem::size_of::<Vertex>();
-
-                gl::BindVertexArray(data.get_vertex_array_object());
-
-                // Upload indices
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, data.get_element_buffer_object());
-                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                               (data.get_indices().len() * std::mem::size_of::<i32>()) as GLsizeiptr,
-                               data.get_indices().as_ptr() as *const GLvoid,
-                               gl::STATIC_DRAW);
-
-                // Upload vertices
-                gl::BindBuffer(gl::ARRAY_BUFFER, data.get_vertex_buffer_object());
-                gl::BufferData(gl::ARRAY_BUFFER,
-                               total_size_bytes as GLsizeiptr,
-                               data.get_vertices().as_ptr() as *const GLvoid,
-                               gl::STATIC_DRAW);
-
-                let mut offset = 0;
-
-                // Positions
-                gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(0);
-                offset += size_of::<Vec3>();
-
-                // Texture coordinates
-                gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(1);
-                offset += size_of::<Vec2>();
-
-                // Normals
-                gl::VertexAttribPointer(2, 3, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(2);
-                offset += size_of::<Vec3>();
-
-                // Tangents
-                gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(3);
-                offset += size_of::<Vec4>();
-
-                // Bone weights
-                gl::VertexAttribPointer(4, 4, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(4);
-                offset += size_of::<Vec4>();
-
-                // Bone indices
-                gl::VertexAttribPointer(5, 4, gl::UNSIGNED_BYTE, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(5);
-
-                gl::BindVertexArray(0);
-
-                check_gl_error();
-
-                data.need_upload = false;
-            }
-
-            gl::BindVertexArray(data.get_vertex_array_object());
-            gl::DrawElements(gl::TRIANGLES,
-                             data.get_indices().len() as GLint,
-                             gl::UNSIGNED_INT,
-                             std::ptr::null());
-        }
-    }
-
     fn draw_quad(&mut self) {
-        self.draw_surface(&mut self.quad.borrow_mut())
+        self.quad.borrow().draw();
     }
 
     pub fn upload_font_cache(&mut self, font_cache: &mut Pool<Font>) {
@@ -1387,8 +321,6 @@ impl Renderer {
                 }
             }
         }
-
-        check_gl_error();
     }
 
     pub fn upload_resources(&mut self, state: &mut State) {
@@ -1420,6 +352,11 @@ impl Renderer {
                         gl::TEXTURE_MIN_FILTER,
                         gl::LINEAR_MIPMAP_LINEAR as i32,
                     );
+
+                    let mut aniso = 0.0;
+                    gl::GetFloatv(gl::MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut aniso);
+                    gl::TexParameterf(gl::TEXTURE_2D, gl::TEXTURE_MAX_ANISOTROPY_EXT, aniso);
+
                     gl::GenerateMipmap(gl::TEXTURE_2D);
                     texture.need_upload = false;
                 }
@@ -1427,106 +364,11 @@ impl Renderer {
         });
     }
 
-    fn render_ui(&mut self, drawing_context: &DrawingContext) {
-        unsafe {
-            let client_size = self.context.window().get_inner_size().unwrap();
-
-            // Render UI on top of everything
-            gl::Disable(gl::DEPTH_TEST);
-            gl::Enable(gl::BLEND);
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            gl::Disable(gl::CULL_FACE);
-
-            self.ui_shader.program.bind();
-            gl::ActiveTexture(gl::TEXTURE0);
-
-            let index_bytes = drawing_context.get_indices_bytes();
-            let vertex_bytes = drawing_context.get_vertices_bytes();
-
-            // Upload to GPU.
-            gl::BindVertexArray(self.ui_render_buffers.vao);
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.ui_render_buffers.vbo);
-            gl::BufferData(gl::ARRAY_BUFFER, vertex_bytes, drawing_context.get_vertices_ptr(), gl::DYNAMIC_DRAW);
-
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ui_render_buffers.ebo);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, index_bytes, drawing_context.get_indices_ptr(), gl::DYNAMIC_DRAW);
-
-            let mut offset = 0;
-            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE,
-                                    drawing_context.get_vertex_size(),
-                                    offset as *const c_void);
-            gl::EnableVertexAttribArray(0);
-            offset += std::mem::size_of::<Vec2>();
-
-            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
-                                    drawing_context.get_vertex_size(),
-                                    offset as *const c_void);
-            gl::EnableVertexAttribArray(1);
-            offset += std::mem::size_of::<Vec2>();
-
-            gl::VertexAttribPointer(2, 4, gl::UNSIGNED_BYTE, gl::TRUE,
-                                    drawing_context.get_vertex_size(),
-                                    offset as *const c_void);
-            gl::EnableVertexAttribArray(2);
-
-            let ortho = Mat4::ortho(0.0,
-                                    client_size.width as f32,
-                                    client_size.height as f32,
-                                    0.0,
-                                    -1.0,
-                                    1.0);
-            self.ui_shader.program.set_mat4(self.ui_shader.wvp_matrix, &ortho);
-
-            for cmd in drawing_context.get_commands() {
-                let index_count = cmd.get_triangle_count() * 3;
-                if cmd.get_nesting() != 0 {
-                    gl::Enable(gl::STENCIL_TEST);
-                } else {
-                    gl::Disable(gl::STENCIL_TEST);
-                }
-                match cmd.get_kind() {
-                    CommandKind::Clip => {
-                        if cmd.get_nesting() == 1 {
-                            gl::Clear(gl::STENCIL_BUFFER_BIT);
-                        }
-                        gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
-                        // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
-                        gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting() - 1), 0xFF);
-                        gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
-                        // Draw clipping geometry to stencil buffer
-                        gl::StencilMask(0xFF);
-                        gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
-                    }
-                    CommandKind::Geometry => {
-                        // Make sure to draw geometry only on clipping geometry with current nesting level
-                        gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting()), 0xFF);
-
-                        if cmd.get_texture() != 0 {
-                            gl::ActiveTexture(gl::TEXTURE0);
-                            self.ui_shader.program.set_int(self.ui_shader.diffuse_texture, 0);
-                            gl::BindTexture(gl::TEXTURE_2D, cmd.get_texture());
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
-                        }
-
-                        gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-                        // Do not draw geometry to stencil buffer
-                        gl::StencilMask(0x00);
-                    }
-                }
-
-                let index_offset_bytes = cmd.get_index_offset() * std::mem::size_of::<GLuint>();
-                gl::DrawElements(gl::TRIANGLES, index_count as i32, gl::UNSIGNED_INT,
-                                 index_offset_bytes as *const c_void);
-            }
-            gl::BindVertexArray(0);
-        }
-    }
 
     /// Sets new frame size, should be called when received a Resize event.
-    pub fn set_frame_size(&mut self, new_size: Vec2) {
-        self.gbuffer = GBuffer::new(new_size.x as i32, new_size.y as i32);
+    pub fn set_frame_size(&mut self, new_size: Vec2) -> Result<(), RendererError> {
+        self.gbuffer = GBuffer::new(new_size.x as i32, new_size.y as i32)?;
+        Ok(())
     }
 
     pub fn get_frame_size(&self) -> Vec2 {
@@ -1534,7 +376,7 @@ impl Renderer {
         Vec2::make(client_size.width as f32, client_size.height as f32)
     }
 
-    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) {
+    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) -> Result<(), RendererError>{
         let frame_start_time = Instant::now();
         let client_size = self.context.window().get_inner_size().unwrap();
 
@@ -1545,37 +387,8 @@ impl Renderer {
                 Mat4::scale(Vec3::make(frame_width, frame_height, 0.0));
 
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, self.gbuffer.fbo);
-            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-
-            self.gbuffer_shader.bind();
-            self.gbuffer_shader.set_diffuse_texture(0);
-            self.gbuffer_shader.set_normal_texture(1);
-            gl::Enable(gl::CULL_FACE);
-            gl::Disable(gl::STENCIL_TEST);
-            gl::Disable(gl::BLEND);
-            gl::Enable(gl::DEPTH_TEST);
-            gl::DepthMask(gl::TRUE);
-            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-
             for scene in state.get_scenes().iter() {
                 // Prepare for render - fill lists of nodes participating in rendering.
-                self.meshes.clear();
-                self.lights.clear();
-                self.particle_systems.clear();
-                for i in 0..scene.get_nodes().get_capacity() {
-                    if let Some(node) = scene.get_nodes().at(i) {
-                        let node_handle = scene.get_nodes().handle_from_index(i);
-                        match node.borrow_kind() {
-                            NodeKind::Mesh(_) => self.meshes.push(node_handle),
-                            NodeKind::Light(_) => self.lights.push(node_handle),
-                            NodeKind::ParticleSystem(_) => self.particle_systems.push(node_handle),
-                            _ => ()
-                        }
-                    }
-                }
-
                 let camera_node = match scene.get_active_camera() {
                     Some(camera_node) => camera_node,
                     None => continue
@@ -1588,188 +401,9 @@ impl Renderer {
                         continue;
                     };
 
-                // Setup viewport
-                let viewport = camera.get_viewport_pixels(Vec2 { x: frame_width, y: frame_height });
-                gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
+                self.gbuffer.fill(frame_width, frame_height, scene, camera, self.white_dummy, self.normal_dummy);
 
-                let view_projection = camera.get_view_projection_matrix();
-                let inv_view_projection = view_projection.inverse().unwrap();
-
-                for mesh_handle in self.meshes.iter() {
-                    if let Some(node) = scene.get_node(*mesh_handle) {
-                        if let NodeKind::Mesh(mesh) = node.borrow_kind() {
-                            if !node.get_global_visibility() {
-                                continue;
-                            }
-
-                            for surface in mesh.get_surfaces().iter() {
-                                let is_skinned = !surface.bones.is_empty();
-
-                                let world = if is_skinned {
-                                    Mat4::identity()
-                                } else {
-                                    *node.get_global_transform()
-                                };
-                                let mvp = view_projection * world;
-
-                                self.gbuffer_shader.set_wvp_matrix(&mvp);
-                                self.gbuffer_shader.set_world_matrix(&world);
-
-                                self.gbuffer_shader.set_use_skeletal_animation(is_skinned);
-
-                                if is_skinned {
-                                    self.bone_matrices.clear();
-                                    for bone_handle in surface.bones.iter() {
-                                        if let Some(bone_node) = scene.get_node(*bone_handle) {
-                                            self.bone_matrices.push(
-                                                *bone_node.get_global_transform() *
-                                                    *bone_node.get_inv_bind_pose_transform());
-                                        } else {
-                                            self.bone_matrices.push(Mat4::identity())
-                                        }
-                                    }
-
-                                    self.gbuffer_shader.set_bone_matrices(&self.bone_matrices);
-                                }
-
-                                // Bind diffuse texture.
-                                gl::ActiveTexture(gl::TEXTURE0);
-                                if let Some(resource) = surface.get_diffuse_texture() {
-                                    if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
-                                        gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                                    } else {
-                                        gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
-                                    }
-                                } else {
-                                    gl::BindTexture(gl::TEXTURE_2D, self.white_dummy);
-                                }
-
-                                // Bind normal texture.
-                                gl::ActiveTexture(gl::TEXTURE1);
-                                if let Some(resource) = surface.get_normal_texture() {
-                                    if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
-                                        gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                                    } else {
-                                        gl::BindTexture(gl::TEXTURE_2D, self.normal_dummy);
-                                    }
-                                } else {
-                                    gl::BindTexture(gl::TEXTURE_2D, self.normal_dummy);
-                                }
-
-                                self.draw_surface(&mut surface.get_data().borrow_mut());
-                            }
-                        }
-                    }
-                }
-
-                gl::BindFramebuffer(gl::FRAMEBUFFER, self.gbuffer.opt_fbo);
-                gl::Viewport(0, 0, frame_width as i32, frame_height as i32);
-                gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-
-                gl::Disable(gl::BLEND);
-                gl::DepthMask(gl::FALSE);
-                gl::StencilMask(0xFF);
-                gl::Disable(gl::STENCIL_TEST);
-                gl::Disable(gl::CULL_FACE);
-
-                // Ambient light.
-                self.ambient_light_shader.bind();
-                self.ambient_light_shader.set_wvp_matrix(&frame_matrix);
-                self.ambient_light_shader.set_ambient_color(Color::opaque(100, 100, 100));
-                self.ambient_light_shader.set_diffuse_texture(0);
-                gl::ActiveTexture(gl::TEXTURE0);
-                gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.color_texture);
-                self.draw_quad();
-
-                // Lighting
-                gl::Enable(gl::BLEND);
-                gl::BlendFunc(gl::ONE, gl::ONE);
-                gl::ActiveTexture(gl::TEXTURE0);
-                gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.depth_texture);
-                gl::ActiveTexture(gl::TEXTURE1);
-                gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.color_texture);
-                gl::ActiveTexture(gl::TEXTURE2);
-                gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.normal_texture);
-
-                for light_handle in self.lights.iter() {
-                    let light_node =
-                        if let Some(light_node) = scene.get_node(*light_handle) {
-                            light_node
-                        } else {
-                            continue;
-                        };
-
-                    let light =
-                        if let NodeKind::Light(light) = light_node.borrow_kind() {
-                            light
-                        } else {
-                            continue;
-                        };
-
-                    let light_position = light_node.get_global_position();
-                    let light_r_inflate = light.get_radius() * 1.05;
-                    let light_radius_vec = Vec3::make(light_r_inflate, light_r_inflate, light_r_inflate);
-                    let light_emit_direction = light_node.get_up_vector().normalized().unwrap();
-
-                    // Mark lighted areas in stencil buffer to do light calculations only on them.
-                    self.flat_shader.bind();
-                    self.flat_shader.set_wvp_matrix(&(view_projection * Mat4::translate(light_position) *
-                        Mat4::scale(light_radius_vec)));
-
-                    gl::Enable(gl::STENCIL_TEST);
-                    gl::StencilMask(0xFF);
-                    gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
-
-                    gl::Enable(gl::CULL_FACE);
-
-                    gl::CullFace(gl::FRONT);
-                    gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
-                    gl::StencilOp(gl::KEEP, gl::INCR, gl::KEEP);
-                    self.draw_surface(&mut self.sphere.borrow_mut());
-
-                    gl::CullFace(gl::BACK);
-                    gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
-                    gl::StencilOp(gl::KEEP, gl::DECR, gl::KEEP);
-                    self.draw_surface(&mut self.sphere.borrow_mut());
-
-                    gl::StencilFunc(gl::NOTEQUAL, 0, 0xFF);
-                    gl::StencilOp(gl::KEEP, gl::KEEP, gl::ZERO);
-
-                    gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-
-                    gl::Disable(gl::CULL_FACE);
-
-
-                    // Finally render light.
-                    self.deferred_light_shader.bind();
-                    self.deferred_light_shader.set_light_position(&light_position);
-                    self.deferred_light_shader.set_light_direction(&light_emit_direction);
-                    self.deferred_light_shader.set_light_type(-1); // Disable shadows for now
-                    self.deferred_light_shader.set_light_radius(light.get_radius());
-                    self.deferred_light_shader.set_inv_view_proj_matrix(&inv_view_projection);
-                    self.deferred_light_shader.set_light_color(light.get_color());
-                    self.deferred_light_shader.set_light_cone_angle_cos(light.get_cone_angle_cos());
-                    self.deferred_light_shader.set_wvp_matrix(&frame_matrix);
-                    self.deferred_light_shader.set_shadow_map_inv_size(0.0); // TODO
-                    self.deferred_light_shader.set_camera_position(&camera_node.get_global_position());
-                    self.deferred_light_shader.set_depth_sampler_id(0);
-                    self.deferred_light_shader.set_color_sampler_id(1);
-                    self.deferred_light_shader.set_normal_sampler_id(2);
-
-                    gl::ActiveTexture(gl::TEXTURE0);
-                    gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.depth_texture);
-
-                    self.draw_surface(&mut self.quad.borrow_mut());
-
-                    gl::ActiveTexture(gl::TEXTURE3);
-                    gl::BindTexture(gl::TEXTURE_2D, 0);
-                    gl::BindTexture(gl::TEXTURE_CUBE_MAP, 0);
-                }
-
-                gl::Disable(gl::STENCIL_TEST);
-                gl::Disable(gl::BLEND);
-
-                gl::DepthMask(gl::TRUE);
+                self.deferred_light_renderer.render(frame_width, frame_height, scene, camera_node, camera, &self.gbuffer);
             }
 
             // Unbind FBO textures.
@@ -1795,12 +429,10 @@ impl Renderer {
             self.draw_quad();
 
             // UI
-            self.render_ui(drawing_context);
+            self.ui_renderer.render(frame_width, frame_height, drawing_context, self.white_dummy);
         }
 
-        check_gl_error();
-
-        self.context.swap_buffers().unwrap();
+        self.context.swap_buffers()?;
 
         if self.frame_rate_limit > 0 {
             let frame_time_ms = 1000.0 * duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
@@ -1814,5 +446,6 @@ impl Renderer {
         let total_time_s = duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
         self.statistics.frame_time = total_time_s;
         self.statistics.current_fps = (1.0 / total_time_s) as usize;
+        Ok(())
     }
 }

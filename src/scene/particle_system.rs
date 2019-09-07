@@ -3,13 +3,18 @@ use crate::{
         vec3::Vec3,
         vec2::Vec2,
     },
-    utils::{
-        visitor::{Visit, Visitor, VisitResult},
-        color_gradient::ColorGradient,
-    },
     gui::draw::Color,
     resource::Resource,
-    utils::visitor::VisitError,
+    utils::{
+        visitor::{
+            VisitError,
+            Visit,
+            Visitor,
+            VisitResult
+        },
+        color_gradient::ColorGradient,
+        numeric_range::NumericRange
+    }
 };
 use std::{
     cell::{
@@ -18,9 +23,11 @@ use std::{
     },
     rc::Rc,
     cmp::Ordering,
+    mem::size_of
 };
-use std::mem::size_of;
 use rand::Rng;
+use std::any::Any;
+use std::sync::{Mutex, LockResult, MutexGuard};
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
@@ -72,18 +79,18 @@ impl DrawData {
 
 #[derive(Clone, Debug)]
 pub struct Particle {
-    position: Vec3,
-    velocity: Vec3,
-    size: f32,
+    pub position: Vec3,
+    pub velocity: Vec3,
+    pub size: f32,
     alive: bool,
     /// Modifier for size which will be added to size each update tick.
-    size_modifier: f32,
+    pub size_modifier: f32,
     /// Particle is alive if lifetime > 0
     lifetime: f32,
-    initial_lifetime: f32,
-    rotation_speed: f32,
-    rotation: f32,
-    color: Color,
+    pub initial_lifetime: f32,
+    pub rotation_speed: f32,
+    pub rotation: f32,
+    pub color: Color,
     emitter_index: u32,
     sqr_distance_to_camera: Cell<f32>,
 }
@@ -152,7 +159,7 @@ impl Default for BoxEmitter {
         Self {
             half_width: 0.5,
             half_height: 0.5,
-            half_depth: 0.5
+            half_depth: 0.5,
         }
     }
 }
@@ -246,12 +253,53 @@ impl Clone for SphereEmitter {
     }
 }
 
+pub type CustomEmitterFactoryCallback = dyn Fn(u8) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
+
+pub struct CustomEmitterFactory {
+    callback: Option<Box<CustomEmitterFactoryCallback>>
+}
+
+impl Default for CustomEmitterFactory {
+    fn default() -> Self {
+        Self {
+            callback: None
+        }
+    }
+}
+
+impl CustomEmitterFactory {
+    pub fn get() -> LockResult<MutexGuard<'static, Self>> {
+        CUSTOM_EMITTER_FACTORY_INSTANCE.lock()
+    }
+
+    pub fn set_callback(&mut self, call_back: Box<CustomEmitterFactoryCallback>) {
+        self.callback = Some(call_back);
+    }
+
+    fn spawn(&self, kind: u8) -> Result<Box<dyn CustomEmitter>, String> {
+        match &self.callback {
+            Some(callback) => callback(kind),
+            None => Err(String::from("no callback specified")),
+        }
+    }
+}
+
+lazy_static! {
+    static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> = Mutex::new(Default::default());
+}
+
+pub trait CustomEmitter : Any + Emit + Visit {
+    fn box_clone(&self) -> Box<dyn CustomEmitter>;
+    fn get_kind(&self) -> u8;
+}
+
 pub enum EmitterKind {
     /// Unknown kind here is just to have ability to implement Default trait,
     /// must not be used at runtime!
     Unknown,
     Box(BoxEmitter),
     Sphere(SphereEmitter),
+    Custom(Box<dyn CustomEmitter>)
 }
 
 impl Emit for EmitterKind {
@@ -260,6 +308,7 @@ impl Emit for EmitterKind {
             EmitterKind::Unknown => (),
             EmitterKind::Box(box_emitter) => box_emitter.emit(emitter, particle_system, particle),
             EmitterKind::Sphere(sphere_emitter) => sphere_emitter.emit(emitter, particle_system, particle),
+            EmitterKind::Custom(custom_emitter) => custom_emitter.emit(emitter, particle_system, particle)
         }
     }
 }
@@ -270,6 +319,7 @@ impl Clone for EmitterKind {
             EmitterKind::Unknown => EmitterKind::Unknown,
             EmitterKind::Box(box_emitter) => EmitterKind::Box(box_emitter.clone()),
             EmitterKind::Sphere(sphere_emitter) => EmitterKind::Sphere(sphere_emitter.clone()),
+            EmitterKind::Custom(custom_emitter) => EmitterKind::Custom(custom_emitter.box_clone())
         }
     }
 }
@@ -282,6 +332,7 @@ impl Visit for EmitterKind {
             EmitterKind::Unknown => 0,
             EmitterKind::Box(_) => 1,
             EmitterKind::Sphere(_) => 2,
+            EmitterKind::Custom(custom_emitter) => custom_emitter.get_kind(),
         };
         kind.visit("Id", visitor)?;
 
@@ -290,14 +341,20 @@ impl Visit for EmitterKind {
                 0 => EmitterKind::Unknown,
                 1 => EmitterKind::Box(Default::default()),
                 2 => EmitterKind::Sphere(Default::default()),
-                _ => return Err(VisitError::User(format!("invalid emitter kind id {}", kind)))
+                _ => {
+                    match CustomEmitterFactory::get() {
+                        Ok(guard) => EmitterKind::Custom(guard.spawn(kind)?),
+                        Err(_) => return Err(VisitError::from(String::from("failed get get factory"))),
+                    }
+                }
             }
         }
 
         match self {
             EmitterKind::Unknown => (),
             EmitterKind::Box(box_emitter) => box_emitter.visit("Data", visitor)?,
-            EmitterKind::Sphere(sphere_emitter) => sphere_emitter.visit("Data", visitor)?
+            EmitterKind::Sphere(sphere_emitter) => sphere_emitter.visit("Data", visitor)?,
+            EmitterKind::Custom(custom_emitter) => custom_emitter.visit("Data", visitor)?,
         }
 
         visitor.leave_region()
@@ -343,32 +400,54 @@ pub struct Emitter {
     /// Maximum amount of particles emitter can emit. Unlimited if < 0
     max_particles: ParticleLimit,
     /// Range of initial lifetime of a particle
-    min_lifetime: f32,
-    max_lifetime: f32,
+    lifetime: NumericRange<f32>,
     /// Range of initial size of a particle
-    min_size: f32,
-    max_size: f32,
+    size: NumericRange<f32>,
     /// Range of initial size modifier of a particle
-    min_size_modifier: f32,
-    max_size_modifier: f32,
+    size_modifier: NumericRange<f32>,
     /// Range of initial X-component of velocity for a particle
-    min_x_velocity: f32,
-    max_x_velocity: f32,
+    x_velocity: NumericRange<f32>,
     /// Range of initial Y-component of velocity for a particle
-    min_y_velocity: f32,
-    max_y_velocity: f32,
+    y_velocity: NumericRange<f32>,
     /// Range of initial Z-component of velocity for a particle
-    min_z_velocity: f32,
-    max_z_velocity: f32,
+    z_velocity: NumericRange<f32>,
     /// Range of initial rotation speed for a particle
-    min_rotation_speed: f32,
-    max_rotation_speed: f32,
+    rotation_speed: NumericRange<f32>,
     /// Range of initial rotation for a particle
-    min_rotation: f32,
-    max_rotation: f32,
+    rotation: NumericRange<f32>,
     alive_particles: Cell<u32>,
     time: f32,
     particles_to_spawn: usize,
+}
+
+pub struct EmitterBuilder {
+    kind: EmitterKind,
+    position: Option<Vec3>,
+
+}
+
+impl EmitterBuilder {
+    pub fn new(kind: EmitterKind) -> Self {
+        Self {
+            kind,
+            position: None,
+        }
+    }
+
+    pub fn with_position(mut self, position: Vec3) -> Self {
+        self.position = Some(position);
+        self
+    }
+
+    pub fn build(self) -> Emitter {
+        let mut emitter = Emitter::new(self.kind);
+
+        if let Some(position) = self.position {
+            emitter.position = position;
+        }
+
+        emitter
+    }
 }
 
 impl Emitter {
@@ -378,22 +457,14 @@ impl Emitter {
             position: Vec3::zero(),
             particle_spawn_rate: 25,
             max_particles: ParticleLimit::Unlimited,
-            min_lifetime: 5.0,
-            max_lifetime: 10.0,
-            min_size: 0.125,
-            max_size: 0.250,
-            min_size_modifier: 0.0005,
-            max_size_modifier: 0.0010,
-            min_x_velocity: -0.001,
-            max_x_velocity: 0.001,
-            min_y_velocity: -0.001,
-            max_y_velocity: 0.001,
-            min_z_velocity: -0.001,
-            max_z_velocity: 0.001,
-            min_rotation_speed: -0.02,
-            max_rotation_speed: 0.02,
-            min_rotation: -std::f32::consts::PI,
-            max_rotation: std::f32::consts::PI,
+            lifetime: NumericRange::new(5.0, 10.0),
+            size: NumericRange::new(0.125, 0.250),
+            size_modifier: NumericRange::new(0.0005, 0.0010),
+            x_velocity: NumericRange::new(-0.001, 0.001),
+            y_velocity: NumericRange::new(-0.001, 0.001),
+            z_velocity: NumericRange::new(-0.001, 0.001),
+            rotation_speed: NumericRange::new(-0.02, 0.02),
+            rotation: NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI),
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
@@ -415,19 +486,18 @@ impl Emitter {
     }
 
     pub fn emit(&self, particle_system: &ParticleSystem, particle: &mut Particle) {
-        let mut rng = rand::thread_rng();
         particle.lifetime = 0.0;
-        particle.initial_lifetime = rng.gen_range(self.min_lifetime, self.max_lifetime);
+        particle.initial_lifetime = self.lifetime.random();
         particle.color = Color::white();
-        particle.size = rng.gen_range(self.min_size, self.max_size);
-        particle.size_modifier = rng.gen_range(self.min_size_modifier, self.max_size_modifier);
+        particle.size = self.size.random();
+        particle.size_modifier = self.size_modifier.random();
         particle.velocity = Vec3::make(
-            rng.gen_range(self.min_x_velocity, self.max_x_velocity),
-            rng.gen_range(self.min_y_velocity, self.max_y_velocity),
-            rng.gen_range(self.min_z_velocity, self.max_z_velocity),
+            self.x_velocity.random(),
+            self.y_velocity.random(),
+            self.z_velocity.random(),
         );
-        particle.rotation = rng.gen_range(self.min_rotation, self.max_rotation);
-        particle.rotation_speed = rng.gen_range(self.min_rotation_speed, self.max_rotation_speed);
+        particle.rotation = self.rotation.random();
+        particle.rotation_speed = self.rotation_speed.random();
         self.kind.emit(self, particle_system, particle);
     }
 }
@@ -440,22 +510,14 @@ impl Visit for Emitter {
         self.position.visit("Position", visitor)?;
         self.particle_spawn_rate.visit("SpawnRate", visitor)?;
         self.max_particles.visit("MaxParticles", visitor)?;
-        self.min_lifetime.visit("MinLifeTime", visitor)?;
-        self.max_lifetime.visit("MaxLifeTime", visitor)?;
-        self.min_size.visit("MinSize", visitor)?;
-        self.max_size.visit("MaxSize", visitor)?;
-        self.min_size_modifier.visit("MinSizeModifier", visitor)?;
-        self.max_size_modifier.visit("MaxSizeModifier", visitor)?;
-        self.min_x_velocity.visit("MinXVelocity", visitor)?;
-        self.max_x_velocity.visit("MaxXVelocity", visitor)?;
-        self.min_y_velocity.visit("MinYVelocity", visitor)?;
-        self.max_y_velocity.visit("MaxYVelocity", visitor)?;
-        self.min_z_velocity.visit("MinZVelocity", visitor)?;
-        self.max_z_velocity.visit("MaxZVelocity", visitor)?;
-        self.min_rotation_speed.visit("MinRotationSpeed", visitor)?;
-        self.max_rotation_speed.visit("MaxRotationSpeed", visitor)?;
-        self.min_rotation.visit("MinRotation", visitor)?;
-        self.max_rotation.visit("MaxRotation", visitor)?;
+        self.lifetime.visit("LifeTime", visitor)?;
+        self.size.visit("Size", visitor)?;
+        self.size_modifier.visit("SizeModifier", visitor)?;
+        self.x_velocity.visit("XVelocity", visitor)?;
+        self.y_velocity.visit("YVelocity", visitor)?;
+        self.z_velocity.visit("ZVelocity", visitor)?;
+        self.rotation_speed.visit("RotationSpeed", visitor)?;
+        self.rotation.visit("Rotation", visitor)?;
         self.alive_particles.visit("AliveParticles", visitor)?;
         self.time.visit("Time", visitor)?;
 
@@ -470,22 +532,14 @@ impl Clone for Emitter {
             position: self.position,
             particle_spawn_rate: self.particle_spawn_rate,
             max_particles: self.max_particles,
-            min_lifetime: self.min_lifetime,
-            max_lifetime: self.max_lifetime,
-            min_size: self.min_size,
-            max_size: self.max_size,
-            min_size_modifier: self.min_size_modifier,
-            max_size_modifier: self.max_size_modifier,
-            min_x_velocity: self.min_x_velocity,
-            max_x_velocity: self.max_x_velocity,
-            min_y_velocity: self.min_y_velocity,
-            max_y_velocity: self.max_y_velocity,
-            min_z_velocity: self.min_z_velocity,
-            max_z_velocity: self.max_z_velocity,
-            min_rotation_speed: self.min_rotation_speed,
-            max_rotation_speed: self.max_rotation_speed,
-            min_rotation: self.min_rotation,
-            max_rotation: self.max_rotation,
+            lifetime: self.lifetime,
+            size: self.size,
+            size_modifier: self.size_modifier,
+            x_velocity: self.x_velocity,
+            y_velocity: self.y_velocity,
+            z_velocity: self.z_velocity,
+            rotation_speed: self.rotation_speed,
+            rotation: self.rotation,
             alive_particles: self.alive_particles.clone(),
             time: self.time,
             particles_to_spawn: 0,
@@ -500,22 +554,14 @@ impl Default for Emitter {
             position: Vec3::zero(),
             particle_spawn_rate: 0,
             max_particles: ParticleLimit::Unlimited,
-            min_lifetime: 5.0,
-            max_lifetime: 10.0,
-            min_size: 0.125,
-            max_size: 0.250,
-            min_size_modifier: 0.0005,
-            max_size_modifier: 0.0010,
-            min_x_velocity: -0.001,
-            max_x_velocity: 0.001,
-            min_y_velocity: -0.001,
-            max_y_velocity: 0.001,
-            min_z_velocity: -0.001,
-            max_z_velocity: 0.001,
-            min_rotation_speed: -0.02,
-            max_rotation_speed: 0.02,
-            min_rotation: -std::f32::consts::PI,
-            max_rotation: std::f32::consts::PI,
+            lifetime: NumericRange::new(5.0, 10.0),
+            size: NumericRange::new(0.125, 0.250),
+            size_modifier: NumericRange::new(0.0005, 0.0010),
+            x_velocity: NumericRange::new(-0.001, 0.001),
+            y_velocity: NumericRange::new(-0.001, 0.001),
+            z_velocity: NumericRange::new(-0.001, 0.001),
+            rotation_speed: NumericRange::new(-0.02, 0.02),
+            rotation: NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI),
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
