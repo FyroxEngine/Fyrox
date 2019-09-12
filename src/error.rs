@@ -1,5 +1,6 @@
 #[derive(Debug)]
 pub enum SoundError {
+    InvalidOutputBufferSize,
     Io(std::io::Error),
     FailedToInitializeDevice,
     InvalidHeader,

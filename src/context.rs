@@ -3,9 +3,11 @@ use crate::{
     error::SoundError,
     source::Source,
     device::run_device,
-    pool::Pool,
+    pool::{
+        Pool,
+        Handle
+    }
 };
-use crate::pool::Handle;
 
 pub struct Context {
     sources: Pool<Source>
@@ -19,7 +21,7 @@ impl Context {
 
         // Run device with a mixer callback. Mixer callback will mix samples
         // from source with a fixed rate.
-        run_device(88200, {
+        run_device(8820, {
             let context = context.clone();
             Box::new(move |buf| {
                 if let Ok(mut context) = context.lock() {
@@ -56,5 +58,9 @@ impl Context {
 
     pub fn add_source(&mut self, source: Source) -> Handle<Source>{
         self.sources.spawn(source)
+    }
+
+    pub fn get_sources_mut(&mut self) -> &mut Pool<Source> {
+        &mut self.sources
     }
 }

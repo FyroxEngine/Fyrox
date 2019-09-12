@@ -1,6 +1,5 @@
 use std::sync::{Arc, Mutex};
 use crate::buffer::{Buffer, BufferKind};
-use crate::device::Sample;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum Status {

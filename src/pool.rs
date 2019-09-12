@@ -1,3 +1,6 @@
+// TODO: This file is part of rg3d engine, for now was just copied in this project.
+// TODO: Make separate library with most common parts with name rg3d-core
+
 use std::{
     marker::PhantomData,
     hash::{
@@ -436,45 +439,5 @@ impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
 
             None
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::utils::pool::{Pool, INVALID_GENERATION};
-
-    #[test]
-    fn pool_sanity_tests() {
-        let mut pool: Pool<String> = Pool::new();
-        let foobar_handle = pool.spawn(String::from("Foobar"));
-        assert_eq!(foobar_handle.index, 0);
-        assert_ne!(foobar_handle.generation, INVALID_GENERATION);
-        let foobar_handle_copy = foobar_handle.clone();
-        assert_eq!(foobar_handle.index, foobar_handle_copy.index);
-        assert_eq!(foobar_handle.generation, foobar_handle_copy.generation);
-        let baz_handle = pool.spawn(String::from("Baz"));
-        assert_eq!(pool.borrow(foobar_handle).unwrap(), "Foobar");
-        assert_eq!(pool.borrow(baz_handle).unwrap(), "Baz");
-        pool.free(foobar_handle);
-        assert_eq!(pool.is_valid_handle(foobar_handle_copy), false);
-        assert_eq!(pool.is_valid_handle(baz_handle), true);
-        let at_foobar_index = pool.spawn(String::from("AtFoobarIndex"));
-        assert_eq!(at_foobar_index.index, 0);
-        assert_ne!(at_foobar_index.generation, INVALID_GENERATION);
-        assert_eq!(pool.borrow(at_foobar_index).unwrap(), "AtFoobarIndex");
-    }
-
-    #[test]
-    fn pool_iterator_mut_test() {
-        let mut pool: Pool<String> = Pool::new();
-        let foobar = pool.spawn(format!("Foobar"));
-        let d = pool.spawn(format!("Foo"));
-        pool.free(d);
-        let baz = pool.spawn(format!("Baz"));
-        for s in pool.iter_mut() {
-            println!("{}", s);
-        }
-        pool.free(foobar);
-        pool.free(baz);
     }
 }

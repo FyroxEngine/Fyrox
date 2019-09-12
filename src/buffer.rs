@@ -1,9 +1,9 @@
 use crate::{
     decoder::{
         WavDecoder,
-        Decoder
+        Decoder,
     },
-    error::SoundError
+    error::SoundError,
 };
 use std::{
     fs::File,
@@ -11,10 +11,11 @@ use std::{
     sync::{
         atomic::{
             Ordering,
-            AtomicBool
+            AtomicBool,
         }
-    }
+    },
 };
+use std::io::BufReader;
 
 pub struct Buffer {
     kind: BufferKind,
@@ -42,17 +43,19 @@ impl Buffer {
             .to_str().ok_or(SoundError::UnsupportedFormat)?;
 
         let mut decoder = match ext {
-            "wav" => WavDecoder::new(Box::new(file))?,
+            "wav" => {
+                WavDecoder::new(Box::new(BufReader::new(file)))?
+            }
             _ => return Err(SoundError::UnsupportedFormat)
         };
 
         let sample_per_channel = match kind {
             BufferKind::Normal => {
-                2 * 44100
-            },
-            BufferKind::Stream => {
                 decoder.get_sample_per_channel()
-            },
+            }
+            BufferKind::Stream => {
+                2 * 44100
+            }
         };
 
         let block_sample_count = sample_per_channel * decoder.get_channel_count();
@@ -63,7 +66,7 @@ impl Buffer {
 
         let mut samples = vec![0.0; buffer_sample_count];
 
-        decoder.read(&mut samples, sample_per_channel, 0, sample_per_channel);
+        decoder.read(&mut samples, sample_per_channel, 0, sample_per_channel)?;
         Ok(Self {
             total_sample_per_channel: decoder.get_sample_per_channel(),
             sample_per_channel,
@@ -108,7 +111,7 @@ impl Buffer {
     }
 
     pub fn write(&mut self, offset: usize, sample: f32) {
-        self.samples[self.read_cursor + offset] = sample;
+        self.samples[self.write_cursor + offset] = sample;
     }
 
     pub fn get_channel_count(&self) -> usize {
