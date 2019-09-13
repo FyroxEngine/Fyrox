@@ -8,15 +8,33 @@ use crate::{
 use std::{
     fs::File,
     path::Path,
-    sync::{
-        atomic::{
-            Ordering,
-            AtomicBool,
-        }
+    sync::atomic::{
+        Ordering,
+        AtomicBool,
     },
+    io::BufReader,
 };
-use std::io::BufReader;
 
+/// Sound samples buffer.
+///
+/// # Notes
+///
+/// Data in buffer is NON-INTERLEAVED, which for left (L) and right (R) channels means:
+/// LLLLLLLLLLLLLL RRRRRRRRRRRRRR
+/// So basically data split into chunks for each channel.
+///
+/// # Important notes about streaming
+///
+/// When buffer is streaming, data size doubles.
+/// |LLLLLLLLLLLLLL RRRRRRRRRRRRRR|LLLLLLLLLLLLLL RRRRRRRRRRRRRR|
+/// ^                             ^
+/// `read_cursor`                 `write_cursor`
+///
+/// So while you read data from buffer by `read_cursor`, other part will be filled with new
+/// portion of data. When `read_cursor` will reach `write_cursor`, they'll be swapped and
+/// reading will be performed from new loaded data, while old data will be filled with
+/// new portion of data, this process will continue until end of file and when eof is
+/// reached, streaming will be started from beginning of a file.
 pub struct Buffer {
     kind: BufferKind,
     samples: Vec<f32>,
@@ -31,7 +49,12 @@ pub struct Buffer {
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum BufferKind {
+    /// Buffer that contains all data the data.
     Normal,
+
+    /// Buffer that will be filled by small portions of data only when it is needed.
+    /// Ideal for large sounds (music, ambient, etc.), because unpacked PCM data
+    /// takes very large amount of RAM.
     Stream,
 }
 
@@ -51,10 +74,10 @@ impl Buffer {
 
         let sample_per_channel = match kind {
             BufferKind::Normal => {
-                decoder.get_sample_per_channel()
+                decoder.get_samples_per_channel()
             }
             BufferKind::Stream => {
-                2 * 44100
+                44100
             }
         };
 
@@ -67,8 +90,13 @@ impl Buffer {
         let mut samples = vec![0.0; buffer_sample_count];
 
         decoder.read(&mut samples, sample_per_channel, 0, sample_per_channel)?;
+        if kind == BufferKind::Stream {
+            // Fill second part of buffer in case if we'll stream data.
+            decoder.read(&mut samples[block_sample_count..buffer_sample_count], sample_per_channel, 0,sample_per_channel)?;
+        }
+
         Ok(Self {
-            total_sample_per_channel: decoder.get_sample_per_channel(),
+            total_sample_per_channel: decoder.get_samples_per_channel(),
             sample_per_channel,
             samples,
             channel_count: decoder.get_channel_count(),
@@ -84,10 +112,21 @@ impl Buffer {
         })
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> Result<(), SoundError> {
         if self.upload_next_block.load(Ordering::SeqCst) {
-            // TODO Streaming
+            if let Some(decoder) = &mut self.decoder {
+                let data = &mut self.samples[self.write_cursor..(self.write_cursor + self.sample_per_channel * self.channel_count)];
+                let read = decoder.read(data, self.sample_per_channel, 0, self.sample_per_channel)?;
+                if read < self.sample_per_channel {
+                    // Make sure to read rest of block from begin of source file.
+                    decoder.rewind()?;
+                    let second_read = decoder.read(data, self.sample_per_channel, read, self.sample_per_channel - read)?;
+                    assert_eq!(second_read + read, self.sample_per_channel);
+                }
+            }
+            self.upload_next_block.store(false, Ordering::SeqCst);
         }
+        Ok(())
     }
 
     pub fn get_kind(&self) -> BufferKind {

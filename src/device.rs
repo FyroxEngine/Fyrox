@@ -74,11 +74,12 @@ mod windows {
     }}
 
     pub struct DirectSoundDevice {
-        dsound: AtomicPtr<IDirectSound>,
+        direct_sound: AtomicPtr<IDirectSound>,
         buffer: AtomicPtr<IDirectSoundBuffer>,
         notify_points: [AtomicPtr<c_void>; 2],
         buffer_len_bytes: u32,
         out_data: Vec<Sample>,
+        mix_buffer: Vec<(f32, f32)>,
         callback: Box<FeedCallback>,
     }
 
@@ -86,13 +87,13 @@ mod windows {
     impl DirectSoundDevice {
         pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
             unsafe {
-                let mut dsound = std::ptr::null_mut();
-                if DirectSoundCreate(std::ptr::null(), &mut dsound, std::ptr::null_mut()) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice);
+                let mut direct_sound = std::ptr::null_mut();
+                if DirectSoundCreate(std::ptr::null(), &mut direct_sound, std::ptr::null_mut()) != DS_OK {
+                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to initialize DirectSound")));
                 }
 
-                if (*dsound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice);
+                if (*direct_sound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY) != DS_OK {
+                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to set cooperative level")));
                 }
 
                 let channels_count = 2;
@@ -119,13 +120,13 @@ mod windows {
                 };
 
                 let mut buffer: *mut IDirectSoundBuffer = std::ptr::null_mut();
-                if (*dsound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice);
+                if (*direct_sound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()) != DS_OK {
+                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to create back buffer.")));
                 }
 
                 let mut notify: *mut IDirectSoundNotify = std::ptr::null_mut();
                 if (*buffer).QueryInterface(&IID_IDirectSoundNotify, ((&mut notify) as *mut *mut IDirectSoundNotify) as *mut *mut c_void) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice);
+                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to obtain IDirectSoundNotify interface.")));
                 }
 
                 let notify_points = [
@@ -146,20 +147,22 @@ mod windows {
 
                 let pos_ptr = &mut pos as *mut [DSBPOSITIONNOTIFY; 2];
                 if (*notify).SetNotificationPositions(2, pos_ptr as *mut c_void) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice);
+                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to set notification positions.")));
                 }
 
                 if (*buffer).Play(0, 0, DSBPLAY_LOOPING) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice);
+                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to begin playing back buffer.")));
                 }
 
                 let a = AtomicPtr::new(notify_points[0]);
                 let b = AtomicPtr::new(notify_points[1]);
 
+                let samples_per_channel = buffer_len_bytes as usize / size_of::<Sample>();
                 Ok(Self {
-                    dsound: AtomicPtr::new(dsound),
+                    direct_sound: AtomicPtr::new(direct_sound),
                     buffer: AtomicPtr::new(buffer),
-                    out_data: vec![Sample { left: 0, right: 0 }; buffer_len_bytes as usize / size_of::<Sample>()],
+                    out_data: Vec::with_capacity(samples_per_channel),
+                    mix_buffer: vec![(0.0, 0.0); samples_per_channel],
                     notify_points: [a, b],
                     buffer_len_bytes,
                     callback,
@@ -168,16 +171,51 @@ mod windows {
         }
 
         pub fn feed(&mut self) {
-            unsafe {
-                (self.callback)(self.out_data.as_mut_slice());
+            // Clear mixer buffer.
+            for (left, right) in self.mix_buffer.iter_mut() {
+                *left = 0.0;
+                *right = 0.0;
+            }
 
-                let notify_points = [
-                    self.notify_points[0].load(Ordering::SeqCst),
-                    self.notify_points[1].load(Ordering::SeqCst)
-                ];
-                let buffer = self.buffer.load(Ordering::SeqCst);
-                let mut output_data: *mut c_void = std::ptr::null_mut();
-                let mut size: DWORD = 0;
+            // Fill it.
+            (self.callback)(self.mix_buffer.as_mut_slice());
+
+            let scale = f32::from(std::i16::MAX);
+            // Convert to i16 - device expects samples in this format.
+            self.out_data.clear();
+            for (left, right) in self.mix_buffer.iter() {
+                let left_clamped = if *left > 1.0 {
+                    0.0
+                } else if *left < -1.0 {
+                    -1.0
+                } else {
+                    *left
+                };
+
+                let right_clamped = if *right > 1.0 {
+                    0.0
+                } else if *right < -1.0 {
+                    -1.0
+                } else {
+                    *right
+                };
+
+                self.out_data.push(Sample {
+                    left: (left_clamped * scale) as i16,
+                    right: (right_clamped * scale) as i16,
+                })
+            }
+
+            let notify_points = [
+                self.notify_points[0].load(Ordering::SeqCst),
+                self.notify_points[1].load(Ordering::SeqCst)
+            ];
+            let buffer = self.buffer.load(Ordering::SeqCst);
+            let mut output_data: *mut c_void = std::ptr::null_mut();
+            let mut size: DWORD = 0;
+
+            // Wait and send.
+            unsafe {
                 let result = WaitForMultipleObjects(2,
                                                     notify_points.as_ptr(),
                                                     0,
@@ -215,14 +253,14 @@ mod windows {
     impl Drop for DirectSoundDevice {
         fn drop(&mut self) {
             unsafe {
-                let dsound = self.dsound.load(Ordering::SeqCst);
-                assert_eq!((*dsound).Release(), 0);
+                let direct_sound = self.direct_sound.load(Ordering::SeqCst);
+                assert_eq!((*direct_sound).Release(), 0);
             }
         }
     }
 }
 
-pub type FeedCallback = dyn FnMut(&mut [Sample]) + Send;
+pub type FeedCallback = dyn FnMut(&mut [(f32, f32)]) + Send;
 
 pub fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
     if cfg!(windows) {
@@ -230,12 +268,10 @@ pub fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<
         // call the callback with a specified rate to get data to send to a physical device.
         let mut device = windows::DirectSoundDevice::new(buffer_len_bytes, callback)?;
         std::thread::spawn(move || {
-            loop {
-                device.feed()
-            }
+            loop { device.feed() }
         });
         Ok(())
     } else {
-        panic!("not implemented");
+        Err(SoundError::NoBackend)
     }
 }

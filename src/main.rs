@@ -12,21 +12,23 @@ pub mod pool;
 
 use crate::{
     context::Context,
-    source::Source,
-    buffer::{Buffer, BufferKind}
+    source::{Source, SourceKind},
+    buffer::{Buffer, BufferKind},
 };
 use std::{
     path::Path,
     time::Duration,
-    sync::{Arc, Mutex}
+    sync::{Arc, Mutex},
 };
 
 fn main() {
     let context = Context::new().unwrap();
-    let buffer = Buffer::new(Path::new("data/Sonic_Mayhem_Collapse.wav"), BufferKind::Normal).unwrap();
-    let source = Source::new(Arc::new(Mutex::new(buffer)));
+    let buffer = Buffer::new(Path::new("data/Sonic_Mayhem_Collapse.wav"), BufferKind::Stream).unwrap();
+    let source = Source::new(SourceKind::Flat, Arc::new(Mutex::new(buffer)));
     context.lock().unwrap().add_source(source);
 
-
-    std::thread::sleep(Duration::new(20, 0));
+    loop {
+        context.lock().unwrap().update().unwrap();
+        std::thread::sleep(Duration::from_millis(30));
+    }
 }
