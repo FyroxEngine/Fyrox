@@ -1,8 +1,10 @@
 use crate::{
     renderer::gpu_program::{GpuProgram, UniformLocation},
-    renderer::error::RendererError
+    renderer::error::RendererError,
 };
 use std::ffi::CString;
+use crate::renderer::gl::types::GLuint;
+use crate::renderer::gl;
 
 pub struct SpotShadowMapShader {
     program: GpuProgram,
@@ -163,12 +165,74 @@ impl PointShadowMapShader
 
 pub struct PointShadowMapRenderer {
     shader: PointShadowMapShader,
+    fbo: GLuint,
+    texture: GLuint,
+    depth_buffer: GLuint,
 }
 
 impl PointShadowMapRenderer {
-    pub fn new() -> Result<PointShadowMapRenderer, RendererError> {
-        Ok(Self {
-            shader: PointShadowMapShader::new()?
-        })
+    pub fn new(size: i32) -> Result<PointShadowMapRenderer, RendererError> {
+        unsafe {
+            let mut fbo = 0;
+            gl::GenFramebuffers(1, &mut fbo);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+
+            gl::DrawBuffer(gl::NONE);
+
+            let mut depth_buffer = 0;
+            gl::GenTextures(1, &mut depth_buffer);
+            gl::BindTexture(gl::TEXTURE_2D, depth_buffer);
+            gl::TexImage2D(gl::TEXTURE_2D,
+                           0,
+                           gl::DEPTH_COMPONENT as i32,
+                           size,
+                           size,
+                           0,
+                           gl::DEPTH_COMPONENT,
+                           gl::FLOAT,
+                           std::ptr::null());
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
+
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+            gl::BindTexture(gl::TEXTURE_CUBE_MAP, texture);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_BORDER as i32);
+            gl::TexParameteri(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_BORDER as i32);
+            let color: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+            gl::TexParameterfv(gl::TEXTURE_CUBE_MAP, gl::TEXTURE_BORDER_COLOR, color.as_ptr());
+
+            for i in 0..6 {
+                gl::TexImage2D(gl::TEXTURE_CUBE_MAP_POSITIVE_X + i,
+                               0,
+                               gl::R32F as i32,
+                               size,
+                               size,
+                               0,
+                               gl::RED,
+                               gl::FLOAT,
+                               std::ptr::null());
+            }
+
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::TEXTURE_2D, depth_buffer, 0);
+
+            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                panic!("Unable to initialize shadow map.");
+            }
+
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+            Ok(Self {
+                shader: PointShadowMapShader::new()?,
+                fbo,
+                texture,
+                depth_buffer,
+            })
+        }
     }
 }
