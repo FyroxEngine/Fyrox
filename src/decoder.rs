@@ -1,10 +1,6 @@
-use std::{
-    io::Read,
-    io::Seek,
-};
+use std::io::{Read, Seek, SeekFrom};
 use byteorder::{ReadBytesExt, LittleEndian};
 use crate::error::SoundError;
-use std::io::SeekFrom;
 
 struct WavHeader {
     chunk_id: [u8; 4],
@@ -123,7 +119,12 @@ pub trait Decoder: Send + Sync {
     /// Returns amount of unread samples *per channel* left in buffer.
     fn get_samples_left(&self) -> usize;
 
+    /// Sets internal read cursor to beginning of the data.
     fn rewind(&mut self) -> Result<(), SoundError>;
+
+    /// Returns sample rate in source. This value will be used to calculate appropriate playback
+    /// speed for sound source when playing.
+    fn get_sample_rate(&self) -> usize;
 }
 
 impl Decoder for WavDecoder {
@@ -177,5 +178,9 @@ impl Decoder for WavDecoder {
         let wav_header_size = 44;
         self.source.seek(SeekFrom::Start(wav_header_size))?;
         Ok(())
+    }
+
+    fn get_sample_rate(&self) -> usize {
+        self.sample_rate
     }
 }

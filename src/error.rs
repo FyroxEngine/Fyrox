@@ -18,6 +18,18 @@ pub enum SoundError {
     /// It means that some thread panicked while holding a MutexGuard, the data mutex
     /// protected can be corrupted.
     PoisonedMutex,
+
+    /// An error occurred during math calculations, i.e. there was an attempt to
+    /// normalize a vector with length `|v| == 0.0`.
+    MathError(String),
+
+    /// You tried to create a source with streaming buffer that is currently being
+    /// used by some other source. This is wrong because only one source can play
+    /// sound from streaming buffer.
+    StreamingBufferAlreadyInUse,
+
+    /// You tried to use Unknown as buffer kind.
+    InvalidBufferKind,
 }
 
 impl From<std::io::Error> for SoundError {

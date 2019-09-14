@@ -1,6 +1,6 @@
 use crate::error::SoundError;
 
-// TODO: Make this configurable, for now set to most commonly used sample rate of 44100 Hz
+// TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
 pub const SAMPLE_RATE: u32 = 44100;
 
 #[repr(C)]
@@ -83,17 +83,16 @@ mod windows {
         callback: Box<FeedCallback>,
     }
 
-    #[cfg(target_os = "windows")]
     impl DirectSoundDevice {
         pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
             unsafe {
                 let mut direct_sound = std::ptr::null_mut();
                 if DirectSoundCreate(std::ptr::null(), &mut direct_sound, std::ptr::null_mut()) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to initialize DirectSound")));
+                    return Err(SoundError::FailedToInitializeDevice("Failed to initialize DirectSound".to_string()));
                 }
 
                 if (*direct_sound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to set cooperative level")));
+                    return Err(SoundError::FailedToInitializeDevice("Failed to set cooperative level".to_string()));
                 }
 
                 let channels_count = 2;
@@ -121,12 +120,12 @@ mod windows {
 
                 let mut buffer: *mut IDirectSoundBuffer = std::ptr::null_mut();
                 if (*direct_sound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to create back buffer.")));
+                    return Err(SoundError::FailedToInitializeDevice("Failed to create back buffer.".to_string()));
                 }
 
                 let mut notify: *mut IDirectSoundNotify = std::ptr::null_mut();
                 if (*buffer).QueryInterface(&IID_IDirectSoundNotify, ((&mut notify) as *mut *mut IDirectSoundNotify) as *mut *mut c_void) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to obtain IDirectSoundNotify interface.")));
+                    return Err(SoundError::FailedToInitializeDevice("Failed to obtain IDirectSoundNotify interface.".to_string()));
                 }
 
                 let notify_points = [
@@ -147,11 +146,11 @@ mod windows {
 
                 let pos_ptr = &mut pos as *mut [DSBPOSITIONNOTIFY; 2];
                 if (*notify).SetNotificationPositions(2, pos_ptr as *mut c_void) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to set notification positions.")));
+                    return Err(SoundError::FailedToInitializeDevice("Failed to set notification positions.".to_string()));
                 }
 
                 if (*buffer).Play(0, 0, DSBPLAY_LOOPING) != DS_OK {
-                    return Err(SoundError::FailedToInitializeDevice(format!("Failed to begin playing back buffer.")));
+                    return Err(SoundError::FailedToInitializeDevice("Failed to begin playing back buffer.".to_string()));
                 }
 
                 let a = AtomicPtr::new(notify_points[0]);
@@ -249,7 +248,6 @@ mod windows {
         }
     }
 
-    #[cfg(target_os = "windows")]
     impl Drop for DirectSoundDevice {
         fn drop(&mut self) {
             unsafe {
