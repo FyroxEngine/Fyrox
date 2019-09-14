@@ -22,6 +22,8 @@ use crate::{
     },
     pool::{Handle, Pool},
 };
+use std::sync::{Arc, Mutex};
+use std::io::{BufReader, BufWriter};
 
 pub enum FieldKind {
     Bool(bool),
@@ -190,6 +192,7 @@ pub enum VisitError {
     RefCellAlreadyMutableBorrowed,
     User(String),
     UnexpectedRcNullIndex,
+    PoisonedMutex,
 }
 
 impl Display for VisitError {
@@ -210,8 +213,15 @@ impl Display for VisitError {
             VisitError::RcIsNonUnique => write!(f, "rc is non unique"),
             VisitError::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
             VisitError::User(msg) => write!(f, "user defined error: {}", msg),
-            VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index")
+            VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
+            VisitError::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
         }
+    }
+}
+
+impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
+        VisitError::PoisonedMutex
     }
 }
 
@@ -243,7 +253,7 @@ impl Field {
         }
     }
 
-    fn save(field: &Field, file: &mut File) -> VisitResult {
+    fn save(field: &Field, file: &mut dyn Write) -> VisitResult {
         let name = field.name.as_bytes();
         file.write_u32::<LittleEndian>(name.len() as u32)?;
         file.write_all(name)?;
@@ -320,7 +330,7 @@ impl Field {
         Ok(())
     }
 
-    fn load(file: &mut File) -> Result<Field, VisitError> {
+    fn load(file: &mut dyn Read) -> Result<Field, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
         let mut raw_name = Vec::with_capacity(name_len);
         unsafe { raw_name.set_len(name_len) };
@@ -406,6 +416,7 @@ impl Default for Node {
 pub struct Visitor {
     nodes: Pool<Node>,
     rc_map: HashMap<u64, Rc<dyn Any>>,
+    arc_map: HashMap<u64, Arc<dyn Any + Send + Sync>>,
     reading: bool,
     current_node: Handle<Node>,
     root: Handle<Node>,
@@ -424,6 +435,7 @@ impl Visitor {
         Self {
             nodes,
             rc_map: HashMap::new(),
+            arc_map: HashMap::new(),
             reading: false,
             current_node: root,
             root,
@@ -524,22 +536,22 @@ impl Visitor {
     }
 
     pub fn save_binary(&self, path: &Path) -> VisitResult {
-        let mut file = File::create(path)?;
-        file.write_all(Self::MAGIC.as_bytes())?;
+        let mut writer = BufWriter::new(File::create(path)?);
+        writer.write_all(Self::MAGIC.as_bytes())?;
         let mut stack = Vec::new();
         stack.push(self.root);
         while let Some(node_handle) = stack.pop() {
             if let Some(node) = self.nodes.borrow(node_handle) {
                 let name = node.name.as_bytes();
-                file.write_u32::<LittleEndian>(name.len() as u32)?;
-                file.write_all(name)?;
+                writer.write_u32::<LittleEndian>(name.len() as u32)?;
+                writer.write_all(name)?;
 
-                file.write_u32::<LittleEndian>(node.fields.len() as u32)?;
+                writer.write_u32::<LittleEndian>(node.fields.len() as u32)?;
                 for field in node.fields.iter() {
-                    Field::save(field, &mut file)?
+                    Field::save(field, &mut writer)?
                 }
 
-                file.write_u32::<LittleEndian>(node.children.len() as u32)?;
+                writer.write_u32::<LittleEndian>(node.children.len() as u32)?;
                 for child_handle in node.children.iter() {
                     stack.push(child_handle.clone());
                 }
@@ -548,7 +560,7 @@ impl Visitor {
         Ok(())
     }
 
-    fn load_node_binary(&mut self, file: &mut File) -> Result<Handle<Node>, VisitError> {
+    fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<Node>, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
         let mut raw_name = Vec::with_capacity(name_len);
         unsafe { raw_name.set_len(name_len) };
@@ -582,20 +594,21 @@ impl Visitor {
     }
 
     pub fn load_binary(path: &Path) -> Result<Self, VisitError> {
-        let mut file = File::open(path)?;
+        let mut reader = BufReader::new(File::open(path)?);
         let mut magic: [u8; 4] = Default::default();
-        file.read_exact(&mut magic)?;
+        reader.read_exact(&mut magic)?;
         if !magic.eq(Self::MAGIC.as_bytes()) {
             return Err(VisitError::NotSupportedFormat);
         }
         let mut visitor = Self {
             nodes: Pool::new(),
             rc_map: Default::default(),
+            arc_map: Default::default(),
             reading: true,
             current_node: Handle::none(),
             root: Handle::none(),
         };
-        visitor.root = visitor.load_node_binary(&mut file)?;
+        visitor.root = visitor.load_node_binary(&mut reader)?;
         visitor.current_node = visitor.root;
         Ok(visitor)
     }
@@ -775,6 +788,64 @@ impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
         visitor.leave_region()?;
 
         Ok(())
+    }
+}
+
+impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        if visitor.reading {
+            let mut raw = 0u64;
+            raw.visit("Id", visitor)?;
+            if raw == 0 {
+                return Err(VisitError::UnexpectedRcNullIndex);
+            }
+            if let Some(ptr) = visitor.arc_map.get(&raw) {
+                if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
+                    *self = res;
+                } else {
+                    return Err(VisitError::TypeMismatch);
+                }
+            } else {
+                // Deserialize inner data. At this point Rc must be unique.
+                if let Some(data) = Arc::get_mut(self) {
+                    data.visit("RcData", visitor)?;
+                } else {
+                    return Err(VisitError::RcIsNonUnique);
+                }
+
+                // Remember that we already visited data Rc store.
+                visitor.arc_map.insert(raw as u64, self.clone());
+            }
+        } else {
+            // Take raw pointer to inner data.
+            let raw = Arc::into_raw(self.clone()) as *const T as *mut T;
+            unsafe { Arc::from_raw(raw); };
+
+            // Save it as id.
+            let mut index = raw as u64;
+            index.visit("Id", visitor)?;
+
+            if !visitor.arc_map.contains_key(&index) {
+                // Serialize inner data using raw pointer. This violates borrowing rules,
+                // but should be fine since visitor is not multithreaded (it simply cannot
+                // be multithreaded by its nature)
+                unsafe { &mut *raw }.visit("RcData", visitor)?;
+
+                visitor.arc_map.insert(index, self.clone());
+            }
+        }
+
+        visitor.leave_region()?;
+
+        Ok(())
+    }
+}
+
+impl<T> Visit for Mutex<T> where T: Default + Visit + Send + Sync + 'static {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.lock()?.visit(name, visitor)
     }
 }
 
