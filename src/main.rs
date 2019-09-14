@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate winapi;
 extern crate byteorder;
+extern crate rg3d_core;
 
 pub mod error;
 pub mod decoder;
@@ -8,7 +9,6 @@ pub mod buffer;
 pub mod source;
 pub mod device;
 pub mod context;
-pub mod pool;
 
 use crate::{
     context::Context,
