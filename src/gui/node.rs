@@ -3,13 +3,10 @@ use std::{
     any::{Any, TypeId},
 };
 use crate::{
-    math::{vec2::Vec2, Rect},
-    utils::pool::Handle,
     gui::{
         button::Button,
         Canvas,
         text::Text,
-        draw::Color,
         VerticalAlignment,
         HorizontalAlignment,
         Thickness,
@@ -27,6 +24,12 @@ use crate::{
         },
         window::Window,
     },
+};
+
+use rg3d_core::{
+    color::Color,
+    math::{vec2::Vec2, Rect},
+    pool::Handle,
 };
 
 pub trait CustomUINodeKind : Any {

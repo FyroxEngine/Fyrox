@@ -4,14 +4,13 @@ extern crate image;
 extern crate glutin;
 extern crate lexical;
 extern crate byteorder;
-extern crate base64;
 extern crate inflate;
 extern crate rand;
 #[macro_use]
 extern crate lazy_static;
+extern crate rg3d_core;
 
 pub mod utils;
-pub mod math;
 pub mod scene;
 pub mod renderer;
 pub mod engine;

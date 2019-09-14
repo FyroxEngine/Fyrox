@@ -9,8 +9,7 @@ use crate::{
         draw::{
             FormattedText,
             DrawingContext,
-            FormattedTextBuilder,
-            Color
+            FormattedTextBuilder
         },
         node::{
             UINode,
@@ -19,11 +18,15 @@ use crate::{
         UserInterface,
     },
     resource::ttf::Font,
+};
+
+use rg3d_core::{
+    color::Color,
     math::{
         Rect,
         vec2::Vec2,
     },
-    utils::pool::{Handle, Pool},
+    pool::{Handle, Pool},
 };
 
 

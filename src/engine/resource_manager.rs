@@ -1,15 +1,17 @@
 use std::{
     cell::RefCell,
     rc::Rc,
-    path::{PathBuf, Path}
+    path::{PathBuf, Path},
 };
 use crate::{
     resource::{
         texture::Texture,
         Resource,
-        ResourceKind
+        ResourceKind,
     },
-    utils::visitor::{Visitor, VisitResult, Visit}
+};
+use rg3d_core::{
+    visitor::{Visitor, VisitResult, Visit}
 };
 
 pub struct ResourceManager {

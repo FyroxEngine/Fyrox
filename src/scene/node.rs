@@ -3,27 +3,28 @@ use std::{
     rc::Rc,
 };
 use crate::{
-    utils::{
-        visitor::{
-            Visit,
-            VisitResult,
-            Visitor,
-        },
-        pool::*,
-    },
-    math::{
-        vec3::Vec3,
-        mat4::Mat4,
-        quat::Quat,
-    },
     physics::Body,
     resource::Resource,
     scene::{
         camera::Camera,
         mesh::Mesh,
         light::Light,
-        particle_system::ParticleSystem
-    }
+        particle_system::ParticleSystem,
+    },
+};
+
+use rg3d_core::{
+    math::{
+        vec3::Vec3,
+        mat4::Mat4,
+        quat::Quat,
+    },
+    visitor::{
+        Visit,
+        VisitResult,
+        Visitor,
+    },
+    pool::Handle
 };
 
 pub enum NodeKind {
@@ -31,7 +32,7 @@ pub enum NodeKind {
     Light(Light),
     Camera(Camera),
     Mesh(Mesh),
-    ParticleSystem(ParticleSystem)
+    ParticleSystem(ParticleSystem),
 }
 
 impl Visit for NodeKind {

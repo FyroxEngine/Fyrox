@@ -6,8 +6,63 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/resource_manager.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/resource_manager.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/state.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/state.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/border.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/border.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/builder.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/builder.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/button.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/button.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/canvas.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/canvas.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/draw.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/draw.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/event.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/event.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/grid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/grid.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/image.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/image.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/node.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_bar.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_bar.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/text.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/window.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/mat4.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/plane.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/quat.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/ray.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/triangulator.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/vec2.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/vec3.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/math/vec4.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/physics/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/physics/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/gbuffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gbuffer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/gpu_program.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gpu_program.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/particle_system_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/particle_system_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/render.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/render.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/surface.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/surface.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/fbx_ascii.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/fbx_ascii.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/fbx_binary.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/fbx_binary.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/texture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/texture.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/animation.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/animation.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/camera.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/camera.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/light.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/light.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/mesh.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mesh.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/particle_system.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/particle_system.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/color_gradient.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/numeric_range.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/pool.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/visitor.rs" beforeDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -40,7 +95,7 @@
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1562523948551" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../rusty-shooter" />
     <property name="org.rust.cargo.project.model.PROJECT_DISCOVERY" value="true" />
     <property name="org.rust.hideDetachedFileNotificationsC:/RustEngine/rg3d/src/renderer/shadow_map_renderer.rs" value="true" />
     <property name="project.structure.last.edited" value="Artifacts" />

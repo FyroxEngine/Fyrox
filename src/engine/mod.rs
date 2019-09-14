@@ -3,13 +3,11 @@ pub mod resource_manager;
 
 use crate::{
     gui::UserInterface,
-    math::vec2::Vec2,
     resource::{ttf::Font},
-    utils::{
-        pool::{Pool, Handle},
-        visitor::{Visitor, VisitResult, Visit},
+    renderer::{
+        render::{Renderer, Statistics},
+        error::RendererError
     },
-    renderer::render::{Renderer, Statistics},
     engine::state::State,
 };
 
@@ -18,7 +16,12 @@ use std::{
     time::Duration,
     path::Path,
 };
-use crate::renderer::error::RendererError;
+
+use rg3d_core::{
+    math::vec2::Vec2,
+    pool::{Pool, Handle},
+    visitor::{Visitor, VisitResult, Visit},
+};
 
 pub struct Engine {
     renderer: Renderer,

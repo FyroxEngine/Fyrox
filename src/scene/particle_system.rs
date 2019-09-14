@@ -1,21 +1,4 @@
-use crate::{
-    math::{
-        vec3::Vec3,
-        vec2::Vec2,
-    },
-    gui::draw::Color,
-    resource::Resource,
-    utils::{
-        visitor::{
-            VisitError,
-            Visit,
-            Visitor,
-            VisitResult
-        },
-        color_gradient::ColorGradient,
-        numeric_range::NumericRange
-    }
-};
+use crate::resource::Resource;
 use std::{
     cell::{
         RefCell,
@@ -23,11 +6,27 @@ use std::{
     },
     rc::Rc,
     cmp::Ordering,
-    mem::size_of
+    mem::size_of,
+    any::Any,
+    sync::{Mutex, LockResult, MutexGuard},
 };
 use rand::Rng;
-use std::any::Any;
-use std::sync::{Mutex, LockResult, MutexGuard};
+
+use rg3d_core::{
+    math::{
+        vec3::Vec3,
+        vec2::Vec2,
+    },
+    visitor::{
+        VisitError,
+        Visit,
+        Visitor,
+        VisitResult,
+    },
+    color_gradient::ColorGradient,
+    numeric_range::NumericRange,
+    color::Color
+};
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
@@ -288,7 +287,7 @@ lazy_static! {
     static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> = Mutex::new(Default::default());
 }
 
-pub trait CustomEmitter : Any + Emit + Visit {
+pub trait CustomEmitter: Any + Emit + Visit {
     fn box_clone(&self) -> Box<dyn CustomEmitter>;
     fn get_kind(&self) -> u8;
 }
@@ -299,7 +298,7 @@ pub enum EmitterKind {
     Unknown,
     Box(BoxEmitter),
     Sphere(SphereEmitter),
-    Custom(Box<dyn CustomEmitter>)
+    Custom(Box<dyn CustomEmitter>),
 }
 
 impl Emit for EmitterKind {

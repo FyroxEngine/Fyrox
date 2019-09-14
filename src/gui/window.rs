@@ -1,11 +1,9 @@
 use crate::{
-    utils::pool::Handle,
     gui::{
         border::BorderBuilder,
         node::{UINode, UINodeKind},
         builder::{CommonBuilderFields, GenericNodeBuilder},
         UserInterface,
-        draw::Color,
         grid::{GridBuilder, Column, Row},
         HorizontalAlignment,
         event::{
@@ -19,6 +17,11 @@ use crate::{
         scroll_content_presenter::ScrollContentPresenterBuilder,
         VerticalAlignment,
     },
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
     math::vec2::Vec2,
 };
 

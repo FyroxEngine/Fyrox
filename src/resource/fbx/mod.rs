@@ -15,7 +15,32 @@ use std::{
     rc::Rc,
 };
 use crate::{
-    utils::pool::{Handle, Pool},
+    renderer::{
+        surface::{
+            SurfaceSharedData, Surface,
+            Vertex, VertexWeightSet, VertexWeight,
+        }
+    },
+    engine::state::State,
+    resource::{
+        fbx::{
+            texture::FbxTexture,
+            attribute::FbxAttribute,
+            error::FbxError,
+        }
+    },
+    scene::{
+        Scene,
+        animation::{Track, KeyFrame, Animation},
+        node::{Node, NodeKind},
+        mesh::Mesh,
+        light::Light,
+    },
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::{Handle, Pool},
     math::{
         vec4::Vec4,
         vec3::Vec3,
@@ -24,27 +49,7 @@ use crate::{
         quat::{Quat, RotationOrder},
         triangulator::triangulate,
     },
-    scene::animation::{Track, KeyFrame, Animation},
-    renderer::{
-        surface::{
-            SurfaceSharedData, Surface,
-            Vertex, VertexWeightSet, VertexWeight,
-        }
-    },
-    engine::state::State,
-    gui::draw::Color,
-    resource::{
-        fbx::{
-            texture::FbxTexture,
-            attribute::FbxAttribute,
-            error::FbxError,
-        }
-    },
-    scene::Scene,
 };
-use crate::scene::node::{Node, NodeKind};
-use crate::scene::mesh::Mesh;
-use crate::scene::light::Light;
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 

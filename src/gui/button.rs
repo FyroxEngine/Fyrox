@@ -6,13 +6,16 @@ use crate::{
         HorizontalAlignment,
         VerticalAlignment,
         Thickness,
-        draw::Color,
         event::{RoutedEventHandlerType, RoutedEventHandler},
         text::TextBuilder,
         border::BorderBuilder,
     },
-    utils::pool::Handle,
-    math::vec2::{Vec2}
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
+    math::vec2::Vec2
 };
 
 pub type ButtonClickEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);

@@ -1,6 +1,6 @@
-use crate::{
-    gui::draw::Color,
-    utils::visitor::{Visit, Visitor, VisitResult}
+use rg3d_core::{
+    color::Color,
+    visitor::{Visit, Visitor, VisitResult}
 };
 
 pub struct Light {

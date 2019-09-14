@@ -1,21 +1,25 @@
 use std::ffi::CString;
 use crate::{
-    scene::node::NodeKind,
+    scene::{
+        camera::Camera,
+        Scene,
+        node::NodeKind
+    },
     renderer::{
         gl::types::GLuint,
         gl,
         gpu_program::{GpuProgram, UniformLocation},
+        error::RendererError
     },
+    resource::ResourceKind,
+};
+use rg3d_core::{
     math::{
         mat4::Mat4,
         vec2::Vec2,
         Rect,
     },
-    resource::ResourceKind,
 };
-use crate::scene::Scene;
-use crate::scene::camera::Camera;
-use crate::renderer::error::RendererError;
 
 struct GBufferShader {
     program: GpuProgram,

@@ -23,17 +23,19 @@ use std::{collections::VecDeque, any::TypeId};
 use crate::{
     gui::{
         node::{UINode, UINodeKind},
-        draw::{Color, DrawingContext, CommandKind},
+        draw::{DrawingContext, CommandKind},
         scroll_viewer::ScrollViewer,
         event::{RoutedEvent, RoutedEventKind, RoutedEventHandlerType},
         canvas::Canvas,
     },
-    utils::{
-        pool::{Pool, Handle},
-        UnsafeCollectionView,
-    },
-    math::{vec2::Vec2, Rect},
     resource::{ttf::Font},
+    utils::UnsafeCollectionView
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::{Pool, Handle},
+    math::{vec2::Vec2, Rect},
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]

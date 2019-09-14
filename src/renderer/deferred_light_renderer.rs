@@ -6,20 +6,22 @@ use crate::{
         Scene,
         node::Node
     },
-    gui::draw::Color,
-    math::{
-        vec3::Vec3,
-        mat4::Mat4
-    },
     renderer::{
         surface::SurfaceSharedData,
         gpu_program::{UniformLocation, GpuProgram},
         gl,
         gbuffer::GBuffer,
-        render::FlatShader
+        render::FlatShader,
+        error::RendererError
     }
 };
-use crate::renderer::error::RendererError;
+use rg3d_core::{
+    color::Color,
+    math::{
+        vec3::Vec3,
+        mat4::Mat4
+    },
+};
 
 struct AmbientLightShader {
     program: GpuProgram,

@@ -1,20 +1,20 @@
-use crate::{
+use rg3d_core::{
     math::{
         vec3::Vec3,
         ray::Ray,
         plane::Plane
     },
-    utils::pool::{
+    pool::{
         Pool,
         Handle
     },
-    utils::visitor::{
+    visitor::{
         Visit,
         VisitResult,
-        Visitor
+        Visitor,
+        VisitError
     }
 };
-use crate::utils::visitor::VisitError;
 
 pub struct Contact {
     pub body: Handle<Body>,

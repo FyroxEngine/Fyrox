@@ -11,14 +11,19 @@ use crate::{
         gbuffer::GBuffer,
         error::RendererError
     },
-    scene::particle_system::DrawData,
+    scene::{
+        particle_system::DrawData,
+        node::NodeKind
+    },
+    resource::ResourceKind,
+};
+
+use rg3d_core:: {
     math::{
         mat4::Mat4,
         vec3::Vec3,
         vec2::Vec2
     },
-    scene::node::NodeKind,
-    resource::ResourceKind,
 };
 
 struct ParticleSystemShader {

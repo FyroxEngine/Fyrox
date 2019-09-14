@@ -8,14 +8,17 @@ use crate::{
         scroll_bar::{ScrollBarBuilder, Orientation, ScrollBar},
         VerticalAlignment,
         HorizontalAlignment,
-        draw::Color,
         Thickness,
-        event::{RoutedEventHandlerType, RoutedEventHandler}
+        event::{RoutedEventHandlerType, RoutedEventHandler},
+        grid::{Row, GridBuilder, Column}
     },
-    utils::pool::Handle,
-    math::vec2::Vec2
 };
-use crate::gui::grid::{Row, GridBuilder, Column};
+
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
+    math::vec2::Vec2,
+};
 
 pub struct ScrollViewer {
     pub(in crate::gui) owner_handle: Handle<UINode>,

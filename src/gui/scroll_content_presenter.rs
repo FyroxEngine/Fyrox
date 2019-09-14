@@ -1,5 +1,4 @@
 use crate::{
-    utils::pool::Handle,
     gui::{
         VerticalAlignment,
         HorizontalAlignment,
@@ -7,10 +6,14 @@ use crate::{
         builder::{CommonBuilderFields, GenericNodeBuilder},
         node::{UINode, UINodeKind},
         UserInterface,
-        draw::Color,
         Thickness,
         Layout
     },
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
     math::{
         vec2::Vec2,
         Rect

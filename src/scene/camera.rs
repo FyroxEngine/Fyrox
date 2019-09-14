@@ -1,5 +1,5 @@
-use crate::{
-    utils::visitor::{Visitor, VisitResult, Visit},
+use rg3d_core::{
+    visitor::{Visitor, VisitResult, Visit},
     math::{
         Rect,
         mat4::Mat4,

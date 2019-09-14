@@ -3,15 +3,18 @@ use std::path::{
     Path,
 };
 use crate::{
-    utils::{
-        pool::Handle,
-        pool::Pool,
-    },
     resource::fbx::{
         FbxNode,
     },
+    resource::fbx::find_and_borrow_node
 };
-use crate::resource::fbx::find_and_borrow_node;
+
+use rg3d_core::{
+    pool::{
+        Handle,
+        Pool
+    }
+};
 
 pub struct FbxTexture {
     filename: PathBuf,

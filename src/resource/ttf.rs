@@ -1,11 +1,11 @@
 // TTF loader, rasterizer, atlas builder.
 
-use crate::{
+use rg3d_core::{
     math::{
         vec2::Vec2,
         Rect,
     },
-    utils::pool::{Pool, Handle},
+    pool::{Pool, Handle},
 };
 use std::{
     cmp::Ordering,

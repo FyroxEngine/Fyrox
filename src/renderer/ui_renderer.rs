@@ -3,13 +3,19 @@ use crate::{
     renderer::{
         gpu_program::{GpuProgram, UniformLocation},
         gl,
-        gl::types::GLuint
+        gl::types::GLuint,
+        error::RendererError
     },
-    math::mat4::Mat4,
     gui::draw::{DrawingContext, CommandKind},
-    math::vec2::Vec2
 };
-use crate::renderer::error::RendererError;
+
+use rg3d_core::{
+    math::{
+        mat4::Mat4,
+        vec2::Vec2,
+    }
+};
+
 
 struct UIShader {
     program: GpuProgram,

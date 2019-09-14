@@ -18,10 +18,11 @@ use crate::{
         node::NodeKind,
         node::Node,
     },
-    utils::{
-        pool::{Pool, Handle},
-        visitor::{Visit, Visitor, VisitResult},
-    },
+};
+
+use rg3d_core::{
+    pool::{Pool, Handle},
+    visitor::{Visit, Visitor, VisitResult},
 };
 
 pub struct State {

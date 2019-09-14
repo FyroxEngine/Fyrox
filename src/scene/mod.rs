@@ -6,22 +6,7 @@ pub mod light;
 pub mod particle_system;
 
 use crate::{
-    utils::{
-        UnsafeCollectionView,
-        visitor::{
-            Visit,
-            VisitResult,
-            Visitor,
-        },
-        pool::{
-            Handle,
-            Pool,
-        },
-    },
-    math::{
-        mat4::Mat4,
-        vec3::Vec3,
-    },
+    utils::UnsafeCollectionView,
     physics::Physics,
     engine::state::State,
     scene::{
@@ -31,6 +16,22 @@ use crate::{
     },
 };
 use std::collections::HashMap;
+
+use rg3d_core::{
+    visitor::{
+        Visit,
+        VisitResult,
+        Visitor,
+    },
+    pool::{
+        Handle,
+        Pool,
+    },
+    math::{
+        mat4::Mat4,
+        vec3::Vec3,
+    },
+};
 
 pub struct Scene {
     /// Nodes pool, every node lies inside pool. User-code may borrow

@@ -1,7 +1,8 @@
 use crate::{
-    utils::visitor::{Visit, Visitor, VisitResult},
     renderer::surface::Surface
 };
+
+use rg3d_core::visitor::{Visit, Visitor, VisitResult};
 
 pub struct Mesh {
     surfaces: Vec<Surface>,

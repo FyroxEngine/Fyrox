@@ -1,6 +1,5 @@
 use crate::{
     scene::{Scene, node::Node},
-    utils::pool::Handle,
     engine::state::State,
     resource::{
         fbx,
@@ -14,6 +13,7 @@ use std::{
     cell::RefCell,
     rc::Rc,
 };
+use rg3d_core::pool::Handle;
 
 pub struct Model {
     scene: Scene,

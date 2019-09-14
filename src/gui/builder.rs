@@ -1,15 +1,17 @@
 use crate::{
-    math::vec2::Vec2,
     gui::{
         VerticalAlignment,
         Thickness,
         UserInterface,
         HorizontalAlignment,
         node::{UINodeKind, UINode},
-        draw::Color,
         event::{RoutedEventHandlerList, RoutedEventHandlerType, RoutedEventHandler}
     },
-    utils::pool::Handle,
+};
+use rg3d_core::{
+    color::Color,
+    math::vec2::Vec2,
+    pool::Handle,
 };
 
 pub struct CommonBuilderFields {

@@ -1,7 +1,6 @@
 use crate::{
-    utils::pool::{Handle, Pool},
     gui::{
-        draw::{Color, CommandKind, DrawingContext},
+        draw::{CommandKind, DrawingContext},
         Thickness,
         UserInterface,
         VerticalAlignment,
@@ -12,11 +11,16 @@ use crate::{
         node::{UINode, UINodeKind},
         builder::CommonBuilderFields
     },
+    resource::ttf::Font,
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::{Handle, Pool},
     math::{
         vec2::Vec2,
         Rect
     },
-    resource::ttf::Font,
 };
 
 #[derive(Debug)]

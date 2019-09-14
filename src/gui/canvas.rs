@@ -5,7 +5,6 @@ use crate::{
         HorizontalAlignment,
         VerticalAlignment,
         Thickness,
-        draw::{Color},
         event::{RoutedEventHandlerType, RoutedEventHandler},
         node::{UINode, UINodeKind},
         builder::{
@@ -13,7 +12,11 @@ use crate::{
             GenericNodeBuilder
         },
     },
-    utils::pool::Handle,
+};
+
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
     math::{
         vec2::Vec2,
         Rect

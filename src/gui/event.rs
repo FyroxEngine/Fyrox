@@ -1,14 +1,18 @@
 use crate::{
-    math::vec2::Vec2,
     gui::{
         UserInterface,
         node::UINode,
     },
-    utils::pool::Handle,
 };
+
 use glutin::{
     MouseButton,
     VirtualKeyCode,
+};
+
+use rg3d_core::{
+    math::vec2::Vec2,
+    pool::Handle,
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]

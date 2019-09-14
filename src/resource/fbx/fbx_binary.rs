@@ -2,7 +2,6 @@ use crate::{
     resource::{
         fbx::{FbxNode, Fbx, attribute::FbxAttribute, error::FbxError}
     },
-    utils::pool::{Handle, Pool},
 };
 use std::{
     io::{Read, Cursor, Seek, SeekFrom},
@@ -10,6 +9,9 @@ use std::{
     fs::File,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
+use rg3d_core::{
+    pool::{Handle, Pool},
+};
 
 fn read_attrib<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>
     where R: Read {

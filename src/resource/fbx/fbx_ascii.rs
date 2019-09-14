@@ -9,7 +9,9 @@ use crate::{
         fbx::attribute::FbxAttribute,
         fbx::error::FbxError,
     },
-    utils::pool::{Pool, Handle},
+};
+use rg3d_core::{
+    pool::{Pool, Handle},
 };
 
 pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>

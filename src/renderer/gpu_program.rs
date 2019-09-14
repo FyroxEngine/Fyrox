@@ -1,11 +1,5 @@
 use std::ffi::CStr;
 use crate::{
-    math::{
-        vec4::Vec4,
-        mat4::Mat4,
-        vec3::Vec3,
-        vec2::Vec2,
-    },
     renderer::{
         gl::types::GLuint,
         gl,
@@ -14,6 +8,15 @@ use crate::{
     },
 };
 use crate::renderer::error::RendererError;
+
+use rg3d_core::{
+    math::{
+        vec4::Vec4,
+        mat4::Mat4,
+        vec3::Vec3,
+        vec2::Vec2,
+    },
+};
 
 pub struct GpuProgram {
     name: String,

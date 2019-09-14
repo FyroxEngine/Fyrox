@@ -5,19 +5,21 @@ use crate::{
         Visibility,
         VerticalAlignment,
         HorizontalAlignment,
-        draw::Color,
         Thickness,
         event::{RoutedEventHandler, RoutedEventHandlerType},
         node::{UINode, UINodeKind},
-        builder::CommonBuilderFields
+        builder::CommonBuilderFields,
+        Layout
     },
-    utils::pool::Handle,
+};
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
     math::{
         vec2::Vec2,
         Rect
-    }
+    },
 };
-use crate::gui::Layout;
 
 #[derive(PartialEq)]
 pub enum SizeMode {

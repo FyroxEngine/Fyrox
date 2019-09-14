@@ -1,25 +1,28 @@
 use crate::{
-    math::{
-        vec2::Vec2,
-        vec3::Vec3,
-        vec4::Vec4,
-    },
     renderer::{
         gl,
         gl::types::*,
     },
     resource::*,
     scene::node::Node,
-    utils::pool::{Handle, ErasedHandle},
 };
 use std::{
     rc::Rc,
     cell::{
         RefCell,
-        Cell
+        Cell,
     },
     mem::size_of,
     ffi::c_void,
+};
+
+use rg3d_core::{
+    math::{
+        vec2::Vec2,
+        vec3::Vec3,
+        vec4::Vec4,
+    },
+    pool::{Handle, ErasedHandle},
 };
 
 #[derive(Copy, Clone, Debug)]

@@ -4,7 +4,6 @@ use crate::{
         canvas::CanvasBuilder,
         VerticalAlignment,
         HorizontalAlignment,
-        draw::Color,
         event::{RoutedEventHandlerType, RoutedEventHandler},
         button::ButtonBuilder,
         node::{UINodeKind, UINode},
@@ -15,11 +14,15 @@ use crate::{
         builder::{GenericNodeBuilder, CommonBuilderFields},
         grid::{GridBuilder, Column, Row}
     },
+    gui::event::RoutedEventKind
+};
+
+use rg3d_core::{
+    color::Color,
     math,
-    utils::pool::Handle,
+    pool::Handle,
     math::vec2::Vec2,
 };
-use crate::gui::event::RoutedEventKind;
 
 pub struct ValueChangedArgs {
     pub source: Handle<UINode>,

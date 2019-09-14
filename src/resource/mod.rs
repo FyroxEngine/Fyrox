@@ -15,7 +15,9 @@ use crate::{
         texture::*,
         model::Model,
     },
-    utils::visitor::{
+};
+use rg3d_core::{
+    visitor::{
         Visit,
         Visitor,
         VisitResult,

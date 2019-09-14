@@ -1,21 +1,20 @@
 use crate::{
-    utils::pool::Pool,
     engine::{state::State, duration_to_seconds_f32},
     resource::{ttf::Font},
-    gui::draw::{DrawingContext, Color},
+    gui::draw::{DrawingContext},
     scene::{
         node::NodeKind,
     },
     renderer::{
+        ui_renderer::UIRenderer,
         surface::SurfaceSharedData,
         gl,
         gl::types::*,
         gpu_program::{GpuProgram, UniformLocation},
-    },
-    math::{
-        vec3::Vec3,
-        mat4::Mat4,
-        vec2::Vec2,
+        particle_system_renderer::ParticleSystemRenderer,
+        gbuffer::GBuffer,
+        deferred_light_renderer::DeferredLightRenderer,
+        error::RendererError,
     },
 };
 use std::{
@@ -25,11 +24,16 @@ use std::{
     cell::RefCell,
 };
 use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api};
-use crate::renderer::ui_renderer::UIRenderer;
-use crate::renderer::particle_system_renderer::ParticleSystemRenderer;
-use crate::renderer::gbuffer::GBuffer;
-use crate::renderer::deferred_light_renderer::DeferredLightRenderer;
-use crate::renderer::error::RendererError;
+
+use rg3d_core::{
+    color::Color,
+    pool::Pool,
+    math::{
+        vec3::Vec3,
+        mat4::Mat4,
+        vec2::Vec2,
+    },
+};
 
 fn check_gl_error_internal(line: u32, file: &str) {
     unsafe {
@@ -376,7 +380,7 @@ impl Renderer {
         Vec2::make(client_size.width as f32, client_size.height as f32)
     }
 
-    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) -> Result<(), RendererError>{
+    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) -> Result<(), RendererError> {
         let frame_start_time = Instant::now();
         let client_size = self.context.window().get_inner_size().unwrap();
 

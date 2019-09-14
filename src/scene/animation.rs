@@ -1,4 +1,13 @@
 use crate::{
+    resource::Resource,
+    scene::node::Node,
+};
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
+
+use rg3d_core::{
     math::{
         vec3::Vec3,
         quat::Quat,
@@ -6,20 +15,12 @@ use crate::{
         lerpf,
         wrapf,
     },
-    resource::Resource,
-    utils::{
-        visitor::{
-            Visit,
-            VisitResult,
-            Visitor,
-        },
-        pool::Handle,
+    visitor::{
+        Visit,
+        VisitResult,
+        Visitor,
     },
-    scene::node::Node,
-};
-use std::{
-    rc::Rc,
-    cell::RefCell,
+    pool::{Pool, Handle}
 };
 
 #[derive(Copy, Clone)]
