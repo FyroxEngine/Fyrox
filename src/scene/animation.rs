@@ -20,7 +20,7 @@ use rg3d_core::{
         VisitResult,
         Visitor,
     },
-    pool::{Pool, Handle}
+    pool::Handle
 };
 
 #[derive(Copy, Clone)]

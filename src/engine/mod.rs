@@ -6,7 +6,7 @@ use crate::{
     resource::{ttf::Font},
     renderer::{
         render::{Renderer, Statistics},
-        error::RendererError
+        error::RendererError,
     },
     engine::state::State,
 };
@@ -15,6 +15,7 @@ use std::{
     collections::VecDeque,
     time::Duration,
     path::Path,
+    sync::{Arc, Mutex},
 };
 
 use rg3d_core::{
@@ -22,6 +23,8 @@ use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visitor, VisitResult, Visit},
 };
+
+use rg3d_sound::context::Context;
 
 pub struct Engine {
     renderer: Renderer,
@@ -31,6 +34,7 @@ pub struct Engine {
     font_cache: Pool<Font>,
     default_font: Handle<Font>,
     user_interface: UserInterface,
+    sound_context: Arc<Mutex<Context>>,
 }
 
 impl Engine {
@@ -43,7 +47,11 @@ impl Engine {
             (0..255).collect()).unwrap());
         let mut renderer = Renderer::new().unwrap();
         renderer.upload_font_cache(&mut font_cache);
+
+        let context: Arc<Mutex<Context>> = Context::new().unwrap();
+
         Engine {
+            sound_context: context,
             state: State::new(),
             renderer,
             events: VecDeque::new(),
@@ -69,6 +77,11 @@ impl Engine {
         self.running
     }
 
+    #[inline]
+    pub fn get_sound_context(&self) -> Arc<Mutex<Context>> {
+        self.sound_context.clone()
+    }
+
     pub fn update(&mut self, dt: f32) {
         let client_size = self.renderer.context.window().get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
@@ -78,6 +91,8 @@ impl Engine {
         for scene in self.state.get_scenes_mut().iter_mut() {
             scene.update(aspect_ratio, dt);
         }
+
+        self.sound_context.lock().unwrap().update().unwrap();
 
         self.user_interface.update(Vec2::make(client_size.width as f32, client_size.height as f32));
     }
@@ -117,7 +132,7 @@ impl Engine {
     }
 
     #[inline]
-    pub fn set_frame_size(&mut self, new_size: Vec2) -> Result<(), RendererError>{
+    pub fn set_frame_size(&mut self, new_size: Vec2) -> Result<(), RendererError> {
         self.renderer.set_frame_size(new_size)
     }
 

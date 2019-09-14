@@ -58,7 +58,6 @@ macro_rules! check_gl_error {
     () => (check_gl_error_internal(line!(), file!()))
 }
 
-
 pub struct Statistics {
     pub frame_time: f32,
     pub mean_fps: usize,
@@ -450,6 +449,9 @@ impl Renderer {
         let total_time_s = duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
         self.statistics.frame_time = total_time_s;
         self.statistics.current_fps = (1.0 / total_time_s) as usize;
+
+        check_gl_error!();
+
         Ok(())
     }
 }

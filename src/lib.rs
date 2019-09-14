@@ -9,6 +9,7 @@ extern crate rand;
 #[macro_use]
 extern crate lazy_static;
 extern crate rg3d_core;
+extern crate rg3d_sound;
 
 pub mod utils;
 pub mod scene;
