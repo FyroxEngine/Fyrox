@@ -1059,7 +1059,7 @@ impl Fbx {
                     let extention = path.extension().ok_or(FbxError::InvalidPath)?;
 
                     let diffuse_path = state.get_resource_manager().get_textures_path().join(&path);
-                    if let Some(texture_resource) = state.request_resource(diffuse_path.as_path()) {
+                    if let Some(texture_resource) = state.request_texture(diffuse_path.as_path()) {
                         surface.set_diffuse_texture(texture_resource);
                     }
 
@@ -1068,7 +1068,7 @@ impl Fbx {
                     normal_map_name.push(extention);
                     let normal_path = state.get_resource_manager().get_textures_path().join(normal_map_name);
                     if normal_path.exists() {
-                        if let Some(texture_resource) = state.request_resource(normal_path.as_path()) {
+                        if let Some(texture_resource) = state.request_texture(normal_path.as_path()) {
                             surface.set_normal_texture(texture_resource);
                         }
                     }

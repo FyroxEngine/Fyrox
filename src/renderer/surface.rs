@@ -3,7 +3,6 @@ use crate::{
         gl,
         gl::types::*,
     },
-    resource::*,
     scene::node::Node,
 };
 use std::{
@@ -21,6 +20,7 @@ use rg3d_core::{
     pool::{Handle, ErasedHandle},
 };
 use std::sync::{Mutex, Arc};
+use crate::resource::texture::Texture;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -685,8 +685,8 @@ impl VertexWeightSet {
 
 pub struct Surface {
     data: Arc<Mutex<SurfaceSharedData>>,
-    diffuse_texture: Option<Arc<Mutex<Resource>>>,
-    normal_texture: Option<Arc<Mutex<Resource>>>,
+    diffuse_texture: Option<Arc<Mutex<Texture>>>,
+    normal_texture: Option<Arc<Mutex<Texture>>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -715,7 +715,7 @@ impl Surface {
     }
 
     #[inline]
-    pub fn get_diffuse_texture(&self) -> Option<Arc<Mutex<Resource>>> {
+    pub fn get_diffuse_texture(&self) -> Option<Arc<Mutex<Texture>>> {
         match &self.diffuse_texture {
             Some(resource) => Some(Arc::clone(resource)),
             None => None
@@ -723,7 +723,7 @@ impl Surface {
     }
 
     #[inline]
-    pub fn get_normal_texture(&self) -> Option<Arc<Mutex<Resource>>> {
+    pub fn get_normal_texture(&self) -> Option<Arc<Mutex<Texture>>> {
         match &self.normal_texture {
             Some(resource) => Some(Arc::clone(resource)),
             None => None
@@ -731,12 +731,12 @@ impl Surface {
     }
 
     #[inline]
-    pub fn set_diffuse_texture(&mut self, tex: Arc<Mutex<Resource>>) {
+    pub fn set_diffuse_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.diffuse_texture = Some(tex);
     }
 
     #[inline]
-    pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Resource>>) {
+    pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.normal_texture = Some(tex);
     }
 

@@ -1,6 +1,6 @@
 use std::{
     ffi::{CString, c_void},
-    mem::size_of
+    mem::size_of,
 };
 use crate::{
     engine::state::State,
@@ -9,20 +9,19 @@ use crate::{
         gl::types::GLuint,
         gpu_program::{GpuProgram, UniformLocation},
         gbuffer::GBuffer,
-        error::RendererError
+        error::RendererError,
     },
     scene::{
         particle_system::DrawData,
-        node::NodeKind
+        node::NodeKind,
     },
-    resource::ResourceKind,
 };
 
-use rg3d_core:: {
+use rg3d_core::{
     math::{
         mat4::Mat4,
         vec3::Vec3,
-        vec2::Vec2
+        vec2::Vec2,
     },
 };
 
@@ -270,12 +269,8 @@ impl ParticleSystemRenderer {
                     gl::BufferData(gl::ARRAY_BUFFER, total_size_bytes as isize, self.draw_data.get_vertices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
 
                     gl::ActiveTexture(gl::TEXTURE0);
-                    if let Some(resource) = particle_system.get_texture() {
-                        if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind() {
-                            gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, white_dummy);
-                        }
+                    if let Some(texture) = particle_system.get_texture() {
+                        gl::BindTexture(gl::TEXTURE_2D, texture.lock().unwrap().gpu_tex);
                     } else {
                         gl::BindTexture(gl::TEXTURE_2D, white_dummy);
                     }

@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex};
 use crate::{
     physics::Body,
-    resource::Resource,
     scene::{
         camera::Camera,
         mesh::Mesh,
@@ -23,6 +22,7 @@ use rg3d_core::{
     },
     pool::Handle
 };
+use crate::resource::model::Model;
 
 pub enum NodeKind {
     Base,
@@ -64,7 +64,7 @@ pub struct Node {
     pub(in crate::scene) global_transform: Mat4,
     inv_bind_pose_transform: Mat4,
     body: Handle<Body>,
-    resource: Option<Arc<Mutex<Resource>>>,
+    resource: Option<Arc<Mutex<Model>>>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
     original: Handle<Node>,
@@ -206,12 +206,12 @@ impl Node {
     }
 
     #[inline]
-    pub fn set_resource(&mut self, resource_handle: Arc<Mutex<Resource>>) {
+    pub fn set_resource(&mut self, resource_handle: Arc<Mutex<Model>>) {
         self.resource = Some(resource_handle);
     }
 
     #[inline]
-    pub fn get_resource(&self) -> Option<Arc<Mutex<Resource>>> {
+    pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
         match &self.resource {
             Some(resource) => Some(Arc::clone(resource)),
             None => None

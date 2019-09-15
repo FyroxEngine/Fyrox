@@ -327,7 +327,8 @@ impl Renderer {
     }
 
     pub fn upload_resources(&mut self, state: &mut State) {
-        state.get_resource_manager_mut().for_each_texture_mut(|texture| {
+        for texture_rc in state.get_resource_manager_mut().get_textures() {
+            let mut texture = texture_rc.lock().unwrap();
             if texture.need_upload {
                 unsafe {
                     if texture.gpu_tex == 0 {
@@ -364,7 +365,7 @@ impl Renderer {
                     texture.need_upload = false;
                 }
             }
-        });
+        }
     }
 
 

@@ -1,4 +1,5 @@
 use std::path::*;
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 pub struct Rgba8 {
     pub r: u8,
@@ -8,16 +9,18 @@ pub struct Rgba8 {
 }
 
 pub struct Texture {
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) gpu_tex: u32,
-    pub(crate) need_upload: bool,
-    pub(crate) pixels: Vec<Rgba8>,
+    pub(in crate) path: PathBuf,
+    pub(in crate) width: u32,
+    pub(in crate) height: u32,
+    pub(in crate) gpu_tex: u32,
+    pub(in crate) need_upload: bool,
+    pub(in crate) pixels: Vec<Rgba8>,
 }
 
 impl Default for Texture {
     fn default() -> Self {
         Self {
+            path: PathBuf::new(),
             width: 0,
             height: 0,
             gpu_tex: 0,
@@ -27,8 +30,18 @@ impl Default for Texture {
     }
 }
 
+impl Visit for Texture {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.path.visit("Path", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 impl Texture {
-    pub fn load(path: &Path) -> Result<Texture, image::ImageError> {
+    pub(in crate) fn load(path: &Path) -> Result<Texture, image::ImageError> {
         let image = match image::open(path)? {
             image::DynamicImage::ImageRgba8(img) => img,
             other => other.to_rgba()
@@ -52,6 +65,7 @@ impl Texture {
         }
 
         Ok(Texture {
+            path: PathBuf::from(path),
             pixels,
             need_upload: true,
             width,

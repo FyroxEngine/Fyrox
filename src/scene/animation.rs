@@ -1,7 +1,4 @@
-use crate::{
-    resource::Resource,
-    scene::node::Node,
-};
+use crate::scene::node::Node;
 
 use rg3d_core::{
     math::{
@@ -19,6 +16,7 @@ use rg3d_core::{
     pool::Handle
 };
 use std::sync::{Mutex, Arc};
+use crate::resource::model::Model;
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -184,7 +182,7 @@ pub struct Animation {
     weight: f32,
     fade_step: f32,
     enabled: bool,
-    resource: Option<Arc<Mutex<Resource>>>,
+    resource: Option<Arc<Mutex<Model>>>,
 }
 
 impl Clone for Animation {

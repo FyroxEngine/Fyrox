@@ -1,4 +1,3 @@
-use crate::resource::Resource;
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -24,6 +23,7 @@ use rg3d_core::{
     numeric_range::NumericRange,
     color::Color,
 };
+use crate::resource::texture::Texture;
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
@@ -570,7 +570,7 @@ pub struct ParticleSystem {
     sorted_particles: Vec<u32>,
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
-    texture: Option<Arc<Mutex<Resource>>>,
+    texture: Option<Arc<Mutex<Texture>>>,
     acceleration: Vec3,
     color_over_lifetime: Option<ColorGradient>,
 }
@@ -721,11 +721,11 @@ impl ParticleSystem {
         }
     }
 
-    pub fn set_texture(&mut self, texture: Arc<Mutex<Resource>>) {
+    pub fn set_texture(&mut self, texture: Arc<Mutex<Texture>>) {
         self.texture = Some(texture)
     }
 
-    pub fn get_texture(&self) -> Option<Arc<Mutex<Resource>>> {
+    pub fn get_texture(&self) -> Option<Arc<Mutex<Texture>>> {
         match &self.texture {
             Some(texture) => Some(texture.clone()),
             None => None

@@ -3,15 +3,14 @@ use crate::{
     scene::{
         camera::Camera,
         Scene,
-        node::NodeKind
+        node::NodeKind,
     },
     renderer::{
         gl::types::GLuint,
         gl,
         gpu_program::{GpuProgram, UniformLocation},
-        error::RendererError
+        error::RendererError,
     },
-    resource::ResourceKind,
 };
 use rg3d_core::{
     math::{
@@ -359,24 +358,16 @@ impl GBuffer {
 
                         // Bind diffuse texture.
                         gl::ActiveTexture(gl::TEXTURE0);
-                        if let Some(resource) = surface.get_diffuse_texture() {
-                            if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind() {
-                                gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                            } else {
-                                gl::BindTexture(gl::TEXTURE_2D, white_dummy);
-                            }
+                        if let Some(texture) = surface.get_diffuse_texture() {
+                            gl::BindTexture(gl::TEXTURE_2D, texture.lock().unwrap().gpu_tex);
                         } else {
                             gl::BindTexture(gl::TEXTURE_2D, white_dummy);
                         }
 
                         // Bind normal texture.
                         gl::ActiveTexture(gl::TEXTURE1);
-                        if let Some(resource) = surface.get_normal_texture() {
-                            if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind() {
-                                gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
-                            } else {
-                                gl::BindTexture(gl::TEXTURE_2D, normal_dummy);
-                            }
+                        if let Some(texture) = surface.get_normal_texture() {
+                            gl::BindTexture(gl::TEXTURE_2D, texture.lock().unwrap().gpu_tex);
                         } else {
                             gl::BindTexture(gl::TEXTURE_2D, normal_dummy);
                         }
