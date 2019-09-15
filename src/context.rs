@@ -71,6 +71,14 @@ impl Context {
         &mut self.sources
     }
 
+    pub fn get_source(&self, handle: Handle<Source>) -> Option<&Source> {
+        self.sources.borrow(handle)
+    }
+
+    pub fn get_source_mut(&mut self, handle: Handle<Source>) -> Option<&mut Source> {
+        self.sources.borrow_mut(handle)
+    }
+
     pub fn get_listener(&self) -> &Listener {
         &self.listener
     }

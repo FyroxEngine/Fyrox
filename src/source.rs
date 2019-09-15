@@ -4,15 +4,14 @@ use std::sync::{Arc, Mutex};
 use crate::{
     buffer::{Buffer, BufferKind},
     error::SoundError,
-    listener::Listener
+    listener::Listener,
 };
 use rg3d_core::{
     math::vec3::Vec3,
-    visitor::{Visit, VisitResult, Visitor}
+    visitor::{Visit, VisitResult, Visitor, VisitError},
 };
-use rg3d_core::visitor::VisitError;
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
     Stopped,
     Playing,
@@ -48,6 +47,24 @@ pub struct SpatialSource {
     position: Vec3,
 }
 
+impl SpatialSource {
+    pub fn set_position(&mut self, position: &Vec3) {
+        self.position = *position;
+    }
+
+    pub fn get_position(&self) -> Vec3 {
+        self.position
+    }
+
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius;
+    }
+
+    pub fn get_radius(&self) -> f32 {
+        self.radius
+    }
+}
+
 impl Visit for SpatialSource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -62,8 +79,8 @@ impl Visit for SpatialSource {
 impl Default for SpatialSource {
     fn default() -> Self {
         Self {
-            radius: 0.0,
-            position: Vec3::zero()
+            radius: 10.0,
+            position: Vec3::zero(),
         }
     }
 }
@@ -140,12 +157,20 @@ impl Default for Source {
             left_gain: 1.0,
             right_gain: 1.0,
             resampling_multiplier: 1.0,
-            status: Status::Stopped
+            status: Status::Stopped,
         }
     }
 }
 
 impl Source {
+    pub fn new_spatial(buffer: Arc<Mutex<Buffer>>) -> Result<Self, SoundError> {
+        Self::new(SourceKind::Spatial(SpatialSource::default()), buffer)
+    }
+
+    pub fn new_flat(buffer: Arc<Mutex<Buffer>>) -> Result<Self, SoundError> {
+        Self::new(SourceKind::Flat, buffer)
+    }
+
     pub fn new(kind: SourceKind, buffer: Arc<Mutex<Buffer>>) -> Result<Self, SoundError> {
         let device_sample_rate = f64::from(crate::device::SAMPLE_RATE);
         let mut locked_buffer = buffer.lock()?;
@@ -166,7 +191,7 @@ impl Source {
             looping: false,
             left_gain: 1.0,
             right_gain: 1.0,
-            status: Status::Playing,
+            status: Status::Stopped,
         })
     }
 
@@ -198,6 +223,14 @@ impl Source {
         self.status = Status::Paused;
     }
 
+    pub fn set_looping(&mut self, looping: bool) {
+        self.looping = looping;
+    }
+
+    pub fn is_looping(&self) -> bool {
+        self.looping
+    }
+
     pub fn stop(&mut self) -> Result<(), SoundError> {
         self.status = Status::Stopped;
 
@@ -211,7 +244,7 @@ impl Source {
         Ok(())
     }
 
-    pub(in crate) fn update(&mut self, listener: &Listener) -> Result<(), SoundError>{
+    pub(in crate) fn update(&mut self, listener: &Listener) -> Result<(), SoundError> {
         if let Some(buffer) = &self.buffer {
             buffer.lock()?.update()?;
         }
@@ -232,6 +265,14 @@ impl Source {
         Ok(())
     }
 
+    pub fn get_kind(&self) -> &SourceKind {
+        &self.kind
+    }
+
+    pub fn get_kind_mut(&mut self) -> &mut SourceKind {
+        &mut self.kind
+    }
+
     pub(in crate) fn sample_into(&mut self, mix_buffer: &mut [(f32, f32)]) {
         if self.status != Status::Playing {
             return;
@@ -246,6 +287,10 @@ impl Source {
                 }
 
                 for (left, right) in mix_buffer {
+                    if self.status != Status::Playing {
+                        break;
+                    }
+
                     self.buf_read_pos += step;
                     self.playback_pos += step;
 
