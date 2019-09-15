@@ -6,7 +6,10 @@ use crate::{
     listener::Listener,
 };
 
-use rg3d_core::pool::{Pool, Handle};
+use rg3d_core::{
+    pool::{Pool, Handle},
+    visitor::{Visit, VisitResult, Visitor}
+};
 
 pub struct Context {
     sources: Pool<Source>,
@@ -60,6 +63,10 @@ impl Context {
         self.sources.spawn(source)
     }
 
+    pub fn get_sources(&self) -> &Pool<Source> {
+        &self.sources
+    }
+
     pub fn get_sources_mut(&mut self) -> &mut Pool<Source> {
         &mut self.sources
     }
@@ -77,5 +84,17 @@ impl Context {
             source.update(&self.listener)?;
         }
         Ok(())
+    }
+}
+
+impl Visit for Context {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.master_gain.visit("MasterGain", visitor)?;
+        self.listener.visit("Listener", visitor)?;
+        self.sources.visit("Sources", visitor)?;
+
+        visitor.leave_region()
     }
 }

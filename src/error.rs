@@ -27,9 +27,6 @@ pub enum SoundError {
     /// used by some other source. This is wrong because only one source can play
     /// sound from streaming buffer.
     StreamingBufferAlreadyInUse,
-
-    /// You tried to use Unknown as buffer kind.
-    InvalidBufferKind,
 }
 
 impl From<std::io::Error> for SoundError {

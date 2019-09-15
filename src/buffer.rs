@@ -10,7 +10,7 @@ use std::{
     path::Path,
     io::BufReader,
 };
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor, VisitError};
 
 /// Sound samples buffer.
 ///
@@ -80,9 +80,32 @@ impl Default for Buffer {
     }
 }
 
+impl Visit for BufferKind {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut kind: u8 = match self {
+            BufferKind::Normal => 0,
+            BufferKind::Stream => 1,
+        };
+
+        kind.visit(name, visitor)?;
+
+        if visitor.is_reading() {
+            *self = match kind {
+                0 => BufferKind::Normal,
+                1 => BufferKind::Stream,
+                _ => return Err(VisitError::User("invalid buffer kind".to_string()))
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl Visit for Buffer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
+
+        self.kind.visit("Kind", visitor)?;
 
         visitor.leave_region()
     }
@@ -90,10 +113,6 @@ impl Visit for Buffer {
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum BufferKind {
-    /// Do not use. It is used only to support Default trait to let
-    /// buffer be serializable.
-    Unknown,
-
     /// Buffer that contains all data the data.
     Normal,
 
@@ -105,10 +124,6 @@ pub enum BufferKind {
 
 impl Buffer {
     pub fn new(path: &Path, kind: BufferKind) -> Result<Self, SoundError> {
-        if kind == BufferKind::Unknown {
-            return Err(SoundError::InvalidBufferKind)
-        }
-
         let file = File::open(path)?;
 
         let ext = path.extension().ok_or(SoundError::UnsupportedFormat)?

@@ -1,6 +1,9 @@
 #![allow(clippy::or_fun_call)]
 
-use rg3d_core::math::vec3::Vec3;
+use rg3d_core::{
+    math::vec3::Vec3,
+    visitor::{Visit, VisitResult, Visitor}
+};
 use crate::error::SoundError;
 
 pub struct Listener {
@@ -45,5 +48,18 @@ impl Listener {
 
     pub fn get_ear_axis(&self) -> Vec3 {
         self.ear_axis
+    }
+}
+
+impl Visit for Listener {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.position.visit("Position", visitor)?;
+        self.look_axis.visit("LookAxis", visitor)?;
+        self.up_axis.visit("UpAxis", visitor)?;
+        self.ear_axis.visit("EarAxis", visitor)?;
+
+        visitor.leave_region()
     }
 }
