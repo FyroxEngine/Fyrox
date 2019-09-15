@@ -5,9 +5,10 @@ use std::{
     any::Any,
     path::{Path, PathBuf},
     cell::{RefCell, Cell},
-    io::{Write, Read},
+    io::{Write, Read, BufReader, BufWriter},
     string::FromUtf8Error,
     fmt::{Display, Formatter},
+    sync::{Arc, Mutex},
 };
 use byteorder::{
     ReadBytesExt,
@@ -22,8 +23,6 @@ use crate::{
     },
     pool::{Handle, Pool},
 };
-use std::sync::{Arc, Mutex};
-use std::io::{BufReader, BufWriter};
 
 pub enum FieldKind {
     Bool(bool),
@@ -46,7 +45,7 @@ pub enum FieldKind {
 impl FieldKind {
     fn as_string(&self) -> String {
         match self {
-            FieldKind::Bool(data) => format!("<bool = {}", data),
+            FieldKind::Bool(data) => format!("<bool = {}>, ", data),
             FieldKind::U8(data) => format!("<u8 = {}>, ", data),
             FieldKind::I8(data) => format!("<i8 = {}>, ", data),
             FieldKind::U16(data) => format!("<u16 = {}>, ", data),
@@ -791,6 +790,12 @@ impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
     }
 }
 
+impl<T> Visit for Mutex<T> where T: Default + Visit + Send {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.lock()?.visit(name, visitor)
+    }
+}
+
 impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -840,12 +845,6 @@ impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
         visitor.leave_region()?;
 
         Ok(())
-    }
-}
-
-impl<T> Visit for Mutex<T> where T: Default + Visit + Send + Sync + 'static {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.lock()?.visit(name, visitor)
     }
 }
 

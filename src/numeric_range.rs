@@ -26,7 +26,7 @@ impl<T> Default for NumericRange<T> where T: Default {
     }
 }
 
-impl<T> NumericRange<T> where T: Copy + Sized + rand::distributions::uniform::SampleUniform {
+impl<T> NumericRange<T> where T: Copy + Sized + rand::distributions::uniform::SampleUniform + Send {
     pub fn new(min: T, max: T) -> Self {
         Self {
             min,
