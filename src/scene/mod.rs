@@ -365,6 +365,14 @@ impl Scene {
         self.update_animations(dt);
         self.update_nodes();
 
+        // HACK
+        let camera_position = if let Some(camera) = self.nodes.borrow(self.active_camera) {
+            camera.get_global_position()
+        } else {
+            Vec3::zero()
+        };
+
+
         for node in self.nodes.iter_mut() {
             let eye = node.get_global_position();
             let look = node.get_look_vector();
@@ -372,7 +380,7 @@ impl Scene {
 
             match node.borrow_kind_mut() {
                 NodeKind::Camera(camera) => camera.calculate_matrices(eye, look, up, aspect_ratio),
-                NodeKind::ParticleSystem(particle_system) => particle_system.update(dt),
+                NodeKind::ParticleSystem(particle_system) => particle_system.update(dt, &eye, &camera_position),
                 _ => ()
             }
         }

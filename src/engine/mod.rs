@@ -170,6 +170,7 @@ impl Visit for Engine {
         }
 
         self.state.visit("State", visitor)?;
+        self.sound_context.lock()?.visit("SoundContext", visitor)?;
 
         if visitor.is_reading() {
             self.state.resolve();

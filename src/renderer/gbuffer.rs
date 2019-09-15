@@ -360,7 +360,7 @@ impl GBuffer {
                         // Bind diffuse texture.
                         gl::ActiveTexture(gl::TEXTURE0);
                         if let Some(resource) = surface.get_diffuse_texture() {
-                            if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
+                            if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind() {
                                 gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                             } else {
                                 gl::BindTexture(gl::TEXTURE_2D, white_dummy);
@@ -372,7 +372,7 @@ impl GBuffer {
                         // Bind normal texture.
                         gl::ActiveTexture(gl::TEXTURE1);
                         if let Some(resource) = surface.get_normal_texture() {
-                            if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
+                            if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind() {
                                 gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                             } else {
                                 gl::BindTexture(gl::TEXTURE_2D, normal_dummy);
@@ -381,7 +381,7 @@ impl GBuffer {
                             gl::BindTexture(gl::TEXTURE_2D, normal_dummy);
                         }
 
-                        surface.get_data().borrow().draw();
+                        surface.get_data().lock().unwrap().draw();
                     }
                 }
             }

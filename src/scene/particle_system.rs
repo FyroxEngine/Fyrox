@@ -1,14 +1,11 @@
 use crate::resource::Resource;
 use std::{
-    cell::{
-        RefCell,
-        Cell,
-    },
-    rc::Rc,
+    cell::Cell,
     cmp::Ordering,
     mem::size_of,
     any::Any,
     sync::{Mutex, LockResult, MutexGuard},
+    sync::Arc
 };
 use rand::Rng;
 
@@ -25,7 +22,7 @@ use rg3d_core::{
     },
     color_gradient::ColorGradient,
     numeric_range::NumericRange,
-    color::Color
+    color::Color,
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -287,7 +284,7 @@ lazy_static! {
     static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> = Mutex::new(Default::default());
 }
 
-pub trait CustomEmitter: Any + Emit + Visit {
+pub trait CustomEmitter: Any + Emit + Visit + Send {
     fn box_clone(&self) -> Box<dyn CustomEmitter>;
     fn get_kind(&self) -> u8;
 }
@@ -422,7 +419,6 @@ pub struct Emitter {
 pub struct EmitterBuilder {
     kind: EmitterKind,
     position: Option<Vec3>,
-
 }
 
 impl EmitterBuilder {
@@ -571,10 +567,10 @@ impl Default for Emitter {
 pub struct ParticleSystem {
     particles: Vec<Particle>,
     /// Set of indices to alive particles sorted in back-to-front order.
-    sorted_particles: RefCell<Vec<u32>>,
+    sorted_particles: Vec<u32>,
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
-    texture: Option<Rc<RefCell<Resource>>>,
+    texture: Option<Arc<Mutex<Resource>>>,
     acceleration: Vec3,
     color_over_lifetime: Option<ColorGradient>,
 }
@@ -583,7 +579,7 @@ impl ParticleSystem {
     pub fn new() -> Self {
         Self {
             particles: Vec::new(),
-            sorted_particles: RefCell::new(Vec::new()),
+            sorted_particles: Vec::new(),
             free_particles: Vec::new(),
             emitters: Vec::new(),
             texture: None,
@@ -604,7 +600,7 @@ impl ParticleSystem {
         self.color_over_lifetime = Some(gradient)
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn update(&mut self, dt: f32, global_position: &Vec3, camera_pos: &Vec3) {
         for emitter in self.emitters.iter_mut() {
             emitter.tick(dt);
         }
@@ -649,22 +645,19 @@ impl ParticleSystem {
                 }
             }
         }
-    }
 
-    pub fn generate_draw_data(&self, global_position: &Vec3, camera_pos: &Vec3, draw_data: &mut DrawData) {
-        let mut sorted_particles = self.sorted_particles.borrow_mut();
-        sorted_particles.clear();
+        self.sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
             if particle.alive {
                 let actual_position = particle.position + *global_position;
                 particle.sqr_distance_to_camera.set(camera_pos.sqr_distance(&actual_position));
-                sorted_particles.push(i as u32);
+                self.sorted_particles.push(i as u32);
             }
         }
 
         let particles = &self.particles;
 
-        sorted_particles.sort_by(|a, b| {
+        self.sorted_particles.sort_by(|a, b| {
             let particle_a = particles.get(*a as usize).unwrap();
             let particle_b = particles.get(*b as usize).unwrap();
 
@@ -677,10 +670,12 @@ impl ParticleSystem {
                 Ordering::Equal
             }
         });
+    }
 
+    pub fn generate_draw_data(&self, draw_data: &mut DrawData) {
         draw_data.clear();
 
-        for (i, particle_index) in sorted_particles.iter().enumerate() {
+        for (i, particle_index) in self.sorted_particles.iter().enumerate() {
             let particle = self.particles.get(*particle_index as usize).unwrap();
 
             draw_data.vertices.push(Vertex {
@@ -726,11 +721,11 @@ impl ParticleSystem {
         }
     }
 
-    pub fn set_texture(&mut self, texture: Rc<RefCell<Resource>>) {
+    pub fn set_texture(&mut self, texture: Arc<Mutex<Resource>>) {
         self.texture = Some(texture)
     }
 
-    pub fn get_texture(&self) -> Option<Rc<RefCell<Resource>>> {
+    pub fn get_texture(&self) -> Option<Arc<Mutex<Resource>>> {
         match &self.texture {
             Some(texture) => Some(texture.clone()),
             None => None
@@ -758,7 +753,7 @@ impl Clone for ParticleSystem {
         Self {
             color_over_lifetime: self.color_over_lifetime.clone(),
             particles: self.particles.clone(),
-            sorted_particles: RefCell::new(Vec::new()), // Do not clone, since it is temporary array.
+            sorted_particles: Vec::new(), // Do not clone, since it is temporary array.
             free_particles: self.free_particles.clone(),
             emitters: self.emitters.clone(),
             texture: match &self.texture {

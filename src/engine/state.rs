@@ -1,6 +1,4 @@
 use std::{
-    rc::Rc,
-    cell::RefCell,
     path::{Path, PathBuf},
     any::TypeId,
 };
@@ -24,6 +22,7 @@ use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visit, Visitor, VisitResult},
 };
+use std::sync::{Arc, Mutex};
 
 pub struct State {
     scenes: Pool<Scene>,
@@ -39,7 +38,7 @@ impl State {
         }
     }
 
-    pub fn request_resource(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
+    pub fn request_resource(&mut self, path: &Path) -> Option<Arc<Mutex<Resource>>> {
         match self.resource_manager.find_resource(path) {
             Some(resource) => Some(resource),
             None => {
@@ -51,7 +50,7 @@ impl State {
                 match extension.as_str() {
                     "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load(path) {
                         Ok(texture) => {
-                            let resource = Rc::new(RefCell::new(Resource::new(path, ResourceKind::Texture(texture))));
+                            let resource = Arc::new(Mutex::new(Resource::new(path, ResourceKind::Texture(texture))));
                             self.resource_manager.add_resource(resource.clone());
                             println!("Texture {} is loaded!", path.display());
                             Some(resource)
@@ -63,7 +62,7 @@ impl State {
                     }
                     "fbx" => match Model::load(path, self) {
                         Ok(model) => {
-                            let resource = Rc::new(RefCell::new(Resource::new(path, ResourceKind::Model(model))));
+                            let resource = Arc::new(Mutex::new(Resource::new(path, ResourceKind::Model(model))));
                             self.resource_manager.add_resource(resource.clone());
                             println!("Model {} is loaded!", path.display());
                             Some(resource)
@@ -96,7 +95,7 @@ impl State {
             if let Some(model_node_resource) = model_node.get_resource() {
                 if let Some(parent) = scene.get_nodes().borrow(model_node.get_parent()) {
                     if let Some(parent_resource) = parent.get_resource() {
-                        if !Rc::ptr_eq(&parent_resource, &model_node_resource) {
+                        if !Arc::ptr_eq(&parent_resource, &model_node_resource) {
                             // Parent node uses different resource than current root node.
                             return model_root_handle;
                         }
@@ -118,8 +117,8 @@ impl State {
         // Reload resources first.
         let resources_to_reload = self.resource_manager.get_resources().to_vec();
         for resource in resources_to_reload {
-            let path = PathBuf::from(resource.borrow().get_path());
-            let id = resource.borrow().get_kind_id();
+            let path = PathBuf::from(resource.lock().unwrap().get_path());
+            let id = resource.lock().unwrap().get_kind_id();
 
             if id == TypeId::of::<Model>() {
                 let new_model = match Model::load(path.as_path(), self) {
@@ -130,7 +129,7 @@ impl State {
                     }
                 };
 
-                if let ResourceKind::Model(model) = resource.borrow_mut().borrow_kind_mut() {
+                if let ResourceKind::Model(model) = resource.lock().unwrap().borrow_kind_mut() {
                     *model = new_model;
                 }
             } else if id == TypeId::of::<Texture>() {
@@ -142,7 +141,7 @@ impl State {
                     }
                 };
 
-                if let ResourceKind::Texture(texture) = resource.borrow_mut().borrow_kind_mut() {
+                if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind_mut() {
                     *texture = new_texture;
                 }
             }
@@ -157,7 +156,7 @@ impl State {
             for node in scene.get_nodes_mut().iter_mut() {
                 if node.get_original_handle().is_none() {
                     if let Some(resource) = node.get_resource() {
-                        if let ResourceKind::Model(model) = resource.borrow().borrow_kind() {
+                        if let ResourceKind::Model(model) = resource.lock().unwrap().borrow_kind() {
                             for i in 0..model.get_scene().get_nodes().get_capacity() {
                                 if let Some(resource_node) = model.get_scene().get_nodes().at(i) {
                                     if resource_node.get_name() == node.get_name() {
@@ -192,7 +191,7 @@ impl State {
                     let node_name = String::from(node.get_name());
                     if let Some(resource) = node.get_resource() {
                         if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
-                            if let ResourceKind::Model(model) = resource.borrow().borrow_kind() {
+                            if let ResourceKind::Model(model) = resource.lock().unwrap().borrow_kind() {
                                 let resource_node_handle = model.find_node_by_name(node_name.as_str());
                                 if let Some(resource_node) = model.get_scene().get_node(resource_node_handle) {
                                     if let NodeKind::Mesh(resource_mesh) = resource_node.borrow_kind() {

@@ -23,11 +23,13 @@ use rg3d_core::{
         VisitResult,
     },
 };
+use rg3d_sound::buffer::Buffer;
 
 pub enum ResourceKind {
     Unknown,
     Texture(Texture),
     Model(Model),
+    SoundBuffer(Buffer),
 }
 
 pub struct Resource {
@@ -62,7 +64,8 @@ impl Resource {
         match &self.kind {
             ResourceKind::Unknown => panic!("must not get here"),
             ResourceKind::Model(model) => model.type_id(),
-            ResourceKind::Texture(texture) => texture.type_id()
+            ResourceKind::Texture(texture) => texture.type_id(),
+            ResourceKind::SoundBuffer(buffer) => buffer.type_id(),
         }
     }
 }
@@ -80,14 +83,11 @@ impl Visit for Resource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut kind: u8 = if visitor.is_reading() {
-            0
-        } else {
-            match &mut self.kind {
-                ResourceKind::Unknown => panic!("must not get here"),
-                ResourceKind::Model(_) => 0,
-                ResourceKind::Texture(_) => 1
-            }
+        let mut kind: u8 = match &mut self.kind {
+            ResourceKind::Unknown => panic!("must not get here"),
+            ResourceKind::Model(_) => 0,
+            ResourceKind::Texture(_) => 1,
+            ResourceKind::SoundBuffer(_) => 2
         };
 
         kind.visit("Kind", visitor)?;
@@ -96,6 +96,7 @@ impl Visit for Resource {
             self.kind = match kind {
                 0 => ResourceKind::Model(Default::default()),
                 1 => ResourceKind::Texture(Default::default()),
+                2 => ResourceKind::SoundBuffer(Default::default()),
                 _ => panic!("must not get here"),
             };
         }
@@ -108,6 +109,11 @@ impl Visit for Resource {
 
 impl Drop for Resource {
     fn drop(&mut self) {
-        println!("Resource {:?} was destroyed!", self.path);
+        match self.kind {
+            ResourceKind::Unknown => (),
+            ResourceKind::Texture(_) => println!("Texture resource {:?} was destroyed!", self.path),
+            ResourceKind::Model(_) => println!("Model resource {:?} was destroyed!", self.path),
+            ResourceKind::SoundBuffer(_) => println!("Sound buffer resource {:?} was destroyed!", self.path),
+        }
     }
 }

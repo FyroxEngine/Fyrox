@@ -7,11 +7,7 @@ use crate::{
     scene::node::Node,
 };
 use std::{
-    rc::Rc,
-    cell::{
-        RefCell,
-        Cell,
-    },
+    cell::Cell,
     mem::size_of,
     ffi::c_void,
 };
@@ -24,6 +20,7 @@ use rg3d_core::{
     },
     pool::{Handle, ErasedHandle},
 };
+use std::sync::{Mutex, Arc};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -687,9 +684,9 @@ impl VertexWeightSet {
 }
 
 pub struct Surface {
-    data: Rc<RefCell<SurfaceSharedData>>,
-    diffuse_texture: Option<Rc<RefCell<Resource>>>,
-    normal_texture: Option<Rc<RefCell<Resource>>>,
+    data: Arc<Mutex<SurfaceSharedData>>,
+    diffuse_texture: Option<Arc<Mutex<Resource>>>,
+    normal_texture: Option<Arc<Mutex<Resource>>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -702,7 +699,7 @@ pub struct Surface {
 
 impl Surface {
     #[inline]
-    pub fn new(data: Rc<RefCell<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
         Self {
             data,
             diffuse_texture: None,
@@ -713,46 +710,46 @@ impl Surface {
     }
 
     #[inline]
-    pub fn get_data(&self) -> Rc<RefCell<SurfaceSharedData>> {
-        Rc::clone(&self.data)
+    pub fn get_data(&self) -> Arc<Mutex<SurfaceSharedData>> {
+        Arc::clone(&self.data)
     }
 
     #[inline]
-    pub fn get_diffuse_texture(&self) -> Option<Rc<RefCell<Resource>>> {
+    pub fn get_diffuse_texture(&self) -> Option<Arc<Mutex<Resource>>> {
         match &self.diffuse_texture {
-            Some(resource) => Some(Rc::clone(resource)),
+            Some(resource) => Some(Arc::clone(resource)),
             None => None
         }
     }
 
     #[inline]
-    pub fn get_normal_texture(&self) -> Option<Rc<RefCell<Resource>>> {
+    pub fn get_normal_texture(&self) -> Option<Arc<Mutex<Resource>>> {
         match &self.normal_texture {
-            Some(resource) => Some(Rc::clone(resource)),
+            Some(resource) => Some(Arc::clone(resource)),
             None => None
         }
     }
 
     #[inline]
-    pub fn set_diffuse_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+    pub fn set_diffuse_texture(&mut self, tex: Arc<Mutex<Resource>>) {
         self.diffuse_texture = Some(tex);
     }
 
     #[inline]
-    pub fn set_normal_texture(&mut self, tex: Rc<RefCell<Resource>>) {
+    pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Resource>>) {
         self.normal_texture = Some(tex);
     }
 
     #[inline]
     pub fn make_copy(&self) -> Surface {
         Surface {
-            data: Rc::clone(&self.data),
+            data: Arc::clone(&self.data),
             diffuse_texture: match &self.diffuse_texture {
-                Some(resource) => Some(Rc::clone(resource)),
+                Some(resource) => Some(Arc::clone(resource)),
                 None => None
             },
             normal_texture: match &self.normal_texture {
-                Some(resource) => Some(Rc::clone(resource)),
+                Some(resource) => Some(Arc::clone(resource)),
                 None => None
             },
             // Note: Handles will be remapped on Resolve stage.

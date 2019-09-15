@@ -11,8 +11,6 @@ use std::{
     collections::{HashMap, HashSet},
     time::Instant,
     any::{Any, TypeId},
-    cell::RefCell,
-    rc::Rc,
 };
 use crate::{
     renderer::{
@@ -50,6 +48,7 @@ use rg3d_core::{
         triangulator::triangulate,
     },
 };
+use std::sync::{Arc, Mutex};
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -928,7 +927,7 @@ fn convert_vertex(geom: &FbxGeometry,
 
     let surface = mesh.get_surfaces_mut().get_mut(material).unwrap();
 
-    let is_unique_vertex = surface.get_data().borrow_mut().insert_vertex(Vertex {
+    let is_unique_vertex = surface.get_data().lock().unwrap().insert_vertex(Vertex {
         position,
         normal,
         tex_coord: uv,
@@ -1048,10 +1047,10 @@ impl Fbx {
                        model: &FbxModel) -> Result<(), FbxError> {
         // Create surfaces per material
         if model.materials.is_empty() {
-            mesh.add_surface(Surface::new(Rc::new(RefCell::new(SurfaceSharedData::new()))));
+            mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::new()))));
         } else {
             for material_handle in model.materials.iter() {
-                let mut surface = Surface::new(Rc::new(RefCell::new(SurfaceSharedData::new())));
+                let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::new())));
                 let material = self.component_pool.borrow(*material_handle).ok_or(FbxError::InvalidPoolHandle)?.as_material()?;
                 let texture = self.component_pool.borrow(material.diffuse_texture).ok_or(FbxError::InvalidPoolHandle)?.as_texture()?;
                 let path = texture.get_file_path();
@@ -1119,7 +1118,7 @@ impl Fbx {
 
             if geom.tangent_mapping == FbxMapping::Unknown {
                 for surface in mesh.get_surfaces_mut() {
-                    surface.get_data().borrow_mut().calculate_tangents();
+                    surface.get_data().lock().unwrap().calculate_tangents();
                 }
             }
         }
@@ -1302,7 +1301,7 @@ impl Fbx {
                     // At this point owner of surface data *must* be only one.
                     // But who knows.
                     let data_rc = surface.get_data();
-                    let mut data = data_rc.borrow_mut();
+                    let mut data = data_rc.lock().unwrap();
                     if data.get_vertices().len() == surface.vertex_weights.len() {
                         for (i, vertex) in data.get_vertices_mut().iter_mut().enumerate() {
                             let weight_set = surface.vertex_weights.get_mut(i)

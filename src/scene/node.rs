@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
+use std::sync::{Arc, Mutex};
 use crate::{
     physics::Body,
     resource::Resource,
@@ -67,7 +64,7 @@ pub struct Node {
     pub(in crate::scene) global_transform: Mat4,
     inv_bind_pose_transform: Mat4,
     body: Handle<Body>,
-    resource: Option<Rc<RefCell<Resource>>>,
+    resource: Option<Arc<Mutex<Resource>>>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
     original: Handle<Node>,
@@ -176,7 +173,7 @@ impl Node {
             parent: Handle::none(),
             body: Handle::none(),
             resource: match &self.resource {
-                Some(resource) => Some(Rc::clone(resource)),
+                Some(resource) => Some(Arc::clone(resource)),
                 None => None
             },
             original,
@@ -209,14 +206,14 @@ impl Node {
     }
 
     #[inline]
-    pub fn set_resource(&mut self, resource_handle: Rc<RefCell<Resource>>) {
+    pub fn set_resource(&mut self, resource_handle: Arc<Mutex<Resource>>) {
         self.resource = Some(resource_handle);
     }
 
     #[inline]
-    pub fn get_resource(&self) -> Option<Rc<RefCell<Resource>>> {
+    pub fn get_resource(&self) -> Option<Arc<Mutex<Resource>>> {
         match &self.resource {
-            Some(resource) => Some(Rc::clone(resource)),
+            Some(resource) => Some(Arc::clone(resource)),
             None => None
         }
     }

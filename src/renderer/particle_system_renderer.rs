@@ -241,7 +241,6 @@ impl ParticleSystemRenderer {
 
                 let camera_up = inv_view.up();
                 let camera_side = inv_view.side();
-                let camera_position = camera_node.get_global_position();
 
                 for node in scene.get_nodes().iter() {
                     let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.borrow_kind() {
@@ -250,7 +249,7 @@ impl ParticleSystemRenderer {
                         continue;
                     };
 
-                    particle_system.generate_draw_data(&node.get_global_position(), &camera_position, &mut self.draw_data);
+                    particle_system.generate_draw_data(&mut self.draw_data);
 
                     if self.draw_data.get_indices().len() == 0 {
                         continue;
@@ -272,7 +271,7 @@ impl ParticleSystemRenderer {
 
                     gl::ActiveTexture(gl::TEXTURE0);
                     if let Some(resource) = particle_system.get_texture() {
-                        if let ResourceKind::Texture(texture) = resource.borrow().borrow_kind() {
+                        if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind() {
                             gl::BindTexture(gl::TEXTURE_2D, texture.gpu_tex);
                         } else {
                             gl::BindTexture(gl::TEXTURE_2D, white_dummy);

@@ -1,7 +1,6 @@
 use std::{
-    cell::RefCell,
-    rc::Rc,
     path::{PathBuf, Path},
+    sync::{Arc, Mutex}
 };
 use crate::{
     resource::{
@@ -15,7 +14,7 @@ use rg3d_core::{
 };
 
 pub struct ResourceManager {
-    resources: Vec<Rc<RefCell<Resource>>>,
+    resources: Vec<Arc<Mutex<Resource>>>,
     /// Path to textures, extensively used for resource files
     /// which stores path in weird format (either relative or absolute) which
     /// is obviously not good for engine.
@@ -33,30 +32,30 @@ impl ResourceManager {
     #[inline]
     pub fn for_each_texture_mut<Func>(&self, mut func: Func) where Func: FnMut(&mut Texture) {
         for resource in self.resources.iter() {
-            if let ResourceKind::Texture(texture) = resource.borrow_mut().borrow_kind_mut() {
+            if let ResourceKind::Texture(texture) = resource.lock().unwrap().borrow_kind_mut() {
                 func(texture);
             }
         }
     }
 
     #[inline]
-    pub fn add_resource(&mut self, resource: Rc<RefCell<Resource>>) {
+    pub fn add_resource(&mut self, resource: Arc<Mutex<Resource>>) {
         self.resources.push(resource)
     }
 
     /// Searches for a resource of specified path, if found - returns handle to resource
     /// and increases reference count of resource.
     #[inline]
-    pub fn find_resource(&mut self, path: &Path) -> Option<Rc<RefCell<Resource>>> {
+    pub fn find_resource(&mut self, path: &Path) -> Option<Arc<Mutex<Resource>>> {
         for resource in self.resources.iter() {
-            if resource.borrow().get_path() == path {
+            if resource.lock().unwrap().get_path() == path {
                 return Some(resource.clone());
             }
         }
         None
     }
 
-    pub fn get_resources(&self) -> &[Rc<RefCell<Resource>>] {
+    pub fn get_resources(&self) -> &[Arc<Mutex<Resource>>] {
         &self.resources
     }
 
@@ -67,7 +66,7 @@ impl ResourceManager {
 
     pub fn update(&mut self) {
         self.resources.retain(|resource| {
-            Rc::strong_count(resource) > 1
+            Arc::strong_count(resource) > 1
         })
     }
 }

@@ -10,8 +10,7 @@ use crate::{
 };
 use std::{
     path::Path,
-    cell::RefCell,
-    rc::Rc,
+    sync::{Arc, Mutex}
 };
 use rg3d_core::pool::Handle;
 
@@ -35,8 +34,8 @@ impl Model {
     }
 
     /// Tries to instantiate model from given resource. Returns non-none handle on success.
-    pub fn instantiate(resource_rc: Rc<RefCell<Resource>>, dest_scene: &mut Scene) -> Result<Handle<Node>, ()> {
-        let resource = resource_rc.borrow();
+    pub fn instantiate(resource_rc: Arc<Mutex<Resource>>, dest_scene: &mut Scene) -> Result<Handle<Node>, ()> {
+        let resource = resource_rc.lock().unwrap();
         if let ResourceKind::Model(model) = resource.borrow_kind() {
             let root = model.scene.copy_node(model.scene.get_root(), dest_scene);
 
@@ -45,7 +44,7 @@ impl Model {
             stack.push(root);
             while let Some(node_handle) = stack.pop() {
                 if let Some(node) = dest_scene.get_nodes_mut().borrow_mut(node_handle) {
-                    node.set_resource(Rc::clone(&resource_rc));
+                    node.set_resource(Arc::clone(&resource_rc));
                     // Continue on children.
                     for child_handle in node.get_children() {
                         stack.push(child_handle.clone());
