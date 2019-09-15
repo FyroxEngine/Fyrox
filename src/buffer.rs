@@ -7,7 +7,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    path::Path,
+    path::{Path, PathBuf},
     io::BufReader,
 };
 use rg3d_core::visitor::{Visit, VisitResult, Visitor, VisitError};
@@ -46,6 +46,7 @@ use rg3d_core::visitor::{Visit, VisitResult, Visitor, VisitError};
 /// new portion of data, this process will continue until end of file and when eof is
 /// reached, streaming will be started from beginning of a file.
 pub struct Buffer {
+    source_path: PathBuf,
     kind: BufferKind,
     samples: Vec<f32>,
     channel_count: usize,
@@ -65,6 +66,7 @@ pub struct Buffer {
 impl Default for Buffer {
     fn default() -> Self {
         Self {
+            source_path: PathBuf::new(),
             kind: BufferKind::Normal,
             samples: Vec::new(),
             channel_count: 0,
@@ -75,7 +77,7 @@ impl Default for Buffer {
             write_cursor: 0,
             sample_rate: 0,
             use_count: 0,
-            decoder: None
+            decoder: None,
         }
     }
 }
@@ -105,6 +107,9 @@ impl Visit for Buffer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        // Only save path and kind (streaming or not), it will be enough to
+        // correctly reload resource on load.
+        self.source_path.visit("Path", visitor)?;
         self.kind.visit("Kind", visitor)?;
 
         visitor.leave_region()
@@ -156,6 +161,7 @@ impl Buffer {
         }
 
         Ok(Self {
+            source_path: path.to_owned(),
             use_count: 0,
             total_sample_per_channel: decoder.get_samples_per_channel(),
             sample_rate: decoder.get_sample_rate(),
@@ -172,6 +178,14 @@ impl Buffer {
             },
             kind,
         })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.samples.is_empty()
+    }
+
+    pub fn get_source_path(&self) -> &Path {
+        self.source_path.as_path()
     }
 
     pub fn update(&mut self) -> Result<(), SoundError> {

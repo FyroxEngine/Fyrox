@@ -91,6 +91,10 @@ impl Visit for Context {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        if visitor.is_reading() {
+            self.sources.clear();
+        }
+
         self.master_gain.visit("MasterGain", visitor)?;
         self.listener.visit("Listener", visitor)?;
         self.sources.visit("Sources", visitor)?;

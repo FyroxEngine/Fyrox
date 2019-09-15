@@ -239,8 +239,12 @@ impl Source {
 
         let step = self.pitch * self.resampling_multiplier;
 
-        if let Some(rc_buffer) = &self.buffer {
-            if let Ok(mut buffer) = rc_buffer.lock() {
+        if let Some(buffer) = &self.buffer {
+            if let Ok(mut buffer) = buffer.lock() {
+                if buffer.is_empty() {
+                    return;
+                }
+
                 for (left, right) in mix_buffer {
                     self.buf_read_pos += step;
                     self.playback_pos += step;

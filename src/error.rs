@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter, Error};
+
 #[derive(Debug)]
 pub enum SoundError {
     /// Generic input error.
@@ -38,5 +40,21 @@ impl From<std::io::Error> for SoundError {
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for SoundError {
     fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
         SoundError::PoisonedMutex
+    }
+}
+
+impl Display for SoundError {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        match self {
+            SoundError::Io(io) => write!(f, "io error: {}", io)?,
+            SoundError::NoBackend => write!(f, "no backend implemented for current platform")?,
+            SoundError::FailedToInitializeDevice(reason) => write!(f, "failed to initialize device. reason: {}", reason)?,
+            SoundError::InvalidHeader => write!(f, "invalid header of sound file")?,
+            SoundError::UnsupportedFormat => write!(f, "unsupported format of sound file")?,
+            SoundError::PoisonedMutex => write!(f, "attempt to use poisoned mutex")?,
+            SoundError::MathError(reason) => write!(f, "math error has occurred. reason: {}", reason)?,
+            SoundError::StreamingBufferAlreadyInUse => write!(f, "streaming buffer in already in use")?,
+        }
+        Ok(())
     }
 }
