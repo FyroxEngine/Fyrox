@@ -129,7 +129,7 @@ pub trait Decoder: Send + Sync {
 
 impl Decoder for WavDecoder {
     fn read(&mut self, data: &mut [f32], sample_per_channel: usize, offset: usize, count: usize) -> Result<usize, SoundError> {
-        // We *possibly* can read at least N samples which can fit into buffer.
+        // We *probably* can read at least N samples which can fit into buffer.
         let max_out_sample_count_per_channel = data.len() / self.channel_count;
         let mut cap = if count < max_out_sample_count_per_channel {
             count
@@ -158,6 +158,7 @@ impl Decoder for WavDecoder {
             samples_read += 1;
             self.samples_left -= 1;
         }
+
         Ok(samples_read)
     }
 
@@ -177,6 +178,7 @@ impl Decoder for WavDecoder {
         // TODO: Ensure that this is true for all kinds of wav files.
         let wav_header_size = 44;
         self.source.seek(SeekFrom::Start(wav_header_size))?;
+        self.samples_left = self.sample_per_channel;
         Ok(())
     }
 
