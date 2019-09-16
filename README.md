@@ -1,7 +1,5 @@
 # rg3d-sound
 
-![crates.io](https://img.shields.io/badge/crates.io-v0.1.0-orange.svg?longCache=true)
-
 Sound library for games written in Rust.
 
 ## Key features
