@@ -10,7 +10,7 @@ Sound library for games written in Rust.
 
 ## Examples
 
-Soon.
+Examples can be found in `./examples`
 
 ## Supported OS
 
