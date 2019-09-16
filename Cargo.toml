@@ -7,11 +7,11 @@ license = "MIT"
 description = "Sound library for games."
 keywords = ["sound", "game"]
 repository = "https://github.com/mrDIMAS/rg3d-sound"
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core" }
+rg3d-core = "0.1.0"
 byteorder = "1.3.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = {version = "0.3.8", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }
-
