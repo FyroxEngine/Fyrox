@@ -15,6 +15,18 @@ pub enum RendererError {
     UnableToFindShaderUniform(String),
     InternalError(String),
     ContextError(String),
+    InvalidTriangleRange{
+        start: usize,
+        end: usize,
+        total: usize,
+    },
+
+    /// Means that attrubute descriptor tries to define an attribute that does not exists in vertex,
+    /// or it does not match size. For example you have vertex:
+    ///   pos: float2,
+    ///   normal: float3
+    /// But you described second attribute as Float4, then you'll get this error.
+    InvalidAttributeDescriptor,
 }
 
 impl From<NulError> for RendererError {

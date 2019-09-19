@@ -1,14 +1,10 @@
 use crate::{
     renderer::{
-        gl,
-        gl::types::*,
+        geometry_buffer::{GeometryBuffer, GeometryBufferKind, AttributeDefinition, AttributeKind},
+        TriangleDefinition,
     },
     scene::node::Node,
-};
-use std::{
-    cell::Cell,
-    mem::size_of,
-    ffi::c_void,
+    resource::texture::Texture,
 };
 
 use rg3d_core::{
@@ -19,8 +15,10 @@ use rg3d_core::{
     },
     pool::{Handle, ErasedHandle},
 };
-use std::sync::{Mutex, Arc};
-use crate::resource::texture::Texture;
+use std::{
+    sync::{Mutex, Arc},
+    cell::Cell,
+};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -34,33 +32,30 @@ pub struct Vertex {
 }
 
 pub struct SurfaceSharedData {
-    need_upload: Cell<bool>,
-    vbo: GLuint,
-    vao: GLuint,
-    ebo: GLuint,
     vertices: Vec<Vertex>,
-    indices: Vec<i32>,
+    indices: Vec<u32>,
+    need_upload: Cell<bool>,
+    geometry_buffer: GeometryBuffer<Vertex>,
 }
 
 impl SurfaceSharedData {
     pub fn new() -> Self {
-        let mut vbo: GLuint = 0;
-        let mut ebo: GLuint = 0;
-        let mut vao: GLuint = 0;
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw);
 
-        unsafe {
-            gl::GenBuffers(1, &mut vbo);
-            gl::GenBuffers(1, &mut ebo);
-            gl::GenVertexArrays(1, &mut vao);
-        }
+        geometry_buffer.describe_attributes(vec![
+            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
+            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false },
+        ]).unwrap();
 
         Self {
-            need_upload: Cell::new(true),
-            vbo,
-            vao,
-            ebo,
             vertices: Vec::new(),
             indices: Vec::new(),
+            need_upload: Cell::new(true),
+            geometry_buffer,
         }
     }
 
@@ -69,90 +64,24 @@ impl SurfaceSharedData {
         self.vertices.push(vertex);
     }
 
-    #[inline]
-    pub fn get_vertex_array_object(&self) -> GLuint {
-        self.vao
-    }
-
-    #[inline]
-    pub fn get_vertex_buffer_object(&self) -> GLuint {
-        self.vbo
-    }
-
-    #[inline]
-    pub fn get_element_buffer_object(&self) -> GLuint {
-        self.ebo
-    }
-
     pub fn draw(&self) {
-        unsafe {
-            if self.need_upload.get() {
-                let total_size_bytes = self.get_vertices().len() * std::mem::size_of::<Vertex>();
+        if self.need_upload.get() {
+            self.geometry_buffer.set_vertices(self.vertices.as_slice());
 
-                gl::BindVertexArray(self.get_vertex_array_object());
+            let mut triangles = Vec::with_capacity(self.indices.len() / 3);
+            for i in (0..self.indices.len()).step_by(3) {
+                triangles.push(TriangleDefinition {
+                    a: self.indices[i],
+                    b: self.indices[i + 1],
+                    c: self.indices[i + 2],
+                });
+            }
 
-                // Upload indices
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.get_element_buffer_object());
-                gl::BufferData(gl::ELEMENT_ARRAY_BUFFER,
-                               (self.get_indices().len() * size_of::<i32>()) as GLsizeiptr,
-                               self.get_indices().as_ptr() as *const GLvoid,
-                               gl::STATIC_DRAW);
-
-                // Upload vertices
-                gl::BindBuffer(gl::ARRAY_BUFFER, self.get_vertex_buffer_object());
-                gl::BufferData(gl::ARRAY_BUFFER,
-                               total_size_bytes as GLsizeiptr,
-                               self.get_vertices().as_ptr() as *const GLvoid,
-                               gl::STATIC_DRAW);
-
-                let mut offset = 0;
-
-                // Positions
-                gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(0);
-                offset += size_of::<Vec3>();
-
-                // Texture coordinates
-                gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(1);
-                offset += size_of::<Vec2>();
-
-                // Normals
-                gl::VertexAttribPointer(2, 3, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(2);
-                offset += size_of::<Vec3>();
-
-                // Tangents
-                gl::VertexAttribPointer(3, 4, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(3);
-                offset += size_of::<Vec4>();
-
-                // Bone weights
-                gl::VertexAttribPointer(4, 4, gl::FLOAT, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(4);
-                offset += size_of::<Vec4>();
-
-                // Bone indices
-                gl::VertexAttribPointer(5, 4, gl::UNSIGNED_BYTE, gl::FALSE,
-                                        size_of::<Vertex>() as GLint, offset as *const c_void);
-                gl::EnableVertexAttribArray(5);
-
-                gl::BindVertexArray(0);
-
-                self.need_upload.set(false);
-            } else {}
-
-            gl::BindVertexArray(self.get_vertex_array_object());
-            gl::DrawElements(gl::TRIANGLES,
-                             self.get_indices().len() as GLint,
-                             gl::UNSIGNED_INT,
-                             std::ptr::null());
+            self.geometry_buffer.set_triangles(&triangles);
+            self.need_upload.set(false);
         }
+
+        self.geometry_buffer.draw();
     }
 
     /// Inserts vertex or its index. Performs optimizing insertion with checking if such
@@ -166,10 +95,10 @@ impl SurfaceSharedData {
         self.indices.push(match self.vertices.iter().rposition(|v| {
             v.position == vertex.position && v.normal == vertex.normal && v.tex_coord == vertex.tex_coord
         }) {
-            Some(exisiting_index) => exisiting_index as i32, // Already have such vertex
+            Some(exisiting_index) => exisiting_index as u32, // Already have such vertex
             None => { // No such vertex, add it
                 is_unique = true;
-                let index = self.vertices.len() as i32;
+                let index = self.vertices.len() as u32;
                 self.vertices.push(vertex);
                 index
             }
@@ -189,7 +118,7 @@ impl SurfaceSharedData {
     }
 
     #[inline]
-    pub fn get_indices(&self) -> &[i32] {
+    pub fn get_indices(&self) -> &[u32] {
         self.indices.as_slice()
     }
 
@@ -610,16 +539,6 @@ impl SurfaceSharedData {
         data.calculate_tangents();
 
         data
-    }
-}
-
-impl Drop for SurfaceSharedData {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteBuffers(1, &self.vbo);
-            gl::DeleteBuffers(1, &self.ebo);
-            gl::DeleteVertexArrays(1, &self.vao);
-        }
     }
 }
 

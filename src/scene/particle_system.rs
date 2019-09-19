@@ -1,10 +1,13 @@
 use std::{
     cell::Cell,
     cmp::Ordering,
-    mem::size_of,
     any::Any,
-    sync::{Mutex, LockResult, MutexGuard},
-    sync::Arc
+    sync::{
+        Mutex,
+        LockResult,
+        MutexGuard,
+        Arc
+    }
 };
 use rand::Rng;
 
@@ -23,7 +26,10 @@ use rg3d_core::{
     numeric_range::NumericRange,
     color::Color,
 };
-use crate::resource::texture::Texture;
+use crate::{
+    resource::texture::Texture,
+    renderer::TriangleDefinition
+};
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
@@ -38,14 +44,14 @@ pub struct Vertex {
 
 pub struct DrawData {
     vertices: Vec<Vertex>,
-    indices: Vec<u32>,
+    triangles: Vec<TriangleDefinition>,
 }
 
 impl Default for DrawData {
     fn default() -> Self {
         Self {
             vertices: Vec::new(),
-            indices: Vec::new(),
+            triangles: Vec::new(),
         }
     }
 }
@@ -53,23 +59,15 @@ impl Default for DrawData {
 impl DrawData {
     fn clear(&mut self) {
         self.vertices.clear();
-        self.indices.clear();
+        self.triangles.clear();
     }
 
     pub fn get_vertices(&self) -> &[Vertex] {
         &self.vertices
     }
 
-    pub fn get_indices(&self) -> &[u32] {
-        &self.indices
-    }
-
-    pub fn vertex_size() -> i32 {
-        size_of::<Vertex>() as i32
-    }
-
-    pub fn index_size() -> i32 {
-        size_of::<u32>() as i32
+    pub fn get_triangles(&self) -> &[TriangleDefinition] {
+        &self.triangles
     }
 }
 
@@ -711,13 +709,17 @@ impl ParticleSystem {
             });
 
             let base_index = (i * 4) as u32;
-            draw_data.indices.push(base_index);
-            draw_data.indices.push(base_index + 1);
-            draw_data.indices.push(base_index + 2);
 
-            draw_data.indices.push(base_index);
-            draw_data.indices.push(base_index + 2);
-            draw_data.indices.push(base_index + 3);
+            draw_data.triangles.push(TriangleDefinition{
+                a: base_index,
+                b: base_index + 1,
+                c: base_index + 2
+            });
+            draw_data.triangles.push(TriangleDefinition{
+                a: base_index,
+                b: base_index + 2,
+                c: base_index + 3
+            });
         }
     }
 

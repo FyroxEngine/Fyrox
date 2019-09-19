@@ -280,7 +280,7 @@ impl Renderer {
     }
 
     fn draw_quad(&mut self) {
-        self.quad.borrow().draw();
+        self.quad.borrow_mut().draw();
     }
 
     pub fn upload_font_cache(&mut self, font_cache: &mut Pool<Font>) {
@@ -433,7 +433,7 @@ impl Renderer {
             self.draw_quad();
 
             // UI
-            self.ui_renderer.render(frame_width, frame_height, drawing_context, self.white_dummy);
+            self.ui_renderer.render(frame_width, frame_height, drawing_context, self.white_dummy)?;
         }
 
         self.context.swap_buffers()?;

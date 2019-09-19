@@ -1,20 +1,20 @@
-use std::ffi::{CString, c_void};
+use std::ffi::CString;
 use crate::{
     renderer::{
         gpu_program::{GpuProgram, UniformLocation},
         gl,
         gl::types::GLuint,
-        error::RendererError
+        error::RendererError,
+        geometry_buffer::GeometryBuffer,
     },
-    gui::draw::{DrawingContext, CommandKind},
+    gui::{
+        draw::{DrawingContext, CommandKind},
+        self,
+    },
 };
 
-use rg3d_core::{
-    math::{
-        mat4::Mat4,
-        vec2::Vec2,
-    }
-};
+use rg3d_core::math::mat4::Mat4;
+use crate::renderer::geometry_buffer::{AttributeDefinition, AttributeKind, GeometryBufferKind};
 
 
 struct UIShader {
@@ -84,54 +84,31 @@ impl UIShader {
 
 pub struct UIRenderer {
     shader: UIShader,
-    vbo: GLuint,
-    vao: GLuint,
-    ebo: GLuint,
+    geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
 }
+
 
 impl UIRenderer {
     pub(in crate::renderer) fn new() -> Result<Self, RendererError> {
-        unsafe {
-            let mut vbo = 0;
-            let mut ebo = 0;
-            let mut vao = 0;
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw);
 
-            gl::GenVertexArrays(1, &mut vao);
-            gl::GenBuffers(1, &mut vbo);
-            gl::GenBuffers(1, &mut ebo);
+        geometry_buffer.describe_attributes(vec![
+            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
+        ])?;
 
-            gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-
-            let mut offset = 0;
-            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE,
-                                    DrawingContext::get_vertex_size(),
-                                    offset as *const c_void);
-            gl::EnableVertexAttribArray(0);
-            offset += std::mem::size_of::<Vec2>();
-
-            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, DrawingContext::get_vertex_size(), offset as *const c_void);
-            gl::EnableVertexAttribArray(1);
-            offset += std::mem::size_of::<Vec2>();
-
-            gl::VertexAttribPointer(2, 4, gl::UNSIGNED_BYTE, gl::TRUE,
-                                    DrawingContext::get_vertex_size(),
-                                    offset as *const c_void);
-            gl::EnableVertexAttribArray(2);
-
-            gl::BindVertexArray(0);
-
-            Ok(Self {
-                vao,
-                vbo,
-                ebo,
-                shader: UIShader::new()?,
-            })
-        }
+        Ok(Self {
+            geometry_buffer,
+            shader: UIShader::new()?,
+        })
     }
 
-    pub(in crate::renderer) fn render(&mut self, frame_width: f32, frame_height: f32, drawing_context: &DrawingContext, white_dummy: GLuint) {
+    pub(in crate::renderer) fn render(&mut self,
+                                      frame_width: f32,
+                                      frame_height: f32,
+                                      drawing_context: &DrawingContext,
+                                      white_dummy: GLuint) -> Result<(), RendererError> {
         unsafe {
             // Render UI on top of everything
             gl::Disable(gl::DEPTH_TEST);
@@ -142,29 +119,21 @@ impl UIRenderer {
             self.shader.bind();
             gl::ActiveTexture(gl::TEXTURE0);
 
-            let index_bytes = drawing_context.get_indices_bytes();
-            let vertex_bytes = drawing_context.get_vertices_bytes();
-
             // Upload to GPU.
-            gl::BindVertexArray(self.vao);
-
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-            gl::BufferData(gl::ARRAY_BUFFER, vertex_bytes, drawing_context.get_vertices_ptr(), gl::DYNAMIC_DRAW);
-
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, index_bytes, drawing_context.get_indices_ptr(), gl::DYNAMIC_DRAW);
+            self.geometry_buffer.set_triangles(drawing_context.get_triangles());
+            self.geometry_buffer.set_vertices(drawing_context.get_vertices());
 
             let ortho = Mat4::ortho(0.0, frame_width, frame_height, 0.0,
                                     -1.0, 1.0);
             self.shader.set_wvp_matrix(&ortho);
 
             for cmd in drawing_context.get_commands() {
-                let index_count = cmd.get_triangle_count() * 3;
                 if cmd.get_nesting() != 0 {
                     gl::Enable(gl::STENCIL_TEST);
                 } else {
                     gl::Disable(gl::STENCIL_TEST);
                 }
+
                 match cmd.get_kind() {
                     CommandKind::Clip => {
                         if cmd.get_nesting() == 1 {
@@ -196,11 +165,9 @@ impl UIRenderer {
                     }
                 }
 
-                let index_offset_bytes = cmd.get_index_offset() * std::mem::size_of::<GLuint>();
-                gl::DrawElements(gl::TRIANGLES, index_count as i32, gl::UNSIGNED_INT,
-                                 index_offset_bytes as *const c_void);
+                self.geometry_buffer.draw_part(cmd.get_start_triangle(), cmd.get_triangle_count())?;
             }
-            gl::BindVertexArray(0);
         }
+        Ok(())
     }
 }

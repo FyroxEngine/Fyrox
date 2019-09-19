@@ -1,4 +1,3 @@
-use std::os::raw::c_void;
 use crate::{
     gui::{
         Thickness,
@@ -6,6 +5,7 @@ use crate::{
         VerticalAlignment,
     },
     resource::ttf::Font,
+    renderer::TriangleDefinition,
 };
 
 use rg3d_core::{
@@ -43,7 +43,7 @@ pub enum CommandKind {
 pub struct Command {
     kind: CommandKind,
     texture: u32,
-    index_offset: usize,
+    start_triangle: usize,
     triangle_count: usize,
     nesting: u8,
 }
@@ -60,8 +60,8 @@ impl Command {
     }
 
     #[inline]
-    pub fn get_index_offset(&self) -> usize {
-        self.index_offset
+    pub fn get_start_triangle(&self) -> usize {
+        self.start_triangle
     }
 
     #[inline]
@@ -77,7 +77,7 @@ impl Command {
 
 pub struct DrawingContext {
     vertex_buffer: Vec<Vertex>,
-    index_buffer: Vec<i32>,
+    triangle_buffer: Vec<TriangleDefinition>,
     command_buffer: Vec<Command>,
     clip_cmd_stack: Vec<usize>,
     opacity_stack: Vec<f32>,
@@ -355,7 +355,7 @@ impl DrawingContext {
     pub fn new() -> DrawingContext {
         DrawingContext {
             vertex_buffer: Vec::new(),
-            index_buffer: Vec::new(),
+            triangle_buffer: Vec::new(),
             command_buffer: Vec::new(),
             clip_cmd_stack: Vec::new(),
             opacity_stack: Vec::new(),
@@ -367,7 +367,7 @@ impl DrawingContext {
     #[inline]
     pub fn clear(&mut self) {
         self.vertex_buffer.clear();
-        self.index_buffer.clear();
+        self.triangle_buffer.clear();
         self.command_buffer.clear();
         self.clip_cmd_stack.clear();
         self.opacity_stack.clear();
@@ -381,38 +381,8 @@ impl DrawingContext {
     }
 
     #[inline]
-    pub fn get_indices(&self) -> &[i32] {
-        self.index_buffer.as_slice()
-    }
-
-    #[inline]
-    pub fn get_vertices_ptr(&self) -> *const c_void {
-        self.vertex_buffer.as_ptr() as *const c_void
-    }
-
-    #[inline]
-    pub fn get_indices_ptr(&self) -> *const c_void {
-        self.index_buffer.as_ptr() as *const c_void
-    }
-
-    #[inline]
-    pub fn get_vertices_bytes(&self) -> isize {
-        (self.vertex_buffer.len() * std::mem::size_of::<Vertex>()) as isize
-    }
-
-    #[inline]
-    pub fn get_vertex_size() -> i32 {
-        std::mem::size_of::<Vertex>() as i32
-    }
-
-    #[inline]
-    pub fn get_index_size() -> i32 {
-        std::mem::size_of::<i32>() as i32
-    }
-
-    #[inline]
-    pub fn get_indices_bytes(&self) -> isize {
-        (self.index_buffer.len() * std::mem::size_of::<i32>()) as isize
+    pub fn get_triangles(&self) -> &[TriangleDefinition] {
+        self.triangle_buffer.as_slice()
     }
 
     #[inline]
@@ -426,17 +396,15 @@ impl DrawingContext {
     }
 
     #[inline]
-    fn push_triangle(&mut self, a: i32, b: i32, c: i32) {
-        self.index_buffer.push(a);
-        self.index_buffer.push(b);
-        self.index_buffer.push(c);
+    fn push_triangle(&mut self, a: u32, b: u32, c: u32) {
+        self.triangle_buffer.push(TriangleDefinition { a, b, c });
         self.triangles_to_commit += 1;
     }
 
     #[inline]
-    fn get_index_origin(&self) -> i32 {
-        match self.index_buffer.last() {
-            Some(last) => *last + 1,
+    fn get_index_origin(&self) -> u32 {
+        match self.triangle_buffer.last() {
+            Some(last) => last.c + 1,
             None => 0
         }
     }
@@ -447,19 +415,25 @@ impl DrawingContext {
     }
 
     pub fn is_command_contains_point(&self, command: &Command, pos: Vec2) -> bool {
-        let last = command.index_offset + command.triangle_count * 3;
+        let last = command.start_triangle + command.triangle_count;
 
         // Check each triangle from command for intersection with mouse pointer
-        for j in (command.index_offset..last).step_by(3) {
-            let va = match self.vertex_buffer.get(self.index_buffer[j] as usize) {
+        for j in command.start_triangle..last {
+            let triangle = if let Some(triangle) = self.triangle_buffer.get(j) {
+                triangle
+            } else {
+                return false;
+            };
+
+            let va = match self.vertex_buffer.get(triangle.a as usize) {
                 Some(v) => v,
                 None => return false
             };
-            let vb = match self.vertex_buffer.get(self.index_buffer[j + 1] as usize) {
+            let vb = match self.vertex_buffer.get(triangle.b as usize) {
                 Some(v) => v,
                 None => return false
             };
-            let vc = match self.vertex_buffer.get(self.index_buffer[j + 2] as usize) {
+            let vc = match self.vertex_buffer.get(triangle.c as usize) {
                 Some(v) => v,
                 None => return false
             };
@@ -563,9 +537,11 @@ impl DrawingContext {
                 kind,
                 texture,
                 nesting: self.current_nesting,
-                index_offset: if !self.index_buffer.is_empty() {
-                    self.index_buffer.len() - self.triangles_to_commit * 3
-                } else { 0 },
+                start_triangle: if !self.triangle_buffer.is_empty() {
+                    self.triangle_buffer.len() - self.triangles_to_commit
+                } else {
+                    0
+                },
                 triangle_count: self.triangles_to_commit,
             };
             self.command_buffer.push(command);

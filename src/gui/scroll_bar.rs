@@ -48,20 +48,6 @@ impl ScrollBar {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
     pub const PART_INDICATOR: &'static str = "PART_Indicator";
 
-    fn new() -> Self {
-        Self {
-            owner_handle: Handle::none(),
-            min: 0.0,
-            max: 100.0,
-            value: 0.0,
-            step: 1.0,
-            orientation: Orientation::Horizontal,
-            is_dragging: false,
-            offset: Vec2::zero(),
-            value_changed: None,
-        }
-    }
-
     pub fn set_value(handle: Handle<UINode>, ui: &mut UserInterface, value: f32) {
         let mut value_changed;
         let args;
@@ -252,11 +238,17 @@ impl ScrollBarBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut scroll_bar = ScrollBar::new();
-        if let Some(orientation) = self.orientation {
-            scroll_bar.orientation = orientation;
-        }
-        scroll_bar.value_changed = self.value_changed;
+        let scroll_bar = ScrollBar {
+            owner_handle: Handle::none(),
+            min: self.min.unwrap_or(0.0),
+            max: self.max.unwrap_or(100.0),
+            value: self.value.unwrap_or(0.0),
+            step: self.step.unwrap_or(1.0),
+            orientation: self.orientation.unwrap_or(Orientation::Horizontal),
+            is_dragging: false,
+            offset: Vec2::zero(),
+            value_changed: self.value_changed,
+        };
         let orientation = scroll_bar.orientation;
         GenericNodeBuilder::new(UINodeKind::ScrollBar(scroll_bar), self.common)
             .with_child(BorderBuilder::new()

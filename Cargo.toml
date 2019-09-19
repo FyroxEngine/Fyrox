@@ -1,8 +1,12 @@
 [package]
 name = "rg3d"
 version = "0.1.2"
-authors = ["mrDIMAS <d1maxa@yandex.ru>"]
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
+license = "MIT"
+description = "3D Game engine"
+keywords = ["sound", "game", "engine", "3d", "gui"]
+repository = "https://github.com/mrDIMAS/rg3d"
 
 [profile.dev]
 opt-level = 0

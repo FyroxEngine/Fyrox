@@ -1,27 +1,21 @@
-use std::{
-    ffi::{CString, c_void},
-    mem::size_of,
+use std::ffi::CString;
+use rg3d_core::math::{
+    mat4::Mat4,
+    vec3::Vec3,
+    vec2::Vec2,
 };
 use crate::{
-    engine::state::State,
     renderer::{
-        gl,
-        gl::types::GLuint,
+        geometry_buffer::{GeometryBuffer, GeometryBufferKind, AttributeDefinition, AttributeKind},
+        gl, gl::types::GLuint,
         gpu_program::{GpuProgram, UniformLocation},
         gbuffer::GBuffer,
         error::RendererError,
     },
+    engine::state::State,
     scene::{
-        particle_system::DrawData,
         node::NodeKind,
-    },
-};
-
-use rg3d_core::{
-    math::{
-        mat4::Mat4,
-        vec3::Vec3,
-        vec2::Vec2,
+        particle_system,
     },
 };
 
@@ -157,61 +151,26 @@ impl ParticleSystemShader {
 
 pub struct ParticleSystemRenderer {
     shader: ParticleSystemShader,
-    draw_data: DrawData,
-    vbo: GLuint,
-    vao: GLuint,
-    ebo: GLuint,
+    draw_data: particle_system::DrawData,
+    geometry_buffer: GeometryBuffer<particle_system::Vertex>,
 }
 
 impl ParticleSystemRenderer {
     pub fn new() -> Result<Self, RendererError> {
-        let mut vbo = 0;
-        let mut vao = 0;
-        let mut ebo = 0;
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw);
 
-        unsafe {
-            gl::GenBuffers(1, &mut vbo);
-            gl::GenBuffers(1, &mut ebo);
-            gl::GenVertexArrays(1, &mut vao);
-
-
-            gl::BindVertexArray(vao);
-            gl::BindBuffer(gl::ARRAY_BUFFER, ebo);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-
-            // Setup attribute locations for shared data
-            let mut offset = 0;
-
-            let vertex_size = DrawData::vertex_size() as i32;
-
-            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-            gl::EnableVertexAttribArray(0);
-            offset += size_of::<Vec3>();
-
-            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-            gl::EnableVertexAttribArray(1);
-            offset += size_of::<Vec2>();
-
-            gl::VertexAttribPointer(2, 1, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-            gl::EnableVertexAttribArray(2);
-            offset += size_of::<f32>();
-
-            gl::VertexAttribPointer(3, 1, gl::FLOAT, gl::FALSE, vertex_size, offset as *const c_void);
-            gl::EnableVertexAttribArray(3);
-            offset += size_of::<f32>();
-
-            gl::VertexAttribPointer(4, 4, gl::UNSIGNED_BYTE, gl::TRUE, vertex_size, offset as *const c_void);
-            gl::EnableVertexAttribArray(4);
-
-            gl::BindVertexArray(0);
-        }
+        geometry_buffer.describe_attributes(vec![
+            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float, normalized: false },
+            AttributeDefinition { kind: AttributeKind::Float, normalized: false },
+            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
+        ])?;
 
         Ok(Self {
             shader: ParticleSystemShader::new()?,
             draw_data: Default::default(),
-            vbo,
-            vao,
-            ebo,
+            geometry_buffer,
         })
     }
 
@@ -250,23 +209,8 @@ impl ParticleSystemRenderer {
 
                     particle_system.generate_draw_data(&mut self.draw_data);
 
-                    if self.draw_data.get_indices().len() == 0 {
-                        continue;
-                    }
-
-                    // Upload buffers
-                    gl::BindVertexArray(self.vao);
-                    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-                    gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
-
-                    // Upload indices
-                    let total_indices_byte_size = size_of::<u32>() * self.draw_data.get_indices().len();
-                    gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, total_indices_byte_size as isize, self.draw_data.get_indices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
-
-                    // Upload vertices
-                    let vertex_size = DrawData::vertex_size() as i32;
-                    let total_size_bytes = vertex_size as usize * self.draw_data.get_vertices().len();
-                    gl::BufferData(gl::ARRAY_BUFFER, total_size_bytes as isize, self.draw_data.get_vertices().as_ptr() as *const c_void, gl::DYNAMIC_DRAW);
+                    self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
+                    self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
                     gl::ActiveTexture(gl::TEXTURE0);
                     if let Some(texture) = particle_system.get_texture() {
@@ -287,23 +231,12 @@ impl ParticleSystemRenderer {
                     self.shader.set_inv_screen_size(Vec2::make(1.0 / frame_width, 1.0 / frame_height));
                     self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
 
-                    gl::DrawElements(gl::TRIANGLES, self.draw_data.get_indices().len() as i32, gl::UNSIGNED_INT, std::ptr::null());
-                    gl::BindVertexArray(0);
+                    self.geometry_buffer.draw();
                 }
             }
 
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
-        }
-    }
-}
-
-impl Drop for ParticleSystemRenderer {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteBuffers(1, &self.vbo);
-            gl::DeleteBuffers(1, &self.ebo);
-            gl::DeleteVertexArrays(1, &self.vao);
         }
     }
 }
