@@ -1,27 +1,22 @@
-use crate::{
-    gui::{
-        draw::{CommandKind, DrawingContext},
-        Thickness,
-        UserInterface,
-        VerticalAlignment,
-        HorizontalAlignment,
-        event::{RoutedEventHandler, RoutedEventHandlerType},
-        Layout,
-        Drawable,
-        node::{UINode, UINodeKind},
-        builder::CommonBuilderFields
-    },
-    resource::ttf::Font,
+use crate::gui::{
+    draw::{CommandKind, DrawingContext},
+    Thickness,
+    UserInterface,
+    Layout,
+    Drawable,
+    node::{UINode, UINodeKind},
+    builder::CommonBuilderFields,
 };
 
 use rg3d_core::{
     color::Color,
-    pool::{Handle, Pool},
+    pool::{Handle},
     math::{
         vec2::Vec2,
-        Rect
+        Rect,
     },
 };
+use crate::gui::draw::CommandTexture;
 
 #[derive(Debug)]
 pub struct Border {
@@ -72,10 +67,10 @@ impl BorderBuilder {
 }
 
 impl Drawable for Border {
-    fn draw(&mut self, drawing_context: &mut DrawingContext, _font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color) {
         drawing_context.push_rect_filled(&bounds, None, color);
         drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.stroke_color);
-        drawing_context.commit(CommandKind::Geometry, 0);
+        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
     }
 }
 

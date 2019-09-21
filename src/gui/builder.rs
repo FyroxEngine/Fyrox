@@ -1,12 +1,10 @@
-use crate::{
-    gui::{
-        VerticalAlignment,
-        Thickness,
-        UserInterface,
-        HorizontalAlignment,
-        node::{UINodeKind, UINode},
-        event::{RoutedEventHandlerList, RoutedEventHandlerType, RoutedEventHandler}
-    },
+use crate::gui::{
+    VerticalAlignment,
+    Thickness,
+    UserInterface,
+    HorizontalAlignment,
+    node::{UINodeKind, UINode},
+    event::RoutedEventHandlerList,
 };
 use rg3d_core::{
     color::Color,
@@ -118,27 +116,27 @@ macro_rules! impl_default_builder_methods {
             self
         }
 
-        pub fn with_vertical_alignment(mut self, valign: VerticalAlignment) -> Self {
+        pub fn with_vertical_alignment(mut self, valign: $crate::gui::VerticalAlignment) -> Self {
             self.common.vertical_alignment = Some(valign);
             self
         }
 
-        pub fn with_horizontal_alignment(mut self, halign: HorizontalAlignment) -> Self {
+        pub fn with_horizontal_alignment(mut self, halign: $crate::gui::HorizontalAlignment) -> Self {
             self.common.horizontal_alignment = Some(halign);
             self
         }
 
-        pub fn with_max_size(mut self, max_size: Vec2) -> Self {
+        pub fn with_max_size(mut self, max_size: rg3d_core::math::vec2::Vec2) -> Self {
             self.common.max_size = Some(max_size);
             self
         }
 
-        pub fn with_min_size(mut self, min_size: Vec2) -> Self {
+        pub fn with_min_size(mut self, min_size: rg3d_core::math::vec2::Vec2) -> Self {
             self.common.min_size = Some(min_size);
             self
         }
 
-        pub fn with_color(mut self, color: Color) -> Self {
+        pub fn with_color(mut self, color: rg3d_core::color::Color) -> Self {
             self.common.color = Some(color);
             self
         }
@@ -153,17 +151,17 @@ macro_rules! impl_default_builder_methods {
             self
         }
 
-        pub fn with_margin(mut self, margin: Thickness) -> Self {
+        pub fn with_margin(mut self, margin: $crate::gui::Thickness) -> Self {
             self.common.margin = Some(margin);
             self
         }
 
-        pub fn with_desired_position(mut self, desired_position: Vec2) -> Self {
+        pub fn with_desired_position(mut self, desired_position: rg3d_core::math::vec2::Vec2) -> Self {
             self.common.desired_position = Some(desired_position);
             self
         }
 
-        pub fn with_child(mut self, handle: Handle<UINode>) -> Self {
+        pub fn with_child(mut self, handle: rg3d_core::pool::Handle<$crate::gui::UINode>) -> Self {
             if handle.is_some() {
                 self.common.children.push(handle);
             }
@@ -175,7 +173,8 @@ macro_rules! impl_default_builder_methods {
             self
         }
 
-        pub fn with_handler(mut self, handler_type: RoutedEventHandlerType, handler: Box<RoutedEventHandler>) -> Self {
+        pub fn with_handler(mut self, handler_type: $crate::gui::event::RoutedEventHandlerType,
+            handler: Box<$crate::gui::event::RoutedEventHandler>) -> Self {
             if let Some(ref mut handlers) = self.common.event_handlers {
                 handlers[handler_type as usize] = Some(handler);
             }

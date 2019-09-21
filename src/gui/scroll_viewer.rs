@@ -1,21 +1,14 @@
-use crate::{
-    gui::{
-        UserInterface,
-        maxf,
-        builder::{GenericNodeBuilder, CommonBuilderFields},
-        node::{UINodeKind, UINode},
-        scroll_content_presenter::{ScrollContentPresenter, ScrollContentPresenterBuilder},
-        scroll_bar::{ScrollBarBuilder, Orientation, ScrollBar},
-        VerticalAlignment,
-        HorizontalAlignment,
-        Thickness,
-        event::{RoutedEventHandlerType, RoutedEventHandler},
-        grid::{Row, GridBuilder, Column}
-    },
+use crate::gui::{
+    UserInterface,
+    maxf,
+    builder::{GenericNodeBuilder, CommonBuilderFields},
+    node::{UINodeKind, UINode},
+    scroll_content_presenter::{ScrollContentPresenter, ScrollContentPresenterBuilder},
+    scroll_bar::{ScrollBarBuilder, Orientation, ScrollBar},
+    grid::{Row, GridBuilder, Column},
 };
 
 use rg3d_core::{
-    color::Color,
     pool::Handle,
     math::vec2::Vec2,
 };

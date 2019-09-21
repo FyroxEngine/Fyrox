@@ -185,7 +185,7 @@ impl Scene {
         if let Some(child) = self.nodes.borrow_mut(child_handle) {
             child.parent = parent_handle;
             if let Some(parent) = self.nodes.borrow_mut(parent_handle) {
-                parent.children.push(child_handle.clone());
+                parent.children.push(child_handle);
             }
         }
     }
@@ -262,12 +262,12 @@ impl Scene {
     fn copy_node_internal(&self, root_handle: Handle<Node>, dest_scene: &mut Scene, old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>) -> Handle<Node> {
         match self.get_node(root_handle) {
             Some(src_node) => {
-                let mut dest_node = src_node.make_copy(root_handle.clone());
+                let mut dest_node = src_node.make_copy(root_handle);
                 if let Some(src_body) = self.physics.borrow_body(src_node.get_body()) {
                     dest_node.set_body(dest_scene.physics.add_body(src_body.make_copy()));
                 }
                 let dest_copy_handle = dest_scene.add_node(dest_node);
-                old_new_mapping.insert(root_handle.clone(), dest_copy_handle);
+                old_new_mapping.insert(root_handle, dest_copy_handle);
                 for src_child_handle in &src_node.children {
                     let dest_child_handle = self.copy_node_internal(*src_child_handle, dest_scene, old_new_mapping);
                     if !dest_child_handle.is_none() {

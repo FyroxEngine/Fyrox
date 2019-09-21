@@ -1,23 +1,16 @@
-use crate::{
-    gui::{
-        VerticalAlignment,
-        HorizontalAlignment,
-        event::{RoutedEventHandler, RoutedEventHandlerType},
-        builder::{CommonBuilderFields, GenericNodeBuilder},
-        node::{UINode, UINodeKind},
-        UserInterface,
-        Thickness,
-        Layout
-    },
+use crate::gui::{
+    builder::{CommonBuilderFields, GenericNodeBuilder},
+    node::{UINode, UINodeKind},
+    UserInterface,
+    Layout,
 };
 
 use rg3d_core::{
-    color::Color,
     pool::Handle,
     math::{
         vec2::Vec2,
-        Rect
-    }
+        Rect,
+    },
 };
 
 pub struct ScrollContentPresenter {

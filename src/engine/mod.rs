@@ -5,7 +5,7 @@ use crate::{
     gui::UserInterface,
     resource::{ttf::Font},
     renderer::{
-        render::{Renderer, Statistics},
+        Renderer, Statistics,
         error::RendererError,
     },
     engine::state::State,
@@ -20,19 +20,19 @@ use std::{
 
 use rg3d_core::{
     math::vec2::Vec2,
-    pool::{Pool, Handle},
     visitor::{Visitor, VisitResult, Visit},
 };
 
 use rg3d_sound::context::Context;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub struct Engine {
     renderer: Renderer,
     pub state: State,
     events: VecDeque<glutin::Event>,
     running: bool,
-    font_cache: Pool<Font>,
-    default_font: Handle<Font>,
+    default_font: Rc<RefCell<Font>>,
     user_interface: UserInterface,
     sound_context: Arc<Mutex<Context>>,
 }
@@ -40,25 +40,17 @@ pub struct Engine {
 impl Engine {
     #[inline]
     pub fn new() -> Engine {
-        let mut font_cache = Pool::new();
-        let default_font = font_cache.spawn(Font::load(
-            Path::new("data/fonts/font.ttf"),
-            20.0,
-            (0..255).collect()).unwrap());
-        let mut renderer = Renderer::new().unwrap();
-        renderer.upload_font_cache(&mut font_cache);
-
-        let context: Arc<Mutex<Context>> = Context::new().unwrap();
+        let default_font = Rc::new(RefCell::new(Font::load(
+            Path::new("data/fonts/font.ttf"),20.0,(0..255).collect()).unwrap()));
 
         Engine {
-            sound_context: context,
+            sound_context: Context::new().unwrap(),
             state: State::new(),
-            renderer,
+            renderer: Renderer::new().unwrap(),
             events: VecDeque::new(),
             running: true,
-            user_interface: UserInterface::new(default_font),
+            user_interface: UserInterface::new(default_font.clone()),
             default_font,
-            font_cache,
         }
     }
 
@@ -107,13 +99,8 @@ impl Engine {
     }
 
     #[inline]
-    pub fn get_font(&self, font_handle: Handle<Font>) -> Option<&Font> {
-        self.font_cache.borrow(font_handle)
-    }
-
-    #[inline]
-    pub fn get_default_font(&self) -> Handle<Font> {
-        self.default_font
+    pub fn get_default_font(&self) -> Rc<RefCell<Font>> {
+        self.default_font.clone()
     }
 
     #[inline]
@@ -142,9 +129,8 @@ impl Engine {
     }
 
     pub fn render(&mut self) -> Result<(), RendererError> {
-        self.renderer.upload_font_cache(&mut self.font_cache);
         self.renderer.upload_resources(&mut self.state);
-        self.user_interface.draw(&self.font_cache);
+        self.user_interface.draw();
         self.renderer.render(&self.state, &self.user_interface.get_drawing_context())
     }
 

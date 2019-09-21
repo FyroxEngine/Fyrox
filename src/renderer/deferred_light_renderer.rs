@@ -11,7 +11,7 @@ use crate::{
         gpu_program::{UniformLocation, GpuProgram},
         gl,
         gbuffer::GBuffer,
-        render::FlatShader,
+        FlatShader,
         error::RendererError
     }
 };
@@ -492,6 +492,14 @@ impl DeferredLightRenderer {
             gl::Disable(gl::BLEND);
 
             gl::DepthMask(gl::TRUE);
+
+            // Unbind FBO textures.
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
+            gl::ActiveTexture(gl::TEXTURE2);
+            gl::BindTexture(gl::TEXTURE_2D, 0);
         }
     }
 }

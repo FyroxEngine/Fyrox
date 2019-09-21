@@ -88,7 +88,7 @@ impl Model {
             dest_scene.add_animation(anim_copy);
         }
 
-        return Ok(root);
+        Ok(root)
     }
 
     pub fn get_scene_mut(&mut self) -> &mut Scene {

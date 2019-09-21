@@ -7,10 +7,11 @@ use rg3d_core::math::{
 use crate::{
     renderer::{
         geometry_buffer::{GeometryBuffer, GeometryBufferKind, AttributeDefinition, AttributeKind},
-        gl, gl::types::GLuint,
+        gl,
         gpu_program::{GpuProgram, UniformLocation},
         gbuffer::GBuffer,
         error::RendererError,
+        gpu_texture::GpuTexture
     },
     engine::state::State,
     scene::{
@@ -174,7 +175,7 @@ impl ParticleSystemRenderer {
         })
     }
 
-    pub fn render(&mut self, state: &State, white_dummy: GLuint, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
+    pub fn render(&mut self, state: &State, white_dummy: &GpuTexture, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
         unsafe {
             gl::Disable(gl::CULL_FACE);
             gl::Enable(gl::BLEND);
@@ -212,11 +213,10 @@ impl ParticleSystemRenderer {
                     self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
                     self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
-                    gl::ActiveTexture(gl::TEXTURE0);
                     if let Some(texture) = particle_system.get_texture() {
-                        gl::BindTexture(gl::TEXTURE_2D, texture.lock().unwrap().gpu_tex);
+                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
                     } else {
-                        gl::BindTexture(gl::TEXTURE_2D, white_dummy);
+                        white_dummy.bind(0)
                     }
 
                     gl::ActiveTexture(gl::TEXTURE1);

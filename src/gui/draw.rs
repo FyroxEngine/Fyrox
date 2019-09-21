@@ -15,6 +15,10 @@ use rg3d_core::{
         Rect,
     },
 };
+use std::rc::Rc;
+use std::cell::RefCell;
+use crate::resource::texture::Texture;
+use std::sync::{Arc, Mutex};
 
 #[repr(C)]
 pub struct Vertex {
@@ -39,10 +43,17 @@ pub enum CommandKind {
     Clip,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone)]
+pub enum CommandTexture {
+    None,
+    Texture(Arc<Mutex<Texture>>),
+    Font(Rc<RefCell<Font>>)
+}
+
+#[derive(Clone)]
 pub struct Command {
     kind: CommandKind,
-    texture: u32,
+    texture: CommandTexture,
     start_triangle: usize,
     triangle_count: usize,
     nesting: u8,
@@ -55,8 +66,8 @@ impl Command {
     }
 
     #[inline]
-    pub fn get_texture(&self) -> u32 {
-        self.texture
+    pub fn get_texture(&self) -> &CommandTexture {
+        &self.texture
     }
 
     #[inline]
@@ -111,9 +122,8 @@ impl TextLine {
     }
 }
 
-#[derive(Debug)]
 pub struct FormattedText {
-    texture: u32,
+    font: Rc<RefCell<Font>>,
     /// Text in UTF32 format.
     text: Vec<u32>,
     /// Temporary buffer used to split text on lines. We need it to reduce memory allocations
@@ -125,22 +135,24 @@ pub struct FormattedText {
 }
 
 impl FormattedText {
-    fn new() -> FormattedText {
+    fn new(font: Rc<RefCell<Font>>) -> FormattedText {
         FormattedText {
             text: Vec::new(),
-            texture: 0,
+            font,
             glyphs: Vec::new(),
             lines: Vec::new(),
         }
     }
 
-    fn build(&mut self, text: &str, font: &Font, size: Vec2, color: Color,
-             vertical_alignment: VerticalAlignment, horizontal_alignment: HorizontalAlignment) {
+    fn build(&mut self, text: &str, size: Vec2, color: Color, vertical_alignment: VerticalAlignment,
+             horizontal_alignment: HorizontalAlignment) {
         // Convert text to UTF32.
         self.text.clear();
         for code in text.chars().map(|c| c as u32) {
             self.text.push(code);
         }
+
+        let font = self.font.borrow();
 
         // Split on lines.
         let mut total_height = 0.0;
@@ -181,8 +193,6 @@ impl FormattedText {
                 HorizontalAlignment::Stretch => line.x_offset = 0.0
             }
         }
-
-        self.texture = font.get_texture_id();
 
         // Generate glyphs for each text line.
         self.glyphs.clear();
@@ -247,25 +257,19 @@ pub struct FormattedTextBuilder<'a> {
     color: Color,
     size: Vec2,
     text: Option<&'a str>,
-    font: Option<&'a Font>,
+    font: Rc<RefCell<Font>>,
     formatted_text: FormattedText,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
 }
 
-impl<'a> Default for FormattedTextBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'a> FormattedTextBuilder<'a> {
     /// Creates new formatted text builder with default parameters.
-    pub fn new() -> FormattedTextBuilder<'a> {
+    pub fn new(font: Rc<RefCell<Font>>) -> FormattedTextBuilder<'a> {
         FormattedTextBuilder {
-            font: None,
+            font: font.clone(),
             text: None,
-            formatted_text: FormattedText::new(),
+            formatted_text: FormattedText::new(font),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             color: Color::white(),
@@ -278,7 +282,7 @@ impl<'a> FormattedTextBuilder<'a> {
     /// reduce memory allocations.
     pub fn reuse(formatted_text: FormattedText) -> FormattedTextBuilder<'a> {
         FormattedTextBuilder {
-            font: None,
+            font: formatted_text.font.clone(),
             text: None,
             formatted_text: FormattedText {
                 // Take buffers out and reuse them so no need to allocate new
@@ -286,18 +290,13 @@ impl<'a> FormattedTextBuilder<'a> {
                 text: formatted_text.text,
                 lines: formatted_text.lines,
                 glyphs: formatted_text.glyphs,
-                texture: 0,
+                font: formatted_text.font,
             },
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             color: Color::white(),
             size: Vec2::make(128.0, 128.0),
         }
-    }
-
-    pub fn with_font(mut self, font: &'a Font) -> Self {
-        self.font = Some(font);
-        self
     }
 
     pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
@@ -327,16 +326,13 @@ impl<'a> FormattedTextBuilder<'a> {
 
     pub fn build(mut self) -> FormattedText {
         if let Some(text) = self.text {
-            if let Some(font) = self.font {
-                self.formatted_text.build(
-                    text,
-                    font,
-                    self.size,
-                    self.color,
-                    self.vertical_alignment,
-                    self.horizontal_alignment,
-                );
-            }
+            self.formatted_text.build(
+                text,
+                self.size,
+                self.color,
+                self.vertical_alignment,
+                self.horizontal_alignment,
+            );
         }
 
         self.formatted_text
@@ -531,7 +527,7 @@ impl DrawingContext {
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    pub fn commit(&mut self, kind: CommandKind, texture: u32) {
+    pub fn commit(&mut self, kind: CommandKind, texture: CommandTexture) {
         if self.triangles_to_commit > 0 {
             let command = Command {
                 kind,
@@ -559,13 +555,13 @@ impl DrawingContext {
 
             self.push_rect_filled(&final_bounds, Some(&element.tex_coords), element.color);
         }
-        self.commit(CommandKind::Geometry, formatted_text.texture)
+        self.commit(CommandKind::Geometry, CommandTexture::Font(formatted_text.font.clone()))
     }
 
     pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) {
         self.push_rect_filled(clip_rect, None, Color::black());
         let index = self.command_buffer.len();
-        self.commit(CommandKind::Clip, 0);
+        self.commit(CommandKind::Clip, CommandTexture::None);
         self.clip_cmd_stack.push(index);
     }
 
@@ -580,7 +576,7 @@ impl DrawingContext {
             if let Some(last_clip_command) = self.command_buffer.get(*last_index) {
                 assert_eq!(last_clip_command.kind, CommandKind::Clip);
                 // Re-commit last clipping command
-                let clip_command = *last_clip_command;
+                let clip_command = last_clip_command.clone();
                 self.command_buffer.push(clip_command);
             }
         }

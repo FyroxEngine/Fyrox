@@ -3,17 +3,12 @@ use crate::{
     gui::{
         UserInterface,
         Visibility,
-        VerticalAlignment,
-        HorizontalAlignment,
-        Thickness,
-        event::{RoutedEventHandler, RoutedEventHandlerType},
         node::{UINode, UINodeKind},
         builder::CommonBuilderFields,
         Layout
     },
 };
 use rg3d_core::{
-    color::Color,
     pool::Handle,
     math::{
         vec2::Vec2,

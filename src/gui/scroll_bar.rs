@@ -2,9 +2,7 @@ use crate::{
     gui::{
         border::BorderBuilder,
         canvas::CanvasBuilder,
-        VerticalAlignment,
-        HorizontalAlignment,
-        event::{RoutedEventHandlerType, RoutedEventHandler},
+        event::{RoutedEventHandlerType},
         button::ButtonBuilder,
         node::{UINodeKind, UINode},
         UserInterface,

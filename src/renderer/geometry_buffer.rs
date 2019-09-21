@@ -12,6 +12,7 @@ use crate::renderer::{
 
 /// Safe wrapper over OpenGL's Vertex Array Objects for interleaved vertices (where
 /// position, normal, etc. stored together, not in separate arrays)
+/// WARNING: T must have #[repr(C)] attribute!
 pub struct GeometryBuffer<T> {
     vertex_array_object: GLuint,
     vertex_buffer_object: GLuint,

@@ -3,13 +3,11 @@ use crate::{
         builder::CommonBuilderFields,
         VerticalAlignment,
         HorizontalAlignment,
-        event::{RoutedEventHandlerType, RoutedEventHandler},
         Drawable,
-        Thickness,
         draw::{
             FormattedText,
             DrawingContext,
-            FormattedTextBuilder
+            FormattedTextBuilder,
         },
         node::{
             UINode,
@@ -26,35 +24,34 @@ use rg3d_core::{
         Rect,
         vec2::Vec2,
     },
-    pool::{Handle, Pool},
+    pool::{Handle},
+};
+use std::{
+    cell::RefCell,
+    rc::Rc,
 };
 
-
-#[derive(Debug)]
 pub struct Text {
     pub(in crate::gui) owner_handle: Handle<UINode>,
     need_update: bool,
     text: String,
-    font: Handle<Font>,
+    font: Rc<RefCell<Font>>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     formatted_text: Option<FormattedText>,
 }
 
 impl Drawable for Text {
-    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color) {
         if self.need_update {
-            if let Some(font) = font_cache.borrow(self.font) {
-                let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
-                    .with_size(Vec2::make(bounds.w, bounds.h))
-                    .with_font(font)
-                    .with_text(self.text.as_str())
-                    .with_color(color)
-                    .with_horizontal_alignment(self.horizontal_alignment)
-                    .with_vertical_alignment(self.vertical_alignment)
-                    .build();
-                self.formatted_text = Some(formatted_text);
-            }
+            let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
+                .with_size(Vec2::make(bounds.w, bounds.h))
+                .with_text(self.text.as_str())
+                .with_color(color)
+                .with_horizontal_alignment(self.horizontal_alignment)
+                .with_vertical_alignment(self.vertical_alignment)
+                .build();
+            self.formatted_text = Some(formatted_text);
             self.need_update = true; // TODO
         }
         drawing_context.draw_text(Vec2::make(bounds.x, bounds.y), self.formatted_text.as_ref().unwrap());
@@ -62,15 +59,15 @@ impl Drawable for Text {
 }
 
 impl Text {
-    pub fn new() -> Text {
+    pub fn new(font: Rc<RefCell<Font>>) -> Text {
         Text {
             owner_handle: Handle::none(),
             text: String::new(),
             need_update: true,
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,
-            formatted_text: Some(FormattedTextBuilder::new().build()),
-            font: Handle::none(),
+            formatted_text: Some(FormattedTextBuilder::new(font.clone()).build()),
+            font,
         }
     }
 
@@ -85,7 +82,7 @@ impl Text {
         self.text.as_str()
     }
 
-    pub fn set_font(&mut self, font: Handle<Font>) -> &mut Self {
+    pub fn set_font(&mut self, font: Rc<RefCell<Font>>) -> &mut Self {
         self.font = font;
         self.need_update = true;
         self
@@ -105,7 +102,7 @@ impl Text {
 
 pub struct TextBuilder {
     text: Option<String>,
-    font: Option<Handle<Font>>,
+    font: Option<Rc<RefCell<Font>>>,
     common: CommonBuilderFields,
     vertical_text_alignment: Option<VerticalAlignment>,
     horizontal_text_alignment: Option<HorizontalAlignment>,
@@ -129,18 +126,18 @@ impl TextBuilder {
         self
     }
 
-    pub fn with_font(mut self, font: Handle<Font>) -> Self {
+    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
         self.font = Some(font);
         self
     }
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut text = Text::new();
-        if let Some(font) = self.font {
-            text.set_font(font);
+        let mut text = Text::new( if let Some(font) = self.font {
+            font
         } else {
-            text.set_font(ui.default_font);
-        }
+            ui.default_font.clone()
+        });
+
         if let Some(txt) = self.text {
             text.set_text(txt.as_str());
         }

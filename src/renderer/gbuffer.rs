@@ -6,11 +6,11 @@ use crate::{
         node::NodeKind,
     },
     renderer::{
-        gl::types::GLuint,
-        gl,
+        gl::types::GLuint, gl,
         gpu_program::{GpuProgram, UniformLocation},
         error::RendererError,
-    },
+        gpu_texture::GpuTexture
+    }
 };
 use rg3d_core::{
     math::{
@@ -298,7 +298,13 @@ impl GBuffer {
         }
     }
 
-    pub fn fill(&mut self, frame_width: f32, frame_height: f32, scene: &Scene, camera: &Camera, white_dummy: GLuint, normal_dummy: GLuint) {
+    pub fn fill(&mut self,
+                frame_width: f32,
+                frame_height: f32,
+                scene: &Scene,
+                camera: &Camera,
+                white_dummy: &GpuTexture,
+                normal_dummy: &GpuTexture) {
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
@@ -317,63 +323,61 @@ impl GBuffer {
             // Setup viewport
             let viewport: Rect<i32> = camera.get_viewport_pixels(Vec2 { x: frame_width, y: frame_height });
             gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
+        }
 
-            let view_projection = camera.get_view_projection_matrix();
+        let view_projection = camera.get_view_projection_matrix();
 
-            for node in scene.get_nodes().iter() {
-                if let NodeKind::Mesh(mesh) = node.borrow_kind() {
-                    if !node.get_global_visibility() {
-                        continue;
-                    }
+        for node in scene.get_nodes().iter() {
+            if let NodeKind::Mesh(mesh) = node.borrow_kind() {
+                if !node.get_global_visibility() {
+                    continue;
+                }
 
-                    for surface in mesh.get_surfaces().iter() {
-                        let is_skinned = !surface.bones.is_empty();
+                for surface in mesh.get_surfaces().iter() {
+                    let is_skinned = !surface.bones.is_empty();
 
-                        let world = if is_skinned {
-                            Mat4::identity()
-                        } else {
-                            *node.get_global_transform()
-                        };
-                        let mvp = view_projection * world;
+                    let world = if is_skinned {
+                        Mat4::identity()
+                    } else {
+                        *node.get_global_transform()
+                    };
+                    let mvp = view_projection * world;
 
-                        self.shader.set_wvp_matrix(&mvp);
-                        self.shader.set_world_matrix(&world);
+                    self.shader.set_wvp_matrix(&mvp);
+                    self.shader.set_world_matrix(&world);
 
-                        self.shader.set_use_skeletal_animation(is_skinned);
+                    self.shader.set_use_skeletal_animation(is_skinned);
 
-                        if is_skinned {
-                            self.bone_matrices.clear();
-                            for bone_handle in surface.bones.iter() {
-                                if let Some(bone_node) = scene.get_node(*bone_handle) {
-                                    self.bone_matrices.push(
-                                        *bone_node.get_global_transform() *
-                                            *bone_node.get_inv_bind_pose_transform());
-                                } else {
-                                    self.bone_matrices.push(Mat4::identity())
-                                }
+                    if is_skinned {
+                        self.bone_matrices.clear();
+                        for bone_handle in surface.bones.iter() {
+                            if let Some(bone_node) = scene.get_node(*bone_handle) {
+                                self.bone_matrices.push(
+                                    *bone_node.get_global_transform() *
+                                        *bone_node.get_inv_bind_pose_transform());
+                            } else {
+                                self.bone_matrices.push(Mat4::identity())
                             }
-
-                            self.shader.set_bone_matrices(&self.bone_matrices);
                         }
 
-                        // Bind diffuse texture.
-                        gl::ActiveTexture(gl::TEXTURE0);
-                        if let Some(texture) = surface.get_diffuse_texture() {
-                            gl::BindTexture(gl::TEXTURE_2D, texture.lock().unwrap().gpu_tex);
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, white_dummy);
-                        }
-
-                        // Bind normal texture.
-                        gl::ActiveTexture(gl::TEXTURE1);
-                        if let Some(texture) = surface.get_normal_texture() {
-                            gl::BindTexture(gl::TEXTURE_2D, texture.lock().unwrap().gpu_tex);
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, normal_dummy);
-                        }
-
-                        surface.get_data().lock().unwrap().draw();
+                        self.shader.set_bone_matrices(&self.bone_matrices);
                     }
+
+                    // Bind diffuse texture.
+                    if let Some(texture) = surface.get_diffuse_texture() {
+                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                    } else {
+                        white_dummy.bind(0);
+                    }
+
+                    // Bind normal texture.
+                    if let Some(texture) = surface.get_normal_texture() {
+                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(1);
+                    } else {
+                        normal_dummy.bind(1);
+                    }
+
+                    surface.get_data().lock().unwrap().draw();
                 }
             }
         }

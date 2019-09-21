@@ -19,17 +19,26 @@ use glutin::{
     ElementState,
     MouseScrollDelta,
 };
-use std::{collections::VecDeque, any::TypeId};
+use std::{
+    collections::VecDeque,
+    any::TypeId,
+    rc::Rc,
+    cell::RefCell
+};
 use crate::{
     gui::{
         node::{UINode, UINodeKind},
-        draw::{DrawingContext, CommandKind},
+        draw::{
+            DrawingContext,
+            CommandKind,
+            CommandTexture
+        },
         scroll_viewer::ScrollViewer,
         event::{RoutedEvent, RoutedEventKind, RoutedEventHandlerType},
         canvas::Canvas,
     },
     resource::{ttf::Font},
-    utils::UnsafeCollectionView
+    utils::UnsafeCollectionView,
 };
 
 use rg3d_core::{
@@ -97,14 +106,14 @@ trait Layout {
 }
 
 trait Drawable {
-    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color);
+    fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color);
 }
 
 impl Drawable for UINodeKind {
-    fn draw(&mut self, drawing_context: &mut DrawingContext, font_cache: &Pool<Font>, bounds: &Rect<f32>, color: Color) {
+    fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color) {
         match self {
-            UINodeKind::Text(text) => text.draw(drawing_context, font_cache, bounds, color),
-            UINodeKind::Border(border) => border.draw(drawing_context, font_cache, bounds, color),
+            UINodeKind::Text(text) => text.draw(drawing_context, bounds, color),
+            UINodeKind::Border(border) => border.draw(drawing_context, bounds, color),
             _ => ()
         }
     }
@@ -115,7 +124,7 @@ pub type DeferredAction = dyn FnMut(&mut UserInterface);
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
-    default_font: Handle<Font>,
+    default_font: Rc<RefCell<Font>>,
     visual_debug: bool,
     /// Every UI node will live on the window-sized canvas.
     root_canvas: Handle<UINode>,
@@ -145,7 +154,7 @@ fn minf(a: f32, b: f32) -> f32 {
 }
 
 impl UserInterface {
-    pub fn new(default_font: Handle<Font>) -> UserInterface {
+    pub fn new(default_font: Rc<RefCell<Font>>) -> UserInterface {
         let mut ui = UserInterface {
             visual_debug: false,
             default_font,
@@ -496,7 +505,7 @@ impl UserInterface {
         }
     }
 
-    fn draw_node(&mut self, node_handle: Handle<UINode>, font_cache: &Pool<Font>, nesting: u8) {
+    fn draw_node(&mut self, node_handle: Handle<UINode>, nesting: u8) {
         let mut children: UnsafeCollectionView<Handle<UINode>> = UnsafeCollectionView::empty();
 
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
@@ -510,7 +519,7 @@ impl UserInterface {
             self.drawing_context.set_nesting(nesting);
             self.drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
 
-            node.kind.draw(&mut self.drawing_context, font_cache, &bounds, node.color);
+            node.kind.draw(&mut self.drawing_context, &bounds, node.color);
 
             children = UnsafeCollectionView::from_slice(&node.children);
 
@@ -522,13 +531,13 @@ impl UserInterface {
 
         // Continue on children
         for child_node in children.iter() {
-            self.draw_node(*child_node, font_cache, nesting + 1);
+            self.draw_node(*child_node, nesting + 1);
         }
 
         self.drawing_context.revert_clip_geom();
     }
 
-    pub fn draw(&mut self, font_cache: &Pool<Font>) -> &DrawingContext {
+    pub fn draw(&mut self) -> &DrawingContext {
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
@@ -536,7 +545,7 @@ impl UserInterface {
         }
 
         let root_canvas = self.root_canvas;
-        self.draw_node(root_canvas, font_cache, 1);
+        self.draw_node(root_canvas,  1);
 
         if self.visual_debug {
             self.drawing_context.set_nesting(0);
@@ -550,7 +559,7 @@ impl UserInterface {
 
             if let Some(picked_bounds) = picked_bounds {
                 self.drawing_context.push_rect(&picked_bounds, 1.0, Color::white());
-                self.drawing_context.commit(CommandKind::Geometry, 0);
+                self.drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
             }
         }
 

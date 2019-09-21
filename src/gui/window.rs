@@ -1,22 +1,18 @@
-use crate::{
-    gui::{
-        border::BorderBuilder,
-        node::{UINode, UINodeKind},
-        builder::{CommonBuilderFields, GenericNodeBuilder},
-        UserInterface,
-        grid::{GridBuilder, Column, Row},
-        HorizontalAlignment,
-        event::{
-            RoutedEventHandlerType,
-            RoutedEventHandler,
-            RoutedEventKind,
-        },
-        text::TextBuilder,
-        Thickness,
-        button::ButtonBuilder,
-        scroll_content_presenter::ScrollContentPresenterBuilder,
-        VerticalAlignment,
+use crate::gui::{
+    border::BorderBuilder,
+    node::{UINode, UINodeKind},
+    builder::{CommonBuilderFields, GenericNodeBuilder},
+    UserInterface,
+    grid::{GridBuilder, Column, Row},
+    HorizontalAlignment,
+    event::{
+        RoutedEventHandlerType,
+        RoutedEventKind,
     },
+    text::TextBuilder,
+    Thickness,
+    button::ButtonBuilder,
+    scroll_content_presenter::ScrollContentPresenterBuilder,
 };
 
 use rg3d_core::{
@@ -45,7 +41,7 @@ pub struct Window {
     /// Invoked when window is closed.
     closed_handler: Option<Box<ClosedEventHandler>>,
     /// Invoked when windows is minimized.
-    minimized_handler: Option<Box<MinimizedEventHandler>>
+    minimized_handler: Option<Box<MinimizedEventHandler>>,
 }
 
 pub struct WindowBuilder<'a> {
@@ -55,7 +51,7 @@ pub struct WindowBuilder<'a> {
     minimizing_handler: Option<Box<MinimizingEventHandler>>,
     closing_handler: Option<Box<ClosingEventHandler>>,
     closed_handler: Option<Box<ClosedEventHandler>>,
-    minimized_handler: Option<Box<MinimizedEventHandler>>
+    minimized_handler: Option<Box<MinimizedEventHandler>>,
 }
 
 /// Window title can be either text or node.
@@ -85,7 +81,7 @@ impl<'a> WindowBuilder<'a> {
             minimizing_handler: None,
             closing_handler: None,
             closed_handler: None,
-            minimized_handler: None
+            minimized_handler: None,
         }
     }
 
@@ -101,22 +97,22 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn with_minimizing_handler(mut self, handler: Box<MinimizingEventHandler>) -> Self{
+    pub fn with_minimizing_handler(mut self, handler: Box<MinimizingEventHandler>) -> Self {
         self.minimizing_handler = Some(handler);
         self
     }
 
-    pub fn with_minimized_handler(mut self, handler: Box<MinimizedEventHandler>) -> Self{
+    pub fn with_minimized_handler(mut self, handler: Box<MinimizedEventHandler>) -> Self {
         self.minimized_handler = Some(handler);
         self
     }
 
-    pub fn with_closing_handler(mut self, handler: Box<ClosingEventHandler>) -> Self{
+    pub fn with_closing_handler(mut self, handler: Box<ClosingEventHandler>) -> Self {
         self.closing_handler = Some(handler);
         self
     }
 
-    pub fn with_closed_handler(mut self, handler: Box<ClosedEventHandler>) -> Self{
+    pub fn with_closed_handler(mut self, handler: Box<ClosedEventHandler>) -> Self {
         self.closed_handler = Some(handler);
         self
     }
@@ -130,12 +126,12 @@ impl<'a> WindowBuilder<'a> {
             minimizing_handler: self.minimizing_handler,
             closing_handler: self.closing_handler,
             closed_handler: self.closed_handler,
-            minimized_handler: self.minimized_handler
+            minimized_handler: self.minimized_handler,
         };
 
         GenericNodeBuilder::new(UINodeKind::Window(window), self.common)
             .with_child(BorderBuilder::new()
-                .with_color(Color::opaque(120, 120, 120))
+                .with_color(Color::opaque(100, 100, 100))
                 .with_child(GridBuilder::new()
                     .add_column(Column::stretch())
                     .add_row(Row::auto())
@@ -200,12 +196,24 @@ impl<'a> WindowBuilder<'a> {
                             .add_column(Column::strict(30.0))
                             .add_column(Column::strict(30.0))
                             .add_row(Row::stretch())
-                            .with_child(TextBuilder::new()
-                                .with_text("Unnamed window")
-                                .with_margin(Thickness::uniform(5.0))
-                                .on_row(0)
-                                .on_column(0)
-                                .build(ui))
+                            .with_child({
+                                match self.title {
+                                    None => Handle::none(),
+                                    Some(window_title) => {
+                                        match window_title {
+                                            WindowTitle::Node(node) => node,
+                                            WindowTitle::Text(text) => {
+                                                TextBuilder::new()
+                                                    .with_text(text)
+                                                    .with_margin(Thickness::uniform(5.0))
+                                                    .on_row(0)
+                                                    .on_column(0)
+                                                    .build(ui)
+                                            }
+                                        }
+                                    }
+                                }
+                            })
                             .with_child(ButtonBuilder::new()
                                 .on_row(0)
                                 .on_column(1)

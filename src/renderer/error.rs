@@ -15,7 +15,8 @@ pub enum RendererError {
     UnableToFindShaderUniform(String),
     InternalError(String),
     ContextError(String),
-    InvalidTriangleRange{
+    InvalidTextureData,
+    InvalidTriangleRange {
         start: usize,
         end: usize,
         total: usize,

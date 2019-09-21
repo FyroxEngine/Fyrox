@@ -2,28 +2,26 @@ use std::{
     cell::Cell,
     any::{Any, TypeId},
 };
-use crate::{
-    gui::{
-        button::Button,
-        Canvas,
-        text::Text,
-        VerticalAlignment,
-        HorizontalAlignment,
-        Thickness,
-        Visibility,
-        border::Border,
-        scroll_bar::ScrollBar,
-        scroll_viewer::ScrollViewer,
-        image::Image,
-        grid::Grid,
-        scroll_content_presenter::ScrollContentPresenter,
-        event::{
-            RoutedEventHandlerType,
-            RoutedEventHandler,
-            RoutedEventHandlerList,
-        },
-        window::Window,
+use crate::gui::{
+    button::Button,
+    Canvas,
+    text::Text,
+    VerticalAlignment,
+    HorizontalAlignment,
+    Thickness,
+    Visibility,
+    border::Border,
+    scroll_bar::ScrollBar,
+    scroll_viewer::ScrollViewer,
+    image::Image,
+    grid::Grid,
+    scroll_content_presenter::ScrollContentPresenter,
+    event::{
+        RoutedEventHandlerType,
+        RoutedEventHandler,
+        RoutedEventHandlerList,
     },
+    window::Window,
 };
 
 use rg3d_core::{
@@ -32,7 +30,7 @@ use rg3d_core::{
     pool::Handle,
 };
 
-pub trait CustomUINodeKind : Any {
+pub trait CustomUINodeKind: Any {
     fn set_owner_handle(&mut self, handle: Handle<UINode>);
 }
 
@@ -51,7 +49,7 @@ pub enum UINodeKind {
     ScrollContentPresenter(ScrollContentPresenter),
     Window(Window),
     /// Custom user-defined node kind, allows to build your own UI nodes.
-    User(Box<dyn CustomUINodeKind>)
+    User(Box<dyn CustomUINodeKind>),
 }
 
 /// UI node is a building block for all UI widgets. For example button could be a node with

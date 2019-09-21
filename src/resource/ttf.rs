@@ -14,6 +14,7 @@ use std::{
     fs::File,
     io::Read,
 };
+use crate::renderer::gpu_texture::GpuTexture;
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -82,7 +83,6 @@ struct Bitmap {
     height: usize,
 }
 
-#[derive(Debug)]
 pub struct Font {
     height: f32,
     glyphs: Vec<FontGlyph>,
@@ -92,10 +92,9 @@ pub struct Font {
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
     atlas_size: i32,
-    texture_id: u32,
+    pub(in crate) texture: Option<GpuTexture>,
 }
 
-#[derive(Debug)]
 struct RectPackNode {
     filled: bool,
     split: bool,
@@ -892,7 +891,7 @@ impl Font {
                 descender: scale * f32::from(ttf.get_descender()),
                 line_gap: scale * f32::from(ttf.get_line_gap()),
                 char_map: HashMap::new(),
-                texture_id: 0,
+                texture: None,
                 atlas: Vec::new(),
                 atlas_size: 0,
             };
@@ -935,16 +934,6 @@ impl Font {
     #[inline]
     pub fn get_descender(&self) -> f32 {
         self.descender
-    }
-
-    #[inline]
-    pub fn set_texture_id(&mut self, id: u32) {
-        self.texture_id = id;
-    }
-
-    #[inline]
-    pub fn get_texture_id(&self) -> u32 {
-        self.texture_id
     }
 
     #[inline]

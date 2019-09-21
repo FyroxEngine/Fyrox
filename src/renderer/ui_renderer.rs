@@ -1,21 +1,25 @@
 use std::ffi::CString;
+
+use rg3d_core::math::mat4::Mat4;
 use crate::{
     renderer::{
         gpu_program::{GpuProgram, UniformLocation},
         gl,
-        gl::types::GLuint,
         error::RendererError,
-        geometry_buffer::GeometryBuffer,
+        geometry_buffer::{
+            GeometryBuffer,
+            AttributeDefinition,
+            AttributeKind,
+            GeometryBufferKind
+        },
+        gpu_texture::{GpuTexture, GpuTextureKind, PixelKind}
     },
     gui::{
         draw::{DrawingContext, CommandKind},
         self,
     },
+    gui::draw::CommandTexture
 };
-
-use rg3d_core::math::mat4::Mat4;
-use crate::renderer::geometry_buffer::{AttributeDefinition, AttributeKind, GeometryBufferKind};
-
 
 struct UIShader {
     program: GpuProgram,
@@ -108,7 +112,7 @@ impl UIRenderer {
                                       frame_width: f32,
                                       frame_height: f32,
                                       drawing_context: &DrawingContext,
-                                      white_dummy: GLuint) -> Result<(), RendererError> {
+                                      white_dummy: &GpuTexture) -> Result<(), RendererError> {
         unsafe {
             // Render UI on top of everything
             gl::Disable(gl::DEPTH_TEST);
@@ -119,12 +123,11 @@ impl UIRenderer {
             self.shader.bind();
             gl::ActiveTexture(gl::TEXTURE0);
 
-            // Upload to GPU.
             self.geometry_buffer.set_triangles(drawing_context.get_triangles());
             self.geometry_buffer.set_vertices(drawing_context.get_vertices());
 
-            let ortho = Mat4::ortho(0.0, frame_width, frame_height, 0.0,
-                                    -1.0, 1.0);
+            let ortho = Mat4::ortho(0.0, frame_width, frame_height,
+                                    0.0, -1.0, 1.0);
             self.shader.set_wvp_matrix(&ortho);
 
             for cmd in drawing_context.get_commands() {
@@ -142,7 +145,7 @@ impl UIRenderer {
                         gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
                         // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
                         gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting() - 1), 0xFF);
-                        gl::BindTexture(gl::TEXTURE_2D, white_dummy);
+                        // gl::BindTexture(gl::TEXTURE_2D, white_dummy);
                         // Draw clipping geometry to stencil buffer
                         gl::StencilMask(0xFF);
                         gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
@@ -151,12 +154,28 @@ impl UIRenderer {
                         // Make sure to draw geometry only on clipping geometry with current nesting level
                         gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting()), 0xFF);
 
-                        if cmd.get_texture() != 0 {
-                            gl::ActiveTexture(gl::TEXTURE0);
-                            self.shader.set_diffuse_texture_sampler_id(0);
-                            gl::BindTexture(gl::TEXTURE_2D, cmd.get_texture());
-                        } else {
-                            gl::BindTexture(gl::TEXTURE_2D, white_dummy);
+                        self.shader.set_diffuse_texture_sampler_id(0);
+                        match cmd.get_texture() {
+                            CommandTexture::None => white_dummy.bind(0),
+                            CommandTexture::Font(font) => {
+                                let mut font = font.borrow_mut();
+                                if font.texture.is_none() {
+                                    font.texture = Some(GpuTexture::new(
+                                        GpuTextureKind::Rectangle {
+                                            width: font.get_atlas_size() as usize,
+                                            height: font.get_atlas_size() as usize
+                                        }, PixelKind::R8, font.get_atlas_pixels(),
+                                        false).unwrap()
+                                    );
+                                }
+                                font.texture.as_ref().unwrap().bind(0)
+                            },
+                            CommandTexture::Texture(texture) => {
+                                let texture = texture.lock().unwrap();
+                                if let Some(texture) = &texture.gpu_tex {
+                                    texture.bind(0)
+                                }
+                            }
                         }
 
                         gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
