@@ -18,7 +18,7 @@ impl Plane {
     /// Creates plane from a point and normal vector at that point.
     /// May fail if normal is degenerated vector.
     #[inline]
-    pub fn from_normal_and_point(normal: Vec3, point: Vec3) -> Option<Plane> {
+    pub fn from_normal_and_point(normal: &Vec3, point: &Vec3) -> Option<Plane> {
         if let Some(normalized_normal) = normal.normalized() {
             return Some(Plane {
                 normal: normalized_normal,
@@ -29,12 +29,12 @@ impl Plane {
     }
 
     #[inline]
-    pub fn dot(&self, point: Vec3) -> f32 {
+    pub fn dot(&self, point: &Vec3) -> f32 {
         self.normal.dot(&point) + self.d
     }
 
     #[inline]
-    pub fn distance(&self, point: Vec3) -> f32 {
+    pub fn distance(&self, point: &Vec3) -> f32 {
         self.dot(point).abs()
     }
 }
@@ -43,7 +43,7 @@ impl Plane {
 fn plane_sanity_tests() {
     // Computation test
     let plane = Plane::from_normal_and_point(
-        Vec3::make(0.0, 10.0, 0.0), Vec3::make(0.0, 3.0, 0.0));
+        &Vec3::make(0.0, 10.0, 0.0), &Vec3::make(0.0, 3.0, 0.0));
     assert!(plane.is_some());
     let plane = plane.unwrap();
     assert_eq!(plane.normal.x, 0.0);
@@ -53,6 +53,6 @@ fn plane_sanity_tests() {
 
     // Degenerated normal case
     let plane = Plane::from_normal_and_point(
-        Vec3::make(0.0, 0.0, 0.0), Vec3::make(0.0, 0.0, 0.0));
+        &Vec3::make(0.0, 0.0, 0.0), &Vec3::make(0.0, 0.0, 0.0));
     assert!(plane.is_none());
 }

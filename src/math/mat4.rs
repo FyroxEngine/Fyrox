@@ -2,7 +2,7 @@ use std::ops;
 use crate::{
     math::{
         vec3::*,
-        quat::*
+        quat::*,
     }
 };
 
@@ -48,22 +48,11 @@ impl Mat4 {
     pub fn ortho(left: f32, right: f32, bottom: f32, top: f32, z_near: f32, z_far: f32) -> Self {
         Self {
             f: [
-                2.0 / (right - left),
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                2.0 / (top - bottom),
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                1.0 / (z_far - z_near),
-                0.0,
-                (left + right) / (left - right),
-                (top + bottom) / (bottom - top),
-                z_near / (z_near - z_far),
-                1.0]
+                2.0 / (right - left), 0.0, 0.0, 0.0,
+                0.0, 2.0 / (top - bottom), 0.0, 0.0,
+                0.0, 0.0, 1.0 / (z_far - z_near), 0.0,
+                (left + right) / (left - right), (top + bottom) / (bottom - top),
+                z_near / (z_near - z_far), 1.0]
         }
     }
 
@@ -73,22 +62,10 @@ impl Mat4 {
 
         Self {
             f: [
-                x_scale,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                y_scale,
-                0.0,
-                0.0,
-                0.0,
-                0.0,
-                z_far / (z_near - z_far),
-                -1.0,
-                0.0,
-                0.0,
-                z_near * z_far / (z_near - z_far),
-                0.0
+                x_scale, 0.0, 0.0, 0.0,
+                0.0, y_scale, 0.0, 0.0,
+                0.0, 0.0, z_far / (z_near - z_far), -1.0,
+                0.0, 0.0, z_near * z_far / (z_near - z_far), 0.0
             ]
         }
     }
@@ -152,25 +129,10 @@ impl Mat4 {
 
         Some(Self {
             f: [
-                xaxis.x,
-                yaxis.x,
-                zaxis.x,
-                0.0,
-
-                xaxis.y,
-                yaxis.y,
-                zaxis.y,
-                0.0,
-
-                xaxis.z,
-                yaxis.z,
-                zaxis.z,
-                0.0,
-
-                -xaxis.dot(&eye),
-                -yaxis.dot(&eye),
-                -zaxis.dot(&eye),
-                1.0,
+                xaxis.x, yaxis.x, zaxis.x, 0.0,
+                xaxis.y, yaxis.y, zaxis.y, 0.0,
+                xaxis.z, yaxis.z, zaxis.z, 0.0,
+                -xaxis.dot(&eye), -yaxis.dot(&eye), -zaxis.dot(&eye), 1.0,
             ]
         })
     }
@@ -216,7 +178,7 @@ impl Mat4 {
         Vec3 {
             x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8] + self.f[12],
             y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9] + self.f[13],
-            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10] + self.f[14]
+            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10] + self.f[14],
         }
     }
 
@@ -224,7 +186,7 @@ impl Mat4 {
         Vec3 {
             x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8],
             y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9],
-            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10]
+            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10],
         }
     }
 
@@ -241,6 +203,11 @@ impl Mat4 {
     /// Returns "look" vector from basis. (points into screen)
     pub fn look(&self) -> Vec3 {
         Vec3::make(self.f[8], self.f[9], self.f[10])
+    }
+
+    /// Returns translation part of matrix.
+    pub fn position(&self) -> Vec3 {
+        Vec3::make(self.f[12], self.f[13], self.f[14])
     }
 }
 

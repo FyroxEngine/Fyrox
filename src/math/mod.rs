@@ -185,3 +185,74 @@ pub fn wrapf(mut n: f32, mut min_limit: f32, mut max_limit: f32) -> f32 {
 pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
+
+pub fn get_farthest_point(points: &[Vec3], dir: Vec3) -> Vec3
+{
+    let mut n_farthest = 0;
+    let mut max_dot = -std::f32::MAX;
+    for (i, point) in points.iter().enumerate() {
+        let dot = dir.dot(point);
+        if dot > max_dot {
+            n_farthest = i;
+            max_dot = dot
+        }
+    }
+    points[n_farthest]
+}
+
+pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f32, f32)
+{
+    let v0 = *b - *a;
+    let v1 = *c - *a;
+    let v2 = *p - *a;
+
+    let d00 = v0.dot(&v0);
+    let d01 = v0.dot(&v1);
+    let d11 = v1.dot(&v1);
+    let d20 = v2.dot(&v0);
+    let d21 = v2.dot(&v1);
+    let denom = d00 * d11 - d01 * d01;
+
+    let v = (d11 * d20 - d01 * d21) / denom;
+    let w = (d00 * d21 - d01 * d20) / denom;
+    let u = 1.0 - v - w;
+
+    (u, v, w)
+}
+
+pub fn is_point_inside_triangle(p: &Vec3, vertices: &[Vec3; 3]) -> bool {
+    let ba = vertices[1] - vertices[0];
+    let ca = vertices[2] - vertices[0];
+    let vp = *p - vertices[0];
+
+    let ba_dot_ba = ba.dot(&ba);
+    let ca_dot_ba = ca.dot(&ba);
+    let ca_dot_ca = ca.dot(&ca);
+
+    let dot02 = ca.dot(&vp);
+    let dot12 = ba.dot(&vp);
+
+    let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba);
+
+    // Calculate barycentric coordinates
+    let u = (ba_dot_ba * dot02 - ca_dot_ba * dot12) * inv_denom;
+    let v = (ca_dot_ca * dot12 - ca_dot_ba * dot02) * inv_denom;
+
+    (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
+}
+
+pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
+    let discriminant = b * b - 4.0 * a * c;
+    if discriminant < 0.0 {
+        // No real roots
+        None
+    } else {
+        // Dont care if quadratic equation has only one root (discriminant == 0), this is edge-case
+        // which requires additional branching instructions which is not good for branch-predictor in CPU.
+        let _2a = 2.0 * a;
+        let discr_root = discriminant.sqrt();
+        let r1 = (-b + discr_root) / _2a;
+        let r2 = (-b - discr_root) / _2a;
+        Some([r1, r2])
+    }
+}

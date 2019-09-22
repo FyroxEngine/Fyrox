@@ -153,6 +153,11 @@ impl Vec3 {
     pub fn sqr_distance(&self, other: &Self) -> f32 {
         (*self - *other).sqr_len()
     }
+
+    #[inline]
+    pub fn is_same_direction_as(&self, other: &Self) -> bool {
+        self.dot(other) > 0.0
+    }
 }
 
 impl ops::Add<Self> for Vec3 {
@@ -209,3 +214,14 @@ impl ops::SubAssign<Self> for Vec3 {
     }
 }
 
+impl ops::Neg for Vec3 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z
+        }
+    }
+}
