@@ -4,6 +4,7 @@ pub mod mesh;
 pub mod camera;
 pub mod light;
 pub mod particle_system;
+pub mod transform;
 
 use crate::{
     utils::UnsafeCollectionView,
@@ -82,7 +83,7 @@ impl Scene {
         let handle = self.nodes.spawn(node);
         self.link_nodes(handle, self.root);
         if let Some(node) = self.nodes.borrow(handle) {
-            if let NodeKind::Camera(_) = node.borrow_kind() {
+            if let NodeKind::Camera(_) = node.get_kind() {
                 self.active_camera = handle;
             }
         }
@@ -241,7 +242,7 @@ impl Scene {
         // Iterate over instantiated nodes and remap bones handles.
         for (_, new_node_handle) in old_new_mapping.iter() {
             if let Some(node) = dest_scene.get_node_mut(*new_node_handle) {
-                if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+                if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
                     for surface in mesh.get_surfaces_mut() {
                         for bone_handle in surface.bones.iter_mut() {
                             if let Some(entry) = old_new_mapping.get(bone_handle) {
@@ -291,7 +292,7 @@ impl Scene {
         // Sync node positions with assigned physics bodies
         for node in self.nodes.iter_mut() {
             if let Some(body) = self.physics.borrow_body(node.get_body()) {
-                node.set_local_position(body.get_position());
+                node.get_local_transform_mut().set_position(body.get_position());
             }
         }
     }
@@ -304,7 +305,6 @@ impl Scene {
             // Calculate local transform and get parent handle
             let mut parent_handle: Handle<Node> = Handle::none();
             if let Some(node) = self.nodes.borrow_mut(handle) {
-                node.calculate_local_transform();
                 parent_handle = node.parent;
             }
 
@@ -317,7 +317,7 @@ impl Scene {
             }
 
             if let Some(node) = self.nodes.borrow_mut(handle) {
-                node.global_transform = parent_global_transform * node.local_transform;
+                node.global_transform = parent_global_transform * node.local_transform.get_matrix();
                 node.global_visibility = parent_visibility && node.visibility;
 
                 // Queue children and continue traversal on them
@@ -333,9 +333,10 @@ impl Scene {
         for animation in self.animations.iter() {
             for track in animation.get_tracks() {
                 if let Some(node) = self.nodes.borrow_mut(track.get_node()) {
-                    node.set_local_position(Default::default());
-                    node.set_local_rotation(Default::default());
-                    node.set_local_scale(Vec3::make(1.0, 1.0, 1.0));
+                    let transform = node.get_local_transform_mut();
+                    transform.set_position(Default::default());
+                    transform.set_rotation(Default::default());
+                    transform.set_scale(Vec3::make(1.0, 1.0, 1.0));
                 }
             }
         }
@@ -347,9 +348,10 @@ impl Scene {
             for track in animation.get_tracks() {
                 if let Some(keyframe) = track.get_key_frame(animation.get_time_position()) {
                     if let Some(node) = self.nodes.borrow_mut(track.get_node()) {
-                        node.set_local_position(node.get_local_position() + keyframe.position);
-                        node.set_local_rotation(node.get_local_rotation() * keyframe.rotation);
-                        node.set_local_scale(node.get_local_scale() * keyframe.scale);
+                        let transform = node.get_local_transform_mut();
+                        transform.set_position(transform.get_position() + keyframe.position);
+                        transform.set_rotation(transform.get_rotation() * keyframe.rotation);
+                        transform.set_scale(transform.get_scale() * keyframe.scale);
                     }
                 }
             }
@@ -378,7 +380,7 @@ impl Scene {
             let look = node.get_look_vector();
             let up = node.get_up_vector();
 
-            match node.borrow_kind_mut() {
+            match node.get_kind_mut() {
                 NodeKind::Camera(camera) => camera.calculate_matrices(eye, look, up, aspect_ratio),
                 NodeKind::ParticleSystem(particle_system) => particle_system.update(dt, &eye, &camera_position),
                 _ => ()

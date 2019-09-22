@@ -2,19 +2,27 @@ use rg3d_core::{
     math::{
         vec3::Vec3,
         ray::Ray,
-        plane::Plane
+        plane::Plane,
     },
     pool::{
         Pool,
-        Handle
+        Handle,
     },
     visitor::{
         Visit,
         VisitResult,
         Visitor,
-        VisitError
-    }
+        VisitError,
+    },
 };
+use crate::physics::{
+    gjk_epa::{gjk_is_intersects, epa_get_penetration_info},
+    shape::{ConvexShape, TriangleShape},
+};
+use std::cmp::Ordering;
+
+pub mod gjk_epa;
+pub mod shape;
 
 pub struct Contact {
     pub body: Handle<Body>,
@@ -104,7 +112,7 @@ impl Default for StaticTriangle {
             ba_dot_ba: 0.0,
             edges: Default::default(),
             inv_denom: 0.0,
-            plane: Default::default()
+            plane: Default::default(),
         }
     }
 }
@@ -122,7 +130,7 @@ impl Visit for StaticTriangle {
         let mut c = self.points[2];
         c.visit("C", visitor)?;
 
-        *self = match Self::from_points(a, b, c) {
+        *self = match Self::from_points(&a, &b, &c) {
             None => return Err(VisitError::User(String::from("invalid triangle"))),
             Some(triangle) => triangle,
         };
@@ -137,20 +145,20 @@ impl StaticTriangle {
     /// to speedup collision detection in runtime. This function may fail
     /// if degenerated triangle was passed into.
     ///
-    pub fn from_points(a: Vec3, b: Vec3, c: Vec3) -> Option<StaticTriangle> {
-        let ca = c - a;
-        let ba = b - a;
+    pub fn from_points(a: &Vec3, b: &Vec3, c: &Vec3) -> Option<StaticTriangle> {
+        let ca = *c - *a;
+        let ba = *b - *a;
         let ca_dot_ca = ca.dot(&ca);
         let ca_dot_ba = ca.dot(&ba);
         let ba_dot_ba = ba.dot(&ba);
-        if let Some(plane) = Plane::from_normal_and_point(ba.cross(&ca), a) {
+        if let Some(plane) = Plane::from_normal_and_point(&ba.cross(&ca), a) {
             let ab_ray = Ray::from_two_points(a, b)?;
             let bc_ray = Ray::from_two_points(b, c)?;
             let ca_ray = Ray::from_two_points(c, a)?;
             return Some(StaticTriangle {
-                points: [a, b, c],
+                points: [*a, *b, *c],
                 ba,
-                ca: c - a,
+                ca: *c - *a,
                 edges: [ab_ray, bc_ray, ca_ray],
                 ca_dot_ca,
                 ca_dot_ba,
@@ -176,19 +184,18 @@ impl StaticTriangle {
 
 pub struct Body {
     position: Vec3,
+    shape: ConvexShape,
     last_position: Vec3,
     acceleration: Vec3,
     contacts: Vec<Contact>,
     friction: f32,
     gravity: Vec3,
-    radius: f32,
-    sqr_radius: f32,
     speed_limit: f32,
 }
 
 impl Default for Body {
     fn default() -> Self {
-        Self::new()
+        Self::new(ConvexShape::Dummy)
     }
 }
 
@@ -196,16 +203,19 @@ impl Visit for Body {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        let mut id = self.shape.id();
+        id.visit("ShapeKind", visitor)?;
+        if visitor.is_reading() {
+            self.shape = ConvexShape::new(id)?;
+        }
+        self.shape.visit("Shape", visitor)?;
+
         self.position.visit("Position", visitor)?;
         self.last_position.visit("LastPosition", visitor)?;
         self.acceleration.visit("Acceleration", visitor)?;
         self.contacts.visit("Contacts", visitor)?;
         self.friction.visit("Friction", visitor)?;
         self.gravity.visit("Gravity", visitor)?;
-        self.radius.visit("Radius", visitor)?;
-        if visitor.is_reading() {
-            self.sqr_radius = self.radius * self.radius;
-        }
         self.speed_limit.visit("SpeedLimit", visitor)?;
 
         visitor.leave_region()
@@ -213,15 +223,14 @@ impl Visit for Body {
 }
 
 impl Body {
-    pub fn new() -> Body {
+    pub fn new(shape: ConvexShape) -> Body {
         Body {
             position: Vec3::zero(),
             last_position: Vec3::zero(),
             acceleration: Vec3::zero(),
             friction: 0.2,
             gravity: Vec3::make(0.0, -9.81, 0.0),
-            radius: 1.0,
-            sqr_radius: 1.0,
+            shape,
             contacts: Vec::new(),
             speed_limit: 0.75,
         }
@@ -236,9 +245,8 @@ impl Body {
             contacts: Vec::new(),
             friction: self.friction,
             gravity: self.gravity,
-            radius: self.radius,
-            sqr_radius: self.sqr_radius,
-            speed_limit: self.speed_limit
+            shape: self.shape.clone(),
+            speed_limit: self.speed_limit,
         }
     }
 
@@ -259,9 +267,18 @@ impl Body {
     }
 
     #[inline]
-    pub fn set_radius(&mut self, r: f32) {
-        self.radius = r;
-        self.sqr_radius = r * r;
+    pub fn set_shape(&mut self, shape: ConvexShape) {
+        self.shape = shape;
+    }
+
+    #[inline]
+    pub fn get_shape(&self) -> &ConvexShape {
+        &self.shape
+    }
+
+    #[inline]
+    pub fn get_shape_mut(&mut self) -> &mut ConvexShape {
+        &mut self.shape
     }
 
     #[inline]
@@ -278,11 +295,6 @@ impl Body {
     #[inline]
     pub fn get_friction(&self) -> f32 {
         self.friction
-    }
-
-    #[inline]
-    pub fn get_radius(&self) -> f32 {
-        self.radius
     }
 
     #[inline]
@@ -338,51 +350,55 @@ impl Body {
         }
     }
 
-    /// Checks if body intersects with a triangle.
-    /// Returns intersection point if there was intersection.
-    pub fn insersect_triangle(&self, triangle: &StaticTriangle) -> Option<Vec3> {
-        let distance = triangle.plane.distance(self.position);
-        if distance <= self.radius {
-            let intersection_point = self.position - triangle.plane.normal.scale(distance);
-            if triangle.contains_point(intersection_point) {
-                return Some(intersection_point);
-            } else {
-                // Check intersection with each edge.
-                for edge in &triangle.edges {
-                    if edge.is_intersect_sphere(self.position, self.radius) {
-                        let t = edge.project_point(self.position);
-                        if t >= 0.0 && t <= 1.0 {
-                            return Some(edge.get_point(t));
-                        }
-                    }
-                }
-
-                // Finally check if body contains any vertex of a triangle.
-                for point in &triangle.points {
-                    if (*point - self.position).sqr_len() <= self.sqr_radius {
-                        return Some(*point);
-                    }
-                }
-            }
-        }
-        None
-    }
-
     pub fn solve_triangle_collision(&mut self, triangle: &StaticTriangle, triangle_index: usize) {
-        if let Some(intersection_point) = self.insersect_triangle(triangle) {
-            let (direction, length) = (self.position - intersection_point).normalized_ex();
-            if let Some(push_vector) = direction {
-                self.position += push_vector.scale(self.radius - length);
+        let triangle_shape = ConvexShape::Triangle(TriangleShape {
+            vertices: triangle.points
+        });
+
+        if let Some(simplex) = gjk_is_intersects(&self.shape, self.position, &triangle_shape, Vec3::zero()) {
+            if let Some(penetration_info) = epa_get_penetration_info(simplex, &self.shape, self.position, &triangle_shape, Vec3::zero()) {
+                self.position -= penetration_info.penetration_vector;
 
                 self.contacts.push(Contact {
                     body: Handle::none(),
-                    position: intersection_point,
-                    normal: push_vector,
+                    position: penetration_info.contact_point,
+                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
                     triangle_index: triangle_index as u32,
                 })
             }
         }
     }
+}
+
+pub enum HitKind {
+    Body(Handle<Body>),
+    StaticTriangle {
+        static_geometry: Handle<StaticGeometry>,
+        triangle_index: usize
+    }
+}
+
+pub struct RayCastOptions {
+    pub ignore_bodies: bool,
+    pub ignore_static_geometries: bool,
+    pub sort_results: bool,
+}
+
+impl Default for RayCastOptions {
+    fn default() -> Self {
+        Self {
+            ignore_bodies: false,
+            ignore_static_geometries: false,
+            sort_results: true
+        }
+    }
+}
+
+pub struct RayCastResult {
+    pub kind: HitKind,
+    pub position: Vec3,
+    pub normal: Vec3,
+    pub sqr_distance: f32,
 }
 
 pub struct Physics {
@@ -455,5 +471,120 @@ impl Physics {
                 }
             }
         }
+    }
+
+    pub fn ray_cast(&self, ray: &Ray, options: RayCastOptions, result: &mut Vec<RayCastResult>) -> bool {
+        result.clear();
+
+        /* Check bodies */
+        if !options.ignore_bodies {
+            for body_index in 0..self.bodies.get_capacity() {
+                let body = if let Some(body) = self.bodies.at(body_index) {
+                    body
+                } else {
+                    continue;
+                };
+
+                let body_handle = self.bodies.handle_from_index(body_index);
+
+                match &body.shape {
+                    ConvexShape::Dummy => {},
+                    ConvexShape::Box(box_shape) => {
+                        if let Some(points) = ray.box_intersection_points(&box_shape.get_min(), &box_shape.get_max()) {
+                            for point in points.iter() {
+                                result.push(RayCastResult {
+                                    kind: HitKind::Body(body_handle),
+                                    position: *point,
+                                    normal: *point - body.position, // TODO: Fix normal
+                                    sqr_distance: point.sqr_distance(&ray.origin)
+                                })
+                            }
+                        }
+                    },
+                    ConvexShape::Sphere(sphere_shape) => {
+                        if let Some(points) = ray.sphere_intersection_points(&body.position, sphere_shape.radius) {
+                            for point in points.iter() {
+                                result.push(RayCastResult {
+                                    kind: HitKind::Body(body_handle),
+                                    position: *point,
+                                    normal: *point - body.position,
+                                    sqr_distance: point.sqr_distance(&ray.origin)
+                                })
+                            }
+                        }
+                    },
+                    ConvexShape::Capsule(capsule_shape) => {
+                        let (pa, pb) = capsule_shape.get_cap_centers();
+                        let pa = pa + body.position;
+                        let pb = pb + body.position;
+
+                        if let Some(points) = ray.capsule_intersection(&pa, &pb, capsule_shape.get_radius()) {
+                            for point in points.iter() {
+                                result.push(RayCastResult {
+                                    kind: HitKind::Body(body_handle),
+                                    position: *point,
+                                    normal: *point - body.position,
+                                    sqr_distance: point.sqr_distance(&ray.origin)
+                                })
+                            }
+                        }
+                    },
+                    ConvexShape::Triangle(triangle_shape) => {
+                        if let Some(point) = ray.triangle_intersection(&triangle_shape.vertices) {
+                            result.push(RayCastResult {
+                                kind: HitKind::Body(body_handle),
+                                position: point,
+                                normal: triangle_shape.get_normal().unwrap(),
+                                sqr_distance: point.sqr_distance(&ray.origin)
+                            })
+                        }
+                    },
+                    ConvexShape::PointCloud(_point_cloud) => {
+                        // TODO: Implement this. This requires to build convex hull from point cloud first
+                        // i.e. by gift wrapping algorithm or some other more efficient algorithms -
+                        // https://dccg.upc.edu/people/vera/wp-content/uploads/2014/11/GA2014-ConvexHulls3D-Roger-Hernando.pdf
+                    },
+                }
+            }
+        }
+
+        /* Check static geometries */
+        if !options.ignore_static_geometries {
+            for index in 0..self.static_geoms.get_capacity() {
+                let geom = if let Some(geom) = self.static_geoms.at(index) {
+                    geom
+                } else {
+                    continue;
+                };
+
+                for (triangle_index, triangle) in geom.triangles.iter().enumerate() {
+                    if let Some(point) = ray.triangle_intersection(&triangle.points) {
+                        result.push(RayCastResult {
+                            kind: HitKind::StaticTriangle {
+                                static_geometry: self.static_geoms.handle_from_index(index),
+                                triangle_index
+                            },
+                            position: point,
+                            normal: triangle.plane.normal,
+                            sqr_distance: point.sqr_distance(&ray.origin)
+                        })
+                    }
+                }
+            }
+        }
+
+        if options.sort_results {
+            result.sort_by(|a, b| {
+                if a.sqr_distance > b.sqr_distance {
+                    Ordering::Greater
+                } else if a.sqr_distance < b.sqr_distance {
+                    Ordering::Less
+                } else {
+                    Ordering::Equal
+                }
+            })
+        }
+
+        !result.is_empty()
     }
 }

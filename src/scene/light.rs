@@ -11,13 +11,8 @@ pub struct Light {
 }
 
 impl Default for Light {
-    fn default() -> Light {
-        Light {
-            radius: 10.0,
-            color: Color::white(),
-            cone_angle: std::f32::consts::PI,
-            cone_angle_cos: -1.0,
-        }
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -35,6 +30,15 @@ impl Visit for Light {
 }
 
 impl Light {
+    pub fn new() -> Self {
+        Self {
+            radius: 10.0,
+            color: Color::white(),
+            cone_angle: std::f32::consts::PI,
+            cone_angle_cos: -1.0,
+        }
+    }
+
     #[inline]
     pub fn set_radius(&mut self, radius: f32) {
         self.radius = radius;

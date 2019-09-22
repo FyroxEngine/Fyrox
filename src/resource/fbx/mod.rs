@@ -1139,18 +1139,21 @@ impl Fbx {
 
         node.set_name(model.name.clone());
         let node_local_rotation = quat_from_euler(model.rotation);
-        node.set_local_rotation(node_local_rotation);
-        node.set_local_scale(model.scale);
-        node.set_local_position(model.translation);
-        node.set_post_rotation(quat_from_euler(model.post_rotation));
-        node.set_pre_rotation(quat_from_euler(model.pre_rotation));
-        node.set_rotation_offset(model.rotation_offset);
-        node.set_rotation_pivot(model.rotation_pivot);
-        node.set_scaling_offset(model.scaling_offset);
-        node.set_scaling_pivot(model.scaling_pivot);
+        {
+            let transform = node.get_local_transform_mut();
+            transform.set_rotation(node_local_rotation);
+            transform.set_scale(model.scale);
+            transform.set_position(model.translation);
+            transform.set_post_rotation(quat_from_euler(model.post_rotation));
+            transform.set_pre_rotation(quat_from_euler(model.pre_rotation));
+            transform.set_rotation_offset(model.rotation_offset);
+            transform.set_rotation_pivot(model.rotation_pivot);
+            transform.set_scaling_offset(model.scaling_offset);
+            transform.set_scaling_pivot(model.scaling_pivot);
+        }
         node.set_inv_bind_pose_transform(model.inv_bind_transform);
 
-        match node.borrow_kind_mut() {
+        match node.get_kind_mut() {
             NodeKind::Light(light) => {
                 let fbx_light_component = self.component_pool.borrow(model.light).unwrap();
                 if let FbxComponent::Light(fbx_light) = fbx_light_component {
@@ -1283,7 +1286,7 @@ impl Fbx {
         // on each surface of each mesh.
         for handle in instantiated_nodes.iter() {
             let node = scene.get_node_mut(*handle).ok_or(FbxError::InvalidPoolHandle)?;
-            if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+            if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
                 let mut surface_bones = HashSet::new();
                 for surface in mesh.get_surfaces_mut() {
                     for weight_set in surface.vertex_weights.iter_mut() {

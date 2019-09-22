@@ -6,23 +6,22 @@ use crate::{
         mesh::Mesh,
         light::Light,
         particle_system::ParticleSystem,
+        transform::Transform,
     },
+    resource::model::Model,
 };
-
 use rg3d_core::{
     math::{
         vec3::Vec3,
         mat4::Mat4,
-        quat::Quat,
     },
     visitor::{
         Visit,
         VisitResult,
         Visitor,
     },
-    pool::Handle
+    pool::Handle,
 };
-use crate::resource::model::Model;
 
 pub enum NodeKind {
     Base,
@@ -44,26 +43,56 @@ impl Visit for NodeKind {
     }
 }
 
+impl Clone for NodeKind {
+    fn clone(&self) -> Self {
+        match &self {
+            NodeKind::Base => NodeKind::Base,
+            NodeKind::Camera(camera) => NodeKind::Camera(camera.clone()),
+            NodeKind::Light(light) => NodeKind::Light(light.clone()),
+            NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.clone()),
+            NodeKind::ParticleSystem(particle_system) => NodeKind::ParticleSystem(particle_system.clone())
+        }
+    }
+}
+
+impl NodeKind {
+    /// Creates new NodeKind based on variant id.
+    pub fn new(id: u8) -> Result<Self, String> {
+        match id {
+            0 => Ok(NodeKind::Base),
+            1 => Ok(NodeKind::Light(Default::default())),
+            2 => Ok(NodeKind::Camera(Default::default())),
+            3 => Ok(NodeKind::Mesh(Default::default())),
+            4 => Ok(NodeKind::ParticleSystem(Default::default())),
+            _ => Err(format!("Invalid node kind {}", id))
+        }
+    }
+
+    /// Returns actual variant id.
+    pub fn id(&self) -> u8 {
+        match self {
+            NodeKind::Base => 0,
+            NodeKind::Light(_) => 1,
+            NodeKind::Camera(_) => 2,
+            NodeKind::Mesh(_) => 3,
+            NodeKind::ParticleSystem(_) => 4,
+        }
+    }
+}
+
 pub struct Node {
     name: String,
     kind: NodeKind,
-    local_scale: Vec3,
-    local_position: Vec3,
-    local_rotation: Quat,
-    pre_rotation: Quat,
-    post_rotation: Quat,
-    rotation_offset: Vec3,
-    rotation_pivot: Vec3,
-    scaling_offset: Vec3,
-    scaling_pivot: Vec3,
+    pub(in crate::scene) local_transform: Transform,
     pub(in crate::scene) visibility: bool,
     pub(in crate::scene) global_visibility: bool,
     pub(in crate::scene) parent: Handle<Node>,
     pub(in crate::scene) children: Vec<Handle<Node>>,
-    pub(in crate::scene) local_transform: Mat4,
     pub(in crate::scene) global_transform: Mat4,
     inv_bind_pose_transform: Mat4,
     body: Handle<Body>,
+    /// A resource from which this node was instantiated from, can work in pair
+    /// with `original` handle to get corresponding node from resource.
     resource: Option<Arc<Mutex<Model>>>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
@@ -77,18 +106,9 @@ impl Default for Node {
             name: String::new(),
             children: Vec::new(),
             parent: Handle::none(),
-            local_position: Vec3::new(),
-            local_scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
-            local_rotation: Quat::new(),
-            pre_rotation: Quat::new(),
-            post_rotation: Quat::new(),
-            rotation_offset: Vec3::new(),
-            rotation_pivot: Vec3::new(),
-            scaling_offset: Vec3::new(),
-            scaling_pivot: Vec3::new(),
             visibility: true,
             global_visibility: true,
-            local_transform: Mat4::identity(),
+            local_transform: Transform::identity(),
             global_transform: Mat4::identity(),
             inv_bind_pose_transform: Mat4::identity(),
             body: Handle::none(),
@@ -105,18 +125,9 @@ impl Node {
             name: String::from("Node"),
             children: Vec::new(),
             parent: Handle::none(),
-            local_position: Vec3::new(),
-            local_scale: Vec3 { x: 1.0, y: 1.0, z: 1.0 },
-            local_rotation: Quat::new(),
-            pre_rotation: Quat::new(),
-            post_rotation: Quat::new(),
-            rotation_offset: Vec3::new(),
-            rotation_pivot: Vec3::new(),
-            scaling_offset: Vec3::new(),
-            scaling_pivot: Vec3::new(),
             visibility: true,
             global_visibility: true,
-            local_transform: Mat4::identity(),
+            local_transform: Transform::identity(),
             global_transform: Mat4::identity(),
             inv_bind_pose_transform: Mat4::identity(),
             body: Handle::none(),
@@ -125,46 +136,13 @@ impl Node {
         }
     }
 
-    pub fn calculate_local_transform(&mut self) {
-        let pre_rotation = Mat4::from_quat(self.pre_rotation);
-        let post_rotation = Mat4::from_quat(self.post_rotation).inverse().unwrap();
-        let rotation = Mat4::from_quat(self.local_rotation);
-        let scale = Mat4::scale(self.local_scale);
-        let translation = Mat4::translate(self.local_position);
-        let rotation_offset = Mat4::translate(self.rotation_offset);
-        let rotation_pivot = Mat4::translate(self.rotation_pivot);
-        let rotation_pivot_inv = rotation_pivot.inverse().unwrap();
-        let scale_offset = Mat4::translate(self.scaling_offset);
-        let scale_pivot = Mat4::translate(self.scaling_pivot);
-        let scale_pivot_inv = scale_pivot.inverse().unwrap();
-
-        self.local_transform = translation * rotation_offset * rotation_pivot *
-            pre_rotation * rotation * post_rotation * rotation_pivot_inv *
-            scale_offset * scale_pivot * scale * scale_pivot_inv;
-    }
-
     /// Creates copy of node without copying children nodes and physics body.
     /// Children nodes has to be copied explicitly.
-    pub fn make_copy(&self, original: Handle<Node>) -> Node {
-        Node {
-            kind: match &self.kind {
-                NodeKind::Camera(camera) => NodeKind::Camera(camera.clone()),
-                NodeKind::Light(light) => NodeKind::Light(light.clone()),
-                NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.clone()),
-                NodeKind::Base => NodeKind::Base,
-                NodeKind::ParticleSystem(particle_system) => NodeKind::ParticleSystem(particle_system.clone())
-            },
+    pub fn make_copy(&self, original: Handle<Node>) -> Self {
+        Self {
+            kind: self.kind.clone(),
             name: self.name.clone(),
-            local_position: self.local_position,
-            local_scale: self.local_scale,
-            local_rotation: self.local_rotation,
-            pre_rotation: self.pre_rotation,
-            post_rotation: self.post_rotation,
-            rotation_offset: self.rotation_offset,
-            rotation_pivot: self.rotation_pivot,
-            scaling_offset: self.scaling_offset,
-            scaling_pivot: self.scaling_pivot,
-            local_transform: self.local_transform,
+            local_transform: self.local_transform.clone(),
             global_transform: self.global_transform,
             visibility: self.visibility,
             global_visibility: self.global_visibility,
@@ -172,10 +150,7 @@ impl Node {
             children: Vec::new(),
             parent: Handle::none(),
             body: Handle::none(),
-            resource: match &self.resource {
-                Some(resource) => Some(Arc::clone(resource)),
-                None => None
-            },
+            resource: self.get_resource(),
             original,
         }
     }
@@ -201,7 +176,7 @@ impl Node {
     }
 
     #[inline]
-    pub fn borrow_kind(&self) -> &NodeKind {
+    pub fn get_kind(&self) -> &NodeKind {
         &self.kind
     }
 
@@ -212,70 +187,22 @@ impl Node {
 
     #[inline]
     pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
-        match &self.resource {
-            Some(resource) => Some(Arc::clone(resource)),
-            None => None
-        }
+        self.resource.as_ref().and_then(|r| Some(r.clone()))
     }
 
     #[inline]
-    pub fn get_local_position(&self) -> Vec3 {
-        self.local_position
+    pub fn get_local_transform(&self) -> &Transform {
+        &self.local_transform
     }
 
     #[inline]
-    pub fn get_local_rotation(&self) -> Quat {
-        self.local_rotation
+    pub fn get_local_transform_mut(&mut self) -> &mut Transform {
+        &mut self.local_transform
     }
 
     #[inline]
-    pub fn get_local_scale(&self) -> Vec3 {
-        self.local_scale
-    }
-
-    #[inline]
-    pub fn borrow_kind_mut(&mut self) -> &mut NodeKind {
+    pub fn get_kind_mut(&mut self) -> &mut NodeKind {
         &mut self.kind
-    }
-
-    #[inline]
-    pub fn set_local_position(&mut self, pos: Vec3) {
-        self.local_position = pos;
-    }
-
-    #[inline]
-    pub fn set_local_rotation(&mut self, rot: Quat) {
-        self.local_rotation = rot;
-    }
-
-    #[inline]
-    pub fn set_pre_rotation(&mut self, pre_rotation: Quat) {
-        self.pre_rotation = pre_rotation;
-    }
-
-    #[inline]
-    pub fn set_post_rotation(&mut self, post_rotation: Quat) {
-        self.post_rotation = post_rotation;
-    }
-
-    #[inline]
-    pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) {
-        self.rotation_offset = rotation_offset;
-    }
-
-    #[inline]
-    pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) {
-        self.rotation_pivot = rotation_pivot;
-    }
-
-    #[inline]
-    pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) {
-        self.scaling_offset = scaling_offset;
-    }
-
-    #[inline]
-    pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) {
-        self.scaling_pivot = scaling_pivot;
     }
 
     #[inline]
@@ -304,18 +231,8 @@ impl Node {
     }
 
     #[inline]
-    pub fn set_local_scale(&mut self, scl: Vec3) {
-        self.local_scale = scl;
-    }
-
-    #[inline]
     pub fn get_parent(&self) -> Handle<Node> {
         self.parent
-    }
-
-    #[inline]
-    pub fn offset(&mut self, vec: Vec3) {
-        self.local_position += vec;
     }
 
     #[inline]
@@ -338,59 +255,22 @@ impl Node {
 
     #[inline]
     pub fn get_global_position(&self) -> Vec3 {
-        Vec3 {
-            x: self.global_transform.f[12],
-            y: self.global_transform.f[13],
-            z: self.global_transform.f[14],
-        }
+        self.global_transform.position()
     }
 
     #[inline]
     pub fn get_look_vector(&self) -> Vec3 {
-        Vec3 {
-            x: self.global_transform.f[8],
-            y: self.global_transform.f[9],
-            z: self.global_transform.f[10],
-        }
+        self.global_transform.look()
     }
 
     #[inline]
     pub fn get_side_vector(&self) -> Vec3 {
-        Vec3 {
-            x: self.global_transform.f[0],
-            y: self.global_transform.f[1],
-            z: self.global_transform.f[2],
-        }
+        self.global_transform.side()
     }
 
     #[inline]
     pub fn get_up_vector(&self) -> Vec3 {
-        Vec3 {
-            x: self.global_transform.f[4],
-            y: self.global_transform.f[5],
-            z: self.global_transform.f[6],
-        }
-    }
-
-    pub fn get_kind_id(&self) -> u8 {
-        match &self.kind {
-            NodeKind::Base => 0,
-            NodeKind::Light(_) => 1,
-            NodeKind::Camera(_) => 2,
-            NodeKind::Mesh(_) => 3,
-            NodeKind::ParticleSystem(_) => 4,
-        }
-    }
-}
-
-fn default_kind_by_id(id: u8) -> Result<NodeKind, String> {
-    match id {
-        0 => Ok(NodeKind::Base),
-        1 => Ok(NodeKind::Light(Default::default())),
-        2 => Ok(NodeKind::Camera(Default::default())),
-        3 => Ok(NodeKind::Mesh(Default::default())),
-        4 => Ok(NodeKind::ParticleSystem(Default::default())),
-        _ => Err(format!("invalid node kind {}", id))
+        self.global_transform.up()
     }
 }
 
@@ -398,23 +278,15 @@ impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut kind_id: u8 = self.get_kind_id();
+        let mut kind_id: u8 = self.kind.id();
         kind_id.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            self.kind = default_kind_by_id(kind_id)?;
+            self.kind = NodeKind::new(kind_id)?;
         }
 
         self.kind.visit("Kind", visitor)?;
         self.name.visit("Name", visitor)?;
-        self.local_scale.visit("LocalScale", visitor)?;
-        self.local_position.visit("LocalPosition", visitor)?;
-        self.local_rotation.visit("LocalRotation", visitor)?;
-        self.pre_rotation.visit("PreRotation", visitor)?;
-        self.post_rotation.visit("PostRotation", visitor)?;
-        self.rotation_offset.visit("RotationOffset", visitor)?;
-        self.rotation_pivot.visit("RotationPivot", visitor)?;
-        self.scaling_offset.visit("ScalingOffset", visitor)?;
-        self.scaling_pivot.visit("ScalingPivot", visitor)?;
+        self.local_transform.visit("Transform", visitor)?;
         self.visibility.visit("Visibility", visitor)?;
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;

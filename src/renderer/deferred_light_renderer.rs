@@ -4,7 +4,7 @@ use crate::{
         camera::Camera,
         node::NodeKind,
         Scene,
-        node::Node
+        node::Node,
     },
     renderer::{
         surface::SurfaceSharedData,
@@ -12,14 +12,14 @@ use crate::{
         gl,
         gbuffer::GBuffer,
         FlatShader,
-        error::RendererError
-    }
+        error::RendererError,
+    },
 };
 use rg3d_core::{
     color::Color,
     math::{
         vec3::Vec3,
-        mat4::Mat4
+        mat4::Mat4,
     },
 };
 
@@ -422,8 +422,12 @@ impl DeferredLightRenderer {
             let inv_view_projection = view_projection.inverse().unwrap();
 
             for light_node in scene.get_nodes().iter() {
+                if !light_node.get_global_visibility() {
+                    continue;
+                }
+
                 let light =
-                    if let NodeKind::Light(light) = light_node.borrow_kind() {
+                    if let NodeKind::Light(light) = light_node.get_kind() {
                         light
                     } else {
                         continue;

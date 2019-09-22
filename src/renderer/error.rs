@@ -7,6 +7,8 @@ pub enum RendererError {
         shader_name: String,
         error_message: String,
     },
+
+    /// Means that shader link state failed, exact reason is inside `error_message`
     ShaderLinkingFailed {
         shader_name: String,
         error_message: String,
@@ -16,14 +18,17 @@ pub enum RendererError {
     InternalError(String),
     ContextError(String),
     InvalidTextureData,
+
+    /// Means that you tried to draw triangle range from GeometryBuffer that
+    /// does not have enough triangles.
     InvalidTriangleRange {
         start: usize,
         end: usize,
         total: usize,
     },
 
-    /// Means that attrubute descriptor tries to define an attribute that does not exists in vertex,
-    /// or it does not match size. For example you have vertex:
+    /// Means that attribute descriptor tries to define an attribute that does
+    /// not exists in vertex, or it does not match size. For example you have vertex:
     ///   pos: float2,
     ///   normal: float3
     /// But you described second attribute as Float4, then you'll get this error.

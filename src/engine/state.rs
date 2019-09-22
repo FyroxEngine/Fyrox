@@ -237,10 +237,10 @@ impl State {
                 if let Some(node) = scene.get_nodes_mut().at_mut(i) {
                     let node_name = String::from(node.get_name());
                     if let Some(model) = node.get_resource() {
-                        if let NodeKind::Mesh(mesh) = node.borrow_kind_mut() {
+                        if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
                             let resource_node_handle = model.lock().unwrap().find_node_by_name(node_name.as_str());
                             if let Some(resource_node) = model.lock().unwrap().get_scene().get_node(resource_node_handle) {
-                                if let NodeKind::Mesh(resource_mesh) = resource_node.borrow_kind() {
+                                if let NodeKind::Mesh(resource_mesh) = resource_node.get_kind() {
                                     // Copy surfaces from resource and assign to meshes.
                                     let surfaces = mesh.get_surfaces_mut();
                                     surfaces.clear();

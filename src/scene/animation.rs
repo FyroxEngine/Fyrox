@@ -1,5 +1,7 @@
-use crate::scene::node::Node;
-
+use crate::{
+    scene::node::Node,
+    resource::model::Model
+};
 use rg3d_core::{
     math::{
         vec3::Vec3,
@@ -16,7 +18,6 @@ use rg3d_core::{
     pool::Handle
 };
 use std::sync::{Mutex, Arc};
-use crate::resource::model::Model;
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {

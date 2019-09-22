@@ -190,7 +190,7 @@ impl ParticleSystemRenderer {
                 };
 
                 let camera =
-                    if let NodeKind::Camera(camera) = camera_node.borrow_kind() {
+                    if let NodeKind::Camera(camera) = camera_node.get_kind() {
                         camera
                     } else {
                         continue;
@@ -202,7 +202,7 @@ impl ParticleSystemRenderer {
                 let camera_side = inv_view.side();
 
                 for node in scene.get_nodes().iter() {
-                    let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.borrow_kind() {
+                    let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.get_kind() {
                         particle_system
                     } else {
                         continue;

@@ -328,7 +328,7 @@ impl GBuffer {
         let view_projection = camera.get_view_projection_matrix();
 
         for node in scene.get_nodes().iter() {
-            if let NodeKind::Mesh(mesh) = node.borrow_kind() {
+            if let NodeKind::Mesh(mesh) = node.get_kind() {
                 if !node.get_global_visibility() {
                     continue;
                 }

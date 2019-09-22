@@ -6,8 +6,8 @@ use std::{
         Mutex,
         LockResult,
         MutexGuard,
-        Arc
-    }
+        Arc,
+    },
 };
 use rand::Rng;
 
@@ -17,7 +17,6 @@ use rg3d_core::{
         vec2::Vec2,
     },
     visitor::{
-        VisitError,
         Visit,
         Visitor,
         VisitResult,
@@ -28,7 +27,7 @@ use rg3d_core::{
 };
 use crate::{
     resource::texture::Texture,
-    renderer::TriangleDefinition
+    renderer::TriangleDefinition,
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -247,7 +246,7 @@ impl Clone for SphereEmitter {
     }
 }
 
-pub type CustomEmitterFactoryCallback = dyn Fn(u8) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
+pub type CustomEmitterFactoryCallback = dyn Fn(i32) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
 
 pub struct CustomEmitterFactory {
     callback: Option<Box<CustomEmitterFactoryCallback>>
@@ -270,7 +269,7 @@ impl CustomEmitterFactory {
         self.callback = Some(call_back);
     }
 
-    fn spawn(&self, kind: u8) -> Result<Box<dyn CustomEmitter>, String> {
+    fn spawn(&self, kind: i32) -> Result<Box<dyn CustomEmitter>, String> {
         match &self.callback {
             Some(callback) => callback(kind),
             None => Err(String::from("no callback specified")),
@@ -283,8 +282,12 @@ lazy_static! {
 }
 
 pub trait CustomEmitter: Any + Emit + Visit + Send {
+    /// Creates boxed copy of custom emitter.
     fn box_clone(&self) -> Box<dyn CustomEmitter>;
-    fn get_kind(&self) -> u8;
+
+    /// Returns unique of custom emitter. Must never be negative!
+    /// Negative numbers reserved for built-in kinds.
+    fn get_kind(&self) -> i32;
 }
 
 pub enum EmitterKind {
@@ -294,6 +297,37 @@ pub enum EmitterKind {
     Box(BoxEmitter),
     Sphere(SphereEmitter),
     Custom(Box<dyn CustomEmitter>),
+}
+
+impl EmitterKind {
+    pub fn new(id: i32) -> Result<Self, String> {
+        match id {
+            -1 => Ok(EmitterKind::Unknown),
+            -2 => Ok(EmitterKind::Box(Default::default())),
+            -3 => Ok(EmitterKind::Sphere(Default::default())),
+            _ => match CustomEmitterFactory::get() {
+                Ok(factory) => Ok(EmitterKind::Custom(factory.spawn(id)?)),
+                Err(_) => Err(String::from("Failed get custom emitter factory!")),
+            }
+        }
+    }
+
+    pub fn id(&self) -> i32 {
+        match self {
+            EmitterKind::Unknown => -1,
+            EmitterKind::Box(_) => -2,
+            EmitterKind::Sphere(_) => -3,
+            EmitterKind::Custom(custom_emitter) => {
+                let id = custom_emitter.get_kind();
+
+                if id < 0 {
+                    panic!("Negative number for emitter kind are reserved for built-in types!")
+                }
+
+                id
+            }
+        }
+    }
 }
 
 impl Emit for EmitterKind {
@@ -320,38 +354,12 @@ impl Clone for EmitterKind {
 
 impl Visit for EmitterKind {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut kind: u8 = match self {
-            EmitterKind::Unknown => 0,
-            EmitterKind::Box(_) => 1,
-            EmitterKind::Sphere(_) => 2,
-            EmitterKind::Custom(custom_emitter) => custom_emitter.get_kind(),
-        };
-        kind.visit("Id", visitor)?;
-
-        if visitor.is_reading() {
-            *self = match kind {
-                0 => EmitterKind::Unknown,
-                1 => EmitterKind::Box(Default::default()),
-                2 => EmitterKind::Sphere(Default::default()),
-                _ => {
-                    match CustomEmitterFactory::get() {
-                        Ok(guard) => EmitterKind::Custom(guard.spawn(kind)?),
-                        Err(_) => return Err(VisitError::from(String::from("failed get get factory"))),
-                    }
-                }
-            }
-        }
-
         match self {
-            EmitterKind::Unknown => (),
-            EmitterKind::Box(box_emitter) => box_emitter.visit("Data", visitor)?,
-            EmitterKind::Sphere(sphere_emitter) => sphere_emitter.visit("Data", visitor)?,
-            EmitterKind::Custom(custom_emitter) => custom_emitter.visit("Data", visitor)?,
+            EmitterKind::Unknown => panic!(""),
+            EmitterKind::Box(box_emitter) => box_emitter.visit(name, visitor),
+            EmitterKind::Sphere(sphere_emitter) => sphere_emitter.visit(name, visitor),
+            EmitterKind::Custom(custom_emitter) => custom_emitter.visit(name, visitor),
         }
-
-        visitor.leave_region()
     }
 }
 
@@ -498,6 +506,12 @@ impl Emitter {
 impl Visit for Emitter {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
+
+        let mut kind_id: i32 = self.kind.id();
+        kind_id.visit("KindId", visitor)?;
+        if visitor.is_reading() {
+            self.kind = EmitterKind::new(kind_id)?;
+        }
 
         self.kind.visit("Kind", visitor)?;
         self.position.visit("Position", visitor)?;
@@ -710,15 +724,15 @@ impl ParticleSystem {
 
             let base_index = (i * 4) as u32;
 
-            draw_data.triangles.push(TriangleDefinition{
+            draw_data.triangles.push(TriangleDefinition {
                 a: base_index,
                 b: base_index + 1,
-                c: base_index + 2
+                c: base_index + 2,
             });
-            draw_data.triangles.push(TriangleDefinition{
+            draw_data.triangles.push(TriangleDefinition {
                 a: base_index,
                 b: base_index + 2,
-                c: base_index + 3
+                c: base_index + 3,
             });
         }
     }
