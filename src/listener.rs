@@ -24,7 +24,7 @@ impl Listener {
     }
 
     pub fn set_orientation(&mut self, look: &Vec3, up: &Vec3) -> Result<(), SoundError>{
-        self.ear_axis = look.cross(up).normalized().ok_or(SoundError::MathError("|v| == 0.0".to_string()))?;
+        self.ear_axis = up.cross(look).normalized().ok_or(SoundError::MathError("|v| == 0.0".to_string()))?;
         self.look_axis = look.normalized().ok_or(SoundError::MathError("|v| == 0.0".to_string()))?;
         self.up_axis = up.normalized().ok_or(SoundError::MathError("|v| == 0.0".to_string()))?;
         Ok(())

@@ -118,7 +118,7 @@ impl Visit for Buffer {
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 pub enum BufferKind {
-    /// Buffer that contains all data the data.
+    /// Buffer that contains all the data.
     Normal,
 
     /// Buffer that will be filled by small portions of data only when it is needed.

@@ -141,6 +141,7 @@ pub struct Source {
     /// playback speed by 0.5.
     resampling_multiplier: f64,
     status: Status,
+    play_once: bool,
 }
 
 impl Default for Source {
@@ -158,6 +159,7 @@ impl Default for Source {
             right_gain: 1.0,
             resampling_multiplier: 1.0,
             status: Status::Stopped,
+            play_once: false,
         }
     }
 }
@@ -192,6 +194,7 @@ impl Source {
             left_gain: 1.0,
             right_gain: 1.0,
             status: Status::Stopped,
+            play_once: false,
         })
     }
 
@@ -201,6 +204,14 @@ impl Source {
         } else {
             None
         }
+    }
+
+    pub fn set_play_once(&mut self, play_once: bool) {
+        self.play_once = play_once;
+    }
+
+    pub fn is_play_once(&self) -> bool {
+        self.play_once
     }
 
     pub fn set_gain(&mut self, gain: f32) {
@@ -362,6 +373,7 @@ impl Visit for Source {
         self.right_gain.visit("RightGain", visitor)?;
         self.resampling_multiplier.visit("ResamplingMultiplier", visitor)?;
         self.status.visit("Status", visitor)?;
+        self.play_once.visit("PlayOnce", visitor)?;
 
         visitor.leave_region()
     }

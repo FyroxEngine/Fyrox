@@ -10,6 +10,7 @@ use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visit, VisitResult, Visitor}
 };
+use crate::source::Status;
 
 pub struct Context {
     sources: Pool<Source>,
@@ -90,6 +91,13 @@ impl Context {
     pub fn update(&mut self) -> Result<(), SoundError> {
         for source in self.sources.iter_mut() {
             source.update(&self.listener)?;
+        }
+        for i in 0..self.sources.get_capacity() {
+            if let Some(source) = self.sources.at(i) {
+                if source.is_play_once() && source.get_status() == Status::Stopped {
+                    self.sources.free(self.sources.handle_from_index(i));
+                }
+            }
         }
         Ok(())
     }
