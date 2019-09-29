@@ -1,0 +1,12 @@
+[package]
+name = "rg3d-physics"
+version = "0.1.0"
+authors = ["Dmitry <d1maxa@yandex.ru>"]
+edition = "2018"
+license = "MIT"
+description = "Physics library for rg3d-engine."
+keywords = ["physics", "game"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+
+[dependencies]
+rg3d-core={path="../rg3d-core"}
