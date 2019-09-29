@@ -100,7 +100,35 @@ impl Quat {
             }
         }
         // Fallback
-        *self
+        *other
+    }
+
+    pub fn normalized(&self) -> Self {
+        let len = self.len();
+        if len >= std::f32::EPSILON {
+            let inv_len = 1.0 / len;
+            Self {
+                x: self.x * inv_len,
+                y: self.y * inv_len,
+                z: self.z * inv_len,
+                w: self.w * inv_len,
+            }
+        } else {
+            *self
+        }
+    }
+
+    pub fn nlerp(&self, other: &Self, t: f32) -> Self {
+        (self.scale(1.0 - t) + other.scale(t)).normalized()
+    }
+
+    pub fn scale(&self, factor: f32) -> Self {
+        Self {
+            x: self.x * factor,
+            y: self.y * factor,
+            z: self.z * factor,
+            w: self.w * factor,
+        }
     }
 }
 
@@ -112,6 +140,20 @@ impl ops::Mul<Self> for Quat {
             y: self.w * b.y + self.y * b.w + self.z * b.x - self.x * b.z,
             z: self.w * b.z + self.z * b.w + self.x * b.y - self.y * b.x,
             w: self.w * b.w - self.x * b.x - self.y * b.y - self.z * b.z,
+        }
+    }
+}
+
+
+impl ops::Add<Self> for Quat {
+    type Output = Self;
+    #[inline]
+    fn add(self, b: Self) -> Self {
+        Self {
+            x: self.x + b.x,
+            y: self.y + b.y,
+            z: self.z + b.z,
+            w: self.w + b.w,
         }
     }
 }
