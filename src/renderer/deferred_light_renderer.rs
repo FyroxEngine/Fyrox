@@ -436,7 +436,7 @@ impl DeferredLightRenderer {
                 let light_position = light_node.get_global_position();
                 let light_r_inflate = light.get_radius() * 1.05;
                 let light_radius_vec = Vec3::make(light_r_inflate, light_r_inflate, light_r_inflate);
-                let light_emit_direction = light_node.get_up_vector().normalized().unwrap();
+                let light_emit_direction = light_node.get_up_vector().normalized().unwrap_or(Vec3::up());
 
                 // Mark lighted areas in stencil buffer to do light calculations only on them.
                 self.flat_shader.bind();

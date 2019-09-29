@@ -45,13 +45,13 @@ impl GpuProgram {
                 buffer.set_len(log_len as usize);
                 gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
                 let compilation_message = String::from_utf8_unchecked(buffer);
-                println!("Failed to compile shader: {}", compilation_message);
+                println!("Failed to compile {} shader: {}", name, compilation_message);
                 Err(RendererError::ShaderCompilationFailed {
                     shader_name: name,
                     error_message: compilation_message,
                 })
             } else {
-                println!("Shader compiled!");
+                println!("Shader {} compiled!", name);
                 Ok(shader)
             }
         }

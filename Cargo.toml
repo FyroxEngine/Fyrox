@@ -18,6 +18,7 @@ opt-level = 3
 [dependencies]
 rg3d-core={path="../rg3d-core"}
 rg3d-sound={path="../rg3d-sound"}
+rg3d-physics={path="../rg3d-physics"}
 glutin = "0.21.0"
 image = "0.22.1"
 lexical = "3.0.0"

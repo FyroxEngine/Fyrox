@@ -1,6 +1,5 @@
 use std::sync::{Arc, Mutex};
 use crate::{
-    physics::Body,
     scene::{
         camera::Camera,
         mesh::Mesh,
@@ -22,6 +21,7 @@ use rg3d_core::{
     },
     pool::Handle,
 };
+use rg3d_physics::Body;
 
 pub enum NodeKind {
     Base,
@@ -89,6 +89,7 @@ pub struct Node {
     pub(in crate::scene) parent: Handle<Node>,
     pub(in crate::scene) children: Vec<Handle<Node>>,
     pub(in crate::scene) global_transform: Mat4,
+    /// Bone-specific matrix. Non-serializable.
     inv_bind_pose_transform: Mat4,
     body: Handle<Body>,
     /// A resource from which this node was instantiated from, can work in pair
@@ -97,6 +98,10 @@ pub struct Node {
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
     original: Handle<Node>,
+    /// When `true` it means that this node is instance of `resource`.
+    /// More precisely - this node is root of whole descendant nodes
+    /// hierarchy which was instantiated from resource.
+    pub(in crate) is_resource_instance: bool,
 }
 
 impl Default for Node {
@@ -114,6 +119,7 @@ impl Default for Node {
             body: Handle::none(),
             resource: None,
             original: Handle::none(),
+            is_resource_instance: false,
         }
     }
 }
@@ -133,6 +139,7 @@ impl Node {
             body: Handle::none(),
             resource: None,
             original: Handle::none(),
+            is_resource_instance: false,
         }
     }
 
@@ -151,6 +158,7 @@ impl Node {
             parent: Handle::none(),
             body: Handle::none(),
             resource: self.get_resource(),
+            is_resource_instance: self.is_resource_instance,
             original,
         }
     }
@@ -187,7 +195,7 @@ impl Node {
 
     #[inline]
     pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
-        self.resource.as_ref().and_then(|r| Some(r.clone()))
+        self.resource.clone()
     }
 
     #[inline]
@@ -292,9 +300,7 @@ impl Visit for Node {
         self.children.visit("Children", visitor)?;
         self.body.visit("Body", visitor)?;
         self.resource.visit("Resource", visitor)?;
-
-        // TODO: Is this needed?
-        self.inv_bind_pose_transform.visit("InvBindPoseTransform", visitor)?;
+        self.is_resource_instance.visit("IsResourceInstance", visitor)?;
 
         visitor.leave_region()
     }

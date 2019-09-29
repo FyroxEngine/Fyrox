@@ -178,7 +178,7 @@ impl FbxAnimationCurve {
         }
 
         // Do linear search for span
-        for i in 0..self.keys.len() {
+        for i in 0..(self.keys.len() - 1) {
             let cur = &self.keys[i];
             if cur.time >= time {
                 let next = &self.keys[i + 1];
@@ -193,10 +193,8 @@ impl FbxAnimationCurve {
             }
         }
 
-        // Must be unreached
-        println!("FBX: How the hell did you get here?!");
-
-        0.0
+        // Edge-case when we are at the end of curve.
+        self.keys.last().unwrap().value
     }
 }
 
@@ -475,8 +473,8 @@ impl FbxGeometry {
                         value: *weight,
                         effector: sub_deformer.model.into(),
                     }) {
-                        // TODO: Maybe it is better to ignore excessive bones?
-                        return Err(FbxError::IndexOutOfBounds);
+                        // TODO: Maybe gather all weights, but then renormalize them to 4-bones?
+                        println!("FBX: More than 4 bones per vertex?! Excess will be discarded");
                     }
                 }
             }
@@ -1126,7 +1124,13 @@ impl Fbx {
         Ok(())
     }
 
-    fn convert_model(&self, model: &FbxModel, state: &mut State, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
+    fn convert_model(&self,
+                     model:
+                     &FbxModel,
+                     state: &mut State,
+                     scene: &mut Scene,
+                     animation_handle: Handle<Animation>)
+                     -> Result<Handle<Node>, FbxError> {
         // Create node with correct kind.
         let mut node =
             if !model.geoms.is_empty() {
@@ -1139,18 +1143,16 @@ impl Fbx {
 
         node.set_name(model.name.clone());
         let node_local_rotation = quat_from_euler(model.rotation);
-        {
-            let transform = node.get_local_transform_mut();
-            transform.set_rotation(node_local_rotation);
-            transform.set_scale(model.scale);
-            transform.set_position(model.translation);
-            transform.set_post_rotation(quat_from_euler(model.post_rotation));
-            transform.set_pre_rotation(quat_from_euler(model.pre_rotation));
-            transform.set_rotation_offset(model.rotation_offset);
-            transform.set_rotation_pivot(model.rotation_pivot);
-            transform.set_scaling_offset(model.scaling_offset);
-            transform.set_scaling_pivot(model.scaling_pivot);
-        }
+        let transform = node.get_local_transform_mut();
+        transform.set_rotation(node_local_rotation);
+        transform.set_scale(model.scale);
+        transform.set_position(model.translation);
+        transform.set_post_rotation(quat_from_euler(model.post_rotation));
+        transform.set_pre_rotation(quat_from_euler(model.pre_rotation));
+        transform.set_rotation_offset(model.rotation_offset);
+        transform.set_rotation_pivot(model.rotation_pivot);
+        transform.set_scaling_offset(model.scaling_offset);
+        transform.set_scaling_pivot(model.scaling_pivot);
         node.set_inv_bind_pose_transform(model.inv_bind_transform);
 
         match node.get_kind_mut() {
@@ -1243,7 +1245,6 @@ impl Fbx {
                 time = next_time;
             }
 
-            let animation_handle = scene.get_animations().handle_from_index(0);
             if let Some(animation) = scene.get_animation_mut(animation_handle) {
                 animation.add_track(track);
             }
@@ -1258,12 +1259,12 @@ impl Fbx {
     pub fn convert(&self, state: &mut State, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         let mut instantiated_nodes = Vec::new();
         let root = scene.add_node(Node::new(NodeKind::Base));
-        scene.add_animation(Animation::default());
+        let animation_handle = scene.add_animation(Animation::default());
         let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {
             if let Some(component) = self.component_pool.borrow(*component_handle) {
                 if let FbxComponent::Model(model) = component {
-                    let node = self.convert_model(model, state, scene)?;
+                    let node = self.convert_model(model, state, scene, animation_handle)?;
                     instantiated_nodes.push(node);
                     scene.link_nodes(node, root);
                     fbx_model_to_node_map.insert(*component_handle, node);
@@ -1349,37 +1350,34 @@ impl Fbx {
 pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
-    match File::open(path) {
-        Ok(mut file) => {
-            println!("FBX: Trying to load {:?}", path);
+    let mut file = File::open(path)?;
 
-            let now = Instant::now();
-            let is_bin = fbx_binary::is_binary(path)?;
+    println!("FBX: Trying to load {:?}", path);
 
-            let buf_len = file.metadata()?.len() as usize;
-            let mut file_content = Vec::with_capacity(buf_len);
-            file.read_to_end(&mut file_content)?;
-            let mut reader = Cursor::new(file_content);
+    let now = Instant::now();
+    let is_bin = fbx_binary::is_binary(path)?;
 
-            let mut fbx = if is_bin {
-                fbx_binary::read_binary(&mut reader)?
-            } else {
-                fbx_ascii::read_ascii(&mut reader, buf_len as u64)?
-            };
-            println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
+    let buf_len = file.metadata()?.len() as usize;
+    let mut file_content = Vec::with_capacity(buf_len);
+    file.read_to_end(&mut file_content)?;
+    let mut reader = Cursor::new(file_content);
 
-            let now = Instant::now();
-            fbx.prepare()?;
-            println!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis());
+    let mut fbx = if is_bin {
+        fbx_binary::read_binary(&mut reader)?
+    } else {
+        fbx_ascii::read_ascii(&mut reader, buf_len as u64)?
+    };
+    println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
 
-            let now = Instant::now();
-            let result = fbx.convert(state, scene);
-            println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
+    let now = Instant::now();
+    fbx.prepare()?;
+    println!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis());
 
-            println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+    let now = Instant::now();
+    let result = fbx.convert(state, scene);
+    println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
 
-            result
-        }
-        Err(e) => Err(FbxError::from(e))
-    }
+    println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+
+    result
 }

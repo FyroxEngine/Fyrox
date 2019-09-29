@@ -13,7 +13,6 @@ use crate::{
 
 use std::{
     collections::VecDeque,
-    time::Duration,
     path::Path,
     sync::{Arc, Mutex},
 };
@@ -114,7 +113,7 @@ impl Engine {
     }
 
     #[inline]
-    pub fn get_rendering_statisting(&self) -> &Statistics {
+    pub fn get_rendering_statisting(&self) -> Statistics {
         self.renderer.get_statistics()
     }
 
@@ -164,12 +163,4 @@ impl Visit for Engine {
 
         visitor.leave_region()
     }
-}
-
-pub fn duration_to_seconds_f64(duration: Duration) -> f64 {
-    duration.as_secs() as f64 + f64::from(duration.subsec_nanos()) / 1_000_000_000.0
-}
-
-pub fn duration_to_seconds_f32(duration: Duration) -> f32 {
-    duration_to_seconds_f64(duration) as f32
 }

@@ -1,6 +1,6 @@
 use crate::{
     scene::node::Node,
-    resource::model::Model
+    resource::model::Model,
 };
 use rg3d_core::{
     math::{
@@ -15,9 +15,10 @@ use rg3d_core::{
         VisitResult,
         Visitor,
     },
-    pool::Handle
+    pool::Handle,
 };
 use std::sync::{Mutex, Arc};
+use rg3d_core::pool::Pool;
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -63,6 +64,8 @@ impl Visit for KeyFrame {
 }
 
 pub struct Track {
+    // Frames are not serialized, because it makes no sense to store them in save file,
+    // they will be taken from resource on Resolve stage.
     frames: Vec<KeyFrame>,
     enabled: bool,
     max_time: f32,
@@ -95,7 +98,6 @@ impl Visit for Track {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.frames.visit("Frames", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
         self.max_time.visit("MaxTime", visitor)?;
         self.node.visit("Node", visitor)?;
@@ -134,6 +136,29 @@ impl Track {
 
             self.frames.insert(index, key_frame)
         }
+    }
+
+    pub fn enable(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn set_key_frames(&mut self, key_frames: &[KeyFrame]) {
+        self.frames = key_frames.to_vec();
+        self.max_time = 0.0;
+
+        for key_frame in self.frames.iter() {
+            if key_frame.time > self.max_time {
+                self.max_time = key_frame.time;
+            }
+        }
+    }
+
+    pub fn get_key_frames(&self) -> &[KeyFrame] {
+        &self.frames
     }
 
     pub fn get_key_frame(&self, mut time: f32) -> Option<KeyFrame> {
@@ -183,7 +208,7 @@ pub struct Animation {
     weight: f32,
     fade_step: f32,
     enabled: bool,
-    resource: Option<Arc<Mutex<Model>>>,
+    pub(in crate) resource: Option<Arc<Mutex<Model>>>,
 }
 
 impl Clone for Animation {
@@ -249,8 +274,32 @@ impl Animation {
         &mut self.tracks
     }
 
+    pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
+        self.resource.clone()
+    }
+
+    pub fn fade_in(&mut self, speed: f32) {
+        self.fade_step = speed.abs();
+    }
+
+    pub fn fade_out(&mut self, speed: f32) {
+        self.fade_step = -speed.abs()
+    }
+
+    pub fn get_weight(&self) -> f32 {
+        self.weight
+    }
+
+    pub fn is_fading(&self) -> bool {
+        self.fade_step != 0.0
+    }
+
+    pub fn set_weight(&mut self, weight: f32) {
+        self.weight = weight
+    }
+
     pub fn update_fading(&mut self, dt: f32) {
-        if self.fade_step != 0.0 {
+        if self.is_fading() {
             self.weight += self.fade_step * dt;
             if self.fade_step < 0.0 && self.weight <= 0.0 {
                 self.weight = 0.0;
@@ -259,6 +308,43 @@ impl Animation {
             } else if self.fade_step > 0.0 && self.weight >= 1.0 {
                 self.weight = 1.0;
                 self.fade_step = 0.0;
+            }
+        }
+    }
+
+    pub(in crate) fn resolve(&mut self, nodes: &Pool<Node>) {
+        // Copy key frames from resource for each animation. This is needed because we
+        // do not store key frames in save file, but just keep reference to resource
+        // from which key frames should be taken on load.
+        if let Some(resource) = self.resource.clone() {
+            let resource = resource.lock().unwrap();
+            // TODO: Here we assume that resource contains only *one* animation.
+            if let Some(ref_animation) = resource.get_scene().get_animations().at(0) {
+                for track in self.get_tracks_mut() {
+                    if let Some(track_node) = nodes.borrow(track.get_node()) {
+                        // Find corresponding track in resource using names of nodes, not
+                        // original handles of instantiated nodes. We can't use original
+                        // handles here because animation can be targetted to a node that
+                        // wasn't instantiated from animation resource. It can be instantiated
+                        // from some other resource. For example you have a character with
+                        // multiple animations. Character "lives" in its own file without animations
+                        // but with skin. Each animation "lives" in its own file too, then
+                        // you did animation retargetting from animation resource to your character
+                        // instantiated model, which is essentially copies key frames to new
+                        // animation targetted to character instance.
+                        let mut found = false;
+                        for ref_track in ref_animation.get_tracks().iter() {
+                            if track_node.get_name() == resource.get_scene().get_node(ref_track.get_node()).unwrap().get_name() {
+                                track.set_key_frames(ref_track.get_key_frames());
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            println!("Failed to copy key frames for node {}!", track_node.get_name());
+                        }
+                    }
+                }
             }
         }
     }
@@ -271,7 +357,7 @@ impl Default for Animation {
             speed: 1.0,
             length: 0.0,
             time_position: 0.0,
-            weight: 0.0,
+            weight: 1.0,
             enabled: true,
             fade_step: 0.0,
             looped: true,

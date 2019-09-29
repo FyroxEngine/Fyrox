@@ -13,6 +13,7 @@ pub mod scroll_content_presenter;
 pub mod scroll_viewer;
 pub mod grid;
 pub mod window;
+pub mod formatted_text;
 
 use glutin::{
     WindowEvent,

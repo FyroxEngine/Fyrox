@@ -14,7 +14,7 @@ mod flat_shader;
 pub mod gpu_texture;
 
 use crate::{
-    engine::{state::State, duration_to_seconds_f32},
+    engine::state::State,
     gui::draw::DrawingContext,
     scene::node::NodeKind,
     renderer::{
@@ -25,13 +25,10 @@ use crate::{
         deferred_light_renderer::DeferredLightRenderer,
         error::RendererError,
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
-        flat_shader::FlatShader
-    }
+        flat_shader::FlatShader,
+    },
 };
-use std::{
-    time::{Instant, Duration},
-    thread,
-};
+use std::time;
 use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api};
 use rg3d_core::math::{
     vec3::Vec3,
@@ -69,26 +66,61 @@ macro_rules! check_gl_error {
     () => (check_gl_error_internal(line!(), file!()))
 }
 
+#[derive(Copy, Clone)]
 pub struct Statistics {
-    pub frame_time: f32,
-    pub mean_fps: usize,
-    pub min_fps: usize,
-    pub current_fps: usize,
-    frame_time_accumulator: f32,
-    frame_time_measurements: usize,
-    time_last_fps_measured: f32,
+    /// Real time consumed to render frame.
+    pub pure_frame_time: f32,
+    /// Total time renderer took to process single frame, usually includes
+    /// time renderer spend to wait to buffers swap (can include vsync)
+    pub capped_frame_time: f32,
+    /// Total amount of frames been rendered in one second.
+    pub frames_per_second: usize,
+    /// Max amount of frames per second renderer could give if it was not capped.
+    pub potential_frame_per_second: usize,
+    frame_counter: usize,
+    frame_start_time: time::Instant,
+    last_fps_commit_time: time::Instant,
+}
+
+impl Statistics {
+    /// Must be called before render anything.
+    fn begin_frame(&mut self) {
+        self.frame_start_time = time::Instant::now();
+    }
+
+    /// Must be called before SwapBuffers but after all rendering is done.
+    fn end_frame(&mut self) {
+        let current_time = time::Instant::now();
+
+        self.pure_frame_time = current_time.duration_since(self.frame_start_time).as_secs_f32();
+        self.frame_counter += 1;
+        if self.pure_frame_time > 0.0 {
+            self.potential_frame_per_second = (1.0 / self.pure_frame_time) as usize;
+        }
+
+        if current_time.duration_since(self.last_fps_commit_time).as_secs_f32() >= 1.0 {
+            self.last_fps_commit_time = current_time;
+            self.frames_per_second = self.frame_counter;
+            self.frame_counter = 0;
+        }
+    }
+
+    /// Must be called after SwapBuffers to get capped frame time.
+    fn finalize(&mut self) {
+        self.capped_frame_time = time::Instant::now().duration_since(self.frame_start_time).as_secs_f32();
+    }
 }
 
 impl Default for Statistics {
     fn default() -> Self {
         Self {
-            frame_time: 0.0,
-            mean_fps: 0,
-            min_fps: 0,
-            current_fps: 0,
-            frame_time_accumulator: 0.0,
-            frame_time_measurements: 0,
-            time_last_fps_measured: 0.0,
+            pure_frame_time: 0.0,
+            capped_frame_time: 0.0,
+            frames_per_second: 0,
+            potential_frame_per_second: 0,
+            frame_counter: 0,
+            frame_start_time: time::Instant::now(),
+            last_fps_commit_time: time::Instant::now(),
         }
     }
 }
@@ -105,10 +137,10 @@ pub struct Renderer {
     /// something without texture specified.
     white_dummy: GpuTexture,
     normal_dummy: GpuTexture,
-    frame_rate_limit: usize,
     ui_renderer: UIRenderer,
     statistics: Statistics,
     quad: SurfaceSharedData,
+    last_render_time: time::Instant,
 }
 
 impl Renderer {
@@ -146,7 +178,6 @@ impl Renderer {
                 deferred_light_renderer: DeferredLightRenderer::new()?,
                 flat_shader: FlatShader::new()?,
                 gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32)?,
-                frame_rate_limit: 60,
                 statistics: Statistics::default(),
                 white_dummy: {
                     GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
@@ -161,12 +192,13 @@ impl Renderer {
                 quad: SurfaceSharedData::make_unit_xy_quad(),
                 ui_renderer: UIRenderer::new()?,
                 particle_system_renderer: ParticleSystemRenderer::new()?,
+                last_render_time: time::Instant::now(), // TODO: Is this right?
             })
         }
     }
 
-    pub fn get_statistics(&self) -> &Statistics {
-        &self.statistics
+    pub fn get_statistics(&self) -> Statistics {
+        self.statistics
     }
 
     pub fn upload_resources(&mut self, state: &mut State) {
@@ -194,7 +226,7 @@ impl Renderer {
     }
 
     pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) -> Result<(), RendererError> {
-        let frame_start_time = Instant::now();
+        self.statistics.begin_frame();
         let client_size = self.context.window().get_inner_size().unwrap();
 
         let frame_width = client_size.width as f32;
@@ -243,22 +275,13 @@ impl Renderer {
             self.ui_renderer.render(frame_width, frame_height, drawing_context, &self.white_dummy)?;
         }
 
+        self.statistics.end_frame();
+
         self.context.swap_buffers()?;
 
-        if self.frame_rate_limit > 0 {
-            let frame_time_ms = 1000.0 * duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
-            let desired_frame_time_ms = 1000.0 / self.frame_rate_limit as f32;
-            if frame_time_ms < desired_frame_time_ms {
-                let sleep_time_us = 1000.0 * (desired_frame_time_ms - frame_time_ms);
-                thread::sleep(Duration::from_micros(sleep_time_us as u64));
-            }
-        }
-
-        let total_time_s = duration_to_seconds_f32(Instant::now().duration_since(frame_start_time));
-        self.statistics.frame_time = total_time_s;
-        self.statistics.current_fps = (1.0 / total_time_s) as usize;
-
         check_gl_error!();
+
+        self.statistics.finalize();
 
         Ok(())
     }

@@ -635,18 +635,12 @@ impl Surface {
 
     #[inline]
     pub fn get_diffuse_texture(&self) -> Option<Arc<Mutex<Texture>>> {
-        match &self.diffuse_texture {
-            Some(resource) => Some(Arc::clone(resource)),
-            None => None
-        }
+        self.diffuse_texture.clone()
     }
 
     #[inline]
     pub fn get_normal_texture(&self) -> Option<Arc<Mutex<Texture>>> {
-        match &self.normal_texture {
-            Some(resource) => Some(Arc::clone(resource)),
-            None => None
-        }
+        self.normal_texture.clone()
     }
 
     #[inline]
@@ -663,14 +657,8 @@ impl Surface {
     pub fn make_copy(&self) -> Surface {
         Surface {
             data: Arc::clone(&self.data),
-            diffuse_texture: match &self.diffuse_texture {
-                Some(resource) => Some(Arc::clone(resource)),
-                None => None
-            },
-            normal_texture: match &self.normal_texture {
-                Some(resource) => Some(Arc::clone(resource)),
-                None => None
-            },
+            diffuse_texture: self.diffuse_texture.clone(),
+            normal_texture: self.normal_texture.clone(),
             // Note: Handles will be remapped on Resolve stage.
             bones: self.bones.clone(),
             vertex_weights: Vec::new(),

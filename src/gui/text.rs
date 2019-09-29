@@ -4,16 +4,13 @@ use crate::{
         VerticalAlignment,
         HorizontalAlignment,
         Drawable,
-        draw::{
-            FormattedText,
-            DrawingContext,
-            FormattedTextBuilder,
-        },
+        draw::DrawingContext,
         node::{
             UINode,
             UINodeKind,
         },
         UserInterface,
+        formatted_text::{FormattedText, FormattedTextBuilder}
     },
     resource::ttf::Font,
 };
