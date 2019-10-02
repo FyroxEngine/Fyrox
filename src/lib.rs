@@ -4,7 +4,6 @@ use rg3d_core::{
     math::{
         vec3::Vec3,
         ray::Ray,
-        plane::Plane,
     },
     pool::{
         Pool,
@@ -14,360 +13,23 @@ use rg3d_core::{
         Visit,
         VisitResult,
         Visitor,
-        VisitError,
     },
 };
-use crate::{
-    gjk_epa::{gjk_is_intersects, epa_get_penetration_info},
-    shape::{ConvexShape, TriangleShape},
-};
 use std::cmp::Ordering;
+use crate::{
+    rigid_body::RigidBody,
+    static_geometry::StaticGeometry,
+    convex_shape::ConvexShape
+};
 
 pub mod gjk_epa;
-pub mod shape;
-
-pub struct Contact {
-    pub body: Handle<Body>,
-    pub position: Vec3,
-    pub normal: Vec3,
-    pub triangle_index: u32,
-}
-
-impl Default for Contact {
-    fn default() -> Self {
-        Self {
-            body: Handle::none(),
-            position: Vec3::new(),
-            normal: Vec3::make(0.0, 1.0, 0.0),
-            triangle_index: 0,
-        }
-    }
-}
-
-impl Visit for Contact {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.body.visit("Body", visitor)?;
-        self.position.visit("Position", visitor)?;
-        self.normal.visit("Normal", visitor)?;
-        self.triangle_index.visit("TriangleIndex", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-pub struct StaticGeometry {
-    triangles: Vec<StaticTriangle>
-}
-
-impl StaticGeometry {
-    pub fn new() -> StaticGeometry {
-        StaticGeometry {
-            triangles: Vec::new()
-        }
-    }
-
-    pub fn add_triangle(&mut self, triangle: StaticTriangle) {
-        self.triangles.push(triangle);
-    }
-}
-
-impl Default for StaticGeometry {
-    fn default() -> Self {
-        Self {
-            triangles: Vec::new(),
-        }
-    }
-}
-
-impl Visit for StaticGeometry {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.triangles.visit("Triangles", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-pub struct StaticTriangle {
-    points: [Vec3; 3],
-    ca: Vec3,
-    ba: Vec3,
-    ca_dot_ca: f32,
-    ca_dot_ba: f32,
-    ba_dot_ba: f32,
-    inv_denom: f32,
-    plane: Plane,
-}
-
-impl Default for StaticTriangle {
-    fn default() -> Self {
-        Self {
-            points: Default::default(),
-            ca: Default::default(),
-            ba: Default::default(),
-            ca_dot_ca: 0.0,
-            ca_dot_ba: 0.0,
-            ba_dot_ba: 0.0,
-            inv_denom: 0.0,
-            plane: Default::default(),
-        }
-    }
-}
-
-impl Visit for StaticTriangle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut a = self.points[0];
-        a.visit("A", visitor)?;
-
-        let mut b = self.points[1];
-        b.visit("B", visitor)?;
-
-        let mut c = self.points[2];
-        c.visit("C", visitor)?;
-
-        *self = match Self::from_points(&a, &b, &c) {
-            None => return Err(VisitError::User(String::from("invalid triangle"))),
-            Some(triangle) => triangle,
-        };
-
-        visitor.leave_region()
-    }
-}
-
-impl StaticTriangle {
-    ///
-    /// Creates static triangle from tree points and precomputes some data
-    /// to speedup collision detection in runtime. This function may fail
-    /// if degenerated triangle was passed into.
-    ///
-    pub fn from_points(a: &Vec3, b: &Vec3, c: &Vec3) -> Option<StaticTriangle> {
-        let ca = *c - *a;
-        let ba = *b - *a;
-        let ca_dot_ca = ca.dot(&ca);
-        let ca_dot_ba = ca.dot(&ba);
-        let ba_dot_ba = ba.dot(&ba);
-        if let Some(plane) = Plane::from_normal_and_point(&ba.cross(&ca), a) {
-            return Some(StaticTriangle {
-                points: [*a, *b, *c],
-                ba,
-                ca: *c - *a,
-                ca_dot_ca,
-                ca_dot_ba,
-                ba_dot_ba,
-                inv_denom: 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba),
-                plane,
-            });
-        }
-
-        None
-    }
-
-    /// Checks if point lies inside or at edge of triangle. Uses a lot of precomputed data.
-    pub fn contains_point(&self, p: Vec3) -> bool {
-        let vp = p - self.points[0];
-        let dot02 = self.ca.dot(&vp);
-        let dot12 = self.ba.dot(&vp);
-        let u = (self.ba_dot_ba * dot02 - self.ca_dot_ba * dot12) * self.inv_denom;
-        let v = (self.ca_dot_ca * dot12 - self.ca_dot_ba * dot02) * self.inv_denom;
-        u >= 0.0 && v >= 0.0 && u + v < 1.0
-    }
-}
-
-pub struct Body {
-    position: Vec3,
-    shape: ConvexShape,
-    last_position: Vec3,
-    acceleration: Vec3,
-    contacts: Vec<Contact>,
-    friction: f32,
-    gravity: Vec3,
-    speed_limit: f32,
-}
-
-impl Default for Body {
-    fn default() -> Self {
-        Self::new(ConvexShape::Dummy)
-    }
-}
-
-impl Visit for Body {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = self.shape.id();
-        id.visit("ShapeKind", visitor)?;
-        if visitor.is_reading() {
-            self.shape = ConvexShape::new(id)?;
-        }
-        self.shape.visit("Shape", visitor)?;
-
-        self.position.visit("Position", visitor)?;
-        self.last_position.visit("LastPosition", visitor)?;
-        self.acceleration.visit("Acceleration", visitor)?;
-        self.contacts.visit("Contacts", visitor)?;
-        self.friction.visit("Friction", visitor)?;
-        self.gravity.visit("Gravity", visitor)?;
-        self.speed_limit.visit("SpeedLimit", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-impl Body {
-    pub fn new(shape: ConvexShape) -> Body {
-        Body {
-            position: Vec3::zero(),
-            last_position: Vec3::zero(),
-            acceleration: Vec3::zero(),
-            friction: 0.2,
-            gravity: Vec3::make(0.0, -9.81, 0.0),
-            shape,
-            contacts: Vec::new(),
-            speed_limit: 0.75,
-        }
-    }
-
-    #[inline]
-    pub fn make_copy(&self) -> Body {
-        Body {
-            position: self.position,
-            last_position: self.last_position,
-            acceleration: self.acceleration,
-            contacts: Vec::new(),
-            friction: self.friction,
-            gravity: self.gravity,
-            shape: self.shape.clone(),
-            speed_limit: self.speed_limit,
-        }
-    }
-
-    #[inline]
-    pub fn get_position(&self) -> Vec3 {
-        self.position
-    }
-
-    #[inline]
-    pub fn set_position(&mut self, p: Vec3) {
-        self.position = p;
-        self.last_position = p;
-    }
-
-    #[inline]
-    pub fn move_by(&mut self, v: Vec3) {
-        self.position += v;
-    }
-
-    #[inline]
-    pub fn set_shape(&mut self, shape: ConvexShape) {
-        self.shape = shape;
-    }
-
-    #[inline]
-    pub fn get_shape(&self) -> &ConvexShape {
-        &self.shape
-    }
-
-    #[inline]
-    pub fn get_shape_mut(&mut self) -> &mut ConvexShape {
-        &mut self.shape
-    }
-
-    #[inline]
-    pub fn set_friction(&mut self, friction: f32) {
-        self.friction = friction;
-
-        if self.friction < 0.0 {
-            self.friction = 0.0;
-        } else if self.friction > 1.0 {
-            self.friction = 1.0;
-        }
-    }
-
-    #[inline]
-    pub fn get_friction(&self) -> f32 {
-        self.friction
-    }
-
-    #[inline]
-    pub fn set_x_velocity(&mut self, x: f32) {
-        self.last_position.x = self.position.x - x;
-    }
-
-    #[inline]
-    pub fn set_y_velocity(&mut self, y: f32) {
-        self.last_position.y = self.position.y - y;
-    }
-
-    #[inline]
-    pub fn set_z_velocity(&mut self, z: f32) {
-        self.last_position.z = self.position.z - z;
-    }
-
-    #[inline]
-    pub fn get_contacts(&self) -> &[Contact] {
-        self.contacts.as_slice()
-    }
-
-    pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
-        let friction =
-            if !self.contacts.is_empty() {
-                self.friction
-            } else {
-                air_friction
-            };
-
-        let k1 = 2.0 - friction;
-        let k2 = 1.0 - friction;
-
-        let last_position = self.position;
-
-        // Verlet integration
-        self.position = Vec3 {
-            x: k1 * self.position.x - k2 * self.last_position.x + self.acceleration.x * sqr_delta_time,
-            y: k1 * self.position.y - k2 * self.last_position.y + self.acceleration.y * sqr_delta_time,
-            z: k1 * self.position.z - k2 * self.last_position.z + self.acceleration.z * sqr_delta_time,
-        };
-
-        self.last_position = last_position;
-
-        self.acceleration = Vec3::zero();
-
-        let velocity = self.last_position - self.position;
-        let sqr_speed = velocity.sqr_len();
-        if sqr_speed > self.speed_limit * self.speed_limit {
-            if let Some(direction) = velocity.normalized() {
-                self.last_position = self.position - direction.scale(self.speed_limit);
-            }
-        }
-    }
-
-    pub fn solve_triangle_collision(&mut self, triangle: &StaticTriangle, triangle_index: usize) {
-        let triangle_shape = ConvexShape::Triangle(TriangleShape {
-            vertices: triangle.points
-        });
-
-        if let Some(simplex) = gjk_is_intersects(&self.shape, self.position, &triangle_shape, Vec3::zero()) {
-            if let Some(penetration_info) = epa_get_penetration_info(simplex, &self.shape, self.position, &triangle_shape, Vec3::zero()) {
-                self.position -= penetration_info.penetration_vector;
-
-                self.contacts.push(Contact {
-                    body: Handle::none(),
-                    position: penetration_info.contact_point,
-                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
-                    triangle_index: triangle_index as u32,
-                })
-            }
-        }
-    }
-}
+pub mod convex_shape;
+pub mod rigid_body;
+pub mod contact;
+pub mod static_geometry;
 
 pub enum HitKind {
-    Body(Handle<Body>),
+    Body(Handle<RigidBody>),
     StaticTriangle {
         static_geometry: Handle<StaticGeometry>,
         triangle_index: usize
@@ -398,7 +60,7 @@ pub struct RayCastResult {
 }
 
 pub struct Physics {
-    bodies: Pool<Body>,
+    bodies: Pool<RigidBody>,
     static_geoms: Pool<StaticGeometry>,
 }
 
@@ -427,11 +89,11 @@ impl Physics {
         }
     }
 
-    pub fn add_body(&mut self, body: Body) -> Handle<Body> {
+    pub fn add_body(&mut self, body: RigidBody) -> Handle<RigidBody> {
         self.bodies.spawn(body)
     }
 
-    pub fn remove_body(&mut self, body_handle: Handle<Body>) {
+    pub fn remove_body(&mut self, body_handle: Handle<RigidBody>) {
         self.bodies.free(body_handle);
     }
 
@@ -443,11 +105,11 @@ impl Physics {
         self.static_geoms.free(static_geom);
     }
 
-    pub fn borrow_body(&self, handle: Handle<Body>) -> Option<&Body> {
+    pub fn borrow_body(&self, handle: Handle<RigidBody>) -> Option<&RigidBody> {
         self.bodies.borrow(handle)
     }
 
-    pub fn borrow_body_mut(&mut self, handle: Handle<Body>) -> Option<&mut Body> {
+    pub fn borrow_body_mut(&mut self, handle: Handle<RigidBody>) -> Option<&mut RigidBody> {
         self.bodies.borrow_mut(handle)
     }
 

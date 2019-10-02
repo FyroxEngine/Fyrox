@@ -14,7 +14,7 @@ use rg3d_core::{
     math::vec3::Vec3,
     math,
 };
-use crate::shape::ConvexShape;
+use crate::convex_shape::ConvexShape;
 
 pub const GJK_MAX_ITERATIONS: usize = 64;
 pub const EPA_TOLERANCE: f32 = 0.0001;
