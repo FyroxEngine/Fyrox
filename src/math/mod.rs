@@ -1,3 +1,6 @@
+// Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
+#![allow(clippy::many_single_char_names)]
+
 pub mod vec2;
 pub mod vec3;
 pub mod vec4;
@@ -73,6 +76,7 @@ pub enum PlaneClass {
     XZ,
 }
 
+#[allow(clippy::useless_let_if_seq)]
 pub fn classify_plane(normal: Vec3) -> PlaneClass {
     let mut longest = 0.0f32;
     let mut class = PlaneClass::XY;

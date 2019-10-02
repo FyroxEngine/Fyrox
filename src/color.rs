@@ -45,16 +45,16 @@ impl Color {
         let db = (t * (i32::from(other.b) - i32::from(self.b)) as f32) as i32;
         let da = (t * (i32::from(other.a) - i32::from(self.a)) as f32) as i32;
 
-        let r = (i32::from(self.r) + dr) as u8;
-        let g = (i32::from(self.g) + dg) as u8;
-        let b = (i32::from(self.b) + db) as u8;
-        let a = (i32::from(self.a) + da) as u8;
+        let red = (i32::from(self.r) + dr) as u8;
+        let green = (i32::from(self.g) + dg) as u8;
+        let blue = (i32::from(self.b) + db) as u8;
+        let alpha = (i32::from(self.a) + da) as u8;
 
         Self {
-            r,
-            g,
-            b,
-            a,
+            r: red,
+            g: green,
+            b: blue,
+            a: alpha,
         }
     }
 }

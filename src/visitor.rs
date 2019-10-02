@@ -425,6 +425,12 @@ pub trait Visit {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult;
 }
 
+impl Default for Visitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Visitor {
     const MAGIC: &'static str = "RG3D";
 
@@ -611,6 +617,14 @@ impl Visitor {
         visitor.current_node = visitor.root;
         Ok(visitor)
     }
+
+    fn contains_rc(&self, index: u64) -> bool {
+        self.rc_map.contains_key(&index)
+    }
+
+    fn contains_arc(&self, index: u64) -> bool {
+        self.arc_map.contains_key(&index)
+    }
 }
 
 impl<T> Visit for RefCell<T> where T: Visit + 'static {
@@ -774,7 +788,7 @@ impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
             let mut index = raw as u64;
             index.visit("Id", visitor)?;
 
-            if !visitor.rc_map.contains_key(&index) {
+            if !visitor.contains_rc(index) {
                 // Serialize inner data using raw pointer. This violates borrowing rules,
                 // but should be fine since visitor is not multithreaded (it simply cannot
                 // be multithreaded by its nature)
@@ -832,7 +846,7 @@ impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
             let mut index = raw as u64;
             index.visit("Id", visitor)?;
 
-            if !visitor.arc_map.contains_key(&index) {
+            if !visitor.contains_arc(index) {
                 // Serialize inner data using raw pointer. This violates borrowing rules,
                 // but should be fine since visitor is not multithreaded (it simply cannot
                 // be multithreaded by its nature)
@@ -880,7 +894,7 @@ impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
             let mut index = raw as u64;
             index.visit("Id", visitor)?;
 
-            if !visitor.rc_map.contains_key(&index) {
+            if !visitor.contains_rc(index) {
                 // Serialize inner data using raw pointer. This violates borrowing rules,
                 // but should be fine since visitor is not multithreaded (it simply cannot
                 // be multithreaded by its nature)

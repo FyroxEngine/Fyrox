@@ -1,3 +1,6 @@
+// Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
+#![allow(clippy::many_single_char_names)]
+
 use crate::math::{
     plane::Plane,
     vec3::Vec3,
@@ -171,7 +174,7 @@ impl Ray {
         }
     }
 
-    pub fn box_intersection_points(&self,  min: &Vec3, max: &Vec3) -> Option<[Vec3; 2]> {
+    pub fn box_intersection_points(&self, min: &Vec3, max: &Vec3) -> Option<[Vec3; 2]> {
         let mut result = IntersectionResult::default();
         if self.box_intersection(min, max, &mut result) {
             Some([self.get_point(result.min), self.get_point(result.max)])
@@ -259,10 +262,8 @@ impl Ray {
                     // points on cylinder surface are between two planes of caps.
                     for root in cylinder_roots.iter() {
                         let int_point = self.get_point(*root);
-                        if (int_point - *pa).dot(&va) >= 0.0 {
-                            if (*pb - int_point).dot(&va) >= 0.0 {
-                                result.push(*root);
-                            }
+                        if (int_point - *pa).dot(&va) >= 0.0 && (*pb - int_point).dot(&va) >= 0.0 {
+                            result.push(*root);
                         }
                     }
                 }
