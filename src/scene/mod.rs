@@ -7,7 +7,7 @@ pub mod particle_system;
 pub mod transform;
 
 use crate::{
-    utils::UnsafeCollectionView, engine::state::State,
+    utils::UnsafeCollectionView,
     scene::{animation::Animation, node::Node, node::NodeKind},
 };
 use std::{collections::HashMap};
@@ -90,17 +90,17 @@ impl Scene {
 
     /// Destroys node and its children recursively.
     #[inline]
-    pub fn remove_node(&mut self, node_handle: Handle<Node>, state: &mut State) {
+    pub fn remove_node(&mut self, node_handle: Handle<Node>) {
         let mut children = UnsafeCollectionView::empty();
 
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
-            self.physics.remove_body(node.get_body());
+            self.physics.remove_body(node.get_rigid_body());
             children = UnsafeCollectionView::from_slice(&node.children);
         }
 
         // Free children recursively
         for child_handle in children.iter() {
-            self.remove_node(child_handle.clone(), state);
+            self.remove_node(child_handle.clone());
         }
 
         self.nodes.free(node_handle);
@@ -219,6 +219,9 @@ impl Scene {
         self.find_node_by_name(self.root, name)
     }
 
+    /// Creates a full copy of node with all children. This is relatively heavy operation!
+    /// In case if any error happened it returns [`Handle::none()`]. Automatically
+    /// remaps bones for copied surfaces.
     pub fn copy_node(&self, node_handle: Handle<Node>, dest_scene: &mut Scene) -> Handle<Node> {
         let mut old_new_mapping: HashMap<Handle<Node>, Handle<Node>> = HashMap::new();
         let root_handle = self.copy_node_internal(node_handle, dest_scene, &mut old_new_mapping);
@@ -241,15 +244,12 @@ impl Scene {
         root_handle
     }
 
-    /// Creates a full copy of node with all children.
-    /// This is relatively heavy operation!
-    /// In case if some error happened it returns Handle::none
     fn copy_node_internal(&self, root_handle: Handle<Node>, dest_scene: &mut Scene, old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>) -> Handle<Node> {
         match self.get_node(root_handle) {
             Some(src_node) => {
                 let mut dest_node = src_node.make_copy(root_handle);
-                if let Some(src_body) = self.physics.borrow_body(src_node.get_body()) {
-                    dest_node.set_body(dest_scene.physics.add_body(src_body.make_copy()));
+                if let Some(src_body) = self.physics.borrow_body(src_node.get_rigid_body()) {
+                    dest_node.set_rigid_body(dest_scene.physics.add_body(src_body.make_copy()));
                 }
                 let dest_copy_handle = dest_scene.add_node(dest_node);
                 old_new_mapping.insert(root_handle, dest_copy_handle);
@@ -275,7 +275,7 @@ impl Scene {
 
         // Sync node positions with assigned physics bodies
         for node in self.nodes.iter_mut() {
-            if let Some(body) = self.physics.borrow_body(node.get_body()) {
+            if let Some(body) = self.physics.borrow_body(node.get_rigid_body()) {
                 node.get_local_transform_mut().set_position(body.get_position());
             }
         }

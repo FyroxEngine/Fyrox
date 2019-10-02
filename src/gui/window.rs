@@ -14,7 +14,6 @@ use crate::gui::{
     button::ButtonBuilder,
     scroll_content_presenter::ScrollContentPresenterBuilder,
 };
-
 use rg3d_core::{
     color::Color,
     pool::Handle,

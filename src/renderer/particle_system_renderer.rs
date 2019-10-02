@@ -13,12 +13,13 @@ use crate::{
         error::RendererError,
         gpu_texture::GpuTexture
     },
-    engine::state::State,
     scene::{
         node::NodeKind,
         particle_system,
     },
 };
+use crate::scene::Scene;
+use rg3d_core::pool::Pool;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -175,7 +176,7 @@ impl ParticleSystemRenderer {
         })
     }
 
-    pub fn render(&mut self, state: &State, white_dummy: &GpuTexture, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
+    pub fn render(&mut self, scenes: &Pool<Scene>, white_dummy: &GpuTexture, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
         unsafe {
             gl::Disable(gl::CULL_FACE);
             gl::Enable(gl::BLEND);
@@ -183,7 +184,7 @@ impl ParticleSystemRenderer {
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             self.shader.bind();
 
-            for scene in state.get_scenes().iter() {
+            for scene in scenes.iter() {
                 let camera_node = match scene.get_active_camera() {
                     Some(camera_node) => camera_node,
                     None => continue

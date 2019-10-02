@@ -31,6 +31,12 @@ pub struct BorderBuilder {
     common: CommonBuilderFields,
 }
 
+impl Default for BorderBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BorderBuilder {
     pub fn new() -> Self {
         Self {
@@ -53,7 +59,17 @@ impl BorderBuilder {
     }
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut border = Border::new();
+        let mut border = Border {
+            owner_handle: Handle::none(),
+            stroke_thickness: Thickness {
+                left: 1.0,
+                right: 1.0,
+                top: 1.0,
+                bottom: 1.0,
+            },
+            stroke_color: Color::white(),
+        };
+
         if let Some(stroke_color) = self.stroke_color {
             border.stroke_color = stroke_color;
         }
@@ -125,19 +141,6 @@ impl Layout for Border {
 }
 
 impl Border {
-    pub fn new() -> Border {
-        Border {
-            owner_handle: Handle::none(),
-            stroke_thickness: Thickness {
-                left: 1.0,
-                right: 1.0,
-                top: 1.0,
-                bottom: 1.0,
-            },
-            stroke_color: Color::white(),
-        }
-    }
-
     pub fn set_stroke_thickness(&mut self, thickness: Thickness) -> &mut Self {
         self.stroke_thickness = thickness;
         self
@@ -147,37 +150,4 @@ impl Border {
         self.stroke_color = color;
         self
     }
-
-    /*
-    fn measure_override(handle: Handle<UINode>, ui: &mut UserInterface, available_size: Vec2) -> Vec2 {
-        let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
-        let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
-
-        let size_for_child = Vec2::make(
-            available_size.x - margin_x,
-            available_size.y - margin_y,
-        );
-        let mut desired_size = Vec2::new();
-
-        if let Some(node) = ui.nodes.borrow(&self.owner_handle) {
-            for child_handle in node.children.iter() {
-                ui.measure(child_handle, size_for_child);
-
-                if let Some(child) = ui.nodes.borrow(child_handle) {
-                    let child_desired_size = child.desired_size.get();
-                    if child_desired_size.x > desired_size.x {
-                        desired_size.x = child_desired_size.x;
-                    }
-                    if child_desired_size.y > desired_size.y {
-                        desired_size.y = child_desired_size.y;
-                    }
-                }
-            }
-        }
-
-        desired_size.x += margin_x;
-        desired_size.y += margin_y;
-
-        desired_size
-    }*/
 }

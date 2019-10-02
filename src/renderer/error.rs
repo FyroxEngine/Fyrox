@@ -1,5 +1,4 @@
 use std::ffi::NulError;
-use glutin::{CreationError, ContextError};
 
 #[derive(Debug)]
 pub enum RendererError {
@@ -15,8 +14,6 @@ pub enum RendererError {
     },
     FaultyShaderSource,
     UnableToFindShaderUniform(String),
-    InternalError(String),
-    ContextError(String),
     InvalidTextureData,
 
     /// Means that you tried to draw triangle range from GeometryBuffer that
@@ -41,14 +38,3 @@ impl From<NulError> for RendererError {
     }
 }
 
-impl From<CreationError> for RendererError {
-    fn from(e: CreationError) -> Self {
-        RendererError::InternalError(format!("{:?}", e))
-    }
-}
-
-impl From<ContextError> for RendererError {
-    fn from(e: ContextError) -> Self {
-        RendererError::ContextError(format!("{:?}", e))
-    }
-}

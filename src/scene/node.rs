@@ -21,7 +21,7 @@ use rg3d_core::{
     },
     pool::Handle,
 };
-use rg3d_physics::Body;
+use rg3d_physics::rigid_body::RigidBody;
 
 pub enum NodeKind {
     Base,
@@ -91,7 +91,7 @@ pub struct Node {
     pub(in crate::scene) global_transform: Mat4,
     /// Bone-specific matrix. Non-serializable.
     inv_bind_pose_transform: Mat4,
-    body: Handle<Body>,
+    body: Handle<RigidBody>,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
     resource: Option<Arc<Mutex<Model>>>,
@@ -174,12 +174,12 @@ impl Node {
     }
 
     #[inline]
-    pub fn set_body(&mut self, body: Handle<Body>) {
+    pub fn set_rigid_body(&mut self, body: Handle<RigidBody>) {
         self.body = body;
     }
 
     #[inline]
-    pub fn get_body(&self) -> Handle<Body> {
+    pub fn get_rigid_body(&self) -> Handle<RigidBody> {
         self.body
     }
 
@@ -253,10 +253,12 @@ impl Node {
         &self.global_transform
     }
 
+    #[inline]
     pub fn set_inv_bind_pose_transform(&mut self, transform: Mat4) {
         self.inv_bind_pose_transform = transform;
     }
 
+    #[inline]
     pub fn get_inv_bind_pose_transform(&self) -> &Mat4 {
         &self.inv_bind_pose_transform
     }

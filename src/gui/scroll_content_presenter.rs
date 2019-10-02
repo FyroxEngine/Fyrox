@@ -4,7 +4,6 @@ use crate::gui::{
     UserInterface,
     Layout,
 };
-
 use rg3d_core::{
     pool::Handle,
     math::{

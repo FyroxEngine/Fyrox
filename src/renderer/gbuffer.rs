@@ -185,8 +185,11 @@ pub struct GBuffer {
 }
 
 impl GBuffer {
-    pub fn new(width: i32, height: i32) -> Result<Self, RendererError>
+    pub fn new(frame_size: (u32, u32)) -> Result<Self, RendererError>
     {
+        let width = frame_size.0 as i32;
+        let height = frame_size.1 as i32;
+
         unsafe {
             let mut fbo = 0;
             gl::GenFramebuffers(1, &mut fbo);

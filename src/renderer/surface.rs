@@ -38,6 +38,12 @@ pub struct SurfaceSharedData {
     geometry_buffer: GeometryBuffer<Vertex>,
 }
 
+impl Default for SurfaceSharedData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SurfaceSharedData {
     pub fn new() -> Self {
         let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw);

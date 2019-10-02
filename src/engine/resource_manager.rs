@@ -9,15 +9,14 @@ use crate::resource::{
 use rg3d_core::{
     visitor::{Visitor, VisitResult, Visit}
 };
-use rg3d_sound::buffer::Buffer;
+use rg3d_sound::buffer::{Buffer, BufferKind};
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,
     models: Vec<Arc<Mutex<Model>>>,
     sound_buffers: Vec<Arc<Mutex<Buffer>>>,
-    /// Path to textures, extensively used for resource files
-    /// which stores path in weird format (either relative or absolute) which
-    /// is obviously not good for engine.
+    /// Path to textures, extensively used for resource files which stores path in weird
+    /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
 }
 
@@ -31,9 +30,91 @@ impl ResourceManager {
         }
     }
 
-    #[inline]
-    pub fn add_texture(&mut self, texture: Arc<Mutex<Texture>>) {
-        self.textures.push(texture)
+    pub fn request_texture(&mut self, path: &Path) -> Option<Arc<Mutex<Texture>>> {
+        if let Some(texture) = self.find_texture(path) {
+            return Some(texture);
+        }
+
+        let extension = path.extension().
+            and_then(|os| os.to_str()).
+            map_or(String::from(""), |s| s.to_ascii_lowercase());
+
+        match extension.as_str() {
+            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load(path) {
+                Ok(texture) => {
+                    let shared_texture = Arc::new(Mutex::new(texture));
+                    self.textures.push(shared_texture.clone());
+                    println!("Texture {} is loaded!", path.display());
+                    Some(shared_texture)
+                }
+                Err(e) => {
+                    println!("Unable to load texture {}! Reason {}", path.display(), e);
+                    None
+                }
+            }
+            _ => {
+                println!("Unsupported texture type {}!", path.display());
+                None
+            }
+        }
+    }
+
+    pub fn request_model(&mut self, path: &Path) -> Option<Arc<Mutex<Model>>> {
+        if let Some(model) = self.find_model(path) {
+            return Some(model);
+        }
+
+        let extension = path.extension().
+            and_then(|os| os.to_str()).
+            map_or(String::from(""), |s| s.to_ascii_lowercase());
+
+        match extension.as_str() {
+            "fbx" => match Model::load(path, self) {
+                Ok(model) => {
+                    let model = Arc::new(Mutex::new(model));
+                    self.models.push(model.clone());
+                    println!("Model {} is loaded!", path.display());
+                    Some(model)
+                }
+                Err(e) => {
+                    println!("Unable to load model from {}! Reason {}", path.display(), e);
+                    None
+                }
+            },
+            _ => {
+                println!("Unsupported model type {}!", path.display());
+                None
+            }
+        }
+    }
+
+    pub fn request_sound_buffer(&mut self, path: &Path, kind: BufferKind) -> Option<Arc<Mutex<Buffer>>> {
+        if let Some(sound_buffer) = self.find_sound_buffer(path) {
+            return Some(sound_buffer);
+        }
+
+        let extension = path.extension().
+            and_then(|os| os.to_str()).
+            map_or(String::from(""), |s| s.to_ascii_lowercase());
+
+        match extension.as_str() {
+            "wav" => match Buffer::new(path, kind) {
+                Ok(sound_buffer) => {
+                    let sound_buffer = Arc::new(Mutex::new(sound_buffer));
+                    self.sound_buffers.push(sound_buffer.clone());
+                    println!("Model {} is loaded!", path.display());
+                    Some(sound_buffer)
+                }
+                Err(e) => {
+                    println!("Unable to load sound buffer from {}! Reason {}", path.display(), e);
+                    None
+                }
+            },
+            _ => {
+                println!("Unsupported sound buffer type {}!", path.display());
+                None
+            }
+        }
     }
 
     #[inline]
@@ -51,11 +132,6 @@ impl ResourceManager {
     }
 
     #[inline]
-    pub fn add_model(&mut self, model: Arc<Mutex<Model>>) {
-        self.models.push(model)
-    }
-
-    #[inline]
     pub fn get_models(&self) -> &[Arc<Mutex<Model>>] {
         &self.models
     }
@@ -67,11 +143,6 @@ impl ResourceManager {
             }
         }
         None
-    }
-
-    #[inline]
-    pub fn add_sound_buffer(&mut self, sound_buffer: Arc<Mutex<Buffer>>) {
-        self.sound_buffers.push(sound_buffer)
     }
 
     #[inline]
@@ -93,7 +164,7 @@ impl ResourceManager {
         self.textures_path.as_path()
     }
 
-    pub fn update(&mut self) {
+    pub(in crate) fn update(&mut self) {
         self.textures.retain(|resource| {
             Arc::strong_count(resource) > 1
         });
@@ -105,6 +176,47 @@ impl ResourceManager {
         self.sound_buffers.retain(|sound_buffer| {
             Arc::strong_count(sound_buffer) > 1
         });
+    }
+
+    pub fn reload_resources(&mut self) {
+        for old_texture in self.get_textures() {
+            let mut old_texture = old_texture.lock().unwrap();
+            let new_texture = match Texture::load(old_texture.path.as_path()) {
+                Ok(texture) => texture,
+                Err(e) => {
+                    println!("Unable to reload {:?} texture! Reason: {}", old_texture.path, e);
+                    continue;
+                }
+            };
+
+            *old_texture = new_texture;
+        }
+
+        for old_model in self.get_models().to_vec() {
+            let mut old_model = old_model.lock().unwrap();
+            let new_model = match Model::load(old_model.path.as_path(),self) {
+                Ok(new_model) => new_model,
+                Err(e) => {
+                    println!("Unable to reload {:?} model! Reason: {}", old_model.path, e);
+                    continue;
+                }
+            };
+
+            *old_model = new_model;
+        }
+
+        for old_sound_buffer in self.get_sound_buffers() {
+            let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
+            let new_sound_buffer = match Buffer::new(old_sound_buffer.get_source_path(), old_sound_buffer.get_kind()) {
+                Ok(new_sound_buffer) => new_sound_buffer,
+                Err(e) => {
+                    println!("Unable to reload {:?} sound buffer! Reason: {}", old_sound_buffer.get_source_path(), e);
+                    continue;
+                }
+            };
+
+            *old_sound_buffer = new_sound_buffer;
+        }
     }
 }
 

@@ -20,6 +20,8 @@ impl Visit for Light {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        // TODO: These properties can be taken from resource if light was
+        // create from resource.
         self.radius.visit("Radius", visitor)?;
         self.color.visit("Color", visitor)?;
         self.cone_angle.visit("ConeAngle", visitor)?;

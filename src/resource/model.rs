@@ -1,11 +1,7 @@
 use crate::{
-    scene::{Scene, node::Node},
-    engine::state::State,
-    resource::{
-        fbx,
-        fbx::error::FbxError,
-    },
-    scene::animation::Animation,
+    scene::{Scene, node::Node, animation::Animation},
+    resource::{fbx, fbx::error::FbxError},
+    engine::resource_manager::ResourceManager,
 };
 use std::{
     path::{Path, PathBuf},
@@ -46,9 +42,9 @@ pub struct ModelInstance {
 }
 
 impl Model {
-    pub(in crate) fn load(path: &Path, state: &mut State) -> Result<Model, FbxError> {
+    pub(in crate) fn load(path: &Path, resource_manager: &mut ResourceManager) -> Result<Model, FbxError> {
         let mut scene = Scene::new();
-        fbx::load_to_scene(&mut scene, state, path)?;
+        fbx::load_to_scene(&mut scene, resource_manager, path)?;
         Ok(Model {
             path: PathBuf::from(path),
             scene,
@@ -144,12 +140,9 @@ impl Model {
         animations
     }
 
+    /// Returns internal scene
     pub fn get_scene(&self) -> &Scene {
         &self.scene
-    }
-
-    pub fn get_root(&self) -> Handle<Node> {
-        self.scene.get_root()
     }
 
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {

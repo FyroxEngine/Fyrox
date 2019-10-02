@@ -30,6 +30,12 @@ impl Canvas {
     }
 }
 
+impl Default for Canvas {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Layout for Canvas {
     fn measure_override(&self, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::make(

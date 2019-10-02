@@ -7,7 +7,6 @@ use crate::gui::{
     scroll_bar::{ScrollBarBuilder, Orientation, ScrollBar},
     grid::{Row, GridBuilder, Column},
 };
-
 use rg3d_core::{
     pool::Handle,
     math::vec2::Vec2,

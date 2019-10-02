@@ -23,7 +23,6 @@ use crate::gui::{
     },
     window::Window,
 };
-
 use rg3d_core::{
     color::Color,
     math::{vec2::Vec2, Rect},

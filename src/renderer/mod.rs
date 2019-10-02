@@ -1,5 +1,5 @@
 #[allow(clippy::all)]
-mod gl;
+pub(in crate) mod gl;
 pub mod surface;
 pub mod gpu_program;
 pub mod error;
@@ -14,7 +14,6 @@ mod flat_shader;
 pub mod gpu_texture;
 
 use crate::{
-    engine::state::State,
     gui::draw::DrawingContext,
     scene::node::NodeKind,
     renderer::{
@@ -29,12 +28,14 @@ use crate::{
     },
 };
 use std::time;
-use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api};
 use rg3d_core::math::{
     vec3::Vec3,
     mat4::Mat4,
-    vec2::Vec2,
 };
+use glutin::PossiblyCurrent;
+use crate::engine::resource_manager::ResourceManager;
+use rg3d_core::pool::Pool;
+use crate::scene::Scene;
 
 #[repr(C)]
 pub struct TriangleDefinition {
@@ -126,9 +127,6 @@ impl Default for Statistics {
 }
 
 pub struct Renderer {
-    // Must be on top!
-    pub(crate) context: glutin::WindowedContext<PossiblyCurrent>,
-    pub(crate) events_loop: glutin::EventsLoop,
     deferred_light_renderer: DeferredLightRenderer,
     gbuffer: GBuffer,
     flat_shader: FlatShader,
@@ -141,54 +139,26 @@ pub struct Renderer {
     statistics: Statistics,
     quad: SurfaceSharedData,
     last_render_time: time::Instant,
+    frame_size: (u32, u32),
 }
 
 impl Renderer {
-    pub fn new() -> Result<Self, RendererError> {
-        let events_loop = glutin::EventsLoop::new();
-
-        let primary_monitor = events_loop.get_primary_monitor();
-        let mut monitor_dimensions = primary_monitor.get_dimensions();
-        monitor_dimensions.height *= 0.7;
-        monitor_dimensions.width *= 0.7;
-        let window_size = monitor_dimensions.to_logical(primary_monitor.get_hidpi_factor());
-
-        let window_builder = glutin::WindowBuilder::new()
-            .with_title("RG3D")
-            .with_dimensions(window_size)
-            .with_resizable(true);
-
-        let context_wrapper = glutin::ContextBuilder::new()
-            .with_vsync(true)
-            .with_gl_profile(GlProfile::Core)
-            .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
-            .build_windowed(window_builder, &events_loop)?;
-
+    pub(in crate) fn new(frame_size: (u32, u32)) -> Result<Self, RendererError> {
         unsafe {
-            let context = match context_wrapper.make_current() {
-                Ok(context) => context,
-                Err((_, error)) => return Err(RendererError::from(error)),
-            };
-            gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
             gl::Enable(gl::DEPTH_TEST);
 
             Ok(Self {
-                context,
-                events_loop,
+                frame_size,
                 deferred_light_renderer: DeferredLightRenderer::new()?,
                 flat_shader: FlatShader::new()?,
-                gbuffer: GBuffer::new(window_size.width as i32, window_size.height as i32)?,
+                gbuffer: GBuffer::new(frame_size)?,
                 statistics: Statistics::default(),
-                white_dummy: {
-                    GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                    PixelKind::RGBA8, &[255, 255, 255, 255],
-                                    false)?
-                },
-                normal_dummy: {
-                    GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                    PixelKind::RGBA8, &[128, 128, 255, 255],
-                                    false)?
-                },
+                white_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+                                             PixelKind::RGBA8, &[255, 255, 255, 255],
+                                             false)?,
+                normal_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+                                              PixelKind::RGBA8, &[128, 128, 255, 255],
+                                              false)?,
                 quad: SurfaceSharedData::make_unit_xy_quad(),
                 ui_renderer: UIRenderer::new()?,
                 particle_system_renderer: ParticleSystemRenderer::new()?,
@@ -201,8 +171,8 @@ impl Renderer {
         self.statistics
     }
 
-    pub fn upload_resources(&mut self, state: &mut State) {
-        for texture_rc in state.get_resource_manager_mut().get_textures() {
+    pub fn upload_resources(&mut self, resource_manager: &mut ResourceManager) {
+        for texture_rc in  resource_manager.get_textures() {
             let mut texture = texture_rc.lock().unwrap();
             if texture.gpu_tex.is_none() {
                 let gpu_texture = GpuTexture::new(
@@ -215,28 +185,30 @@ impl Renderer {
     }
 
     /// Sets new frame size, should be called when received a Resize event.
-    pub fn set_frame_size(&mut self, new_size: Vec2) -> Result<(), RendererError> {
-        self.gbuffer = GBuffer::new(new_size.x as i32, new_size.y as i32)?;
+    pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), RendererError> {
+        self.frame_size = new_size;
+        self.gbuffer = GBuffer::new(new_size)?;
         Ok(())
     }
 
-    pub fn get_frame_size(&self) -> Vec2 {
-        let client_size = self.context.window().get_inner_size().unwrap();
-        Vec2::make(client_size.width as f32, client_size.height as f32)
+    pub fn get_frame_size(&self) -> (u32, u32) {
+        self.frame_size
     }
 
-    pub fn render(&mut self, state: &State, drawing_context: &DrawingContext) -> Result<(), RendererError> {
+    pub(in crate) fn render(&mut self,
+                            scenes: &Pool<Scene>,
+                            drawing_context: &DrawingContext,
+                            context: &glutin::WindowedContext<PossiblyCurrent>) -> Result<(), RendererError> {
         self.statistics.begin_frame();
-        let client_size = self.context.window().get_inner_size().unwrap();
 
-        let frame_width = client_size.width as f32;
-        let frame_height = client_size.height as f32;
+        let frame_width = self.frame_size.0 as f32;
+        let frame_height = self.frame_size.1 as f32;
         let frame_matrix =
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::make(frame_width, frame_height, 0.0));
 
         unsafe {
-            for scene in state.get_scenes().iter() {
+            for scene in scenes.iter() {
                 // Prepare for render - fill lists of nodes participating in rendering.
                 let camera_node = match scene.get_active_camera() {
                     Some(camera_node) => camera_node,
@@ -255,7 +227,7 @@ impl Renderer {
                 self.deferred_light_renderer.render(frame_width, frame_height, scene, camera_node, camera, &self.gbuffer);
             }
 
-            self.particle_system_renderer.render(state, &self.white_dummy, frame_width, frame_height, &self.gbuffer);
+            self.particle_system_renderer.render(scenes, &self.white_dummy, frame_width, frame_height, &self.gbuffer);
 
             // Finally render everything into back buffer.
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
@@ -277,7 +249,9 @@ impl Renderer {
 
         self.statistics.end_frame();
 
-        self.context.swap_buffers()?;
+        if context.swap_buffers().is_err() {
+            println!("Failed to swap buffers!");
+        }
 
         check_gl_error!();
 

@@ -15,16 +15,11 @@ pub mod grid;
 pub mod window;
 pub mod formatted_text;
 
-use glutin::{
-    WindowEvent,
-    ElementState,
-    MouseScrollDelta,
-};
 use std::{
     collections::VecDeque,
     any::TypeId,
     rc::Rc,
-    cell::RefCell
+    cell::RefCell,
 };
 use crate::{
     gui::{
@@ -32,7 +27,7 @@ use crate::{
         draw::{
             DrawingContext,
             CommandKind,
-            CommandTexture
+            CommandTexture,
         },
         scroll_viewer::ScrollViewer,
         event::{RoutedEvent, RoutedEventKind, RoutedEventHandlerType},
@@ -40,6 +35,9 @@ use crate::{
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
+    ElementState,
+    WindowEvent,
+    MouseScrollDelta
 };
 
 use rg3d_core::{
@@ -155,10 +153,14 @@ fn minf(a: f32, b: f32) -> f32 {
 }
 
 impl UserInterface {
-    pub fn new(default_font: Rc<RefCell<Font>>) -> UserInterface {
+    pub(in crate) fn new() -> UserInterface {
+        let font_bytes = std::include_bytes!("../built_in_font.ttf").to_vec();
+        let font = Font::from_memory(font_bytes, 20.0, (0..255).collect()).unwrap();
+        let font = Rc::new(RefCell::new(font));
+
         let mut ui = UserInterface {
             visual_debug: false,
-            default_font,
+            default_font: font,
             captured_node: Handle::none(),
             root_canvas: Handle::none(),
             nodes: Pool::new(),
@@ -170,6 +172,11 @@ impl UserInterface {
         };
         ui.root_canvas = ui.add_node(UINode::new(UINodeKind::Canvas(Canvas::new())));
         ui
+    }
+
+    #[inline]
+    pub fn get_default_font(&self) -> Rc<RefCell<Font>> {
+        self.default_font.clone()
     }
 
     pub fn add_node(&mut self, node: UINode) -> Handle<UINode> {
@@ -194,6 +201,7 @@ impl UserInterface {
         node_handle
     }
 
+    #[inline]
     pub fn capture_mouse(&mut self, node: Handle<UINode>) -> bool {
         if self.captured_node.is_none() && self.nodes.is_valid_handle(node) {
             self.captured_node = node;
@@ -203,10 +211,12 @@ impl UserInterface {
         false
     }
 
+    #[inline]
     pub fn release_mouse_capture(&mut self) {
         self.captured_node = Handle::none();
     }
 
+    #[inline]
     pub fn begin_invoke(&mut self, action: Box<DeferredAction>) {
         self.deferred_actions.push_back(action)
     }
@@ -546,7 +556,7 @@ impl UserInterface {
         }
 
         let root_canvas = self.root_canvas;
-        self.draw_node(root_canvas,  1);
+        self.draw_node(root_canvas, 1);
 
         if self.visual_debug {
             self.drawing_context.set_nesting(0);

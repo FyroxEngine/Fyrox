@@ -217,33 +217,27 @@ impl Bitmap {
     }
 }
 
-fn get_u16(p: *const u8) -> u16
+unsafe fn get_u16(p: *const u8) -> u16
 {
-    unsafe {
-        let b0 = u32::from(*p);
-        let b1 = u32::from(*p.offset(1));
-        (b0 * 256 + b1) as u16
-    }
+    let b0 = u32::from(*p);
+    let b1 = u32::from(*p.offset(1));
+    (b0 * 256 + b1) as u16
 }
 
-fn get_i16(p: *const u8) -> i16
+unsafe fn get_i16(p: *const u8) -> i16
 {
-    unsafe {
-        let b0 = i32::from(*p);
-        let b1 = i32::from(*p.offset(1));
-        (b0 * 256 + b1) as i16
-    }
+    let b0 = i32::from(*p);
+    let b1 = i32::from(*p.offset(1));
+    (b0 * 256 + b1) as i16
 }
 
-fn get_u32(p: *const u8) -> u32
+unsafe fn get_u32(p: *const u8) -> u32
 {
-    unsafe {
-        let b0 = u32::from(*p);
-        let b1 = u32::from(*p.offset(1));
-        let b2 = u32::from(*p.offset(2));
-        let b3 = u32::from(*p.offset(3));
-        (b0 << 24) + (b1 << 16) + (b2 << 8) + b3
-    }
+    let b0 = u32::from(*p);
+    let b1 = u32::from(*p.offset(1));
+    let b2 = u32::from(*p.offset(2));
+    let b3 = u32::from(*p.offset(3));
+    (b0 << 24) + (b1 << 16) + (b2 << 8) + b3
 }
 
 fn fourcc(d: u8, c: u8, b: u8, a: u8) -> u32 {
@@ -875,41 +869,45 @@ impl TtfGlyph {
 }
 
 impl Font {
-    pub fn load(path: &Path, height: f32, char_set: Vec<u32>) -> Option<Font> {
+    pub fn from_memory(data: Vec<u8>, height: f32, char_set: Vec<u32>) -> Result<Self, ()> {
+        let ttf = TrueType::new(data);
+
+        let scale = ttf.em_to_pixels(height);
+
+        let mut font = Font {
+            height,
+            glyphs: Vec::new(),
+            ascender: scale * f32::from(ttf.get_ascender()),
+            descender: scale * f32::from(ttf.get_descender()),
+            line_gap: scale * f32::from(ttf.get_line_gap()),
+            char_map: HashMap::new(),
+            texture: None,
+            atlas: Vec::new(),
+            atlas_size: 0,
+        };
+
+        for ttf_glyph in ttf.glyphs.iter() {
+            font.glyphs.push(ttf.convert_glyph(ttf_glyph, scale));
+        }
+
+        font.pack();
+
+        for unicode in char_set {
+            let index = ttf.unicode_to_glyph_index(unicode);
+            font.char_map.insert(unicode, index);
+        }
+
+        Ok(font)
+    }
+
+    pub fn from_file(path: &Path, height: f32, char_set: Vec<u32>) -> Result<Self, ()> {
         if let Ok(ref mut file) = File::open(path) {
             let mut file_content: Vec<u8> = Vec::with_capacity(file.metadata().unwrap().len() as usize);
             file.read_to_end(&mut file_content).unwrap();
 
-            let ttf = TrueType::new(file_content);
-
-            let scale = ttf.em_to_pixels(height);
-
-            let mut font = Font {
-                height,
-                glyphs: Vec::new(),
-                ascender: scale * f32::from(ttf.get_ascender()),
-                descender: scale * f32::from(ttf.get_descender()),
-                line_gap: scale * f32::from(ttf.get_line_gap()),
-                char_map: HashMap::new(),
-                texture: None,
-                atlas: Vec::new(),
-                atlas_size: 0,
-            };
-
-            for ttf_glyph in ttf.glyphs.iter() {
-                font.glyphs.push(ttf.convert_glyph(ttf_glyph, scale));
-            }
-
-            font.pack();
-
-            for unicode in char_set {
-                let index = ttf.unicode_to_glyph_index(unicode);
-                font.char_map.insert(unicode, index);
-            }
-
-            Some(font)
+            Self::from_memory(file_content, height, char_set)
         } else {
-            None
+            Err(())
         }
     }
 
@@ -1040,19 +1038,27 @@ impl FontGlyph {
     }
 }
 
-#[test]
-fn font_test() {
-    use image::ColorType;
-    use std::path::PathBuf;
+mod test {
+    #[test]
+    fn font_test() {
+        use image::ColorType;
+        use std::path::PathBuf;
+        use std::rc::Rc;
+        use std::cell::RefCell;
+        use crate::resource::ttf::Font;
+        use std::path::Path;
 
-    let font = Font::load(Path::new("data/fonts/font.ttf"), 40.0, (0..255).collect()).unwrap();
-    let raster_path = Path::new("data/raster");
-    if !raster_path.exists() {
-        std::fs::create_dir(raster_path).unwrap();
+        let font_bytes = std::include_bytes!("../built_in_font.ttf").to_vec();
+        let font = Font::from_memory(font_bytes, 20.0, (0..255).collect()).unwrap();
+        let font = Rc::new(RefCell::new(font));
+        let raster_path = Path::new("data/raster");
+        if !raster_path.exists() {
+            std::fs::create_dir(raster_path).unwrap();
+        }
+        let path = PathBuf::from("data/raster/_atlas.png");
+        image::save_buffer(path, font.borrow().atlas.as_slice(),
+                           font.borrow().atlas_size as u32,
+                           font.borrow().atlas_size as u32,
+                           ColorType::Gray(8)).unwrap();
     }
-    let path = PathBuf::from("data/raster/_atlas.png");
-    image::save_buffer(path, font.atlas.as_slice(),
-                       font.atlas_size as u32,
-                       font.atlas_size as u32,
-                       ColorType::Gray(8)).unwrap();
 }

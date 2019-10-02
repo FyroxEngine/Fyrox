@@ -8,7 +8,6 @@ use crate::{
     },
     resource::fbx::find_and_borrow_node
 };
-
 use rg3d_core::{
     pool::{
         Handle,

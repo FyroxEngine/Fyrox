@@ -18,3 +18,8 @@ pub mod renderer;
 pub mod engine;
 pub mod resource;
 pub mod gui;
+
+pub use glutin::{
+    WindowBuilder, EventsLoop, Event, WindowEvent, Window,
+    MouseButton, MouseScrollDelta, ElementState, VirtualKeyCode,
+};

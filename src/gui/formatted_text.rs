@@ -1,10 +1,16 @@
-use rg3d_core::color::Color;
-use rg3d_core::math::vec2::Vec2;
-use rg3d_core::math::Rect;
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::resource::ttf::Font;
-use crate::gui::{HorizontalAlignment, VerticalAlignment};
+use rg3d_core::{
+    color::Color,
+    math::vec2::Vec2,
+    math::Rect
+};
+use std::{
+    rc::Rc,
+    cell::RefCell
+};
+use crate::{
+    resource::ttf::Font,
+    gui::{HorizontalAlignment, VerticalAlignment}
+};
 
 #[derive(Debug)]
 pub struct TextGlyph {

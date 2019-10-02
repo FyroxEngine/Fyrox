@@ -14,7 +14,6 @@ use crate::{
     },
     resource::ttf::Font,
 };
-
 use rg3d_core::{
     color::Color,
     math::{
@@ -103,6 +102,13 @@ pub struct TextBuilder {
     common: CommonBuilderFields,
     vertical_text_alignment: Option<VerticalAlignment>,
     horizontal_text_alignment: Option<HorizontalAlignment>,
+}
+
+
+impl Default for TextBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TextBuilder {

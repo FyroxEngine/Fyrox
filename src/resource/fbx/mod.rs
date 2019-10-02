@@ -19,7 +19,6 @@ use crate::{
             Vertex, VertexWeightSet, VertexWeight,
         }
     },
-    engine::state::State,
     resource::{
         fbx::{
             texture::FbxTexture,
@@ -49,6 +48,7 @@ use rg3d_core::{
     },
 };
 use std::sync::{Arc, Mutex};
+use crate::engine::resource_manager::ResourceManager;
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -1041,7 +1041,7 @@ impl Fbx {
 
     fn create_surfaces(&self,
                        mesh: &mut Mesh,
-                       state: &mut State,
+                       resource_manager: &mut ResourceManager,
                        model: &FbxModel) -> Result<(), FbxError> {
         // Create surfaces per material
         if model.materials.is_empty() {
@@ -1056,17 +1056,17 @@ impl Fbx {
                     let file_stem = path.file_stem().ok_or(FbxError::InvalidPath)?;
                     let extention = path.extension().ok_or(FbxError::InvalidPath)?;
 
-                    let diffuse_path = state.get_resource_manager().get_textures_path().join(&path);
-                    if let Some(texture_resource) = state.request_texture(diffuse_path.as_path()) {
+                    let diffuse_path = resource_manager.get_textures_path().join(&path);
+                    if let Some(texture_resource) = resource_manager.request_texture(diffuse_path.as_path()) {
                         surface.set_diffuse_texture(texture_resource);
                     }
 
                     let mut normal_map_name = file_stem.to_os_string();
                     normal_map_name.push("_normal.");
                     normal_map_name.push(extention);
-                    let normal_path = state.get_resource_manager().get_textures_path().join(normal_map_name);
+                    let normal_path = resource_manager.get_textures_path().join(normal_map_name);
                     if normal_path.exists() {
-                        if let Some(texture_resource) = state.request_texture(normal_path.as_path()) {
+                        if let Some(texture_resource) = resource_manager.request_texture(normal_path.as_path()) {
                             surface.set_normal_texture(texture_resource);
                         }
                     }
@@ -1080,7 +1080,7 @@ impl Fbx {
 
     fn convert_mesh(&self,
                     mesh: &mut Mesh,
-                    state: &mut State,
+                    resource_manager: &mut ResourceManager,
                     model: &FbxModel) -> Result<(), FbxError> {
         let geometric_transform = Mat4::translate(model.geometric_translation) *
             Mat4::from_quat(quat_from_euler(model.geometric_rotation)) *
@@ -1092,7 +1092,7 @@ impl Fbx {
 
         for geom_handle in &model.geoms {
             let geom = self.component_pool.borrow(*geom_handle).ok_or(FbxError::InvalidPoolHandle)?.as_geometry()?;
-            self.create_surfaces(mesh, state, model)?;
+            self.create_surfaces(mesh, resource_manager, model)?;
 
             let skin_data = geom.get_skin_data(&self.component_pool)?;
 
@@ -1127,7 +1127,7 @@ impl Fbx {
     fn convert_model(&self,
                      model:
                      &FbxModel,
-                     state: &mut State,
+                     resource_manager: &mut ResourceManager,
                      scene: &mut Scene,
                      animation_handle: Handle<Animation>)
                      -> Result<Handle<Node>, FbxError> {
@@ -1163,7 +1163,7 @@ impl Fbx {
                 }
             }
             NodeKind::Mesh(mesh) => {
-                self.convert_mesh(mesh, state, model)?;
+                self.convert_mesh(mesh, resource_manager, model)?;
             }
             _ => ()
         }
@@ -1256,7 +1256,7 @@ impl Fbx {
     ///
     /// Converts FBX DOM to native engine representation.
     ///
-    pub fn convert(&self, state: &mut State, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
+    pub fn convert(&self, resource_manager: &mut ResourceManager, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         let mut instantiated_nodes = Vec::new();
         let root = scene.add_node(Node::new(NodeKind::Base));
         let animation_handle = scene.add_animation(Animation::default());
@@ -1264,7 +1264,7 @@ impl Fbx {
         for component_handle in self.components.iter() {
             if let Some(component) = self.component_pool.borrow(*component_handle) {
                 if let FbxComponent::Model(model) = component {
-                    let node = self.convert_model(model, state, scene, animation_handle)?;
+                    let node = self.convert_model(model, resource_manager, scene, animation_handle)?;
                     instantiated_nodes.push(node);
                     scene.link_nodes(node, root);
                     fbx_model_to_node_map.insert(*component_handle, node);
@@ -1347,7 +1347,7 @@ impl Fbx {
     }
 }
 
-pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path) -> Result<Handle<Node>, FbxError> {
+pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, path: &Path) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
     let mut file = File::open(path)?;
@@ -1374,7 +1374,7 @@ pub fn load_to_scene(scene: &mut Scene, state: &mut State, path: &Path) -> Resul
     println!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis());
 
     let now = Instant::now();
-    let result = fbx.convert(state, scene);
+    let result = fbx.convert(resource_manager, scene);
     println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
 
     println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
