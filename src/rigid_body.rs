@@ -188,7 +188,7 @@ impl RigidBody {
                 self.position -= penetration_info.penetration_vector;
 
                 self.contacts.push(Contact {
-                    body: Handle::none(),
+                    body: Handle::NONE,
                     position: penetration_info.contact_point,
                     normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
                     triangle_index: triangle_index as u32,

@@ -15,7 +15,7 @@ pub struct Contact {
 impl Default for Contact {
     fn default() -> Self {
         Self {
-            body: Handle::none(),
+            body: Handle::NONE,
             position: Vec3::new(),
             normal: Vec3::make(0.0, 1.0, 0.0),
             triangle_index: 0,
