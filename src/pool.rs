@@ -1,36 +1,24 @@
 use std::{
     marker::PhantomData,
-    hash::{
-        Hash,
-        Hasher
-    },
-    fmt::{
-        Debug,
-        Formatter
-    },
+    hash::{Hash, Hasher},
+    fmt::{Debug, Formatter},
 };
-use crate::visitor::{
-    Visit,
-    VisitResult,
-    Visitor
-};
+use crate::visitor::{Visit, VisitResult, Visitor};
 
 const INVALID_GENERATION: u32 = 0;
 
-///
 /// Pool allows to create as many objects as you want in contiguous memory
-/// block. It allows to create and delete objects very fast.
-///
+/// block. It allows to create and delete objects much faster than if they'll
+/// be allocated on heap. Also since objects stored in contiguous memory block
+/// they can be effectively accessed because such memory layout if cache-friendly.
 pub struct Pool<T: Sized> {
     records: Vec<PoolRecord<T>>,
     free_stack: Vec<u32>,
 }
 
-///
-/// Handle is some sort of non-owning reference to content in a pool.
-/// It stores index of object and additional information that
-/// allows to ensure that handle is still valid.
-///
+/// Handle is some sort of non-owning reference to content in a pool. It stores
+/// index of object and additional information that allows to ensure that handle
+/// is still valid (points to the same object as when handle was created).
 pub struct Handle<T> {
     /// Index of object in pool.
     index: u32,
@@ -56,7 +44,7 @@ impl<T> From<ErasedHandle> for Handle<T> {
         Handle {
             index: erased_handle.index,
             generation: erased_handle.generation,
-            type_marker: PhantomData
+            type_marker: PhantomData,
         }
     }
 }
@@ -65,7 +53,7 @@ impl<T> Into<ErasedHandle> for Handle<T> {
     fn into(self) -> ErasedHandle {
         ErasedHandle {
             index: self.index,
-            generation: self.generation
+            generation: self.generation,
         }
     }
 }
@@ -74,7 +62,7 @@ impl ErasedHandle {
     pub fn none() -> Self {
         ErasedHandle {
             index: 0,
-            generation: INVALID_GENERATION
+            generation: INVALID_GENERATION,
         }
     }
 }
@@ -92,7 +80,7 @@ impl<T> Visit for Handle<T> {
 
 impl<T> Default for Handle<T> {
     fn default() -> Self {
-        Self::none()
+        Self::NONE
     }
 }
 
@@ -103,13 +91,24 @@ impl<T> Debug for Handle<T> {
 }
 
 struct PoolRecord<T: Sized> {
-    /// Generation number, used to keep info about lifetime.
-    /// The handle is valid only if record it points to is of the
-    /// same generation as the pool record.
+    /// Generation number, used to keep info about lifetime. The handle is valid
+    /// only if record it points to is of the same generation as the pool record.
     /// Notes: Zero is unknown generation used for None handles.
     generation: u32,
     /// Actual payload.
     payload: Option<T>,
+}
+
+impl<T> PoolRecord<T> {
+    #[inline(always)]
+    fn borrow(&self, generation: u32) -> Option<&T> {
+        if self.generation == generation { self.payload.as_ref() } else { None }
+    }
+
+    #[inline(always)]
+    fn borrow_mut(&mut self, generation: u32) -> Option<&mut T> {
+        if self.generation == generation { self.payload.as_mut() } else { None }
+    }
 }
 
 impl<T> Default for PoolRecord<T> {
@@ -144,6 +143,8 @@ impl<T> Clone for Handle<T> {
 
 impl<T> Copy for Handle<T> {}
 
+impl<T> Eq for Handle<T> {}
+
 impl<T> PartialEq for Handle<T> {
     fn eq(&self, other: &Handle<T>) -> bool {
         self.generation == other.generation && self.index == other.index
@@ -159,8 +160,6 @@ impl<T> Visit for Pool<T> where T: Default + Visit + 'static {
     }
 }
 
-impl<T> Eq for Handle<T> {}
-
 impl<T> Hash for Handle<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.index.hash(state);
@@ -169,30 +168,29 @@ impl<T> Hash for Handle<T> {
 }
 
 impl<T> Handle<T> {
-    #[inline]
-    pub fn none() -> Self {
-        Handle {
-            index: 0,
-            generation: INVALID_GENERATION,
-            type_marker: PhantomData,
-        }
-    }
+    pub const NONE: Handle<T> = Handle {
+        index: 0,
+        generation: INVALID_GENERATION,
+        type_marker: PhantomData,
+    };
 
-    #[inline]
+    #[inline(always)]
     pub fn is_none(self) -> bool {
         self.index == 0 && self.generation == INVALID_GENERATION
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_some(self) -> bool {
         !self.is_none()
     }
 
-    pub fn get_index(self) -> u32 {
+    #[inline(always)]
+    pub fn index(self) -> u32 {
         self.index
     }
 
-    pub fn get_generation(self) -> u32 {
+    #[inline(always)]
+    pub fn generation(self) -> u32 {
         self.generation
     }
 
@@ -227,92 +225,167 @@ impl<T> Pool<T> {
             let record = &mut self.records[free_index as usize];
             record.generation += 1;
             record.payload.replace(payload);
-            return Handle {
+            Handle {
                 index: free_index,
                 generation: record.generation,
                 type_marker: PhantomData,
+            }
+        } else {
+            // No free records, create new one
+            let record = PoolRecord {
+                generation: 1,
+                payload: Some(payload),
             };
+
+            let handle = Handle {
+                index: self.records.len() as u32,
+                generation: record.generation,
+                type_marker: PhantomData,
+            };
+
+            self.records.push(record);
+
+            handle
         }
-
-        // No free records, create new one
-        let record = PoolRecord {
-            generation: 1,
-            payload: Some(payload),
-        };
-
-        let handle = Handle {
-            index: self.records.len() as u32,
-            generation: record.generation,
-            type_marker: PhantomData,
-        };
-
-        self.records.push(record);
-
-        handle
     }
 
+    /// Borrows shared reference to an object by its handle. This method will succeed only if
+    /// there are object at given handle and it has same generation as given handle.
     #[inline]
     #[must_use]
     pub fn borrow(&self, handle: Handle<T>) -> Option<&T> {
-        // Make sure that empty handles won't trigger diagnostic messages
-        if handle.is_none() {
-            return None;
-        }
-
-        if let Some(record) = self.records.get(handle.index as usize) {
-            if record.generation == handle.generation {
-                if let Some(payload) = &record.payload {
-                    return Some(payload);
-                } else {
-                    panic!("Pool: Payload was empty!");
-                }
-            } else if handle.generation != INVALID_GENERATION {
-                panic!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
-            }
-        } else {
-            panic!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, self.records.len());
-        }
-        None
+        self.records.get(handle.index as usize).and_then(|rec| rec.borrow(handle.generation))
     }
 
-    pub fn borrow_two_mut(&mut self, a: Handle<T>, b: Handle<T>) -> Result<(Option<&mut T>, Option<&mut T>), ()> {
-        if a.index == b.index {
-            // Prevent giving two mutable references to same record.
-            return Err(());
-        }
-
-        unsafe {
-            let this = self as *mut Self;
-
-            Ok(((*this).borrow_mut(a), (*this).borrow_mut(b)))
-        }
-    }
-
+    /// Borrows mutable reference to an object by its handle. This method will succeed only if
+    /// there are object at given handle and it has same generation as given handle.
+    ///
+     /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let a = pool.borrow_mut(a);
+    /// if let Some(a) = a { *a = 11 }
+    /// ```
     #[inline]
     #[must_use]
     pub fn borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        // Make sure that empty handles won't trigger diagnostic messages
-        if handle.is_none() {
-            return None;
-        }
-
-        let record_count = self.records.len();
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
-            if record.generation == handle.generation {
-                if let Some(payload) = &mut record.payload {
-                    return Some(payload);
-                } else {
-                    panic!("Pool: Payload was empty!");
-                }
-            } else if handle.generation != INVALID_GENERATION {
-                panic!("Pool: Generation does not match: record has {} generation, but handle has {}", record.generation, handle.generation);
-            }
-        } else {
-            panic!("Pool: Invalid index: got {}, but valid range is 0..{}", handle.index, record_count);
-        }
-        None
+        self.records.get_mut(handle.index as usize).and_then(|rec| rec.borrow_mut(handle.generation))
     }
 
+    /// Borrows mutable references of objects at the same time. This method will succeed only
+    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
+    /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let b = pool.spawn(2);
+    /// let (a, b) = pool.borrow_two_mut((a, b));
+    /// if let Some(a) = a { *a = 11 }
+    /// if let Some(b) = b { *b = 22 }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>))
+                          -> Result<(Option<&mut T>, Option<&mut T>), ()> {
+        // Prevent giving two mutable references to same record.
+        if handles.0.index != handles.1.index {
+            unsafe {
+                let this = self as *mut Self;
+                Ok(((*this).borrow_mut(handles.0),
+                    (*this).borrow_mut(handles.1)))
+            }
+        } else {
+            Err(())
+        }
+    }
+
+    /// Borrows mutable references of objects at the same time. This method will succeed only
+    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
+    /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let b = pool.spawn(2);
+    /// let c = pool.spawn(3);
+    /// let (a, b, c) = pool.borrow_three_mut((a, b, c));
+    /// if let Some(a) = a { *a = 11 }
+    /// if let Some(b) = b { *b = 22 }
+    /// if let Some(c) = c { *c = 33 }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn borrow_three_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>))
+                            -> Result<(Option<&mut T>, Option<&mut T>, Option<&mut T>), ()> {
+        // Prevent giving mutable references to same record.
+        if handles.0.index != handles.1.index &&
+            handles.0.index != handles.2.index &&
+            handles.1.index != handles.2.index {
+            unsafe {
+                let this = self as *mut Self;
+                Ok(((*this).borrow_mut(handles.0),
+                    (*this).borrow_mut(handles.1),
+                    (*this).borrow_mut(handles.2)))
+            }
+        } else {
+            Err(())
+        }
+    }
+
+    /// Borrows mutable references of objects at the same time. This method will succeed only
+    /// if handles are unique (not equal). Borrowing multiple mutable references at the same
+    /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let b = pool.spawn(2);
+    /// let c = pool.spawn(3);
+    /// let d = pool.spawn(4);
+    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d));
+    /// if let Some(a) = a { *a = 11 }
+    /// if let Some(b) = b { *b = 22 }
+    /// if let Some(c) = c { *c = 33 }
+    /// if let Some(d) = d { *d = 44 }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn borrow_four_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>))
+                           -> Result<(Option<&mut T>, Option<&mut T>, Option<&mut T>, Option<&mut T>), ()> {
+        // Prevent giving mutable references to same record.
+        // This is kinda clunky since const generics are not stabilized yet.
+        if handles.0.index != handles.1.index &&
+            handles.0.index != handles.2.index &&
+            handles.0.index != handles.3.index &&
+            handles.1.index != handles.2.index &&
+            handles.1.index != handles.3.index &&
+            handles.2.index != handles.3.index {
+            unsafe {
+                let this = self as *mut Self;
+                Ok(((*this).borrow_mut(handles.0),
+                    (*this).borrow_mut(handles.1),
+                    (*this).borrow_mut(handles.2),
+                    (*this).borrow_mut(handles.3)))
+            }
+        } else {
+            Err(())
+        }
+    }
+
+    /// Destroys object by given handle. All handles to the object will become invalid.
     #[inline]
     pub fn free(&mut self, handle: Handle<T>) {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
@@ -323,56 +396,74 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Returns total capacity of pool. Capacity has nothing about real amount of objects in pool!
     #[inline]
     #[must_use]
     pub fn get_capacity(&self) -> usize {
         self.records.len()
     }
 
+    /// Destroys all objects in pool. All handles to objects will become invalid.
+    #[inline]
     pub fn clear(&mut self) {
-        self.records.clear()
+        self.records.clear();
+        self.free_stack.clear();
     }
 
     #[inline]
     #[must_use]
     pub fn at_mut(&mut self, n: usize) -> Option<&mut T> {
-        if let Some(record) = self.records.get_mut(n) {
-            if let Some(ref mut payload) = record.payload {
-                return Some(payload);
-            }
-        }
-        None
+        self.records.get_mut(n).and_then(|rec| rec.payload.as_mut())
     }
 
     #[inline]
     #[must_use]
     pub fn at(&self, n: usize) -> Option<&T> {
-        if let Some(record) = self.records.get(n) {
-            if let Some(ref payload) = record.payload {
-                return Some(payload);
-            }
-        }
-        None
+        self.records.get(n).and_then(|rec| rec.payload.as_ref())
     }
 
     #[inline]
     #[must_use]
     pub fn handle_from_index(&self, n: usize) -> Handle<T> {
         if let Some(record) = self.records.get(n) {
-            if record.generation != 0 {
+            if record.generation != INVALID_GENERATION {
                 return Handle::make(n as u32, record.generation);
             }
         }
-        Handle::none()
+        Handle::NONE
     }
 
+    /// Returns exact amount of "alive" objects in pool.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// pool.spawn(123);
+    /// pool.spawn(321);
+    /// assert_eq!(pool.alive_count(), 2);
+    /// ```
     #[inline]
     #[must_use]
     pub fn alive_count(&self) -> usize {
         self.records.iter().count()
     }
 
-    /// Moves object by specified handle out of the pool.
+    /// Moves object by specified handle out of the pool. All handles to the object will become
+    /// invalid.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let handle = pool.spawn(123);
+    /// assert_eq!(pool.is_valid_handle(handle), true);
+    /// let value = pool.take(handle);
+    /// assert_eq!(value, Some(123));
+    /// assert_eq!(pool.is_valid_handle(handle), false);
+    /// ```
     #[inline]
     #[must_use]
     pub fn take(&mut self, handle: Handle<T>) -> Option<T> {
@@ -384,7 +475,20 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Moves object by specified index out of the pool.
+    /// Moves object by specified index out of the pool. All handles to the object will become
+    /// invalid.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let handle = pool.spawn(123);
+    /// assert_eq!(pool.is_valid_handle(handle), true);
+    /// let value = pool.take_at(0);
+    /// assert_eq!(value, Some(123));
+    /// assert_eq!(pool.is_valid_handle(handle), false);
+    /// ```
     #[inline]
     #[must_use]
     pub fn take_at(&mut self, index: usize) -> Option<T> {
@@ -396,14 +500,38 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Checks if given handle "points" to some object.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let handle = pool.spawn(123);
+    /// assert_eq!(pool.is_valid_handle(handle), true)
+    /// ```
     #[inline]
     pub fn is_valid_handle(&self, handle: Handle<T>) -> bool {
         if let Some(record) = self.records.get(handle.index as usize) {
-            return record.payload.is_some() && record.generation == handle.generation;
+            record.payload.is_some() && record.generation == handle.generation
+        } else {
+            false
         }
-        false
     }
 
+    /// Creates new pool iterator that iterates over vacant records in pool.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// pool.spawn(123);
+    /// pool.spawn(321);
+    /// let mut iter = pool.iter();
+    /// assert_eq!(iter.next(), Some(123));
+    /// assert_eq!(iter.next(), Some(321));
+    /// ```
     #[must_use]
     pub fn iter(&self) -> PoolIterator<T> {
         PoolIterator {
@@ -412,6 +540,27 @@ impl<T> Pool<T> {
         }
     }
 
+    pub fn pair_iter(&self) -> PoolPairIterator<T> {
+        PoolPairIterator {
+            pool: self,
+            current: 0,
+        }
+    }
+
+    /// Creates new pool iterator that iterates over vacant records in pool allowing
+    /// to modify record payload.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// pool.spawn(123);
+    /// pool.spawn(321);
+    /// let mut iter = pool.iter_mut();
+    /// assert_eq!(iter.next(), Some(123));
+    /// assert_eq!(iter.next(), Some(321));
+    /// ```
     #[must_use]
     pub fn iter_mut(&mut self) -> PoolIteratorMut<T> {
         unsafe {
@@ -419,6 +568,36 @@ impl<T> Pool<T> {
                 ptr: self.records.as_mut_ptr(),
                 end: self.records.as_mut_ptr().add(self.records.len()),
                 marker: PhantomData,
+            }
+        }
+    }
+
+    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T> {
+        unsafe {
+            PoolPairIteratorMut {
+                current: 0,
+                ptr: self.records.as_mut_ptr(),
+                end: self.records.as_mut_ptr().add(self.records.len()),
+                marker: PhantomData,
+            }
+        }
+    }
+
+    pub fn retain<F>(&mut self, mut pred: F) where F: FnMut(&T) -> bool {
+        for (i, record) in self.records.iter_mut().enumerate() {
+            if record.generation == INVALID_GENERATION {
+                continue;
+            }
+
+            let retain = if let Some(payload) = record.payload.as_ref() {
+                pred(payload)
+            } else {
+                continue;
+            };
+
+            if !retain {
+                self.free_stack.push(i as u32);
+                record.payload.take(); // and Drop
             }
         }
     }
@@ -450,6 +629,31 @@ impl<'a, T> Iterator for PoolIterator<'a, T> {
     }
 }
 
+pub struct PoolPairIterator<'a, T> {
+    pool: &'a Pool<T>,
+    current: usize,
+}
+
+impl<'a, T> Iterator for PoolPairIterator<'a, T> {
+    type Item = (Handle<T>, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.pool.records.get(self.current) {
+                Some(record) => {
+                    if let Some(payload) = &record.payload {
+                        let handle = self.pool.handle_from_index(self.current);
+                        self.current += 1;
+                        return Some((handle, payload));
+                    }
+                    self.current += 1;
+                }
+                None => return None
+            }
+        }
+    }
+}
+
 pub struct PoolIteratorMut<'a, T> {
     ptr: *mut PoolRecord<T>,
     end: *mut PoolRecord<T>,
@@ -459,7 +663,7 @@ pub struct PoolIteratorMut<'a, T> {
 impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
     type Item = &'a mut T;
 
-    fn next(&mut self) -> Option<&'a mut T> {
+    fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
                 let current = &mut *self.ptr;
@@ -468,6 +672,36 @@ impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
                     return Some(payload);
                 }
                 self.ptr = self.ptr.offset(1);
+            }
+
+            None
+        }
+    }
+}
+
+
+pub struct PoolPairIteratorMut<'a, T> {
+    ptr: *mut PoolRecord<T>,
+    end: *mut PoolRecord<T>,
+    marker: PhantomData<&'a mut T>,
+    current: usize,
+}
+
+impl<'a, T> Iterator for PoolPairIteratorMut<'a, T> {
+    type Item = (Handle<T>, &'a mut T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            while self.ptr != self.end {
+                let current = &mut *self.ptr;
+                if let Some(ref mut payload) = current.payload {
+                    let handle = Handle::make(self.current as u32, current.generation);
+                    self.ptr = self.ptr.offset(1);
+                    self.current += 1;
+                    return Some((handle, payload));
+                }
+                self.ptr = self.ptr.offset(1);
+                self.current += 1;
             }
 
             None

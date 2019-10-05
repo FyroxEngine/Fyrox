@@ -23,6 +23,7 @@ use crate::{
     },
     pool::{Handle, Pool},
 };
+use std::hash::Hash;
 
 pub enum FieldKind {
     Bool(bool),
@@ -406,7 +407,7 @@ impl Default for Node {
         Self {
             name: String::new(),
             fields: Vec::new(),
-            parent: Handle::none(),
+            parent: Handle::NONE,
             children: Vec::new(),
         }
     }
@@ -436,7 +437,7 @@ impl Visitor {
 
     pub fn new() -> Self {
         let mut nodes = Pool::new();
-        let root = nodes.spawn(Node::new("__ROOT__", Handle::none()));
+        let root = nodes.spawn(Node::new("__ROOT__", Handle::NONE));
         Self {
             nodes,
             rc_map: HashMap::new(),
@@ -469,7 +470,7 @@ impl Visitor {
     pub fn enter_region(&mut self, name: &str) -> VisitResult {
         if self.reading {
             if let Some(node) = self.nodes.borrow(self.current_node) {
-                let mut region = Handle::none();
+                let mut region = Handle::NONE;
                 for child_handle in node.children.iter() {
                     if let Some(child) = self.nodes.borrow(*child_handle) {
                         if child.name == name {
@@ -610,8 +611,8 @@ impl Visitor {
             rc_map: Default::default(),
             arc_map: Default::default(),
             reading: true,
-            current_node: Handle::none(),
-            root: Handle::none(),
+            current_node: Handle::NONE,
+            root: Handle::NONE,
         };
         visitor.root = visitor.load_node_binary(&mut reader)?;
         visitor.current_node = visitor.root;
@@ -910,6 +911,48 @@ impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
         visitor.leave_region()?;
 
         Ok(())
+    }
+}
+
+impl<K, V> Visit for HashMap<K, V> where K: Visit + Default + Copy + Clone + Hash + Eq, V: Visit + Default {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut count = self.len() as u32;
+        count.visit("Count", visitor)?;
+
+        if visitor.is_reading() {
+            for i in 0..(count as usize) {
+                let name = format!("Item{}", i);
+
+                visitor.enter_region(name.as_str())?;
+
+                let mut key = K::default();
+                key.visit("Key", visitor)?;
+
+                let mut value = V::default();
+                value.visit("Value", visitor)?;
+
+                self.insert(key, value);
+
+                visitor.leave_region()?;
+            }
+        } else {
+            for (i, (key, value)) in self.iter_mut().enumerate() {
+                let name = format!("Item{}", i);
+
+                visitor.enter_region(name.as_str())?;
+
+                let mut key = *key;
+                key.visit("Key", visitor)?;
+
+                value.visit("Value", visitor)?;
+
+                visitor.leave_region()?;
+            }
+        }
+
+        visitor.leave_region()
     }
 }
 
