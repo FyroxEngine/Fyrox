@@ -60,7 +60,7 @@ impl BorderBuilder {
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let mut border = Border {
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             stroke_thickness: Thickness {
                 left: 1.0,
                 right: 1.0,

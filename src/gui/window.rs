@@ -75,7 +75,7 @@ impl<'a> WindowBuilder<'a> {
     pub fn new() -> Self {
         Self {
             common: CommonBuilderFields::new(),
-            content: Handle::none(),
+            content: Handle::NONE,
             title: None,
             minimizing_handler: None,
             closing_handler: None,
@@ -197,7 +197,7 @@ impl<'a> WindowBuilder<'a> {
                             .add_row(Row::stretch())
                             .with_child({
                                 match self.title {
-                                    None => Handle::none(),
+                                    None => Handle::NONE,
                                     Some(window_title) => {
                                         match window_title {
                                             WindowTitle::Node(node) => node,

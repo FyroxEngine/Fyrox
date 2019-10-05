@@ -20,11 +20,11 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
     let root_handle = nodes.spawn(FbxNode {
         name: String::from("__ROOT__"),
         children: Vec::new(),
-        parent: Handle::none(),
+        parent: Handle::NONE,
         attribs: Vec::new(),
     });
     let mut parent_handle: Handle<FbxNode> = root_handle;
-    let mut node_handle: Handle<FbxNode> = Handle::none();
+    let mut node_handle: Handle<FbxNode> = Handle::NONE;
     let mut buffer: Vec<u8> = Vec::new();
     let mut name: Vec<u8> = Vec::new();
     let mut value: Vec<u8> = Vec::new();

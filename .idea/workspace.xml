@@ -6,31 +6,37 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/resource_manager.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/resource_manager.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/state.rs" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/border.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/border.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/button.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/button.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/canvas.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/canvas.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/formatted_text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/formatted_text.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/grid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/grid.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/node.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/scroll_bar.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_bar.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/text.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/window.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/error.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/flat_shader.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/flat_shader.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renderer/gbuffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gbuffer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renderer/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renderer/particle_system_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/particle_system_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renderer/surface.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/surface.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/fbx_ascii.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/fbx_ascii.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/fbx_binary.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/fbx_binary.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/texture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/texture.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/light.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/light.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/animation.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/animation.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/particle_system.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/particle_system.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -127,7 +133,7 @@
     </configuration>
     <configuration name="Test" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="channel" value="DEFAULT" />
-      <option name="command" value="test  --package rg3d --bin rg3d -- --nocapture" />
+      <option name="command" value="test" />
       <option name="allFeatures" value="false" />
       <option name="nocapture" value="false" />
       <option name="emulateTerminal" value="false" />

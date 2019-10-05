@@ -29,43 +29,9 @@ struct UIShader {
 
 impl UIShader {
     pub fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(r#"
-        #version 330 core
-
-        uniform sampler2D diffuseTexture;
-
-        out vec4 FragColor;
-        in vec2 texCoord;
-        in vec4 color;
-
-        void main()
-        {
-            FragColor = color;
-            FragColor.a *= texture(diffuseTexture, texCoord).r;
-        };"#)?;
-
-
-        let vertex_source = CString::new(r#"
-        #version 330 core
-
-        layout(location = 0) in vec3 vertexPosition;
-        layout(location = 1) in vec2 vertexTexCoord;
-        layout(location = 2) in vec4 vertexColor;
-
-        uniform mat4 worldViewProjection;
-
-        out vec2 texCoord;
-        out vec4 color;
-
-        void main()
-        {
-            texCoord = vertexTexCoord;
-            color = vertexColor;
-            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-        };"#)?;
-
+        let fragment_source = CString::new(include_str!("shaders/ui_fs.glsl"))?;
+        let vertex_source = CString::new(include_str!("shaders/ui_vs.glsl"))?;
         let mut program = GpuProgram::from_source("UIShader", &vertex_source, &fragment_source)?;
-
         Ok(Self {
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
             diffuse_texture: program.get_uniform_location("diffuseTexture")?,

@@ -4,20 +4,16 @@ pub mod error;
 use rg3d_core::{
     math::vec2::Vec2,
     visitor::{Visitor, VisitResult, Visit},
-    pool::Pool,
 };
 use rg3d_sound::context::Context;
 use std::sync::{Arc, Mutex};
-use glutin::{
-    PossiblyCurrent, GlProfile,
-    GlRequest, Api, EventsLoop,
-};
+use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api, EventsLoop};
 use crate::{
-    engine::resource_manager::ResourceManager,
+    engine::{resource_manager::ResourceManager, error::EngineError},
     gui::UserInterface,
     renderer::{Renderer, error::RendererError, gl},
-    engine::error::EngineError,
-    WindowBuilder, Window, scene::Scene,
+    WindowBuilder, Window,
+    scene::SceneContainer,
 };
 
 pub struct Engine {
@@ -26,7 +22,7 @@ pub struct Engine {
     user_interface: UserInterface,
     sound_context: Arc<Mutex<Context>>,
     resource_manager: ResourceManager,
-    scenes: Pool<Scene>,
+    scenes: SceneContainer,
 }
 
 pub struct EngineInterfaceMut<'a> {
@@ -34,7 +30,7 @@ pub struct EngineInterfaceMut<'a> {
     pub renderer: &'a mut Renderer,
     pub sound_context: Arc<Mutex<Context>>,
     pub resource_manager: &'a mut ResourceManager,
-    pub scenes: &'a mut Pool<Scene>,
+    pub scenes: &'a mut SceneContainer,
 }
 
 pub struct EngineInterface<'a> {
@@ -42,10 +38,27 @@ pub struct EngineInterface<'a> {
     pub renderer: &'a Renderer,
     pub sound_context: Arc<Mutex<Context>>,
     pub resource_manager: &'a ResourceManager,
-    pub scenes: &'a Pool<Scene>,
+    pub scenes: &'a SceneContainer,
 }
 
 impl Engine {
+    /// Creates new instance of engine from given window builder and events loop.
+    ///
+    /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rg3d::engine::Engine;
+    /// use rg3d::WindowBuilder;
+    /// use rg3d::EventsLoop;
+    ///
+    /// let evt = EventsLoop::new();
+    /// let window_builder = WindowBuilder::new()
+    ///     .with_title("Test")
+    ///     .with_fullscreen(None);
+    /// let mut engine = Engine::new(window_builder, &evt).unwrap();
+    /// ```
     #[inline]
     pub fn new(window_builder: WindowBuilder, events_loop: &EventsLoop) -> Result<Engine, EngineError> {
         let context_wrapper = glutin::ContextBuilder::new()
@@ -69,14 +82,14 @@ impl Engine {
             context,
             resource_manager: ResourceManager::new(),
             sound_context: Context::new()?,
-            scenes: Pool::new(),
+            scenes: SceneContainer::new(),
             renderer: Renderer::new(client_size.into())?,
             user_interface: UserInterface::new(),
         })
     }
 
-    /// Returns reference to main window.
-    /// Could be useful to set fullscreen mode, change size of window, etc.
+    /// Returns reference to main window.  Could be useful to set fullscreen mode, change
+    /// size of window, its title, etc.
     #[inline]
     pub fn get_window(&self) -> &Window {
         self.context.window()
@@ -84,9 +97,13 @@ impl Engine {
 
     /// Borrows as mutable all available components at once. Should be used in pair with
     /// destructuring, like this:
-    /// ```
-    /// use rg3d::engine::EngineInterfaceMut;
+    /// ```no_run
+    /// use rg3d::engine::{Engine, EngineInterfaceMut};
+    /// use rg3d::WindowBuilder;
+    /// use rg3d::EventsLoop;
     ///
+    /// let evt = EventsLoop::new();
+    /// let mut engine = Engine::new(WindowBuilder::new(), &evt).unwrap();
     /// let EngineInterfaceMut{scenes, ui, renderer, sound_context, resource_manager} = engine.interface_mut();
     /// ```
     /// This is much more easier than if there would be separate `get_resource_manager_mut()`,
@@ -105,9 +122,13 @@ impl Engine {
 
     /// Borrows all available components at once. Should be used in pair with destructuring,
     /// like this:
-    /// ```
-    /// use rg3d::engine::EngineInterface;
+    /// ```no_run
+    /// use rg3d::engine::{EngineInterface, Engine};
+    /// use rg3d::WindowBuilder;
+    /// use rg3d::EventsLoop;
     ///
+    /// let evt = EventsLoop::new();
+    /// let engine = Engine::new(WindowBuilder::new(), &evt).unwrap();
     /// let EngineInterface{scenes, ui, renderer, sound_context, resource_manager} = engine.interface();
     /// ```
     /// This is much more easier than if there would be separate `get_resource_manager()`,
@@ -123,6 +144,9 @@ impl Engine {
         }
     }
 
+    /// Performs single update tick with given time delta. Engine internally will perform update
+    /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
+    /// functioning.
     pub fn update(&mut self, dt: f32) {
         let client_size = self.context.window().get_inner_size().unwrap();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
@@ -138,6 +162,7 @@ impl Engine {
         self.user_interface.update(Vec2::make(client_size.width as f32, client_size.height as f32));
     }
 
+
     #[inline]
     pub fn render(&mut self) -> Result<(), RendererError> {
         self.renderer.upload_resources(&mut self.resource_manager);
@@ -150,7 +175,6 @@ impl Visit for Engine {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        // Make sure to delete unused resources.
         if visitor.is_reading() {
             self.resource_manager.update();
             self.scenes.clear();

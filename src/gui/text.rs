@@ -57,7 +57,7 @@ impl Drawable for Text {
 impl Text {
     pub fn new(font: Rc<RefCell<Font>>) -> Text {
         Text {
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             text: String::new(),
             need_update: true,
             vertical_alignment: VerticalAlignment::Top,

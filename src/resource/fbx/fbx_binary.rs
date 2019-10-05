@@ -75,7 +75,7 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
     let end_offset = u64::from(file.read_u32::<LittleEndian>()?);
     if end_offset == 0 {
         // Footer found. We're done.
-        return Ok(Handle::none());
+        return Ok(Handle::NONE);
     }
 
     let num_attrib = file.read_u32::<LittleEndian>()? as usize;

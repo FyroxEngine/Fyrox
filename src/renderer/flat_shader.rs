@@ -15,37 +15,8 @@ pub struct FlatShader {
 
 impl FlatShader {
     pub fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(r#"
-        #version 330 core
-
-        uniform sampler2D diffuseTexture;
-
-        out vec4 FragColor;
-
-        in vec2 texCoord;
-
-        void main()
-        {
-            FragColor = texture(diffuseTexture, texCoord);
-        }
-        "#)?;
-
-        let vertex_source = CString::new(r#"
-        #version 330 core
-
-        layout(location = 0) in vec3 vertexPosition;
-        layout(location = 1) in vec2 vertexTexCoord;
-
-        uniform mat4 worldViewProjection;
-
-        out vec2 texCoord;
-
-        void main()
-        {
-            texCoord = vertexTexCoord;
-            gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-        }
-        "#)?;
+        let fragment_source = CString::new(include_str!("shaders/flat_fs.glsl"))?;
+        let vertex_source = CString::new(include_str!("shaders/flat_vs.glsl"))?;
 
         let mut program = GpuProgram::from_source("FlatShader", &vertex_source, &fragment_source)?;
         Ok(Self {

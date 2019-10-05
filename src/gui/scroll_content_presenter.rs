@@ -76,7 +76,7 @@ impl Layout for ScrollContentPresenter {
 impl ScrollContentPresenter {
     fn new() -> Self {
         Self {
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             scroll: Vec2::zero(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: false,
@@ -127,7 +127,7 @@ impl ScrollContentPresenterBuilder {
             vertical_scroll_allowed: None,
             horizontal_scroll_allowed: None,
             common: CommonBuilderFields::new(),
-            content: Handle::none(),
+            content: Handle::NONE,
         }
     }
 

@@ -12,8 +12,13 @@ mod deferred_light_renderer;
 mod shadow_map_renderer;
 mod flat_shader;
 pub mod gpu_texture;
+mod sprite_renderer;
 
+use std::time;
+use rg3d_core::math::{vec3::Vec3, mat4::Mat4};
+use glutin::PossiblyCurrent;
 use crate::{
+    engine::resource_manager::ResourceManager,
     gui::draw::DrawingContext,
     scene::node::NodeKind,
     renderer::{
@@ -25,17 +30,10 @@ use crate::{
         error::RendererError,
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
         flat_shader::FlatShader,
+        sprite_renderer::SpriteRenderer
     },
+    scene::{SceneInterface, SceneContainer},
 };
-use std::time;
-use rg3d_core::math::{
-    vec3::Vec3,
-    mat4::Mat4,
-};
-use glutin::PossiblyCurrent;
-use crate::engine::resource_manager::ResourceManager;
-use rg3d_core::pool::Pool;
-use crate::scene::Scene;
 
 #[repr(C)]
 pub struct TriangleDefinition {
@@ -130,10 +128,13 @@ pub struct Renderer {
     deferred_light_renderer: DeferredLightRenderer,
     gbuffer: GBuffer,
     flat_shader: FlatShader,
+    sprite_renderer: SpriteRenderer,
     particle_system_renderer: ParticleSystemRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     white_dummy: GpuTexture,
+    /// Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
+    /// something without normal map.
     normal_dummy: GpuTexture,
     ui_renderer: UIRenderer,
     statistics: Statistics,
@@ -153,6 +154,7 @@ impl Renderer {
                 flat_shader: FlatShader::new()?,
                 gbuffer: GBuffer::new(frame_size)?,
                 statistics: Statistics::default(),
+                sprite_renderer: SpriteRenderer::new()?,
                 white_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
                                              PixelKind::RGBA8, &[255, 255, 255, 255],
                                              false)?,
@@ -172,7 +174,7 @@ impl Renderer {
     }
 
     pub fn upload_resources(&mut self, resource_manager: &mut ResourceManager) {
-        for texture_rc in  resource_manager.get_textures() {
+        for texture_rc in resource_manager.get_textures() {
             let mut texture = texture_rc.lock().unwrap();
             if texture.gpu_tex.is_none() {
                 let gpu_texture = GpuTexture::new(
@@ -195,9 +197,7 @@ impl Renderer {
         self.frame_size
     }
 
-    pub(in crate) fn render(&mut self,
-                            scenes: &Pool<Scene>,
-                            drawing_context: &DrawingContext,
+    pub(in crate) fn render(&mut self, scenes: &SceneContainer, drawing_context: &DrawingContext,
                             context: &glutin::WindowedContext<PossiblyCurrent>) -> Result<(), RendererError> {
         self.statistics.begin_frame();
 
@@ -208,26 +208,29 @@ impl Renderer {
                 Mat4::scale(Vec3::make(frame_width, frame_height, 0.0));
 
         unsafe {
+            // Render scenes into g-buffer.
             for scene in scenes.iter() {
+                let SceneInterface { graph, .. } = scene.interface();
+
                 // Prepare for render - fill lists of nodes participating in rendering.
-                let camera_node = match scene.get_active_camera() {
+                let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
                     Some(camera_node) => camera_node,
                     None => continue
                 };
 
-                let camera =
-                    if let NodeKind::Camera(camera) = camera_node.get_kind() {
-                        camera
-                    } else {
-                        continue;
-                    };
+                let camera = match camera_node.get_kind() {
+                    NodeKind::Camera(camera) => camera,
+                    _ => continue
+                };
 
-                self.gbuffer.fill(frame_width, frame_height, scene, camera, &self.white_dummy, &self.normal_dummy);
+                self.gbuffer.fill(frame_width, frame_height, graph, camera, &self.white_dummy, &self.normal_dummy);
 
                 self.deferred_light_renderer.render(frame_width, frame_height, scene, camera_node, camera, &self.gbuffer);
             }
 
             self.particle_system_renderer.render(scenes, &self.white_dummy, frame_width, frame_height, &self.gbuffer);
+
+            self.sprite_renderer.render(scenes, &self.white_dummy);
 
             // Finally render everything into back buffer.
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);

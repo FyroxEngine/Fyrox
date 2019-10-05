@@ -578,8 +578,6 @@ impl Default for Emitter {
 
 pub struct ParticleSystem {
     particles: Vec<Particle>,
-    /// Set of indices to alive particles sorted in back-to-front order.
-    sorted_particles: Vec<u32>,
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
     texture: Option<Arc<Mutex<Texture>>>,
@@ -591,7 +589,6 @@ impl ParticleSystem {
     pub fn new() -> Self {
         Self {
             particles: Vec::new(),
-            sorted_particles: Vec::new(),
             free_particles: Vec::new(),
             emitters: Vec::new(),
             texture: None,
@@ -612,7 +609,7 @@ impl ParticleSystem {
         self.color_over_lifetime = Some(gradient)
     }
 
-    pub fn update(&mut self, dt: f32, global_position: &Vec3, camera_pos: &Vec3) {
+    pub fn update(&mut self, dt: f32) {
         for emitter in self.emitters.iter_mut() {
             emitter.tick(dt);
         }
@@ -657,19 +654,21 @@ impl ParticleSystem {
                 }
             }
         }
+    }
 
-        self.sorted_particles.clear();
+    pub fn generate_draw_data(&self, sorted_particles: &mut Vec<u32>, draw_data: &mut DrawData, global_position: &Vec3, camera_pos: &Vec3) {
+        sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
             if particle.alive {
                 let actual_position = particle.position + *global_position;
                 particle.sqr_distance_to_camera.set(camera_pos.sqr_distance(&actual_position));
-                self.sorted_particles.push(i as u32);
+                sorted_particles.push(i as u32);
             }
         }
 
         let particles = &self.particles;
 
-        self.sorted_particles.sort_by(|a, b| {
+        sorted_particles.sort_by(|a, b| {
             let particle_a = particles.get(*a as usize).unwrap();
             let particle_b = particles.get(*b as usize).unwrap();
 
@@ -682,12 +681,10 @@ impl ParticleSystem {
                 Ordering::Equal
             }
         });
-    }
 
-    pub fn generate_draw_data(&self, draw_data: &mut DrawData) {
         draw_data.clear();
 
-        for (i, particle_index) in self.sorted_particles.iter().enumerate() {
+        for (i, particle_index) in sorted_particles.iter().enumerate() {
             let particle = self.particles.get(*particle_index as usize).unwrap();
 
             draw_data.vertices.push(Vertex {
@@ -769,7 +766,6 @@ impl Clone for ParticleSystem {
         Self {
             color_over_lifetime: self.color_over_lifetime.clone(),
             particles: self.particles.clone(),
-            sorted_particles: Vec::new(), // Do not clone, since it is temporary array.
             free_particles: self.free_particles.clone(),
             emitters: self.emitters.clone(),
             texture: match &self.texture {

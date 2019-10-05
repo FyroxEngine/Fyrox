@@ -109,8 +109,8 @@ impl RectPackNode {
             bounds,
             filled: false,
             split: false,
-            left: Handle::none(),
-            right: Handle::none(),
+            left: Handle::NONE,
+            right: Handle::NONE,
         }
     }
 }
@@ -1038,24 +1038,27 @@ impl FontGlyph {
     }
 }
 
+#[cfg(test)]
 mod test {
+    use image::ColorType;
+    use std::{
+        path::PathBuf,
+        rc::Rc,
+        cell::RefCell,
+        path::Path
+    };
+    use crate::resource::ttf::Font;
+
     #[test]
     fn font_test() {
-        use image::ColorType;
-        use std::path::PathBuf;
-        use std::rc::Rc;
-        use std::cell::RefCell;
-        use crate::resource::ttf::Font;
-        use std::path::Path;
-
         let font_bytes = std::include_bytes!("../built_in_font.ttf").to_vec();
         let font = Font::from_memory(font_bytes, 20.0, (0..255).collect()).unwrap();
         let font = Rc::new(RefCell::new(font));
-        let raster_path = Path::new("data/raster");
+        let raster_path = Path::new("./raster");
         if !raster_path.exists() {
             std::fs::create_dir(raster_path).unwrap();
         }
-        let path = PathBuf::from("data/raster/_atlas.png");
+        let path = PathBuf::from("./raster/_atlas.png");
         image::save_buffer(path, font.borrow().atlas.as_slice(),
                            font.borrow().atlas_size as u32,
                            font.borrow().atlas_size as u32,

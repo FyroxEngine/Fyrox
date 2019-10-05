@@ -24,8 +24,8 @@ impl ScrollViewer {
     pub fn update(handle: Handle<UINode>, ui: &mut UserInterface) {
         let mut content_size = Vec2::zero();
         let mut available_size_for_content = Vec2::zero();
-        let mut horizontal_scroll_bar_handle = Handle::none();
-        let mut vertical_scroll_bar_handle = Handle::none();
+        let mut horizontal_scroll_bar_handle = Handle::NONE;
+        let mut vertical_scroll_bar_handle = Handle::NONE;
 
         if let Some(node) = ui.nodes.borrow(handle) {
             if let UINodeKind::ScrollViewer(scroll_viewer) = node.get_kind() {
@@ -69,7 +69,7 @@ impl ScrollViewerBuilder {
     pub fn new() -> Self {
         Self {
             common: CommonBuilderFields::new(),
-            content: Handle::none(),
+            content: Handle::NONE,
         }
     }
 
@@ -113,7 +113,7 @@ impl ScrollViewerBuilder {
 
         let scroll_viewer = ScrollViewer {
             content: self.content,
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             v_scroll_bar,
             h_scroll_bar,
             content_presenter,

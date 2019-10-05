@@ -136,7 +136,7 @@ impl UINode {
             margin: Thickness::zero(),
             visibility: Visibility::Visible,
             children: Vec::new(),
-            parent: Handle::none(),
+            parent: Handle::NONE,
             command_indices: Vec::new(),
             event_handlers: Default::default(),
             is_mouse_over: false,

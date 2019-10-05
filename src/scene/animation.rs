@@ -18,7 +18,9 @@ use rg3d_core::{
     pool::Handle,
 };
 use std::sync::{Mutex, Arc};
-use rg3d_core::pool::Pool;
+use rg3d_core::pool::{Pool, PoolIterator, PoolIteratorMut};
+use crate::scene::SceneInterface;
+use crate::scene::graph::Graph;
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -312,16 +314,19 @@ impl Animation {
         }
     }
 
-    pub(in crate) fn resolve(&mut self, nodes: &Pool<Node>) {
+    pub(in crate) fn resolve(&mut self, graph: &Graph) {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
         // from which key frames should be taken on load.
         if let Some(resource) = self.resource.clone() {
             let resource = resource.lock().unwrap();
             // TODO: Here we assume that resource contains only *one* animation.
-            if let Some(ref_animation) = resource.get_scene().get_animations().at(0) {
+            let SceneInterface {
+                animations: resource_animations,
+                graph: resource_graph, .. } = resource.get_scene().interface();
+            if let Some(ref_animation) = resource_animations.pool.at(0) {
                 for track in self.get_tracks_mut() {
-                    if let Some(track_node) = nodes.borrow(track.get_node()) {
+                    if let Some(track_node) = graph.get(track.get_node()) {
                         // Find corresponding track in resource using names of nodes, not
                         // original handles of instantiated nodes. We can't use original
                         // handles here because animation can be targetted to a node that
@@ -334,7 +339,7 @@ impl Animation {
                         // animation targetted to character instance.
                         let mut found = false;
                         for ref_track in ref_animation.get_tracks().iter() {
-                            if track_node.get_name() == resource.get_scene().get_node(ref_track.get_node()).unwrap().get_name() {
+                            if track_node.get_name() == resource_graph.get(ref_track.get_node()).unwrap().get_name() {
                                 track.set_key_frames(ref_track.get_key_frames());
                                 found = true;
                                 break;
@@ -379,6 +384,127 @@ impl Visit for Animation {
         self.resource.visit("Resource", visitor)?;
         self.looped.visit("Looped", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+
+pub struct AnimationContainer {
+    pool: Pool<Animation>
+}
+
+impl Default for AnimationContainer {
+    fn default() -> Self {
+        Self {
+            pool: Pool::new()
+        }
+    }
+}
+
+impl AnimationContainer {
+    pub(in crate) fn new() -> Self {
+        Self {
+            pool: Pool::new()
+        }
+    }
+
+    #[inline]
+    pub fn iter(&self) -> PoolIterator<Animation> {
+        self.pool.iter()
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> PoolIteratorMut<Animation> {
+        self.pool.iter_mut()
+    }
+
+    #[inline]
+    pub fn add(&mut self, animation: Animation) -> Handle<Animation> {
+        self.pool.spawn(animation)
+    }
+
+    #[inline]
+    pub fn remove(&mut self, handle: Handle<Animation>) {
+        self.pool.free(handle)
+    }
+
+    #[inline]
+    pub fn clear(&mut self) {
+        self.pool.clear()
+    }
+
+    #[inline]
+    pub fn get(&self, handle: Handle<Animation>) -> Option<&Animation> {
+        self.pool.borrow(handle)
+    }
+
+    #[inline]
+    pub fn get_mut(&mut self, handle: Handle<Animation>) -> Option<&mut Animation> {
+        self.pool.borrow_mut(handle)
+    }
+
+    pub fn resolve(&mut self, graph: &Graph) {
+        println!("Resolving animations...");
+        for animation in self.pool.iter_mut() {
+            animation.resolve(graph)
+        }
+        println!("Animations resolved successfully!");
+    }
+
+    pub fn update_animations(&mut self, dt: f32, graph: &mut Graph) {
+        // Reset local transform of animated nodes first
+        for animation in self.pool.iter() {
+            for track in animation.get_tracks() {
+                if let Some(node) = graph.get_mut(track.get_node()) {
+                    let transform = node.get_local_transform_mut();
+                    transform.set_position(Default::default());
+                    transform.set_rotation(Default::default());
+                    // TODO: transform.set_scale(Vec3::make(1.0, 1.0, 1.0));
+                }
+            }
+        }
+
+        // Then apply animation.
+        for animation in self.pool.iter_mut() {
+            if !animation.is_enabled() {
+                continue;
+            }
+
+            let next_time_pos = animation.get_time_position() + dt * animation.get_speed();
+
+            let weight = animation.get_weight();
+
+            for track in animation.get_tracks() {
+                if !track.is_enabled() {
+                    continue;
+                }
+
+                if let Some(keyframe) = track.get_key_frame(animation.get_time_position()) {
+                    if let Some(node) = graph.get_mut(track.get_node()) {
+                        let transform = node.get_local_transform_mut();
+                        transform.set_rotation(transform.get_rotation().nlerp(&keyframe.rotation, weight));
+                        transform.set_position(transform.get_position() + keyframe.position.scale(weight));
+                        // TODO: transform.set_scale(transform.get_scale().lerp(&keyframe.scale, weight));
+                    }
+                }
+            }
+
+            animation.set_time_position(next_time_pos);
+            animation.update_fading(dt);
+        }
+    }
+}
+
+impl Visit for AnimationContainer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        if visitor.is_reading() && self.pool.get_capacity() != 0 {
+            panic!("Animation pool must be empty on load!");
+        }
+
+        self.pool.visit("Pool", visitor)?;
 
         visitor.leave_region()
     }

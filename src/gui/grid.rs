@@ -122,7 +122,7 @@ pub struct Grid {
 impl Grid {
     fn new() -> Self {
         Self {
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             rows: RefCell::new(Vec::new()),
             columns: RefCell::new(Vec::new()),
         }

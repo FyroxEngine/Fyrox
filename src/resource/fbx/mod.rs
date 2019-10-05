@@ -49,6 +49,9 @@ use rg3d_core::{
 };
 use std::sync::{Arc, Mutex};
 use crate::engine::resource_manager::ResourceManager;
+use crate::scene::SceneInterfaceMut;
+use crate::scene::graph::Graph;
+use crate::scene::animation::AnimationContainer;
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -95,7 +98,7 @@ impl FbxSubDeformer {
         }
 
         let mut sub_deformer = FbxSubDeformer {
-            model: Handle::none(),
+            model: Handle::NONE,
             weights: Vec::with_capacity(weights.attrib_count()),
             transform,
         };
@@ -115,7 +118,7 @@ struct FbxMaterial {
 impl FbxMaterial {
     fn read(_material_node_handle: Handle<FbxNode>) -> Result<FbxMaterial, String> {
         Ok(FbxMaterial {
-            diffuse_texture: Handle::none()
+            diffuse_texture: Handle::NONE
         })
     }
 }
@@ -601,7 +604,7 @@ impl FbxModel {
             materials: Vec::new(),
             animation_curve_nodes: Vec::new(),
             children: Vec::new(),
-            light: Handle::none(),
+            light: Handle::NONE,
         };
 
         let properties70_node_handle = find_node(nodes, model_node_handle, "Properties70")?;
@@ -961,7 +964,7 @@ impl Fbx {
         for object_handle in objects_node.children.iter() {
             let object = self.nodes.borrow(*object_handle).unwrap();
             let index = object.get_attrib(0)?.as_i64()?;
-            let mut component_handle: Handle<FbxComponent> = Handle::none();
+            let mut component_handle: Handle<FbxComponent> = Handle::NONE;
             match object.name.as_str() {
                 "Geometry" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Geometry(
@@ -1022,7 +1025,7 @@ impl Fbx {
             let parent_index = connection.get_attrib(2)?.as_i64()?;
             if let Some(parent_handle) = self.index_to_component.get(&parent_index) {
                 if let Some(child_handle) = self.index_to_component.get(&child_index) {
-                    let pair = self.component_pool.borrow_two_mut(*child_handle, *parent_handle).unwrap();
+                    let pair = self.component_pool.borrow_two_mut((*child_handle, *parent_handle)).unwrap();
                     let child = pair.0.unwrap();
                     let parent = pair.1.unwrap();
                     link_child_with_parent_component(parent, child, *child_handle);
@@ -1128,7 +1131,8 @@ impl Fbx {
                      model:
                      &FbxModel,
                      resource_manager: &mut ResourceManager,
-                     scene: &mut Scene,
+                     graph: &mut Graph,
+                     animations: &mut AnimationContainer,
                      animation_handle: Handle<Animation>)
                      -> Result<Handle<Node>, FbxError> {
         // Create node with correct kind.
@@ -1141,7 +1145,7 @@ impl Fbx {
                 Node::new(NodeKind::Base)
             };
 
-        node.set_name(model.name.clone());
+        node.set_name(model.name.as_str());
         let node_local_rotation = quat_from_euler(model.rotation);
         let transform = node.get_local_transform_mut();
         transform.set_rotation(node_local_rotation);
@@ -1168,7 +1172,7 @@ impl Fbx {
             _ => ()
         }
 
-        let node_handle = scene.add_node(node);
+        let node_handle = graph.add_node(node);
 
         // Convert animations
         if !model.animation_curve_nodes.is_empty() {
@@ -1245,7 +1249,7 @@ impl Fbx {
                 time = next_time;
             }
 
-            if let Some(animation) = scene.get_animation_mut(animation_handle) {
+            if let Some(animation) = animations.get_mut(animation_handle) {
                 animation.add_track(track);
             }
         }
@@ -1257,16 +1261,17 @@ impl Fbx {
     /// Converts FBX DOM to native engine representation.
     ///
     pub fn convert(&self, resource_manager: &mut ResourceManager, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
+        let SceneInterfaceMut { animations, graph, ..} = scene.interface_mut();
         let mut instantiated_nodes = Vec::new();
-        let root = scene.add_node(Node::new(NodeKind::Base));
-        let animation_handle = scene.add_animation(Animation::default());
+        let root = graph.add_node(Node::new(NodeKind::Base));
+        let animation_handle = animations.add(Animation::default());
         let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {
             if let Some(component) = self.component_pool.borrow(*component_handle) {
                 if let FbxComponent::Model(model) = component {
-                    let node = self.convert_model(model, resource_manager, scene, animation_handle)?;
+                    let node = self.convert_model(model, resource_manager, graph, animations, animation_handle)?;
                     instantiated_nodes.push(node);
-                    scene.link_nodes(node, root);
+                    graph.link_nodes(node, root);
                     fbx_model_to_node_map.insert(*component_handle, node);
                 }
             }
@@ -1276,17 +1281,17 @@ impl Fbx {
             if let FbxComponent::Model(fbx_model) = self.component_pool.borrow(*fbx_model_handle).unwrap() {
                 for fbx_child_handle in fbx_model.children.iter() {
                     if let Some(child_handle) = fbx_model_to_node_map.get(fbx_child_handle) {
-                        scene.link_nodes(*child_handle, *node_handle);
+                        graph.link_nodes(*child_handle, *node_handle);
                     }
                 }
             }
         }
-        scene.update_nodes();
+        graph.update_transforms();
 
         // Remap handles from fbx model to handles of instantiated nodes
         // on each surface of each mesh.
         for handle in instantiated_nodes.iter() {
-            let node = scene.get_node_mut(*handle).ok_or(FbxError::InvalidPoolHandle)?;
+            let node = graph.get_mut(*handle).ok_or(FbxError::InvalidPoolHandle)?;
             if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
                 let mut surface_bones = HashSet::new();
                 for surface in mesh.get_surfaces_mut() {

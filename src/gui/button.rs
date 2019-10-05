@@ -73,7 +73,7 @@ impl ButtonBuilder {
         let hover_color = Color::opaque(160, 160, 160);
 
         let mut button = Button {
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             click: None,
         };
         button.click = self.click;
@@ -148,7 +148,7 @@ impl ButtonBuilder {
                             ButtonContent::Node(node) => node
                         }
                     } else {
-                        Handle::none()
+                        Handle::NONE
                     })
                 .build(ui))
             .build(ui)

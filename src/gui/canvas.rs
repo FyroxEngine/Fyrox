@@ -25,7 +25,7 @@ pub struct Canvas {
 impl Canvas {
     pub fn new() -> Self {
         Self {
-            owner_handle: Handle::none()
+            owner_handle: Handle::NONE
         }
     }
 }

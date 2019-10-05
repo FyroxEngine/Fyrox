@@ -18,8 +18,7 @@ use crate::{
         particle_system,
     },
 };
-use crate::scene::Scene;
-use rg3d_core::pool::Pool;
+use crate::scene::{SceneInterface, SceneContainer};
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -35,71 +34,9 @@ struct ParticleSystemShader {
 
 impl ParticleSystemShader {
     fn new() -> Result<Self, RendererError> {
-        let vertex_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) in vec3 vertexPosition;
-            layout(location = 1) in vec2 vertexTexCoord;
-            layout(location = 2) in float particleSize;
-            layout(location = 3) in float particleRotation;
-            layout(location = 4) in vec4 vertexColor;
-
-            uniform mat4 viewProjectionMatrix;
-            uniform mat4 worldMatrix;
-            uniform vec3 cameraUpVector;
-            uniform vec3 cameraSideVector;
-
-            out vec2 texCoord;
-            out vec4 color;
-
-            vec2 rotateVec2(vec2 v, float angle)
-            {
-               float c = cos(angle);
-               float s = sin(angle);
-               mat2 m = mat2(c, -s, s, c);
-               return m * v;
-            }
-
-            void main()
-            {
-                color = vertexColor;
-                texCoord = vertexTexCoord;
-                vec2 vertexOffset = rotateVec2(vertexTexCoord * 2.0 - 1.0, particleRotation);
-                vec4 worldPosition = worldMatrix * vec4(vertexPosition, 1.0);
-                vec3 offset = (vertexOffset.x * cameraSideVector + vertexOffset.y * cameraUpVector) * particleSize;
-                gl_Position = viewProjectionMatrix * (worldPosition + vec4(offset.x, offset.y, offset.z, 0.0));
-            }"#)?;
-
-        let fragment_source = CString::new(r#"
-            #version 330 core
-
-            uniform sampler2D diffuseTexture;
-            uniform sampler2D depthBufferTexture;
-            uniform vec2 invScreenSize;
-            uniform vec2 projParams;
-
-            out vec4 FragColor;
-            in vec2 texCoord;
-            in vec4 color;
-
-            float toProjSpace(float z)
-            {
-               float far = projParams.x;
-               float near = projParams.y;
-                return (far * near) / (far - z * (far + near));
-            }
-
-            void main()
-            {
-               float sceneDepth = toProjSpace(texture(depthBufferTexture, gl_FragCoord.xy * invScreenSize).r);
-               float depthOpacity = clamp((sceneDepth - gl_FragCoord.z / gl_FragCoord.w) * 2.0f, 0.0, 1.0);
-                FragColor = color * texture(diffuseTexture, texCoord).r;
-               FragColor.a *= depthOpacity;
-            }
-            "#)?;
-
+        let vertex_source = CString::new(include_str!("shaders/particle_system_vs.glsl"))?;
+        let fragment_source = CString::new(include_str!("shaders/particle_system_fs.glsl"))?;
         let mut program = GpuProgram::from_source("ParticleSystemShader", &vertex_source, &fragment_source)?;
-
         Ok(Self {
             view_projection_matrix: program.get_uniform_location("viewProjectionMatrix")?,
             world_matrix: program.get_uniform_location("worldMatrix")?,
@@ -155,6 +92,7 @@ pub struct ParticleSystemRenderer {
     shader: ParticleSystemShader,
     draw_data: particle_system::DrawData,
     geometry_buffer: GeometryBuffer<particle_system::Vertex>,
+    sorted_particles: Vec<u32>,
 }
 
 impl ParticleSystemRenderer {
@@ -173,10 +111,16 @@ impl ParticleSystemRenderer {
             shader: ParticleSystemShader::new()?,
             draw_data: Default::default(),
             geometry_buffer,
+            sorted_particles: Vec::new(),
         })
     }
 
-    pub fn render(&mut self, scenes: &Pool<Scene>, white_dummy: &GpuTexture, frame_width: f32, frame_height: f32, gbuffer: &GBuffer) {
+    pub fn render(&mut self,
+                  scenes: &SceneContainer,
+                  white_dummy: &GpuTexture,
+                  frame_width: f32,
+                  frame_height: f32,
+                  gbuffer: &GBuffer) {
         unsafe {
             gl::Disable(gl::CULL_FACE);
             gl::Enable(gl::BLEND);
@@ -185,7 +129,10 @@ impl ParticleSystemRenderer {
             self.shader.bind();
 
             for scene in scenes.iter() {
-                let camera_node = match scene.get_active_camera() {
+                let SceneInterface { graph, .. } = scene.interface();
+
+                // Prepare for render - fill lists of nodes participating in rendering.
+                let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
                     Some(camera_node) => camera_node,
                     None => continue
                 };
@@ -202,14 +149,17 @@ impl ParticleSystemRenderer {
                 let camera_up = inv_view.up();
                 let camera_side = inv_view.side();
 
-                for node in scene.get_nodes().iter() {
+                for node in graph.linear_iter() {
                     let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.get_kind() {
                         particle_system
                     } else {
                         continue;
                     };
 
-                    particle_system.generate_draw_data(&mut self.draw_data);
+                    particle_system.generate_draw_data(&mut self.sorted_particles,
+                                                       &mut self.draw_data,
+                                                       &node.get_global_position(),
+                                                       &camera_node.get_global_position());
 
                     self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
                     self.geometry_buffer.set_vertices(self.draw_data.get_vertices());

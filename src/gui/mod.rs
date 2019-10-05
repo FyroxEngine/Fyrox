@@ -161,13 +161,13 @@ impl UserInterface {
         let mut ui = UserInterface {
             visual_debug: false,
             default_font: font,
-            captured_node: Handle::none(),
-            root_canvas: Handle::none(),
+            captured_node: Handle::NONE,
+            root_canvas: Handle::NONE,
             nodes: Pool::new(),
             mouse_position: Vec2::zero(),
             drawing_context: DrawingContext::new(),
-            picked_node: Handle::none(),
-            prev_picked_node: Handle::none(),
+            picked_node: Handle::NONE,
+            prev_picked_node: Handle::NONE,
             deferred_actions: VecDeque::new(),
         };
         ui.root_canvas = ui.add_node(UINode::new(UINodeKind::Canvas(Canvas::new())));
@@ -213,7 +213,7 @@ impl UserInterface {
 
     #[inline]
     pub fn release_mouse_capture(&mut self) {
-        self.captured_node = Handle::none();
+        self.captured_node = Handle::NONE;
     }
 
     #[inline]
@@ -236,11 +236,11 @@ impl UserInterface {
     /// Unlinks specified node from its parent, so node will become root.
     #[inline]
     pub fn unlink_node(&mut self, node_handle: Handle<UINode>) {
-        let mut parent_handle: Handle<UINode> = Handle::none();
+        let mut parent_handle: Handle<UINode> = Handle::NONE;
         // Replace parent handle of child
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
             parent_handle = node.parent;
-            node.parent = Handle::none();
+            node.parent = Handle::NONE;
         }
         // Remove child from parent's children list
         if let Some(parent) = self.nodes.borrow_mut(parent_handle) {
@@ -624,7 +624,7 @@ impl UserInterface {
     }
 
     fn pick_node(&self, node_handle: Handle<UINode>, pt: Vec2, level: &mut i32) -> Handle<UINode> {
-        let mut picked = Handle::none();
+        let mut picked = Handle::NONE;
         let mut topmost_picked_level = 0;
 
         if self.is_node_contains_point(node_handle, pt) {
@@ -657,7 +657,7 @@ impl UserInterface {
 
     fn route_event(&mut self, node_handle: Handle<UINode>, event_type: RoutedEventHandlerType, event_args: &mut RoutedEvent) {
         let mut handler = None;
-        let mut parent = Handle::none();
+        let mut parent = Handle::NONE;
         let index = event_type as usize;
 
         if let Some(node) = self.nodes.borrow_mut(node_handle) {
@@ -699,7 +699,7 @@ impl UserInterface {
                 }
             }
         }
-        Handle::none()
+        Handle::NONE
     }
 
     /// Searches a node up on tree starting from given root that matches a criteria
@@ -714,7 +714,7 @@ impl UserInterface {
             return self.find_by_criteria_up(node.parent, func);
         }
 
-        Handle::none()
+        Handle::NONE
     }
 
     /// Searches a node by name up on tree starting from given root node.

@@ -246,6 +246,52 @@ impl SurfaceSharedData {
         data
     }
 
+    pub fn make_collapsed_xy_quad() -> Self {
+        let mut data = Self::new();
+
+        data.vertices = vec![
+            Vertex {
+                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 0.0, y: 0.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 1.0, y: 0.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 1.0, y: 1.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 0.0, y: 1.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            }
+        ];
+
+        data.indices = vec![
+            0, 1, 2,
+            0, 2, 3
+        ];
+
+        data
+    }
+
     pub fn insert_vertex_pos_tex(&mut self, pos: &Vec3, tex: Vec2) {
         self.insert_vertex(Vertex {
             position: *pos,

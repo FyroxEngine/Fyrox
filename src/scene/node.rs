@@ -6,28 +6,22 @@ use crate::{
         light::Light,
         particle_system::ParticleSystem,
         transform::Transform,
+        sprite::Sprite,
     },
     resource::model::Model,
 };
 use rg3d_core::{
-    math::{
-        vec3::Vec3,
-        mat4::Mat4,
-    },
-    visitor::{
-        Visit,
-        VisitResult,
-        Visitor,
-    },
+    math::{vec3::Vec3, mat4::Mat4},
+    visitor::{Visit, VisitResult, Visitor},
     pool::Handle,
 };
-use rg3d_physics::rigid_body::RigidBody;
 
 pub enum NodeKind {
     Base,
     Light(Light),
     Camera(Camera),
     Mesh(Mesh),
+    Sprite(Sprite),
     ParticleSystem(ParticleSystem),
 }
 
@@ -38,6 +32,7 @@ impl Visit for NodeKind {
             NodeKind::Light(light) => light.visit(name, visitor),
             NodeKind::Camera(camera) => camera.visit(name, visitor),
             NodeKind::Mesh(mesh) => mesh.visit(name, visitor),
+            NodeKind::Sprite(sprite) => sprite.visit(name, visitor),
             NodeKind::ParticleSystem(particle_system) => particle_system.visit(name, visitor)
         }
     }
@@ -50,6 +45,7 @@ impl Clone for NodeKind {
             NodeKind::Camera(camera) => NodeKind::Camera(camera.clone()),
             NodeKind::Light(light) => NodeKind::Light(light.clone()),
             NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.clone()),
+            NodeKind::Sprite(sprite) => NodeKind::Sprite(sprite.clone()),
             NodeKind::ParticleSystem(particle_system) => NodeKind::ParticleSystem(particle_system.clone())
         }
     }
@@ -63,7 +59,8 @@ impl NodeKind {
             1 => Ok(NodeKind::Light(Default::default())),
             2 => Ok(NodeKind::Camera(Default::default())),
             3 => Ok(NodeKind::Mesh(Default::default())),
-            4 => Ok(NodeKind::ParticleSystem(Default::default())),
+            4 => Ok(NodeKind::Sprite(Default::default())),
+            5 => Ok(NodeKind::ParticleSystem(Default::default())),
             _ => Err(format!("Invalid node kind {}", id))
         }
     }
@@ -75,7 +72,8 @@ impl NodeKind {
             NodeKind::Light(_) => 1,
             NodeKind::Camera(_) => 2,
             NodeKind::Mesh(_) => 3,
-            NodeKind::ParticleSystem(_) => 4,
+            NodeKind::Sprite(_) => 4,
+            NodeKind::ParticleSystem(_) => 5,
         }
     }
 }
@@ -91,7 +89,6 @@ pub struct Node {
     pub(in crate::scene) global_transform: Mat4,
     /// Bone-specific matrix. Non-serializable.
     inv_bind_pose_transform: Mat4,
-    body: Handle<RigidBody>,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
     resource: Option<Arc<Mutex<Model>>>,
@@ -110,15 +107,14 @@ impl Default for Node {
             kind: NodeKind::Base,
             name: String::new(),
             children: Vec::new(),
-            parent: Handle::none(),
+            parent: Handle::NONE,
             visibility: true,
             global_visibility: true,
             local_transform: Transform::identity(),
             global_transform: Mat4::identity(),
             inv_bind_pose_transform: Mat4::identity(),
-            body: Handle::none(),
             resource: None,
-            original: Handle::none(),
+            original: Handle::NONE,
             is_resource_instance: false,
         }
     }
@@ -130,15 +126,14 @@ impl Node {
             kind,
             name: String::from("Node"),
             children: Vec::new(),
-            parent: Handle::none(),
+            parent: Handle::NONE,
             visibility: true,
             global_visibility: true,
             local_transform: Transform::identity(),
             global_transform: Mat4::identity(),
             inv_bind_pose_transform: Mat4::identity(),
-            body: Handle::none(),
             resource: None,
-            original: Handle::none(),
+            original: Handle::NONE,
             is_resource_instance: false,
         }
     }
@@ -155,8 +150,7 @@ impl Node {
             global_visibility: self.global_visibility,
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             children: Vec::new(),
-            parent: Handle::none(),
-            body: Handle::none(),
+            parent: Handle::NONE,
             resource: self.get_resource(),
             is_resource_instance: self.is_resource_instance,
             original,
@@ -171,16 +165,6 @@ impl Node {
     #[inline]
     pub fn set_original_handle(&mut self, original: Handle<Node>) {
         self.original = original;
-    }
-
-    #[inline]
-    pub fn set_rigid_body(&mut self, body: Handle<RigidBody>) {
-        self.body = body;
-    }
-
-    #[inline]
-    pub fn get_rigid_body(&self) -> Handle<RigidBody> {
-        self.body
     }
 
     #[inline]
@@ -229,8 +213,8 @@ impl Node {
     }
 
     #[inline]
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
+    pub fn set_name(&mut self, name: &str) {
+        self.name = name.to_owned();
     }
 
     #[inline]
@@ -282,6 +266,46 @@ impl Node {
     pub fn get_up_vector(&self) -> Vec3 {
         self.global_transform.up()
     }
+
+    #[inline]
+    pub fn is_camera(&self) -> bool {
+        match &self.kind {
+            NodeKind::Camera(_) => true,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    pub fn is_sprite(&self) -> bool {
+        match &self.kind {
+            NodeKind::Sprite(_) => true,
+            _ => false
+        }
+    }
+
+    #[inline]
+    pub fn is_particle_system(&self) -> bool {
+        match &self.kind {
+            NodeKind::ParticleSystem(_) => true,
+            _ => false
+        }
+    }
+
+    #[inline]
+    pub fn is_light(&self) -> bool {
+        match &self.kind {
+            NodeKind::Light(_) => true,
+            _ => false
+        }
+    }
+
+    #[inline]
+    pub fn is_mesh(&self) -> bool {
+        match &self.kind {
+            NodeKind::Mesh(_) => true,
+            _ => false
+        }
+    }
 }
 
 impl Visit for Node {
@@ -300,7 +324,6 @@ impl Visit for Node {
         self.visibility.visit("Visibility", visitor)?;
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;
-        self.body.visit("Body", visitor)?;
         self.resource.visit("Resource", visitor)?;
         self.is_resource_instance.visit("IsResourceInstance", visitor)?;
 

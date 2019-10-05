@@ -2,7 +2,6 @@ use std::ffi::CString;
 use crate::{
     scene::{
         camera::Camera,
-        Scene,
         node::NodeKind,
     },
     renderer::{
@@ -19,6 +18,7 @@ use rg3d_core::{
         Rect,
     },
 };
+use crate::scene::graph::Graph;
 
 struct GBufferShader {
     program: GpuProgram,
@@ -32,103 +32,9 @@ struct GBufferShader {
 
 impl GBufferShader {
     fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) out float outDepth;
-            layout(location = 1) out vec4 outColor;
-            layout(location = 2) out vec4 outNormal;
-
-            uniform sampler2D diffuseTexture;
-            uniform sampler2D normalTexture;
-            uniform sampler2D specularTexture;
-
-            in vec4 position;
-            in vec3 normal;
-            in vec2 texCoord;
-            in vec3 tangent;
-            in vec3 binormal;
-
-            void main()
-            {
-               outDepth = position.z / position.w;
-               outColor = texture2D(diffuseTexture, texCoord);
-               if(outColor.a < 0.5) discard;
-               outColor.a = 1;
-               vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);
-               mat3 tangentSpace = mat3(tangent, binormal, normal);
-               outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
-               outNormal.w = texture2D(specularTexture, texCoord).r;
-            }
-        "#)?;
-
-        let vertex_source = CString::new(r#"
-            #version 330 core
-
-            layout(location = 0) in vec3 vertexPosition;
-            layout(location = 1) in vec2 vertexTexCoord;
-            layout(location = 2) in vec3 vertexNormal;
-            layout(location = 3) in vec4 vertexTangent;
-            layout(location = 4) in vec4 boneWeights;
-            layout(location = 5) in vec4 boneIndices;
-
-            uniform mat4 worldMatrix;
-            uniform mat4 worldViewProjection;
-            uniform bool useSkeletalAnimation;
-            uniform mat4 boneMatrices[60];
-
-            out vec4 position;
-            out vec3 normal;
-            out vec2 texCoord;
-            out vec3 tangent;
-            out vec3 binormal;
-
-            void main()
-            {
-               vec4 localPosition = vec4(0);
-               vec3 localNormal = vec3(0);
-               vec3 localTangent = vec3(0);
-               if(useSkeletalAnimation)
-               {
-                   vec4 vertex = vec4(vertexPosition, 1.0);
-
-                   int i0 = int(boneIndices.x);
-                   int i1 = int(boneIndices.y);
-                   int i2 = int(boneIndices.z);
-                   int i3 = int(boneIndices.w);
-
-                   localPosition += boneMatrices[i0] * vertex * boneWeights.x;
-                   localPosition += boneMatrices[i1] * vertex * boneWeights.y;
-                   localPosition += boneMatrices[i2] * vertex * boneWeights.z;
-                   localPosition += boneMatrices[i3] * vertex * boneWeights.w;
-
-                   localNormal += mat3(boneMatrices[i0]) * vertexNormal * boneWeights.x;
-                   localNormal += mat3(boneMatrices[i1]) * vertexNormal * boneWeights.y;
-                   localNormal += mat3(boneMatrices[i2]) * vertexNormal * boneWeights.z;
-                   localNormal += mat3(boneMatrices[i3]) * vertexNormal * boneWeights.w;
-
-                   localTangent += mat3(boneMatrices[i0]) * vertexTangent.xyz * boneWeights.x;
-                   localTangent += mat3(boneMatrices[i1]) * vertexTangent.xyz * boneWeights.y;
-                   localTangent += mat3(boneMatrices[i2]) * vertexTangent.xyz * boneWeights.z;
-                   localTangent += mat3(boneMatrices[i3]) * vertexTangent.xyz * boneWeights.w;
-               }
-               else
-               {
-                   localPosition = vec4(vertexPosition, 1.0);
-                   localNormal = vertexNormal;
-                   localTangent = vertexTangent.xyz;
-               }
-               gl_Position = worldViewProjection * localPosition;
-               normal = normalize(mat3(worldMatrix) * localNormal);
-               tangent = normalize(mat3(worldMatrix) * localTangent);
-               binormal = normalize(vertexTangent.w * cross(tangent, normal));
-               texCoord = vertexTexCoord;
-               position = gl_Position;
-            }
-        "#)?;
-
+        let fragment_source = CString::new(include_str!("shaders/gbuffer_fs.glsl"))?;
+        let vertex_source = CString::new(include_str!("shaders/gbuffer_vs.glsl"))?;
         let mut program = GpuProgram::from_source("GBufferShader", &vertex_source, &fragment_source)?;
-
         Ok(Self {
             world_matrix: program.get_uniform_location("worldMatrix")?,
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
@@ -304,7 +210,7 @@ impl GBuffer {
     pub fn fill(&mut self,
                 frame_width: f32,
                 frame_height: f32,
-                scene: &Scene,
+                graph: &Graph,
                 camera: &Camera,
                 white_dummy: &GpuTexture,
                 normal_dummy: &GpuTexture) {
@@ -330,7 +236,7 @@ impl GBuffer {
 
         let view_projection = camera.get_view_projection_matrix();
 
-        for node in scene.get_nodes().iter() {
+        for node in graph.linear_iter() {
             if let NodeKind::Mesh(mesh) = node.get_kind() {
                 if !node.get_global_visibility() {
                     continue;
@@ -354,7 +260,7 @@ impl GBuffer {
                     if is_skinned {
                         self.bone_matrices.clear();
                         for bone_handle in surface.bones.iter() {
-                            if let Some(bone_node) = scene.get_node(*bone_handle) {
+                            if let Some(bone_node) = graph.get(*bone_handle) {
                                 self.bone_matrices.push(
                                     *bone_node.get_global_transform() *
                                         *bone_node.get_inv_bind_pose_transform());

@@ -237,7 +237,7 @@ impl ScrollBarBuilder {
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let scroll_bar = ScrollBar {
-            owner_handle: Handle::none(),
+            owner_handle: Handle::NONE,
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
             value: self.value.unwrap_or(0.0),
