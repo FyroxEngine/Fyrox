@@ -196,4 +196,29 @@ impl RigidBody {
             }
         }
     }
+
+    pub fn solve_rigid_body_collision(&mut self, other: &mut Self) {
+        if let Some(simplex) = gjk_epa::gjk_is_intersects(&self.shape, self.position, &other.shape, other.position) {
+            if let Some(penetration_info) = gjk_epa::epa_get_penetration_info(simplex, &self.shape, self.position, &other.shape, other.position) {
+                let half_push = penetration_info.penetration_vector.scale(0.5);
+                self.position -= half_push;
+                self.contacts.push(Contact {
+                    body: Handle::NONE,
+                    position: penetration_info.contact_point,
+                    // TODO: WRONG NORMAL
+                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
+                    triangle_index: 0,
+                });
+
+                other.position += half_push;
+                other.contacts.push(Contact {
+                    body: Handle::NONE,
+                    position: penetration_info.contact_point,
+                    // TODO: WRONG NORMAL
+                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
+                    triangle_index: 0,
+                })
+            }
+        }
+    }
 }

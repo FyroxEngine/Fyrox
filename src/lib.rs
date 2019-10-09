@@ -117,11 +117,24 @@ impl Physics {
         let dt2 = delta_time * delta_time;
         let air_friction = 0.003;
 
+        // Take second mutable reference to bodies, this is safe because:
+        // 1. We won't modify collection while iterating over it.
+        // 2. Simultaneous access to a body won't happen because of
+        //    pointer equality check down below.
+        let other_bodies = unsafe { &mut *(&mut self.bodies as *mut Pool<RigidBody>) };
+
         for body in self.bodies.iter_mut() {
             body.acceleration += body.gravity;
             body.verlet(dt2, air_friction);
 
             body.contacts.clear();
+
+            for other_body in other_bodies.iter_mut() {
+                // Enforce borrowing rules at runtime.
+                if !std::ptr::eq(body, other_body) {
+                    body.solve_rigid_body_collision(other_body);
+                }
+            }
 
             for static_geometry in self.static_geoms.iter() {
                 for (n, triangle) in static_geometry.triangles.iter().enumerate() {

@@ -498,7 +498,7 @@ pub fn epa_get_penetration_info(simplex: Simplex, shape1: &ConvexShape, shape1_p
             let edge_vector = loose_edge.begin.minkowski_dif - loose_edge.end.minkowski_dif;
             let begin_to_point = loose_edge.begin.minkowski_dif - new_point.minkowski_dif;
 
-            new_triangle.normal = edge_vector.cross(&begin_to_point).normalized().unwrap();
+            new_triangle.normal = edge_vector.cross(&begin_to_point).normalized().unwrap_or(Vec3::up());
 
             // Check for wrong normal to maintain CCW winding
             let bias = 2.0 * std::f32::EPSILON;
