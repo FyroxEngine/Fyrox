@@ -286,7 +286,7 @@ impl<T> Pool<T> {
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
-    /// let (a, b) = pool.borrow_two_mut((a, b));
+    /// let (a, b) = pool.borrow_two_mut((a, b)).unwrap();
     /// if let Some(a) = a { *a = 11 }
     /// if let Some(b) = b { *b = 22 }
     /// ```
@@ -318,7 +318,7 @@ impl<T> Pool<T> {
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
     /// let c = pool.spawn(3);
-    /// let (a, b, c) = pool.borrow_three_mut((a, b, c));
+    /// let (a, b, c) = pool.borrow_three_mut((a, b, c)).unwrap();
     /// if let Some(a) = a { *a = 11 }
     /// if let Some(b) = b { *b = 22 }
     /// if let Some(c) = c { *c = 33 }
@@ -355,7 +355,7 @@ impl<T> Pool<T> {
     /// let b = pool.spawn(2);
     /// let c = pool.spawn(3);
     /// let d = pool.spawn(4);
-    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d));
+    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d)).unwrap();
     /// if let Some(a) = a { *a = 11 }
     /// if let Some(b) = b { *b = 22 }
     /// if let Some(c) = c { *c = 33 }
@@ -519,7 +519,7 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Creates new pool iterator that iterates over vacant records in pool.
+    /// Creates new pool iterator that iterates over filled records in pool.
     ///
     /// # Example
     ///
@@ -529,8 +529,8 @@ impl<T> Pool<T> {
     /// pool.spawn(123);
     /// pool.spawn(321);
     /// let mut iter = pool.iter();
-    /// assert_eq!(iter.next(), Some(123));
-    /// assert_eq!(iter.next(), Some(321));
+    /// assert_eq!(*iter.next().unwrap(), 123);
+    /// assert_eq!(*iter.next().unwrap(), 321);
     /// ```
     #[must_use]
     pub fn iter(&self) -> PoolIterator<T> {
@@ -540,6 +540,9 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Creates new pair iterator that iterates over filled records using pair (handle, payload)
+    /// Can be useful when there is a need to iterate over pool records and know a handle of
+    /// that record.
     pub fn pair_iter(&self) -> PoolPairIterator<T> {
         PoolPairIterator {
             pool: self,
@@ -547,7 +550,7 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Creates new pool iterator that iterates over vacant records in pool allowing
+    /// Creates new pool iterator that iterates over filled records in pool allowing
     /// to modify record payload.
     ///
     /// # Example
@@ -558,8 +561,8 @@ impl<T> Pool<T> {
     /// pool.spawn(123);
     /// pool.spawn(321);
     /// let mut iter = pool.iter_mut();
-    /// assert_eq!(iter.next(), Some(123));
-    /// assert_eq!(iter.next(), Some(321));
+    /// assert_eq!(*iter.next().unwrap(), 123);
+    /// assert_eq!(*iter.next().unwrap(), 321);
     /// ```
     #[must_use]
     pub fn iter_mut(&mut self) -> PoolIteratorMut<T> {
@@ -572,6 +575,9 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Creates new pair iterator that iterates over filled records using pair (handle, payload)
+    /// Can be useful when there is a need to iterate over pool records and know a handle of
+    /// that record.
     pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T> {
         unsafe {
             PoolPairIteratorMut {
@@ -583,6 +589,8 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Retains pool records selected by `pred`. Useful when you need to remove all pool records
+    /// by some criteria.
     pub fn retain<F>(&mut self, mut pred: F) where F: FnMut(&T) -> bool {
         for (i, record) in self.records.iter_mut().enumerate() {
             if record.generation == INVALID_GENERATION {
