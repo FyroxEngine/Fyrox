@@ -1,9 +1,4 @@
-use crate::gui::{
-    builder::{CommonBuilderFields, GenericNodeBuilder},
-    node::{UINode, UINodeKind},
-    UserInterface,
-    Layout,
-};
+use crate::gui::{builder::{CommonBuilderFields, GenericNodeBuilder}, node::{UINode, UINodeKind}, UserInterface, Layout, EventSource};
 use rg3d_core::{
     pool::Handle,
     math::{
@@ -11,6 +6,7 @@ use rg3d_core::{
         Rect,
     },
 };
+use crate::gui::event::UIEvent;
 
 pub struct ScrollContentPresenter {
     pub(in crate::gui) owner_handle: Handle<UINode>,
@@ -83,28 +79,16 @@ impl ScrollContentPresenter {
         }
     }
 
-    pub fn set_scroll(handle: Handle<UINode>, ui: &mut UserInterface, scroll: Vec2) {
-        if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
-            if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
-                scp.scroll = scroll;
-            }
-        }
+    pub fn set_scroll(&mut self, scroll: Vec2) {
+        self.scroll = scroll;
     }
 
-    pub fn set_vertical_scroll(handle: Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
-        if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
-            if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
-                scp.scroll.y = scroll;
-            }
-        }
+    pub fn set_vertical_scroll(&mut self, scroll: f32) {
+        self.scroll.y = scroll;
     }
 
-    pub fn set_horizontal_scroll(handle: Handle<UINode>, ui: &mut UserInterface, scroll: f32) {
-        if let Some(scp_node) = ui.nodes.borrow_mut(handle) {
-            if let UINodeKind::ScrollContentPresenter(scp) = scp_node.get_kind_mut() {
-                scp.scroll.x = scroll;
-            }
-        }
+    pub fn set_horizontal_scroll(&mut self, scroll: f32) {
+        self.scroll.x = scroll;
     }
 }
 
@@ -159,5 +143,11 @@ impl ScrollContentPresenterBuilder {
         GenericNodeBuilder::new(UINodeKind::ScrollContentPresenter(scp), self.common)
             .with_child(self.content)
             .build(ui)
+    }
+}
+
+impl EventSource for ScrollContentPresenter {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

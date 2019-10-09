@@ -1,28 +1,23 @@
 use std::ffi::CString;
 use crate::{
     scene::{
-        camera::Camera,
-        node::NodeKind,
-        Scene,
-        node::Node,
+        camera::Camera, node::NodeKind, Scene,
+        node::Node, SceneInterface,
     },
     renderer::{
         surface::SurfaceSharedData,
         gpu_program::{UniformLocation, GpuProgram},
-        gl,
-        gbuffer::GBuffer,
-        FlatShader,
-        error::RendererError,
+        gl, gbuffer::GBuffer,
+        FlatShader, error::RendererError,
+        shadow_map_renderer::SpotShadowMapRenderer,
     },
 };
 use rg3d_core::{
     color::Color,
-    math::{
-        vec3::Vec3,
-        mat4::Mat4,
-    },
+    math::{vec3::Vec3, mat4::Mat4},
 };
-use crate::scene::SceneInterface;
+use crate::scene::light::LightKind;
+use crate::renderer::gpu_texture::GpuTexture;
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -188,6 +183,7 @@ pub struct DeferredLightRenderer {
     quad: SurfaceSharedData,
     sphere: SurfaceSharedData,
     flat_shader: FlatShader,
+    spot_shadow_map_renderer: SpotShadowMapRenderer,
 }
 
 impl DeferredLightRenderer {
@@ -198,11 +194,12 @@ impl DeferredLightRenderer {
             quad: SurfaceSharedData::make_unit_xy_quad(),
             sphere: SurfaceSharedData::make_sphere(6, 6, 1.0),
             flat_shader: FlatShader::new()?,
+            spot_shadow_map_renderer: SpotShadowMapRenderer::new(1024)?,
         })
     }
 
-    pub fn render(&self, frame_width: f32, frame_height: f32, scene: &Scene, camera_node: &Node,
-                  camera: &Camera, gbuffer: &GBuffer) {
+    pub fn render(&mut self, frame_width: f32, frame_height: f32, scene: &Scene, camera_node: &Node,
+                  camera: &Camera, gbuffer: &GBuffer, white_dummy: &GpuTexture) {
         let frame_matrix =
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::make(frame_width, frame_height, 0.0));
@@ -240,24 +237,34 @@ impl DeferredLightRenderer {
             let view_projection = camera.get_view_projection_matrix();
             let inv_view_projection = view_projection.inverse().unwrap();
 
-            let SceneInterface {graph, ..} = scene.interface();
+            let SceneInterface { graph, .. } = scene.interface();
 
             for light_node in graph.linear_iter() {
                 if !light_node.get_global_visibility() {
                     continue;
                 }
 
-                let light =
-                    if let NodeKind::Light(light) = light_node.get_kind() {
-                        light
-                    } else {
-                        continue;
-                    };
+                let light = match light_node.get_kind() {
+                    NodeKind::Light(light) => light,
+                    _ => continue
+                };
 
                 let light_position = light_node.get_global_position();
                 let light_r_inflate = light.get_radius() * 1.05;
                 let light_radius_vec = Vec3::make(light_r_inflate, light_r_inflate, light_r_inflate);
                 let light_emit_direction = light_node.get_up_vector().normalized().unwrap_or(Vec3::up());
+
+                match light.get_kind() {
+                    LightKind::Spot => {
+                        self.spot_shadow_map_renderer.render(graph, &Mat4::identity(), white_dummy, gbuffer.opt_fbo);
+                    }
+                    LightKind::Point => {}
+                }
+
+                let light_type = match light.get_kind() {
+                    LightKind::Spot => 2,
+                    LightKind::Point => -1, // TODO
+                };
 
                 // Mark lighted areas in stencil buffer to do light calculations only on them.
                 self.flat_shader.bind();
@@ -291,7 +298,7 @@ impl DeferredLightRenderer {
                 self.shader.bind();
                 self.shader.set_light_position(&light_position);
                 self.shader.set_light_direction(&light_emit_direction);
-                self.shader.set_light_type(-1); // Disable shadows for now
+                self.shader.set_light_type(light_type); // Disable shadows for now
                 self.shader.set_light_radius(light.get_radius());
                 self.shader.set_inv_view_proj_matrix(&inv_view_projection);
                 self.shader.set_light_color(light.get_color());

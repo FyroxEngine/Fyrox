@@ -17,6 +17,8 @@ use rg3d_core::{
         Rect
     }
 };
+use crate::gui::EventSource;
+use crate::gui::event::UIEvent;
 
 pub struct Canvas {
     pub(in crate::gui) owner_handle: Handle<UINode>
@@ -96,5 +98,11 @@ impl CanvasBuilder {
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         GenericNodeBuilder::new(UINodeKind::Canvas(Canvas::new()), self.common).build(ui)
+    }
+}
+
+impl EventSource for Canvas {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

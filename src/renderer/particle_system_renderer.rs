@@ -7,18 +7,18 @@ use rg3d_core::math::{
 use crate::{
     renderer::{
         geometry_buffer::{GeometryBuffer, GeometryBufferKind, AttributeDefinition, AttributeKind},
-        gl,
-        gpu_program::{GpuProgram, UniformLocation},
+        gl, gpu_program::{GpuProgram, UniformLocation},
         gbuffer::GBuffer,
         error::RendererError,
-        gpu_texture::GpuTexture
+        gpu_texture::GpuTexture,
     },
     scene::{
         node::NodeKind,
         particle_system,
+        SceneInterface,
+        SceneContainer,
     },
 };
-use crate::scene::{SceneInterface, SceneContainer};
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -126,66 +126,71 @@ impl ParticleSystemRenderer {
             gl::Enable(gl::BLEND);
             gl::DepthMask(gl::FALSE);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            self.shader.bind();
+        }
 
-            for scene in scenes.iter() {
-                let SceneInterface { graph, .. } = scene.interface();
+        self.shader.bind();
 
-                // Prepare for render - fill lists of nodes participating in rendering.
-                let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
-                    Some(camera_node) => camera_node,
-                    None => continue
+        for scene in scenes.iter() {
+            let SceneInterface { graph, .. } = scene.interface();
+
+            // Prepare for render - fill lists of nodes participating in rendering.
+            let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
+                Some(camera_node) => camera_node,
+                None => continue
+            };
+
+            let camera =
+                if let NodeKind::Camera(camera) = camera_node.get_kind() {
+                    camera
+                } else {
+                    continue;
                 };
 
-                let camera =
-                    if let NodeKind::Camera(camera) = camera_node.get_kind() {
-                        camera
-                    } else {
-                        continue;
-                    };
+            let inv_view = camera.get_inv_view_matrix().unwrap();
 
-                let inv_view = camera.get_inv_view_matrix().unwrap();
+            let camera_up = inv_view.up();
+            let camera_side = inv_view.side();
 
-                let camera_up = inv_view.up();
-                let camera_side = inv_view.side();
+            for node in graph.linear_iter() {
+                let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.get_kind() {
+                    particle_system
+                } else {
+                    continue;
+                };
 
-                for node in graph.linear_iter() {
-                    let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.get_kind() {
-                        particle_system
-                    } else {
-                        continue;
-                    };
+                particle_system.generate_draw_data(&mut self.sorted_particles,
+                                                   &mut self.draw_data,
+                                                   &node.get_global_position(),
+                                                   &camera_node.get_global_position());
 
-                    particle_system.generate_draw_data(&mut self.sorted_particles,
-                                                       &mut self.draw_data,
-                                                       &node.get_global_position(),
-                                                       &camera_node.get_global_position());
+                self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
+                self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
-                    self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
-                    self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
+                if let Some(texture) = particle_system.get_texture() {
+                    texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                } else {
+                    white_dummy.bind(0)
+                }
 
-                    if let Some(texture) = particle_system.get_texture() {
-                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
-                    } else {
-                        white_dummy.bind(0)
-                    }
-
+                unsafe {
                     gl::ActiveTexture(gl::TEXTURE1);
                     gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
-
-                    self.shader.set_diffuse_texture(0);
-                    self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                    self.shader.set_world_matrix(node.get_global_transform());
-                    self.shader.set_camera_up_vector(&camera_up);
-                    self.shader.set_camera_side_vector(&camera_side);
-                    self.shader.set_depth_buffer_texture(1);
-                    self.shader.set_inv_screen_size(Vec2::make(1.0 / frame_width, 1.0 / frame_height));
-                    self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
-
-                    self.geometry_buffer.draw();
                 }
-            }
 
+                self.shader.set_diffuse_texture(0);
+                self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
+                self.shader.set_world_matrix(node.get_global_transform());
+                self.shader.set_camera_up_vector(&camera_up);
+                self.shader.set_camera_side_vector(&camera_side);
+                self.shader.set_depth_buffer_texture(1);
+                self.shader.set_inv_screen_size(Vec2::make(1.0 / frame_width, 1.0 / frame_height));
+                self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
+
+                self.geometry_buffer.draw();
+            }
+        }
+
+        unsafe {
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
         }

@@ -1,12 +1,4 @@
-use crate::gui::{
-    draw::{CommandKind, DrawingContext},
-    Thickness,
-    UserInterface,
-    Layout,
-    Drawable,
-    node::{UINode, UINodeKind},
-    builder::CommonBuilderFields,
-};
+use crate::gui::{draw::{CommandKind, DrawingContext}, Thickness, UserInterface, Layout, Drawable, node::{UINode, UINodeKind}, builder::CommonBuilderFields, EventSource};
 
 use rg3d_core::{
     color::Color,
@@ -17,6 +9,7 @@ use rg3d_core::{
     },
 };
 use crate::gui::draw::CommandTexture;
+use crate::gui::event::UIEvent;
 
 #[derive(Debug)]
 pub struct Border {
@@ -149,5 +142,11 @@ impl Border {
     pub fn set_stroke_color(&mut self, color: Color) -> &mut Self {
         self.stroke_color = color;
         self
+    }
+}
+
+impl EventSource for Border {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

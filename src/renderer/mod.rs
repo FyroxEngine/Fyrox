@@ -179,7 +179,7 @@ impl Renderer {
             if texture.gpu_tex.is_none() {
                 let gpu_texture = GpuTexture::new(
                     GpuTextureKind::Rectangle { width: texture.width as usize, height: texture.height as usize },
-                    PixelKind::RGBA8, texture.bytes.as_slice(), true).unwrap();
+                     PixelKind::from(texture.kind), texture.bytes.as_slice(), true).unwrap();
                 gpu_texture.set_max_anisotropy();
                 texture.gpu_tex = Some(gpu_texture);
             }
@@ -225,7 +225,7 @@ impl Renderer {
 
                 self.gbuffer.fill(frame_width, frame_height, graph, camera, &self.white_dummy, &self.normal_dummy);
 
-                self.deferred_light_renderer.render(frame_width, frame_height, scene, camera_node, camera, &self.gbuffer);
+                self.deferred_light_renderer.render(frame_width, frame_height, scene, camera_node, camera, &self.gbuffer, &self.white_dummy);
             }
 
             self.particle_system_renderer.render(scenes, &self.white_dummy, frame_width, frame_height, &self.gbuffer);

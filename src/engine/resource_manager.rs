@@ -10,6 +10,7 @@ use rg3d_core::{
     visitor::{Visitor, VisitResult, Visit}
 };
 use rg3d_sound::buffer::{Buffer, BufferKind};
+use crate::resource::texture::TextureKind;
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,
@@ -30,7 +31,7 @@ impl ResourceManager {
         }
     }
 
-    pub fn request_texture(&mut self, path: &Path) -> Option<Arc<Mutex<Texture>>> {
+    pub fn request_texture(&mut self, path: &Path, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {
         if let Some(texture) = self.find_texture(path) {
             return Some(texture);
         }
@@ -40,7 +41,7 @@ impl ResourceManager {
             map_or(String::from(""), |s| s.to_ascii_lowercase());
 
         match extension.as_str() {
-            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load(path) {
+            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load(path, kind) {
                 Ok(texture) => {
                     let shared_texture = Arc::new(Mutex::new(texture));
                     self.textures.push(shared_texture.clone());
@@ -181,7 +182,7 @@ impl ResourceManager {
     pub fn reload_resources(&mut self) {
         for old_texture in self.get_textures() {
             let mut old_texture = old_texture.lock().unwrap();
-            let new_texture = match Texture::load(old_texture.path.as_path()) {
+            let new_texture = match Texture::load(old_texture.path.as_path(), old_texture.kind) {
                 Ok(texture) => texture,
                 Err(e) => {
                     println!("Unable to reload {:?} texture! Reason: {}", old_texture.path, e);

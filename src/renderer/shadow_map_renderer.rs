@@ -1,10 +1,16 @@
 use std::ffi::CString;
-use crate::renderer::{
-    gl::types::GLuint,
-    gpu_program::{GpuProgram, UniformLocation},
-    error::RendererError,
-    gl,
+use crate::{
+    renderer::{
+        gl::types::GLuint,
+        gpu_program::{GpuProgram, UniformLocation},
+        error::RendererError,
+        gl,
+    },
+    scene::graph::Graph,
 };
+use crate::scene::node::NodeKind;
+use rg3d_core::math::mat4::Mat4;
+use crate::renderer::gpu_texture::GpuTexture;
 
 pub struct SpotShadowMapShader {
     program: GpuProgram,
@@ -26,6 +32,157 @@ impl SpotShadowMapShader {
             diffuse_texture: program.get_uniform_location("diffuseTexture")?,
             program,
         })
+    }
+
+    fn bind(&self) {
+        self.program.bind()
+    }
+
+
+    fn set_wvp_matrix(&self, mat: &Mat4) {
+        self.program.set_mat4(self.world_view_projection_matrix, mat)
+    }
+
+    fn set_use_skeletal_animation(&self, value: bool) {
+        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 })
+    }
+
+    fn set_bone_matrices(&self, matrices: &[Mat4]) {
+        self.program.set_mat4_array(self.bone_matrices, matrices);
+    }
+
+    fn set_diffuse_texture(&self, id: i32) {
+        self.program.set_int(self.diffuse_texture, id)
+    }
+}
+
+pub struct SpotShadowMapRenderer {
+    shader: SpotShadowMapShader,
+    fbo: GLuint,
+    texture: GLuint,
+    bone_matrices: Vec<Mat4>,
+    size: usize,
+}
+
+impl SpotShadowMapRenderer {
+    pub fn new(size: usize) -> Result<Self, RendererError> {
+        unsafe {
+            let mut fbo = 0;
+            gl::GenFramebuffers(1, &mut fbo);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+
+            gl::DrawBuffer(gl::NONE);
+
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_BORDER as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_BORDER as i32);
+            let color = [1.0, 1.0, 1.0, 1.0];
+            gl::TexParameterfv(gl::TEXTURE_2D, gl::TEXTURE_BORDER_COLOR, color.as_ptr());
+            gl::TexImage2D(gl::TEXTURE_2D,
+                           0,
+                           gl::DEPTH_COMPONENT as i32,
+                           size as i32,
+                           size as i32,
+                           0,
+                           gl::DEPTH_COMPONENT,
+                           gl::FLOAT, std::ptr::null());
+
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::TEXTURE_2D, texture, 0);
+
+            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                return Err(RendererError::InvalidFrameBuffer);
+            }
+
+            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+
+            Ok(Self {
+                size,
+                fbo,
+                texture,
+                shader: SpotShadowMapShader::new()?,
+                bone_matrices: Vec::new(),
+            })
+        }
+    }
+
+    pub fn render(&mut self,
+                  graph: &Graph,
+                  light_view_projection: &Mat4,
+                  white_dummy: &GpuTexture,
+                  active_fbo: GLuint) {
+        unsafe {
+            gl::DepthMask(gl::TRUE);
+            gl::Disable(gl::BLEND);
+            gl::Disable(gl::STENCIL_TEST);
+            gl::Enable(gl::CULL_FACE);
+
+            gl::Viewport(0, 0, self.size as i32, self.size as i32);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
+            gl::Clear(gl::DEPTH_BUFFER_BIT);
+        }
+
+        for node in graph.linear_iter() {
+            if let NodeKind::Mesh(mesh) = node.get_kind() {
+                if !node.get_global_visibility() {
+                    continue;
+                }
+
+                for surface in mesh.get_surfaces().iter() {
+                    let is_skinned = !surface.bones.is_empty();
+
+                    let world = if is_skinned {
+                        Mat4::identity()
+                    } else {
+                        *node.get_global_transform()
+                    };
+                    let mvp = *light_view_projection * world;
+
+                    self.shader.set_wvp_matrix(&mvp);
+                    self.shader.set_use_skeletal_animation(is_skinned);
+
+                    if is_skinned {
+                        self.bone_matrices.clear();
+                        for bone_handle in surface.bones.iter() {
+                            if let Some(bone_node) = graph.get(*bone_handle) {
+                                self.bone_matrices.push(
+                                    *bone_node.get_global_transform() *
+                                        *bone_node.get_inv_bind_pose_transform());
+                            } else {
+                                self.bone_matrices.push(Mat4::identity())
+                            }
+                        }
+
+                        self.shader.set_bone_matrices(&self.bone_matrices);
+                    }
+
+                    // Bind diffuse texture.
+                    if let Some(texture) = surface.get_diffuse_texture() {
+                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                    } else {
+                        white_dummy.bind(0);
+                    }
+
+                    surface.get_data().lock().unwrap().draw();
+                }
+            }
+        }
+
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, active_fbo);
+        }
+    }
+}
+
+impl Drop for SpotShadowMapRenderer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.texture);
+            gl::DeleteFramebuffers(1, &self.fbo);
+        }
     }
 }
 
@@ -116,7 +273,7 @@ impl PointShadowMapRenderer {
             gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, gl::TEXTURE_2D, depth_buffer, 0);
 
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Unable to initialize shadow map.");
+                return Err(RendererError::InvalidFrameBuffer);
             }
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);

@@ -24,6 +24,7 @@ pub struct SpriteShader {
     color: UniformLocation,
     diffuse_texture: UniformLocation,
     size: UniformLocation,
+    rotation: UniformLocation,
 }
 
 impl SpriteShader {
@@ -39,6 +40,7 @@ impl SpriteShader {
             size: program.get_uniform_location("size")?,
             diffuse_texture: program.get_uniform_location("diffuseTexture")?,
             color: program.get_uniform_location("color")?,
+            rotation: program.get_uniform_location("rotation")?,
             program,
         })
     }
@@ -65,6 +67,10 @@ impl SpriteShader {
 
     pub fn set_size(&self, s: f32) {
         self.program.set_float(self.size, s)
+    }
+
+    pub fn set_rotation(&self, r: f32) {
+        self.program.set_float(self.rotation, r)
     }
 
     pub fn set_diffuse_texture(&self, id: i32) {
@@ -141,6 +147,7 @@ impl SpriteRenderer {
                 self.shader.set_camera_side_vector(&camera_side);
                 self.shader.set_size(sprite.get_size());
                 self.shader.set_color(sprite.get_color());
+                self.shader.set_rotation(sprite.get_rotation());
 
                 self.surface.draw();
             }

@@ -162,6 +162,9 @@ impl Engine {
         self.user_interface.update(Vec2::make(client_size.width as f32, client_size.height as f32));
     }
 
+    pub fn get_ui_mut(&mut self) -> &mut UserInterface {
+        &mut self.user_interface
+    }
 
     #[inline]
     pub fn render(&mut self) -> Result<(), RendererError> {

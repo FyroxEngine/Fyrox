@@ -1,5 +1,11 @@
+use rg3d_core::{
+    color::Color, pool::Handle,
+    math::{Rect, vec2::Vec2},
+};
+use std::{cell::RefCell, rc::Rc};
 use crate::{
     gui::{
+        event::UIEvent,
         builder::CommonBuilderFields,
         VerticalAlignment,
         HorizontalAlignment,
@@ -10,21 +16,10 @@ use crate::{
             UINodeKind,
         },
         UserInterface,
-        formatted_text::{FormattedText, FormattedTextBuilder}
+        formatted_text::{FormattedText, FormattedTextBuilder},
+        EventSource,
     },
     resource::ttf::Font,
-};
-use rg3d_core::{
-    color::Color,
-    math::{
-        Rect,
-        vec2::Vec2,
-    },
-    pool::{Handle},
-};
-use std::{
-    cell::RefCell,
-    rc::Rc,
 };
 
 pub struct Text {
@@ -135,7 +130,7 @@ impl TextBuilder {
     }
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut text = Text::new( if let Some(font) = self.font {
+        let mut text = Text::new(if let Some(font) = self.font {
             font
         } else {
             ui.default_font.clone()
@@ -163,5 +158,11 @@ impl TextBuilder {
     pub fn with_horizontal_text_alignment(mut self, halign: HorizontalAlignment) -> Self {
         self.horizontal_text_alignment = Some(halign);
         self
+    }
+}
+
+impl EventSource for Text {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

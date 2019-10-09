@@ -9,6 +9,7 @@ use std::{
     ffi::c_void,
     mem::size_of
 };
+use crate::resource::texture::TextureKind;
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -47,6 +48,16 @@ pub enum PixelKind {
     RGB8,
     RG8,
     R8,
+}
+
+impl From<TextureKind> for PixelKind {
+    fn from(texture_kind: TextureKind) -> Self {
+        match texture_kind {
+            TextureKind::R8 => PixelKind::R8,
+            TextureKind::RGB8 => PixelKind::RGB8,
+            TextureKind::RGBA8 => PixelKind::RGBA8,
+        }
+    }
 }
 
 pub struct GpuTexture {

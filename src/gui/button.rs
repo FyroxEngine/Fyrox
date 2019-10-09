@@ -1,33 +1,27 @@
-use crate::{
-    gui::{
-        builder::{CommonBuilderFields, GenericNodeBuilder},
-        node::{UINode, UINodeKind},
-        UserInterface,
-        HorizontalAlignment,
-        VerticalAlignment,
-        Thickness,
-        event::{RoutedEventHandlerType},
-        text::TextBuilder,
-        border::BorderBuilder,
-    },
+use crate::gui::{
+    builder::{CommonBuilderFields, GenericNodeBuilder},
+    node::{UINode, UINodeKind},
+    UserInterface,
+    HorizontalAlignment,
+    VerticalAlignment,
+    Thickness,
+    text::TextBuilder,
+    border::BorderBuilder,
+    event::{UIEvent, UIEventKind},
+    EventSource,
 };
 
-use rg3d_core::{
-    color::Color,
-    pool::Handle,
-};
+use rg3d_core::{color::Color, pool::Handle};
+use std::collections::VecDeque;
 
-pub type ButtonClickEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
-
+/// Button
+///
+/// # Events
+///
+/// [`Click`] - spawned when user click button.
 pub struct Button {
     pub(in crate::gui) owner_handle: Handle<UINode>,
-    click: Option<Box<ButtonClickEventHandler>>,
-}
-
-impl Button {
-    pub fn set_on_click(&mut self, handler: Box<ButtonClickEventHandler>) {
-        self.click = Some(handler);
-    }
+    events: VecDeque<UIEvent>,
 }
 
 pub enum ButtonContent {
@@ -37,7 +31,6 @@ pub enum ButtonContent {
 
 pub struct ButtonBuilder {
     content: Option<ButtonContent>,
-    click: Option<Box<ButtonClickEventHandler>>,
     common: CommonBuilderFields,
 }
 
@@ -45,7 +38,6 @@ impl ButtonBuilder {
     pub fn new() -> Self {
         Self {
             content: None,
-            click: None,
             common: CommonBuilderFields::new(),
         }
     }
@@ -62,76 +54,57 @@ impl ButtonBuilder {
         self
     }
 
-    pub fn with_click(mut self, handler: Box<ButtonClickEventHandler>) -> Self {
-        self.click = Some(handler);
-        self
-    }
-
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let normal_color = Color::opaque(120, 120, 120);
         let pressed_color = Color::opaque(100, 100, 100);
         let hover_color = Color::opaque(160, 160, 160);
 
-        let mut button = Button {
+        let button = Button {
             owner_handle: Handle::NONE,
-            click: None,
+            events: VecDeque::new(),
         };
-        button.click = self.click;
 
         GenericNodeBuilder::new(
             UINodeKind::Button(button), self.common)
-            .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-                ui.capture_mouse(handle);
-            }))
-            .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, evt| {
-                // Take-Call-PutBack trick to bypass borrow checker
-                let mut click_handler = None;
-
-                if let Some(button_node) = ui.nodes.borrow_mut(handle) {
-                    if let UINodeKind::Button(button) = button_node.get_kind_mut() {
-                        click_handler = button.click.take();
+            .with_event_handler(Box::new(move |ui, handle, evt| {
+                if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
+                    match evt.kind {
+                        UIEventKind::MouseUp { .. } => {
+                            // Generate Click event
+                            if let Some(node) = ui.get_node_mut(handle) {
+                                if let UINodeKind::Button(button) = node.get_kind_mut() {
+                                    button.events.push_back(UIEvent::new(UIEventKind::Click));
+                                }
+                            }
+                            ui.release_mouse_capture();
+                        }
+                        UIEventKind::MouseDown { .. } => {
+                            ui.capture_mouse(evt.source);
+                        },
+                        _ => ()
                     }
                 }
-
-                if let Some(ref mut handler) = click_handler {
-                    handler(ui, handle);
-                    evt.handled = true;
-                }
-
-                // Second check required because event handler can remove node.
-                if let Some(button_node) = ui.nodes.borrow_mut(handle) {
-                    if let UINodeKind::Button(button) = button_node.get_kind_mut() {
-                        button.click = click_handler;
-                    }
-                }
-
-                ui.release_mouse_capture();
             }))
             .with_child(BorderBuilder::new()
                 .with_stroke_color(Color::opaque(200, 200, 200))
                 .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
                 .with_color(normal_color)
-                .with_handler(RoutedEventHandlerType::MouseEnter, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(handle) {
-                        back.color = hover_color;
-                    }
-                }))
-                .with_handler(RoutedEventHandlerType::MouseLeave, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(handle) {
-                        back.color = normal_color;
-                    }
-                }))
-                .with_handler(RoutedEventHandlerType::MouseDown, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(handle) {
-                        back.color = pressed_color;
-                    }
-                }))
-                .with_handler(RoutedEventHandlerType::MouseUp, Box::new(move |ui, handle, _evt| {
-                    if let Some(back) = ui.nodes.borrow_mut(handle) {
-                        if back.is_mouse_over {
-                            back.color = hover_color;
-                        } else {
-                            back.color = normal_color;
+                .with_event_handler(Box::new(move |ui, handle, evt| {
+                    if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
+                        if let Some(back) = ui.nodes.borrow_mut(handle) {
+                            match evt.kind {
+                                UIEventKind::MouseDown { .. } => back.color = pressed_color,
+                                UIEventKind::MouseUp { .. } => {
+                                    if back.is_mouse_over {
+                                        back.color = hover_color;
+                                    } else {
+                                        back.color = normal_color;
+                                    }
+                                }
+                                UIEventKind::MouseLeave => back.color = normal_color,
+                                UIEventKind::MouseEnter => back.color = hover_color,
+                                _ => ()
+                            }
                         }
                     }
                 }))
@@ -152,5 +125,11 @@ impl ButtonBuilder {
                     })
                 .build(ui))
             .build(ui)
+    }
+}
+
+impl EventSource for Button {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        self.events.pop_front()
     }
 }

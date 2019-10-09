@@ -17,29 +17,22 @@ pub mod formatted_text;
 
 use std::{
     collections::VecDeque,
-    any::TypeId,
-    rc::Rc,
+    any::TypeId, rc::Rc,
     cell::RefCell,
 };
 use crate::{
     gui::{
         node::{UINode, UINodeKind},
-        draw::{
-            DrawingContext,
-            CommandKind,
-            CommandTexture,
-        },
+        draw::{DrawingContext, CommandKind, CommandTexture},
         scroll_viewer::ScrollViewer,
-        event::{RoutedEvent, RoutedEventKind, RoutedEventHandlerType},
         canvas::Canvas,
+        event::{UIEvent, UIEventKind},
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
-    ElementState,
-    WindowEvent,
-    MouseScrollDelta
+    ElementState, WindowEvent,
+    MouseScrollDelta,
 };
-
 use rg3d_core::{
     color::Color,
     pool::{Pool, Handle},
@@ -132,6 +125,11 @@ pub struct UserInterface {
     captured_node: Handle<UINode>,
     mouse_position: Vec2,
     deferred_actions: VecDeque<Box<DeferredAction>>,
+    events: VecDeque<UIEvent>,
+}
+
+pub trait EventSource {
+    fn emit_event(&mut self) -> Option<UIEvent>;
 }
 
 #[inline]
@@ -159,6 +157,7 @@ impl UserInterface {
         let font = Rc::new(RefCell::new(font));
 
         let mut ui = UserInterface {
+            events: VecDeque::new(),
             visual_debug: false,
             default_font: font,
             captured_node: Handle::NONE,
@@ -491,7 +490,6 @@ impl UserInterface {
         }
     }
 
-
     pub fn update(&mut self, screen_size: Vec2) {
         self.measure(self.root_canvas, screen_size);
         self.arrange(self.root_canvas, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
@@ -655,33 +653,6 @@ impl UserInterface {
         }
     }
 
-    fn route_event(&mut self, node_handle: Handle<UINode>, event_type: RoutedEventHandlerType, event_args: &mut RoutedEvent) {
-        let mut handler = None;
-        let mut parent = Handle::NONE;
-        let index = event_type as usize;
-
-        if let Some(node) = self.nodes.borrow_mut(node_handle) {
-            // Take event handler.
-            handler = node.event_handlers[index].take();
-            parent = node.parent;
-        }
-
-        // Execute event handler.
-        if let Some(ref mut mouse_enter) = handler {
-            mouse_enter(self, node_handle, event_args);
-        }
-
-        if let Some(node) = self.nodes.borrow_mut(node_handle) {
-            // Put event handler back.
-            node.event_handlers[index] = handler.take();
-        }
-
-        // Route event up on hierarchy (bubbling strategy) until is not handled.
-        if !event_args.handled && !parent.is_none() {
-            self.route_event(parent, event_type, event_args);
-        }
-    }
-
     /// Searches a node down on tree starting from give root that matches a criteria
     /// defined by a given func.
     pub fn find_by_criteria_down<Func>(&self, node_handle: Handle<UINode>, func: &Func) -> Handle<UINode>
@@ -715,6 +686,22 @@ impl UserInterface {
         }
 
         Handle::NONE
+    }
+
+    pub fn is_node_child_of(&self, node_handle: Handle<UINode>, root_handle: Handle<UINode>) -> bool {
+        if let Some(root) = self.nodes.borrow(root_handle) {
+            for child_handle in root.children.iter() {
+                if *child_handle == node_handle {
+                    return true;
+                }
+
+                let result = self.is_node_child_of(node_handle, *child_handle);
+                if result {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     /// Searches a node by name up on tree starting from given root node.
@@ -757,6 +744,44 @@ impl UserInterface {
         self.nodes.borrow_mut(self.find_by_criteria_up(start_node_handle, func))
     }
 
+    pub fn poll_ui_event(&mut self) -> Option<UIEvent> {
+        // Gather events from nodes.
+        for (handle, node) in self.nodes.pair_iter_mut() {
+            while let Some(mut response_event) = node.emit_event() {
+                response_event.source = handle;
+                self.events.push_back(response_event)
+            }
+        }
+
+        let mut event = self.events.pop_front();
+
+        // Pass event to all nodes first
+        if let Some(ref mut event) = event {
+            for i in 0..self.nodes.get_capacity() {
+                let mut handler = if let Some(node) = self.nodes.at_mut(i) {
+                    // Take...
+                    node.event_handler.take()
+                } else {
+                    None
+                };
+
+                if let Some(ref mut handler) = handler {
+                    // Call...
+                    handler(self, self.nodes.handle_from_index(i), event);
+                }
+
+                if let Some(node) = self.nodes.at_mut(i) {
+                    // Put back trick.
+                    if let Some(handler) = handler {
+                        node.event_handler.replace(handler);
+                    }
+                }
+            }
+        }
+
+        event
+    }
+
     pub fn get_node_kind_id(&self, handle: Handle<UINode>) -> TypeId {
         if let Some(node) = self.nodes.borrow(handle) {
             node.get_kind_id()
@@ -765,89 +790,111 @@ impl UserInterface {
         }
     }
 
-    pub fn process_event(&mut self, event: &glutin::WindowEvent) -> bool {
+    pub fn process_input_event(&mut self, event: &WindowEvent) -> bool {
         let mut event_processed = false;
 
-        if let WindowEvent::CursorMoved { position, .. } = event {
-            self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
-            self.picked_node = self.hit_test(self.mouse_position);
+        match event {
+            WindowEvent::MouseInput { button, state, .. } => {
+                match state {
+                    ElementState::Pressed => {
+                        self.picked_node = self.hit_test(self.mouse_position);
 
-            // Fire mouse leave for previously picked node
-            if self.picked_node != self.prev_picked_node {
-                let mut fire_mouse_leave = false;
-                if let Some(prev_picked_node) = self.nodes.borrow_mut(self.prev_picked_node) {
-                    if prev_picked_node.is_mouse_over {
-                        prev_picked_node.is_mouse_over = false;
-                        fire_mouse_leave = true;
-                    }
-                }
-
-                if fire_mouse_leave {
-                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseLeave);
-                    self.route_event(self.prev_picked_node, RoutedEventHandlerType::MouseLeave, &mut evt);
-                }
-            }
-
-            if !self.picked_node.is_none() {
-                let mut fire_mouse_enter = false;
-                if let Some(picked_node) = self.nodes.borrow_mut(self.picked_node) {
-                    if !picked_node.is_mouse_over {
-                        picked_node.is_mouse_over = true;
-                        fire_mouse_enter = true;
-                    }
-                }
-
-                if fire_mouse_enter {
-                    let mut evt = RoutedEvent::new(RoutedEventKind::MouseEnter);
-                    self.route_event(self.picked_node, RoutedEventHandlerType::MouseEnter, &mut evt);
-                }
-
-                // Fire mouse move
-                let mut evt = RoutedEvent::new(RoutedEventKind::MouseMove {
-                    pos: self.mouse_position
-                });
-                self.route_event(self.picked_node, RoutedEventHandlerType::MouseMove, &mut evt);
-
-                event_processed = true;
-            }
-        }
-
-        if !self.picked_node.is_none() {
-            match event {
-                WindowEvent::MouseInput { button, state, .. } => {
-                    match state {
-                        ElementState::Pressed => {
-                            let mut evt = RoutedEvent::new(RoutedEventKind::MouseDown {
-                                pos: self.mouse_position,
-                                button: *button,
+                        if !self.picked_node.is_none() {
+                            self.events.push_back(UIEvent {
+                                handled: false,
+                                kind: UIEventKind::MouseDown {
+                                    pos: self.mouse_position,
+                                    button: *button,
+                                },
+                                source: self.picked_node,
                             });
-                            self.route_event(self.picked_node, RoutedEventHandlerType::MouseDown, &mut evt);
                             event_processed = true;
                         }
-                        ElementState::Released => {
-                            let mut evt = RoutedEvent::new(RoutedEventKind::MouseUp {
-                                pos: self.mouse_position,
-                                button: *button,
+                    }
+                    ElementState::Released => {
+                        if !self.picked_node.is_none() {
+                            self.events.push_back(UIEvent {
+                                handled: false,
+                                kind: UIEventKind::MouseUp {
+                                    pos: self.mouse_position,
+                                    button: *button,
+                                },
+                                source: self.picked_node,
                             });
-                            self.route_event(self.picked_node, RoutedEventHandlerType::MouseUp, &mut evt);
                             event_processed = true;
                         }
                     }
                 }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
+                self.picked_node = self.hit_test(self.mouse_position);
 
-                WindowEvent::MouseWheel { delta, .. } => {
-                    if let MouseScrollDelta::LineDelta(_, y) = delta {
-                        let mut evt = RoutedEvent::new(RoutedEventKind::MouseWheel {
-                            pos: self.mouse_position,
-                            amount: *y,
+                // Fire mouse leave for previously picked node
+                if self.picked_node != self.prev_picked_node {
+                    let mut fire_mouse_leave = false;
+                    if let Some(prev_picked_node) = self.nodes.borrow_mut(self.prev_picked_node) {
+                        if prev_picked_node.is_mouse_over {
+                            prev_picked_node.is_mouse_over = false;
+                            fire_mouse_leave = true;
+                        }
+                    }
+
+                    if fire_mouse_leave {
+                        self.events.push_back(UIEvent {
+                            handled: false,
+                            kind: UIEventKind::MouseLeave,
+                            source: self.prev_picked_node,
                         });
-                        self.route_event(self.picked_node, RoutedEventHandlerType::MouseWheel, &mut evt);
+                    }
+                }
+
+                if !self.picked_node.is_none() {
+                    let mut fire_mouse_enter = false;
+                    if let Some(picked_node) = self.nodes.borrow_mut(self.picked_node) {
+                        if !picked_node.is_mouse_over {
+                            picked_node.is_mouse_over = true;
+                            fire_mouse_enter = true;
+                        }
+                    }
+
+                    if fire_mouse_enter {
+                        self.events.push_back(UIEvent {
+                            handled: false,
+                            kind: UIEventKind::MouseEnter,
+                            source: self.picked_node,
+                        });
+                    }
+
+                    // Fire mouse move
+                    self.events.push_back(UIEvent {
+                        handled: false,
+                        kind: UIEventKind::MouseMove {
+                            pos: self.mouse_position
+                        },
+                        source: self.picked_node,
+                    });
+
+                    event_processed = true;
+                }
+            }
+            WindowEvent::MouseWheel { delta, .. } => {
+                if let MouseScrollDelta::LineDelta(_, y) = delta {
+                    if !self.picked_node.is_none() {
+                        self.events.push_back(UIEvent {
+                            handled: false,
+                            kind: UIEventKind::MouseWheel {
+                                pos: self.mouse_position,
+                                amount: *y,
+                            },
+                            source: self.picked_node,
+                        });
+
                         event_processed = true;
                     }
                 }
-
-                _ => ()
             }
+            _ => ()
         }
 
         self.prev_picked_node = self.picked_node;

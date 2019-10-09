@@ -124,7 +124,7 @@ impl Node {
     pub fn new(kind: NodeKind) -> Self {
         Node {
             kind,
-            name: String::from("Node"),
+            name: String::new(),
             children: Vec::new(),
             parent: Handle::NONE,
             visibility: true,
@@ -328,5 +328,30 @@ impl Visit for Node {
         self.is_resource_instance.visit("IsResourceInstance", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+pub struct NodeBuilder {
+    kind: NodeKind,
+    name: Option<String>,
+    visibility: Option<bool>,
+    parent: Option<Handle<Node>>,
+    local_transform: Option<Transform>,
+    children: Option<Vec<Handle<Node>>>,
+    inv_bind_pose_transform: Option<Mat4>
+
+}
+
+impl NodeBuilder {
+    pub fn new(kind: NodeKind) -> Self {
+        Self {
+            kind,
+            name: None,
+            visibility: None,
+            parent: None,
+            local_transform: None,
+            children: None,
+            inv_bind_pose_transform: None
+        }
     }
 }

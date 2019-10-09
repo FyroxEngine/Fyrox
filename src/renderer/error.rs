@@ -30,6 +30,8 @@ pub enum RendererError {
     ///   normal: float3
     /// But you described second attribute as Float4, then you'll get this error.
     InvalidAttributeDescriptor,
+
+    InvalidFrameBuffer
 }
 
 impl From<NulError> for RendererError {

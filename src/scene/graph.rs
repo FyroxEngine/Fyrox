@@ -344,7 +344,7 @@ impl Graph {
         }
     }
 
-    pub fn update_nodes(&mut self, aspect_ratio: f32) {
+    pub fn update_nodes(&mut self, aspect_ratio: f32, dt: f32) {
         self.update_transforms();
 
         for node in self.pool.iter_mut() {
@@ -354,6 +354,7 @@ impl Graph {
 
             match node.get_kind_mut() {
                 NodeKind::Camera(camera) => camera.calculate_matrices(eye, look, up, aspect_ratio),
+                NodeKind::ParticleSystem(particle_system) => particle_system.update(dt),
                 _ => ()
             }
         }

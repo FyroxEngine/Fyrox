@@ -15,6 +15,8 @@ use rg3d_core::{
         Rect
     },
 };
+use crate::gui::EventSource;
+use crate::gui::event::UIEvent;
 
 #[derive(PartialEq)]
 pub enum SizeMode {
@@ -398,5 +400,11 @@ impl Grid {
     pub fn add_column(&mut self, column: Column) -> &mut Self {
         self.columns.borrow_mut().push(column);
         self
+    }
+}
+
+impl EventSource for Grid {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

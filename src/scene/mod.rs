@@ -105,7 +105,7 @@ impl Scene {
     pub fn update(&mut self, aspect_ratio: f32, dt: f32) {
         self.update_physics(dt);
         self.animations.update_animations(dt, &mut self.graph);
-        self.graph.update_nodes(aspect_ratio);
+        self.graph.update_nodes(aspect_ratio, dt);
     }
 }
 

@@ -4,13 +4,13 @@ use crate::gui::{
     UserInterface,
     HorizontalAlignment,
     node::{UINodeKind, UINode},
-    event::RoutedEventHandlerList,
 };
 use rg3d_core::{
     color::Color,
     math::vec2::Vec2,
     pool::Handle,
 };
+use crate::gui::event::UIEventHandler;
 
 pub struct CommonBuilderFields {
     pub(in crate::gui) name: Option<String>,
@@ -25,8 +25,8 @@ pub struct CommonBuilderFields {
     pub(in crate::gui) row: Option<usize>,
     pub(in crate::gui) column: Option<usize>,
     pub(in crate::gui) margin: Option<Thickness>,
-    pub(in crate::gui) event_handlers: Option<RoutedEventHandlerList>,
     pub(in crate::gui) children: Vec<Handle<UINode>>,
+    pub(in crate::gui) event_handler: Option<Box<UIEventHandler>>
 }
 
 impl Default for CommonBuilderFields {
@@ -50,8 +50,8 @@ impl CommonBuilderFields {
             column: None,
             margin: None,
             desired_position: None,
-            event_handlers: Some(Default::default()),
             children: Vec::new(),
+            event_handler: None
         }
     }
 
@@ -90,12 +90,10 @@ impl CommonBuilderFields {
             if let Some(desired_position) = self.desired_position {
                 node.desired_local_position.set(desired_position);
             }
-            if self.event_handlers.is_some() {
-                node.event_handlers = self.event_handlers.take().unwrap();
-            }
             if let Some(name) = self.name.take() {
                 node.name = name;
             }
+            node.event_handler = self.event_handler.take();
         }
         for child_handle in self.children.iter() {
             ui.link_nodes(*child_handle, node_handle);
@@ -173,11 +171,8 @@ macro_rules! impl_default_builder_methods {
             self
         }
 
-        pub fn with_handler(mut self, handler_type: $crate::gui::event::RoutedEventHandlerType,
-            handler: Box<$crate::gui::event::RoutedEventHandler>) -> Self {
-            if let Some(ref mut handlers) = self.common.event_handlers {
-                handlers[handler_type as usize] = Some(handler);
-            }
+        pub fn with_event_handler(mut self, handler: Box<$crate::gui::event::UIEventHandler>) -> Self {
+            self.common.event_handler = Some(handler);
             self
         }
     )

@@ -2,23 +2,16 @@ use crate::gui::{
     border::BorderBuilder,
     node::{UINode, UINodeKind},
     builder::{CommonBuilderFields, GenericNodeBuilder},
-    UserInterface,
-    grid::{GridBuilder, Column, Row},
+    UserInterface, grid::{GridBuilder, Column, Row},
     HorizontalAlignment,
-    event::{
-        RoutedEventHandlerType,
-        RoutedEventKind,
-    },
-    text::TextBuilder,
-    Thickness,
-    button::ButtonBuilder,
-    scroll_content_presenter::ScrollContentPresenterBuilder,
-};
+    text::TextBuilder, Thickness, button::ButtonBuilder, EventSource};
 use rg3d_core::{
     color::Color,
     pool::Handle,
     math::vec2::Vec2,
 };
+use crate::gui::event::{UIEvent, UIEventKind};
+use crate::gui::scroll_viewer::ScrollViewerBuilder;
 
 pub type ClosingEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>) -> bool;
 pub type MinimizingEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>) -> bool;
@@ -135,7 +128,7 @@ impl<'a> WindowBuilder<'a> {
                     .add_column(Column::stretch())
                     .add_row(Row::auto())
                     .add_row(Row::stretch())
-                    .with_child(ScrollContentPresenterBuilder::new()
+                    .with_child(ScrollViewerBuilder::new()
                         .with_content(self.content)
                         .on_row(1)
                         .build(ui))
@@ -144,49 +137,52 @@ impl<'a> WindowBuilder<'a> {
                         .on_row(0)
                         .with_horizontal_alignment(HorizontalAlignment::Stretch)
                         .with_height(30.0)
-                        .with_handler(RoutedEventHandlerType::MouseDown, Box::new(|ui, handle, evt| {
-                            ui.capture_mouse(handle);
-                            if let RoutedEventKind::MouseDown { pos, .. } = evt.kind {
-                                if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
-                                    if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
-                                }) {
-                                    let initial_position = window_node.actual_local_position.get();
-                                    if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                        window.mouse_click_pos = pos;
-                                        window.initial_position = initial_position;
-                                        window.is_dragged = true;
-                                        evt.handled = true;
-                                    }
-                                }
-                            }
-                        }))
-                        .with_handler(RoutedEventHandlerType::MouseUp, Box::new(|ui, handle, evt| {
-                            ui.release_mouse_capture();
-                            if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
-                                if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
-                            }) {
-                                if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                    window.is_dragged = false;
-                                    evt.handled = true;
-                                }
-                            }
-                        }))
-                        .with_handler(RoutedEventHandlerType::MouseMove, Box::new(|ui, handle, evt| {
-                            if let RoutedEventKind::MouseMove { pos, .. } = evt.kind {
-                                if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
-                                    if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
-                                }) {
-                                    let new_pos = if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                        if window.is_dragged {
-                                            window.initial_position + pos - window.mouse_click_pos
-                                        } else {
-                                            return;
+                        .with_event_handler(Box::new(|ui, handle, evt| {
+                            if evt.source == handle {
+                                match evt.kind {
+                                    UIEventKind::MouseDown { pos, .. } => {
+                                        ui.capture_mouse(handle);
+                                        if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
+                                            if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
+                                        }) {
+                                            let initial_position = window_node.actual_local_position.get();
+                                            if let UINodeKind::Window(window) = window_node.get_kind_mut() {
+                                                window.mouse_click_pos = pos;
+                                                window.initial_position = initial_position;
+                                                window.is_dragged = true;
+                                                evt.handled = true;
+                                            }
                                         }
-                                    } else {
-                                        return;
-                                    };
-                                    window_node.set_desired_local_position(new_pos);
-                                    evt.handled = true;
+                                    }
+                                    UIEventKind::MouseUp { .. } => {
+                                        ui.release_mouse_capture();
+                                        if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
+                                            if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
+                                        }) {
+                                            if let UINodeKind::Window(window) = window_node.get_kind_mut() {
+                                                window.is_dragged = false;
+                                                evt.handled = true;
+                                            }
+                                        }
+                                    }
+                                    UIEventKind::MouseMove { pos, .. } => {
+                                        if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
+                                            if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
+                                        }) {
+                                            let new_pos = if let UINodeKind::Window(window) = window_node.get_kind_mut() {
+                                                if window.is_dragged {
+                                                    window.initial_position + pos - window.mouse_click_pos
+                                                } else {
+                                                    return;
+                                                }
+                                            } else {
+                                                return;
+                                            };
+                                            window_node.set_desired_local_position(new_pos);
+                                            evt.handled = true;
+                                        }
+                                    }
+                                    _ => ()
                                 }
                             }
                         }))
@@ -230,5 +226,11 @@ impl<'a> WindowBuilder<'a> {
                     .build(ui))
                 .build(ui))
             .build(ui)
+    }
+}
+
+impl EventSource for Window {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

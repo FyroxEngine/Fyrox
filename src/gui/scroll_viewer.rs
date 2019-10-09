@@ -1,11 +1,11 @@
 use crate::gui::{
-    UserInterface,
-    maxf,
+    UserInterface, maxf,
     builder::{GenericNodeBuilder, CommonBuilderFields},
     node::{UINodeKind, UINode},
-    scroll_content_presenter::{ScrollContentPresenter, ScrollContentPresenterBuilder},
-    scroll_bar::{ScrollBarBuilder, Orientation, ScrollBar},
+    scroll_content_presenter::ScrollContentPresenterBuilder,
+    scroll_bar::{ScrollBarBuilder, Orientation},
     grid::{Row, GridBuilder, Column},
+    event::UIEventKind, EventSource, event::UIEvent,
 };
 use rg3d_core::{
     pool::Handle,
@@ -49,8 +49,17 @@ impl ScrollViewer {
         }
 
         // Then adjust scroll bars according to content size.
-        ScrollBar::set_max_value(horizontal_scroll_bar_handle, ui, maxf(0.0, content_size.x - available_size_for_content.x));
-        ScrollBar::set_max_value(vertical_scroll_bar_handle, ui, maxf(0.0, content_size.y - available_size_for_content.y));
+        if let Some(h_scroll_bar) = ui.nodes.borrow_mut(horizontal_scroll_bar_handle) {
+            if let UINodeKind::ScrollBar(h_scroll_bar) = h_scroll_bar.get_kind_mut() {
+                h_scroll_bar.set_max_value(maxf(0.0, content_size.x - available_size_for_content.x));
+            }
+        }
+
+        if let Some(v_scroll_bar) = ui.nodes.borrow_mut(vertical_scroll_bar_handle) {
+            if let UINodeKind::ScrollBar(v_scroll_bar) = v_scroll_bar.get_kind_mut() {
+                v_scroll_bar.set_max_value(maxf(0.0, content_size.y - available_size_for_content.y));
+            }
+        }
     }
 }
 
@@ -91,24 +100,12 @@ impl ScrollViewerBuilder {
             .with_orientation(Orientation::Vertical)
             .on_row(0)
             .on_column(1)
-            .with_value_changed({
-                let content_presenter = content_presenter;
-                Box::new(move |ui, args| {
-                    ScrollContentPresenter::set_vertical_scroll(content_presenter, ui, args.new_value);
-                })
-            })
             .build(ui);
 
         let h_scroll_bar = ScrollBarBuilder::new()
             .with_orientation(Orientation::Horizontal)
             .on_row(1)
             .on_column(0)
-            .with_value_changed({
-                let content_presenter = content_presenter;
-                Box::new(move |ui, args| {
-                    ScrollContentPresenter::set_horizontal_scroll(content_presenter, ui, args.new_value);
-                })
-            })
             .build(ui);
 
         let scroll_viewer = ScrollViewer {
@@ -129,6 +126,28 @@ impl ScrollViewerBuilder {
                 .with_child(h_scroll_bar)
                 .with_child(v_scroll_bar)
                 .build(ui))
+            .with_event_handler(Box::new(move |ui, _handle, event| {
+                match event.kind {
+                    UIEventKind::NumericValueChanged { new_value, .. } => {
+                        if let Some(content_presenter) = ui.get_node_mut(content_presenter) {
+                            if let UINodeKind::ScrollContentPresenter(content_presenter) = content_presenter.get_kind_mut() {
+                                if event.source == h_scroll_bar {
+                                    content_presenter.set_horizontal_scroll(new_value);
+                                } else if event.source == v_scroll_bar {
+                                    content_presenter.set_vertical_scroll(new_value);
+                                }
+                            }
+                        }
+                    }
+                    _ => ()
+                }
+            }))
             .build(ui)
+    }
+}
+
+impl EventSource for ScrollViewer {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        None
     }
 }

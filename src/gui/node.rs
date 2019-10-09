@@ -3,33 +3,19 @@ use std::{
     any::{Any, TypeId},
 };
 use crate::gui::{
-    button::Button,
-    Canvas,
-    text::Text,
-    VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    Visibility,
-    border::Border,
-    scroll_bar::ScrollBar,
-    scroll_viewer::ScrollViewer,
-    image::Image,
-    grid::Grid,
+    button::Button, Canvas, text::Text,
+    VerticalAlignment, HorizontalAlignment, Thickness,
+    Visibility, border::Border, scroll_bar::ScrollBar,
+    scroll_viewer::ScrollViewer, image::Image, grid::Grid,
     scroll_content_presenter::ScrollContentPresenter,
-    event::{
-        RoutedEventHandlerType,
-        RoutedEventHandler,
-        RoutedEventHandlerList,
-    },
-    window::Window,
+    window::Window, event::UIEventHandler, EventSource, event::UIEvent,
 };
 use rg3d_core::{
-    color::Color,
+    color::Color, pool::Handle,
     math::{vec2::Vec2, Rect},
-    pool::Handle,
 };
 
-pub trait CustomUINodeKind: Any {
+pub trait CustomUINodeKind: Any + EventSource {
     fn set_owner_handle(&mut self, handle: Handle<UINode>);
 }
 
@@ -109,9 +95,9 @@ pub struct UINode {
     /// Indices of commands in command buffer emitted by the node.
     pub(in crate::gui) command_indices: Vec<usize>,
     pub(in crate::gui) is_mouse_over: bool,
-    pub(in crate::gui) event_handlers: RoutedEventHandlerList,
     pub(in crate::gui) measure_valid: Cell<bool>,
     pub(in crate::gui) arrange_valid: Cell<bool>,
+    pub(in crate::gui) event_handler: Option<Box<UIEventHandler>>,
 }
 
 impl UINode {
@@ -138,10 +124,10 @@ impl UINode {
             children: Vec::new(),
             parent: Handle::NONE,
             command_indices: Vec::new(),
-            event_handlers: Default::default(),
             is_mouse_over: false,
             measure_valid: Cell::new(false),
             arrange_valid: Cell::new(false),
+            event_handler: None,
         }
     }
 
@@ -191,11 +177,6 @@ impl UINode {
     }
 
     #[inline]
-    pub fn set_handler(&mut self, handler_type: RoutedEventHandlerType, handler: Box<RoutedEventHandler>) {
-        self.event_handlers[handler_type as usize] = Some(handler);
-    }
-
-    #[inline]
     pub fn set_visibility(&mut self, visibility: Visibility) {
         self.visibility = visibility;
     }
@@ -219,6 +200,24 @@ impl UINode {
             UINodeKind::ScrollContentPresenter(scp) => scp.type_id(),
             UINodeKind::Window(window) => window.type_id(),
             UINodeKind::User(user) => user.as_ref().type_id(),
+        }
+    }
+}
+
+impl EventSource for UINode {
+    fn emit_event(&mut self) -> Option<UIEvent> {
+        match self.kind {
+            UINodeKind::Text(ref mut text) => text.emit_event(),
+            UINodeKind::Border(ref mut border) => border.emit_event(),
+            UINodeKind::Button(ref mut button) => button.emit_event(),
+            UINodeKind::ScrollBar(ref mut scroll_bar) => scroll_bar.emit_event(),
+            UINodeKind::ScrollViewer(ref mut scroll_viewer) => scroll_viewer.emit_event(),
+            UINodeKind::Image(ref mut image) => image.emit_event(),
+            UINodeKind::Grid(ref mut grid) => grid.emit_event(),
+            UINodeKind::Canvas(ref mut canvas) => canvas.emit_event(),
+            UINodeKind::ScrollContentPresenter(ref mut scp) => scp.emit_event(),
+            UINodeKind::Window(ref mut window) => window.emit_event(),
+            UINodeKind::User(ref mut user) => user.emit_event(),
         }
     }
 }

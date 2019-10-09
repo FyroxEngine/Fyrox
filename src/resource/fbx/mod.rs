@@ -52,6 +52,8 @@ use crate::engine::resource_manager::ResourceManager;
 use crate::scene::SceneInterfaceMut;
 use crate::scene::graph::Graph;
 use crate::scene::animation::AnimationContainer;
+use crate::resource::texture::TextureKind;
+use crate::scene::light::LightKind;
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -1036,10 +1038,22 @@ impl Fbx {
         Ok(())
     }
 
-    fn convert_light(&self, light: &mut Light, fbx_light: &FbxLight) {
+    fn convert_light(&self, fbx_light: &FbxLight) -> Light {
+        let light_kind = match fbx_light.actual_type {
+            FbxLightType::Point => LightKind::Point,
+            FbxLightType::Directional => LightKind::Point, // TODO
+            FbxLightType::Spot => LightKind::Spot,
+            FbxLightType::Area => LightKind::Point, // TODO
+            FbxLightType::Volume => LightKind::Point, // TODO
+        };
+
+        let mut light = Light::new(light_kind);
+
         light.set_color(Color::opaque(fbx_light.color.r, fbx_light.color.g, fbx_light.color.b));
         light.set_radius(fbx_light.radius);
         light.set_cone_angle(fbx_light.cone_angle);
+
+        light
     }
 
     fn create_surfaces(&self,
@@ -1060,7 +1074,10 @@ impl Fbx {
                     let extention = path.extension().ok_or(FbxError::InvalidPath)?;
 
                     let diffuse_path = resource_manager.get_textures_path().join(&path);
-                    if let Some(texture_resource) = resource_manager.request_texture(diffuse_path.as_path()) {
+                    // Here we will load *every* texture as RGBA8, this probably is overkill,
+                    // that will lead to higher memory consumption, but this will remove
+                    // problems with transparent textures (like mesh texture, etc.)
+                    if let Some(texture_resource) = resource_manager.request_texture(diffuse_path.as_path(), TextureKind::RGBA8) {
                         surface.set_diffuse_texture(texture_resource);
                     }
 
@@ -1069,7 +1086,10 @@ impl Fbx {
                     normal_map_name.push(extention);
                     let normal_path = resource_manager.get_textures_path().join(normal_map_name);
                     if normal_path.exists() {
-                        if let Some(texture_resource) = resource_manager.request_texture(normal_path.as_path()) {
+                        // Not sure if alpha channel is useful on normal maps, so will use RGB8 here.
+                        // Potentially it can be used to store some per-pixel material data like
+                        // roughness, shininess, etc. For now this is a TODO.
+                        if let Some(texture_resource) = resource_manager.request_texture(normal_path.as_path(), TextureKind::RGB8) {
                             surface.set_normal_texture(texture_resource);
                         }
                     }
@@ -1082,9 +1102,10 @@ impl Fbx {
     }
 
     fn convert_mesh(&self,
-                    mesh: &mut Mesh,
                     resource_manager: &mut ResourceManager,
-                    model: &FbxModel) -> Result<(), FbxError> {
+                    model: &FbxModel) -> Result<Mesh, FbxError> {
+        let mut mesh = Mesh::default();
+
         let geometric_transform = Mat4::translate(model.geometric_translation) *
             Mat4::from_quat(quat_from_euler(model.geometric_rotation)) *
             Mat4::scale(model.geometric_scale);
@@ -1095,7 +1116,7 @@ impl Fbx {
 
         for geom_handle in &model.geoms {
             let geom = self.component_pool.borrow(*geom_handle).ok_or(FbxError::InvalidPoolHandle)?.as_geometry()?;
-            self.create_surfaces(mesh, resource_manager, model)?;
+            self.create_surfaces(&mut mesh, resource_manager, model)?;
 
             let skin_data = geom.get_skin_data(&self.component_pool)?;
 
@@ -1108,9 +1129,9 @@ impl Fbx {
                     let triangle = &triangles[i];
                     let relative_triangle = &relative_triangles[i];
 
-                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0, &skin_data)?;
-                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1, &skin_data)?;
-                    convert_vertex(geom, mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2, &skin_data)?;
+                    convert_vertex(geom, &mut mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0, &skin_data)?;
+                    convert_vertex(geom, &mut mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1, &skin_data)?;
+                    convert_vertex(geom, &mut mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2, &skin_data)?;
                 }
                 if geom.material_mapping == FbxMapping::ByPolygon {
                     material_index += 1;
@@ -1124,12 +1145,11 @@ impl Fbx {
             }
         }
 
-        Ok(())
+        Ok(mesh)
     }
 
     fn convert_model(&self,
-                     model:
-                     &FbxModel,
+                     model: &FbxModel,
                      resource_manager: &mut ResourceManager,
                      graph: &mut Graph,
                      animations: &mut AnimationContainer,
@@ -1138,9 +1158,10 @@ impl Fbx {
         // Create node with correct kind.
         let mut node =
             if !model.geoms.is_empty() {
-                Node::new(NodeKind::Mesh(Mesh::default()))
-            } else if !model.light.is_none() {
-                Node::new(NodeKind::Light(Light::default()))
+                Node::new(NodeKind::Mesh(self.convert_mesh(resource_manager, model)?))
+            } else if model.light.is_some() {
+                let fbx_light_component = self.component_pool.borrow(model.light).unwrap();
+                Node::new(NodeKind::Light(self.convert_light(fbx_light_component.as_light()?)))
             } else {
                 Node::new(NodeKind::Base)
             };
@@ -1158,19 +1179,6 @@ impl Fbx {
         transform.set_scaling_offset(model.scaling_offset);
         transform.set_scaling_pivot(model.scaling_pivot);
         node.set_inv_bind_pose_transform(model.inv_bind_transform);
-
-        match node.get_kind_mut() {
-            NodeKind::Light(light) => {
-                let fbx_light_component = self.component_pool.borrow(model.light).unwrap();
-                if let FbxComponent::Light(fbx_light) = fbx_light_component {
-                    self.convert_light(light, fbx_light);
-                }
-            }
-            NodeKind::Mesh(mesh) => {
-                self.convert_mesh(mesh, resource_manager, model)?;
-            }
-            _ => ()
-        }
 
         let node_handle = graph.add_node(node);
 
@@ -1261,7 +1269,7 @@ impl Fbx {
     /// Converts FBX DOM to native engine representation.
     ///
     pub fn convert(&self, resource_manager: &mut ResourceManager, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
-        let SceneInterfaceMut { animations, graph, ..} = scene.interface_mut();
+        let SceneInterfaceMut { animations, graph, .. } = scene.interface_mut();
         let mut instantiated_nodes = Vec::new();
         let root = graph.add_node(Node::new(NodeKind::Base));
         let animation_handle = animations.add(Animation::default());

@@ -16,14 +16,11 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 ## What is done already?
 
-### Engine
-
-- Window (using glutin)
-- Object pool
-- Scene graph with pivot, camera, mesh, light, etc. nodes.
-- FBX Loader (both ASCII and binary)
-- TTF Loader (compound characters are not supported yet)
-- Advanced node-based UI with these nodes ("widgets")
+- Window and OpenGL context.
+- Core library ([rg3d-core](https://github.com/mrDIMAS/rg3d-core)) with some handy data structures  - object pool, vectors, matrices, etc.
+- Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
+- FBX Loader - both ASCII and binary. Note: Only 7100 - 7400 versions are supported!
+- Advanced node-based UI with these widgets:
 	- Border
 	- Button
 	- Canvas (layout panel)
@@ -33,24 +30,26 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Scroll content presenter
 	- Text
 	- Window 
-- Fonts
-- Position-based physics
-- Built-in save/load using object visitor 
+- Fonts - TTF Loader (compound characters are not supported yet)
+- Built-in save/load using object visitor - save/load state of engine in one call.
+- Skinning
+- Animation blending - allows you to blend your animations as you want to, i.e. idle animation can be blended with walk.
+- Animation retargetting - allows you to remap animation from one model to another
 - Automatic resource management
 	- Texture
 	- Models
+	- Sound buffers
 - Deferred shading
 	- Point light
 	- Spot light
-- Bump mapping
-- Particle systems (soft particles)
+	- Bump mapping
+- Particle systems with soft particles.
+- Sounds - using [rg3d-sound](https://github.com/mrDIMAS/rg3d-sound) crate.
+- Physics - using [rg3d-physics](https://github.com/mrDIMAS/rg3d-physics crate.
 
 ### What will be added soon? 
 
 - Shadows
-- GJK-EPA based collision solver
-- Sound
-- Ray-cast for physics
 
 ## Dependencies
 
