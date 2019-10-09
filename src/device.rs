@@ -13,44 +13,24 @@ pub struct Sample {
 #[cfg(target_os = "windows")]
 #[allow(non_snake_case)]
 mod windows {
-    use std::{
-        mem::size_of,
-        sync::atomic::{Ordering, AtomicPtr},
-    };
+    use std::{mem::size_of, sync::atomic::{Ordering, AtomicPtr}};
     use winapi::{
         um::{
             dsound::{
-                IDirectSound,
-                DirectSoundCreate,
-                DSBCAPS_CTRLPOSITIONNOTIFY,
-                DSSCL_PRIORITY,
-                DS_OK,
-                DSBCAPS_GLOBALFOCUS,
-                DSBUFFERDESC,
-                IDirectSoundBuffer,
-                IID_IDirectSoundNotify,
-                DSBPLAY_LOOPING,
+                IDirectSound, DirectSoundCreate,
+                DSBCAPS_CTRLPOSITIONNOTIFY, DSSCL_PRIORITY,
+                DS_OK, DSBCAPS_GLOBALFOCUS,
+                DSBUFFERDESC, IDirectSoundBuffer,
+                IID_IDirectSoundNotify, DSBPLAY_LOOPING,
             },
             winuser::GetForegroundWindow,
-            synchapi::{
-                CreateEventA,
-                WaitForMultipleObjects,
-            },
-            unknwnbase::{
-                IUnknownVtbl,
-                IUnknown,
-            },
+            synchapi::{CreateEventA, WaitForMultipleObjects},
+            unknwnbase::{IUnknownVtbl, IUnknown},
             winbase::{INFINITE, WAIT_OBJECT_0},
         },
         shared::{
-            guiddef::IID_NULL,
-            mmreg::{WAVEFORMATEX, WAVE_FORMAT_PCM},
-            ntdef::{
-                HANDLE,
-                PVOID,
-            },
-            minwindef::DWORD,
-            winerror::HRESULT,
+            guiddef::IID_NULL, mmreg::{WAVEFORMATEX, WAVE_FORMAT_PCM},
+            ntdef::{HANDLE, PVOID}, minwindef::DWORD, winerror::HRESULT,
         },
         ctypes::c_void,
     };
@@ -270,6 +250,7 @@ pub fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<
         });
         Ok(())
     } else {
-        Err(SoundError::NoBackend)
+        println!("rg3d-sound - no backend implementation for this platform!");
+        Ok(())
     }
 }
