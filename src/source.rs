@@ -284,6 +284,20 @@ impl Source {
         &mut self.kind
     }
 
+    pub fn as_spatial(&self) -> &SpatialSource {
+        match self.kind {
+            SourceKind::Flat => panic!("Cast as spatial sound failed!"),
+            SourceKind::Spatial(ref spatial) => spatial,
+        }
+    }
+
+    pub fn as_spatial_mut(&mut self) -> &mut SpatialSource {
+        match self.kind {
+            SourceKind::Flat => panic!("Cast as spatial sound failed!"),
+            SourceKind::Spatial(ref mut spatial) => spatial,
+        }
+    }
+
     pub(in crate) fn sample_into(&mut self, mix_buffer: &mut [(f32, f32)]) {
         if self.status != Status::Playing {
             return;

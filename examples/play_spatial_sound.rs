@@ -5,20 +5,20 @@ use rg3d_sound::{
     context::Context,
     source::Source,
     buffer::{Buffer, BufferKind},
-    source::SourceKind
+    source::SourceKind,
 };
 use std::{
     path::Path,
     sync::{Arc, Mutex},
     time,
     thread,
-    time::Duration
+    time::Duration,
 };
 use rg3d_core::{
     math::mat4::Mat4,
     pool::Handle,
     math::vec3::Vec3,
-    math::quat::Quat
+    math::quat::Quat,
 };
 
 fn main() {
@@ -48,14 +48,14 @@ fn main() {
     let start_time = time::Instant::now();
     let mut angle = 0.0f32;
     while (time::Instant::now() - start_time).as_secs() < 11 {
-        if let Some(sound) = context.lock().unwrap().get_source_mut(source_handle) {
-            if let SourceKind::Spatial(spatial) = sound.get_kind_mut() {
-                let axis = Vec3::make(0.0, 1.0, 0.0);
-                let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
+        let mut context = context.lock().unwrap();
+        let sound = context.get_source_mut(source_handle);
+        if let SourceKind::Spatial(spatial) = sound.get_kind_mut() {
+            let axis = Vec3::make(0.0, 1.0, 0.0);
+            let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
 
-                let position = rotation_matrix.transform_vector(Vec3::make(0.0, 0.0, 3.0));
-                spatial.set_position(&position);
-            }
+            let position = rotation_matrix.transform_vector(Vec3::make(0.0, 0.0, 3.0));
+            spatial.set_position(&position);
         }
         angle += 3.6;
 
@@ -66,7 +66,7 @@ fn main() {
         // configured that it will send samples to output device with fixed rate
         // (usually 10 Hz), so more frequent changes won't make any effect but just
         // will consume precious CPU clocks.
-        context.lock().unwrap().update();
+        context.update();
 
         // Limit rate of context updates.
         thread::sleep(Duration::from_millis(100));
