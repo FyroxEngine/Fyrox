@@ -160,6 +160,28 @@ impl Vec3 {
     pub fn is_same_direction_as(&self, other: &Self) -> bool {
         self.dot(other) > 0.0
     }
+
+    #[inline]
+    pub fn min_value(&self) -> f32 {
+        if self.x < self.y && self.x < self.z {
+            self.x
+        } else if self.y < self.z {
+            self.y
+        } else {
+            self.z
+        }
+    }
+
+    #[inline]
+    pub fn max_value(&self) -> f32 {
+        if self.x > self.y && self.x > self.z {
+            self.x
+        } else if self.y > self.z {
+            self.y
+        } else {
+            self.z
+        }
+    }
 }
 
 impl ops::Add<Self> for Vec3 {

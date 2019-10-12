@@ -99,18 +99,6 @@ struct PoolRecord<T: Sized> {
     payload: Option<T>,
 }
 
-impl<T> PoolRecord<T> {
-    #[inline(always)]
-    fn borrow(&self, generation: u32) -> Option<&T> {
-        if self.generation == generation { self.payload.as_ref() } else { None }
-    }
-
-    #[inline(always)]
-    fn borrow_mut(&mut self, generation: u32) -> Option<&mut T> {
-        if self.generation == generation { self.payload.as_mut() } else { None }
-    }
-}
-
 impl<T> Default for PoolRecord<T> {
     fn default() -> Self {
         Self {
@@ -249,35 +237,74 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Borrows shared reference to an object by its handle. This method will succeed only if
-    /// there are object at given handle and it has same generation as given handle.
+    /// Borrows shared reference to an object by its handle.
+    ///
+    /// # Panics
+    ///
+    /// Panics if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
     #[inline]
     #[must_use]
-    pub fn borrow(&self, handle: Handle<T>) -> Option<&T> {
-        self.records.get(handle.index as usize).and_then(|rec| rec.borrow(handle.generation))
+    pub fn borrow(&self, handle: Handle<T>) -> &T {
+        if let Some(record) = self.records.get(handle.index as usize) {
+            if record.generation == handle.generation {
+                if let Some(ref payload) = record.payload {
+                    payload
+                } else {
+                    panic!("Trying to access destroyed object at index {} in a pool!", handle.index);
+                }
+            } else {
+                panic!("Trying to access pool record with generation {} by a handle with {} generation!", record.generation, handle.generation);
+            }
+        } else {
+            panic!("Handle index {} out of [0; {}] bounds!", handle.index, self.records.len());
+        }
     }
 
-    /// Borrows mutable reference to an object by its handle. This method will succeed only if
-    /// there are object at given handle and it has same generation as given handle.
+    /// Borrows mutable reference to an object by its handle.
     ///
-     /// # Example
+    /// # Panics
+    ///
+    /// Panics if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    ///
+    /// # Example
     ///
     /// ```
     /// use rg3d_core::pool::Pool;
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let a = pool.borrow_mut(a);
-    /// if let Some(a) = a { *a = 11 }
+    /// *a = 11;
     /// ```
     #[inline]
     #[must_use]
-    pub fn borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.records.get_mut(handle.index as usize).and_then(|rec| rec.borrow_mut(handle.generation))
+    pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
+        let record_count = self.records.len();
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            if record.generation == handle.generation {
+                if let Some(ref mut payload) = record.payload {
+                    payload
+                } else {
+                    panic!("Trying to access destroyed object at index {} in pool.", handle.index);
+                }
+            } else {
+                panic!("Trying to access pool record with generation {} by a handle with {} generation!", record.generation, handle.generation);
+            }
+        } else {
+            panic!("Handle index {} out of [0; {}] bounds!", handle.index, record_count);
+        }
     }
 
     /// Borrows mutable references of objects at the same time. This method will succeed only
     /// if handles are unique (not equal). Borrowing multiple mutable references at the same
     /// time is useful in case if you need to mutate some objects at the same time.
+    ///
+    /// # Panics
+    ///
+    /// See [`borrow_mut`].
     ///
     /// # Example
     ///
@@ -287,13 +314,13 @@ impl<T> Pool<T> {
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
     /// let (a, b) = pool.borrow_two_mut((a, b)).unwrap();
-    /// if let Some(a) = a { *a = 11 }
-    /// if let Some(b) = b { *b = 22 }
+    /// *a = 11;
+    /// *b = 22;
     /// ```
     #[inline]
     #[must_use]
     pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>))
-                          -> Result<(Option<&mut T>, Option<&mut T>), ()> {
+                          -> Result<(&mut T, &mut T), ()> {
         // Prevent giving two mutable references to same record.
         if handles.0.index != handles.1.index {
             unsafe {
@@ -310,6 +337,10 @@ impl<T> Pool<T> {
     /// if handles are unique (not equal). Borrowing multiple mutable references at the same
     /// time is useful in case if you need to mutate some objects at the same time.
     ///
+    /// # Panics
+    ///
+    /// See [`borrow_mut`].
+    ///
     /// # Example
     ///
     /// ```
@@ -319,14 +350,14 @@ impl<T> Pool<T> {
     /// let b = pool.spawn(2);
     /// let c = pool.spawn(3);
     /// let (a, b, c) = pool.borrow_three_mut((a, b, c)).unwrap();
-    /// if let Some(a) = a { *a = 11 }
-    /// if let Some(b) = b { *b = 22 }
-    /// if let Some(c) = c { *c = 33 }
+    /// *a = 11;
+    /// *b = 22;
+    /// *c = 33;
     /// ```
     #[inline]
     #[must_use]
     pub fn borrow_three_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>))
-                            -> Result<(Option<&mut T>, Option<&mut T>, Option<&mut T>), ()> {
+                            -> Result<(&mut T, &mut T, &mut T), ()> {
         // Prevent giving mutable references to same record.
         if handles.0.index != handles.1.index &&
             handles.0.index != handles.2.index &&
@@ -346,6 +377,10 @@ impl<T> Pool<T> {
     /// if handles are unique (not equal). Borrowing multiple mutable references at the same
     /// time is useful in case if you need to mutate some objects at the same time.
     ///
+    /// # Panics
+    ///
+    /// See [`borrow_mut`].
+    ///
     /// # Example
     ///
     /// ```
@@ -356,15 +391,15 @@ impl<T> Pool<T> {
     /// let c = pool.spawn(3);
     /// let d = pool.spawn(4);
     /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d)).unwrap();
-    /// if let Some(a) = a { *a = 11 }
-    /// if let Some(b) = b { *b = 22 }
-    /// if let Some(c) = c { *c = 33 }
-    /// if let Some(d) = d { *d = 44 }
+    /// *a = 11;
+    /// *b = 22;
+    /// *c = 33;
+    /// *d = 44;
     /// ```
     #[inline]
     #[must_use]
     pub fn borrow_four_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>))
-                           -> Result<(Option<&mut T>, Option<&mut T>, Option<&mut T>, Option<&mut T>), ()> {
+                           -> Result<(&mut T, &mut T, &mut T, &mut T), ()> {
         // Prevent giving mutable references to same record.
         // This is kinda clunky since const generics are not stabilized yet.
         if handles.0.index != handles.1.index &&
@@ -386,6 +421,11 @@ impl<T> Pool<T> {
     }
 
     /// Destroys object by given handle. All handles to the object will become invalid.
+    ///
+    /// # Panics
+    ///
+    /// Panics if given handle is invalid.
+    ///
     #[inline]
     pub fn free(&mut self, handle: Handle<T>) {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
@@ -393,6 +433,8 @@ impl<T> Pool<T> {
             self.free_stack.push(handle.index);
             // Move out payload and drop it so it will be destroyed
             record.payload.take();
+        } else {
+            panic!("Trying to free destroyed object at index {} in a pool!", handle.index);
         }
     }
 
@@ -404,6 +446,13 @@ impl<T> Pool<T> {
     }
 
     /// Destroys all objects in pool. All handles to objects will become invalid.
+    ///
+    /// # Remarks
+    ///
+    /// Use this method cautiously if objects in pool have cross "references" (handles)
+    /// to each other. This method will make all produced handles invalid and any further
+    /// calls for [`borrow`] or [`borrow_mut`] will raise panic.
+    ///
     #[inline]
     pub fn clear(&mut self) {
         self.records.clear();
@@ -731,15 +780,15 @@ mod test {
         assert_eq!(foobar_handle.index, foobar_handle_copy.index);
         assert_eq!(foobar_handle.generation, foobar_handle_copy.generation);
         let baz_handle = pool.spawn(String::from("Baz"));
-        assert_eq!(pool.borrow(foobar_handle).unwrap(), "Foobar");
-        assert_eq!(pool.borrow(baz_handle).unwrap(), "Baz");
+        assert_eq!(pool.borrow(foobar_handle), "Foobar");
+        assert_eq!(pool.borrow(baz_handle), "Baz");
         pool.free(foobar_handle);
         assert_eq!(pool.is_valid_handle(foobar_handle_copy), false);
         assert_eq!(pool.is_valid_handle(baz_handle), true);
         let at_foobar_index = pool.spawn(String::from("AtFoobarIndex"));
         assert_eq!(at_foobar_index.index, 0);
         assert_ne!(at_foobar_index.generation, INVALID_GENERATION);
-        assert_eq!(pool.borrow(at_foobar_index).unwrap(), "AtFoobarIndex");
+        assert_eq!(pool.borrow(at_foobar_index), "AtFoobarIndex");
     }
 
     #[test]

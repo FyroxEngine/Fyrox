@@ -135,11 +135,10 @@ impl<T> Visit for T where T: FieldData + 'static {
             }
         } else if visitor.find_field(name).is_some() {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
-        } else if let Some(node) = visitor.current_node() {
+        } else {
+            let node = visitor.current_node();
             node.fields.push(Field::new(name, self.write()));
             Ok(())
-        } else {
-            Err(VisitError::NoActiveNode)
         }
     }
 }
@@ -160,11 +159,10 @@ impl<'a> Visit for Data<'a> {
             }
         } else if visitor.find_field(name).is_some() {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
-        } else if let Some(node) = visitor.current_node() {
+        } else {
+            let node = visitor.current_node();
             node.fields.push(Field::new(name, FieldKind::Data(self.vec.clone())));
             Ok(())
-        } else {
-            Err(VisitError::NoActiveNode)
         }
     }
 }
@@ -449,11 +447,10 @@ impl Visitor {
     }
 
     fn find_field(&mut self, name: &str) -> Option<&mut Field> {
-        if let Some(node) = self.nodes.borrow_mut(self.current_node) {
-            for field in node.fields.iter_mut() {
-                if field.name == name {
-                    return Some(field);
-                }
+        let node = self.nodes.borrow_mut(self.current_node);
+        for field in node.fields.iter_mut() {
+            if field.name == name {
+                return Some(field);
             }
         }
         None
@@ -463,47 +460,39 @@ impl Visitor {
         self.reading
     }
 
-    fn current_node(&mut self) -> Option<&mut Node> {
+    fn current_node(&mut self) -> &mut Node {
         self.nodes.borrow_mut(self.current_node)
     }
 
     pub fn enter_region(&mut self, name: &str) -> VisitResult {
         if self.reading {
-            if let Some(node) = self.nodes.borrow(self.current_node) {
-                let mut region = Handle::NONE;
-                for child_handle in node.children.iter() {
-                    if let Some(child) = self.nodes.borrow(*child_handle) {
-                        if child.name == name {
-                            region = *child_handle;
-                            break;
-                        }
-                    }
+            let node = self.nodes.borrow(self.current_node);
+            let mut region = Handle::NONE;
+            for child_handle in node.children.iter() {
+                let child = self.nodes.borrow(*child_handle);
+                if child.name == name {
+                    region = *child_handle;
+                    break;
                 }
-                if region.is_some() {
-                    self.current_node = region;
-                    Ok(())
-                } else {
-                    Err(VisitError::RegionDoesNotExist(name.to_owned()))
-                }
+            }
+            if region.is_some() {
+                self.current_node = region;
+                Ok(())
             } else {
-                Err(VisitError::NoActiveNode)
+                Err(VisitError::RegionDoesNotExist(name.to_owned()))
             }
         } else {
             // Make sure that node does not exists already.
-            if let Some(node) = self.nodes.borrow(self.current_node) {
-                for child_handle in node.children.iter() {
-                    if let Some(child) = self.nodes.borrow(*child_handle) {
-                        if child.name == name {
-                            return Err(VisitError::RegionAlreadyExists(name.to_owned()));
-                        }
-                    }
+            let node = self.nodes.borrow(self.current_node);
+            for child_handle in node.children.iter() {
+                let child = self.nodes.borrow(*child_handle);
+                if child.name == name {
+                    return Err(VisitError::RegionAlreadyExists(name.to_owned()));
                 }
             }
 
             let node_handle = self.nodes.spawn(Node::new(name, self.current_node));
-            if let Some(node) = self.nodes.borrow_mut(self.current_node) {
-                node.children.push(node_handle);
-            }
+            self.nodes.borrow_mut(self.current_node).children.push(node_handle);
             self.current_node = node_handle;
 
             Ok(())
@@ -511,27 +500,26 @@ impl Visitor {
     }
 
     pub fn leave_region(&mut self) -> VisitResult {
-        self.current_node = if let Some(node) = self.nodes.borrow(self.current_node) {
-            node.parent
-        } else {
+        self.current_node = self.nodes.borrow(self.current_node).parent;
+        if self.current_node.is_none() {
             return Err(VisitError::NoActiveNode);
-        };
-        Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     fn print_node(&self, node_handle: Handle<Node>, nesting: usize, out_string: &mut String) {
         let offset = (0..nesting).map(|_| { "\t" }).collect::<String>();
-        if let Some(node) = self.nodes.borrow(node_handle) {
-            *out_string += format!("{}{}[Fields={}, Children={}]: ", offset, node.name, node.fields.len(), node.children.len()).as_str();
-            for field in node.fields.iter() {
-                *out_string += field.as_string().as_str();
-            }
+        let node = self.nodes.borrow(node_handle);
+        *out_string += format!("{}{}[Fields={}, Children={}]: ", offset, node.name, node.fields.len(), node.children.len()).as_str();
+        for field in node.fields.iter() {
+            *out_string += field.as_string().as_str();
+        }
 
-            *out_string += "\n";
+        *out_string += "\n";
 
-            for child_handle in node.children.iter() {
-                self.print_node(*child_handle, nesting + 1, out_string);
-            }
+        for child_handle in node.children.iter() {
+            self.print_node(*child_handle, nesting + 1, out_string);
         }
     }
 
@@ -547,20 +535,19 @@ impl Visitor {
         let mut stack = Vec::new();
         stack.push(self.root);
         while let Some(node_handle) = stack.pop() {
-            if let Some(node) = self.nodes.borrow(node_handle) {
-                let name = node.name.as_bytes();
-                writer.write_u32::<LittleEndian>(name.len() as u32)?;
-                writer.write_all(name)?;
+            let node = self.nodes.borrow(node_handle);
+            let name = node.name.as_bytes();
+            writer.write_u32::<LittleEndian>(name.len() as u32)?;
+            writer.write_all(name)?;
 
-                writer.write_u32::<LittleEndian>(node.fields.len() as u32)?;
-                for field in node.fields.iter() {
-                    Field::save(field, &mut writer)?
-                }
+            writer.write_u32::<LittleEndian>(node.fields.len() as u32)?;
+            for field in node.fields.iter() {
+                Field::save(field, &mut writer)?
+            }
 
-                writer.write_u32::<LittleEndian>(node.children.len() as u32)?;
-                for child_handle in node.children.iter() {
-                    stack.push(child_handle.clone());
-                }
+            writer.write_u32::<LittleEndian>(node.children.len() as u32)?;
+            for child_handle in node.children.iter() {
+                stack.push(child_handle.clone());
             }
         }
         Ok(())
@@ -591,9 +578,8 @@ impl Visitor {
 
         let handle = self.nodes.spawn(node);
         for child_handle in children.iter() {
-            if let Some(child) = self.nodes.borrow_mut(*child_handle) {
-                child.parent = handle;
-            }
+            let child = self.nodes.borrow_mut(*child_handle);
+            child.parent = handle;
         }
 
         Ok(handle)
