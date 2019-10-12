@@ -53,7 +53,7 @@ use crate::scene::SceneInterfaceMut;
 use crate::scene::graph::Graph;
 use crate::scene::animation::AnimationContainer;
 use crate::resource::texture::TextureKind;
-use crate::scene::light::LightKind;
+use crate::scene::light::{LightKind, PointLight, SpotLight};
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -218,51 +218,39 @@ struct FbxAnimationCurveNode {
 
 impl FbxAnimationCurveNode {
     pub fn read(node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
-        match nodes.borrow(node_handle) {
-            Some(node) =>
-                Ok(FbxAnimationCurveNode {
-                    actual_type: match node.get_attrib(1)?.as_string().as_str() {
-                        "T" | "AnimCurveNode::T" => { FbxAnimationCurveNodeType::Translation }
-                        "R" | "AnimCurveNode::R" => { FbxAnimationCurveNodeType::Rotation }
-                        "S" | "AnimCurveNode::S" => { FbxAnimationCurveNodeType::Scale }
-                        _ => { FbxAnimationCurveNodeType::Unknown }
-                    },
-                    curves: Vec::new(),
-                }),
-            None => Err(String::from("Invalid FBX node handle!"))
-        }
+        let node = nodes.borrow(node_handle);
+        Ok(FbxAnimationCurveNode {
+            actual_type: match node.get_attrib(1)?.as_string().as_str() {
+                "T" | "AnimCurveNode::T" => { FbxAnimationCurveNodeType::Translation }
+                "R" | "AnimCurveNode::R" => { FbxAnimationCurveNodeType::Rotation }
+                "S" | "AnimCurveNode::S" => { FbxAnimationCurveNodeType::Scale }
+                _ => { FbxAnimationCurveNodeType::Unknown }
+            },
+            curves: Vec::new(),
+        })
     }
 
     pub fn eval_vec3(&self, components: &Pool<FbxComponent>, time: f32) -> Vec3 {
-        let x = if let Some(x) = components.borrow(self.curves[0]) {
-            if let FbxComponent::AnimationCurve(curve) = x {
+        let x =
+            if let FbxComponent::AnimationCurve(curve) = components.borrow(self.curves[0]) {
                 curve.eval(time)
             } else {
                 0.0
-            }
-        } else {
-            0.0
-        };
+            };
 
-        let y = if let Some(y) = components.borrow(self.curves[1]) {
-            if let FbxComponent::AnimationCurve(curve) = y {
+        let y =
+            if let FbxComponent::AnimationCurve(curve) = components.borrow(self.curves[1]) {
                 curve.eval(time)
             } else {
                 0.0
-            }
-        } else {
-            0.0
-        };
+            };
 
-        let z = if let Some(z) = components.borrow(self.curves[2]) {
-            if let FbxComponent::AnimationCurve(curve) = z {
+        let z =
+            if let FbxComponent::AnimationCurve(curve) = components.borrow(self.curves[2]) {
                 curve.eval(time)
             } else {
                 0.0
-            }
-        } else {
-            0.0
-        };
+            };
 
         Vec3::make(x, y, z)
     }
@@ -468,9 +456,9 @@ impl FbxGeometry {
         let mut out = vec![VertexWeightSet::default(); self.vertices.len()];
         for deformer_handle in self.deformers.iter() {
             for sub_deformer_handle in components.borrow(*deformer_handle)
-                .ok_or(FbxError::InvalidPoolHandle)?.as_deformer()?.sub_deformers.iter() {
+                .as_deformer()?.sub_deformers.iter() {
                 let sub_deformer = components.borrow(*sub_deformer_handle)
-                    .ok_or(FbxError::InvalidPoolHandle)?.as_sub_deformer()?;
+                    .as_sub_deformer()?;
                 for (index, weight) in sub_deformer.weights.iter() {
                     let bone_set = out.get_mut(*index as usize)
                         .ok_or(FbxError::IndexOutOfBounds)?;
@@ -514,32 +502,31 @@ impl FbxLight {
 
         let props = find_and_borrow_node(nodes, light_node_handle, "Properties70")?;
         for prop_handle in props.children.iter() {
-            if let Some(prop) = nodes.borrow(*prop_handle) {
-                match prop.get_attrib(0)?.as_string().as_str() {
-                    "DecayStart" => light.radius = prop.get_attrib(4)?.as_f64()? as f32,
-                    "Color" => {
-                        let r = (prop.get_attrib(4)?.as_f64()? * 255.0) as u8;
-                        let g = (prop.get_attrib(5)?.as_f64()? * 255.0) as u8;
-                        let b = (prop.get_attrib(6)?.as_f64()? * 255.0) as u8;
-                        light.color = Color::from_rgba(r, g, b, 255);
-                    }
-                    "HotSpot" => light.cone_angle = (prop.get_attrib(4)?.as_f64()? as f32).to_degrees(),
-                    "LightType" => {
-                        let type_code = prop.get_attrib(4)?.as_i32()?;
-                        light.actual_type = match type_code {
-                            0 => FbxLightType::Point,
-                            1 => FbxLightType::Directional,
-                            2 => FbxLightType::Spot,
-                            3 => FbxLightType::Area,
-                            4 => FbxLightType::Volume,
-                            _ => {
-                                println!("FBX: Unknown light type {}, fallback to Point!", type_code);
-                                FbxLightType::Point
-                            }
-                        };
-                    }
-                    _ => ()
+            let prop = nodes.borrow(*prop_handle);
+            match prop.get_attrib(0)?.as_string().as_str() {
+                "DecayStart" => light.radius = prop.get_attrib(4)?.as_f64()? as f32,
+                "Color" => {
+                    let r = (prop.get_attrib(4)?.as_f64()? * 255.0) as u8;
+                    let g = (prop.get_attrib(5)?.as_f64()? * 255.0) as u8;
+                    let b = (prop.get_attrib(6)?.as_f64()? * 255.0) as u8;
+                    light.color = Color::from_rgba(r, g, b, 255);
                 }
+                "HotSpot" => light.cone_angle = (prop.get_attrib(4)?.as_f64()? as f32).to_degrees(),
+                "LightType" => {
+                    let type_code = prop.get_attrib(4)?.as_i32()?;
+                    light.actual_type = match type_code {
+                        0 => FbxLightType::Point,
+                        1 => FbxLightType::Directional,
+                        2 => FbxLightType::Spot,
+                        3 => FbxLightType::Area,
+                        4 => FbxLightType::Volume,
+                        _ => {
+                            println!("FBX: Unknown light type {}, fallback to Point!", type_code);
+                            FbxLightType::Point
+                        }
+                    };
+                }
+                _ => ()
             }
         }
 
@@ -577,7 +564,7 @@ impl FbxModel {
     pub fn read(model_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxModel, String> {
         let mut name = String::from("Unnamed");
 
-        let model_node = nodes.borrow(model_node_handle).unwrap();
+        let model_node = nodes.borrow(model_node_handle);
         if let Ok(name_attrib) = model_node.get_attrib(1) {
             name = name_attrib.as_string();
         }
@@ -610,9 +597,9 @@ impl FbxModel {
         };
 
         let properties70_node_handle = find_node(nodes, model_node_handle, "Properties70")?;
-        let properties70_node = nodes.borrow(properties70_node_handle).unwrap();
+        let properties70_node = nodes.borrow(properties70_node_handle);
         for property_handle in properties70_node.children.iter() {
-            let property_node = nodes.borrow(*property_handle).unwrap();
+            let property_node = nodes.borrow(*property_handle);
             let name_attrib = property_node.get_attrib(0)?;
             match name_attrib.as_string().as_str() {
                 "Lcl Translation" => model.translation = property_node.get_vec3_at(4)?,
@@ -713,14 +700,15 @@ pub struct Fbx {
 
 /// Searches node by specified name and returns its handle if found
 fn find_node(pool: &Pool<FbxNode>, root: Handle<FbxNode>, name: &str) -> Result<Handle<FbxNode>, String> {
-    if let Some(node) = pool.borrow(root) {
-        if node.name == name {
-            return Ok(root);
-        }
-        for child_handle in node.children.iter() {
-            if let Ok(result) = find_node(pool, *child_handle, name) {
-                return Ok(result);
-            }
+    let node = pool.borrow(root);
+
+    if node.name == name {
+        return Ok(root);
+    }
+
+    for child_handle in node.children.iter() {
+        if let Ok(result) = find_node(pool, *child_handle, name) {
+            return Ok(result);
         }
     }
 
@@ -729,14 +717,15 @@ fn find_node(pool: &Pool<FbxNode>, root: Handle<FbxNode>, name: &str) -> Result<
 
 /// Searches node by specified name and borrows a reference to it
 fn find_and_borrow_node<'a>(pool: &'a Pool<FbxNode>, root: Handle<FbxNode>, name: &str) -> Result<&'a FbxNode, String> {
-    if let Some(node) = pool.borrow(root) {
-        if node.name == name {
-            return Ok(node);
-        }
-        for child_handle in node.children.iter() {
-            if let Ok(result) = find_and_borrow_node(pool, *child_handle, name) {
-                return Ok(result);
-            }
+    let node = pool.borrow(root);
+
+    if node.name == name {
+        return Ok(node);
+    }
+
+    for child_handle in node.children.iter() {
+        if let Ok(result) = find_and_borrow_node(pool, *child_handle, name) {
+            return Ok(result);
         }
     }
 
@@ -964,7 +953,7 @@ impl Fbx {
         // Read objects
         let objects_node = find_and_borrow_node(&self.nodes, self.root, "Objects")?;
         for object_handle in objects_node.children.iter() {
-            let object = self.nodes.borrow(*object_handle).unwrap();
+            let object = self.nodes.borrow(*object_handle);
             let index = object.get_attrib(0)?.as_i64()?;
             let mut component_handle: Handle<FbxComponent> = Handle::NONE;
             match object.name.as_str() {
@@ -1022,14 +1011,14 @@ impl Fbx {
         // Read connections
         let connections_node = find_and_borrow_node(&self.nodes, self.root, "Connections")?;
         for connection_handle in connections_node.children.iter() {
-            let connection = self.nodes.borrow(*connection_handle).unwrap();
+            let connection = self.nodes.borrow(*connection_handle);
             let child_index = connection.get_attrib(1)?.as_i64()?;
             let parent_index = connection.get_attrib(2)?.as_i64()?;
             if let Some(parent_handle) = self.index_to_component.get(&parent_index) {
                 if let Some(child_handle) = self.index_to_component.get(&child_index) {
                     let pair = self.component_pool.borrow_two_mut((*child_handle, *parent_handle)).unwrap();
-                    let child = pair.0.unwrap();
-                    let parent = pair.1.unwrap();
+                    let child = pair.0;
+                    let parent = pair.1;
                     link_child_with_parent_component(parent, child, *child_handle);
                 }
             }
@@ -1040,18 +1029,17 @@ impl Fbx {
 
     fn convert_light(&self, fbx_light: &FbxLight) -> Light {
         let light_kind = match fbx_light.actual_type {
-            FbxLightType::Point => LightKind::Point,
-            FbxLightType::Directional => LightKind::Point, // TODO
-            FbxLightType::Spot => LightKind::Spot,
-            FbxLightType::Area => LightKind::Point, // TODO
-            FbxLightType::Volume => LightKind::Point, // TODO
+            FbxLightType::Point | FbxLightType::Directional | FbxLightType::Area | FbxLightType::Volume => {
+                LightKind::Point(PointLight::new(fbx_light.radius))
+            }
+            FbxLightType::Spot => {
+                LightKind::Spot(SpotLight::new(fbx_light.radius, fbx_light.cone_angle))
+            }
         };
 
         let mut light = Light::new(light_kind);
 
         light.set_color(Color::opaque(fbx_light.color.r, fbx_light.color.g, fbx_light.color.b));
-        light.set_radius(fbx_light.radius);
-        light.set_cone_angle(fbx_light.cone_angle);
 
         light
     }
@@ -1066,31 +1054,33 @@ impl Fbx {
         } else {
             for material_handle in model.materials.iter() {
                 let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::new())));
-                let material = self.component_pool.borrow(*material_handle).ok_or(FbxError::InvalidPoolHandle)?.as_material()?;
-                let texture = self.component_pool.borrow(material.diffuse_texture).ok_or(FbxError::InvalidPoolHandle)?.as_texture()?;
-                let path = texture.get_file_path();
-                if path.is_relative() {
-                    let file_stem = path.file_stem().ok_or(FbxError::InvalidPath)?;
-                    let extention = path.extension().ok_or(FbxError::InvalidPath)?;
+                let material = self.component_pool.borrow(*material_handle).as_material()?;
+                if material.diffuse_texture.is_some() {
+                    let texture = self.component_pool.borrow(material.diffuse_texture).as_texture()?;
+                    let path = texture.get_file_path();
+                    if path.is_relative() {
+                        let file_stem = path.file_stem().ok_or(FbxError::InvalidPath)?;
+                        let extention = path.extension().ok_or(FbxError::InvalidPath)?;
 
-                    let diffuse_path = resource_manager.get_textures_path().join(&path);
-                    // Here we will load *every* texture as RGBA8, this probably is overkill,
-                    // that will lead to higher memory consumption, but this will remove
-                    // problems with transparent textures (like mesh texture, etc.)
-                    if let Some(texture_resource) = resource_manager.request_texture(diffuse_path.as_path(), TextureKind::RGBA8) {
-                        surface.set_diffuse_texture(texture_resource);
-                    }
+                        let diffuse_path = resource_manager.get_textures_path().join(&path);
+                        // Here we will load *every* texture as RGBA8, this probably is overkill,
+                        // that will lead to higher memory consumption, but this will remove
+                        // problems with transparent textures (like mesh texture, etc.)
+                        if let Some(texture_resource) = resource_manager.request_texture(diffuse_path.as_path(), TextureKind::RGBA8) {
+                            surface.set_diffuse_texture(texture_resource);
+                        }
 
-                    let mut normal_map_name = file_stem.to_os_string();
-                    normal_map_name.push("_normal.");
-                    normal_map_name.push(extention);
-                    let normal_path = resource_manager.get_textures_path().join(normal_map_name);
-                    if normal_path.exists() {
-                        // Not sure if alpha channel is useful on normal maps, so will use RGB8 here.
-                        // Potentially it can be used to store some per-pixel material data like
-                        // roughness, shininess, etc. For now this is a TODO.
-                        if let Some(texture_resource) = resource_manager.request_texture(normal_path.as_path(), TextureKind::RGB8) {
-                            surface.set_normal_texture(texture_resource);
+                        let mut normal_map_name = file_stem.to_os_string();
+                        normal_map_name.push("_normal.");
+                        normal_map_name.push(extention);
+                        let normal_path = resource_manager.get_textures_path().join(normal_map_name);
+                        if normal_path.exists() {
+                            // Not sure if alpha channel is useful on normal maps, so will use RGB8 here.
+                            // Potentially it can be used to store some per-pixel material data like
+                            // roughness, shininess, etc. For now this is a TODO.
+                            if let Some(texture_resource) = resource_manager.request_texture(normal_path.as_path(), TextureKind::RGB8) {
+                                surface.set_normal_texture(texture_resource);
+                            }
                         }
                     }
                 }
@@ -1115,7 +1105,7 @@ impl Fbx {
         let mut relative_triangles: Vec<(usize, usize, usize)> = Vec::new();
 
         for geom_handle in &model.geoms {
-            let geom = self.component_pool.borrow(*geom_handle).ok_or(FbxError::InvalidPoolHandle)?.as_geometry()?;
+            let geom = self.component_pool.borrow(*geom_handle).as_geometry()?;
             self.create_surfaces(&mut mesh, resource_manager, model)?;
 
             let skin_data = geom.get_skin_data(&self.component_pool)?;
@@ -1160,7 +1150,7 @@ impl Fbx {
             if !model.geoms.is_empty() {
                 Node::new(NodeKind::Mesh(self.convert_mesh(resource_manager, model)?))
             } else if model.light.is_some() {
-                let fbx_light_component = self.component_pool.borrow(model.light).unwrap();
+                let fbx_light_component = self.component_pool.borrow(model.light);
                 Node::new(NodeKind::Light(self.convert_light(fbx_light_component.as_light()?)))
             } else {
                 Node::new(NodeKind::Base)
@@ -1189,15 +1179,14 @@ impl Fbx {
             let mut lcl_rotation = None;
             let mut lcl_scale = None;
             for anim_curve_node_handle in model.animation_curve_nodes.iter() {
-                if let Some(component) = self.component_pool.borrow(*anim_curve_node_handle) {
-                    if let FbxComponent::AnimationCurveNode(curve_node) = component {
-                        if curve_node.actual_type == FbxAnimationCurveNodeType::Rotation {
-                            lcl_rotation = Some(curve_node);
-                        } else if curve_node.actual_type == FbxAnimationCurveNodeType::Translation {
-                            lcl_translation = Some(curve_node);
-                        } else if curve_node.actual_type == FbxAnimationCurveNodeType::Scale {
-                            lcl_scale = Some(curve_node);
-                        }
+                let component = self.component_pool.borrow(*anim_curve_node_handle);
+                if let FbxComponent::AnimationCurveNode(curve_node) = component {
+                    if curve_node.actual_type == FbxAnimationCurveNodeType::Rotation {
+                        lcl_rotation = Some(curve_node);
+                    } else if curve_node.actual_type == FbxAnimationCurveNodeType::Translation {
+                        lcl_translation = Some(curve_node);
+                    } else if curve_node.actual_type == FbxAnimationCurveNodeType::Scale {
+                        lcl_scale = Some(curve_node);
                     }
                 }
             }
@@ -1234,14 +1223,13 @@ impl Fbx {
                 for node in &[lcl_translation, lcl_rotation, lcl_scale] {
                     if let Some(node) = node {
                         for curve_handle in node.curves.iter() {
-                            if let Some(curve_component) = self.component_pool.borrow(*curve_handle) {
-                                if let FbxComponent::AnimationCurve(curve) = curve_component {
-                                    for key in curve.keys.iter() {
-                                        if key.time > time {
-                                            let distance = key.time - time;
-                                            if distance < next_time - key.time {
-                                                next_time = key.time;
-                                            }
+                            let curve_component = self.component_pool.borrow(*curve_handle);
+                            if let FbxComponent::AnimationCurve(curve) = curve_component {
+                                for key in curve.keys.iter() {
+                                    if key.time > time {
+                                        let distance = key.time - time;
+                                        if distance < next_time - key.time {
+                                            next_time = key.time;
                                         }
                                     }
                                 }
@@ -1257,9 +1245,7 @@ impl Fbx {
                 time = next_time;
             }
 
-            if let Some(animation) = animations.get_mut(animation_handle) {
-                animation.add_track(track);
-            }
+            animations.get_mut(animation_handle).add_track(track);
         }
 
         Ok(node_handle)
@@ -1275,18 +1261,17 @@ impl Fbx {
         let animation_handle = animations.add(Animation::default());
         let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {
-            if let Some(component) = self.component_pool.borrow(*component_handle) {
-                if let FbxComponent::Model(model) = component {
-                    let node = self.convert_model(model, resource_manager, graph, animations, animation_handle)?;
-                    instantiated_nodes.push(node);
-                    graph.link_nodes(node, root);
-                    fbx_model_to_node_map.insert(*component_handle, node);
-                }
+            let component = self.component_pool.borrow(*component_handle);
+            if let FbxComponent::Model(model) = component {
+                let node = self.convert_model(model, resource_manager, graph, animations, animation_handle)?;
+                instantiated_nodes.push(node);
+                graph.link_nodes(node, root);
+                fbx_model_to_node_map.insert(*component_handle, node);
             }
         }
         // Link according to hierarchy
         for (fbx_model_handle, node_handle) in fbx_model_to_node_map.iter() {
-            if let FbxComponent::Model(fbx_model) = self.component_pool.borrow(*fbx_model_handle).unwrap() {
+            if let FbxComponent::Model(fbx_model) = self.component_pool.borrow(*fbx_model_handle) {
                 for fbx_child_handle in fbx_model.children.iter() {
                     if let Some(child_handle) = fbx_model_to_node_map.get(fbx_child_handle) {
                         graph.link_nodes(*child_handle, *node_handle);
@@ -1299,7 +1284,7 @@ impl Fbx {
         // Remap handles from fbx model to handles of instantiated nodes
         // on each surface of each mesh.
         for handle in instantiated_nodes.iter() {
-            let node = graph.get_mut(*handle).ok_or(FbxError::InvalidPoolHandle)?;
+            let node = graph.get_mut(*handle);
             if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
                 let mut surface_bones = HashSet::new();
                 for surface in mesh.get_surfaces_mut() {
@@ -1349,7 +1334,7 @@ impl Fbx {
         let mut stack: Vec<Handle<FbxNode>> = Vec::new();
         stack.push(self.root);
         while let Some(handle) = stack.pop() {
-            let node = self.nodes.borrow(handle).unwrap();
+            let node = self.nodes.borrow(handle);
             println!("{}", node.name);
 
             // Continue printing children

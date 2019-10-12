@@ -41,7 +41,7 @@ impl ResourceManager {
             map_or(String::from(""), |s| s.to_ascii_lowercase());
 
         match extension.as_str() {
-            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load(path, kind) {
+            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load_from_file(path, kind) {
                 Ok(texture) => {
                     let shared_texture = Arc::new(Mutex::new(texture));
                     self.textures.push(shared_texture.clone());
@@ -182,7 +182,7 @@ impl ResourceManager {
     pub fn reload_resources(&mut self) {
         for old_texture in self.get_textures() {
             let mut old_texture = old_texture.lock().unwrap();
-            let new_texture = match Texture::load(old_texture.path.as_path(), old_texture.kind) {
+            let new_texture = match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
                 Ok(texture) => texture,
                 Err(e) => {
                     println!("Unable to reload {:?} texture! Reason: {}", old_texture.path, e);

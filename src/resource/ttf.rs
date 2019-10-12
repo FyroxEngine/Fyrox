@@ -134,10 +134,11 @@ impl RectPacker {
         let mut unvisited: Vec<Handle<RectPackNode>> = Vec::new();
         unvisited.push(self.root);
         while let Some(node_handle) = unvisited.pop() {
-            let mut left_bounds: Rect<i32> = Rect::default();
-            let mut right_bounds: Rect<i32> = Rect::default();
+            let left_bounds;
+            let right_bounds;
 
-            if let Some(node) = self.nodes.borrow_mut(node_handle) {
+            {
+                let node = self.nodes.borrow_mut(node_handle);
                 if node.split {
                     unvisited.push(node.right);
                     unvisited.push(node.left);
@@ -165,14 +166,10 @@ impl RectPacker {
             }
 
             let left = self.nodes.spawn(RectPackNode::new(left_bounds));
-            if let Some(node) = self.nodes.borrow_mut(node_handle) {
-                node.left = left;
-            }
+            self.nodes.borrow_mut(node_handle).left = left;
 
             let right = self.nodes.spawn(RectPackNode::new(right_bounds));
-            if let Some(node) = self.nodes.borrow_mut(node_handle) {
-                node.right = right;
-            }
+            self.nodes.borrow_mut(node_handle).right = right;
 
             unvisited.push(left);
         }

@@ -13,7 +13,6 @@ use rg3d_core::{
 };
 
 pub struct ScrollViewer {
-    pub(in crate::gui) owner_handle: Handle<UINode>,
     content: Handle<UINode>,
     content_presenter: Handle<UINode>,
     v_scroll_bar: Handle<UINode>,
@@ -27,38 +26,33 @@ impl ScrollViewer {
         let mut horizontal_scroll_bar_handle = Handle::NONE;
         let mut vertical_scroll_bar_handle = Handle::NONE;
 
-        if let Some(node) = ui.nodes.borrow(handle) {
+        {
+            let node = ui.nodes.borrow(handle);
             if let UINodeKind::ScrollViewer(scroll_viewer) = node.get_kind() {
                 horizontal_scroll_bar_handle = scroll_viewer.h_scroll_bar;
                 vertical_scroll_bar_handle = scroll_viewer.v_scroll_bar;
-                if let Some(content_presenter) = ui.nodes.borrow(scroll_viewer.content_presenter) {
-                    available_size_for_content = content_presenter.desired_size.get();
-                    for content_handle in content_presenter.children.iter() {
-                        if let Some(content) = ui.nodes.borrow(*content_handle) {
-                            let content_desired_size = content.desired_size.get();
-                            if content_desired_size.x > content_size.x {
-                                content_size.x = content_desired_size.x;
-                            }
-                            if content_desired_size.y > content_size.y {
-                                content_size.y = content_desired_size.y;
-                            }
-                        }
+                let content_presenter = ui.nodes.borrow(scroll_viewer.content_presenter);
+                available_size_for_content = content_presenter.desired_size.get();
+                for content_handle in content_presenter.children.iter() {
+                    let content = ui.nodes.borrow(*content_handle);
+                    let content_desired_size = content.desired_size.get();
+                    if content_desired_size.x > content_size.x {
+                        content_size.x = content_desired_size.x;
+                    }
+                    if content_desired_size.y > content_size.y {
+                        content_size.y = content_desired_size.y;
                     }
                 }
             }
         }
 
         // Then adjust scroll bars according to content size.
-        if let Some(h_scroll_bar) = ui.nodes.borrow_mut(horizontal_scroll_bar_handle) {
-            if let UINodeKind::ScrollBar(h_scroll_bar) = h_scroll_bar.get_kind_mut() {
-                h_scroll_bar.set_max_value(maxf(0.0, content_size.x - available_size_for_content.x));
-            }
+        if let UINodeKind::ScrollBar(h_scroll_bar) = ui.nodes.borrow_mut(horizontal_scroll_bar_handle).get_kind_mut() {
+            h_scroll_bar.set_max_value(maxf(0.0, content_size.x - available_size_for_content.x));
         }
 
-        if let Some(v_scroll_bar) = ui.nodes.borrow_mut(vertical_scroll_bar_handle) {
-            if let UINodeKind::ScrollBar(v_scroll_bar) = v_scroll_bar.get_kind_mut() {
-                v_scroll_bar.set_max_value(maxf(0.0, content_size.y - available_size_for_content.y));
-            }
+        if let UINodeKind::ScrollBar(v_scroll_bar) = ui.nodes.borrow_mut(vertical_scroll_bar_handle).get_kind_mut() {
+            v_scroll_bar.set_max_value(maxf(0.0, content_size.y - available_size_for_content.y));
         }
     }
 }
@@ -110,7 +104,6 @@ impl ScrollViewerBuilder {
 
         let scroll_viewer = ScrollViewer {
             content: self.content,
-            owner_handle: Handle::NONE,
             v_scroll_bar,
             h_scroll_bar,
             content_presenter,
@@ -129,13 +122,12 @@ impl ScrollViewerBuilder {
             .with_event_handler(Box::new(move |ui, _handle, event| {
                 match event.kind {
                     UIEventKind::NumericValueChanged { new_value, .. } => {
-                        if let Some(content_presenter) = ui.get_node_mut(content_presenter) {
-                            if let UINodeKind::ScrollContentPresenter(content_presenter) = content_presenter.get_kind_mut() {
-                                if event.source == h_scroll_bar {
-                                    content_presenter.set_horizontal_scroll(new_value);
-                                } else if event.source == v_scroll_bar {
-                                    content_presenter.set_vertical_scroll(new_value);
-                                }
+                        let content_presenter = ui.get_node_mut(content_presenter);
+                        if let UINodeKind::ScrollContentPresenter(content_presenter) = content_presenter.get_kind_mut() {
+                            if event.source == h_scroll_bar {
+                                content_presenter.set_horizontal_scroll(new_value);
+                            } else if event.source == v_scroll_bar {
+                                content_presenter.set_vertical_scroll(new_value);
                             }
                         }
                     }

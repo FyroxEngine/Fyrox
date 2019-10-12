@@ -147,13 +147,10 @@ impl SpotShadowMapRenderer {
                     if is_skinned {
                         self.bone_matrices.clear();
                         for bone_handle in surface.bones.iter() {
-                            if let Some(bone_node) = graph.get(*bone_handle) {
-                                self.bone_matrices.push(
-                                    *bone_node.get_global_transform() *
-                                        *bone_node.get_inv_bind_pose_transform());
-                            } else {
-                                self.bone_matrices.push(Mat4::identity())
-                            }
+                            let bone_node = graph.get(*bone_handle);
+                            self.bone_matrices.push(
+                                *bone_node.get_global_transform() *
+                                    bone_node.get_inv_bind_pose_transform());
                         }
 
                         self.shader.set_bone_matrices(&self.bone_matrices);

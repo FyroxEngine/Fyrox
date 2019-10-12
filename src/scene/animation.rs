@@ -1,7 +1,3 @@
-use crate::{
-    scene::node::Node,
-    resource::model::Model,
-};
 use rg3d_core::{
     math::{
         vec3::Vec3,
@@ -15,12 +11,22 @@ use rg3d_core::{
         VisitResult,
         Visitor,
     },
-    pool::Handle,
+    pool::{
+        Pool,
+        Handle,
+        PoolIterator,
+        PoolIteratorMut,
+    },
 };
 use std::sync::{Mutex, Arc};
-use rg3d_core::pool::{Pool, PoolIterator, PoolIteratorMut};
-use crate::scene::SceneInterface;
-use crate::scene::graph::Graph;
+use crate::{
+    scene::{
+        SceneInterface,
+        node::Node,
+        graph::Graph,
+    },
+    resource::model::Model,
+};
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -323,31 +329,31 @@ impl Animation {
             // TODO: Here we assume that resource contains only *one* animation.
             let SceneInterface {
                 animations: resource_animations,
-                graph: resource_graph, .. } = resource.get_scene().interface();
+                graph: resource_graph, ..
+            } = resource.get_scene().interface();
             if let Some(ref_animation) = resource_animations.pool.at(0) {
                 for track in self.get_tracks_mut() {
-                    if let Some(track_node) = graph.get(track.get_node()) {
-                        // Find corresponding track in resource using names of nodes, not
-                        // original handles of instantiated nodes. We can't use original
-                        // handles here because animation can be targetted to a node that
-                        // wasn't instantiated from animation resource. It can be instantiated
-                        // from some other resource. For example you have a character with
-                        // multiple animations. Character "lives" in its own file without animations
-                        // but with skin. Each animation "lives" in its own file too, then
-                        // you did animation retargetting from animation resource to your character
-                        // instantiated model, which is essentially copies key frames to new
-                        // animation targetted to character instance.
-                        let mut found = false;
-                        for ref_track in ref_animation.get_tracks().iter() {
-                            if track_node.get_name() == resource_graph.get(ref_track.get_node()).unwrap().get_name() {
-                                track.set_key_frames(ref_track.get_key_frames());
-                                found = true;
-                                break;
-                            }
+                    let track_node = graph.get(track.get_node());
+                    // Find corresponding track in resource using names of nodes, not
+                    // original handles of instantiated nodes. We can't use original
+                    // handles here because animation can be targetted to a node that
+                    // wasn't instantiated from animation resource. It can be instantiated
+                    // from some other resource. For example you have a character with
+                    // multiple animations. Character "lives" in its own file without animations
+                    // but with skin. Each animation "lives" in its own file too, then
+                    // you did animation retargetting from animation resource to your character
+                    // instantiated model, which is essentially copies key frames to new
+                    // animation targetted to character instance.
+                    let mut found = false;
+                    for ref_track in ref_animation.get_tracks().iter() {
+                        if track_node.get_name() == resource_graph.get(ref_track.get_node()).get_name() {
+                            track.set_key_frames(ref_track.get_key_frames());
+                            found = true;
+                            break;
                         }
-                        if !found {
-                            println!("Failed to copy key frames for node {}!", track_node.get_name());
-                        }
+                    }
+                    if !found {
+                        println!("Failed to copy key frames for node {}!", track_node.get_name());
                     }
                 }
             }
@@ -435,12 +441,12 @@ impl AnimationContainer {
     }
 
     #[inline]
-    pub fn get(&self, handle: Handle<Animation>) -> Option<&Animation> {
+    pub fn get(&self, handle: Handle<Animation>) -> &Animation {
         self.pool.borrow(handle)
     }
 
     #[inline]
-    pub fn get_mut(&mut self, handle: Handle<Animation>) -> Option<&mut Animation> {
+    pub fn get_mut(&mut self, handle: Handle<Animation>) -> &mut Animation {
         self.pool.borrow_mut(handle)
     }
 
@@ -456,12 +462,11 @@ impl AnimationContainer {
         // Reset local transform of animated nodes first
         for animation in self.pool.iter() {
             for track in animation.get_tracks() {
-                if let Some(node) = graph.get_mut(track.get_node()) {
-                    let transform = node.get_local_transform_mut();
-                    transform.set_position(Default::default());
-                    transform.set_rotation(Default::default());
-                    // TODO: transform.set_scale(Vec3::make(1.0, 1.0, 1.0));
-                }
+                let node = graph.get_mut(track.get_node());
+                let transform = node.get_local_transform_mut();
+                transform.set_position(Default::default());
+                transform.set_rotation(Default::default());
+                // TODO: transform.set_scale(Vec3::make(1.0, 1.0, 1.0));
             }
         }
 
@@ -481,12 +486,11 @@ impl AnimationContainer {
                 }
 
                 if let Some(keyframe) = track.get_key_frame(animation.get_time_position()) {
-                    if let Some(node) = graph.get_mut(track.get_node()) {
-                        let transform = node.get_local_transform_mut();
-                        transform.set_rotation(transform.get_rotation().nlerp(&keyframe.rotation, weight));
-                        transform.set_position(transform.get_position() + keyframe.position.scale(weight));
-                        // TODO: transform.set_scale(transform.get_scale().lerp(&keyframe.scale, weight));
-                    }
+                    let node = graph.get_mut(track.get_node());
+                    let transform = node.get_local_transform_mut();
+                    transform.set_rotation(transform.get_rotation().nlerp(&keyframe.rotation, weight));
+                    transform.set_position(transform.get_position() + keyframe.position.scale(weight));
+                    // TODO: transform.set_scale(transform.get_scale().lerp(&keyframe.scale, weight));
                 }
             }
 

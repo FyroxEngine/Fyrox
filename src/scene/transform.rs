@@ -55,7 +55,7 @@ impl Transform {
         Self {
             dirty: Cell::new(true),
             local_position: Vec3::new(),
-            local_scale: Vec3::make(1.0, 1.0, 1.0),
+            local_scale: Vec3::unit(),
             local_rotation: Quat::new(),
             pre_rotation: Quat::new(),
             post_rotation: Quat::new(),
@@ -204,5 +204,94 @@ impl Transform {
             self.dirty.set(false)
         }
         self.matrix.get()
+    }
+}
+
+pub struct TransformBuilder {
+    local_scale: Option<Vec3>,
+    local_position: Option<Vec3>,
+    local_rotation: Option<Quat>,
+    pre_rotation: Option<Quat>,
+    post_rotation: Option<Quat>,
+    rotation_offset: Option<Vec3>,
+    rotation_pivot: Option<Vec3>,
+    scaling_offset: Option<Vec3>,
+    scaling_pivot: Option<Vec3>,
+}
+
+impl TransformBuilder {
+    pub fn new() -> Self {
+        Self {
+            local_scale: None,
+            local_position: None,
+            local_rotation: None,
+            pre_rotation: None,
+            post_rotation: None,
+            rotation_offset: None,
+            rotation_pivot: None,
+            scaling_offset: None,
+            scaling_pivot: None
+        }
+    }
+
+    pub fn with_local_scale(mut self, scale: Vec3) -> Self {
+        self.local_scale = Some(scale);
+        self
+    }
+
+    pub fn with_local_position(mut self, position: Vec3) -> Self {
+        self.local_position = Some(position);
+        self
+    }
+
+    pub fn with_local_rotation(mut self, rotation: Quat) -> Self {
+        self.local_rotation = Some(rotation);
+        self
+    }
+
+    pub fn with_pre_rotation(mut self, rotation: Quat) -> Self {
+        self.pre_rotation = Some(rotation);
+        self
+    }
+
+    pub fn with_post_rotation(mut self, rotation: Quat) -> Self {
+        self.post_rotation = Some(rotation);
+        self
+    }
+
+    pub fn with_rotation_offset(mut self, offset: Vec3) -> Self {
+        self.rotation_offset = Some(offset);
+        self
+    }
+
+    pub fn with_rotation_pivot(mut self, pivot: Vec3) -> Self {
+        self.rotation_pivot = Some(pivot);
+        self
+    }
+
+    pub fn with_scaling_offset(mut self, offset: Vec3) -> Self {
+        self.scaling_offset = Some(offset);
+        self
+    }
+
+    pub fn with_scaling_pivot(mut self, pivot: Vec3) -> Self {
+        self.scaling_pivot = Some(pivot);
+        self
+    }
+
+    pub fn build(self) -> Transform {
+        Transform {
+            dirty: Cell::new(true),
+            local_scale: self.local_scale.unwrap_or(Vec3::unit()),
+            local_position: self.local_position.unwrap_or(Vec3::zero()),
+            local_rotation: self.local_rotation.unwrap_or(Quat::new()),
+            pre_rotation: self.pre_rotation.unwrap_or(Quat::new()),
+            post_rotation: self.post_rotation.unwrap_or(Quat::new()),
+            rotation_offset: self.rotation_offset.unwrap_or(Vec3::zero()),
+            rotation_pivot: self.rotation_pivot.unwrap_or(Vec3::zero()),
+            scaling_offset: self.scaling_offset.unwrap_or(Vec3::zero()),
+            scaling_pivot: self.scaling_pivot.unwrap_or(Vec3::zero()),
+            matrix: Cell::new(Mat4::identity())
+        }
     }
 }

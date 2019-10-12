@@ -4,13 +4,13 @@ use crate::gui::{
     UserInterface,
     HorizontalAlignment,
     node::{UINodeKind, UINode},
+    event::UIEventHandler,
 };
 use rg3d_core::{
     color::Color,
     math::vec2::Vec2,
     pool::Handle,
 };
-use crate::gui::event::UIEventHandler;
 
 pub struct CommonBuilderFields {
     pub(in crate::gui) name: Option<String>,
@@ -26,7 +26,7 @@ pub struct CommonBuilderFields {
     pub(in crate::gui) column: Option<usize>,
     pub(in crate::gui) margin: Option<Thickness>,
     pub(in crate::gui) children: Vec<Handle<UINode>>,
-    pub(in crate::gui) event_handler: Option<Box<UIEventHandler>>
+    pub(in crate::gui) event_handler: Option<Box<UIEventHandler>>,
 }
 
 impl Default for CommonBuilderFields {
@@ -51,50 +51,49 @@ impl CommonBuilderFields {
             margin: None,
             desired_position: None,
             children: Vec::new(),
-            event_handler: None
+            event_handler: None,
         }
     }
 
     pub fn apply(&mut self, ui: &mut UserInterface, node_handle: Handle<UINode>) {
-        if let Some(node) = ui.nodes.borrow_mut(node_handle) {
-            if let Some(width) = self.width {
-                node.width.set(width);
-            }
-            if let Some(height) = self.height {
-                node.height.set(height);
-            }
-            if let Some(valign) = self.vertical_alignment {
-                node.vertical_alignment = valign;
-            }
-            if let Some(halign) = self.horizontal_alignment {
-                node.horizontal_alignment = halign;
-            }
-            if let Some(max_size) = self.max_size {
-                node.max_size = max_size;
-            }
-            if let Some(min_size) = self.min_size {
-                node.min_size = min_size;
-            }
-            if let Some(color) = self.color {
-                node.color = color;
-            }
-            if let Some(row) = self.row {
-                node.row = row;
-            }
-            if let Some(column) = self.column {
-                node.column = column;
-            }
-            if let Some(margin) = self.margin {
-                node.margin = margin;
-            }
-            if let Some(desired_position) = self.desired_position {
-                node.desired_local_position.set(desired_position);
-            }
-            if let Some(name) = self.name.take() {
-                node.name = name;
-            }
-            node.event_handler = self.event_handler.take();
+        let node = ui.nodes.borrow_mut(node_handle);
+        if let Some(width) = self.width {
+            node.width.set(width);
         }
+        if let Some(height) = self.height {
+            node.height.set(height);
+        }
+        if let Some(valign) = self.vertical_alignment {
+            node.vertical_alignment = valign;
+        }
+        if let Some(halign) = self.horizontal_alignment {
+            node.horizontal_alignment = halign;
+        }
+        if let Some(max_size) = self.max_size {
+            node.max_size = max_size;
+        }
+        if let Some(min_size) = self.min_size {
+            node.min_size = min_size;
+        }
+        if let Some(color) = self.color {
+            node.color = color;
+        }
+        if let Some(row) = self.row {
+            node.row = row;
+        }
+        if let Some(column) = self.column {
+            node.column = column;
+        }
+        if let Some(margin) = self.margin {
+            node.margin = margin;
+        }
+        if let Some(desired_position) = self.desired_position {
+            node.desired_local_position.set(desired_position);
+        }
+        if let Some(name) = self.name.take() {
+            node.name = name;
+        }
+        node.event_handler = self.event_handler.take();
         for child_handle in self.children.iter() {
             ui.link_nodes(*child_handle, node_handle);
         }

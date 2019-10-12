@@ -61,20 +61,17 @@ impl Model {
         let SceneInterface { graph: resource_graph, .. } = model.scene.interface();
 
         let root = resource_graph.copy_node(resource_graph.get_root(), dest_graph);
-        if let Some(root) = dest_graph.get_mut(root) {
-            root.is_resource_instance = true;
-        }
+        dest_graph.get_mut(root).is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = Vec::new();
         stack.push(root);
         while let Some(node_handle) = stack.pop() {
-            if let Some(node) = dest_graph.get_mut(node_handle) {
-                node.set_resource(Arc::clone(&model_rc));
-                // Continue on children.
-                for child_handle in node.get_children() {
-                    stack.push(child_handle.clone());
-                }
+            let node = dest_graph.get_mut(node_handle);
+            node.set_resource(Arc::clone(&model_rc));
+            // Continue on children.
+            for child_handle in node.get_children() {
+                stack.push(child_handle.clone());
             }
         }
 
@@ -118,7 +115,8 @@ impl Model {
 
         let SceneInterface {
             animations: resource_animations,
-            graph: resource_graph, ..} = model.scene.interface();
+            graph: resource_graph, ..
+        } = model.scene.interface();
 
         for ref_anim in resource_animations.iter() {
             let mut anim_copy = ref_anim.clone();
@@ -129,21 +127,21 @@ impl Model {
 
             let SceneInterfaceMut {
                 animations: dest_animations,
-                graph: dest_graph, .. } = dest_scene.interface_mut();
+                graph: dest_graph, ..
+            } = dest_scene.interface_mut();
 
             // Remap animation track nodes from resource to instance. This is required
             // because we've made a plain copy and it has tracks with node handles mapped
             // to nodes of internal scene.
             for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
-                if let Some(ref_node) = resource_graph.get(ref_track.get_node()) {
-                    // Find instantiated node that corresponds to node in resource
-                    let instance_node = dest_graph.find_by_name(root, ref_node.get_name());
-                    if instance_node.is_none() {
-                        println!("Failed to retarget animation for node {}", ref_node.get_name())
-                    }
-                    // One-to-one track mapping so there is [i] indexing.
-                    anim_copy.get_tracks_mut()[i].set_node(instance_node);
+                let ref_node = resource_graph.get(ref_track.get_node());
+                // Find instantiated node that corresponds to node in resource
+                let instance_node = dest_graph.find_by_name(root, ref_node.get_name());
+                if instance_node.is_none() {
+                    println!("Failed to retarget animation for node {}", ref_node.get_name())
                 }
+                // One-to-one track mapping so there is [i] indexing.
+                anim_copy.get_tracks_mut()[i].set_node(instance_node);
             }
 
             animation_handles.push(dest_animations.add(anim_copy));

@@ -16,10 +16,14 @@ use crate::scene::{
 use rg3d_physics::{Physics, rigid_body::RigidBody};
 use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor},
-    pool::Handle,
+    pool::{
+        Handle,
+        Pool,
+        PoolIterator,
+        PoolIteratorMut,
+    },
 };
 use std::collections::HashMap;
-use rg3d_core::pool::{Pool, PoolIterator, PoolIteratorMut};
 
 pub struct Scene {
     graph: Graph,
@@ -34,7 +38,7 @@ impl Default for Scene {
             graph: Default::default(),
             animations: Default::default(),
             physics: Default::default(),
-            node_rigid_body_map: Default::default()
+            node_rigid_body_map: Default::default(),
         }
     }
 }
@@ -69,7 +73,7 @@ impl Scene {
             graph: &self.graph,
             physics: &self.physics,
             animations: &self.animations,
-            node_rigid_body_map: &self.node_rigid_body_map
+            node_rigid_body_map: &self.node_rigid_body_map,
         }
     }
 
@@ -78,7 +82,7 @@ impl Scene {
             graph: &mut self.graph,
             physics: &mut self.physics,
             animations: &mut self.animations,
-            node_rigid_body_map: &mut self.node_rigid_body_map
+            node_rigid_body_map: &mut self.node_rigid_body_map,
         }
     }
 
@@ -87,8 +91,10 @@ impl Scene {
 
         // Sync node positions with assigned physics bodies
         for (node, body) in self.node_rigid_body_map.iter() {
-            if let Some(node) = self.graph.get_mut(*node) {
-                if let Some(body) = self.physics.borrow_body(*body) {
+            if self.graph.is_valid_handle(*node) {
+                let node = self.graph.get_mut(*node);
+                if self.physics.is_valid_body_handle(*body) {
+                    let body = self.physics.borrow_body(*body);
                     node.get_local_transform_mut().set_position(body.get_position());
                 }
             }
@@ -106,6 +112,13 @@ impl Scene {
         self.update_physics(dt);
         self.animations.update_animations(dt, &mut self.graph);
         self.graph.update_nodes(aspect_ratio, dt);
+
+        // Keep pair when node and body are both alive.
+        let graph = &self.graph;
+        let physics = &self.physics;
+        self.node_rigid_body_map.retain(|node, body| {
+            graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
+        });
     }
 }
 
@@ -157,12 +170,12 @@ impl SceneContainer {
     }
 
     #[inline]
-    pub fn get(&self, handle: Handle<Scene>) -> Option<&Scene> {
+    pub fn get(&self, handle: Handle<Scene>) -> &Scene {
         self.pool.borrow(handle)
     }
 
     #[inline]
-    pub fn get_mut(&mut self, handle: Handle<Scene>) -> Option<&mut Scene> {
+    pub fn get_mut(&mut self, handle: Handle<Scene>) -> &mut Scene {
         self.pool.borrow_mut(handle)
     }
 }

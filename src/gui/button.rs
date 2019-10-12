@@ -20,7 +20,6 @@ use std::collections::VecDeque;
 ///
 /// [`Click`] - spawned when user click button.
 pub struct Button {
-    pub(in crate::gui) owner_handle: Handle<UINode>,
     events: VecDeque<UIEvent>,
 }
 
@@ -60,7 +59,6 @@ impl ButtonBuilder {
         let hover_color = Color::opaque(160, 160, 160);
 
         let button = Button {
-            owner_handle: Handle::NONE,
             events: VecDeque::new(),
         };
 
@@ -71,16 +69,15 @@ impl ButtonBuilder {
                     match evt.kind {
                         UIEventKind::MouseUp { .. } => {
                             // Generate Click event
-                            if let Some(node) = ui.get_node_mut(handle) {
-                                if let UINodeKind::Button(button) = node.get_kind_mut() {
-                                    button.events.push_back(UIEvent::new(UIEventKind::Click));
-                                }
+                            let node = ui.get_node_mut(handle);
+                            if let UINodeKind::Button(button) = node.get_kind_mut() {
+                                button.events.push_back(UIEvent::new(UIEventKind::Click));
                             }
                             ui.release_mouse_capture();
                         }
                         UIEventKind::MouseDown { .. } => {
                             ui.capture_mouse(evt.source);
-                        },
+                        }
                         _ => ()
                     }
                 }
@@ -91,20 +88,19 @@ impl ButtonBuilder {
                 .with_color(normal_color)
                 .with_event_handler(Box::new(move |ui, handle, evt| {
                     if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                        if let Some(back) = ui.nodes.borrow_mut(handle) {
-                            match evt.kind {
-                                UIEventKind::MouseDown { .. } => back.color = pressed_color,
-                                UIEventKind::MouseUp { .. } => {
-                                    if back.is_mouse_over {
-                                        back.color = hover_color;
-                                    } else {
-                                        back.color = normal_color;
-                                    }
+                        let back = ui.nodes.borrow_mut(handle);
+                        match evt.kind {
+                            UIEventKind::MouseDown { .. } => back.color = pressed_color,
+                            UIEventKind::MouseUp { .. } => {
+                                if back.is_mouse_over {
+                                    back.color = hover_color;
+                                } else {
+                                    back.color = normal_color;
                                 }
-                                UIEventKind::MouseLeave => back.color = normal_color,
-                                UIEventKind::MouseEnter => back.color = hover_color,
-                                _ => ()
                             }
+                            UIEventKind::MouseLeave => back.color = normal_color,
+                            UIEventKind::MouseEnter => back.color = hover_color,
+                            _ => ()
                         }
                     }
                 }))

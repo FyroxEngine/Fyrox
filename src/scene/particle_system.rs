@@ -10,7 +10,6 @@ use std::{
     },
 };
 use rand::Rng;
-
 use rg3d_core::{
     math::{
         vec3::Vec3,
@@ -425,6 +424,16 @@ pub struct Emitter {
 pub struct EmitterBuilder {
     kind: EmitterKind,
     position: Option<Vec3>,
+    particle_spawn_rate: Option<u32>,
+    max_particles: Option<u32>,
+    lifetime: Option<NumericRange<f32>>,
+    size: Option<NumericRange<f32>>,
+    size_modifier: Option<NumericRange<f32>>,
+    x_velocity: Option<NumericRange<f32>>,
+    y_velocity: Option<NumericRange<f32>>,
+    z_velocity: Option<NumericRange<f32>>,
+    rotation_speed: Option<NumericRange<f32>>,
+    rotation: Option<NumericRange<f32>>,
 }
 
 impl EmitterBuilder {
@@ -432,6 +441,16 @@ impl EmitterBuilder {
         Self {
             kind,
             position: None,
+            particle_spawn_rate: None,
+            max_particles: None,
+            lifetime: None,
+            size: None,
+            size_modifier: None,
+            x_velocity: None,
+            y_velocity: None,
+            z_velocity: None,
+            rotation_speed: None,
+            rotation: None
         }
     }
 
@@ -440,38 +459,78 @@ impl EmitterBuilder {
         self
     }
 
-    pub fn build(self) -> Emitter {
-        let mut emitter = Emitter::new(self.kind);
-
-        if let Some(position) = self.position {
-            emitter.position = position;
-        }
-
-        emitter
+    pub fn with_spawn_rate(mut self, rate: u32) -> Self {
+        self.particle_spawn_rate = Some(rate);
+        self
     }
-}
 
-impl Emitter {
-    pub fn new(kind: EmitterKind) -> Self {
-        Self {
-            kind,
-            position: Vec3::zero(),
-            particle_spawn_rate: 25,
-            max_particles: ParticleLimit::Unlimited,
-            lifetime: NumericRange::new(5.0, 10.0),
-            size: NumericRange::new(0.125, 0.250),
-            size_modifier: NumericRange::new(0.0005, 0.0010),
-            x_velocity: NumericRange::new(-0.001, 0.001),
-            y_velocity: NumericRange::new(-0.001, 0.001),
-            z_velocity: NumericRange::new(-0.001, 0.001),
-            rotation_speed: NumericRange::new(-0.02, 0.02),
-            rotation: NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI),
+    pub fn with_max_particles(mut self, value: u32) -> Self {
+        self.max_particles = Some(value);
+        self
+    }
+
+    pub fn with_lifetime_range(mut self, time_range: NumericRange<f32>) -> Self {
+        self.lifetime = Some(time_range);
+        self
+    }
+
+    pub fn with_size_range(mut self, size_range: NumericRange<f32>) -> Self {
+        self.size = Some(size_range);
+        self
+    }
+
+    pub fn with_size_modifier_range(mut self, mod_range: NumericRange<f32>) -> Self {
+        self.size_modifier = Some(mod_range);
+        self
+    }
+
+    pub fn with_x_velocity_range(mut self, x_vel_range: NumericRange<f32>) -> Self {
+        self.x_velocity = Some(x_vel_range);
+        self
+    }
+
+    pub fn with_y_velocity_range(mut self, y_vel_range: NumericRange<f32>) -> Self {
+        self.y_velocity = Some(y_vel_range);
+        self
+    }
+
+    pub fn with_z_velocity_range(mut self, z_vel_range: NumericRange<f32>) -> Self {
+        self.z_velocity = Some(z_vel_range);
+        self
+    }
+
+    pub fn with_rotation_speed_range(mut self, speed_range: NumericRange<f32>) -> Self {
+        self.rotation_speed = Some(speed_range);
+        self
+    }
+
+    pub fn with_rotation_range(mut self, angle_range: NumericRange<f32>) -> Self {
+        self.rotation = Some(angle_range);
+        self
+    }
+
+    pub fn build(self) -> Emitter {
+        Emitter {
+            kind: self.kind,
+            position: self.position.unwrap_or(Vec3::zero()),
+            particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
+            max_particles: self.max_particles.map_or(ParticleLimit::Unlimited, |v| ParticleLimit::Strict(v)),
+            lifetime: self.lifetime.unwrap_or(NumericRange::new(5.0, 10.0)),
+            size: self.size.unwrap_or(NumericRange::new(0.125, 0.250)),
+            size_modifier: self.size_modifier.unwrap_or(NumericRange::new(0.0005, 0.0010)),
+            x_velocity: self.x_velocity.unwrap_or(NumericRange::new(-0.001, 0.001)),
+            y_velocity: self.y_velocity.unwrap_or(NumericRange::new(-0.001, 0.001)),
+            z_velocity: self.z_velocity.unwrap_or(NumericRange::new(-0.001, 0.001)),
+            rotation_speed: self.rotation_speed.unwrap_or(NumericRange::new(-0.02, 0.02)),
+            rotation: self.rotation.unwrap_or(NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI)),
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
         }
     }
+}
 
+impl Emitter {
     pub fn tick(&mut self, dt: f32) {
         self.time += dt;
         let time_amount_per_particle = 1.0 / self.particle_spawn_rate as f32;
@@ -586,17 +645,6 @@ pub struct ParticleSystem {
 }
 
 impl ParticleSystem {
-    pub fn new() -> Self {
-        Self {
-            particles: Vec::new(),
-            free_particles: Vec::new(),
-            emitters: Vec::new(),
-            texture: None,
-            acceleration: Vec3::make(0.0, -9.81, 0.0),
-            color_over_lifetime: None,
-        }
-    }
-
     pub fn add_emitter(&mut self, emitter: Emitter) {
         self.emitters.push(emitter)
     }
@@ -779,6 +827,60 @@ impl Clone for ParticleSystem {
 
 impl Default for ParticleSystem {
     fn default() -> Self {
-        Self::new()
+        ParticleSystemBuilder::new().build()
+    }
+}
+
+pub struct ParticleSystemBuilder {
+    emitters: Option<Vec<Emitter>>,
+    texture: Option<Arc<Mutex<Texture>>>,
+    acceleration: Option<Vec3>,
+    color_over_lifetime: Option<ColorGradient>,
+}
+
+impl ParticleSystemBuilder {
+    pub fn new() -> Self {
+        Self {
+            emitters: None,
+            texture: None,
+            acceleration: None,
+            color_over_lifetime: None
+        }
+    }
+
+    pub fn with_emitters(mut self, emitters: Vec<Emitter>) -> Self {
+        self.emitters = Some(emitters);
+        self
+    }
+
+    pub fn with_texture(mut self, texture: Arc<Mutex<Texture>>) -> Self {
+        self.texture = Some(texture);
+        self
+    }
+
+    pub fn with_opt_texture(mut self, texture: Option<Arc<Mutex<Texture>>>) -> Self {
+        self.texture = texture;
+        self
+    }
+
+    pub fn with_acceleration(mut self, acceleration: Vec3) -> Self {
+        self.acceleration = Some(acceleration);
+        self
+    }
+
+    pub fn with_color_over_lifetime_gradient(mut self, color_over_lifetime: ColorGradient) -> Self {
+        self.color_over_lifetime = Some(color_over_lifetime);
+        self
+    }
+
+    pub fn build(self) -> ParticleSystem {
+        ParticleSystem {
+            particles: Vec::new(),
+            free_particles: Vec::new(),
+            emitters: self.emitters.unwrap_or(Vec::new()),
+            texture: self.texture.clone(),
+            acceleration: self.acceleration.unwrap_or(Vec3::make(0.0, -9.81, 0.0)),
+            color_over_lifetime: self.color_over_lifetime,
+        }
     }
 }

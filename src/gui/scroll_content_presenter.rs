@@ -9,14 +9,13 @@ use rg3d_core::{
 use crate::gui::event::UIEvent;
 
 pub struct ScrollContentPresenter {
-    pub(in crate::gui) owner_handle: Handle<UINode>,
     scroll: Vec2,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
 
 impl Layout for ScrollContentPresenter {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::make(
             if self.horizontal_scroll_allowed {
                 std::f32::INFINITY
@@ -32,26 +31,24 @@ impl Layout for ScrollContentPresenter {
 
         let mut desired_size = Vec2::zero();
 
-        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
-            for child_handle in node.children.iter() {
-                ui.measure(*child_handle, size_for_child);
+        let node = ui.nodes.borrow(self_handle);
+        for child_handle in node.children.iter() {
+            ui.measure(*child_handle, size_for_child);
 
-                if let Some(child) = ui.nodes.borrow(*child_handle) {
-                    let child_desired_size = child.desired_size.get();
-                    if child_desired_size.x > desired_size.x {
-                        desired_size.x = child_desired_size.x;
-                    }
-                    if child_desired_size.y > desired_size.y {
-                        desired_size.y = child_desired_size.y;
-                    }
-                }
+            let child = ui.nodes.borrow(*child_handle);
+            let child_desired_size = child.desired_size.get();
+            if child_desired_size.x > desired_size.x {
+                desired_size.x = child_desired_size.x;
+            }
+            if child_desired_size.y > desired_size.y {
+                desired_size.y = child_desired_size.y;
             }
         }
 
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let child_rect = Rect::new(
             -self.scroll.x,
             -self.scroll.y,
@@ -59,10 +56,9 @@ impl Layout for ScrollContentPresenter {
             final_size.y + self.scroll.y,
         );
 
-        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
-            for child_handle in node.children.iter() {
-                ui.arrange(*child_handle, &child_rect);
-            }
+        let node = ui.nodes.borrow(self_handle);
+        for child_handle in node.children.iter() {
+            ui.arrange(*child_handle, &child_rect);
         }
 
         final_size
@@ -72,7 +68,6 @@ impl Layout for ScrollContentPresenter {
 impl ScrollContentPresenter {
     fn new() -> Self {
         Self {
-            owner_handle: Handle::NONE,
             scroll: Vec2::zero(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: false,

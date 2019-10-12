@@ -249,21 +249,28 @@ impl DeferredLightRenderer {
                     _ => continue
                 };
 
+                let raw_radius = match light.get_kind() {
+                    LightKind::Spot(spot_light) => spot_light.get_distance(),
+                    LightKind::Point(point_light) => point_light.get_radius(),
+                };
+
                 let light_position = light_node.get_global_position();
-                let light_r_inflate = light.get_radius() * 1.05;
+                let light_radius_scale =  light_node.get_local_transform().get_scale().max_value();
+                let light_radius = light_radius_scale * raw_radius;
+                let light_r_inflate = 1.05 * light_radius;
                 let light_radius_vec = Vec3::make(light_r_inflate, light_r_inflate, light_r_inflate);
                 let light_emit_direction = light_node.get_up_vector().normalized().unwrap_or(Vec3::up());
 
                 match light.get_kind() {
-                    LightKind::Spot => {
+                    LightKind::Spot(_) => {
                         self.spot_shadow_map_renderer.render(graph, &Mat4::identity(), white_dummy, gbuffer.opt_fbo);
                     }
-                    LightKind::Point => {}
+                    LightKind::Point(_) => {}
                 }
 
                 let light_type = match light.get_kind() {
-                    LightKind::Spot => 2,
-                    LightKind::Point => -1, // TODO
+                    LightKind::Spot(_) => 2,
+                    LightKind::Point(_) => -1, // TODO
                 };
 
                 // Mark lighted areas in stencil buffer to do light calculations only on them.
@@ -294,15 +301,20 @@ impl DeferredLightRenderer {
 
                 gl::Disable(gl::CULL_FACE);
 
+                let cone_angle_cos = match light.get_kind() {
+                    LightKind::Spot(spot_light) => spot_light.get_cone_angle_cos(),
+                    LightKind::Point(_) => -1.0, // cos(π)
+                };
+
                 // Finally render light.
                 self.shader.bind();
                 self.shader.set_light_position(&light_position);
                 self.shader.set_light_direction(&light_emit_direction);
                 self.shader.set_light_type(light_type); // Disable shadows for now
-                self.shader.set_light_radius(light.get_radius());
+                self.shader.set_light_radius(light_radius);
                 self.shader.set_inv_view_proj_matrix(&inv_view_projection);
                 self.shader.set_light_color(light.get_color());
-                self.shader.set_light_cone_angle_cos(light.get_cone_angle_cos());
+                self.shader.set_light_cone_angle_cos(cone_angle_cos);
                 self.shader.set_wvp_matrix(&frame_matrix);
                 self.shader.set_shadow_map_inv_size(0.0); // TODO
                 self.shader.set_camera_position(&camera_node.get_global_position());

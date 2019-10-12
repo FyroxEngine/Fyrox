@@ -96,9 +96,8 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
         let type_code = file.read_u8()?;
         match type_code {
             b'C' | b'Y' | b'I' | b'F' | b'D' | b'L' => {
-                if let Some(node) = pool.borrow_mut(node_handle) {
-                    node.attribs.push(read_attrib(type_code, file)?)
-                }
+                let node = pool.borrow_mut(node_handle);
+                node.attribs.push(read_attrib(type_code, file)?);
             }
             b'f' | b'd' | b'l' | b'i' | b'b' => {
                 let mut a = FbxNode::default();
@@ -106,13 +105,10 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
                 a.attribs = read_array(type_code, file)?;
                 a.parent = node_handle;
                 let a_handle = pool.spawn(a);
-                if let Some(node) = pool.borrow_mut(node_handle) {
-                    node.children.push(a_handle);
-                }
+                let node = pool.borrow_mut(node_handle);
+                node.children.push(a_handle);
             }
-            b'S' => if let Some(node) = pool.borrow_mut(node_handle) {
-                node.attribs.push(read_string(file)?)
-            },
+            b'S' => pool.borrow_mut(node_handle).attribs.push(read_string(file)?),
             b'R' => {
                 // Ignore Raw data
                 let length = i64::from(file.read_u32::<LittleEndian>()?);
@@ -129,12 +125,8 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
             if child_handle.is_none() {
                 return Ok(child_handle);
             }
-            if let Some(child) = pool.borrow_mut(child_handle) {
-                child.parent = node_handle;
-            }
-            if let Some(node) = pool.borrow_mut(node_handle) {
-                node.children.push(child_handle);
-            }
+            pool.borrow_mut(child_handle).parent = node_handle;
+            pool.borrow_mut(node_handle).children.push(child_handle);
         }
 
         // Check if we have a null-record
@@ -183,12 +175,8 @@ pub fn read_binary<R>(file: &mut R) -> Result<Fbx, FbxError>
         if root_child.is_none() {
             break;
         }
-        if let Some(child) = nodes.borrow_mut(root_child) {
-            child.parent = root_handle;
-        }
-        if let Some(root) = nodes.borrow_mut(root_handle) {
-            root.children.push(root_child);
-        }
+        nodes.borrow_mut(root_child).parent = root_handle;
+        nodes.borrow_mut(root_handle).children.push(root_child);
     }
 
     Ok(Fbx {

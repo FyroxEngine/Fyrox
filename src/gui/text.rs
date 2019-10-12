@@ -23,7 +23,6 @@ use crate::{
 };
 
 pub struct Text {
-    pub(in crate::gui) owner_handle: Handle<UINode>,
     need_update: bool,
     text: String,
     font: Rc<RefCell<Font>>,
@@ -52,7 +51,6 @@ impl Drawable for Text {
 impl Text {
     pub fn new(font: Rc<RefCell<Font>>) -> Text {
         Text {
-            owner_handle: Handle::NONE,
             text: String::new(),
             need_update: true,
             vertical_alignment: VerticalAlignment::Top,

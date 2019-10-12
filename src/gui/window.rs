@@ -142,45 +142,33 @@ impl<'a> WindowBuilder<'a> {
                                 match evt.kind {
                                     UIEventKind::MouseDown { pos, .. } => {
                                         ui.capture_mouse(handle);
-                                        if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
-                                            if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
-                                        }) {
-                                            let initial_position = window_node.actual_local_position.get();
-                                            if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                                window.mouse_click_pos = pos;
-                                                window.initial_position = initial_position;
-                                                window.is_dragged = true;
-                                                evt.handled = true;
-                                            }
-                                        }
+                                        let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
+                                        let initial_position = window_node.actual_local_position.get();
+                                        let window = window_node.as_window_mut();
+                                        window.mouse_click_pos = pos;
+                                        window.initial_position = initial_position;
+                                        window.is_dragged = true;
+                                        evt.handled = true;
                                     }
                                     UIEventKind::MouseUp { .. } => {
                                         ui.release_mouse_capture();
-                                        if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
-                                            if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
-                                        }) {
-                                            if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                                window.is_dragged = false;
-                                                evt.handled = true;
-                                            }
-                                        }
+                                        let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
+                                        window_node.as_window_mut().is_dragged = false;
+                                        evt.handled = true;
                                     }
                                     UIEventKind::MouseMove { pos, .. } => {
-                                        if let Some(window_node) = ui.borrow_by_criteria_up_mut(handle, |node| {
-                                            if let UINodeKind::Window(_) = node.get_kind() { true } else { false }
-                                        }) {
-                                            let new_pos = if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                                if window.is_dragged {
-                                                    window.initial_position + pos - window.mouse_click_pos
-                                                } else {
-                                                    return;
-                                                }
+                                        let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
+                                        let new_pos = if let UINodeKind::Window(window) = window_node.get_kind_mut() {
+                                            if window.is_dragged {
+                                                window.initial_position + pos - window.mouse_click_pos
                                             } else {
                                                 return;
-                                            };
-                                            window_node.set_desired_local_position(new_pos);
-                                            evt.handled = true;
-                                        }
+                                            }
+                                        } else {
+                                            return;
+                                        };
+                                        window_node.set_desired_local_position(new_pos);
+                                        evt.handled = true;
                                     }
                                     _ => ()
                                 }

@@ -2,7 +2,7 @@ use crate::gui::{draw::{CommandKind, DrawingContext}, Thickness, UserInterface, 
 
 use rg3d_core::{
     color::Color,
-    pool::{Handle},
+    pool::Handle,
     math::{
         vec2::Vec2,
         Rect,
@@ -13,7 +13,6 @@ use crate::gui::event::UIEvent;
 
 #[derive(Debug)]
 pub struct Border {
-    pub(in crate::gui) owner_handle: Handle<UINode>,
     stroke_thickness: Thickness,
     stroke_color: Color,
 }
@@ -53,7 +52,6 @@ impl BorderBuilder {
 
     pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
         let mut border = Border {
-            owner_handle: Handle::NONE,
             stroke_thickness: Thickness {
                 left: 1.0,
                 right: 1.0,
@@ -84,7 +82,7 @@ impl Drawable for Border {
 }
 
 impl Layout for Border {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
@@ -94,19 +92,16 @@ impl Layout for Border {
         );
         let mut desired_size = Vec2::zero();
 
-        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
-            for child_handle in node.children.iter() {
-                ui.measure(*child_handle, size_for_child);
-
-                if let Some(child) = ui.nodes.borrow(*child_handle) {
-                    let child_desired_size = child.desired_size.get();
-                    if child_desired_size.x > desired_size.x {
-                        desired_size.x = child_desired_size.x;
-                    }
-                    if child_desired_size.y > desired_size.y {
-                        desired_size.y = child_desired_size.y;
-                    }
-                }
+        let node = ui.nodes.borrow(self_handle);
+        for child_handle in node.children.iter() {
+            ui.measure(*child_handle, size_for_child);
+            let child = ui.nodes.borrow(*child_handle);
+            let child_desired_size = child.desired_size.get();
+            if child_desired_size.x > desired_size.x {
+                desired_size.x = child_desired_size.x;
+            }
+            if child_desired_size.y > desired_size.y {
+                desired_size.y = child_desired_size.y;
             }
         }
 
@@ -116,17 +111,16 @@ impl Layout for Border {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let rect_for_child = Rect::new(
             self.stroke_thickness.left, self.stroke_thickness.top,
             final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
             final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
         );
 
-        if let Some(node) = ui.nodes.borrow(self.owner_handle) {
-            for child_handle in node.children.iter() {
-                ui.arrange(*child_handle, &rect_for_child);
-            }
+        let node = ui.nodes.borrow(self_handle);
+        for child_handle in node.children.iter() {
+            ui.arrange(*child_handle, &rect_for_child);
         }
 
         final_size

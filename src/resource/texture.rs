@@ -68,7 +68,7 @@ impl TextureKind {
 }
 
 impl Texture {
-    pub(in crate) fn load(path: &Path, kind: TextureKind) -> Result<Texture, image::ImageError> {
+    pub(in crate) fn load_from_file(path: &Path, kind: TextureKind) -> Result<Texture, image::ImageError> {
         let dyn_img = image::open(path)?;
 
         let width = dyn_img.width();

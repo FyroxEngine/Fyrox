@@ -1,47 +1,158 @@
 use rg3d_core::{
     color::Color,
-    visitor::{Visit, Visitor, VisitResult},
+    visitor::{
+        Visit,
+        Visitor,
+        VisitResult
+    }
 };
 
 #[derive(Clone)]
+pub struct SpotLight {
+    cone_angle: f32,
+    cone_angle_cos: f32,
+    distance: f32,
+}
+
+impl Default for SpotLight {
+    fn default() -> Self {
+        Self {
+            cone_angle: std::f32::consts::FRAC_PI_4,
+            cone_angle_cos: std::f32::consts::FRAC_PI_4.cos(),
+            distance: 10.0
+        }
+    }
+}
+
+impl SpotLight {
+    pub fn new(distance: f32, cone_angle: f32) -> Self {
+        Self {
+            cone_angle,
+            cone_angle_cos: cone_angle.cos(),
+            distance
+        }
+    }
+
+    #[inline]
+    pub fn get_cone_angle_cos(&self) -> f32 {
+        self.cone_angle_cos
+    }
+
+    #[inline]
+    pub fn set_cone_angle(&mut self, cone_angle: f32) {
+        self.cone_angle = cone_angle;
+        self.cone_angle_cos = cone_angle.cos();
+    }
+
+    #[inline]
+    pub fn set_distance(&mut self, distance: f32) {
+        self.distance = distance.abs();
+    }
+
+    #[inline]
+    pub fn get_distance(&self) -> f32 {
+        self.distance
+    }
+}
+
+impl Visit for SpotLight {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.cone_angle.visit("ConeAngle", visitor)?;
+        self.distance.visit("Distance", visitor)?;
+
+        if visitor.is_reading() {
+            self.cone_angle_cos = self.cone_angle.cos();
+        }
+
+        visitor.leave_region()
+    }
+}
+
+#[derive(Clone)]
+pub struct PointLight {
+    radius: f32
+}
+
+impl PointLight {
+    pub fn new(radius: f32) -> Self {
+        Self {
+            radius
+        }
+    }
+
+    #[inline]
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius.abs();
+    }
+
+    #[inline]
+    pub fn get_radius(&self) -> f32 {
+        self.radius
+    }
+}
+
+impl Visit for PointLight {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.radius.visit("Radius", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl Default for PointLight {
+    fn default() -> Self {
+        Self {
+            radius: 10.0
+        }
+    }
+}
+
+#[derive(Clone)]
 pub enum LightKind {
-    Spot,
-    Point,
+    Spot(SpotLight),
+    Point(PointLight),
 }
 
 impl LightKind {
     pub fn new(id: u32) -> Result<Self, String> {
         match id {
-            0 => Ok(LightKind::Spot),
-            1 => Ok(LightKind::Point),
+            0 => Ok(LightKind::Spot(Default::default())),
+            1 => Ok(LightKind::Point(Default::default())),
             _ => Err(format!("Invalid light kind {}", id))
         }
     }
 
     pub fn id(&self) -> u32 {
         match self {
-            LightKind::Spot => 0,
-            LightKind::Point => 1,
+            LightKind::Spot(_) => 0,
+            LightKind::Point(_) => 1,
+        }
+    }
+}
+
+impl Visit for LightKind {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        match self {
+            LightKind::Spot(spot_light) => spot_light.visit(name, visitor),
+            LightKind::Point(point_light) => point_light.visit(name, visitor),
         }
     }
 }
 
 pub struct Light {
     kind: LightKind,
-    radius: f32,
     color: Color,
-    cone_angle: f32,
-    cone_angle_cos: f32,
 }
 
 impl Default for Light {
     fn default() -> Self {
         Self {
-            kind: LightKind::Point,
-            radius: 10.0,
+            kind: LightKind::Point(Default::default()),
             color: Color::white(),
-            cone_angle: std::f32::consts::PI,
-            cone_angle_cos: -1.0,
         }
     }
 }
@@ -50,18 +161,13 @@ impl Visit for Light {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut kind = self.kind.id();
-        kind.visit("KindId", visitor)?;
+        let mut kind_id = self.kind.id();
+        kind_id.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            self.kind = LightKind::new(kind)?;
+            self.kind = LightKind::new(kind_id)?;
         }
-
-        // TODO: These properties can be taken from resource if light was
-        // created from resource.
-        self.radius.visit("Radius", visitor)?;
+        self.kind.visit("Kind", visitor)?;
         self.color.visit("Color", visitor)?;
-        self.cone_angle.visit("ConeAngle", visitor)?;
-        self.cone_angle_cos.visit("ConeAngleCos", visitor)?;
 
         visitor.leave_region()
     }
@@ -71,21 +177,8 @@ impl Light {
     pub fn new(kind: LightKind) -> Self {
         Self {
             kind,
-            radius: 10.0,
             color: Color::white(),
-            cone_angle: std::f32::consts::PI,
-            cone_angle_cos: -1.0,
         }
-    }
-
-    #[inline]
-    pub fn set_radius(&mut self, radius: f32) {
-        self.radius = radius;
-    }
-
-    #[inline]
-    pub fn get_radius(&self) -> f32 {
-        self.radius
     }
 
     #[inline]
@@ -99,19 +192,13 @@ impl Light {
     }
 
     #[inline]
-    pub fn get_cone_angle_cos(&self) -> f32 {
-        self.cone_angle_cos
-    }
-
-    #[inline]
     pub fn get_kind(&self) -> &LightKind {
         &self.kind
     }
 
     #[inline]
-    pub fn set_cone_angle(&mut self, cone_angle: f32) {
-        self.cone_angle = cone_angle;
-        self.cone_angle_cos = cone_angle.cos();
+    pub fn get_kind_mut(&mut self) -> &mut LightKind {
+        &mut self.kind
     }
 }
 
@@ -119,10 +206,33 @@ impl Clone for Light {
     fn clone(&self) -> Self {
         Self {
             kind: self.kind.clone(),
-            radius: self.radius,
             color: self.color,
-            cone_angle: self.cone_angle,
-            cone_angle_cos: self.cone_angle_cos,
+        }
+    }
+}
+
+pub struct LightBuilder {
+    kind: LightKind,
+    color: Option<Color>,
+}
+
+impl LightBuilder {
+    pub fn new(kind: LightKind) -> Self {
+        Self {
+            kind,
+            color: None
+        }
+    }
+
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = Some(color);
+        self
+    }
+
+    pub fn build(self) -> Light {
+        Light {
+            kind: self.kind,
+            color: self.color.unwrap_or(Color::white())
         }
     }
 }
