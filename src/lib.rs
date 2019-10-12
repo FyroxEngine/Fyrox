@@ -105,12 +105,16 @@ impl Physics {
         self.static_geoms.free(static_geom);
     }
 
-    pub fn borrow_body(&self, handle: Handle<RigidBody>) -> Option<&RigidBody> {
+    pub fn borrow_body(&self, handle: Handle<RigidBody>) -> &RigidBody {
         self.bodies.borrow(handle)
     }
 
-    pub fn borrow_body_mut(&mut self, handle: Handle<RigidBody>) -> Option<&mut RigidBody> {
+    pub fn borrow_body_mut(&mut self, handle: Handle<RigidBody>) -> &mut RigidBody {
         self.bodies.borrow_mut(handle)
+    }
+
+    pub fn is_valid_body_handle(&self, handle: Handle<RigidBody>) -> bool {
+        self.bodies.is_valid_handle(handle)
     }
 
     pub fn step(&mut self, delta_time: f32) {
@@ -124,6 +128,10 @@ impl Physics {
         let other_bodies = unsafe { &mut *(&mut self.bodies as *mut Pool<RigidBody>) };
 
         for body in self.bodies.iter_mut() {
+            if let Some(ref mut lifetime) = body.lifetime {
+                *lifetime -= delta_time;
+            }
+
             body.acceleration += body.gravity;
             body.verlet(dt2, air_friction);
 
@@ -142,12 +150,14 @@ impl Physics {
                 }
             }
         }
+
+        self.bodies.retain(|body| body.lifetime.is_none() || body.lifetime.unwrap() > 0.0);
     }
 
     pub fn ray_cast(&self, ray: &Ray, options: RayCastOptions, result: &mut Vec<RayCastResult>) -> bool {
         result.clear();
 
-        /* Check bodies */
+        // Check bodies
         if !options.ignore_bodies {
             for body_index in 0..self.bodies.get_capacity() {
                 let body = if let Some(body) = self.bodies.at(body_index) {
@@ -219,7 +229,7 @@ impl Physics {
             }
         }
 
-        /* Check static geometries */
+        // Check static geometries
         if !options.ignore_static_geometries {
             for index in 0..self.static_geoms.get_capacity() {
                 let geom = if let Some(geom) = self.static_geoms.at(index) {

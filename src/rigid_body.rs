@@ -19,6 +19,7 @@ pub struct RigidBody {
     pub(in crate) friction: f32,
     pub(in crate) gravity: Vec3,
     pub(in crate) speed_limit: f32,
+    pub(in crate) lifetime: Option<f32>,
 }
 
 impl Default for RigidBody {
@@ -61,6 +62,7 @@ impl RigidBody {
             shape,
             contacts: Vec::new(),
             speed_limit: 0.75,
+            lifetime: None,
         }
     }
 
@@ -75,6 +77,7 @@ impl RigidBody {
             gravity: self.gravity,
             shape: self.shape.clone(),
             speed_limit: self.speed_limit,
+            lifetime: self.lifetime.clone(),
         }
     }
 
@@ -143,6 +146,26 @@ impl RigidBody {
     #[inline]
     pub fn get_contacts(&self) -> &[Contact] {
         self.contacts.as_slice()
+    }
+
+    #[inline]
+    pub fn set_gravity(&mut self, gravity: Vec3)  {
+        self.gravity = gravity;
+    }
+
+    #[inline]
+    pub fn get_gravity(&self) -> Vec3 {
+        self.gravity
+    }
+
+    #[inline]
+    pub fn set_lifetime(&mut self, time_seconds: f32) {
+        self.lifetime = Some(time_seconds)
+    }
+
+    #[inline]
+    pub fn get_lifetime(&self) -> Option<f32> {
+        self.lifetime.clone()
     }
 
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
