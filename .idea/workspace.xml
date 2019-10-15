@@ -8,36 +8,11 @@
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/resource_manager.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/resource_manager.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/border.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/border.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/builder.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/builder.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/button.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/button.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/canvas.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/canvas.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/grid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/grid.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/image.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/image.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/formatted_text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/formatted_text.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/node.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/scroll_bar.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_bar.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_content_presenter.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/text.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/window.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/gbuffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gbuffer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/fbx_ascii.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/fbx_ascii.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/fbx_binary.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/fbx_binary.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/texture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/texture.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/animation.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/animation.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/graph.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/graph.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/light.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/light.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/scene/node.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/node.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/particle_system.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/particle_system.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/transform.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/transform.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

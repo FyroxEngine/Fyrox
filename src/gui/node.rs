@@ -130,9 +130,9 @@ pub struct UINode {
 }
 
 macro_rules! define_is_as {
-    ($is_name:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
+    ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
         #[inline]
-        pub fn $is_name(&self) -> bool {
+        pub fn $is(&self) -> bool {
             match self.kind {
                 UINodeKind::$kind(_) => true,
                 _ => false

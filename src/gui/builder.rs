@@ -100,7 +100,6 @@ impl CommonBuilderFields {
     }
 }
 
-#[macro_use]
 macro_rules! impl_default_builder_methods {
     () => (
         pub fn with_width(mut self, width: f32) -> Self {

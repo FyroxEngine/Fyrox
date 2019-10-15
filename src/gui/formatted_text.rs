@@ -195,7 +195,6 @@ pub struct FormattedTextBuilder<'a> {
     color: Color,
     size: Vec2,
     text: Option<&'a str>,
-    font: Rc<RefCell<Font>>,
     formatted_text: FormattedText,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
@@ -205,7 +204,6 @@ impl<'a> FormattedTextBuilder<'a> {
     /// Creates new formatted text builder with default parameters.
     pub fn new(font: Rc<RefCell<Font>>) -> FormattedTextBuilder<'a> {
         FormattedTextBuilder {
-            font: font.clone(),
             text: None,
             formatted_text: FormattedText::new(font),
             horizontal_alignment: HorizontalAlignment::Left,
@@ -220,7 +218,6 @@ impl<'a> FormattedTextBuilder<'a> {
     /// reduce memory allocations.
     pub fn reuse(formatted_text: FormattedText) -> FormattedTextBuilder<'a> {
         FormattedTextBuilder {
-            font: formatted_text.font.clone(),
             text: None,
             formatted_text: FormattedText {
                 // Take buffers out and reuse them so no need to allocate new

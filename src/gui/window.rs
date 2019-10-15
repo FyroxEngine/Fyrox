@@ -1,49 +1,36 @@
-use crate::gui::{
-    border::BorderBuilder,
-    node::{UINode, UINodeKind},
-    builder::{CommonBuilderFields, GenericNodeBuilder},
-    UserInterface, grid::{GridBuilder, Column, Row},
-    HorizontalAlignment,
-    text::TextBuilder, Thickness, button::ButtonBuilder, EventSource};
 use rg3d_core::{
     color::Color,
     pool::Handle,
     math::vec2::Vec2,
 };
-use crate::gui::event::{UIEvent, UIEventKind};
-use crate::gui::scroll_viewer::ScrollViewerBuilder;
-
-pub type ClosingEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>) -> bool;
-pub type MinimizingEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>) -> bool;
-pub type ClosedEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
-pub type MinimizedEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>);
+use crate::gui::{
+    event::{UIEvent, UIEventKind},
+    border::BorderBuilder,
+    node::{UINode, UINodeKind},
+    builder::{CommonBuilderFields, GenericNodeBuilder},
+    UserInterface,
+    grid::{GridBuilder, Column, Row},
+    HorizontalAlignment,
+    text::TextBuilder,
+    Thickness,
+    button::ButtonBuilder,
+    EventSource,
+    scroll_viewer::ScrollViewerBuilder,
+};
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
 /// Window can be dragged by its title.
 pub struct Window {
-    pub(in crate::gui) owner_handle: Handle<UINode>,
     mouse_click_pos: Vec2,
     initial_position: Vec2,
     is_dragged: bool,
-    /// Invoked when user clicks on minimize button to decide should window be minimized.
-    minimizing_handler: Option<Box<MinimizingEventHandler>>,
-    /// Invoked when user clicks on close button to decide should window be closed.
-    closing_handler: Option<Box<ClosingEventHandler>>,
-    /// Invoked when window is closed.
-    closed_handler: Option<Box<ClosedEventHandler>>,
-    /// Invoked when windows is minimized.
-    minimized_handler: Option<Box<MinimizedEventHandler>>,
 }
 
 pub struct WindowBuilder<'a> {
     common: CommonBuilderFields,
     content: Handle<UINode>,
     title: Option<WindowTitle<'a>>,
-    minimizing_handler: Option<Box<MinimizingEventHandler>>,
-    closing_handler: Option<Box<ClosingEventHandler>>,
-    closed_handler: Option<Box<ClosedEventHandler>>,
-    minimized_handler: Option<Box<MinimizedEventHandler>>,
 }
 
 /// Window title can be either text or node.
@@ -70,10 +57,6 @@ impl<'a> WindowBuilder<'a> {
             common: CommonBuilderFields::new(),
             content: Handle::NONE,
             title: None,
-            minimizing_handler: None,
-            closing_handler: None,
-            closed_handler: None,
-            minimized_handler: None,
         }
     }
 
@@ -89,36 +72,11 @@ impl<'a> WindowBuilder<'a> {
         self
     }
 
-    pub fn with_minimizing_handler(mut self, handler: Box<MinimizingEventHandler>) -> Self {
-        self.minimizing_handler = Some(handler);
-        self
-    }
-
-    pub fn with_minimized_handler(mut self, handler: Box<MinimizedEventHandler>) -> Self {
-        self.minimized_handler = Some(handler);
-        self
-    }
-
-    pub fn with_closing_handler(mut self, handler: Box<ClosingEventHandler>) -> Self {
-        self.closing_handler = Some(handler);
-        self
-    }
-
-    pub fn with_closed_handler(mut self, handler: Box<ClosedEventHandler>) -> Self {
-        self.closed_handler = Some(handler);
-        self
-    }
-
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let window = Window {
-            owner_handle: Default::default(),
             mouse_click_pos: Vec2::zero(),
             initial_position: Vec2::zero(),
             is_dragged: false,
-            minimizing_handler: self.minimizing_handler,
-            closing_handler: self.closing_handler,
-            closed_handler: self.closed_handler,
-            minimized_handler: self.minimized_handler,
         };
 
         GenericNodeBuilder::new(UINodeKind::Window(window), self.common)

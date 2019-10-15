@@ -7,6 +7,7 @@ use crate::{
         particle_system::ParticleSystem,
         transform::Transform,
         sprite::Sprite,
+        graph::Graph
     },
     resource::model::Model,
 };
@@ -15,8 +16,8 @@ use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor},
     pool::Handle,
 };
-use crate::scene::graph::Graph;
 
+#[derive(Clone)]
 pub enum NodeKind {
     Base,
     Light(Light),
@@ -35,19 +36,6 @@ impl Visit for NodeKind {
             NodeKind::Mesh(mesh) => mesh.visit(name, visitor),
             NodeKind::Sprite(sprite) => sprite.visit(name, visitor),
             NodeKind::ParticleSystem(particle_system) => particle_system.visit(name, visitor)
-        }
-    }
-}
-
-impl Clone for NodeKind {
-    fn clone(&self) -> Self {
-        match &self {
-            NodeKind::Base => NodeKind::Base,
-            NodeKind::Camera(camera) => NodeKind::Camera(camera.clone()),
-            NodeKind::Light(light) => NodeKind::Light(light.clone()),
-            NodeKind::Mesh(mesh) => NodeKind::Mesh(mesh.clone()),
-            NodeKind::Sprite(sprite) => NodeKind::Sprite(sprite.clone()),
-            NodeKind::ParticleSystem(particle_system) => NodeKind::ParticleSystem(particle_system.clone())
         }
     }
 }
@@ -126,9 +114,9 @@ impl Default for Node {
 }
 
 macro_rules! define_is_as {
-    ($is_name:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
+    ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
         #[inline]
-        pub fn $is_name(&self) -> bool {
+        pub fn $is(&self) -> bool {
             match self.kind {
                 NodeKind::$kind(_) => true,
                 _ => false
