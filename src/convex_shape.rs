@@ -320,6 +320,34 @@ pub enum ConvexShape {
     PointCloud(PointCloudShape),
 }
 
+macro_rules! define_is_as {
+    ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
+        #[inline]
+        pub fn $is(&self) -> bool {
+            match self {
+                ConvexShape::$kind(_) => true,
+                _ => false
+            }
+        }
+
+        #[inline]
+        pub fn $as_ref(&self) -> &$result {
+            match self {
+                ConvexShape::$kind(ref val) => val,
+                _ => panic!("Cast to {} failed!", stringify!($kind))
+            }
+        }
+
+        #[inline]
+        pub fn $as_mut(&mut self) -> &mut $result {
+            match self {
+                ConvexShape::$kind(ref mut val) => val,
+                _ => panic!("Cast to {} failed!", stringify!($kind))
+            }
+        }
+    }
+}
+
 impl ConvexShape {
     pub fn get_farthest_point(&self, position: Vec3, direction: Vec3) -> Vec3 {
         position + match self {
@@ -354,6 +382,12 @@ impl ConvexShape {
             _ => Err("Invalid shape id!".to_owned())
         }
     }
+
+    define_is_as!(is_box, as_box, as_box_mut, Box, BoxShape);
+    define_is_as!(is_capsule, as_capsule, as_capsule_mut, Capsule, CapsuleShape);
+    define_is_as!(is_sphere, as_sphere, as_sphere_mut, Sphere, SphereShape);
+    define_is_as!(is_triangle, as_triangle, as_triangle_mut, Triangle, TriangleShape);
+    define_is_as!(is_point_cloud, as_point_cloud, as_point_cloud_mut, PointCloud, PointCloudShape);
 }
 
 impl Visit for ConvexShape {
