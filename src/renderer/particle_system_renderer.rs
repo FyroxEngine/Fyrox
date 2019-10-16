@@ -13,12 +13,13 @@ use crate::{
         gpu_texture::GpuTexture,
     },
     scene::{
-        node::NodeKind,
         particle_system,
         SceneInterface,
         SceneContainer,
+        node::NodeTrait,
     },
 };
+use crate::scene::node::Node;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -134,17 +135,10 @@ impl ParticleSystemRenderer {
             let SceneInterface { graph, .. } = scene.interface();
 
             // Prepare for render - fill lists of nodes participating in rendering.
-            let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
-                Some(camera_node) => camera_node,
+            let camera = match graph.linear_iter().find(|node| node.is_camera()) {
+                Some(camera) => camera.as_camera(),
                 None => continue
             };
-
-            let camera =
-                if let NodeKind::Camera(camera) = camera_node.get_kind() {
-                    camera
-                } else {
-                    continue;
-                };
 
             let inv_view = camera.get_inv_view_matrix().unwrap();
 
@@ -152,7 +146,7 @@ impl ParticleSystemRenderer {
             let camera_side = inv_view.side();
 
             for node in graph.linear_iter() {
-                let particle_system = if let NodeKind::ParticleSystem(particle_system) = node.get_kind() {
+                let particle_system = if let Node::ParticleSystem(particle_system) = node {
                     particle_system
                 } else {
                     continue;
@@ -160,8 +154,7 @@ impl ParticleSystemRenderer {
 
                 particle_system.generate_draw_data(&mut self.sorted_particles,
                                                    &mut self.draw_data,
-                                                   &node.get_global_position(),
-                                                   &camera_node.get_global_position());
+                                                   &camera.get_global_position());
 
                 self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
                 self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
@@ -179,7 +172,7 @@ impl ParticleSystemRenderer {
 
                 self.shader.set_diffuse_texture(0);
                 self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                self.shader.set_world_matrix(node.get_global_transform());
+                self.shader.set_world_matrix(&node.get_global_transform());
                 self.shader.set_camera_up_vector(&camera_up);
                 self.shader.set_camera_side_vector(&camera_side);
                 self.shader.set_depth_buffer_texture(1);

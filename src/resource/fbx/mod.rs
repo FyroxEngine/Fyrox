@@ -29,7 +29,7 @@ use crate::{
     scene::{
         Scene,
         animation::{Track, KeyFrame, Animation},
-        node::{Node, NodeKind},
+        node::{Node},
         mesh::Mesh,
         light::Light,
     },
@@ -54,6 +54,9 @@ use crate::scene::graph::Graph;
 use crate::scene::animation::AnimationContainer;
 use crate::resource::texture::TextureKind;
 use crate::scene::light::{LightKind, PointLight, SpotLight};
+use crate::scene::pivot::Pivot;
+use crate::scene::node::{NodeTrait, NodeTraitPrivate};
+
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -1148,12 +1151,12 @@ impl Fbx {
         // Create node with correct kind.
         let mut node =
             if !model.geoms.is_empty() {
-                Node::new(NodeKind::Mesh(self.convert_mesh(resource_manager, model)?))
+                Node::Mesh(self.convert_mesh(resource_manager, model)?)
             } else if model.light.is_some() {
                 let fbx_light_component = self.component_pool.borrow(model.light);
-                Node::new(NodeKind::Light(self.convert_light(fbx_light_component.as_light()?)))
+                Node::Light(self.convert_light(fbx_light_component.as_light()?))
             } else {
-                Node::new(NodeKind::Base)
+                Node::Pivot(Pivot::default())
             };
 
         node.set_name(model.name.as_str());
@@ -1168,7 +1171,7 @@ impl Fbx {
         transform.set_rotation_pivot(model.rotation_pivot);
         transform.set_scaling_offset(model.scaling_offset);
         transform.set_scaling_pivot(model.scaling_pivot);
-        node.set_inv_bind_pose_transform(model.inv_bind_transform);
+        node.get_data_mut().inv_bind_pose_transform = model.inv_bind_transform;
 
         let node_handle = graph.add_node(node);
 
@@ -1257,7 +1260,7 @@ impl Fbx {
     pub fn convert(&self, resource_manager: &mut ResourceManager, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         let SceneInterfaceMut { animations, graph, .. } = scene.interface_mut();
         let mut instantiated_nodes = Vec::new();
-        let root = graph.add_node(Node::new(NodeKind::Base));
+        let root = graph.add_node(Node::Pivot(Pivot::default()));
         let animation_handle = animations.add(Animation::default());
         let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {
@@ -1285,7 +1288,7 @@ impl Fbx {
         // on each surface of each mesh.
         for handle in instantiated_nodes.iter() {
             let node = graph.get_mut(*handle);
-            if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
+            if let Node::Mesh(mesh) = node {
                 let mut surface_bones = HashSet::new();
                 for surface in mesh.get_surfaces_mut() {
                     for weight_set in surface.vertex_weights.iter_mut() {

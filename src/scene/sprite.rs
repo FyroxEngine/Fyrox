@@ -4,9 +4,11 @@ use rg3d_core::{
     color::Color,
     visitor::{Visit, VisitResult, Visitor}
 };
+use crate::scene::node::{CommonNodeData, CommonNodeBuilderData};
 
 #[derive(Clone)]
 pub struct Sprite {
+    common: CommonNodeData,
     texture: Option<Arc<Mutex<Texture>>>,
     color: Color,
     size: f32,
@@ -54,6 +56,9 @@ impl Sprite {
     }
 }
 
+impl_node_trait!(Sprite);
+impl_node_trait_private!(Sprite);
+
 impl Visit for Sprite {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -62,12 +67,14 @@ impl Visit for Sprite {
         self.color.visit("Color", visitor)?;
         self.size.visit("Size", visitor)?;
         self.rotation.visit("Rotation", visitor)?;
+        self.common.visit("Common", visitor)?;
 
         visitor.leave_region()
     }
 }
 
 pub struct SpriteBuilder {
+    common: CommonNodeBuilderData,
     texture: Option<Arc<Mutex<Texture>>>,
     color: Option<Color>,
     size: Option<f32>,
@@ -77,12 +84,15 @@ pub struct SpriteBuilder {
 impl SpriteBuilder {
     pub fn new() -> Self {
         Self {
+            common: Default::default(),
             texture: None,
             color: None,
             size: None,
             rotation: None
         }
     }
+
+    impl_common_node_builder_methods!();
 
     pub fn with_texture(mut self, texture: Arc<Mutex<Texture>>) -> Self {
         self.texture = Some(texture);
@@ -111,6 +121,7 @@ impl SpriteBuilder {
 
     pub fn build(self) -> Sprite {
         Sprite {
+            common: From::from(self.common),
             texture: self.texture,
             color: self.color.unwrap_or(Color::white()),
             size: self.size.unwrap_or(0.2),

@@ -103,7 +103,7 @@ impl ResourceManager {
                 Ok(sound_buffer) => {
                     let sound_buffer = Arc::new(Mutex::new(sound_buffer));
                     self.sound_buffers.push(sound_buffer.clone());
-                    println!("Model {} is loaded!", path.display());
+                    println!("Sound buffer {} is loaded!", path.display());
                     Some(sound_buffer)
                 }
                 Err(e) => {

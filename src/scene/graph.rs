@@ -4,11 +4,12 @@ use rg3d_core::{
     visitor::{Visit, Visitor, VisitResult},
 };
 use crate::scene::{
-    node::{Node, NodeKind},
+    node::{Node, NodeTrait},
     SceneInterface,
 };
 use std::collections::HashMap;
 use rg3d_core::pool::{PoolIterator, PoolIteratorMut, PoolPairIterator};
+use crate::scene::node::NodeTraitPrivate;
 
 pub struct Graph {
     root: Handle<Node>,
@@ -30,7 +31,7 @@ impl Graph {
     /// Creates new graph instance with single root node.
     pub fn new() -> Self {
         let mut pool: Pool<Node> = Pool::new();
-        let mut root = Node::new(NodeKind::Base);
+        let mut root = Node::Pivot(Default::default());
         root.set_name("__ROOT__");
         let root = pool.spawn(root);
         Self {
@@ -99,7 +100,7 @@ impl Graph {
         self.stack.push(node_handle);
         while let Some(handle) = self.stack.pop() {
             let node = self.pool.borrow(handle);
-            for child in node.children.iter() {
+            for child in node.get_children().iter() {
                 self.stack.push(*child);
             }
             self.pool.free(handle);
@@ -111,9 +112,9 @@ impl Graph {
     pub fn link_nodes(&mut self, child_handle: Handle<Node>, parent_handle: Handle<Node>) {
         self.unlink_nodes(child_handle);
         let child = self.pool.borrow_mut(child_handle);
-        child.parent = parent_handle;
+        child.get_data_mut().parent = parent_handle;
         let parent = self.pool.borrow_mut(parent_handle);
-        parent.children.push(child_handle);
+        parent.get_data_mut().children.push(child_handle);
     }
 
     /// Unlinks specified node from its parent, so node will become root.
@@ -121,14 +122,14 @@ impl Graph {
     pub fn unlink_nodes(&mut self, node_handle: Handle<Node>) {
         // Replace parent handle of child
         let node = self.pool.borrow_mut(node_handle);
-        let parent_handle = node.parent;
-        node.parent = Handle::NONE;
+        let parent_handle = node.get_parent();
+        node.get_data_mut().parent = Handle::NONE;
 
         // Remove child from parent's children list
         if parent_handle.is_some() {
             let parent = self.pool.borrow_mut(parent_handle);
-            if let Some(i) = parent.children.iter().position(|h| *h == node_handle) {
-                parent.children.remove(i);
+            if let Some(i) = parent.get_children().iter().position(|h| *h == node_handle) {
+                parent.get_data_mut().children.remove(i);
             }
         }
     }
@@ -136,11 +137,11 @@ impl Graph {
     /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
     pub fn find_copy_of(&self, root_handle: Handle<Node>, node_handle: Handle<Node>) -> Handle<Node> {
         let root = self.pool.borrow(root_handle);
-        if root.original == node_handle {
+        if root.get_original_handle() == node_handle {
             return root_handle;
         }
 
-        for child_handle in root.children.iter() {
+        for child_handle in root.get_children() {
             let out = self.find_copy_of(*child_handle, node_handle);
             if out.is_some() {
                 return out;
@@ -158,7 +159,7 @@ impl Graph {
             root_node
         } else {
             let mut result: Handle<Node> = Handle::NONE;
-            for child in &node.children {
+            for child in node.get_children() {
                 let child_handle = self.find_by_name(*child, name);
                 if !child_handle.is_none() {
                     result = child_handle;
@@ -184,8 +185,7 @@ impl Graph {
 
         // Iterate over instantiated nodes and remap bones handles.
         for (_, new_node_handle) in old_new_mapping.iter() {
-            let node = dest_graph.pool.borrow_mut(*new_node_handle);
-            if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
+            if let Node::Mesh(mesh) = dest_graph.pool.borrow_mut(*new_node_handle) {
                 for surface in mesh.get_surfaces_mut() {
                     for bone_handle in surface.bones.iter_mut() {
                         if let Some(entry) = old_new_mapping.get(bone_handle) {
@@ -201,10 +201,11 @@ impl Graph {
 
     fn copy_node_raw(&self, root_handle: Handle<Node>, dest_graph: &mut Graph, old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>) -> Handle<Node> {
         let src_node = self.pool.borrow(root_handle);
-        let dest_node = src_node.make_copy(root_handle);
+        let mut dest_node = src_node.clone();
+        dest_node.get_data_mut().original = root_handle;
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.insert(root_handle, dest_copy_handle);
-        for src_child_handle in &src_node.children {
+        for src_child_handle in src_node.get_children() {
             let dest_child_handle = self.copy_node_raw(*src_child_handle, dest_graph, old_new_mapping);
             if !dest_child_handle.is_none() {
                 dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
@@ -223,7 +224,7 @@ impl Graph {
                 return model_root_handle;
             }
 
-            if model_node.is_resource_instance {
+            if model_node.is_resource_instance() {
                 return model_root_handle;
             }
 
@@ -248,8 +249,9 @@ impl Graph {
                 let SceneInterface { graph: resource_graph, .. } = model.get_scene().interface();
                 for (handle, resource_node) in resource_graph.pair_iter() {
                     if resource_node.get_name() == node.get_name() {
-                        node.original = handle;
-                        node.set_inv_bind_pose_transform(resource_node.get_inv_bind_pose_transform());
+                        let data = node.get_data_mut();
+                        data.original = handle;
+                        data.inv_bind_pose_transform = resource_node.get_inv_bind_pose_transform();
                         break;
                     }
                 }
@@ -279,14 +281,13 @@ impl Graph {
             let root_handle = self.find_model_root(node_handle);
 
             if let Some(node) = self.pool.at_mut(i) {
-                let node_name = String::from(node.get_name());
-                if let Some(model) = node.get_resource() {
-                    if let NodeKind::Mesh(mesh) = node.get_kind_mut() {
+                if let Node::Mesh(mesh) = node {
+                    let node_name = String::from(mesh.get_name());
+                    if let Some(model) = mesh.get_resource() {
                         let model = model.lock().unwrap();
                         let resource_node_handle = model.find_node_by_name(node_name.as_str());
                         let SceneInterface { graph: resource_graph, .. } = model.get_scene().interface();
-                        let resource_node = resource_graph.get(resource_node_handle);
-                        if let NodeKind::Mesh(resource_mesh) = resource_node.get_kind() {
+                        if let Node::Mesh(resource_mesh) = resource_graph.get(resource_node_handle) {
                             // Copy surfaces from resource and assign to meshes.
                             let surfaces = mesh.get_surfaces_mut();
                             surfaces.clear();
@@ -314,23 +315,23 @@ impl Graph {
         self.stack.push(self.root);
         while let Some(handle) = self.stack.pop() {
             // Calculate local transform and get parent handle
-            let parent_handle = self.pool.borrow_mut(handle).parent;
+            let parent_handle = self.pool.borrow_mut(handle).get_parent();
 
             // Extract parent's global transform
             let mut parent_global_transform = Mat4::identity();
             let mut parent_visibility = true;
             if parent_handle.is_some() {
                 let parent = self.pool.borrow(parent_handle);
-                parent_global_transform = parent.global_transform;
-                parent_visibility = parent.global_visibility;
+                parent_global_transform = parent.get_global_transform();
+                parent_visibility = parent.get_global_visibility();
             }
 
             let node = self.pool.borrow_mut(handle);
-            node.global_transform = parent_global_transform * node.local_transform.get_matrix();
-            node.global_visibility = parent_visibility && node.visibility;
+            node.get_data_mut().global_transform = parent_global_transform * node.get_local_transform().get_matrix();
+            node.get_data_mut().global_visibility = parent_visibility && node.get_visibility();
 
             // Queue children and continue traversal on them
-            for child_handle in node.children.iter() {
+            for child_handle in node.get_children() {
                 self.stack.push(child_handle.clone());
             }
         }
@@ -344,24 +345,20 @@ impl Graph {
         self.update_transforms();
 
         for node in self.pool.iter_mut() {
-            let eye = node.get_global_position();
-            let look = node.get_look_vector();
-            let up = node.get_up_vector();
-
-            if let Some(ref mut lifetime) = node.lifetime {
-                *lifetime -= dt;
+            if let Some(lifetime) = node.get_lifetime() {
+                node.set_lifetime(lifetime - dt);
             }
 
-            match node.get_kind_mut() {
-                NodeKind::Camera(camera) => camera.calculate_matrices(eye, look, up, aspect_ratio),
-                NodeKind::ParticleSystem(particle_system) => particle_system.update(dt),
+            match node {
+                Node::Camera(camera) => camera.calculate_matrices(aspect_ratio),
+                Node::ParticleSystem(particle_system) => particle_system.update(dt),
                 _ => ()
             }
         }
 
         for i in 0..self.pool.get_capacity() {
             let remove = if let Some(node) = self.pool.at(i) {
-                if let Some(lifetime) = node.lifetime {
+                if let Some(lifetime) = node.get_lifetime() {
                     lifetime <= 0.0
                 } else {
                     false

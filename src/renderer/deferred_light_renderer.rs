@@ -1,7 +1,7 @@
 use std::ffi::CString;
 use crate::{
     scene::{
-        camera::Camera, node::NodeKind, Scene,
+        camera::Camera, Scene,
         node::Node, SceneInterface,
     },
     renderer::{
@@ -18,6 +18,7 @@ use rg3d_core::{
 };
 use crate::scene::light::LightKind;
 use crate::renderer::gpu_texture::GpuTexture;
+use crate::scene::node::NodeTrait;
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -198,7 +199,7 @@ impl DeferredLightRenderer {
         })
     }
 
-    pub fn render(&mut self, frame_width: f32, frame_height: f32, scene: &Scene, camera_node: &Node,
+    pub fn render(&mut self, frame_width: f32, frame_height: f32, scene: &Scene,
                   camera: &Camera, gbuffer: &GBuffer, white_dummy: &GpuTexture) {
         let frame_matrix =
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
@@ -244,8 +245,8 @@ impl DeferredLightRenderer {
                     continue;
                 }
 
-                let light = match light_node.get_kind() {
-                    NodeKind::Light(light) => light,
+                let light = match light_node {
+                    Node::Light(light) => light,
                     _ => continue
                 };
 
@@ -317,7 +318,7 @@ impl DeferredLightRenderer {
                 self.shader.set_light_cone_angle_cos(cone_angle_cos);
                 self.shader.set_wvp_matrix(&frame_matrix);
                 self.shader.set_shadow_map_inv_size(0.0); // TODO
-                self.shader.set_camera_position(&camera_node.get_global_position());
+                self.shader.set_camera_position(&camera.get_global_position());
                 self.shader.set_depth_sampler_id(0);
                 self.shader.set_color_sampler_id(1);
                 self.shader.set_normal_sampler_id(2);

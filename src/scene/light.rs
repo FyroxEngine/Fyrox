@@ -6,6 +6,7 @@ use rg3d_core::{
         VisitResult
     }
 };
+use crate::scene::node::{CommonNodeData, CommonNodeBuilderData};
 
 #[derive(Clone)]
 pub struct SpotLight {
@@ -143,7 +144,9 @@ impl Visit for LightKind {
     }
 }
 
+#[derive(Clone)]
 pub struct Light {
+    common: CommonNodeData,
     kind: LightKind,
     color: Color,
 }
@@ -151,6 +154,7 @@ pub struct Light {
 impl Default for Light {
     fn default() -> Self {
         Self {
+            common: Default::default(),
             kind: LightKind::Point(Default::default()),
             color: Color::white(),
         }
@@ -168,6 +172,7 @@ impl Visit for Light {
         }
         self.kind.visit("Kind", visitor)?;
         self.color.visit("Color", visitor)?;
+        self.common.visit("Common", visitor)?;
 
         visitor.leave_region()
     }
@@ -176,6 +181,7 @@ impl Visit for Light {
 impl Light {
     pub fn new(kind: LightKind) -> Self {
         Self {
+            common: Default::default(),
             kind,
             color: Color::white(),
         }
@@ -202,16 +208,11 @@ impl Light {
     }
 }
 
-impl Clone for Light {
-    fn clone(&self) -> Self {
-        Self {
-            kind: self.kind.clone(),
-            color: self.color,
-        }
-    }
-}
+impl_node_trait!(Light);
+impl_node_trait_private!(Light);
 
 pub struct LightBuilder {
+    common: CommonNodeBuilderData,
     kind: LightKind,
     color: Option<Color>,
 }
@@ -219,10 +220,13 @@ pub struct LightBuilder {
 impl LightBuilder {
     pub fn new(kind: LightKind) -> Self {
         Self {
+            common: Default::default(),
             kind,
             color: None
         }
     }
+
+    impl_common_node_builder_methods!();
 
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = Some(color);
@@ -231,6 +235,7 @@ impl LightBuilder {
 
     pub fn build(self) -> Light {
         Light {
+            common: From::from(self.common),
             kind: self.kind,
             color: self.color.unwrap_or(Color::white())
         }

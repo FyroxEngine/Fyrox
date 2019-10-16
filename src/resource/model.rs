@@ -11,6 +11,7 @@ use rg3d_core::{
     pool::Handle,
     visitor::{Visit, VisitResult, Visitor},
 };
+use crate::scene::node::{NodeTrait, NodeTraitPrivate};
 use crate::scene::{SceneInterface, SceneInterfaceMut};
 
 pub struct Model {
@@ -61,14 +62,15 @@ impl Model {
         let SceneInterface { graph: resource_graph, .. } = model.scene.interface();
 
         let root = resource_graph.copy_node(resource_graph.get_root(), dest_graph);
-        dest_graph.get_mut(root).is_resource_instance = true;
+        dest_graph.get_mut(root).get_data_mut().is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = Vec::new();
         stack.push(root);
         while let Some(node_handle) = stack.pop() {
             let node = dest_graph.get_mut(node_handle);
-            node.set_resource(Arc::clone(&model_rc));
+            node.get_data_mut().resource = Some(Arc::clone(&model_rc));
+
             // Continue on children.
             for child_handle in node.get_children() {
                 stack.push(child_handle.clone());

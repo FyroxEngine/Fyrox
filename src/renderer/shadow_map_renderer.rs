@@ -1,16 +1,19 @@
 use std::ffi::CString;
+use rg3d_core::math::mat4::Mat4;
 use crate::{
+    scene::{
+        node::Node,
+        graph::Graph,
+        node::NodeTrait
+    },
     renderer::{
+        gpu_texture::GpuTexture,
         gl::types::GLuint,
         gpu_program::{GpuProgram, UniformLocation},
         error::RendererError,
-        gl,
-    },
-    scene::graph::Graph,
+        gl
+    }
 };
-use crate::scene::node::NodeKind;
-use rg3d_core::math::mat4::Mat4;
-use crate::renderer::gpu_texture::GpuTexture;
 
 pub struct SpotShadowMapShader {
     program: GpuProgram,
@@ -126,7 +129,7 @@ impl SpotShadowMapRenderer {
         }
 
         for node in graph.linear_iter() {
-            if let NodeKind::Mesh(mesh) = node.get_kind() {
+            if let Node::Mesh(mesh) = node {
                 if !node.get_global_visibility() {
                     continue;
                 }
@@ -137,7 +140,7 @@ impl SpotShadowMapRenderer {
                     let world = if is_skinned {
                         Mat4::identity()
                     } else {
-                        *node.get_global_transform()
+                        node.get_global_transform()
                     };
                     let mvp = *light_view_projection * world;
 
@@ -149,7 +152,7 @@ impl SpotShadowMapRenderer {
                         for bone_handle in surface.bones.iter() {
                             let bone_node = graph.get(*bone_handle);
                             self.bone_matrices.push(
-                                *bone_node.get_global_transform() *
+                                bone_node.get_global_transform() *
                                     bone_node.get_inv_bind_pose_transform());
                         }
 

@@ -11,9 +11,10 @@ use crate::{
         error::RendererError,
         gl, gpu_texture::GpuTexture,
     },
-    scene::{node::NodeKind, SceneInterface},
+    scene::{SceneInterface},
 };
 use rg3d_core::color::Color;
+use crate::scene::node::{NodeTrait, Node};
 
 pub struct SpriteShader {
     program: GpuProgram,
@@ -116,7 +117,7 @@ impl SpriteRenderer {
             };
 
             let camera =
-                if let NodeKind::Camera(camera) = camera_node.get_kind() {
+                if let Node::Camera(camera) = camera_node {
                     camera
                 } else {
                     continue;
@@ -128,7 +129,7 @@ impl SpriteRenderer {
             let camera_side = inv_view.side();
 
             for node in graph.linear_iter() {
-                let sprite = if let NodeKind::Sprite(sprite) = node.get_kind() {
+                let sprite = if let Node::Sprite(sprite) = node {
                     sprite
                 } else {
                     continue;
@@ -142,7 +143,7 @@ impl SpriteRenderer {
 
                 self.shader.set_diffuse_texture(0);
                 self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                self.shader.set_world_matrix(node.get_global_transform());
+                self.shader.set_world_matrix(&node.get_global_transform());
                 self.shader.set_camera_up_vector(&camera_up);
                 self.shader.set_camera_side_vector(&camera_side);
                 self.shader.set_size(sprite.get_size());

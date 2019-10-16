@@ -1,8 +1,17 @@
 use std::ffi::CString;
+use rg3d_core::{
+    math::{
+        mat4::Mat4,
+        vec2::Vec2,
+        Rect,
+    },
+};
 use crate::{
     scene::{
+        node::Node,
+        graph::Graph,
         camera::Camera,
-        node::NodeKind,
+        node::NodeTrait
     },
     renderer::{
         gl::types::GLuint, gl,
@@ -11,14 +20,6 @@ use crate::{
         gpu_texture::GpuTexture,
     },
 };
-use rg3d_core::{
-    math::{
-        mat4::Mat4,
-        vec2::Vec2,
-        Rect,
-    },
-};
-use crate::scene::graph::Graph;
 
 struct GBufferShader {
     program: GpuProgram,
@@ -237,7 +238,7 @@ impl GBuffer {
         let view_projection = camera.get_view_projection_matrix();
 
         for node in graph.linear_iter() {
-            if let NodeKind::Mesh(mesh) = node.get_kind() {
+            if let Node::Mesh(mesh) = node {
                 if !node.get_global_visibility() {
                     continue;
                 }
@@ -248,7 +249,7 @@ impl GBuffer {
                     let world = if is_skinned {
                         Mat4::identity()
                     } else {
-                        *node.get_global_transform()
+                        node.get_global_transform()
                     };
                     let mvp = view_projection * world;
 
@@ -262,7 +263,7 @@ impl GBuffer {
                         for bone_handle in surface.bones.iter() {
                             let bone_node = graph.get(*bone_handle);
                             self.bone_matrices.push(
-                                *bone_node.get_global_transform() *
+                                bone_node.get_global_transform() *
                                     bone_node.get_inv_bind_pose_transform());
                         }
 

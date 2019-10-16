@@ -22,7 +22,7 @@ use std::sync::{Mutex, Arc};
 use crate::{
     scene::{
         SceneInterface,
-        node::Node,
+        node::{Node, NodeTrait},
         graph::Graph,
     },
     resource::model::Model,

@@ -3,12 +3,14 @@ use rg3d_core::{
     math::{
         Rect,
         mat4::Mat4,
-        vec3::Vec3,
         vec2::Vec2
     }
 };
+use crate::scene::node::{CommonNodeData, NodeTrait};
 
+#[derive(Clone)]
 pub struct Camera {
+    common: CommonNodeData,
     fov: f32,
     z_near: f32,
     z_far: f32,
@@ -24,6 +26,7 @@ impl Default for Camera {
         let z_far: f32 = 2048.0;
 
         Camera {
+            common: Default::default(),
             fov,
             z_near,
             z_far,
@@ -46,13 +49,18 @@ impl Visit for Camera {
         self.z_near.visit("ZNear", visitor)?;
         self.z_far.visit("ZFar", visitor)?;
         self.viewport.visit("Viewport", visitor)?;
+        self.common.visit("Common", visitor)?;
         visitor.leave_region()
     }
 }
 
 impl Camera {
     #[inline]
-    pub fn calculate_matrices(&mut self, pos: Vec3, look: Vec3, up: Vec3, aspect: f32) {
+    pub fn calculate_matrices(&mut self, aspect: f32) {
+        let pos = self.get_global_position();
+        let look = self.get_look_vector();
+        let up = self.get_up_vector();
+
         if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
             self.view_matrix = view_matrix;
         } else {
@@ -97,15 +105,5 @@ impl Camera {
     }
 }
 
-impl Clone for Camera {
-    fn clone(&self) -> Self {
-        Self {
-            fov: self.fov,
-            z_near: self.z_near,
-            z_far: self.z_far,
-            viewport: self.viewport,
-            view_matrix: self.view_matrix,
-            projection_matrix: self.projection_matrix,
-        }
-    }
-}
+impl_node_trait!(Camera);
+impl_node_trait_private!(Camera);

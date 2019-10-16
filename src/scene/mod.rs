@@ -1,3 +1,4 @@
+#[macro_use]
 pub mod node;
 pub mod animation;
 pub mod mesh;
@@ -7,11 +8,12 @@ pub mod particle_system;
 pub mod transform;
 pub mod sprite;
 pub mod graph;
+pub mod pivot;
 
 use crate::scene::{
     animation::AnimationContainer,
     graph::Graph,
-    node::Node,
+    node::{Node, NodeTrait},
 };
 use rg3d_physics::{Physics, rigid_body::RigidBody};
 use rg3d_core::{

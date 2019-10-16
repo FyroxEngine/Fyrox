@@ -20,7 +20,6 @@ use glutin::PossiblyCurrent;
 use crate::{
     engine::resource_manager::ResourceManager,
     gui::draw::DrawingContext,
-    scene::node::NodeKind,
     renderer::{
         ui_renderer::UIRenderer,
         surface::SurfaceSharedData,
@@ -34,6 +33,7 @@ use crate::{
     },
     scene::{SceneInterface, SceneContainer},
 };
+use crate::scene::node::Node;
 
 #[repr(C)]
 pub struct TriangleDefinition {
@@ -213,19 +213,19 @@ impl Renderer {
                 let SceneInterface { graph, .. } = scene.interface();
 
                 // Prepare for render - fill lists of nodes participating in rendering.
-                let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
-                    Some(camera_node) => camera_node,
+                let camera = match graph.linear_iter().find(|node| node.is_camera()) {
+                    Some(camera) => camera,
                     None => continue
                 };
 
-                let camera = match camera_node.get_kind() {
-                    NodeKind::Camera(camera) => camera,
+                let camera = match camera {
+                    Node::Camera(camera) => camera,
                     _ => continue
                 };
 
                 self.gbuffer.fill(frame_width, frame_height, graph, camera, &self.white_dummy, &self.normal_dummy);
 
-                self.deferred_light_renderer.render(frame_width, frame_height, scene, camera_node, camera, &self.gbuffer, &self.white_dummy);
+                self.deferred_light_renderer.render(frame_width, frame_height, scene, camera, &self.gbuffer, &self.white_dummy);
             }
 
             self.particle_system_renderer.render(scenes, &self.white_dummy, frame_width, frame_height, &self.gbuffer);

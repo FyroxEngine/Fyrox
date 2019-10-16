@@ -27,6 +27,11 @@ use rg3d_core::{
 use crate::{
     resource::texture::Texture,
     renderer::TriangleDefinition,
+    scene::{
+        node::CommonNodeData,
+        node::CommonNodeBuilderData,
+        node::NodeTrait
+    }
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -635,7 +640,9 @@ impl Default for Emitter {
     }
 }
 
+#[derive(Clone)]
 pub struct ParticleSystem {
+    common: CommonNodeData,
     particles: Vec<Particle>,
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
@@ -704,11 +711,11 @@ impl ParticleSystem {
         }
     }
 
-    pub fn generate_draw_data(&self, sorted_particles: &mut Vec<u32>, draw_data: &mut DrawData, global_position: &Vec3, camera_pos: &Vec3) {
+    pub fn generate_draw_data(&self, sorted_particles: &mut Vec<u32>, draw_data: &mut DrawData, camera_pos: &Vec3) {
         sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
             if particle.alive {
-                let actual_position = particle.position + *global_position;
+                let actual_position = particle.position + self.get_global_position();
                 particle.sqr_distance_to_camera.set(camera_pos.sqr_distance(&actual_position));
                 sorted_particles.push(i as u32);
             }
@@ -794,6 +801,9 @@ impl ParticleSystem {
     }
 }
 
+impl_node_trait!(ParticleSystem);
+impl_node_trait_private!(ParticleSystem);
+
 impl Visit for ParticleSystem {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -804,24 +814,9 @@ impl Visit for ParticleSystem {
         self.emitters.visit("Emitters", visitor)?;
         self.acceleration.visit("Acceleration", visitor)?;
         self.color_over_lifetime.visit("ColorGradient", visitor)?;
+        self.common.visit("Common", visitor)?;
 
         visitor.leave_region()
-    }
-}
-
-impl Clone for ParticleSystem {
-    fn clone(&self) -> Self {
-        Self {
-            color_over_lifetime: self.color_over_lifetime.clone(),
-            particles: self.particles.clone(),
-            free_particles: self.free_particles.clone(),
-            emitters: self.emitters.clone(),
-            texture: match &self.texture {
-                Some(texture) => Some(texture.clone()),
-                None => None
-            },
-            acceleration: self.acceleration,
-        }
     }
 }
 
@@ -832,6 +827,7 @@ impl Default for ParticleSystem {
 }
 
 pub struct ParticleSystemBuilder {
+    common: CommonNodeBuilderData,
     emitters: Option<Vec<Emitter>>,
     texture: Option<Arc<Mutex<Texture>>>,
     acceleration: Option<Vec3>,
@@ -841,12 +837,15 @@ pub struct ParticleSystemBuilder {
 impl ParticleSystemBuilder {
     pub fn new() -> Self {
         Self {
+            common: Default::default(),
             emitters: None,
             texture: None,
             acceleration: None,
             color_over_lifetime: None
         }
     }
+
+    impl_common_node_builder_methods!();
 
     pub fn with_emitters(mut self, emitters: Vec<Emitter>) -> Self {
         self.emitters = Some(emitters);
@@ -875,6 +874,7 @@ impl ParticleSystemBuilder {
 
     pub fn build(self) -> ParticleSystem {
         ParticleSystem {
+            common: From::from(self.common),
             particles: Vec::new(),
             free_particles: Vec::new(),
             emitters: self.emitters.unwrap_or(Vec::new()),
