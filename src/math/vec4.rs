@@ -7,18 +7,11 @@ pub struct Vec4 {
 }
 
 impl Vec4 {
-    pub fn zero() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            w: 0.0
-        }
-    }
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0, w: 0.0 };
 }
 
 impl Default for Vec4 {
     fn default() -> Self {
-        Self::zero()
+        Self::ZERO
     }
 }

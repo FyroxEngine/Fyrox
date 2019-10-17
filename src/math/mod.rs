@@ -99,7 +99,7 @@ pub fn classify_plane(normal: Vec3) -> PlaneClass {
 }
 
 pub fn get_polygon_normal(polygon: &[Vec3]) -> Result<Vec3, &'static str> {
-    let mut normal = Vec3::new();
+    let mut normal = Vec3::ZERO;
 
     for (i, current) in polygon.iter().enumerate() {
         let next = polygon[(i + 1) % polygon.len()];
@@ -121,9 +121,27 @@ pub fn get_signed_triangle_area(v1: Vec2, v2: Vec2, v3: Vec2) -> f32 {
 
 pub fn vec3_to_vec2_by_plane(plane_class: PlaneClass, normal: Vec3, point: Vec3) -> Vec2 {
     match plane_class {
-        PlaneClass::XY => if normal.z < 0.0 { Vec2::make(point.y, point.x) } else { Vec2::make(point.x, point.y) }
-        PlaneClass::XZ => if normal.y < 0.0 { Vec2::make(point.x, point.z) } else { Vec2::make(point.z, point.x) }
-        PlaneClass::YZ => if normal.x < 0.0 { Vec2::make(point.z, point.y) } else { Vec2::make(point.y, point.z) }
+        PlaneClass::XY => {
+            if normal.z < 0.0 {
+                Vec2::new(point.y, point.x)
+            } else {
+                Vec2::new(point.x, point.y)
+            }
+        }
+        PlaneClass::XZ => {
+            if normal.y < 0.0 {
+                Vec2::new(point.x, point.z)
+            } else {
+                Vec2::new(point.z, point.x)
+            }
+        }
+        PlaneClass::YZ => {
+            if normal.x < 0.0 {
+                Vec2::new(point.z, point.y)
+            } else {
+                Vec2::new(point.y, point.z)
+            }
+        }
     }
 }
 

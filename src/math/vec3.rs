@@ -12,42 +12,20 @@ pub struct Vec3 {
 
 impl Default for Vec3 {
     fn default() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        }
+        Self::ZERO
     }
 }
 
 impl Vec3 {
-    #[inline]
-    pub fn new() -> Self {
-        Vec3::default()
-    }
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0 };
+    pub const UNIT: Self = Self { x: 1.0, y: 1.0, z: 1.0 };
+    pub const RIGHT: Self = Self { x: 1.0, y: 0.0, z: 0.0 };
+    pub const UP: Self = Self { x: 0.0, y: 1.0, z: 0.0 };
+    pub const LOOK: Self = Self { x: 0.0, y: 0.0, z: 1.0 };
 
     #[inline]
-    pub fn make(x: f32, y: f32, z: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
         Vec3 { x, y, z }
-    }
-
-    #[inline]
-    pub fn zero() -> Self {
-        Vec3 { x: 0.0, y: 0.0, z: 0.0 }
-    }
-
-    #[inline]
-    pub fn unit() -> Self {
-        Vec3 { x: 1.0, y: 1.0, z: 1.0 }
-    }
-
-    #[inline]
-    pub fn up() -> Self {
-        Vec3 {
-            x: 0.0,
-            y: 1.0,
-            z: 0.0,
-        }
     }
 
     #[inline]
@@ -56,15 +34,6 @@ impl Vec3 {
             x: self.x * scalar,
             y: self.y * scalar,
             z: self.z * scalar,
-        }
-    }
-
-    #[inline]
-    pub fn right() -> Self {
-        Vec3 {
-            x: 1.0,
-            y: 0.0,
-            z: 0.0,
         }
     }
 

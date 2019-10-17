@@ -13,19 +13,17 @@ pub struct Mat4 {
 
 impl Default for Mat4 {
     fn default() -> Self {
-        Mat4::identity()
+        Mat4::IDENTITY
     }
 }
 
 impl Mat4 {
-    pub fn identity() -> Self {
-        Self {
-            f: [1.0, 0.0, 0.0, 0.0,
-                0.0, 1.0, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                0.0, 0.0, 0.0, 1.0]
-        }
-    }
+    pub const IDENTITY: Self = Self {
+        f: [1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0]
+    };
 
     pub fn scale(v: Vec3) -> Self {
         Self {
@@ -192,22 +190,22 @@ impl Mat4 {
 
     /// Returns "side" vector from basis. (points right)
     pub fn side(&self) -> Vec3 {
-        Vec3::make(self.f[0], self.f[1], self.f[2])
+        Vec3::new(self.f[0], self.f[1], self.f[2])
     }
 
     /// Returns "up" vector from basis.
     pub fn up(&self) -> Vec3 {
-        Vec3::make(self.f[4], self.f[5], self.f[6])
+        Vec3::new(self.f[4], self.f[5], self.f[6])
     }
 
     /// Returns "look" vector from basis. (points into screen)
     pub fn look(&self) -> Vec3 {
-        Vec3::make(self.f[8], self.f[9], self.f[10])
+        Vec3::new(self.f[8], self.f[9], self.f[10])
     }
 
     /// Returns translation part of matrix.
     pub fn position(&self) -> Vec3 {
-        Vec3::make(self.f[12], self.f[13], self.f[14])
+        Vec3::new(self.f[12], self.f[13], self.f[14])
     }
 }
 

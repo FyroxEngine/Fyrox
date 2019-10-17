@@ -10,21 +10,16 @@ pub struct Vec2 {
 
 impl Default for Vec2 {
     fn default() -> Self {
-        Self::zero()
+        Self::ZERO
     }
 }
 
 impl Vec2 {
-    #[inline]
-    pub fn zero() -> Self {
-        Vec2 {
-            x: 0.0,
-            y: 0.0,
-        }
-    }
+    pub const ZERO: Self = Vec2 { x: 0.0, y: 0.0 };
+    pub const UNIT: Self = Vec2 { x: 1.0, y: 1.0 };
 
     #[inline]
-    pub fn make(x: f32, y: f32) -> Self {
+    pub fn new(x: f32, y: f32) -> Self {
         Vec2 { x, y }
     }
 

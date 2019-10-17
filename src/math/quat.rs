@@ -22,19 +22,17 @@ pub enum RotationOrder {
 
 impl Default for Quat {
     fn default() -> Self {
-        Self::new()
+        Self::IDENTITY
     }
 }
 
 impl Quat {
-    pub fn new() -> Self {
-        Quat {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            w: 1.0,
-        }
-    }
+    pub const IDENTITY: Quat = Quat {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+        w: 1.0,
+    };
 
     pub fn sqr_len(&self) -> f32 {
         self.x * self.x + self.y * self.y + self.z * self.z + self.w * self.w
@@ -57,9 +55,9 @@ impl Quat {
     }
 
     pub fn from_euler(euler_radians: Vec3, order: RotationOrder) -> Self {
-        let qx: Quat = Quat::from_axis_angle(Vec3::make(1.0, 0.0, 0.0), euler_radians.x);
-        let qy: Quat = Quat::from_axis_angle(Vec3::make(0.0, 1.0, 0.0), euler_radians.y);
-        let qz: Quat = Quat::from_axis_angle(Vec3::make(0.0, 0.0, 1.0), euler_radians.z);
+        let qx: Quat = Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), euler_radians.x);
+        let qy: Quat = Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), euler_radians.y);
+        let qz: Quat = Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), euler_radians.z);
         match order {
             RotationOrder::XYZ => qz * qy * qx,
             RotationOrder::XZY => qy * qz * qx,

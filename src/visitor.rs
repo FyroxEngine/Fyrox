@@ -502,7 +502,7 @@ impl Visitor {
     pub fn leave_region(&mut self) -> VisitResult {
         self.current_node = self.nodes.borrow(self.current_node).parent;
         if self.current_node.is_none() {
-            return Err(VisitError::NoActiveNode);
+            Err(VisitError::NoActiveNode)
         } else {
             Ok(())
         }
@@ -900,7 +900,7 @@ impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
     }
 }
 
-impl<K, V> Visit for HashMap<K, V> where K: Visit + Default + Copy + Clone + Hash + Eq, V: Visit + Default {
+impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S> where K: Visit + Default + Copy + Clone + Hash + Eq, V: Visit + Default {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 

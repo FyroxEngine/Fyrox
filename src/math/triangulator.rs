@@ -167,10 +167,10 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usi
 #[test]
 fn quadrilaterals_triangulation_non_concave() {
     let polygon = vec![
-        Vec3::make(0.0, 0.0, 1.0),
-        Vec3::make(1.0, 2.0, 1.0),
-        Vec3::make(2.0, 3.0, 1.0),
-        Vec3::make(3.0, 2.0, 1.0)
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec3::new(1.0, 2.0, 1.0),
+        Vec3::new(2.0, 3.0, 1.0),
+        Vec3::new(3.0, 2.0, 1.0)
     ];
 
     let mut ref_indices: Vec<(usize, usize, usize)> = Vec::new();
@@ -182,10 +182,10 @@ fn quadrilaterals_triangulation_non_concave() {
 #[test]
 fn quadrilaterals_triangulation_concave() {
     let polygon = vec![
-        Vec3::make(0.0, 2.0, 1.0),
-        Vec3::make(3.0, 3.0, 1.0),
-        Vec3::make(2.0, 2.0, 1.0),
-        Vec3::make(3.0, 1.0, 1.0)
+        Vec3::new(0.0, 2.0, 1.0),
+        Vec3::new(3.0, 3.0, 1.0),
+        Vec3::new(2.0, 2.0, 1.0),
+        Vec3::new(3.0, 1.0, 1.0)
     ];
 
     let mut ref_indices: Vec<(usize, usize, usize)> = Vec::new();
@@ -197,13 +197,13 @@ fn quadrilaterals_triangulation_concave() {
 #[test]
 fn ear_clip_test() {
     let polygon = vec![
-        Vec3::make(0.0, 0.0, 1.0),
-        Vec3::make(1.0, 2.0, 1.0),
-        Vec3::make(2.0, 4.0, 1.0),
-        Vec3::make(3.0, 2.0, 1.0),
-        Vec3::make(4.0, 1.0, 1.0),
-        Vec3::make(3.0, 0.0, 1.0),
-        Vec3::make(2.0, 0.5, 1.0),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec3::new(1.0, 2.0, 1.0),
+        Vec3::new(2.0, 4.0, 1.0),
+        Vec3::new(3.0, 2.0, 1.0),
+        Vec3::new(4.0, 1.0, 1.0),
+        Vec3::new(3.0, 0.0, 1.0),
+        Vec3::new(2.0, 0.5, 1.0),
     ];
 
     // First test flat case
@@ -221,10 +221,10 @@ fn ear_clip_test() {
     // order of indices but visually result stays correct. So for test I'm not using
     // such polygons just to not trigger false fails.
     for axis in &[
-        Vec3::make(1.0, 0.0, 0.0),
-        Vec3::make(0.0, 1.0, 0.0),
-        Vec3::make(0.0, 0.0, 1.0),
-        Vec3::make(1.0, 1.0, 1.0)] {
+        Vec3::new(1.0, 0.0, 0.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec3::new(1.0, 1.0, 1.0)] {
         let mut angle: f32 = 0.0;
         while angle <= 360.0 {
             let mrot = Mat4::from_quat(Quat::from_axis_angle(*axis, angle.to_radians()));

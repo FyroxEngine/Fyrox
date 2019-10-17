@@ -34,7 +34,7 @@ impl Default for GradientPoint {
     fn default() -> Self {
         Self {
             location: 0.0,
-            color: Color::white(),
+            color: Color::default(),
         }
     }
 }
@@ -100,7 +100,7 @@ impl ColorGradient {
     pub fn get_color(&self, location: f32) -> Color {
         if self.points.is_empty() {
             // stub - opaque white
-            return Color::white();
+            return Color::WHITE;
         } else if self.points.len() == 1 {
             // single point - just return its color
             return self.points.first().unwrap().color;

@@ -17,7 +17,7 @@ impl Default for Ray {
     fn default() -> Self {
         Ray {
             origin: Vec3::default(),
-            dir: Vec3::make(0.0, 0.0, 1.0),
+            dir: Vec3::new(0.0, 0.0, 1.0),
         }
     }
 }

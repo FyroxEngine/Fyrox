@@ -8,7 +8,7 @@ pub struct Plane {
 impl Default for Plane {
     fn default() -> Self {
         Plane {
-            normal: Vec3::make(0.0, 1.0, 0.0),
+            normal: Vec3::new(0.0, 1.0, 0.0),
             d: 0.0
         }
     }
@@ -43,7 +43,7 @@ impl Plane {
 fn plane_sanity_tests() {
     // Computation test
     let plane = Plane::from_normal_and_point(
-        &Vec3::make(0.0, 10.0, 0.0), &Vec3::make(0.0, 3.0, 0.0));
+        &Vec3::new(0.0, 10.0, 0.0), &Vec3::new(0.0, 3.0, 0.0));
     assert!(plane.is_some());
     let plane = plane.unwrap();
     assert_eq!(plane.normal.x, 0.0);
@@ -53,6 +53,6 @@ fn plane_sanity_tests() {
 
     // Degenerated normal case
     let plane = Plane::from_normal_and_point(
-        &Vec3::make(0.0, 0.0, 0.0), &Vec3::make(0.0, 0.0, 0.0));
+        &Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 0.0, 0.0));
     assert!(plane.is_none());
 }
