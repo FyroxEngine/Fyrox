@@ -8,6 +8,7 @@ use rg3d_core::visitor::{
     VisitResult
 };
 
+#[derive(Clone)]
 pub struct Mesh {
     common: CommonNodeData,
     surfaces: Vec<Surface>,
@@ -52,12 +53,3 @@ impl Mesh {
 
 impl_node_trait!(Mesh);
 impl_node_trait_private!(Mesh);
-
-impl Clone for Mesh {
-    fn clone(&self) -> Self {
-        Self {
-            common: self.common.clone(),
-            surfaces: self.surfaces.iter().map(|surf| surf.make_copy()).collect()
-        }
-    }
-}

@@ -58,7 +58,7 @@ impl TextureKind {
         }
     }
 
-    pub fn id(&self) -> u32 {
+    pub fn id(self) -> u32 {
         match self {
             TextureKind::R8 => 0,
             TextureKind::RGB8 => 1,

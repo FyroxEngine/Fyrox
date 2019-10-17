@@ -203,7 +203,7 @@ impl DeferredLightRenderer {
                   camera: &Camera, gbuffer: &GBuffer, white_dummy: &GpuTexture) {
         let frame_matrix =
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
-                Mat4::scale(Vec3::make(frame_width, frame_height, 0.0));
+                Mat4::scale(Vec3::new(frame_width, frame_height, 0.0));
 
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, gbuffer.opt_fbo);
@@ -259,12 +259,12 @@ impl DeferredLightRenderer {
                 let light_radius_scale =  light_node.get_local_transform().get_scale().max_value();
                 let light_radius = light_radius_scale * raw_radius;
                 let light_r_inflate = 1.05 * light_radius;
-                let light_radius_vec = Vec3::make(light_r_inflate, light_r_inflate, light_r_inflate);
-                let light_emit_direction = light_node.get_up_vector().normalized().unwrap_or(Vec3::up());
+                let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
+                let light_emit_direction = light_node.get_up_vector().normalized().unwrap_or(Vec3::UP);
 
                 match light.get_kind() {
                     LightKind::Spot(_) => {
-                        self.spot_shadow_map_renderer.render(graph, &Mat4::identity(), white_dummy, gbuffer.opt_fbo);
+                        self.spot_shadow_map_renderer.render(graph, &Mat4::IDENTITY, white_dummy, gbuffer.opt_fbo);
                     }
                     LightKind::Point(_) => {}
                 }

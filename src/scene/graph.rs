@@ -2,14 +2,14 @@ use rg3d_core::{
     pool::{Handle, Pool},
     math::mat4::Mat4,
     visitor::{Visit, Visitor, VisitResult},
+    pool::{PoolIterator, PoolIteratorMut, PoolPairIterator},
 };
 use crate::scene::{
     node::{Node, NodeTrait},
     SceneInterface,
+    node::NodeTraitPrivate,
 };
 use std::collections::HashMap;
-use rg3d_core::pool::{PoolIterator, PoolIteratorMut, PoolPairIterator};
-use crate::scene::node::NodeTraitPrivate;
 
 pub struct Graph {
     root: Handle<Node>,
@@ -292,7 +292,7 @@ impl Graph {
                             let surfaces = mesh.get_surfaces_mut();
                             surfaces.clear();
                             for resource_surface in resource_mesh.get_surfaces() {
-                                surfaces.push(resource_surface.make_copy());
+                                surfaces.push(resource_surface.clone());
                             }
 
                             // Remap bones
@@ -317,14 +317,13 @@ impl Graph {
             // Calculate local transform and get parent handle
             let parent_handle = self.pool.borrow_mut(handle).get_parent();
 
-            // Extract parent's global transform
-            let mut parent_global_transform = Mat4::identity();
-            let mut parent_visibility = true;
-            if parent_handle.is_some() {
-                let parent = self.pool.borrow(parent_handle);
-                parent_global_transform = parent.get_global_transform();
-                parent_visibility = parent.get_global_visibility();
-            }
+            let (parent_global_transform, parent_visibility) =
+                if parent_handle.is_some() {
+                    let parent = self.pool.borrow(parent_handle);
+                    (parent.get_global_transform(), parent.get_global_visibility())
+                } else {
+                    (Mat4::IDENTITY, true)
+                };
 
             let node = self.pool.borrow_mut(handle);
             node.get_data_mut().global_transform = parent_global_transform * node.get_local_transform().get_matrix();

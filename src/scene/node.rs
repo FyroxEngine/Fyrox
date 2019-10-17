@@ -241,15 +241,15 @@ pub(in crate) struct CommonNodeData {
 impl From<CommonNodeBuilderData> for CommonNodeData {
     fn from(data: CommonNodeBuilderData) -> Self {
         Self {
-            name: data.name.unwrap_or(String::new()),
-            children: data.children.unwrap_or(Vec::new()),
-            local_transform: data.local_transform.unwrap_or(Transform::identity()),
+            name: data.name.unwrap_or_default(),
+            children: data.children.unwrap_or_default(),
+            local_transform: data.local_transform.unwrap_or_else(Transform::identity),
             lifetime: data.lifetime,
             visibility: data.visibility.unwrap_or(true),
             global_visibility: true,
             parent: Handle::NONE,
-            global_transform: Mat4::identity(),
-            inv_bind_pose_transform: Mat4::identity(),
+            global_transform: Mat4::IDENTITY,
+            inv_bind_pose_transform: Mat4::IDENTITY,
             resource: None,
             original: Handle::NONE,
             is_resource_instance: false,

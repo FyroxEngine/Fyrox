@@ -156,7 +156,7 @@ impl Default for Light {
         Self {
             common: Default::default(),
             kind: LightKind::Point(Default::default()),
-            color: Color::white(),
+            color: Color::WHITE,
         }
     }
 }
@@ -183,7 +183,7 @@ impl Light {
         Self {
             common: Default::default(),
             kind,
-            color: Color::white(),
+            color: Color::WHITE,
         }
     }
 
@@ -237,7 +237,7 @@ impl LightBuilder {
         Light {
             common: From::from(self.common),
             kind: self.kind,
-            color: self.color.unwrap_or(Color::white())
+            color: self.color.unwrap_or(Color::WHITE)
         }
     }
 }

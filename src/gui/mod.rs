@@ -153,7 +153,7 @@ impl UserInterface {
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
-            mouse_position: Vec2::zero(),
+            mouse_position: Vec2::ZERO,
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
@@ -246,7 +246,7 @@ impl UserInterface {
     }
 
     fn default_measure_override(&self, handle: Handle<UINode>, available_size: Vec2) -> Vec2 {
-        let mut size = Vec2::zero();
+        let mut size = Vec2::ZERO;
 
         let node = self.nodes.borrow(handle);
         for child_handle in node.children.iter() {
@@ -340,7 +340,7 @@ impl UserInterface {
 
             node.desired_size.set(desired_size);
         } else {
-            node.desired_size.set(Vec2::make(0.0, 0.0));
+            node.desired_size.set(Vec2::new(0.0, 0.0));
         }
 
         node.measure_valid.set(true)
@@ -519,7 +519,7 @@ impl UserInterface {
                 };
 
             if let Some(picked_bounds) = picked_bounds {
-                self.drawing_context.push_rect(&picked_bounds, 1.0, Color::white());
+                self.drawing_context.push_rect(&picked_bounds, 1.0, Color::WHITE);
                 self.drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
             }
         }
@@ -573,13 +573,12 @@ impl UserInterface {
     }
 
     fn pick_node(&self, node_handle: Handle<UINode>, pt: Vec2, level: &mut i32) -> Handle<UINode> {
-        let mut picked = Handle::NONE;
-        let mut topmost_picked_level = 0;
-
-        if self.is_node_contains_point(node_handle, pt) {
-            picked = node_handle;
-            topmost_picked_level = *level;
-        }
+        let (mut picked, mut topmost_picked_level) =
+            if self.is_node_contains_point(node_handle, pt) {
+                (node_handle, *level)
+            } else {
+                (Handle::NONE, 0)
+            };
 
         let node = self.nodes.borrow(node_handle);
         for child_handle in node.children.iter() {
@@ -771,7 +770,7 @@ impl UserInterface {
                 }
             }
             WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_position = Vec2::make(position.x as f32, position.y as f32);
+                self.mouse_position = Vec2::new(position.x as f32, position.y as f32);
                 self.picked_node = self.hit_test(self.mouse_position);
 
                 // Fire mouse leave for previously picked node

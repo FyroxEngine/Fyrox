@@ -16,7 +16,7 @@ pub struct ScrollContentPresenter {
 
 impl Layout for ScrollContentPresenter {
     fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        let size_for_child = Vec2::make(
+        let size_for_child = Vec2::new(
             if self.horizontal_scroll_allowed {
                 std::f32::INFINITY
             } else {
@@ -29,7 +29,7 @@ impl Layout for ScrollContentPresenter {
             },
         );
 
-        let mut desired_size = Vec2::zero();
+        let mut desired_size = Vec2::ZERO;
 
         let node = ui.nodes.borrow(self_handle);
         for child_handle in node.children.iter() {
@@ -68,7 +68,7 @@ impl Layout for ScrollContentPresenter {
 impl ScrollContentPresenter {
     fn new() -> Self {
         Self {
-            scroll: Vec2::zero(),
+            scroll: Vec2::ZERO,
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: false,
         }

@@ -35,7 +35,7 @@ impl Drawable for Text {
     fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color) {
         if self.need_update {
             let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
-                .with_size(Vec2::make(bounds.w, bounds.h))
+                .with_size(Vec2::new(bounds.w, bounds.h))
                 .with_text(self.text.as_str())
                 .with_color(color)
                 .with_horizontal_alignment(self.horizontal_alignment)
@@ -44,7 +44,7 @@ impl Drawable for Text {
             self.formatted_text = Some(formatted_text);
             self.need_update = true; // TODO
         }
-        drawing_context.draw_text(Vec2::make(bounds.x, bounds.y), self.formatted_text.as_ref().unwrap());
+        drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), self.formatted_text.as_ref().unwrap());
     }
 }
 

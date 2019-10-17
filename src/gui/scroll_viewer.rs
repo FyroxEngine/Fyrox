@@ -21,8 +21,8 @@ pub struct ScrollViewer {
 
 impl ScrollViewer {
     pub fn update(handle: Handle<UINode>, ui: &mut UserInterface) {
-        let mut content_size = Vec2::zero();
-        let mut available_size_for_content = Vec2::zero();
+        let mut content_size = Vec2::ZERO;
+        let mut available_size_for_content = Vec2::ZERO;
         let mut horizontal_scroll_bar_handle = Handle::NONE;
         let mut vertical_scroll_bar_handle = Handle::NONE;
 
@@ -120,18 +120,15 @@ impl ScrollViewerBuilder {
                 .with_child(v_scroll_bar)
                 .build(ui))
             .with_event_handler(Box::new(move |ui, _handle, event| {
-                match event.kind {
-                    UIEventKind::NumericValueChanged { new_value, .. } => {
-                        let content_presenter = ui.get_node_mut(content_presenter);
-                        if let UINodeKind::ScrollContentPresenter(content_presenter) = content_presenter.get_kind_mut() {
-                            if event.source == h_scroll_bar {
-                                content_presenter.set_horizontal_scroll(new_value);
-                            } else if event.source == v_scroll_bar {
-                                content_presenter.set_vertical_scroll(new_value);
-                            }
+                if let UIEventKind::NumericValueChanged { new_value, .. } = event.kind {
+                    let content_presenter = ui.get_node_mut(content_presenter);
+                    if let UINodeKind::ScrollContentPresenter(content_presenter) = content_presenter.get_kind_mut() {
+                        if event.source == h_scroll_bar {
+                            content_presenter.set_horizontal_scroll(new_value);
+                        } else if event.source == v_scroll_bar {
+                            content_presenter.set_vertical_scroll(new_value);
                         }
                     }
-                    _ => ()
                 }
             }))
             .build(ui)

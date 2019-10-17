@@ -30,7 +30,7 @@ impl Default for Camera {
             fov,
             z_near,
             z_far,
-            view_matrix: Mat4::identity(),
+            view_matrix: Mat4::IDENTITY,
             projection_matrix: Mat4::perspective(
                 fov.to_radians(),
                 1.0,
@@ -64,7 +64,7 @@ impl Camera {
         if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
             self.view_matrix = view_matrix;
         } else {
-            self.view_matrix = Mat4::identity();
+            self.view_matrix = Mat4::IDENTITY;
         }
         self.projection_matrix = Mat4::perspective(self.fov.to_radians(), aspect, self.z_near, self.z_far);
     }

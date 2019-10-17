@@ -466,7 +466,7 @@ impl AnimationContainer {
                 let transform = node.get_local_transform_mut();
                 transform.set_position(Default::default());
                 transform.set_rotation(Default::default());
-                // TODO: transform.set_scale(Vec3::make(1.0, 1.0, 1.0));
+                // TODO: transform.set_scale(Vec3::new(1.0, 1.0, 1.0));
             }
         }
 

@@ -58,7 +58,7 @@ impl BorderBuilder {
                 top: 1.0,
                 bottom: 1.0,
             },
-            stroke_color: Color::white(),
+            stroke_color: Color::WHITE,
         };
 
         if let Some(stroke_color) = self.stroke_color {
@@ -86,11 +86,11 @@ impl Layout for Border {
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
-        let size_for_child = Vec2::make(
+        let size_for_child = Vec2::new(
             available_size.x - margin_x,
             available_size.y - margin_y,
         );
-        let mut desired_size = Vec2::zero();
+        let mut desired_size = Vec2::ZERO;
 
         let node = ui.nodes.borrow(self_handle);
         for child_handle in node.children.iter() {

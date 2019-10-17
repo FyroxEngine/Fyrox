@@ -1,10 +1,12 @@
 use std::sync::{Arc, Mutex};
-use crate::resource::texture::Texture;
+use crate::{
+    resource::texture::Texture,
+    scene::node::{CommonNodeData, CommonNodeBuilderData}
+};
 use rg3d_core::{
     color::Color,
     visitor::{Visit, VisitResult, Visitor}
 };
-use crate::scene::node::{CommonNodeData, CommonNodeBuilderData};
 
 #[derive(Clone)]
 pub struct Sprite {
@@ -81,6 +83,12 @@ pub struct SpriteBuilder {
     rotation: Option<f32>,
 }
 
+impl Default for SpriteBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SpriteBuilder {
     pub fn new() -> Self {
         Self {
@@ -123,7 +131,7 @@ impl SpriteBuilder {
         Sprite {
             common: From::from(self.common),
             texture: self.texture,
-            color: self.color.unwrap_or(Color::white()),
+            color: self.color.unwrap_or(Color::WHITE),
             size: self.size.unwrap_or(0.2),
             rotation: self.rotation.unwrap_or(0.0),
         }

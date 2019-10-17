@@ -247,7 +247,7 @@ impl GBuffer {
                     let is_skinned = !surface.bones.is_empty();
 
                     let world = if is_skinned {
-                        Mat4::identity()
+                        Mat4::IDENTITY
                     } else {
                         node.get_global_transform()
                     };

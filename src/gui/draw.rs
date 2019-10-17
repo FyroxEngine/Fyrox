@@ -103,9 +103,16 @@ fn get_line_thickness_vector(a: Vec2, b: Vec2, thickness: f32) -> Vec2 {
     if let Some(dir) = (b - a).normalized() {
         dir.perpendicular().scale(thickness * 0.5)
     } else {
-        Vec2::zero()
+        Vec2::ZERO
     }
 }
+
+impl Default for DrawingContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 impl DrawingContext {
     pub fn new() -> DrawingContext {
@@ -226,10 +233,10 @@ impl DrawingContext {
 
     pub fn push_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color) {
         let perp = get_line_thickness_vector(a, b, thickness);
-        self.push_vertex(a - perp, Vec2::make(0.0, 0.0), color);
-        self.push_vertex(b - perp, Vec2::make(1.0, 0.0), color);
-        self.push_vertex(a + perp, Vec2::make(1.0, 1.0), color);
-        self.push_vertex(b + perp, Vec2::make(0.0, 1.0), color);
+        self.push_vertex(a - perp, Vec2::new(0.0, 0.0), color);
+        self.push_vertex(b - perp, Vec2::new(1.0, 0.0), color);
+        self.push_vertex(a + perp, Vec2::new(1.0, 1.0), color);
+        self.push_vertex(b + perp, Vec2::new(0.0, 1.0), color);
 
         let index = self.get_index_origin();
         self.push_triangle(index, index + 1, index + 2);
@@ -239,14 +246,14 @@ impl DrawingContext {
     pub fn push_rect(&mut self, rect: &Rect<f32>, thickness: f32, color: Color) {
         let offset = thickness * 0.5;
 
-        let left_top = Vec2::make(rect.x + offset, rect.y + thickness);
-        let right_top = Vec2::make(rect.x + rect.w - offset, rect.y + thickness);
-        let right_bottom = Vec2::make(rect.x + rect.w - offset, rect.y + rect.h - thickness);
-        let left_bottom = Vec2::make(rect.x + offset, rect.y + rect.h - thickness);
-        let left_top_off = Vec2::make(rect.x, rect.y + offset);
-        let right_top_off = Vec2::make(rect.x + rect.w, rect.y + offset);
-        let right_bottom_off = Vec2::make(rect.x + rect.w, rect.y + rect.h - offset);
-        let left_bottom_off = Vec2::make(rect.x, rect.y + rect.h - offset);
+        let left_top = Vec2::new(rect.x + offset, rect.y + thickness);
+        let right_top = Vec2::new(rect.x + rect.w - offset, rect.y + thickness);
+        let right_bottom = Vec2::new(rect.x + rect.w - offset, rect.y + rect.h - thickness);
+        let left_bottom = Vec2::new(rect.x + offset, rect.y + rect.h - thickness);
+        let left_top_off = Vec2::new(rect.x, rect.y + offset);
+        let right_top_off = Vec2::new(rect.x + rect.w, rect.y + offset);
+        let right_bottom_off = Vec2::new(rect.x + rect.w, rect.y + rect.h - offset);
+        let left_bottom_off = Vec2::new(rect.x, rect.y + rect.h - offset);
 
         // Horizontal lines
         self.push_line(left_top_off, right_top_off, thickness, color);
@@ -258,14 +265,14 @@ impl DrawingContext {
     }
 
     pub fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness, color: Color) {
-        let left_top = Vec2::make(rect.x + thickness.left * 0.5, rect.y + thickness.top);
-        let right_top = Vec2::make(rect.x + rect.w - thickness.right * 0.5, rect.y + thickness.top);
-        let right_bottom = Vec2::make(rect.x + rect.w - thickness.right * 0.5, rect.y + rect.h - thickness.bottom);
-        let left_bottom = Vec2::make(rect.x + thickness.left * 0.5, rect.y + rect.h - thickness.bottom);
-        let left_top_off = Vec2::make(rect.x, rect.y + thickness.top * 0.5);
-        let right_top_off = Vec2::make(rect.x + rect.w, rect.y + thickness.top * 0.5);
-        let right_bottom_off = Vec2::make(rect.x + rect.w, rect.y + rect.h - thickness.bottom * 0.5);
-        let left_bottom_off = Vec2::make(rect.x, rect.y + rect.h - thickness.bottom * 0.5);
+        let left_top = Vec2::new(rect.x + thickness.left * 0.5, rect.y + thickness.top);
+        let right_top = Vec2::new(rect.x + rect.w - thickness.right * 0.5, rect.y + thickness.top);
+        let right_bottom = Vec2::new(rect.x + rect.w - thickness.right * 0.5, rect.y + rect.h - thickness.bottom);
+        let left_bottom = Vec2::new(rect.x + thickness.left * 0.5, rect.y + rect.h - thickness.bottom);
+        let left_top_off = Vec2::new(rect.x, rect.y + thickness.top * 0.5);
+        let right_top_off = Vec2::new(rect.x + rect.w, rect.y + thickness.top * 0.5);
+        let right_bottom_off = Vec2::new(rect.x + rect.w, rect.y + rect.h - thickness.bottom * 0.5);
+        let left_bottom_off = Vec2::new(rect.x, rect.y + rect.h - thickness.bottom * 0.5);
 
         // Horizontal lines
         self.push_line(left_top_off, right_top_off, thickness.top, color);
@@ -277,10 +284,10 @@ impl DrawingContext {
     }
 
     pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>, color: Color) {
-        self.push_vertex(Vec2::make(rect.x, rect.y), tex_coords.map_or(Vec2::make(0.0, 0.0), |t| t[0]), color);
-        self.push_vertex(Vec2::make(rect.x + rect.w, rect.y), tex_coords.map_or(Vec2::make(1.0, 0.0), |t| t[1]), color);
-        self.push_vertex(Vec2::make(rect.x + rect.w, rect.y + rect.h), tex_coords.map_or(Vec2::make(1.0, 1.0), |t| t[2]), color);
-        self.push_vertex(Vec2::make(rect.x, rect.y + rect.h), tex_coords.map_or(Vec2::make(0.0, 1.0), |t| t[3]), color);
+        self.push_vertex(Vec2::new(rect.x, rect.y), tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]), color);
+        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y), tex_coords.map_or(Vec2::new(1.0, 0.0), |t| t[1]), color);
+        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y + rect.h), tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]), color);
+        self.push_vertex(Vec2::new(rect.x, rect.y + rect.h), tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]), color);
 
         let index = self.get_index_origin();
         self.push_triangle(index, index + 1, index + 2);
@@ -319,7 +326,7 @@ impl DrawingContext {
     }
 
     pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) {
-        self.push_rect_filled(clip_rect, None, Color::black());
+        self.push_rect_filled(clip_rect, None, Color::BLACK);
         let index = self.command_buffer.len();
         self.commit(CommandKind::Clip, CommandTexture::None);
         self.clip_cmd_stack.push(index);

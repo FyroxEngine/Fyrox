@@ -129,8 +129,8 @@ impl SurfaceSharedData {
     }
 
     pub fn calculate_tangents(&mut self) {
-        let mut tan1 = vec![Vec3::new(); self.vertices.len()];
-        let mut tan2 = vec![Vec3::new(); self.vertices.len()];
+        let mut tan1 = vec![Vec3::ZERO; self.vertices.len()];
+        let mut tan2 = vec![Vec3::ZERO; self.vertices.len()];
 
         for i in (0..self.indices.len()).step_by(3) {
             let i1 = self.indices[i] as usize;
@@ -159,7 +159,7 @@ impl SurfaceSharedData {
 
             let r = 1.0 / (s1 * t2 - s2 * t1);
 
-            let sdir = Vec3::make(
+            let sdir = Vec3::new(
                 (t2 * x1 - t1 * x2) * r,
                 (t2 * y1 - t1 * y2) * r,
                 (t2 * z1 - t1 * z2) * r,
@@ -169,7 +169,7 @@ impl SurfaceSharedData {
             tan1[i2] += sdir;
             tan1[i3] += sdir;
 
-            let tdir = Vec3::make(
+            let tdir = Vec3::new(
                 (s1 * x2 - s2 * x1) * r,
                 (s1 * y2 - s2 * y1) * r,
                 (s1 * z2 - s2 * z1) * r,
@@ -184,7 +184,7 @@ impl SurfaceSharedData {
             let t = tan1[i];
 
             // Gram-Schmidt orthogonalize
-            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap_or(Vec3::make(0.0, 1.0, 0.0));
+            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
 
             self.vertices[i].tangent = Vec4 {
                 x: tangent.x,
@@ -296,7 +296,7 @@ impl SurfaceSharedData {
         self.insert_vertex(Vertex {
             position: *pos,
             tex_coord: tex,
-            normal: Vec3::make(0.0, 1.0, 0.0),
+            normal: Vec3::new(0.0, 1.0, 0.0),
             tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
             bone_weights: [0.0, 0.0, 0.0, 0.0],
             bone_indices: Default::default(),
@@ -345,15 +345,15 @@ impl SurfaceSharedData {
                 let k7 = r * (d_theta * ni as f32).cos();
 
                 if i != (stacks - 1) {
-                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k1, k4 * k2, k7), Vec2::make(d_tc_x * j as f32, d_tc_y * ni as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::new(k4 * k1, k4 * k2, k7), Vec2::new(d_tc_x * j as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32));
                 }
 
                 if i != 0 {
-                    data.insert_vertex_pos_tex(&Vec3::make(k4 * k5, k4 * k6, k7), Vec2::make(d_tc_x * nj as f32, d_tc_y * ni as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k5, k0 * k6, k3), Vec2::make(d_tc_x * nj as f32, d_tc_y * i as f32));
-                    data.insert_vertex_pos_tex(&Vec3::make(k0 * k1, k0 * k2, k3), Vec2::make(d_tc_x * j as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                    data.insert_vertex_pos_tex(&Vec3::new(k0 * k5, k0 * k6, k3), Vec2::new(d_tc_x * nj as f32, d_tc_y * i as f32));
+                    data.insert_vertex_pos_tex(&Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32));
                 }
             }
         }
@@ -645,6 +645,10 @@ impl VertexWeightSet {
         self.count
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
     pub fn iter(&self) -> std::slice::Iter<VertexWeight> {
         self.weights[0..self.count].iter()
     }
@@ -666,6 +670,24 @@ pub struct Surface {
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     pub vertex_weights: Vec<VertexWeightSet>,
     pub bones: Vec<Handle<Node>>,
+}
+
+/// Shallow copy of surface.
+///
+/// # Notes
+///
+/// Handles to bones must be remapped afterwards, so it is not advised
+/// to use this clone to clone surfaces.
+impl Clone for Surface {
+    fn clone(&self) -> Self {
+        Surface {
+            data: Arc::clone(&self.data),
+            diffuse_texture: self.diffuse_texture.clone(),
+            normal_texture: self.normal_texture.clone(),
+            bones: self.bones.clone(),
+            vertex_weights: Vec::new(),
+        }
+    }
 }
 
 impl Surface {
@@ -703,17 +725,5 @@ impl Surface {
     #[inline]
     pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.normal_texture = Some(tex);
-    }
-
-    #[inline]
-    pub fn make_copy(&self) -> Surface {
-        Surface {
-            data: Arc::clone(&self.data),
-            diffuse_texture: self.diffuse_texture.clone(),
-            normal_texture: self.normal_texture.clone(),
-            // Note: Handles will be remapped on Resolve stage.
-            bones: self.bones.clone(),
-            vertex_weights: Vec::new(),
-        }
     }
 }

@@ -34,7 +34,7 @@ impl Default for Canvas {
 
 impl Layout for Canvas {
     fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
-        let size_for_child = Vec2::make(
+        let size_for_child = Vec2::new(
             std::f32::INFINITY,
             std::f32::INFINITY,
         );
@@ -44,7 +44,7 @@ impl Layout for Canvas {
             ui.measure(*child_handle, size_for_child);
         }
 
-        Vec2::zero()
+        Vec2::ZERO
     }
 
     fn arrange_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, final_size: Vec2) -> Vec2 {

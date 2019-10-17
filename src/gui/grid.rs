@@ -134,7 +134,7 @@ impl Layout for Grid {
             return ui.default_measure_override(self_handle, available_size);
         }
 
-        let mut desired_size = Vec2::zero();
+        let mut desired_size = Vec2::ZERO;
         let node = ui.nodes.borrow(self_handle);
         // Step 1. Measure every children with relaxed constraints (size of grid).
         for child_handle in node.children.iter() {

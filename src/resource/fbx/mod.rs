@@ -97,7 +97,7 @@ impl FbxSubDeformer {
             return Err(String::from("invalid sub deformer, weights count does not match index count"));
         }
 
-        let mut transform = Mat4::identity();
+        let mut transform = Mat4::IDENTITY;
         for i in 0..16 {
             transform.f[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
         }
@@ -255,7 +255,7 @@ impl FbxAnimationCurveNode {
                 0.0
             };
 
-        Vec3::make(x, y, z)
+        Vec3::new(x, y, z)
     }
 }
 
@@ -498,7 +498,7 @@ impl FbxLight {
     pub fn read(light_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
         let mut light = Self {
             actual_type: FbxLightType::Point,
-            color: Color::white(),
+            color: Color::WHITE,
             radius: 10.0,
             cone_angle: std::f32::consts::PI,
         };
@@ -579,19 +579,19 @@ impl FbxModel {
 
         let mut model = FbxModel {
             name,
-            pre_rotation: Vec3::zero(),
-            post_rotation: Vec3::zero(),
-            rotation_offset: Vec3::zero(),
-            rotation_pivot: Vec3::zero(),
-            scaling_offset: Vec3::zero(),
-            scaling_pivot: Vec3::zero(),
-            rotation: Vec3::zero(),
-            scale: Vec3::unit(),
-            translation: Vec3::zero(),
-            geometric_translation: Vec3::zero(),
-            geometric_rotation: Vec3::zero(),
-            geometric_scale: Vec3::unit(),
-            inv_bind_transform: Mat4::identity(),
+            pre_rotation: Vec3::ZERO,
+            post_rotation: Vec3::ZERO,
+            rotation_offset: Vec3::ZERO,
+            rotation_pivot: Vec3::ZERO,
+            scaling_offset: Vec3::ZERO,
+            scaling_pivot: Vec3::ZERO,
+            rotation: Vec3::ZERO,
+            scale: Vec3::UNIT,
+            translation: Vec3::ZERO,
+            geometric_translation: Vec3::ZERO,
+            geometric_rotation: Vec3::ZERO,
+            geometric_scale: Vec3::UNIT,
+            inv_bind_transform: Mat4::IDENTITY,
             geoms: Vec::new(),
             materials: Vec::new(),
             animation_curve_nodes: Vec::new(),
@@ -629,11 +629,11 @@ enum FbxComponent {
     SubDeformer(FbxSubDeformer),
     Texture(FbxTexture),
     Light(FbxLight),
-    Model(FbxModel),
+    Model(Box<FbxModel>),
     Material(FbxMaterial),
     AnimationCurveNode(FbxAnimationCurveNode),
     AnimationCurve(FbxAnimationCurve),
-    Geometry(FbxGeometry),
+    Geometry(Box<FbxGeometry>),
 }
 
 impl FbxComponent {
@@ -809,7 +809,7 @@ fn string_to_reference(value: &str) -> FbxReference {
 /// Input angles in degrees
 fn quat_from_euler(euler: Vec3) -> Quat {
     Quat::from_euler(
-        Vec3::make(euler.x.to_radians(), euler.y.to_radians(), euler.z.to_radians()),
+        Vec3::new(euler.x.to_radians(), euler.y.to_radians(), euler.z.to_radians()),
         RotationOrder::XYZ)
 }
 
@@ -962,11 +962,11 @@ impl Fbx {
             match object.name.as_str() {
                 "Geometry" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Geometry(
-                        FbxGeometry::read(*object_handle, &self.nodes)?));
+                        Box::new(FbxGeometry::read(*object_handle, &self.nodes)?)));
                 }
                 "Model" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Model(
-                        FbxModel::read(*object_handle, &self.nodes)?));
+                        Box::new(FbxModel::read(*object_handle, &self.nodes)?)));
                 }
                 "Material" => {
                     component_handle = self.component_pool.spawn(FbxComponent::Material(

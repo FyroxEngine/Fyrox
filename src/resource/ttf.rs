@@ -542,7 +542,7 @@ impl TrueType {
                 pixels: Vec::new(),
                 advance: 0.0,
                 has_outline: false,
-                tex_coords: [Vec2::zero(); 4],
+                tex_coords: [Vec2::ZERO; 4],
             };
         }
 
@@ -565,7 +565,7 @@ impl TrueType {
             bitmap_left: f32::from(glyph.x_min) * scale,
             bitmap_top: f32::from(glyph.y_min) * scale,
             has_outline: glyph.has_outline,
-            tex_coords: [Vec2::zero(); 4],
+            tex_coords: [Vec2::ZERO; 4],
         }
     }
 

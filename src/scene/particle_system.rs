@@ -27,11 +27,11 @@ use rg3d_core::{
 use crate::{
     resource::texture::Texture,
     renderer::TriangleDefinition,
-    scene::{
-        node::CommonNodeData,
-        node::CommonNodeBuilderData,
-        node::NodeTrait
-    }
+    scene::node::{
+        CommonNodeData,
+        CommonNodeBuilderData,
+        NodeTrait,
+    },
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -105,7 +105,7 @@ impl Default for Particle {
             rotation_speed: 0.0,
             rotation: 0.0,
             emitter_index: 0,
-            color: Color::white(),
+            color: Color::WHITE,
             sqr_distance_to_camera: Cell::new(0.0),
         }
     }
@@ -164,7 +164,7 @@ impl Default for BoxEmitter {
 impl Emit for BoxEmitter {
     fn emit(&self, emitter: &Emitter, _: &ParticleSystem, particle: &mut Particle) {
         let mut rng = rand::thread_rng();
-        particle.position = Vec3::make(
+        particle.position = Vec3::new(
             emitter.position.x + rng.gen_range(-self.half_width, self.half_width),
             emitter.position.y + rng.gen_range(-self.half_height, self.half_height),
             emitter.position.z + rng.gen_range(-self.half_depth, self.half_depth),
@@ -234,7 +234,7 @@ impl Emit for SphereEmitter {
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
         let sin_phi = phi.sin();
-        particle.position = Vec3::make(
+        particle.position = Vec3::new(
             radius * sin_theta * cos_phi,
             radius * sin_theta * sin_phi,
             radius * cos_theta,
@@ -455,7 +455,7 @@ impl EmitterBuilder {
             y_velocity: None,
             z_velocity: None,
             rotation_speed: None,
-            rotation: None
+            rotation: None,
         }
     }
 
@@ -517,17 +517,17 @@ impl EmitterBuilder {
     pub fn build(self) -> Emitter {
         Emitter {
             kind: self.kind,
-            position: self.position.unwrap_or(Vec3::zero()),
+            position: self.position.unwrap_or(Vec3::ZERO),
             particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
-            max_particles: self.max_particles.map_or(ParticleLimit::Unlimited, |v| ParticleLimit::Strict(v)),
-            lifetime: self.lifetime.unwrap_or(NumericRange::new(5.0, 10.0)),
-            size: self.size.unwrap_or(NumericRange::new(0.125, 0.250)),
-            size_modifier: self.size_modifier.unwrap_or(NumericRange::new(0.0005, 0.0010)),
-            x_velocity: self.x_velocity.unwrap_or(NumericRange::new(-0.001, 0.001)),
-            y_velocity: self.y_velocity.unwrap_or(NumericRange::new(-0.001, 0.001)),
-            z_velocity: self.z_velocity.unwrap_or(NumericRange::new(-0.001, 0.001)),
-            rotation_speed: self.rotation_speed.unwrap_or(NumericRange::new(-0.02, 0.02)),
-            rotation: self.rotation.unwrap_or(NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI)),
+            max_particles: self.max_particles.map_or(ParticleLimit::Unlimited, ParticleLimit::Strict),
+            lifetime: self.lifetime.unwrap_or_else(|| NumericRange::new(5.0, 10.0)),
+            size: self.size.unwrap_or_else(|| NumericRange::new(0.125, 0.250)),
+            size_modifier: self.size_modifier.unwrap_or_else(|| NumericRange::new(0.0005, 0.0010)),
+            x_velocity: self.x_velocity.unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
+            y_velocity: self.y_velocity.unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
+            z_velocity: self.z_velocity.unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
+            rotation_speed: self.rotation_speed.unwrap_or_else(|| NumericRange::new(-0.02, 0.02)),
+            rotation: self.rotation.unwrap_or_else(|| NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI)),
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
@@ -553,10 +553,10 @@ impl Emitter {
     pub fn emit(&self, particle_system: &ParticleSystem, particle: &mut Particle) {
         particle.lifetime = 0.0;
         particle.initial_lifetime = self.lifetime.random();
-        particle.color = Color::white();
+        particle.color = Color::WHITE;
         particle.size = self.size.random();
         particle.size_modifier = self.size_modifier.random();
-        particle.velocity = Vec3::make(
+        particle.velocity = Vec3::new(
             self.x_velocity.random(),
             self.y_velocity.random(),
             self.z_velocity.random(),
@@ -622,7 +622,7 @@ impl Default for Emitter {
     fn default() -> Self {
         Self {
             kind: EmitterKind::Unknown,
-            position: Vec3::zero(),
+            position: Vec3::ZERO,
             particle_spawn_rate: 0,
             max_particles: ParticleLimit::Unlimited,
             lifetime: NumericRange::new(5.0, 10.0),
@@ -704,7 +704,7 @@ impl ParticleSystem {
                         let k = particle.lifetime / particle.initial_lifetime;
                         particle.color = color_over_lifetime.get_color(k);
                     } else {
-                        particle.color = Color::white();
+                        particle.color = Color::WHITE;
                     }
                 }
             }
@@ -744,7 +744,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::zero(),
+                tex_coord: Vec2::ZERO,
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -752,7 +752,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::make(1.0, 0.0),
+                tex_coord: Vec2::new(1.0, 0.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -760,7 +760,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::make(1.0, 1.0),
+                tex_coord: Vec2::new(1.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -768,7 +768,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::make(0.0, 1.0),
+                tex_coord: Vec2::new(0.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -834,6 +834,12 @@ pub struct ParticleSystemBuilder {
     color_over_lifetime: Option<ColorGradient>,
 }
 
+impl Default for ParticleSystemBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParticleSystemBuilder {
     pub fn new() -> Self {
         Self {
@@ -841,7 +847,7 @@ impl ParticleSystemBuilder {
             emitters: None,
             texture: None,
             acceleration: None,
-            color_over_lifetime: None
+            color_over_lifetime: None,
         }
     }
 
@@ -877,9 +883,9 @@ impl ParticleSystemBuilder {
             common: From::from(self.common),
             particles: Vec::new(),
             free_particles: Vec::new(),
-            emitters: self.emitters.unwrap_or(Vec::new()),
+            emitters: self.emitters.unwrap_or_default(),
             texture: self.texture.clone(),
-            acceleration: self.acceleration.unwrap_or(Vec3::make(0.0, -9.81, 0.0)),
+            acceleration: self.acceleration.unwrap_or_else(||Vec3::new(0.0, -9.81, 0.0)),
             color_over_lifetime: self.color_over_lifetime,
         }
     }

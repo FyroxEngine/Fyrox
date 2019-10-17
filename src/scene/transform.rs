@@ -54,16 +54,16 @@ impl Transform {
     pub fn identity() -> Self {
         Self {
             dirty: Cell::new(true),
-            local_position: Vec3::new(),
-            local_scale: Vec3::unit(),
-            local_rotation: Quat::new(),
-            pre_rotation: Quat::new(),
-            post_rotation: Quat::new(),
-            rotation_offset: Vec3::new(),
-            rotation_pivot: Vec3::new(),
-            scaling_offset: Vec3::new(),
-            scaling_pivot: Vec3::new(),
-            matrix: Cell::new(Mat4::identity()),
+            local_position: Vec3::ZERO,
+            local_scale: Vec3::UNIT,
+            local_rotation: Quat::IDENTITY,
+            pre_rotation: Quat::IDENTITY,
+            post_rotation: Quat::IDENTITY,
+            rotation_offset: Vec3::ZERO,
+            rotation_pivot: Vec3::ZERO,
+            scaling_offset: Vec3::ZERO,
+            scaling_pivot: Vec3::ZERO,
+            matrix: Cell::new(Mat4::IDENTITY),
         }
     }
 
@@ -176,7 +176,7 @@ impl Transform {
         let pre_rotation = Mat4::from_quat(self.pre_rotation);
         let post_rotation = Mat4::from_quat(self.post_rotation).inverse().unwrap_or_else(|_| {
             println!("Unable to inverse post rotation matrix! Fallback to identity matrix.");
-            Mat4::identity()
+            Mat4::IDENTITY
         });
         let rotation = Mat4::from_quat(self.local_rotation);
         let scale = Mat4::scale(self.local_scale);
@@ -185,13 +185,13 @@ impl Transform {
         let rotation_pivot = Mat4::translate(self.rotation_pivot);
         let rotation_pivot_inv = rotation_pivot.inverse().unwrap_or_else(|_| {
             println!("Unable to inverse rotation pivot matrix! Fallback to identity matrix.");
-            Mat4::identity()
+            Mat4::IDENTITY
         });
         let scale_offset = Mat4::translate(self.scaling_offset);
         let scale_pivot = Mat4::translate(self.scaling_pivot);
         let scale_pivot_inv = scale_pivot.inverse().unwrap_or_else(|_| {
             println!("Unable to inverse scale pivot matrix! Fallback to identity matrix.");
-            Mat4::identity()
+            Mat4::IDENTITY
         });
 
         translation * rotation_offset * rotation_pivot * pre_rotation * rotation * post_rotation *
@@ -217,6 +217,12 @@ pub struct TransformBuilder {
     rotation_pivot: Option<Vec3>,
     scaling_offset: Option<Vec3>,
     scaling_pivot: Option<Vec3>,
+}
+
+impl Default for TransformBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TransformBuilder {
@@ -282,16 +288,16 @@ impl TransformBuilder {
     pub fn build(self) -> Transform {
         Transform {
             dirty: Cell::new(true),
-            local_scale: self.local_scale.unwrap_or(Vec3::unit()),
-            local_position: self.local_position.unwrap_or(Vec3::zero()),
-            local_rotation: self.local_rotation.unwrap_or(Quat::new()),
-            pre_rotation: self.pre_rotation.unwrap_or(Quat::new()),
-            post_rotation: self.post_rotation.unwrap_or(Quat::new()),
-            rotation_offset: self.rotation_offset.unwrap_or(Vec3::zero()),
-            rotation_pivot: self.rotation_pivot.unwrap_or(Vec3::zero()),
-            scaling_offset: self.scaling_offset.unwrap_or(Vec3::zero()),
-            scaling_pivot: self.scaling_pivot.unwrap_or(Vec3::zero()),
-            matrix: Cell::new(Mat4::identity())
+            local_scale: self.local_scale.unwrap_or(Vec3::UNIT),
+            local_position: self.local_position.unwrap_or(Vec3::ZERO),
+            local_rotation: self.local_rotation.unwrap_or(Quat::IDENTITY),
+            pre_rotation: self.pre_rotation.unwrap_or(Quat::IDENTITY),
+            post_rotation: self.post_rotation.unwrap_or(Quat::IDENTITY),
+            rotation_offset: self.rotation_offset.unwrap_or(Vec3::ZERO),
+            rotation_pivot: self.rotation_pivot.unwrap_or(Vec3::ZERO),
+            scaling_offset: self.scaling_offset.unwrap_or(Vec3::ZERO),
+            scaling_pivot: self.scaling_pivot.unwrap_or(Vec3::ZERO),
+            matrix: Cell::new(Mat4::IDENTITY)
         }
     }
 }

@@ -33,6 +33,12 @@ pub struct ButtonBuilder {
     common: CommonBuilderFields,
 }
 
+impl Default for ButtonBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ButtonBuilder {
     pub fn new() -> Self {
         Self {

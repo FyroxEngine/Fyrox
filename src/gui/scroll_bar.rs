@@ -37,7 +37,7 @@ impl ScrollBar {
     pub fn set_value(&mut self, value: f32) {
         let old_value = self.value;
         let new_value = math::clampf(value, self.min, self.max);
-        if new_value != old_value {
+        if (new_value - old_value).abs() > std::f32::EPSILON {
             self.value = new_value;
             self.events.push_back(
                 UIEvent::new(UIEventKind::NumericValueChanged {
@@ -54,7 +54,7 @@ impl ScrollBar {
         }
         let old_value = self.value;
         let clamped_new_value = math::clampf(self.value, self.min, self.max);
-        if clamped_new_value != old_value {
+        if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
             self.set_value(clamped_new_value);
         }
     }
@@ -66,7 +66,7 @@ impl ScrollBar {
         }
         let old_value = self.value;
         let clamped_new_value = math::clampf(self.value, self.min, self.max);
-        if clamped_new_value != old_value {
+        if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
             self.set_value(clamped_new_value);
         }
     }
@@ -88,14 +88,14 @@ impl Layout for ScrollBar {
         let node = ui.borrow_by_name_down(self_handle, Self::PART_INDICATOR);
         match self.orientation {
             Orientation::Horizontal => {
-                node.set_desired_local_position(Vec2::make(
+                node.set_desired_local_position(Vec2::new(
                     percent * maxf(0.0, field_size.x - node.actual_size.get().x),
                     0.0)
                 );
                 node.height.set(field_size.y);
             }
             Orientation::Vertical => {
-                node.set_desired_local_position(Vec2::make(
+                node.set_desired_local_position(Vec2::new(
                     0.0,
                     percent * maxf(0.0, field_size.y - node.actual_size.get().y))
                 );
@@ -218,7 +218,7 @@ impl ScrollBarBuilder {
             step: self.step.unwrap_or(1.0),
             orientation,
             is_dragging: false,
-            offset: Vec2::zero(),
+            offset: Vec2::ZERO,
             increase,
             decrease,
             events: VecDeque::new(),
@@ -332,18 +332,15 @@ impl ScrollBarBuilder {
                 .build(ui)
             )
             .with_event_handler(Box::new(move |ui, handle, event| {
-                match event.kind {
-                    UIEventKind::Click => {
-                        let node = ui.nodes.borrow_mut(handle);
-                        if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
-                            if event.source == scroll_bar.increase {
-                                scroll_bar.set_value(scroll_bar.value + scroll_bar.step);
-                            } else if event.source == scroll_bar.decrease {
-                                scroll_bar.set_value(scroll_bar.value - scroll_bar.step);
-                            }
+                if let UIEventKind::Click = event.kind {
+                    let node = ui.nodes.borrow_mut(handle);
+                    if let UINodeKind::ScrollBar(scroll_bar) = node.get_kind_mut() {
+                        if event.source == scroll_bar.increase {
+                            scroll_bar.set_value(scroll_bar.value + scroll_bar.step);
+                        } else if event.source == scroll_bar.decrease {
+                            scroll_bar.set_value(scroll_bar.value - scroll_bar.step);
                         }
                     }
-                    _ => ()
                 }
             }))
             .build(ui)

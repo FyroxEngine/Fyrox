@@ -205,7 +205,7 @@ impl Renderer {
         let frame_height = self.frame_size.1 as f32;
         let frame_matrix =
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
-                Mat4::scale(Vec3::make(frame_width, frame_height, 0.0));
+                Mat4::scale(Vec3::new(frame_width, frame_height, 0.0));
 
         unsafe {
             // Render scenes into g-buffer.

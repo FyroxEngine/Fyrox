@@ -84,7 +84,7 @@ impl ParticleSystemShader {
     }
 
     pub fn set_proj_params(&self, far: f32, near: f32) {
-        let params = Vec2::make(far, near);
+        let params = Vec2::new(far, near);
         self.program.set_vec2(self.proj_params, params);
     }
 }
@@ -176,7 +176,7 @@ impl ParticleSystemRenderer {
                 self.shader.set_camera_up_vector(&camera_up);
                 self.shader.set_camera_side_vector(&camera_side);
                 self.shader.set_depth_buffer_texture(1);
-                self.shader.set_inv_screen_size(Vec2::make(1.0 / frame_width, 1.0 / frame_height));
+                self.shader.set_inv_screen_size(Vec2::new(1.0 / frame_width, 1.0 / frame_height));
                 self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
 
                 self.geometry_buffer.draw();

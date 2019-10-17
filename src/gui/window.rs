@@ -74,8 +74,8 @@ impl<'a> WindowBuilder<'a> {
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let window = Window {
-            mouse_click_pos: Vec2::zero(),
-            initial_position: Vec2::zero(),
+            mouse_click_pos: Vec2::ZERO,
+            initial_position: Vec2::ZERO,
             is_dragged: false,
         };
 

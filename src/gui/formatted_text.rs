@@ -142,7 +142,7 @@ impl FormattedText {
             VerticalAlignment::Stretch => 0.0
         };
 
-        let mut cursor = Vec2::make(size.x, cursor_y_start);
+        let mut cursor = Vec2::new(size.x, cursor_y_start);
         for line in self.lines.iter() {
             cursor.x = line.x_offset;
 
@@ -178,7 +178,7 @@ impl FormattedText {
                         };
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
-                            tex_coords: [Vec2::zero(); 4],
+                            tex_coords: [Vec2::ZERO; 4],
                             color,
                         });
                         cursor.x += rect.w;
@@ -208,8 +208,8 @@ impl<'a> FormattedTextBuilder<'a> {
             formatted_text: FormattedText::new(font),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
-            color: Color::white(),
-            size: Vec2::make(128.0, 128.0),
+            color: Color::WHITE,
+            size: Vec2::new(128.0, 128.0),
         }
     }
 
@@ -229,8 +229,8 @@ impl<'a> FormattedTextBuilder<'a> {
             },
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
-            color: Color::white(),
-            size: Vec2::make(128.0, 128.0),
+            color: Color::WHITE,
+            size: Vec2::new(128.0, 128.0),
         }
     }
 
