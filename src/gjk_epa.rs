@@ -236,10 +236,10 @@ pub fn gjk_is_intersects(shape1: &ConvexShape, shape1_position: Vec3, shape2: &C
     // Origin is on this line segment - fix search direction.
     if search_dir.sqr_len() == 0.0 {
         // Perpendicular with x-axis
-        search_dir = cb.cross(&Vec3::make(1.0, 0.0, 0.0));
+        search_dir = cb.cross(&Vec3::new(1.0, 0.0, 0.0));
         if search_dir.sqr_len() == 0.0 {
             // Perpendicular with z-axis
-            search_dir = cb.cross(&Vec3::make(0.0, 0.0, -1.0));
+            search_dir = cb.cross(&Vec3::new(0.0, 0.0, -1.0));
         }
     }
 
@@ -498,7 +498,7 @@ pub fn epa_get_penetration_info(simplex: Simplex, shape1: &ConvexShape, shape1_p
             let edge_vector = loose_edge.begin.minkowski_dif - loose_edge.end.minkowski_dif;
             let begin_to_point = loose_edge.begin.minkowski_dif - new_point.minkowski_dif;
 
-            new_triangle.normal = edge_vector.cross(&begin_to_point).normalized().unwrap_or(Vec3::up());
+            new_triangle.normal = edge_vector.cross(&begin_to_point).normalized().unwrap_or(Vec3::UP);
 
             // Check for wrong normal to maintain CCW winding
             let bias = 2.0 * std::f32::EPSILON;

@@ -42,7 +42,7 @@ impl SphereShape {
     }
 
     pub fn get_farthest_point(&self, direction: Vec3) -> Vec3 {
-        let norm_dir = direction.normalized().unwrap_or(Vec3::make(1.0, 0.0, 0.0));
+        let norm_dir = direction.normalized().unwrap_or_else(|| Vec3::new(1.0, 0.0, 0.0));
         norm_dir.scale(self.radius)
     }
 }
@@ -68,9 +68,9 @@ impl Default for TriangleShape {
     fn default() -> Self {
         Self {
             vertices: [
-                Vec3::make(0.0, 0.0, 0.0),
-                Vec3::make(1.0, 0.0, 0.0),
-                Vec3::make(0.5, 1.0, 0.0)]
+                Vec3::new(0.0, 0.0, 0.0),
+                Vec3::new(1.0, 0.0, 0.0),
+                Vec3::new(0.5, 1.0, 0.0)]
         }
     }
 }
@@ -109,7 +109,7 @@ impl Visit for BoxShape {
 impl Default for BoxShape {
     fn default() -> Self {
         Self {
-            half_extents: Vec3::make(0.5, 0.5, 0.5)
+            half_extents: Vec3::new(0.5, 0.5, 0.5)
         }
     }
 }
@@ -271,32 +271,32 @@ impl CapsuleShape {
 
         match self.axis {
             Axis::X => {
-                (Vec3::make(half_height, 0.0, 0.0),
-                 Vec3::make(-half_height, 0.0, 0.0))
+                (Vec3::new(half_height, 0.0, 0.0),
+                 Vec3::new(-half_height, 0.0, 0.0))
             }
             Axis::Y => {
-                (Vec3::make(0.0, half_height, 0.0),
-                 Vec3::make(0.0, -half_height, 0.0))
+                (Vec3::new(0.0, half_height, 0.0),
+                 Vec3::new(0.0, -half_height, 0.0))
             }
             Axis::Z => {
-                (Vec3::make(0.0, 0.0, half_height),
-                 Vec3::make(0.0, 0.0, -half_height))
+                (Vec3::new(0.0, 0.0, half_height),
+                 Vec3::new(0.0, 0.0, -half_height))
             }
         }
     }
 
     pub fn get_farthest_point(&self, direction: Vec3) -> Vec3 {
-        let norm_dir = direction.normalized().unwrap_or(Vec3::make(1.0, 0.0, 0.0));
+        let norm_dir = direction.normalized().unwrap_or_else(|| Vec3::new(1.0, 0.0, 0.0));
         let half_height = self.height * 0.5;
 
         let positive_cap_position = match self.axis {
-            Axis::X => Vec3::make(half_height, 0.0, 0.0),
-            Axis::Y => Vec3::make(0.0, half_height, 0.0),
-            Axis::Z => Vec3::make(0.0, 0.0, half_height),
+            Axis::X => Vec3::new(half_height, 0.0, 0.0),
+            Axis::Y => Vec3::new(0.0, half_height, 0.0),
+            Axis::Z => Vec3::new(0.0, 0.0, half_height),
         };
 
         let mut max = -std::f32::MAX;
-        let mut farthest = Vec3::zero();
+        let mut farthest = Vec3::ZERO;
         for cap_center in [positive_cap_position, -positive_cap_position].iter() {
             let vertex = *cap_center + norm_dir.scale(self.radius);
             let dot = norm_dir.dot(&vertex);
@@ -351,7 +351,7 @@ macro_rules! define_is_as {
 impl ConvexShape {
     pub fn get_farthest_point(&self, position: Vec3, direction: Vec3) -> Vec3 {
         position + match self {
-            ConvexShape::Dummy => Vec3::zero(),
+            ConvexShape::Dummy => Vec3::ZERO,
             ConvexShape::Box(box_shape) => box_shape.get_farthest_point(direction),
             ConvexShape::Sphere(sphere) => sphere.get_farthest_point(direction),
             ConvexShape::Capsule(capsule) => capsule.get_farthest_point(direction),

@@ -54,11 +54,11 @@ impl Visit for RigidBody {
 impl RigidBody {
     pub fn new(shape: ConvexShape) -> RigidBody {
         RigidBody {
-            position: Vec3::zero(),
-            last_position: Vec3::zero(),
-            acceleration: Vec3::zero(),
+            position: Vec3::ZERO,
+            last_position: Vec3::ZERO,
+            acceleration: Vec3::ZERO,
             friction: 0.2,
-            gravity: Vec3::make(0.0, -9.81, 0.0),
+            gravity: Vec3::new(0.0, -9.81, 0.0),
             shape,
             contacts: Vec::new(),
             speed_limit: 0.75,
@@ -77,7 +77,7 @@ impl RigidBody {
             gravity: self.gravity,
             shape: self.shape.clone(),
             speed_limit: self.speed_limit,
-            lifetime: self.lifetime.clone(),
+            lifetime: self.lifetime,
         }
     }
 
@@ -165,7 +165,7 @@ impl RigidBody {
 
     #[inline]
     pub fn get_lifetime(&self) -> Option<f32> {
-        self.lifetime.clone()
+        self.lifetime
     }
 
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
@@ -190,7 +190,7 @@ impl RigidBody {
 
         self.last_position = last_position;
 
-        self.acceleration = Vec3::zero();
+        self.acceleration = Vec3::ZERO;
 
         let velocity = self.last_position - self.position;
         let sqr_speed = velocity.sqr_len();
@@ -206,14 +206,14 @@ impl RigidBody {
             vertices: triangle.points
         });
 
-        if let Some(simplex) = gjk_epa::gjk_is_intersects(&self.shape, self.position, &triangle_shape, Vec3::zero()) {
-            if let Some(penetration_info) = gjk_epa::epa_get_penetration_info(simplex, &self.shape, self.position, &triangle_shape, Vec3::zero()) {
+        if let Some(simplex) = gjk_epa::gjk_is_intersects(&self.shape, self.position, &triangle_shape, Vec3::ZERO) {
+            if let Some(penetration_info) = gjk_epa::epa_get_penetration_info(simplex, &self.shape, self.position, &triangle_shape, Vec3::ZERO) {
                 self.position -= penetration_info.penetration_vector;
 
                 self.contacts.push(Contact {
                     body: Handle::NONE,
                     position: penetration_info.contact_point,
-                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
+                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::ZERO),
                     triangle_index: triangle_index as u32,
                 })
             }
@@ -229,7 +229,7 @@ impl RigidBody {
                     body: Handle::NONE,
                     position: penetration_info.contact_point,
                     // TODO: WRONG NORMAL
-                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
+                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::UP),
                     triangle_index: 0,
                 });
 
@@ -238,7 +238,7 @@ impl RigidBody {
                     body: Handle::NONE,
                     position: penetration_info.contact_point,
                     // TODO: WRONG NORMAL
-                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::up()),
+                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::UP),
                     triangle_index: 0,
                 })
             }

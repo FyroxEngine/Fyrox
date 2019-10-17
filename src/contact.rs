@@ -16,8 +16,8 @@ impl Default for Contact {
     fn default() -> Self {
         Self {
             body: Handle::NONE,
-            position: Vec3::new(),
-            normal: Vec3::make(0.0, 1.0, 0.0),
+            position: Vec3::ZERO,
+            normal: Vec3::new(0.0, 1.0, 0.0),
             triangle_index: 0,
         }
     }
