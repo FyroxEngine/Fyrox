@@ -80,7 +80,7 @@ impl Default for SpatialSource {
     fn default() -> Self {
         Self {
             radius: 10.0,
-            position: Vec3::zero(),
+            position: Vec3::ZERO,
         }
     }
 }

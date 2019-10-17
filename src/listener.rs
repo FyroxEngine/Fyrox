@@ -16,10 +16,10 @@ pub struct Listener {
 impl Listener {
     pub(in crate) fn new() -> Self {
         Self {
-            position: Vec3::zero(),
-            look_axis: Vec3::make(0.0, 0.0, 1.0),
-            up_axis: Vec3::make(0.0, 1.0, 0.0),
-            ear_axis: Vec3::make(1.0, 0.0, 0.0)
+            position: Vec3::ZERO,
+            look_axis: Vec3::new(0.0, 0.0, 1.0),
+            up_axis: Vec3::new(0.0, 1.0, 0.0),
+            ear_axis: Vec3::new(1.0, 0.0, 0.0)
         }
     }
 
