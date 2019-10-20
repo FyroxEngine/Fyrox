@@ -1,28 +1,27 @@
 use rg3d_core::{
-    color::Color, pool::Handle,
-    math::{Rect, vec2::Vec2},
+    pool::Handle,
+    math::{vec2::Vec2},
 };
 use std::{cell::RefCell, rc::Rc};
 use crate::{
     gui::{
-        event::UIEvent,
-        builder::CommonBuilderFields,
         VerticalAlignment,
         HorizontalAlignment,
-        Drawable,
+        Draw,
         draw::DrawingContext,
         node::{
             UINode,
-            UINodeKind,
         },
         UserInterface,
         formatted_text::{FormattedText, FormattedTextBuilder},
-        EventSource,
+        widget::{Widget, WidgetBuilder, AsWidget},
+        Layout
     },
     resource::ttf::Font,
 };
 
 pub struct Text {
+    widget: Widget,
     need_update: bool,
     text: String,
     font: Rc<RefCell<Font>>,
@@ -31,13 +30,34 @@ pub struct Text {
     formatted_text: Option<FormattedText>,
 }
 
-impl Drawable for Text {
-    fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color) {
+impl AsWidget for Text {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+}
+
+impl Layout for Text {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+        self.widget.measure_override(ui, available_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        self.widget.arrange_override(ui, final_size)
+    }
+}
+
+impl Draw for Text {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        let bounds = self.widget.get_screen_bounds();
         if self.need_update {
             let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
                 .with_size(Vec2::new(bounds.w, bounds.h))
                 .with_text(self.text.as_str())
-                .with_color(color)
+                .with_color(self.widget.color)
                 .with_horizontal_alignment(self.horizontal_alignment)
                 .with_vertical_alignment(self.vertical_alignment)
                 .build();
@@ -49,17 +69,6 @@ impl Drawable for Text {
 }
 
 impl Text {
-    pub fn new(font: Rc<RefCell<Font>>) -> Text {
-        Text {
-            text: String::new(),
-            need_update: true,
-            vertical_alignment: VerticalAlignment::Top,
-            horizontal_alignment: HorizontalAlignment::Left,
-            formatted_text: Some(FormattedTextBuilder::new(font.clone()).build()),
-            font,
-        }
-    }
-
     pub fn set_text(&mut self, text: &str) -> &mut Self {
         self.text.clear();
         self.text += text;
@@ -88,34 +97,24 @@ impl Text {
     }
 }
 
-
 pub struct TextBuilder {
+    widget_builder: WidgetBuilder,
     text: Option<String>,
     font: Option<Rc<RefCell<Font>>>,
-    common: CommonBuilderFields,
     vertical_text_alignment: Option<VerticalAlignment>,
     horizontal_text_alignment: Option<HorizontalAlignment>,
 }
 
-
-impl Default for TextBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TextBuilder {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
+            widget_builder,
             text: None,
             font: None,
             vertical_text_alignment: None,
             horizontal_text_alignment: None,
-            common: CommonBuilderFields::new(),
         }
     }
-
-    impl_default_builder_methods!();
 
     pub fn with_text(mut self, text: &str) -> Self {
         self.text = Some(text.to_owned());
@@ -127,27 +126,6 @@ impl TextBuilder {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut text = Text::new(if let Some(font) = self.font {
-            font
-        } else {
-            ui.default_font.clone()
-        });
-
-        if let Some(txt) = self.text {
-            text.set_text(txt.as_str());
-        }
-        if let Some(valign) = self.vertical_text_alignment {
-            text.set_vertical_alignment(valign);
-        }
-        if let Some(halign) = self.horizontal_text_alignment {
-            text.set_horizontal_alignment(halign);
-        }
-        let handle = ui.add_node(UINode::new(UINodeKind::Text(text)));
-        self.common.apply(ui, handle);
-        handle
-    }
-
     pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_text_alignment = Some(valign);
         self
@@ -157,10 +135,22 @@ impl TextBuilder {
         self.horizontal_text_alignment = Some(halign);
         self
     }
-}
 
-impl EventSource for Text {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        None
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        let font =   if let Some(font) = self.font {
+            font
+        } else {
+            ui.default_font.clone()
+        };
+
+        ui.add_node(UINode::Text(Text {
+            widget: self.widget_builder.build(),
+            text: self.text.unwrap_or_default(),
+            need_update: true,
+            vertical_alignment: self.vertical_text_alignment.unwrap_or(VerticalAlignment::Top),
+            horizontal_alignment: self.horizontal_text_alignment.unwrap_or(HorizontalAlignment::Left),
+            formatted_text: Some(FormattedTextBuilder::new(font.clone()).build()),
+            font
+        }))
     }
 }

@@ -1,15 +1,3 @@
-use crate::gui::{
-    EventSource,
-    Layout,
-    UserInterface,
-    node::{UINode, UINodeKind},
-    builder::{
-        CommonBuilderFields,
-        GenericNodeBuilder,
-    },
-    event::UIEvent,
-};
-
 use rg3d_core::{
     pool::Handle,
     math::{
@@ -17,12 +5,40 @@ use rg3d_core::{
         Rect,
     },
 };
+use crate::gui::{
+    node::UINode,
+    widget::{
+        Widget,
+        WidgetBuilder,
+        AsWidget,
+    },
+    Layout,
+    UserInterface,
+    Draw,
+    draw::DrawingContext,
+};
 
-pub struct Canvas {}
+
+/// Allows user to directly set position and size of a node
+pub struct Canvas {
+    widget: Widget,
+}
+
+impl AsWidget for Canvas {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+}
 
 impl Canvas {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            widget: Default::default()
+        }
     }
 }
 
@@ -33,24 +49,22 @@ impl Default for Canvas {
 }
 
 impl Layout for Canvas {
-    fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::new(
             std::f32::INFINITY,
             std::f32::INFINITY,
         );
 
-        let node = ui.nodes.borrow(self_handle);
-        for child_handle in node.children.iter() {
+        for child_handle in self.widget.children.iter() {
             ui.measure(*child_handle, size_for_child);
         }
 
         Vec2::ZERO
     }
 
-    fn arrange_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        let node = ui.nodes.borrow(self_handle);
-        for child_handle in node.children.iter() {
-            let child = ui.nodes.borrow(*child_handle);
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        for child_handle in self.widget.children.iter() {
+            let child = ui.nodes.borrow(*child_handle).widget();
             let final_rect = Some(Rect::new(
                 child.desired_local_position.get().x,
                 child.desired_local_position.get().y,
@@ -67,32 +81,26 @@ impl Layout for Canvas {
     }
 }
 
-pub struct CanvasBuilder {
-    common: CommonBuilderFields
+impl Draw for Canvas {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context)
+    }
 }
 
-impl Default for CanvasBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct CanvasBuilder {
+    widget_builder: WidgetBuilder,
 }
 
 impl CanvasBuilder {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
-            common: CommonBuilderFields::new()
+            widget_builder,
         }
     }
 
-    impl_default_builder_methods!();
-
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        GenericNodeBuilder::new(UINodeKind::Canvas(Canvas::new()), self.common).build(ui)
-    }
-}
-
-impl EventSource for Canvas {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        None
+        ui.add_node(UINode::Canvas(Canvas {
+            widget: self.widget_builder.build()
+        }))
     }
 }

@@ -1,5 +1,3 @@
-use crate::gui::{draw::{CommandKind, DrawingContext}, Thickness, UserInterface, Layout, Drawable, node::{UINode, UINodeKind}, builder::CommonBuilderFields, EventSource};
-
 use rg3d_core::{
     color::Color,
     pool::Handle,
@@ -8,37 +6,51 @@ use rg3d_core::{
         Rect,
     },
 };
-use crate::gui::draw::CommandTexture;
-use crate::gui::event::UIEvent;
+use crate::gui::{
+    draw::{CommandKind, DrawingContext},
+    Thickness,
+    UserInterface,
+    Layout,
+    Draw,
+    node::UINode,
+    widget::{
+        Widget,
+        WidgetBuilder,
+        AsWidget
+    },
+    draw::CommandTexture,
+};
 
-#[derive(Debug)]
 pub struct Border {
+    widget: Widget,
     stroke_thickness: Thickness,
     stroke_color: Color,
 }
 
-pub struct BorderBuilder {
-    stroke_thickness: Option<Thickness>,
-    stroke_color: Option<Color>,
-    common: CommonBuilderFields,
+impl AsWidget for Border {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
 }
 
-impl Default for BorderBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct BorderBuilder {
+    widget_builder: WidgetBuilder,
+    stroke_thickness: Option<Thickness>,
+    stroke_color: Option<Color>,
 }
 
 impl BorderBuilder {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
+            widget_builder,
             stroke_color: None,
             stroke_thickness: None,
-            common: CommonBuilderFields::new(),
         }
     }
-
-    impl_default_builder_methods!();
 
     pub fn with_stroke_thickness(mut self, stroke_thickness: Thickness) -> Self {
         self.stroke_thickness = Some(stroke_thickness);
@@ -50,39 +62,26 @@ impl BorderBuilder {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut border = Border {
-            stroke_thickness: Thickness {
-                left: 1.0,
-                right: 1.0,
-                top: 1.0,
-                bottom: 1.0,
-            },
-            stroke_color: Color::WHITE,
-        };
-
-        if let Some(stroke_color) = self.stroke_color {
-            border.stroke_color = stroke_color;
-        }
-        if let Some(stroke_thickness) = self.stroke_thickness {
-            border.stroke_thickness = stroke_thickness;
-        }
-        let handle = ui.add_node(UINode::new(UINodeKind::Border(border)));
-        self.common.apply(ui, handle);
-        handle
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        ui.add_node(UINode::Border(Border {
+            widget: self.widget_builder.build(),
+            stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
+            stroke_color: self.stroke_color.unwrap_or(Color::WHITE),
+        }))
     }
 }
 
-impl Drawable for Border {
-    fn draw(&mut self, drawing_context: &mut DrawingContext, bounds: &Rect<f32>, color: Color) {
-        drawing_context.push_rect_filled(&bounds, None, color);
+impl Draw for Border {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        let bounds= self.widget.get_screen_bounds();
+        drawing_context.push_rect_filled(&bounds, None, self.widget.color);
         drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.stroke_color);
         drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
     }
 }
 
 impl Layout for Border {
-    fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
@@ -92,10 +91,9 @@ impl Layout for Border {
         );
         let mut desired_size = Vec2::ZERO;
 
-        let node = ui.nodes.borrow(self_handle);
-        for child_handle in node.children.iter() {
+        for child_handle in self.widget.children.iter() {
             ui.measure(*child_handle, size_for_child);
-            let child = ui.nodes.borrow(*child_handle);
+            let child = ui.nodes.borrow(*child_handle).widget();
             let child_desired_size = child.desired_size.get();
             if child_desired_size.x > desired_size.x {
                 desired_size.x = child_desired_size.x;
@@ -111,15 +109,14 @@ impl Layout for Border {
         desired_size
     }
 
-    fn arrange_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let rect_for_child = Rect::new(
             self.stroke_thickness.left, self.stroke_thickness.top,
             final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
             final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
         );
 
-        let node = ui.nodes.borrow(self_handle);
-        for child_handle in node.children.iter() {
+        for child_handle in self.widget.children.iter() {
             ui.arrange(*child_handle, &rect_for_child);
         }
 
@@ -136,11 +133,5 @@ impl Border {
     pub fn set_stroke_color(&mut self, color: Color) -> &mut Self {
         self.stroke_color = color;
         self
-    }
-}
-
-impl EventSource for Border {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        None
     }
 }

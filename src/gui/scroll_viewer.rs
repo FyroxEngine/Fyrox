@@ -1,82 +1,78 @@
 use crate::gui::{
     UserInterface, maxf,
-    builder::{GenericNodeBuilder, CommonBuilderFields},
-    node::{UINodeKind, UINode},
+    node::UINode,
     scroll_content_presenter::ScrollContentPresenterBuilder,
     scroll_bar::{ScrollBarBuilder, Orientation},
     grid::{Row, GridBuilder, Column},
-    event::UIEventKind, EventSource, event::UIEvent,
+    event::UIEventKind, Layout, widget::{Widget, WidgetBuilder, AsWidget},
+    Draw, draw::DrawingContext,
+    Visibility,
 };
 use rg3d_core::{
     pool::Handle,
     math::vec2::Vec2,
 };
+use crate::gui::event::UIEvent;
 
 pub struct ScrollViewer {
+    widget: Widget,
     content: Handle<UINode>,
     content_presenter: Handle<UINode>,
     v_scroll_bar: Handle<UINode>,
     h_scroll_bar: Handle<UINode>,
 }
 
-impl ScrollViewer {
-    pub fn update(handle: Handle<UINode>, ui: &mut UserInterface) {
-        let mut content_size = Vec2::ZERO;
-        let mut available_size_for_content = Vec2::ZERO;
-        let mut horizontal_scroll_bar_handle = Handle::NONE;
-        let mut vertical_scroll_bar_handle = Handle::NONE;
+impl AsWidget for ScrollViewer {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
 
-        {
-            let node = ui.nodes.borrow(handle);
-            if let UINodeKind::ScrollViewer(scroll_viewer) = node.get_kind() {
-                horizontal_scroll_bar_handle = scroll_viewer.h_scroll_bar;
-                vertical_scroll_bar_handle = scroll_viewer.v_scroll_bar;
-                let content_presenter = ui.nodes.borrow(scroll_viewer.content_presenter);
-                available_size_for_content = content_presenter.desired_size.get();
-                for content_handle in content_presenter.children.iter() {
-                    let content = ui.nodes.borrow(*content_handle);
-                    let content_desired_size = content.desired_size.get();
-                    if content_desired_size.x > content_size.x {
-                        content_size.x = content_desired_size.x;
-                    }
-                    if content_desired_size.y > content_size.y {
-                        content_size.y = content_desired_size.y;
-                    }
-                }
-            }
-        }
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+}
 
-        // Then adjust scroll bars according to content size.
-        if let UINodeKind::ScrollBar(h_scroll_bar) = ui.nodes.borrow_mut(horizontal_scroll_bar_handle).get_kind_mut() {
-            h_scroll_bar.set_max_value(maxf(0.0, content_size.x - available_size_for_content.x));
-        }
+impl Layout for ScrollViewer {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+        self.widget.measure_override(ui, available_size)
+    }
 
-        if let UINodeKind::ScrollBar(v_scroll_bar) = ui.nodes.borrow_mut(vertical_scroll_bar_handle).get_kind_mut() {
-            v_scroll_bar.set_max_value(maxf(0.0, content_size.y - available_size_for_content.y));
-        }
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        let size = self.widget.arrange_override(ui, final_size);
+
+        let content_size = ui.get_node(self.content).widget().desired_size.get();
+        let available_size_for_content = ui.get_node(self.content_presenter).widget().desired_size.get();
+
+        let x_max = maxf(0.0, content_size.x - available_size_for_content.x);
+        self.widget.events.borrow_mut()
+            .push_back(UIEvent::targeted(self.h_scroll_bar, UIEventKind::MaxValueChanged(x_max)));
+
+        let y_max = maxf(0.0, content_size.y - available_size_for_content.y);
+        self.widget.events.borrow_mut()
+            .push_back(UIEvent::targeted(self.v_scroll_bar, UIEventKind::MaxValueChanged(y_max)));
+
+        size
+    }
+}
+
+impl Draw for ScrollViewer {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context)
     }
 }
 
 pub struct ScrollViewerBuilder {
-    common: CommonBuilderFields,
+    widget_builder: WidgetBuilder,
     content: Handle<UINode>,
 }
 
-impl Default for ScrollViewerBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ScrollViewerBuilder {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
-            common: CommonBuilderFields::new(),
+            widget_builder,
             content: Handle::NONE,
         }
     }
-
-    impl_default_builder_methods!();
 
     pub fn with_content(mut self, content: Handle<UINode>) -> Self {
         self.content = content;
@@ -84,59 +80,85 @@ impl ScrollViewerBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let content_presenter = ScrollContentPresenterBuilder::new()
+        let content_presenter = ScrollContentPresenterBuilder::new(WidgetBuilder::new()
             .with_child(self.content)
             .on_row(0)
-            .on_column(0)
+            .on_column(0))
             .build(ui);
 
-        let v_scroll_bar = ScrollBarBuilder::new()
-            .with_orientation(Orientation::Vertical)
+        let v_scroll_bar = ScrollBarBuilder::new(WidgetBuilder::new()
             .on_row(0)
             .on_column(1)
+            .with_width(20.0)
+            .with_event_handler(Box::new(|ui, handle, evt| {
+                if evt.target == handle {
+                    if let UIEventKind::MaxValueChanged(new_value) = evt.kind {
+                        let scroll_bar = ui.get_node_mut(handle).as_scroll_bar_mut();
+
+                        scroll_bar.set_max_value(new_value);
+
+                        if scroll_bar.get_max_value() == scroll_bar.get_min_value() {
+                            scroll_bar.widget_mut().set_visibility(Visibility::Collapsed)
+                        } else {
+                            scroll_bar.widget_mut().set_visibility(Visibility::Visible)
+                        }
+                    }
+                }
+            })))
+            .with_orientation(Orientation::Vertical)
             .build(ui);
 
-        let h_scroll_bar = ScrollBarBuilder::new()
-            .with_orientation(Orientation::Horizontal)
+        let h_scroll_bar = ScrollBarBuilder::new(WidgetBuilder::new()
             .on_row(1)
             .on_column(0)
+            .with_height(20.0)
+            .with_event_handler(Box::new(|ui, handle, evt| {
+                if evt.target == handle {
+                    if let UIEventKind::MaxValueChanged(new_value) = evt.kind {
+                        let scroll_bar = ui.get_node_mut(handle).as_scroll_bar_mut();
+
+                        scroll_bar.set_max_value(new_value);
+
+                        if scroll_bar.get_max_value() == scroll_bar.get_min_value() {
+                            scroll_bar.widget_mut().set_visibility(Visibility::Collapsed)
+                        } else {
+                            scroll_bar.widget_mut().set_visibility(Visibility::Visible)
+                        }
+                    }
+                }
+            })))
+            .with_orientation(Orientation::Horizontal)
             .build(ui);
 
-        let scroll_viewer = ScrollViewer {
+        let scroll_viewer = UINode::ScrollViewer(ScrollViewer {
+            widget: self.widget_builder
+                .with_child(GridBuilder::new(WidgetBuilder::new()
+                    .with_child(content_presenter)
+                    .with_child(h_scroll_bar)
+                    .with_child(v_scroll_bar))
+                    .add_row(Row::stretch())
+                    .add_row(Row::auto())
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .build(ui))
+                .with_event_handler(Box::new(move |ui, _handle, event| {
+                    if let UIEventKind::NumericValueChanged { new_value, .. } = event.kind {
+                        let content_presenter = ui.get_node_mut(content_presenter);
+                        if let UINode::ScrollContentPresenter(content_presenter) = content_presenter {
+                            if event.source == h_scroll_bar {
+                                content_presenter.set_horizontal_scroll(new_value);
+                            } else if event.source == v_scroll_bar {
+                                content_presenter.set_vertical_scroll(new_value);
+                            }
+                        }
+                    }
+                }))
+                .build(),
             content: self.content,
             v_scroll_bar,
             h_scroll_bar,
             content_presenter,
-        };
-
-        GenericNodeBuilder::new(UINodeKind::ScrollViewer(scroll_viewer), self.common)
-            .with_child(GridBuilder::new()
-                .add_row(Row::stretch())
-                .add_row(Row::strict(20.0))
-                .add_column(Column::stretch())
-                .add_column(Column::strict(20.0))
-                .with_child(content_presenter)
-                .with_child(h_scroll_bar)
-                .with_child(v_scroll_bar)
-                .build(ui))
-            .with_event_handler(Box::new(move |ui, _handle, event| {
-                if let UIEventKind::NumericValueChanged { new_value, .. } = event.kind {
-                    let content_presenter = ui.get_node_mut(content_presenter);
-                    if let UINodeKind::ScrollContentPresenter(content_presenter) = content_presenter.get_kind_mut() {
-                        if event.source == h_scroll_bar {
-                            content_presenter.set_horizontal_scroll(new_value);
-                        } else if event.source == v_scroll_bar {
-                            content_presenter.set_vertical_scroll(new_value);
-                        }
-                    }
-                }
-            }))
-            .build(ui)
-    }
-}
-
-impl EventSource for ScrollViewer {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        None
+        });
+        ui.add_node(scroll_viewer)
     }
 }

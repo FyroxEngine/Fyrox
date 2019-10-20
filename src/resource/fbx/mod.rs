@@ -12,29 +12,6 @@ use std::{
     time::Instant,
     any::{Any, TypeId},
 };
-use crate::{
-    renderer::{
-        surface::{
-            SurfaceSharedData, Surface,
-            Vertex, VertexWeightSet, VertexWeight,
-        }
-    },
-    resource::{
-        fbx::{
-            texture::FbxTexture,
-            attribute::FbxAttribute,
-            error::FbxError,
-        }
-    },
-    scene::{
-        Scene,
-        animation::{Track, KeyFrame, Animation},
-        node::{Node},
-        mesh::Mesh,
-        light::Light,
-    },
-};
-
 use rg3d_core::{
     color::Color,
     pool::{Handle, Pool},
@@ -48,15 +25,47 @@ use rg3d_core::{
     },
 };
 use std::sync::{Arc, Mutex};
-use crate::engine::resource_manager::ResourceManager;
-use crate::scene::SceneInterfaceMut;
-use crate::scene::graph::Graph;
-use crate::scene::animation::AnimationContainer;
-use crate::resource::texture::TextureKind;
-use crate::scene::light::{LightKind, PointLight, SpotLight};
-use crate::scene::pivot::Pivot;
-use crate::scene::node::{NodeTrait, NodeTraitPrivate};
-
+use crate::{
+    resource::{
+        texture::TextureKind,
+        fbx::{
+            texture::FbxTexture,
+            attribute::FbxAttribute,
+            error::FbxError,
+        }
+    },
+    scene::{
+        animation::{
+            AnimationContainer,
+            Track,
+            KeyFrame,
+            Animation
+        },
+        graph::Graph,
+        SceneInterfaceMut,
+        Scene,
+        node::{
+            Node,
+            NodeTrait,
+            NodeTraitPrivate
+        },
+        mesh::Mesh,
+        light::{
+            Light,
+            LightKind,
+            PointLight,
+            SpotLight
+        },
+        pivot::Pivot,
+    },
+    engine::resource_manager::ResourceManager,
+    renderer::{
+        surface::{
+            SurfaceSharedData, Surface,
+            Vertex, VertexWeightSet, VertexWeight,
+        }
+    },
+};
 
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
@@ -349,7 +358,6 @@ struct FbxGeometry {
 
     deformers: Vec<Handle<FbxComponent>>,
 }
-
 
 impl FbxGeometry {
     pub fn read(geom_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxGeometry, String> {

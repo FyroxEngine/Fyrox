@@ -7,13 +7,13 @@ use rg3d_core::{
     },
 };
 use crate::gui::{
-    EventSource,
-    UserInterface,
-    Visibility,
-    node::{UINode, UINodeKind},
-    builder::CommonBuilderFields,
+    Draw,
     Layout,
-    event::UIEvent,
+    node::UINode,
+    Visibility,
+    UserInterface,
+    draw::DrawingContext,
+    widget::{WidgetBuilder, Widget, AsWidget},
 };
 
 #[derive(PartialEq)]
@@ -113,31 +113,39 @@ impl Row {
     }
 }
 
+/// Automatically arranges children by rows and columns
 pub struct Grid {
+    widget: Widget,
     rows: RefCell<Vec<Row>>,
     columns: RefCell<Vec<Column>>,
 }
 
-impl Grid {
-    fn new() -> Self {
-        Self {
-            rows: RefCell::new(Vec::new()),
-            columns: RefCell::new(Vec::new()),
-        }
+impl AsWidget for Grid {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+}
+
+impl Draw for Grid {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context)
     }
 }
 
 impl Layout for Grid {
-    fn measure_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
-            return ui.default_measure_override(self_handle, available_size);
+            return self.widget.measure_override(ui, available_size);
         }
 
         let mut desired_size = Vec2::ZERO;
-        let node = ui.nodes.borrow(self_handle);
         // Step 1. Measure every children with relaxed constraints (size of grid).
-        for child_handle in node.children.iter() {
+        for child_handle in self.widget.children.iter() {
             ui.measure(*child_handle, available_size);
         }
 
@@ -152,8 +160,8 @@ impl Layout for Grid {
                 preset_width += col.actual_width;
             } else if col.size_mode == SizeMode::Auto {
                 col.actual_width = col.desired_width;
-                for child_handle in node.children.iter() {
-                    let child = ui.nodes.borrow(*child_handle);
+                for child_handle in self.widget.children.iter() {
+                    let child = ui.nodes.borrow(*child_handle).widget();
                     if child.column == i && child.visibility == Visibility::Visible && child.desired_size.get().x > col.actual_width {
                         col.actual_width = child.desired_size.get().x;
                     }
@@ -169,8 +177,8 @@ impl Layout for Grid {
                 preset_height += row.actual_height;
             } else if row.size_mode == SizeMode::Auto {
                 row.actual_height = row.desired_height;
-                for child_handle in node.children.iter() {
-                    let child = ui.nodes.borrow(*child_handle);
+                for child_handle in self.widget.children.iter() {
+                    let child = ui.nodes.borrow(*child_handle).widget();
                     if child.row == i && child.visibility == Visibility::Visible && child.desired_size.get().y > row.actual_height {
                         row.actual_height = child.desired_size.get().y;
                     }
@@ -182,8 +190,8 @@ impl Layout for Grid {
         // Step 2.3. Fit stretch-sized columns
         let mut rest_width = 0.0;
         if available_size.x.is_infinite() {
-            for child_handle in node.children.iter() {
-                let child = ui.nodes.borrow(*child_handle);
+            for child_handle in self.widget.children.iter() {
+                let child = ui.nodes.borrow(*child_handle).widget();
                 if let Some(column) = self.columns.borrow().get(child.column) {
                     if column.size_mode == SizeMode::Stretch {
                         rest_width += child.desired_size.get().x;
@@ -214,8 +222,8 @@ impl Layout for Grid {
         let mut stretch_sized_rows = 0;
         let mut rest_height = 0.0;
         if available_size.y.is_infinite() {
-            for child_handle in node.children.iter() {
-                let child = ui.nodes.borrow(*child_handle);
+            for child_handle in self.widget.children.iter() {
+                let child = ui.nodes.borrow(*child_handle).widget();
                 if let Some(row) = self.rows.borrow().get(child.row) {
                     if row.size_mode == SizeMode::Stretch {
                         rest_height += child.desired_size.get().y;
@@ -255,9 +263,9 @@ impl Layout for Grid {
         }
 
         // Step 3. Re-measure children with new constraints.
-        for child_handle in node.children.iter() {
+        for child_handle in self.widget.children.iter() {
             let size_for_child = {
-                let child = ui.nodes.borrow(*child_handle);
+                let child = ui.nodes.borrow(*child_handle).widget();
                 Vec2 {
                     x: self.columns.borrow()[child.column].actual_width,
                     y: self.rows.borrow()[child.row].actual_height,
@@ -277,20 +285,19 @@ impl Layout for Grid {
         desired_size
     }
 
-    fn arrange_override(&self, self_handle: Handle<UINode>, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        let node = ui.nodes.borrow(self_handle);
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
-            for child_handle in node.children.iter() {
+            for child_handle in self.widget.children.iter() {
                 ui.arrange(*child_handle, &rect);
             }
             return final_size;
         }
 
-        for child_handle in node.children.iter() {
+        for child_handle in self.widget.children.iter() {
             let mut final_rect = None;
 
-            let child = ui.nodes.borrow(*child_handle);
+            let child = ui.nodes.borrow(*child_handle).widget();
             if let Some(column) = self.columns.borrow().get(child.column) {
                 if let Some(row) = self.rows.borrow().get(child.row) {
                     final_rect = Some(Rect::new(
@@ -312,27 +319,19 @@ impl Layout for Grid {
 }
 
 pub struct GridBuilder {
+    widget_builder: WidgetBuilder,
     rows: Vec<Row>,
     columns: Vec<Column>,
-    common: CommonBuilderFields,
-}
-
-impl Default for GridBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl GridBuilder {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         GridBuilder {
+            widget_builder,
             rows: Vec::new(),
             columns: Vec::new(),
-            common: CommonBuilderFields::new(),
         }
     }
-
-    impl_default_builder_methods!();
 
     pub fn add_row(mut self, row: Row) -> Self {
         self.rows.push(row);
@@ -354,16 +353,13 @@ impl GridBuilder {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface) -> Handle<UINode> {
-        let mut grid = Grid::new();
-        grid.columns = RefCell::new(self.columns);
-        grid.rows = RefCell::new(self.rows);
-
-        let node = UINode::new(UINodeKind::Grid(grid));
-
-        let handle = ui.add_node(node);
-        self.common.apply(ui, handle);
-        handle
+    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        ui.add_node(UINode::Grid(Grid {
+            widget: self.widget_builder.build(),
+            rows: RefCell::new(self.rows),
+            columns: RefCell::new(self.columns),
+        }
+        ))
     }
 }
 
@@ -376,11 +372,5 @@ impl Grid {
     pub fn add_column(&mut self, column: Column) -> &mut Self {
         self.columns.borrow_mut().push(column);
         self
-    }
-}
-
-impl EventSource for Grid {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        None
     }
 }

@@ -1,6 +1,10 @@
 use crate::gui::{
-    builder::{CommonBuilderFields, GenericNodeBuilder},
-    node::{UINode, UINodeKind},
+    node::UINode,
+    widget::{
+        Widget,
+        WidgetBuilder,
+        AsWidget
+    },
     UserInterface,
     HorizontalAlignment,
     VerticalAlignment,
@@ -8,11 +12,15 @@ use crate::gui::{
     text::TextBuilder,
     border::BorderBuilder,
     event::{UIEvent, UIEventKind},
-    EventSource,
+    Layout,
+    Draw,
+    draw::DrawingContext,
 };
-
-use rg3d_core::{color::Color, pool::Handle};
-use std::collections::VecDeque;
+use rg3d_core::{
+    color::Color,
+    pool::Handle,
+    math::vec2::Vec2,
+};
 
 /// Button
 ///
@@ -20,7 +28,33 @@ use std::collections::VecDeque;
 ///
 /// [`Click`] - spawned when user click button.
 pub struct Button {
-    events: VecDeque<UIEvent>,
+    widget: Widget,
+}
+
+impl AsWidget for Button {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+}
+
+impl Layout for Button {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+        self.widget.measure_override(ui, available_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        self.widget.arrange_override(ui, final_size)
+    }
+}
+
+impl Draw for Button {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context)
+    }
 }
 
 pub enum ButtonContent {
@@ -29,25 +63,17 @@ pub enum ButtonContent {
 }
 
 pub struct ButtonBuilder {
+    widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
-    common: CommonBuilderFields,
-}
-
-impl Default for ButtonBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl ButtonBuilder {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
+            widget_builder,
             content: None,
-            common: CommonBuilderFields::new(),
         }
     }
-
-    impl_default_builder_methods!();
 
     pub fn with_text(mut self, text: &str) -> Self {
         self.content = Some(ButtonContent::Text(text.to_owned()));
@@ -64,74 +90,63 @@ impl ButtonBuilder {
         let pressed_color = Color::opaque(100, 100, 100);
         let hover_color = Color::opaque(160, 160, 160);
 
-        let button = Button {
-            events: VecDeque::new(),
-        };
-
-        GenericNodeBuilder::new(
-            UINodeKind::Button(button), self.common)
-            .with_event_handler(Box::new(move |ui, handle, evt| {
-                if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                    match evt.kind {
-                        UIEventKind::MouseUp { .. } => {
-                            // Generate Click event
-                            let node = ui.get_node_mut(handle);
-                            if let UINodeKind::Button(button) = node.get_kind_mut() {
-                                button.events.push_back(UIEvent::new(UIEventKind::Click));
-                            }
-                            ui.release_mouse_capture();
-                        }
-                        UIEventKind::MouseDown { .. } => {
-                            ui.capture_mouse(evt.source);
-                        }
-                        _ => ()
-                    }
-                }
-            }))
-            .with_child(BorderBuilder::new()
-                .with_stroke_color(Color::opaque(200, 200, 200))
-                .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
-                .with_color(normal_color)
+        let button = UINode::Button(Button {
+            widget: self.widget_builder
                 .with_event_handler(Box::new(move |ui, handle, evt| {
                     if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                        let back = ui.nodes.borrow_mut(handle);
                         match evt.kind {
-                            UIEventKind::MouseDown { .. } => back.color = pressed_color,
                             UIEventKind::MouseUp { .. } => {
-                                if back.is_mouse_over {
-                                    back.color = hover_color;
-                                } else {
-                                    back.color = normal_color;
-                                }
+                                // Generate Click event
+                                ui.get_node_mut(handle).widget_mut().events.borrow_mut().push_back(UIEvent::new(UIEventKind::Click));
+                                ui.release_mouse_capture();
                             }
-                            UIEventKind::MouseLeave => back.color = normal_color,
-                            UIEventKind::MouseEnter => back.color = hover_color,
+                            UIEventKind::MouseDown { .. } => {
+                                ui.capture_mouse(evt.source);
+                            }
                             _ => ()
                         }
                     }
                 }))
-                .with_child(
-                    if let Some(content) = self.content {
-                        match content {
-                            ButtonContent::Text(txt) => {
-                                TextBuilder::new()
-                                    .with_text(txt.as_str())
-                                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .build(ui)
+                .with_child(BorderBuilder::new(WidgetBuilder::new()
+                    .with_color(normal_color)
+                    .with_event_handler(Box::new(move |ui, handle, evt| {
+                        if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
+                            let back = ui.nodes.borrow_mut(handle).widget_mut();
+                            match evt.kind {
+                                UIEventKind::MouseDown { .. } => back.color = pressed_color,
+                                UIEventKind::MouseUp { .. } => {
+                                    if back.is_mouse_over {
+                                        back.color = hover_color;
+                                    } else {
+                                        back.color = normal_color;
+                                    }
+                                }
+                                UIEventKind::MouseLeave => back.color = normal_color,
+                                UIEventKind::MouseEnter => back.color = hover_color,
+                                _ => ()
                             }
-                            ButtonContent::Node(node) => node
                         }
-                    } else {
-                        Handle::NONE
-                    })
-                .build(ui))
-            .build(ui)
-    }
-}
-
-impl EventSource for Button {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        self.events.pop_front()
+                    }))
+                    .with_child(
+                        if let Some(content) = self.content {
+                            match content {
+                                ButtonContent::Text(txt) => {
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_text(txt.as_str())
+                                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .build(ui)
+                                }
+                                ButtonContent::Node(node) => node
+                            }
+                        } else {
+                            Handle::NONE
+                        }))
+                    .with_stroke_color(Color::opaque(200, 200, 200))
+                    .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
+                    .build(ui))
+                .build(),
+        });
+        ui.add_node(button)
     }
 }

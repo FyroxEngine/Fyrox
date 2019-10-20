@@ -4,31 +4,60 @@ use rg3d_core::{
     math::vec2::Vec2,
 };
 use crate::gui::{
-    event::{UIEvent, UIEventKind},
+    event::UIEventKind,
     border::BorderBuilder,
-    node::{UINode, UINodeKind},
-    builder::{CommonBuilderFields, GenericNodeBuilder},
+    node::UINode,
     UserInterface,
     grid::{GridBuilder, Column, Row},
     HorizontalAlignment,
     text::TextBuilder,
     Thickness,
     button::ButtonBuilder,
-    EventSource,
     scroll_viewer::ScrollViewerBuilder,
+    Layout,
+    widget::{Widget, WidgetBuilder, AsWidget},
+    Draw,
+    draw::DrawingContext
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
 /// Window can be dragged by its title.
 pub struct Window {
+    widget: Widget,
     mouse_click_pos: Vec2,
     initial_position: Vec2,
     is_dragged: bool,
 }
 
+impl AsWidget for Window {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+}
+
+impl Layout for Window {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+        self.widget.measure_override(ui, available_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        self.widget.arrange_override(ui, final_size)
+    }
+}
+
+impl Draw for Window {
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context)
+    }
+}
+
 pub struct WindowBuilder<'a> {
-    common: CommonBuilderFields,
+    widget_builder: WidgetBuilder,
     content: Handle<UINode>,
     title: Option<WindowTitle<'a>>,
 }
@@ -45,22 +74,14 @@ pub enum WindowTitle<'a> {
     Node(Handle<UINode>),
 }
 
-impl<'a> Default for WindowBuilder<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<'a> WindowBuilder<'a> {
-    pub fn new() -> Self {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
-            common: CommonBuilderFields::new(),
+            widget_builder,
             content: Handle::NONE,
             title: None,
         }
     }
-
-    impl_default_builder_methods!();
 
     pub fn with_content(mut self, content: Handle<UINode>) -> Self {
         self.content = content;
@@ -73,110 +94,106 @@ impl<'a> WindowBuilder<'a> {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let window = Window {
+        let header = BorderBuilder::new(WidgetBuilder::new()
+            .with_color(Color::opaque(120, 120, 120))
+            .with_horizontal_alignment(HorizontalAlignment::Stretch)
+            .with_height(30.0)
+            .with_event_handler(Box::new(|ui, handle, evt| {
+                if evt.source == handle {
+                    match evt.kind {
+                        UIEventKind::MouseDown { pos, .. } => {
+                            ui.capture_mouse(handle);
+                            let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
+                            let initial_position = window_node.widget().actual_local_position.get();
+                            let window = window_node.as_window_mut();
+                            window.mouse_click_pos = pos;
+                            window.initial_position = initial_position;
+                            window.is_dragged = true;
+                            evt.handled = true;
+                        }
+                        UIEventKind::MouseUp { .. } => {
+                            ui.release_mouse_capture();
+                            let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
+                            window_node.as_window_mut().is_dragged = false;
+                            evt.handled = true;
+                        }
+                        UIEventKind::MouseMove { pos, .. } => {
+                            let window = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window()).as_window_mut();
+                            let new_pos =
+                                if window.is_dragged {
+                                    window.initial_position + pos - window.mouse_click_pos
+                                } else {
+                                    return;
+                                };
+
+                            window.widget.set_desired_local_position(new_pos);
+                            evt.handled = true;
+                        }
+                        _ => ()
+                    }
+                }
+            }))
+            .with_child(GridBuilder::new(WidgetBuilder::new()
+                .with_child({
+                    match self.title {
+                        None => Handle::NONE,
+                        Some(window_title) => {
+                            match window_title {
+                                WindowTitle::Node(node) => node,
+                                WindowTitle::Text(text) => {
+                                    TextBuilder::new(WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(5.0))
+                                        .on_row(0)
+                                        .on_column(0))
+                                        .with_text(text)
+                                        .build(ui)
+                                }
+                            }
+                        }
+                    }
+                })
+                .with_child(ButtonBuilder::new(WidgetBuilder::new()
+                    .on_row(0)
+                    .on_column(1)
+                    .with_margin(Thickness::uniform(2.0)))
+                    .with_text("_")
+                    .build(ui))
+                .with_child(ButtonBuilder::new(WidgetBuilder::new()
+                    .on_row(0)
+                    .on_column(2)
+                    .with_margin(Thickness::uniform(2.0)))
+                    .with_text("X")
+                    .build(ui)))
+                .add_column(Column::stretch())
+                .add_column(Column::strict(30.0))
+                .add_column(Column::strict(30.0))
+                .add_row(Row::stretch())
+                .build(ui))
+            .on_row(0)
+        ).build(ui);
+
+        let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new()
+            .on_row(1))
+            .with_content(self.content)
+            .build(ui);
+
+        let window = UINode::Window(Window {
+            widget: self.widget_builder
+                .with_child(BorderBuilder::new(WidgetBuilder::new()
+                    .with_child(GridBuilder::new(WidgetBuilder::new()
+                        .with_child(scroll_viewer)
+                        .with_child(header))
+                        .add_column(Column::stretch())
+                        .add_row(Row::auto())
+                        .add_row(Row::stretch())
+                        .build(ui))
+                    .with_color(Color::opaque(100, 100, 100)))
+                    .build(ui))
+                .build(),
             mouse_click_pos: Vec2::ZERO,
             initial_position: Vec2::ZERO,
             is_dragged: false,
-        };
-
-        GenericNodeBuilder::new(UINodeKind::Window(window), self.common)
-            .with_child(BorderBuilder::new()
-                .with_color(Color::opaque(100, 100, 100))
-                .with_child(GridBuilder::new()
-                    .add_column(Column::stretch())
-                    .add_row(Row::auto())
-                    .add_row(Row::stretch())
-                    .with_child(ScrollViewerBuilder::new()
-                        .with_content(self.content)
-                        .on_row(1)
-                        .build(ui))
-                    .with_child(BorderBuilder::new()
-                        .with_color(Color::opaque(120, 120, 120))
-                        .on_row(0)
-                        .with_horizontal_alignment(HorizontalAlignment::Stretch)
-                        .with_height(30.0)
-                        .with_event_handler(Box::new(|ui, handle, evt| {
-                            if evt.source == handle {
-                                match evt.kind {
-                                    UIEventKind::MouseDown { pos, .. } => {
-                                        ui.capture_mouse(handle);
-                                        let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
-                                        let initial_position = window_node.actual_local_position.get();
-                                        let window = window_node.as_window_mut();
-                                        window.mouse_click_pos = pos;
-                                        window.initial_position = initial_position;
-                                        window.is_dragged = true;
-                                        evt.handled = true;
-                                    }
-                                    UIEventKind::MouseUp { .. } => {
-                                        ui.release_mouse_capture();
-                                        let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
-                                        window_node.as_window_mut().is_dragged = false;
-                                        evt.handled = true;
-                                    }
-                                    UIEventKind::MouseMove { pos, .. } => {
-                                        let window_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window());
-                                        let new_pos = if let UINodeKind::Window(window) = window_node.get_kind_mut() {
-                                            if window.is_dragged {
-                                                window.initial_position + pos - window.mouse_click_pos
-                                            } else {
-                                                return;
-                                            }
-                                        } else {
-                                            return;
-                                        };
-                                        window_node.set_desired_local_position(new_pos);
-                                        evt.handled = true;
-                                    }
-                                    _ => ()
-                                }
-                            }
-                        }))
-                        .with_child(GridBuilder::new()
-                            .add_column(Column::stretch())
-                            .add_column(Column::strict(30.0))
-                            .add_column(Column::strict(30.0))
-                            .add_row(Row::stretch())
-                            .with_child({
-                                match self.title {
-                                    None => Handle::NONE,
-                                    Some(window_title) => {
-                                        match window_title {
-                                            WindowTitle::Node(node) => node,
-                                            WindowTitle::Text(text) => {
-                                                TextBuilder::new()
-                                                    .with_text(text)
-                                                    .with_margin(Thickness::uniform(5.0))
-                                                    .on_row(0)
-                                                    .on_column(0)
-                                                    .build(ui)
-                                            }
-                                        }
-                                    }
-                                }
-                            })
-                            .with_child(ButtonBuilder::new()
-                                .on_row(0)
-                                .on_column(1)
-                                .with_margin(Thickness::uniform(2.0))
-                                .with_text("_")
-                                .build(ui))
-                            .with_child(ButtonBuilder::new()
-                                .on_row(0)
-                                .on_column(2)
-                                .with_margin(Thickness::uniform(2.0))
-                                .with_text("X")
-                                .build(ui))
-                            .build(ui))
-                        .build(ui))
-                    .build(ui))
-                .build(ui))
-            .build(ui)
-    }
-}
-
-impl EventSource for Window {
-    fn emit_event(&mut self) -> Option<UIEvent> {
-        None
+        });
+        ui.add_node(window)
     }
 }
