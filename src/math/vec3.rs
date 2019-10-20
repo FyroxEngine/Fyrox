@@ -151,6 +151,12 @@ impl Vec3 {
             self.z
         }
     }
+
+    pub fn follow(&mut self, other: &Vec3, fraction: f32) {
+        self.x += (other.x - self.x) * fraction;
+        self.y += (other.y - self.y) * fraction;
+        self.z += (other.z - self.z) * fraction;
+    }
 }
 
 impl ops::Add<Self> for Vec3 {
