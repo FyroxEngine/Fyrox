@@ -27,11 +27,7 @@ use rg3d_core::{
 use crate::{
     resource::texture::Texture,
     renderer::TriangleDefinition,
-    scene::node::{
-        CommonNodeData,
-        CommonNodeBuilderData,
-        NodeTrait,
-    },
+    scene::base::{BaseBuilder, Base, AsBase}
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -642,13 +638,23 @@ impl Default for Emitter {
 
 #[derive(Clone)]
 pub struct ParticleSystem {
-    common: CommonNodeData,
+    base: Base,
     particles: Vec<Particle>,
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
     texture: Option<Arc<Mutex<Texture>>>,
     acceleration: Vec3,
     color_over_lifetime: Option<ColorGradient>,
+}
+
+impl AsBase for ParticleSystem {
+    fn base(&self) -> &Base {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        &mut self.base
+    }
 }
 
 impl ParticleSystem {
@@ -715,7 +721,7 @@ impl ParticleSystem {
         sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
             if particle.alive {
-                let actual_position = particle.position + self.get_global_position();
+                let actual_position = particle.position + self.base.get_global_position();
                 particle.sqr_distance_to_camera.set(camera_pos.sqr_distance(&actual_position));
                 sorted_particles.push(i as u32);
             }
@@ -801,8 +807,6 @@ impl ParticleSystem {
     }
 }
 
-impl_node_trait!(ParticleSystem);
-impl_node_trait_private!(ParticleSystem);
 
 impl Visit for ParticleSystem {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -814,7 +818,7 @@ impl Visit for ParticleSystem {
         self.emitters.visit("Emitters", visitor)?;
         self.acceleration.visit("Acceleration", visitor)?;
         self.color_over_lifetime.visit("ColorGradient", visitor)?;
-        self.common.visit("Common", visitor)?;
+        self.base.visit("Base", visitor)?;
 
         visitor.leave_region()
     }
@@ -822,36 +826,28 @@ impl Visit for ParticleSystem {
 
 impl Default for ParticleSystem {
     fn default() -> Self {
-        ParticleSystemBuilder::new().build()
+        ParticleSystemBuilder::new(BaseBuilder::new()).build()
     }
 }
 
 pub struct ParticleSystemBuilder {
-    common: CommonNodeBuilderData,
+    base_builder: BaseBuilder,
     emitters: Option<Vec<Emitter>>,
     texture: Option<Arc<Mutex<Texture>>>,
     acceleration: Option<Vec3>,
     color_over_lifetime: Option<ColorGradient>,
 }
 
-impl Default for ParticleSystemBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ParticleSystemBuilder {
-    pub fn new() -> Self {
+    pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
-            common: Default::default(),
+            base_builder,
             emitters: None,
             texture: None,
             acceleration: None,
             color_over_lifetime: None,
         }
     }
-
-    impl_common_node_builder_methods!();
 
     pub fn with_emitters(mut self, emitters: Vec<Emitter>) -> Self {
         self.emitters = Some(emitters);
@@ -880,7 +876,7 @@ impl ParticleSystemBuilder {
 
     pub fn build(self) -> ParticleSystem {
         ParticleSystem {
-            common: From::from(self.common),
+            base: self.base_builder.build(),
             particles: Vec::new(),
             free_particles: Vec::new(),
             emitters: self.emitters.unwrap_or_default(),

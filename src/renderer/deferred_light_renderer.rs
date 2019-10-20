@@ -1,8 +1,17 @@
 use std::ffi::CString;
+use rg3d_core::{
+    color::Color,
+    math::{vec3::Vec3, mat4::Mat4},
+};
 use crate::{
+    renderer::gpu_texture::GpuTexture,
     scene::{
-        camera::Camera, Scene,
-        node::Node, SceneInterface,
+        camera::Camera,
+        Scene,
+        node::Node,
+        SceneInterface,
+        light::LightKind,
+        base::AsBase
     },
     renderer::{
         surface::SurfaceSharedData,
@@ -12,13 +21,6 @@ use crate::{
         shadow_map_renderer::SpotShadowMapRenderer,
     },
 };
-use rg3d_core::{
-    color::Color,
-    math::{vec3::Vec3, mat4::Mat4},
-};
-use crate::scene::light::LightKind;
-use crate::renderer::gpu_texture::GpuTexture;
-use crate::scene::node::NodeTrait;
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -241,7 +243,7 @@ impl DeferredLightRenderer {
             let SceneInterface { graph, .. } = scene.interface();
 
             for light_node in graph.linear_iter() {
-                if !light_node.get_global_visibility() {
+                if !light_node.base().get_global_visibility() {
                     continue;
                 }
 
@@ -255,12 +257,12 @@ impl DeferredLightRenderer {
                     LightKind::Point(point_light) => point_light.get_radius(),
                 };
 
-                let light_position = light_node.get_global_position();
-                let light_radius_scale =  light_node.get_local_transform().get_scale().max_value();
+                let light_position = light_node.base().get_global_position();
+                let light_radius_scale =  light_node.base().get_local_transform().get_scale().max_value();
                 let light_radius = light_radius_scale * raw_radius;
                 let light_r_inflate = 1.05 * light_radius;
                 let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
-                let light_emit_direction = light_node.get_up_vector().normalized().unwrap_or(Vec3::UP);
+                let light_emit_direction = light_node.base().get_up_vector().normalized().unwrap_or(Vec3::UP);
 
                 match light.get_kind() {
                     LightKind::Spot(_) => {
@@ -318,7 +320,7 @@ impl DeferredLightRenderer {
                 self.shader.set_light_cone_angle_cos(cone_angle_cos);
                 self.shader.set_wvp_matrix(&frame_matrix);
                 self.shader.set_shadow_map_inv_size(0.0); // TODO
-                self.shader.set_camera_position(&camera.get_global_position());
+                self.shader.set_camera_position(&camera.base().get_global_position());
                 self.shader.set_depth_sampler_id(0);
                 self.shader.set_color_sampler_id(1);
                 self.shader.set_normal_sampler_id(2);

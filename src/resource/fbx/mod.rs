@@ -32,31 +32,27 @@ use crate::{
             texture::FbxTexture,
             attribute::FbxAttribute,
             error::FbxError,
-        }
+        },
     },
     scene::{
         animation::{
             AnimationContainer,
             Track,
             KeyFrame,
-            Animation
+            Animation,
         },
         graph::Graph,
         SceneInterfaceMut,
         Scene,
-        node::{
-            Node,
-            NodeTrait,
-            NodeTraitPrivate
-        },
+        node::Node,
         mesh::Mesh,
         light::{
             Light,
             LightKind,
             PointLight,
-            SpotLight
+            SpotLight,
         },
-        pivot::Pivot,
+        base::{Base, AsBase},
     },
     engine::resource_manager::ResourceManager,
     renderer::{
@@ -1164,12 +1160,12 @@ impl Fbx {
                 let fbx_light_component = self.component_pool.borrow(model.light);
                 Node::Light(self.convert_light(fbx_light_component.as_light()?))
             } else {
-                Node::Pivot(Pivot::default())
+                Node::Base(Base::default())
             };
 
-        node.set_name(model.name.as_str());
+        node.base_mut().set_name(model.name.as_str());
         let node_local_rotation = quat_from_euler(model.rotation);
-        let transform = node.get_local_transform_mut();
+        let transform = node.base_mut().get_local_transform_mut();
         transform.set_rotation(node_local_rotation);
         transform.set_scale(model.scale);
         transform.set_position(model.translation);
@@ -1179,7 +1175,7 @@ impl Fbx {
         transform.set_rotation_pivot(model.rotation_pivot);
         transform.set_scaling_offset(model.scaling_offset);
         transform.set_scaling_pivot(model.scaling_pivot);
-        node.get_data_mut().inv_bind_pose_transform = model.inv_bind_transform;
+        node.base_mut().inv_bind_pose_transform = model.inv_bind_transform;
 
         let node_handle = graph.add_node(node);
 
@@ -1268,7 +1264,7 @@ impl Fbx {
     pub fn convert(&self, resource_manager: &mut ResourceManager, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
         let SceneInterfaceMut { animations, graph, .. } = scene.interface_mut();
         let mut instantiated_nodes = Vec::new();
-        let root = graph.add_node(Node::Pivot(Pivot::default()));
+        let root = graph.add_node(Node::Base(Base::default()));
         let animation_handle = animations.add(Animation::default());
         let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {

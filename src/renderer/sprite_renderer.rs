@@ -3,18 +3,21 @@ use rg3d_core::{
     math::mat4::Mat4,
     math::vec3::Vec3,
 };
+use rg3d_core::color::Color;
 use crate::{
-    scene::SceneContainer,
+    scene::{
+        SceneContainer,
+        node::Node,
+        SceneInterface,
+        base::AsBase
+    },
     renderer::{
         surface::SurfaceSharedData,
         gpu_program::{GpuProgram, UniformLocation},
         error::RendererError,
         gl, gpu_texture::GpuTexture,
     },
-    scene::{SceneInterface},
 };
-use rg3d_core::color::Color;
-use crate::scene::node::{NodeTrait, Node};
 
 pub struct SpriteShader {
     program: GpuProgram,
@@ -143,7 +146,7 @@ impl SpriteRenderer {
 
                 self.shader.set_diffuse_texture(0);
                 self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                self.shader.set_world_matrix(&node.get_global_transform());
+                self.shader.set_world_matrix(&node.base().get_global_transform());
                 self.shader.set_camera_up_vector(&camera_up);
                 self.shader.set_camera_side_vector(&camera_side);
                 self.shader.set_size(sprite.get_size());

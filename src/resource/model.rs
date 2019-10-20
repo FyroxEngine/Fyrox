@@ -1,5 +1,12 @@
 use crate::{
-    scene::{Scene, node::Node, animation::Animation},
+    scene::{
+        Scene,
+        node::Node,
+        animation::Animation,
+        SceneInterface,
+        SceneInterfaceMut,
+        base::AsBase
+    },
     resource::{fbx, fbx::error::FbxError},
     engine::resource_manager::ResourceManager,
 };
@@ -11,8 +18,6 @@ use rg3d_core::{
     pool::Handle,
     visitor::{Visit, VisitResult, Visitor},
 };
-use crate::scene::node::{NodeTrait, NodeTraitPrivate};
-use crate::scene::{SceneInterface, SceneInterfaceMut};
 
 pub struct Model {
     pub(in crate) path: PathBuf,
@@ -62,17 +67,17 @@ impl Model {
         let SceneInterface { graph: resource_graph, .. } = model.scene.interface();
 
         let root = resource_graph.copy_node(resource_graph.get_root(), dest_graph);
-        dest_graph.get_mut(root).get_data_mut().is_resource_instance = true;
+        dest_graph.get_mut(root).base_mut().is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = Vec::new();
         stack.push(root);
         while let Some(node_handle) = stack.pop() {
             let node = dest_graph.get_mut(node_handle);
-            node.get_data_mut().resource = Some(Arc::clone(&model_rc));
+            node.base_mut().resource = Some(Arc::clone(&model_rc));
 
             // Continue on children.
-            for child_handle in node.get_children() {
+            for child_handle in node.base().get_children() {
                 stack.push(child_handle.clone());
             }
         }
@@ -138,9 +143,9 @@ impl Model {
             for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
                 let ref_node = resource_graph.get(ref_track.get_node());
                 // Find instantiated node that corresponds to node in resource
-                let instance_node = dest_graph.find_by_name(root, ref_node.get_name());
+                let instance_node = dest_graph.find_by_name(root, ref_node.base().get_name());
                 if instance_node.is_none() {
-                    println!("Failed to retarget animation for node {}", ref_node.get_name())
+                    println!("Failed to retarget animation for node {}", ref_node.base().get_name())
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

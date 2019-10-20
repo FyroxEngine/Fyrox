@@ -1,6 +1,6 @@
 use crate::{
     renderer::surface::Surface,
-    scene::node::CommonNodeData
+    scene::base::{Base, AsBase}
 };
 use rg3d_core::visitor::{
     Visit,
@@ -10,16 +10,26 @@ use rg3d_core::visitor::{
 
 #[derive(Clone)]
 pub struct Mesh {
-    common: CommonNodeData,
+    base: Base,
     surfaces: Vec<Surface>,
 }
 
 impl Default for Mesh {
     fn default() -> Mesh {
         Mesh {
-            common: Default::default(),
+            base: Default::default(),
             surfaces: Vec::new()
         }
+    }
+}
+
+impl AsBase for Mesh {
+    fn base(&self) -> &Base {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        &mut self.base
     }
 }
 
@@ -27,7 +37,7 @@ impl Visit for Mesh {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.common.visit("Common", visitor)?;
+        self.base.visit("Common", visitor)?;
 
         // No need to serialize surfaces, correct ones will be assigned on resolve stage.
         visitor.leave_region()
@@ -50,6 +60,3 @@ impl Mesh {
         self.surfaces.push(surface);
     }
 }
-
-impl_node_trait!(Mesh);
-impl_node_trait_private!(Mesh);

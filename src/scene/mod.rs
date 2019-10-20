@@ -8,12 +8,13 @@ pub mod particle_system;
 pub mod transform;
 pub mod sprite;
 pub mod graph;
-pub mod pivot;
+pub mod base;
 
 use crate::scene::{
     animation::AnimationContainer,
     graph::Graph,
-    node::{Node, NodeTrait},
+    node::Node,
+    base::AsBase,
 };
 use rg3d_physics::{Physics, rigid_body::RigidBody};
 use rg3d_core::{
@@ -94,7 +95,7 @@ impl Scene {
         // Sync node positions with assigned physics bodies
         for (node, body) in self.node_rigid_body_map.iter() {
             if self.graph.is_valid_handle(*node) {
-                let node = self.graph.get_mut(*node);
+                let node = self.graph.get_mut(*node).base_mut();
                 if self.physics.is_valid_body_handle(*body) {
                     let body = self.physics.borrow_body(*body);
                     node.get_local_transform_mut().set_position(body.get_position());

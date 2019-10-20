@@ -13,13 +13,13 @@ use crate::{
         gpu_texture::GpuTexture,
     },
     scene::{
+        node::Node,
         particle_system,
         SceneInterface,
         SceneContainer,
-        node::NodeTrait,
-    },
+        base::AsBase
+    }
 };
-use crate::scene::node::Node;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -154,7 +154,7 @@ impl ParticleSystemRenderer {
 
                 particle_system.generate_draw_data(&mut self.sorted_particles,
                                                    &mut self.draw_data,
-                                                   &camera.get_global_position());
+                                                   &camera.base().get_global_position());
 
                 self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
                 self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
@@ -172,7 +172,7 @@ impl ParticleSystemRenderer {
 
                 self.shader.set_diffuse_texture(0);
                 self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                self.shader.set_world_matrix(&node.get_global_transform());
+                self.shader.set_world_matrix(&node.base().get_global_transform());
                 self.shader.set_camera_up_vector(&camera_up);
                 self.shader.set_camera_side_vector(&camera_side);
                 self.shader.set_depth_buffer_texture(1);

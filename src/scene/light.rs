@@ -6,7 +6,7 @@ use rg3d_core::{
         VisitResult
     }
 };
-use crate::scene::node::{CommonNodeData, CommonNodeBuilderData};
+use crate::scene::base::{BaseBuilder, Base, AsBase};
 
 #[derive(Clone)]
 pub struct SpotLight {
@@ -146,15 +146,25 @@ impl Visit for LightKind {
 
 #[derive(Clone)]
 pub struct Light {
-    common: CommonNodeData,
+    base: Base,
     kind: LightKind,
     color: Color,
+}
+
+impl AsBase for Light {
+    fn base(&self) -> &Base {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        &mut self.base
+    }
 }
 
 impl Default for Light {
     fn default() -> Self {
         Self {
-            common: Default::default(),
+            base: Default::default(),
             kind: LightKind::Point(Default::default()),
             color: Color::WHITE,
         }
@@ -172,7 +182,7 @@ impl Visit for Light {
         }
         self.kind.visit("Kind", visitor)?;
         self.color.visit("Color", visitor)?;
-        self.common.visit("Common", visitor)?;
+        self.base.visit("Base", visitor)?;
 
         visitor.leave_region()
     }
@@ -181,7 +191,7 @@ impl Visit for Light {
 impl Light {
     pub fn new(kind: LightKind) -> Self {
         Self {
-            common: Default::default(),
+            base: Default::default(),
             kind,
             color: Color::WHITE,
         }
@@ -208,25 +218,20 @@ impl Light {
     }
 }
 
-impl_node_trait!(Light);
-impl_node_trait_private!(Light);
-
 pub struct LightBuilder {
-    common: CommonNodeBuilderData,
+    base_builder: BaseBuilder,
     kind: LightKind,
     color: Option<Color>,
 }
 
 impl LightBuilder {
-    pub fn new(kind: LightKind) -> Self {
+    pub fn new(kind: LightKind, base_builder: BaseBuilder) -> Self {
         Self {
-            common: Default::default(),
+            base_builder,
             kind,
             color: None
         }
     }
-
-    impl_common_node_builder_methods!();
 
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = Some(color);
@@ -235,7 +240,7 @@ impl LightBuilder {
 
     pub fn build(self) -> Light {
         Light {
-            common: From::from(self.common),
+            base: self.base_builder.build(),
             kind: self.kind,
             color: self.color.unwrap_or(Color::WHITE)
         }

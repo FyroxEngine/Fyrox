@@ -22,8 +22,9 @@ use std::sync::{Mutex, Arc};
 use crate::{
     scene::{
         SceneInterface,
-        node::{Node, NodeTrait},
+        node::{Node},
         graph::Graph,
+        base::AsBase
     },
     resource::model::Model,
 };
@@ -333,7 +334,7 @@ impl Animation {
             } = resource.get_scene().interface();
             if let Some(ref_animation) = resource_animations.pool.at(0) {
                 for track in self.get_tracks_mut() {
-                    let track_node = graph.get(track.get_node());
+                    let track_node = graph.get(track.get_node()).base();
                     // Find corresponding track in resource using names of nodes, not
                     // original handles of instantiated nodes. We can't use original
                     // handles here because animation can be targetted to a node that
@@ -346,7 +347,7 @@ impl Animation {
                     // animation targetted to character instance.
                     let mut found = false;
                     for ref_track in ref_animation.get_tracks().iter() {
-                        if track_node.get_name() == resource_graph.get(ref_track.get_node()).get_name() {
+                        if track_node.get_name() == resource_graph.get(ref_track.get_node()).base().get_name() {
                             track.set_key_frames(ref_track.get_key_frames());
                             found = true;
                             break;
@@ -462,8 +463,8 @@ impl AnimationContainer {
         // Reset local transform of animated nodes first
         for animation in self.pool.iter() {
             for track in animation.get_tracks() {
-                let node = graph.get_mut(track.get_node());
-                let transform = node.get_local_transform_mut();
+                let base = graph.get_mut(track.get_node()).base_mut();
+                let transform = base.get_local_transform_mut();
                 transform.set_position(Default::default());
                 transform.set_rotation(Default::default());
                 // TODO: transform.set_scale(Vec3::new(1.0, 1.0, 1.0));
@@ -486,8 +487,8 @@ impl AnimationContainer {
                 }
 
                 if let Some(keyframe) = track.get_key_frame(animation.get_time_position()) {
-                    let node = graph.get_mut(track.get_node());
-                    let transform = node.get_local_transform_mut();
+                    let base = graph.get_mut(track.get_node()).base_mut();
+                    let transform = base.get_local_transform_mut();
                     transform.set_rotation(transform.get_rotation().nlerp(&keyframe.rotation, weight));
                     transform.set_position(transform.get_position() + keyframe.position.scale(weight));
                     // TODO: transform.set_scale(transform.get_scale().lerp(&keyframe.scale, weight));

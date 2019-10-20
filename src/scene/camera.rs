@@ -6,17 +6,27 @@ use rg3d_core::{
         vec2::Vec2
     }
 };
-use crate::scene::node::{CommonNodeData, NodeTrait};
+use crate::scene::base::{Base, AsBase};
 
 #[derive(Clone)]
 pub struct Camera {
-    common: CommonNodeData,
+    base: Base,
     fov: f32,
     z_near: f32,
     z_far: f32,
     viewport: Rect<f32>,
     view_matrix: Mat4,
     projection_matrix: Mat4,
+}
+
+impl AsBase for Camera {
+    fn base(&self) -> &Base {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        &mut self.base
+    }
 }
 
 impl Default for Camera {
@@ -26,7 +36,7 @@ impl Default for Camera {
         let z_far: f32 = 2048.0;
 
         Camera {
-            common: Default::default(),
+            base: Base::default(),
             fov,
             z_near,
             z_far,
@@ -49,7 +59,7 @@ impl Visit for Camera {
         self.z_near.visit("ZNear", visitor)?;
         self.z_far.visit("ZFar", visitor)?;
         self.viewport.visit("Viewport", visitor)?;
-        self.common.visit("Common", visitor)?;
+        self.base.visit("Base", visitor)?;
         visitor.leave_region()
     }
 }
@@ -57,9 +67,9 @@ impl Visit for Camera {
 impl Camera {
     #[inline]
     pub fn calculate_matrices(&mut self, aspect: f32) {
-        let pos = self.get_global_position();
-        let look = self.get_look_vector();
-        let up = self.get_up_vector();
+        let pos = self.base.get_global_position();
+        let look = self.base.get_look_vector();
+        let up = self.base.get_up_vector();
 
         if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
             self.view_matrix = view_matrix;
@@ -104,6 +114,3 @@ impl Camera {
         self.z_near
     }
 }
-
-impl_node_trait!(Camera);
-impl_node_trait_private!(Camera);

@@ -1,25 +1,35 @@
 use std::sync::{Arc, Mutex};
 use crate::{
     resource::texture::Texture,
-    scene::node::{CommonNodeData, CommonNodeBuilderData}
 };
 use rg3d_core::{
     color::Color,
     visitor::{Visit, VisitResult, Visitor}
 };
+use crate::scene::base::{BaseBuilder, Base, AsBase};
 
 #[derive(Clone)]
 pub struct Sprite {
-    common: CommonNodeData,
+    base: Base,
     texture: Option<Arc<Mutex<Texture>>>,
     color: Color,
     size: f32,
     rotation: f32,
 }
 
+impl AsBase for Sprite {
+    fn base(&self) -> &Base {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut Base {
+        &mut self.base
+    }
+}
+
 impl Default for Sprite {
     fn default() -> Self {
-        SpriteBuilder::new().build()
+        SpriteBuilder::new(BaseBuilder::new()).build()
     }
 }
 
@@ -58,9 +68,6 @@ impl Sprite {
     }
 }
 
-impl_node_trait!(Sprite);
-impl_node_trait_private!(Sprite);
-
 impl Visit for Sprite {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -69,38 +76,30 @@ impl Visit for Sprite {
         self.color.visit("Color", visitor)?;
         self.size.visit("Size", visitor)?;
         self.rotation.visit("Rotation", visitor)?;
-        self.common.visit("Common", visitor)?;
+        self.base.visit("Base", visitor)?;
 
         visitor.leave_region()
     }
 }
 
 pub struct SpriteBuilder {
-    common: CommonNodeBuilderData,
+    base_builder: BaseBuilder,
     texture: Option<Arc<Mutex<Texture>>>,
     color: Option<Color>,
     size: Option<f32>,
     rotation: Option<f32>,
 }
 
-impl Default for SpriteBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl SpriteBuilder {
-    pub fn new() -> Self {
+    pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
-            common: Default::default(),
+            base_builder,
             texture: None,
             color: None,
             size: None,
             rotation: None
         }
     }
-
-    impl_common_node_builder_methods!();
 
     pub fn with_texture(mut self, texture: Arc<Mutex<Texture>>) -> Self {
         self.texture = Some(texture);
@@ -129,7 +128,7 @@ impl SpriteBuilder {
 
     pub fn build(self) -> Sprite {
         Sprite {
-            common: From::from(self.common),
+            base: self.base_builder.build(),
             texture: self.texture,
             color: self.color.unwrap_or(Color::WHITE),
             size: self.size.unwrap_or(0.2),
