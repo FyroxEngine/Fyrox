@@ -1,4 +1,6 @@
 extern crate rg3d_core;
+#[macro_use]
+extern crate bitflags;
 
 use rg3d_core::{
     math::{
@@ -19,7 +21,7 @@ use std::cmp::Ordering;
 use crate::{
     rigid_body::RigidBody,
     static_geometry::StaticGeometry,
-    convex_shape::ConvexShape
+    convex_shape::ConvexShape,
 };
 
 pub mod gjk_epa;
@@ -32,8 +34,8 @@ pub enum HitKind {
     Body(Handle<RigidBody>),
     StaticTriangle {
         static_geometry: Handle<StaticGeometry>,
-        triangle_index: usize
-    }
+        triangle_index: usize,
+    },
 }
 
 pub struct RayCastOptions {
@@ -47,7 +49,7 @@ impl Default for RayCastOptions {
         Self {
             ignore_bodies: false,
             ignore_static_geometries: false,
-            sort_results: true
+            sort_results: true,
         }
     }
 }
@@ -140,7 +142,10 @@ impl Physics {
             for other_body in other_bodies.iter_mut() {
                 // Enforce borrowing rules at runtime.
                 if !std::ptr::eq(body, other_body) {
-                    body.solve_rigid_body_collision(other_body);
+                    if ((other_body.collision_group & body.collision_mask) != 0) &&
+                        ((body.collision_group & other_body.collision_mask) != 0) {
+                        body.solve_rigid_body_collision(other_body);
+                    }
                 }
             }
 
@@ -169,7 +174,7 @@ impl Physics {
                 let body_handle = self.bodies.handle_from_index(body_index);
 
                 match &body.shape {
-                    ConvexShape::Dummy => {},
+                    ConvexShape::Dummy => {}
                     ConvexShape::Box(box_shape) => {
                         if let Some(points) = ray.box_intersection_points(&box_shape.get_min(), &box_shape.get_max()) {
                             for point in points.iter() {
@@ -177,11 +182,11 @@ impl Physics {
                                     kind: HitKind::Body(body_handle),
                                     position: *point,
                                     normal: *point - body.position, // TODO: Fix normal
-                                    sqr_distance: point.sqr_distance(&ray.origin)
+                                    sqr_distance: point.sqr_distance(&ray.origin),
                                 })
                             }
                         }
-                    },
+                    }
                     ConvexShape::Sphere(sphere_shape) => {
                         if let Some(points) = ray.sphere_intersection_points(&body.position, sphere_shape.radius) {
                             for point in points.iter() {
@@ -189,11 +194,11 @@ impl Physics {
                                     kind: HitKind::Body(body_handle),
                                     position: *point,
                                     normal: *point - body.position,
-                                    sqr_distance: point.sqr_distance(&ray.origin)
+                                    sqr_distance: point.sqr_distance(&ray.origin),
                                 })
                             }
                         }
-                    },
+                    }
                     ConvexShape::Capsule(capsule_shape) => {
                         let (pa, pb) = capsule_shape.get_cap_centers();
                         let pa = pa + body.position;
@@ -205,26 +210,26 @@ impl Physics {
                                     kind: HitKind::Body(body_handle),
                                     position: *point,
                                     normal: *point - body.position,
-                                    sqr_distance: point.sqr_distance(&ray.origin)
+                                    sqr_distance: point.sqr_distance(&ray.origin),
                                 })
                             }
                         }
-                    },
+                    }
                     ConvexShape::Triangle(triangle_shape) => {
                         if let Some(point) = ray.triangle_intersection(&triangle_shape.vertices) {
                             result.push(RayCastResult {
                                 kind: HitKind::Body(body_handle),
                                 position: point,
                                 normal: triangle_shape.get_normal().unwrap(),
-                                sqr_distance: point.sqr_distance(&ray.origin)
+                                sqr_distance: point.sqr_distance(&ray.origin),
                             })
                         }
-                    },
+                    }
                     ConvexShape::PointCloud(_point_cloud) => {
                         // TODO: Implement this. This requires to build convex hull from point cloud first
                         // i.e. by gift wrapping algorithm or some other more efficient algorithms -
                         // https://dccg.upc.edu/people/vera/wp-content/uploads/2014/11/GA2014-ConvexHulls3D-Roger-Hernando.pdf
-                    },
+                    }
                 }
             }
         }
@@ -243,11 +248,11 @@ impl Physics {
                         result.push(RayCastResult {
                             kind: HitKind::StaticTriangle {
                                 static_geometry: self.static_geoms.handle_from_index(index),
-                                triangle_index
+                                triangle_index,
                             },
                             position: point,
                             normal: triangle.plane.normal,
-                            sqr_distance: point.sqr_distance(&ray.origin)
+                            sqr_distance: point.sqr_distance(&ray.origin),
                         })
                     }
                 }

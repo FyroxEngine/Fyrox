@@ -10,6 +10,14 @@ use crate::{
     static_geometry::StaticTriangle
 };
 
+bitflags! {
+    pub struct CollisionFlags: u8 {
+        const NONE = 0;
+        /// Collision response will be disabled but body still will gather contact information.
+        const DISABLE_COLLISION_RESPONSE = 1 << 0;
+    }
+}
+
 pub struct RigidBody {
     pub(in crate) position: Vec3,
     pub(in crate) shape: ConvexShape,
@@ -20,6 +28,10 @@ pub struct RigidBody {
     pub(in crate) gravity: Vec3,
     pub(in crate) speed_limit: f32,
     pub(in crate) lifetime: Option<f32>,
+    pub user_flags: u64,
+    pub collision_group: u64,
+    pub collision_mask: u64,
+    pub collision_flags: CollisionFlags,
 }
 
 impl Default for RigidBody {
@@ -46,8 +58,37 @@ impl Visit for RigidBody {
         self.friction.visit("Friction", visitor)?;
         self.gravity.visit("Gravity", visitor)?;
         self.speed_limit.visit("SpeedLimit", visitor)?;
+        self.user_flags.visit("UserFlags", visitor)?;
+        self.collision_group.visit("CollisionGroup", visitor)?;
+        self.collision_mask.visit("CollisionMask", visitor)?;
+
+        let mut collision_flags = self.collision_flags.bits;
+        collision_flags.visit("CollisionFlags", visitor)?;
+        if visitor.is_reading() {
+            self.collision_flags = CollisionFlags::from_bits(collision_flags).unwrap();
+        }
 
         visitor.leave_region()
+    }
+}
+
+impl Clone for RigidBody {
+    fn clone(&self) -> Self {
+        Self {
+            position: self.position,
+            last_position: self.last_position,
+            acceleration: self.acceleration,
+            contacts: Vec::new(),
+            friction: self.friction,
+            gravity: self.gravity,
+            shape: self.shape.clone(),
+            speed_limit: self.speed_limit,
+            lifetime: self.lifetime,
+            user_flags: self.user_flags,
+            collision_group: self.collision_group,
+            collision_mask: self.collision_mask,
+            collision_flags: CollisionFlags::NONE
+        }
     }
 }
 
@@ -63,21 +104,10 @@ impl RigidBody {
             contacts: Vec::new(),
             speed_limit: 0.75,
             lifetime: None,
-        }
-    }
-
-    #[inline]
-    pub fn make_copy(&self) -> RigidBody {
-        RigidBody {
-            position: self.position,
-            last_position: self.last_position,
-            acceleration: self.acceleration,
-            contacts: Vec::new(),
-            friction: self.friction,
-            gravity: self.gravity,
-            shape: self.shape.clone(),
-            speed_limit: self.speed_limit,
-            lifetime: self.lifetime,
+            user_flags: 0,
+            collision_group: 1,
+            collision_mask: std::u64::MAX,
+            collision_flags: CollisionFlags::NONE
         }
     }
 
@@ -224,7 +254,9 @@ impl RigidBody {
         if let Some(simplex) = gjk_epa::gjk_is_intersects(&self.shape, self.position, &other.shape, other.position) {
             if let Some(penetration_info) = gjk_epa::epa_get_penetration_info(simplex, &self.shape, self.position, &other.shape, other.position) {
                 let half_push = penetration_info.penetration_vector.scale(0.5);
-                self.position -= half_push;
+                if !self.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) {
+                    self.position -= half_push;
+                }
                 self.contacts.push(Contact {
                     body: Handle::NONE,
                     position: penetration_info.contact_point,
@@ -232,8 +264,9 @@ impl RigidBody {
                     normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::UP),
                     triangle_index: 0,
                 });
-
-                other.position += half_push;
+                if !other.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) {
+                    other.position += half_push;
+                }
                 other.contacts.push(Contact {
                     body: Handle::NONE,
                     position: penetration_info.contact_point,
