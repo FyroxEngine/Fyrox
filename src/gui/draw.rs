@@ -313,6 +313,13 @@ impl DrawingContext {
     }
 
     pub fn draw_text(&mut self, position: Vec2, formatted_text: &FormattedText) {
+        let font = if let Some(font) = formatted_text.get_font() {
+            font
+        } else {
+            println!("Trying to draw text without font!");
+            return;
+        };
+
         for element in formatted_text.get_glyphs() {
             let bounds = element.get_bounds();
 
@@ -322,7 +329,7 @@ impl DrawingContext {
 
             self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()), element.get_color());
         }
-        self.commit(CommandKind::Geometry, CommandTexture::Font(formatted_text.get_font()))
+        self.commit(CommandKind::Geometry, CommandTexture::Font(font))
     }
 
     pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) {

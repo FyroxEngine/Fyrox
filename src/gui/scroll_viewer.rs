@@ -1,18 +1,23 @@
 use crate::gui::{
-    UserInterface, maxf,
+    UserInterface,
+    maxf,
     node::UINode,
     scroll_content_presenter::ScrollContentPresenterBuilder,
     scroll_bar::{ScrollBarBuilder, Orientation},
     grid::{Row, GridBuilder, Column},
-    event::UIEventKind, Layout, widget::{Widget, WidgetBuilder, AsWidget},
-    Draw, draw::DrawingContext,
+    event::UIEventKind,
+    Layout,
+    widget::{Widget, WidgetBuilder, AsWidget},
+    Draw,
+    draw::DrawingContext,
     Visibility,
+    event::UIEvent,
+    Update
 };
 use rg3d_core::{
     pool::Handle,
     math::vec2::Vec2,
 };
-use crate::gui::event::UIEvent;
 
 pub struct ScrollViewer {
     widget: Widget,
@@ -52,6 +57,12 @@ impl Layout for ScrollViewer {
             .push_back(UIEvent::targeted(self.v_scroll_bar, UIEventKind::MaxValueChanged(y_max)));
 
         size
+    }
+}
+
+impl Update for ScrollViewer {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 
@@ -141,16 +152,26 @@ impl ScrollViewerBuilder {
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
                     .build(ui))
-                .with_event_handler(Box::new(move |ui, _handle, event| {
-                    if let UIEventKind::NumericValueChanged { new_value, .. } = event.kind {
-                        let content_presenter = ui.get_node_mut(content_presenter);
-                        if let UINode::ScrollContentPresenter(content_presenter) = content_presenter {
+                .with_event_handler(Box::new(move |ui, handle, event| {
+                    match event.kind {
+                        UIEventKind::NumericValueChanged { new_value, .. } => {
+                            let content_presenter = ui.get_node_mut(content_presenter).as_scroll_content_presenter_mut();
                             if event.source == h_scroll_bar {
                                 content_presenter.set_horizontal_scroll(new_value);
                             } else if event.source == v_scroll_bar {
                                 content_presenter.set_vertical_scroll(new_value);
                             }
                         }
+                        UIEventKind::MouseWheel { amount, .. } => {
+                            if !event.handled {
+                                if event.source == handle || ui.is_node_child_of(event.source, handle) {
+                                    let v_scroll_bar = ui.get_node_mut(v_scroll_bar).as_scroll_bar_mut();
+                                    v_scroll_bar.scroll(-amount * 10.0);
+                                    event.handled = true;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }))
                 .build(),

@@ -7,7 +7,10 @@ use rg3d_core::{
     },
 };
 use crate::gui::{
-    draw::{CommandKind, DrawingContext},
+    draw::{
+        CommandKind,
+        DrawingContext
+    },
     Thickness,
     UserInterface,
     Layout,
@@ -19,6 +22,7 @@ use crate::gui::{
         AsWidget
     },
     draw::CommandTexture,
+    Update,
 };
 
 pub struct Border {
@@ -34,6 +38,12 @@ impl AsWidget for Border {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+}
+
+impl Update for Border {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 

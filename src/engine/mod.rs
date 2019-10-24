@@ -159,7 +159,7 @@ impl Engine {
 
         self.sound_context.lock().unwrap().update().unwrap();
 
-        self.user_interface.update(Vec2::new(client_size.width as f32, client_size.height as f32));
+        self.user_interface.update(Vec2::new(client_size.width as f32, client_size.height as f32), dt);
     }
 
     pub fn get_ui_mut(&mut self) -> &mut UserInterface {

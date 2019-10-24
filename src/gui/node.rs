@@ -1,23 +1,5 @@
 use rg3d_core::math::vec2::Vec2;
-use crate::gui::{
-    draw::DrawingContext,
-    button::Button,
-    text::Text,
-    border::Border,
-    scroll_bar::ScrollBar,
-    scroll_viewer::ScrollViewer,
-    image::Image,
-    grid::Grid,
-    scroll_content_presenter::ScrollContentPresenter,
-    window::Window,
-    Draw,
-    Layout,
-    UserInterface,
-    canvas::Canvas,
-    widget::{Widget, AsWidget},
-};
-use crate::gui::list_box::ListBox;
-use crate::gui::stack_panel::StackPanel;
+use crate::gui::{draw::DrawingContext, button::Button, text::Text, border::Border, scroll_bar::ScrollBar, scroll_viewer::ScrollViewer, image::Image, grid::Grid, scroll_content_presenter::ScrollContentPresenter, window::Window, Draw, Layout, UserInterface, canvas::Canvas, widget::{Widget, AsWidget}, list_box::ListBox, stack_panel::StackPanel, text_box::TextBox, Update};
 
 /// UI node is a building block for all UI widgets. For example button could be a node with
 /// this structure
@@ -50,7 +32,8 @@ pub enum UINode {
     ScrollContentPresenter(ScrollContentPresenter),
     Window(Window),
     ListBox(ListBox),
-    StackPanel(StackPanel)
+    StackPanel(StackPanel),
+    TextBox(TextBox),
 }
 
 macro_rules! dispatch {
@@ -69,6 +52,7 @@ macro_rules! dispatch {
             UINode::Window(v) => v.$func($($args),*),
             UINode::ListBox(v) => v.$func($($args),*),
             UINode::StackPanel(v) => v.$func($($args),*),
+            UINode::TextBox(v) => v.$func($($args),*),
         }
     };
 }
@@ -76,6 +60,12 @@ macro_rules! dispatch {
 impl Draw for UINode {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         dispatch!(self, draw, drawing_context)
+    }
+}
+
+impl Update for UINode {
+    fn update(&mut self, dt: f32) {
+        dispatch!(self, update, dt)
     }
 }
 
@@ -135,4 +125,7 @@ impl UINode {
     define_is_as!(is_scroll_content_presenter, as_scroll_content_presenter,
      as_scroll_content_presenter_mut, ScrollContentPresenter, ScrollContentPresenter);
     define_is_as!(is_window, as_window, as_window_mut, Window, Window);
+    define_is_as!(is_list_box, as_list_box, as_list_box_mut, ListBox, ListBox);
+    define_is_as!(is_stack_panel, as_stack_panel, as_stack_panel_mut, StackPanel, StackPanel);
+    define_is_as!(is_text_box, as_text_box, as_text_box_mut, TextBox, TextBox);
 }

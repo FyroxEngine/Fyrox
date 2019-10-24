@@ -6,7 +6,8 @@ use crate::{
         draw::{DrawingContext, CommandKind, CommandTexture},
         widget::{Widget, AsWidget},
         Layout,
-        UserInterface
+        UserInterface,
+        Update
     }
 };
 use rg3d_core::math::vec2::Vec2;
@@ -41,5 +42,11 @@ impl Layout for Image {
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         self.widget.arrange_override(ui, final_size)
+    }
+}
+
+impl Update for Image {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }

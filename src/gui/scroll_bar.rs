@@ -13,6 +13,7 @@ use crate::gui::{
     widget::{Widget, WidgetBuilder, AsWidget},
     Draw,
     draw::DrawingContext,
+    Update
 };
 use rg3d_core::{
     color::Color, math,
@@ -52,6 +53,12 @@ impl AsWidget for ScrollBar {
 impl Draw for ScrollBar {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
+    }
+}
+
+impl Update for ScrollBar {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 
@@ -105,6 +112,18 @@ impl ScrollBar {
 
     pub fn get_min_value(&self) -> f32 {
         self.min
+    }
+
+    pub fn scroll(&mut self, amount: f32) {
+        let old_value = self.value;
+
+        self.value += amount;
+
+        self.widget.events.borrow_mut().push_back(
+            UIEvent::new(UIEventKind::NumericValueChanged {
+                old_value,
+                new_value: self.value,
+            }));
     }
 }
 

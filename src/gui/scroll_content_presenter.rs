@@ -13,6 +13,7 @@ use crate::gui::{
         AsWidget,
     },
     UserInterface, Layout, draw::DrawingContext,
+    Update
 };
 
 /// Allows user to scroll content
@@ -36,6 +37,12 @@ impl AsWidget for ScrollContentPresenter {
 impl Draw for ScrollContentPresenter {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
+    }
+}
+
+impl Update for ScrollContentPresenter {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 

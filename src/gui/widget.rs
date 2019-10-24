@@ -19,6 +19,7 @@ use crate::gui::{
     node::UINode,
     event::{UIEventHandler, UIEvent},
     draw::DrawingContext,
+    Update
 };
 use std::cell::RefCell;
 
@@ -75,6 +76,12 @@ pub struct Widget {
 impl Default for Widget {
     fn default() -> Self {
         WidgetBuilder::new().build()
+    }
+}
+
+impl Update for Widget {
+    fn update(&mut self, _dt: f32) {
+
     }
 }
 
@@ -277,8 +284,10 @@ impl WidgetBuilder {
         self
     }
 
-    pub fn with_children(mut self, mut children: Vec<Handle<UINode>>) -> Self {
-        self.children.append(&mut children);
+    pub fn with_children(mut self, children: &[Handle<UINode>]) -> Self {
+        for child in children {
+            self.children.push(*child)
+        }
         self
     }
 

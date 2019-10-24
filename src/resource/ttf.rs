@@ -950,6 +950,12 @@ impl Font {
         (1.05 * area.sqrt()) as i32
     }
 
+    #[inline]
+    pub fn get_glyph_advance(&self, c: u32) -> f32 {
+        self.get_glyph(c)
+            .map_or(self.get_height(), |glyph| glyph.get_advance())
+    }
+
     fn pack(&mut self) {
         self.atlas_size = self.compute_atlas_size();
 

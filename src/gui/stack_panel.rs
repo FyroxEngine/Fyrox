@@ -7,6 +7,7 @@ use crate::gui::{
     draw::DrawingContext,
     node::UINode,
     scroll_bar::Orientation,
+    Update
 };
 use rg3d_core::{
     math::{
@@ -24,6 +25,12 @@ pub struct StackPanel {
 impl Draw for StackPanel {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
+    }
+}
+
+impl Update for StackPanel {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 

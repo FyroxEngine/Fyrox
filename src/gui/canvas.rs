@@ -16,6 +16,7 @@ use crate::gui::{
     UserInterface,
     Draw,
     draw::DrawingContext,
+    Update
 };
 
 
@@ -45,6 +46,12 @@ impl Canvas {
 impl Default for Canvas {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Update for Canvas {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 

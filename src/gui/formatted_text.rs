@@ -1,7 +1,9 @@
 use rg3d_core::{
     color::Color,
-    math::vec2::Vec2,
-    math::Rect
+    math::{
+        vec2::Vec2,
+        Rect
+    }
 };
 use std::{
     rc::Rc,
@@ -11,6 +13,7 @@ use crate::{
     resource::ttf::Font,
     gui::{HorizontalAlignment, VerticalAlignment}
 };
+use std::ops::Range;
 
 #[derive(Debug)]
 pub struct TextGlyph {
@@ -34,11 +37,19 @@ impl TextGlyph {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct TextLine {
-    begin: usize,
-    end: usize,
-    width: f32,
-    x_offset: f32,
+pub struct TextLine {
+    /// Index of starting symbol in text array.
+    pub begin: usize,
+    /// Index of ending symbol in text array.
+    pub end: usize,
+    /// Total width of line.
+    pub width: f32,
+    /// Total height of line. Usually just ascender of a font.
+    pub height: f32,
+    /// Local horizontal position of line.
+    pub x_offset: f32,
+    /// Local vertical position of line.
+    pub y_offset: f32,
 }
 
 impl TextLine {
@@ -47,13 +58,19 @@ impl TextLine {
             begin: 0,
             end: 0,
             width: 0.0,
+            height: 0.0,
             x_offset: 0.0,
+            y_offset: 0.0,
         }
+    }
+
+    pub fn len(&self) -> usize {
+        self.end - self.begin
     }
 }
 
 pub struct FormattedText {
-    font: Rc<RefCell<Font>>,
+    font: Option<Rc<RefCell<Font>>>,
     /// Text in UTF32 format.
     text: Vec<u32>,
     /// Temporary buffer used to split text on lines. We need it to reduce memory allocations
@@ -62,35 +79,87 @@ pub struct FormattedText {
     lines: Vec<TextLine>,
     /// Final glyphs for draw buffer.
     glyphs: Vec<TextGlyph>,
+    vertical_alignment: VerticalAlignment,
+    horizontal_alignment: HorizontalAlignment,
+    color: Color,
+    size: Vec2,
 }
 
 impl FormattedText {
-    fn new(font: Rc<RefCell<Font>>) -> FormattedText {
-        FormattedText {
-            text: Vec::new(),
-            font,
-            glyphs: Vec::new(),
-            lines: Vec::new(),
-        }
-    }
-
     pub fn get_glyphs(&self) -> &[TextGlyph] {
         &self.glyphs
     }
 
-    pub fn get_font(&self) -> Rc<RefCell<Font>> {
+    pub fn get_font(&self) -> Option<Rc<RefCell<Font>>> {
         self.font.clone()
     }
 
-    fn build(&mut self, text: &str, size: Vec2, color: Color, vertical_alignment: VerticalAlignment,
-             horizontal_alignment: HorizontalAlignment) {
+    pub fn set_font(&mut self, font: Rc<RefCell<Font>>) {
+        self.font = Some(font);
+    }
+
+    pub fn get_lines(&self) -> &[TextLine] {
+        &self.lines
+    }
+
+    pub fn set_vertical_alignment(&mut self, vertical_alignment: VerticalAlignment ) {
+        self.vertical_alignment = vertical_alignment
+    }
+
+    pub fn set_horizontal_alignment(&mut self, horizontal_alignment: HorizontalAlignment ) {
+        self.horizontal_alignment = horizontal_alignment;
+    }
+
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    pub fn set_size(&mut self, size: Vec2) {
+        self.size = size;
+    }
+
+    pub fn get_raw_text(&self) -> &[u32] {
+        &self.text
+    }
+
+    pub fn get_range_width(&self, range: Range<usize>) -> f32 {
+        let mut width = 0.0;
+        if let Some(ref font) = self.font {
+            let font = font.borrow();
+            for index in range {
+                width += font.get_glyph_advance(self.text[index]);
+            }
+        }
+        width
+    }
+
+    pub fn set_text(&mut self, text: &str) {
         // Convert text to UTF32.
         self.text.clear();
         for code in text.chars().map(|c| c as u32) {
             self.text.push(code);
         }
+    }
 
-        let font = self.font.borrow();
+    pub fn insert_char(&mut self, c: char, index: usize) {
+        let c = c as u32;
+        if index == self.text.len() {
+            self.text.push(c);
+        } else {
+            self.text.insert(index, c);
+        }
+    }
+
+    pub fn remove_at(&mut self, index: usize) {
+        self.text.remove(index);
+    }
+
+    pub fn build(&mut self) {
+        let font = if let Some(font) = &self.font {
+            font.borrow()
+        } else {
+            return;
+        };
 
         // Split on lines.
         let mut total_height = 0.0;
@@ -104,7 +173,7 @@ impl FormattedText {
                 };
             let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
             let new_width = current_line.width + advance;
-            if new_width > size.x || is_new_line {
+            if new_width > self.size.x || is_new_line {
                 self.lines.push(current_line);
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin + 1;
@@ -124,10 +193,10 @@ impl FormattedText {
 
         // Align lines according to desired alignment.
         for line in self.lines.iter_mut() {
-            match horizontal_alignment {
+            match self.horizontal_alignment {
                 HorizontalAlignment::Left => line.x_offset = 0.0,
-                HorizontalAlignment::Center => line.x_offset = 0.5 * (size.x - line.width),
-                HorizontalAlignment::Right => line.x_offset = size.x - line.width,
+                HorizontalAlignment::Center => line.x_offset = 0.5 * (self.size.x - line.width),
+                HorizontalAlignment::Right => line.x_offset = self.size.x - line.width,
                 HorizontalAlignment::Stretch => line.x_offset = 0.0
             }
         }
@@ -135,15 +204,15 @@ impl FormattedText {
         // Generate glyphs for each text line.
         self.glyphs.clear();
 
-        let cursor_y_start = match vertical_alignment {
+        let cursor_y_start = match self.vertical_alignment {
             VerticalAlignment::Top => 0.0,
-            VerticalAlignment::Center => (size.y - total_height) * 0.5,
-            VerticalAlignment::Bottom => size.y - total_height,
+            VerticalAlignment::Center => (self.size.y - total_height) * 0.5,
+            VerticalAlignment::Bottom => self.size.y - total_height,
             VerticalAlignment::Stretch => 0.0
         };
 
-        let mut cursor = Vec2::new(size.x, cursor_y_start);
-        for line in self.lines.iter() {
+        let mut cursor = Vec2::new(self.size.x, cursor_y_start);
+        for line in self.lines.iter_mut() {
             cursor.x = line.x_offset;
 
             for code_index in line.begin..line.end {
@@ -162,7 +231,7 @@ impl FormattedText {
                             let text_glyph = TextGlyph {
                                 bounds: rect,
                                 tex_coords: *glyph.get_tex_coords(),
-                                color,
+                                color: self.color,
                             };
                             self.glyphs.push(text_glyph);
                         }
@@ -179,33 +248,34 @@ impl FormattedText {
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
                             tex_coords: [Vec2::ZERO; 4],
-                            color,
+                            color: self.color,
                         });
                         cursor.x += rect.w;
                     }
                 }
             }
-
+            line.height = font.get_ascender();
+            line.y_offset = cursor.y;
             cursor.y += font.get_ascender();
         }
     }
 }
 
-pub struct FormattedTextBuilder<'a> {
+pub struct FormattedTextBuilder {
+    font: Option<Rc<RefCell<Font>>>,
     color: Color,
     size: Vec2,
-    text: Option<&'a str>,
-    formatted_text: FormattedText,
+    text: String,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
 }
 
-impl<'a> FormattedTextBuilder<'a> {
+impl FormattedTextBuilder {
     /// Creates new formatted text builder with default parameters.
-    pub fn new(font: Rc<RefCell<Font>>) -> FormattedTextBuilder<'a> {
+    pub fn new() -> FormattedTextBuilder {
         FormattedTextBuilder {
-            text: None,
-            formatted_text: FormattedText::new(font),
+            font: None,
+            text: "".to_owned(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             color: Color::WHITE,
@@ -213,25 +283,9 @@ impl<'a> FormattedTextBuilder<'a> {
         }
     }
 
-    /// Creates new formatted text builder that will reuse existing
-    /// buffers from existing formatted text. This is very useful to
-    /// reduce memory allocations.
-    pub fn reuse(formatted_text: FormattedText) -> FormattedTextBuilder<'a> {
-        FormattedTextBuilder {
-            text: None,
-            formatted_text: FormattedText {
-                // Take buffers out and reuse them so no need to allocate new
-                // buffers every time when need to change a text.
-                text: formatted_text.text,
-                lines: formatted_text.lines,
-                glyphs: formatted_text.glyphs,
-                font: formatted_text.font,
-            },
-            horizontal_alignment: HorizontalAlignment::Left,
-            vertical_alignment: VerticalAlignment::Top,
-            color: Color::WHITE,
-            size: Vec2::new(128.0, 128.0),
-        }
+    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
+        self.font = Some(font);
+        self
     }
 
     pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
@@ -244,8 +298,8 @@ impl<'a> FormattedTextBuilder<'a> {
         self
     }
 
-    pub fn with_text(mut self, text: &'a str) -> Self {
-        self.text = Some(text);
+    pub fn with_text(mut self, text: String) -> Self {
+        self.text = text;
         self
     }
 
@@ -259,17 +313,16 @@ impl<'a> FormattedTextBuilder<'a> {
         self
     }
 
-    pub fn build(mut self) -> FormattedText {
-        if let Some(text) = self.text {
-            self.formatted_text.build(
-                text,
-                self.size,
-                self.color,
-                self.vertical_alignment,
-                self.horizontal_alignment,
-            );
+    pub fn build(self) -> FormattedText {
+        FormattedText {
+            font: self.font,
+            text: self.text.chars().map(|c| c as u32).collect(),
+            lines: Vec::new(),
+            glyphs: Vec::new(),
+            vertical_alignment: self.vertical_alignment,
+            horizontal_alignment: self.horizontal_alignment,
+            color: self.color,
+            size: Vec2::new(120.0, 120.0)
         }
-
-        self.formatted_text
     }
 }

@@ -14,6 +14,7 @@ use crate::gui::{
     UserInterface,
     draw::DrawingContext,
     widget::{WidgetBuilder, Widget, AsWidget},
+    Update
 };
 
 #[derive(PartialEq)]
@@ -133,6 +134,12 @@ impl AsWidget for Grid {
 impl Draw for Grid {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
+    }
+}
+
+impl Update for Grid {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 

@@ -15,6 +15,7 @@ pub mod formatted_text;
 pub mod widget;
 pub mod list_box;
 pub mod stack_panel;
+pub mod text_box;
 
 use std::{
     collections::VecDeque,
@@ -27,11 +28,16 @@ use crate::{
         widget::AsWidget,
         draw::{DrawingContext, CommandKind, CommandTexture},
         canvas::Canvas,
-        event::{UIEvent, UIEventKind},
+        event::{
+            UIEvent,
+            UIEventKind,
+            UIEventHandler
+        }
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
-    ElementState, WindowEvent,
+    ElementState,
+    WindowEvent,
     MouseScrollDelta,
 };
 use rg3d_core::{
@@ -39,7 +45,6 @@ use rg3d_core::{
     pool::{Pool, Handle},
     math::{vec2::Vec2, Rect},
 };
-use crate::gui::event::UIEventHandler;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -103,6 +108,10 @@ trait Draw {
     fn draw(&mut self, drawing_context: &mut DrawingContext);
 }
 
+trait Update {
+    fn update(&mut self, dt: f32);
+}
+
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
@@ -113,9 +122,10 @@ pub struct UserInterface {
     picked_node: Handle<UINode>,
     prev_picked_node: Handle<UINode>,
     captured_node: Handle<UINode>,
+    keyboard_focus_node: Handle<UINode>,
     mouse_position: Vec2,
     events: VecDeque<UIEvent>,
-    event_handlers: Vec<Option<Box<UIEventHandler>>>
+    event_handlers: Vec<Option<Box<UIEventHandler>>>,
 }
 
 #[inline]
@@ -152,7 +162,8 @@ impl UserInterface {
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
-            event_handlers: Vec::new()
+            event_handlers: Vec::new(),
+            keyboard_focus_node: Handle::NONE,
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new()));
         ui
@@ -355,7 +366,7 @@ impl UserInterface {
             size.y = widget.height.get();
         }
 
-        size = node.arrange_override( self, size);
+        size = node.arrange_override(self, size);
 
         if size.x > final_rect.w {
             size.x = final_rect.w;
@@ -407,10 +418,13 @@ impl UserInterface {
         }
     }
 
-    pub fn update(&mut self, screen_size: Vec2) {
+    pub fn update(&mut self, screen_size: Vec2, dt: f32) {
         self.measure(self.root_canvas, screen_size);
         self.arrange(self.root_canvas, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
         self.update_transform(self.root_canvas);
+        for node in self.nodes.iter_mut() {
+            node.update(dt)
+        }
     }
 
     fn draw_node(&mut self, node_handle: Handle<UINode>, nesting: u8) {
@@ -582,6 +596,8 @@ impl UserInterface {
         self.find_by_criteria_up(node.widget().parent, func)
     }
 
+    /// Checks if specified node is a child of some other node on `root_handle`. This method
+    /// is useful to understand if some event came from some node down by tree.
     pub fn is_node_child_of(&self, node_handle: Handle<UINode>, root_handle: Handle<UINode>) -> bool {
         for child_handle in self.nodes.borrow(root_handle).widget().children.iter() {
             if *child_handle == node_handle {
@@ -590,6 +606,16 @@ impl UserInterface {
 
             let result = self.is_node_child_of(node_handle, *child_handle);
             if result {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Checks if specified node is a direct child of some other node on `root_handle`.
+    pub fn is_node_direct_child_of(&self, node_handle: Handle<UINode>, root_handle: Handle<UINode>) -> bool {
+        for child_handle in self.nodes.borrow(root_handle).widget().children.iter() {
+            if *child_handle == node_handle {
                 return true;
             }
         }
@@ -692,6 +718,8 @@ impl UserInterface {
                     ElementState::Pressed => {
                         self.picked_node = self.hit_test(self.mouse_position);
 
+                        self.keyboard_focus_node = self.picked_node;
+
                         if !self.picked_node.is_none() {
                             self.events.push_back(UIEvent {
                                 handled: false,
@@ -791,6 +819,49 @@ impl UserInterface {
 
                         event_processed = true;
                     }
+                }
+            }
+            WindowEvent::KeyboardInput { input, .. } => {
+                if self.keyboard_focus_node.is_some() {
+                    if let Some(keycode) = input.virtual_keycode {
+                        let event = UIEvent {
+                            handled: false,
+                            kind: match input.state {
+                                ElementState::Pressed => {
+                                    UIEventKind::KeyDown {
+                                        code: keycode,
+                                    }
+                                }
+                                ElementState::Released => {
+                                    UIEventKind::KeyUp {
+                                        code: keycode,
+                                    }
+                                }
+                            },
+                            target: Handle::NONE,
+                            source: self.keyboard_focus_node,
+                        };
+
+                        self.events.push_back(event);
+
+                        event_processed = true;
+                    }
+                }
+            },
+            WindowEvent::ReceivedCharacter(unicode) => {
+                if self.keyboard_focus_node.is_some() {
+                    let event = UIEvent {
+                        handled: false,
+                        kind: UIEventKind::Text {
+                            symbol: *unicode
+                        },
+                        target: Handle::NONE,
+                        source: self.keyboard_focus_node
+                    };
+
+                    self.events.push_back(event);
+
+                    event_processed = true;
                 }
             }
             _ => ()

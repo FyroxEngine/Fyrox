@@ -15,6 +15,7 @@ use crate::gui::{
     Layout,
     Draw,
     draw::DrawingContext,
+    Update,
 };
 use rg3d_core::{
     color::Color,
@@ -54,6 +55,12 @@ impl Layout for Button {
 impl Draw for Button {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
+    }
+}
+
+impl Update for Button {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 

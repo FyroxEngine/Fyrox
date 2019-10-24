@@ -15,7 +15,7 @@ use crate::{
         UserInterface,
         formatted_text::{FormattedText, FormattedTextBuilder},
         widget::{Widget, WidgetBuilder, AsWidget},
-        Layout
+        Layout, Update
     },
     resource::ttf::Font,
 };
@@ -27,7 +27,7 @@ pub struct Text {
     font: Rc<RefCell<Font>>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
-    formatted_text: Option<FormattedText>,
+    formatted_text: FormattedText,
 }
 
 impl AsWidget for Text {
@@ -37,6 +37,12 @@ impl AsWidget for Text {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+}
+
+impl Update for Text {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 
@@ -54,17 +60,15 @@ impl Draw for Text {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
         if self.need_update {
-            let formatted_text = FormattedTextBuilder::reuse(self.formatted_text.take().unwrap())
-                .with_size(Vec2::new(bounds.w, bounds.h))
-                .with_text(self.text.as_str())
-                .with_color(self.widget.color)
-                .with_horizontal_alignment(self.horizontal_alignment)
-                .with_vertical_alignment(self.vertical_alignment)
-                .build();
-            self.formatted_text = Some(formatted_text);
+            self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
+            self.formatted_text.set_text(self.text.as_str());
+            self.formatted_text.set_color(self.widget.color);
+            self.formatted_text.set_horizontal_alignment(self.horizontal_alignment);
+            self.formatted_text.set_vertical_alignment(self.vertical_alignment);
+            self.formatted_text.build();
             self.need_update = true; // TODO
         }
-        drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), self.formatted_text.as_ref().unwrap());
+        drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), &self.formatted_text);
     }
 }
 
@@ -149,7 +153,7 @@ impl TextBuilder {
             need_update: true,
             vertical_alignment: self.vertical_text_alignment.unwrap_or(VerticalAlignment::Top),
             horizontal_alignment: self.horizontal_text_alignment.unwrap_or(HorizontalAlignment::Left),
-            formatted_text: Some(FormattedTextBuilder::new(font.clone()).build()),
+            formatted_text: FormattedTextBuilder::new().with_font(font.clone()).build(),
             font
         }))
     }

@@ -67,7 +67,10 @@ pub enum UIEventKind {
     },
 
     MaxValueChanged(f32),
+
     MinValueChanged(f32),
+
+    SelectionChanged(Option<usize>),
 
     /// Any kind of user-defined event.
     User(Box<dyn Any>),

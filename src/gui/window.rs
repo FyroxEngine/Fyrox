@@ -17,7 +17,8 @@ use crate::gui::{
     Layout,
     widget::{Widget, WidgetBuilder, AsWidget},
     Draw,
-    draw::DrawingContext
+    draw::DrawingContext,
+    Update
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -37,6 +38,12 @@ impl AsWidget for Window {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+}
+
+impl Update for Window {
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 
