@@ -23,7 +23,7 @@ pub struct Rect<T> {
     pub h: T,
 }
 
-impl<T> Rect<T> where T: Default + Add<Output=T> + Sub<Output=T> + Mul<Output=T> + Copy {
+impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + Mul<Output=T> + Copy {
     pub fn new(x: T, y: T, w: T, h: T) -> Rect<T> {
         Rect { x, y, w, h }
     }
@@ -53,6 +53,10 @@ impl<T> Rect<T> where T: Default + Add<Output=T> + Sub<Output=T> + Mul<Output=T>
             w: self.w - (dw + dw),
             h: self.h - (dh + dh),
         }
+    }
+
+    pub fn contains(&self, x: T, y: T) -> bool {
+        x >= self.x && x <= self.x + self.w && y >= self.y && y <= self.y + self.h
     }
 }
 
