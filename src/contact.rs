@@ -3,13 +3,17 @@ use rg3d_core::{
     pool::Handle,
     visitor::{Visit, VisitResult, Visitor}
 };
-use crate::rigid_body::RigidBody;
+use crate::{
+    rigid_body::RigidBody,
+    static_geometry::StaticGeometry
+};
 
 pub struct Contact {
     pub body: Handle<RigidBody>,
     pub position: Vec3,
     pub normal: Vec3,
     pub triangle_index: u32,
+    pub static_geom: Handle<StaticGeometry>
 }
 
 impl Default for Contact {
@@ -19,6 +23,7 @@ impl Default for Contact {
             position: Vec3::ZERO,
             normal: Vec3::new(0.0, 1.0, 0.0),
             triangle_index: 0,
+            static_geom: Handle::NONE,
         }
     }
 }

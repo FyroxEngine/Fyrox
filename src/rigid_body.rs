@@ -9,12 +9,13 @@ use crate::{
     gjk_epa,
     static_geometry::StaticTriangle
 };
+use crate::static_geometry::StaticGeometry;
 
 bitflags! {
     pub struct CollisionFlags: u8 {
         const NONE = 0;
         /// Collision response will be disabled but body still will gather contact information.
-        const DISABLE_COLLISION_RESPONSE = 1 << 0;
+        const DISABLE_COLLISION_RESPONSE = 1;
     }
 }
 
@@ -127,6 +128,11 @@ impl RigidBody {
         self.position += v;
     }
 
+    pub fn offset_by(&mut self, v: Vec3) {
+        self.position += v;
+        self.last_position = self.position;
+    }
+
     #[inline]
     pub fn set_shape(&mut self, shape: ConvexShape) {
         self.shape = shape;
@@ -174,6 +180,16 @@ impl RigidBody {
     }
 
     #[inline]
+    pub fn set_velocity(&mut self, v: Vec3) {
+        self.last_position = self.position - v;
+    }
+
+    #[inline]
+    pub fn get_velocity(&self) -> Vec3 {
+        self.position - self.last_position
+    }
+
+    #[inline]
     pub fn get_contacts(&self) -> &[Contact] {
         self.contacts.as_slice()
     }
@@ -200,7 +216,7 @@ impl RigidBody {
 
     pub fn verlet(&mut self, sqr_delta_time: f32, air_friction: f32) {
         let friction =
-            if !self.contacts.is_empty() {
+            if !self.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) && !self.contacts.is_empty() {
                 self.friction
             } else {
                 air_friction
@@ -231,7 +247,7 @@ impl RigidBody {
         }
     }
 
-    pub fn solve_triangle_collision(&mut self, triangle: &StaticTriangle, triangle_index: usize) {
+    pub fn solve_triangle_collision(&mut self, triangle: &StaticTriangle, triangle_index: usize, static_geom: Handle<StaticGeometry>) {
         let triangle_shape = ConvexShape::Triangle(TriangleShape {
             vertices: triangle.points
         });
@@ -241,6 +257,7 @@ impl RigidBody {
                 self.position -= penetration_info.penetration_vector;
 
                 self.contacts.push(Contact {
+                    static_geom,
                     body: Handle::NONE,
                     position: penetration_info.contact_point,
                     normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::ZERO),
@@ -250,29 +267,35 @@ impl RigidBody {
         }
     }
 
-    pub fn solve_rigid_body_collision(&mut self, other: &mut Self) {
+    pub fn solve_rigid_body_collision(&mut self, self_handle: Handle<RigidBody>, other: &mut Self, other_handle: Handle<RigidBody>) {
         if let Some(simplex) = gjk_epa::gjk_is_intersects(&self.shape, self.position, &other.shape, other.position) {
             if let Some(penetration_info) = gjk_epa::epa_get_penetration_info(simplex, &self.shape, self.position, &other.shape, other.position) {
                 let half_push = penetration_info.penetration_vector.scale(0.5);
-                if !self.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) {
+                let response_disabled =
+                    self.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) ||
+                    other.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE);
+
+                if !response_disabled {
                     self.position -= half_push;
                 }
                 self.contacts.push(Contact {
-                    body: Handle::NONE,
+                    body: other_handle,
                     position: penetration_info.contact_point,
                     // TODO: WRONG NORMAL
                     normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::UP),
                     triangle_index: 0,
+                    static_geom: Default::default()
                 });
-                if !other.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) {
+                if !response_disabled {
                     other.position += half_push;
                 }
                 other.contacts.push(Contact {
-                    body: Handle::NONE,
+                    body: self_handle,
                     position: penetration_info.contact_point,
                     // TODO: WRONG NORMAL
-                    normal: (-penetration_info.penetration_vector).normalized().unwrap_or(Vec3::UP),
+                    normal: (penetration_info.penetration_vector).normalized().unwrap_or(Vec3::UP),
                     triangle_index: 0,
+                    static_geom: Default::default()
                 })
             }
         }

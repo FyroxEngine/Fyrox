@@ -129,7 +129,7 @@ impl Physics {
         //    pointer equality check down below.
         let other_bodies = unsafe { &mut *(&mut self.bodies as *mut Pool<RigidBody>) };
 
-        for body in self.bodies.iter_mut() {
+        for (body_handle, body) in self.bodies.pair_iter_mut() {
             if let Some(ref mut lifetime) = body.lifetime {
                 *lifetime -= delta_time;
             }
@@ -139,19 +139,18 @@ impl Physics {
 
             body.contacts.clear();
 
-            for other_body in other_bodies.iter_mut() {
+            for (other_body_handle, other_body) in other_bodies.pair_iter_mut() {
                 // Enforce borrowing rules at runtime.
-                if !std::ptr::eq(body, other_body) {
-                    if ((other_body.collision_group & body.collision_mask) != 0) &&
-                        ((body.collision_group & other_body.collision_mask) != 0) {
-                        body.solve_rigid_body_collision(other_body);
-                    }
+                if !std::ptr::eq(body, other_body) &&
+                    ((other_body.collision_group & body.collision_mask) != 0) &&
+                    ((body.collision_group & other_body.collision_mask) != 0) {
+                    body.solve_rigid_body_collision(body_handle,other_body, other_body_handle);
                 }
             }
 
-            for static_geometry in self.static_geoms.iter() {
+            for (handle, static_geometry) in self.static_geoms.pair_iter() {
                 for (n, triangle) in static_geometry.triangles.iter().enumerate() {
-                    body.solve_triangle_collision(&triangle, n);
+                    body.solve_triangle_collision(&triangle, n, handle);
                 }
             }
         }
