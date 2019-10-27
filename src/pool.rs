@@ -262,6 +262,38 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Borrows shared reference to an object by its handle.
+    ///
+    /// Returns None if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    #[inline]
+    #[must_use]
+    pub fn try_borrow(&self, handle: Handle<T>) -> Option<&T> {
+        self.records.get(handle.index as usize)
+            .and_then(|r| if r.generation == handle.generation {
+                r.payload.as_ref()
+            } else {
+                None
+            })
+    }
+
+    /// Borrows mutable reference to an object by its handle.
+    ///
+    /// Returns None if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    #[inline]
+    #[must_use]
+    pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
+        self.records.get_mut(handle.index as usize)
+            .and_then(|r| if r.generation == handle.generation {
+                r.payload.as_mut()
+            } else {
+                None
+            })
+    }
+
     /// Borrows mutable reference to an object by its handle.
     ///
     /// # Panics
