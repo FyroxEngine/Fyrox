@@ -1,6 +1,6 @@
 # RG3D
 
-3d game engine written in Rust. This project ports many features from [DmitrysEngine](https://github.com/mrDIMAS/DmitrysEngine) (written in C).
+3D game engine written in Rust. 
 
 WARNING: Some places are semi-complete or just does not implemented yet, this engine is not in production-ready state yet.
 
@@ -25,16 +25,19 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Button
 	- Canvas (layout panel)
 	- Grid (layout panel)
+	- Stack panel
 	- Scroll bar
 	- Scroll viewer
 	- Scroll content presenter
 	- Text
+	- Text box
+	- List box	
 	- Window 
 - Fonts - TTF Loader (compound characters are not supported yet)
 - Built-in save/load using object visitor - save/load state of engine in one call.
 - Skinning
 - Animation blending - allows you to blend your animations as you want to, i.e. idle animation can be blended with walk.
-- Animation retargetting - allows you to remap animation from one model to another
+- Animation retargetting - allows you to remap animation from one model to another.
 - Automatic resource management
 	- Texture
 	- Models
@@ -45,11 +48,17 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Bump mapping
 - Particle systems with soft particles.
 - Sounds - using [rg3d-sound](https://github.com/mrDIMAS/rg3d-sound) crate.
-- Physics - using [rg3d-physics](https://github.com/mrDIMAS/rg3d-physics crate.
+- Physics - using [rg3d-physics](https://github.com/mrDIMAS/rg3d-physics) crate.
 
 ### What will be added soon? 
 
 - Shadows
+
+### Plans
+
+- Optimization - some places of engine lacks optimization - there is still no culling, space partitioning for physics, etc.
+- Simple editor - would be so nice to have, but until UI is not stabilized enough there is no point to try to write editor.
+- Documentation - it is still incomplete because engine contstantly changing its API.
 
 ## Dependencies
 

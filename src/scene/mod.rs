@@ -89,7 +89,7 @@ impl Scene {
         }
     }
 
-    pub fn update_physics(&mut self, dt: f32) {
+    fn update_physics(&mut self, dt: f32) {
         self.physics.step(dt);
 
         // Sync node positions with assigned physics bodies
@@ -102,6 +102,27 @@ impl Scene {
                 }
             }
         }
+    }
+
+    /// Removes node from scene with all associated entities, like animations etc.
+    ///
+    /// # Panics
+    ///
+    /// Panics if handle is invalid.
+    pub fn remove_node(&mut self, handle: Handle<Node>) {
+        for descendant in self.graph.traverse_handle_iter(handle) {
+            // Remove all associated animations.
+            self.animations.retain(|animation| {
+                for track in animation.get_tracks() {
+                    if track.get_node() == descendant {
+                        return false;
+                    }
+                }
+                true
+            });
+        }
+
+        self.graph.remove_node(handle)
     }
 
     pub fn resolve(&mut self) {

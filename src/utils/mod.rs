@@ -1,4 +1,7 @@
 use std::marker::PhantomData;
+use crate::scene::mesh::Mesh;
+use rg3d_physics::static_geometry::{StaticGeometry, StaticTriangle};
+use crate::scene::base::AsBase;
 
 pub struct UnsafeCollectionView<T> {
     items: *const T,
@@ -51,4 +54,41 @@ impl<'a, T> Iterator for UnsafeCollectionViewIterator<'a, T> {
             }
         }
     }
+}
+
+/// Small helper that creates static physics geometry from given mesh.
+///
+/// # Notes
+///
+/// This method *bakes* global transform of given mesh into static geometry
+/// data. So if given mesh was at some position with any rotation and scale
+/// resulting static geometry will have vertices that exactly matches given
+/// mesh.
+pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
+    let mut static_geometry = StaticGeometry::new();
+    let global_transform = mesh.base().get_global_transform();
+    for surface in mesh.get_surfaces() {
+        let data_rc = surface.get_data();
+        let shared_data = data_rc.lock().unwrap();
+
+        let vertices = shared_data.get_vertices();
+        let indices = shared_data.get_indices();
+
+        let last = indices.len() - indices.len() % 3;
+        let mut i: usize = 0;
+        while i < last {
+            let a = global_transform.transform_vector(vertices[indices[i] as usize].position);
+            let b = global_transform.transform_vector(vertices[indices[i + 1] as usize].position);
+            let c = global_transform.transform_vector(vertices[indices[i + 2] as usize].position);
+
+            if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
+                static_geometry.add_triangle(triangle);
+            } else {
+                println!("degenerated triangle!");
+            }
+
+            i += 3;
+        }
+    }
+    static_geometry
 }

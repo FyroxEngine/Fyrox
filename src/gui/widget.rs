@@ -62,6 +62,7 @@ pub struct Widget {
     pub(in crate::gui) margin: Thickness,
     /// Current visibility state
     pub(in crate::gui) visibility: Visibility,
+    pub(in crate::gui) global_visibility: bool,
     pub(in crate::gui) children: Vec<Handle<UINode>>,
     pub(in crate::gui) parent: Handle<UINode>,
     /// Indices of commands in command buffer emitted by the node.
@@ -71,6 +72,7 @@ pub struct Widget {
     pub(in crate::gui) arrange_valid: Cell<bool>,
     pub(in crate::gui) event_handlers: Vec<Box<UIEventHandler>>,
     pub(in crate::gui) events: RefCell<VecDeque<UIEvent>>,
+    pub(in crate::gui) is_hit_test_visible: bool,
 }
 
 impl Default for Widget {
@@ -194,6 +196,8 @@ pub struct WidgetBuilder {
     margin: Option<Thickness>,
     children: Vec<Handle<UINode>>,
     event_handlers: Vec<Box<UIEventHandler>>,
+    is_hit_test_visible: bool,
+    visibility: Visibility,
 }
 
 impl Default for WidgetBuilder {
@@ -219,6 +223,8 @@ impl WidgetBuilder {
             desired_position: None,
             children: Vec::new(),
             event_handlers: Vec::new(),
+            is_hit_test_visible: true,
+            visibility: Visibility::Visible
         }
     }
 
@@ -301,6 +307,16 @@ impl WidgetBuilder {
         self
     }
 
+    pub fn with_hit_test_visibility(mut self, state: bool) -> Self {
+        self.is_hit_test_visible = state;
+        self
+    }
+
+    pub fn with_visibility(mut self, visibility: Visibility) -> Self {
+        self.visibility = visibility;
+        self
+    }
+
     pub fn build(self) -> Widget {
         Widget {
             name: self.name.unwrap_or_default(),
@@ -319,7 +335,8 @@ impl WidgetBuilder {
             vertical_alignment: self.vertical_alignment.unwrap_or(VerticalAlignment::Stretch),
             horizontal_alignment: self.horizontal_alignment.unwrap_or(HorizontalAlignment::Stretch),
             margin: self.margin.unwrap_or_else(Thickness::zero),
-            visibility: Visibility::Visible,
+            visibility: self.visibility,
+            global_visibility: true,
             children: self.children,
             parent: Handle::NONE,
             command_indices: Vec::new(),
@@ -328,6 +345,7 @@ impl WidgetBuilder {
             arrange_valid: Cell::new(false),
             event_handlers: self.event_handlers,
             events: RefCell::new(VecDeque::new()),
+            is_hit_test_visible: self.is_hit_test_visible,
         }
     }
 }

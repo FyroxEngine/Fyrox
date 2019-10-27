@@ -31,8 +31,8 @@ use crate::{
         event::{
             UIEvent,
             UIEventKind,
-            UIEventHandler
-        }
+            UIEventHandler,
+        },
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
@@ -71,22 +71,28 @@ pub struct Thickness {
 }
 
 impl Thickness {
-    pub fn zero() -> Thickness {
-        Thickness {
-            left: 0.0,
-            top: 0.0,
-            right: 0.0,
-            bottom: 0.0,
-        }
+    pub fn zero() -> Self {
+        Self { left: 0.0, top: 0.0, right: 0.0, bottom: 0.0 }
     }
 
-    pub fn uniform(v: f32) -> Thickness {
-        Thickness {
-            left: v,
-            top: v,
-            right: v,
-            bottom: v,
-        }
+    pub fn uniform(v: f32) -> Self {
+        Self { left: v, top: v, right: v, bottom: v }
+    }
+
+    pub fn bottom(v: f32) -> Self {
+        Self { left: 0.0, top: 0.0, right: 0.0, bottom: v }
+    }
+
+    pub fn top(v: f32) -> Self {
+        Self { left: 0.0, top: v, right: 0.0, bottom: 0.0 }
+    }
+
+    pub fn left(v: f32) -> Self {
+        Self { left: v, top: 0.0, right: 0.0, bottom: 0.0 }
+    }
+
+    pub fn right(v: f32) -> Self {
+        Self { left: 0.0, top: 0.0, right: v, bottom: 0.0 }
     }
 }
 
@@ -149,7 +155,7 @@ fn minf(a: f32, b: f32) -> f32 {
 impl UserInterface {
     pub(in crate) fn new() -> UserInterface {
         let font_bytes = std::include_bytes!("../built_in_font.ttf").to_vec();
-        let font = Font::from_memory(font_bytes, 20.0, (0..255).collect()).unwrap();
+        let font = Font::from_memory(font_bytes, 20.0, Font::default_char_set()).unwrap();
         let font = Rc::new(RefCell::new(font));
         let mut ui = UserInterface {
             events: VecDeque::new(),
@@ -400,28 +406,31 @@ impl UserInterface {
         widget.arrange_valid.set(true);
     }
 
-    fn update_transform(&mut self, node_handle: Handle<UINode>) {
-        let screen_position;
+    fn update_node(&mut self, node_handle: Handle<UINode>) {
         let widget = self.nodes.borrow(node_handle).widget();
         let children = UnsafeCollectionView::from_slice(&widget.children);
-        if widget.parent.is_some() {
-            screen_position = widget.actual_local_position.get() + self.nodes.borrow(widget.parent).widget().screen_position;
-        } else {
-            screen_position = widget.actual_local_position.get();
-        }
+        let (screen_position, parent_visibility) =
+            if widget.parent.is_some() {
+                let parent_widget = self.nodes.borrow(widget.parent).widget();
+                (widget.actual_local_position.get() + parent_widget.screen_position, parent_widget.global_visibility)
+            } else {
+                (widget.actual_local_position.get(), true)
+            };
 
-        self.nodes.borrow_mut(node_handle).widget_mut().screen_position = screen_position;
+        let widget = self.nodes.borrow_mut(node_handle).widget_mut();
+        widget.screen_position = screen_position;
+        widget.global_visibility = widget.visibility == Visibility::Visible && parent_visibility;
 
         // Continue on children
         for child_handle in children.iter() {
-            self.update_transform(*child_handle);
+            self.update_node(*child_handle);
         }
     }
 
     pub fn update(&mut self, screen_size: Vec2, dt: f32) {
         self.measure(self.root_canvas, screen_size);
         self.arrange(self.root_canvas, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
-        self.update_transform(self.root_canvas);
+        self.update_node(self.root_canvas);
         for node in self.nodes.iter_mut() {
             node.update(dt)
         }
@@ -432,7 +441,7 @@ impl UserInterface {
 
         let node = self.nodes.borrow_mut(node_handle);
         let bounds = node.widget().get_screen_bounds();
-        if node.widget_mut().visibility != Visibility::Visible {
+        if !node.widget_mut().global_visibility {
             return;
         }
 
@@ -491,7 +500,7 @@ impl UserInterface {
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle).widget();
-        if widget.visibility != Visibility::Visible {
+        if !widget.global_visibility {
             return clipped;
         }
 
@@ -515,7 +524,7 @@ impl UserInterface {
     fn is_node_contains_point(&self, node_handle: Handle<UINode>, pt: Vec2) -> bool {
         let widget = self.nodes.borrow(node_handle).widget();
 
-        if widget.visibility != Visibility::Visible {
+        if !widget.global_visibility {
             return false;
         }
 
@@ -847,7 +856,7 @@ impl UserInterface {
                         event_processed = true;
                     }
                 }
-            },
+            }
             WindowEvent::ReceivedCharacter(unicode) => {
                 if self.keyboard_focus_node.is_some() {
                     let event = UIEvent {
@@ -856,7 +865,7 @@ impl UserInterface {
                             symbol: *unicode
                         },
                         target: Handle::NONE,
-                        source: self.keyboard_focus_node
+                        source: self.keyboard_focus_node,
                     };
 
                     self.events.push_back(event);

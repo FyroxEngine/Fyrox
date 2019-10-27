@@ -134,6 +134,10 @@ impl GpuProgram {
         }
     }
 
+    pub fn set_bool(&self, location: UniformLocation, value: bool) {
+        self.set_int(location,  i32::from(if value { gl::TRUE } else { gl::FALSE }))
+    }
+
     pub fn set_float(&self, location: UniformLocation, value: f32) {
         unsafe {
             gl::Uniform1f(location.id, value)

@@ -202,7 +202,7 @@ impl DeferredLightRenderer {
     }
 
     pub fn render(&mut self, frame_width: f32, frame_height: f32, scene: &Scene,
-                  camera: &Camera, gbuffer: &GBuffer, white_dummy: &GpuTexture) {
+                  camera: &Camera, gbuffer: &GBuffer, white_dummy: &GpuTexture, ambient_color: Color) {
         let frame_matrix =
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::new(frame_width, frame_height, 0.0));
@@ -221,7 +221,7 @@ impl DeferredLightRenderer {
             // Ambient light.
             self.ambient_light_shader.bind();
             self.ambient_light_shader.set_wvp_matrix(&frame_matrix);
-            self.ambient_light_shader.set_ambient_color(Color::opaque(100, 100, 100));
+            self.ambient_light_shader.set_ambient_color(ambient_color);
             self.ambient_light_shader.set_diffuse_texture(0);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, gbuffer.color_texture);

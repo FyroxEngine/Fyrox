@@ -1,6 +1,6 @@
 [package]
 name = "rg3d"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"

@@ -67,6 +67,10 @@ impl TextLine {
     pub fn len(&self) -> usize {
         self.end - self.begin
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.end == self.begin
+    }
 }
 
 pub struct FormattedText {
@@ -268,6 +272,12 @@ pub struct FormattedTextBuilder {
     text: String,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
+}
+
+impl Default for FormattedTextBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FormattedTextBuilder {

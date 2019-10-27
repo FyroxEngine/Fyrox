@@ -12,7 +12,7 @@ use crate::gui::{
     draw::DrawingContext,
     Visibility,
     event::UIEvent,
-    Update
+    Update,
 };
 use rg3d_core::{
     pool::Handle,
@@ -163,12 +163,10 @@ impl ScrollViewerBuilder {
                             }
                         }
                         UIEventKind::MouseWheel { amount, .. } => {
-                            if !event.handled {
-                                if event.source == handle || ui.is_node_child_of(event.source, handle) {
-                                    let v_scroll_bar = ui.get_node_mut(v_scroll_bar).as_scroll_bar_mut();
-                                    v_scroll_bar.scroll(-amount * 10.0);
-                                    event.handled = true;
-                                }
+                            if !event.handled && (event.source == handle || ui.is_node_child_of(event.source, handle)) {
+                                let v_scroll_bar = ui.get_node_mut(v_scroll_bar).as_scroll_bar_mut();
+                                v_scroll_bar.scroll(-amount * 10.0);
+                                event.handled = true;
                             }
                         }
                         _ => {}

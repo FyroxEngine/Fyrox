@@ -15,7 +15,10 @@ pub mod gpu_texture;
 mod sprite_renderer;
 
 use std::time;
-use rg3d_core::math::{vec3::Vec3, mat4::Mat4};
+use rg3d_core::{
+    math::{vec3::Vec3, mat4::Mat4},
+    color::Color
+};
 use glutin::PossiblyCurrent;
 use crate::{
     engine::resource_manager::ResourceManager,
@@ -31,9 +34,12 @@ use crate::{
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer
     },
-    scene::{SceneInterface, SceneContainer},
+    scene::{
+        SceneInterface,
+        SceneContainer,
+        node::Node
+    }
 };
-use crate::scene::node::Node;
 
 #[repr(C)]
 pub struct TriangleDefinition {
@@ -141,6 +147,7 @@ pub struct Renderer {
     quad: SurfaceSharedData,
     last_render_time: time::Instant,
     frame_size: (u32, u32),
+    ambient_color: Color,
 }
 
 impl Renderer {
@@ -165,8 +172,17 @@ impl Renderer {
                 ui_renderer: UIRenderer::new()?,
                 particle_system_renderer: ParticleSystemRenderer::new()?,
                 last_render_time: time::Instant::now(), // TODO: Is this right?
+                ambient_color: Color::opaque(100, 100, 100)
             })
         }
+    }
+
+    pub fn set_ambient_color(&mut self, color: Color) {
+        self.ambient_color = color;
+    }
+
+    pub fn get_ambient_color(&self) -> Color {
+        self.ambient_color
     }
 
     pub fn get_statistics(&self) -> Statistics {
@@ -223,12 +239,33 @@ impl Renderer {
                     _ => continue
                 };
 
-                self.gbuffer.fill(frame_width, frame_height, graph, camera, &self.white_dummy, &self.normal_dummy);
+                self.gbuffer.fill(
+                    frame_width,
+                    frame_height,
+                    graph,
+                    camera,
+                    &self.white_dummy,
+                    &self.normal_dummy
+                );
 
-                self.deferred_light_renderer.render(frame_width, frame_height, scene, camera, &self.gbuffer, &self.white_dummy);
+                self.deferred_light_renderer.render(
+                    frame_width,
+                    frame_height,
+                    scene,
+                    camera,
+                    &self.gbuffer,
+                    &self.white_dummy,
+                    self.ambient_color
+                );
             }
 
-            self.particle_system_renderer.render(scenes, &self.white_dummy, frame_width, frame_height, &self.gbuffer);
+            self.particle_system_renderer.render(
+                scenes,
+                &self.white_dummy,
+                frame_width,
+                frame_height,
+                &self.gbuffer
+            );
 
             self.sprite_renderer.render(scenes, &self.white_dummy);
 
@@ -247,7 +284,12 @@ impl Renderer {
             gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.frame_texture);
             self.quad.draw();
 
-            self.ui_renderer.render(frame_width, frame_height, drawing_context, &self.white_dummy)?;
+            self.ui_renderer.render(
+                frame_width,
+                frame_height,
+                drawing_context,
+                &self.white_dummy
+            )?;
         }
 
         self.statistics.end_frame();

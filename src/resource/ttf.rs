@@ -15,6 +15,7 @@ use std::{
     io::Read,
 };
 use crate::renderer::gpu_texture::GpuTexture;
+use std::ops::Range;
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -866,7 +867,11 @@ impl TtfGlyph {
 }
 
 impl Font {
-    pub fn from_memory(data: Vec<u8>, height: f32, char_set: Vec<u32>) -> Result<Self, ()> {
+    pub fn default_char_set() -> &'static [Range<u32>] {
+        &[0x0020..0x00FF] // Basic Latin + Latin Supplement
+    }
+
+    pub fn from_memory(data: Vec<u8>, height: f32, char_set: &[Range<u32>]) -> Result<Self, ()> {
         let ttf = TrueType::new(data);
 
         let scale = ttf.em_to_pixels(height);
@@ -889,15 +894,17 @@ impl Font {
 
         font.pack();
 
-        for unicode in char_set {
-            let index = ttf.unicode_to_glyph_index(unicode);
-            font.char_map.insert(unicode, index);
+        for range in char_set {
+            for unicode in range.start..range.end {
+                let index = ttf.unicode_to_glyph_index(unicode);
+                font.char_map.insert(unicode, index);
+            }
         }
 
         Ok(font)
     }
 
-    pub fn from_file(path: &Path, height: f32, char_set: Vec<u32>) -> Result<Self, ()> {
+    pub fn from_file(path: &Path, height: f32, char_set: &[Range<u32>]) -> Result<Self, ()> {
         if let Ok(ref mut file) = File::open(path) {
             let mut file_content: Vec<u8> = Vec::with_capacity(file.metadata().unwrap().len() as usize);
             file.read_to_end(&mut file_content).unwrap();
@@ -947,7 +954,7 @@ impl Font {
         for glyph in self.glyphs.iter() {
             area += glyph.bitmap_height * glyph.bitmap_width;
         }
-        (1.05 * area.sqrt()) as i32
+        (1.15 * area.sqrt()) as i32
     }
 
     #[inline]

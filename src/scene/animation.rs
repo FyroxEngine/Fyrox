@@ -28,6 +28,7 @@ use crate::{
     },
     resource::model::Model,
 };
+use rg3d_core::pool::{PoolPairIterator, PoolPairIteratorMut};
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -422,6 +423,16 @@ impl AnimationContainer {
     }
 
     #[inline]
+    pub fn pair_iter(&self) -> PoolPairIterator<Animation> {
+        self.pool.pair_iter()
+    }
+
+    #[inline]
+    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<Animation> {
+        self.pool.pair_iter_mut()
+    }
+
+    #[inline]
     pub fn iter_mut(&mut self) -> PoolIteratorMut<Animation> {
         self.pool.iter_mut()
     }
@@ -449,6 +460,11 @@ impl AnimationContainer {
     #[inline]
     pub fn get_mut(&mut self, handle: Handle<Animation>) -> &mut Animation {
         self.pool.borrow_mut(handle)
+    }
+
+    #[inline]
+    pub fn retain<P>(&mut self, pred: P) where P: FnMut(&Animation) -> bool {
+        self.pool.retain(pred)
     }
 
     pub fn resolve(&mut self, graph: &Graph) {

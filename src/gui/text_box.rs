@@ -93,28 +93,24 @@ impl TextBox {
                 HorizontalDirection::Left => {
                     if self.caret_offset > 0 {
                         self.caret_offset -= 1
+                    } else if self.caret_line > 0 {
+                        self.caret_line -= 1;
+                        self.caret_offset = lines[self.caret_line].len();
                     } else {
-                        if self.caret_line > 0 {
-                            self.caret_line -= 1;
-                            self.caret_offset = lines[self.caret_line].len();
-                        } else {
-                            self.caret_offset = 0;
-                            break;
-                        }
+                        self.caret_offset = 0;
+                        break;
                     }
                 }
                 HorizontalDirection::Right => {
                     let line = lines.get(self.caret_line).unwrap();
                     if self.caret_offset < line.len() {
                         self.caret_offset += 1;
+                    } else if self.caret_line < lines.len() - 1 {
+                        self.caret_line += 1;
+                        self.caret_offset = 0;
                     } else {
-                        if self.caret_line < lines.len() - 1 {
-                            self.caret_line += 1;
-                            self.caret_offset = 0;
-                        } else {
-                            self.caret_offset = line.len();
-                            break;
-                        }
+                        self.caret_offset = line.len();
+                        break;
                     }
                 }
             }
@@ -456,7 +452,7 @@ impl TextBoxBuilder {
             blink_interval: 0.5,
             formatted_text: FormattedTextBuilder::new()
                 .with_text(self.text)
-                .with_font(self.font.unwrap_or(ui.get_default_font()))
+                .with_font(self.font.unwrap_or_else(||ui.get_default_font()))
                 .build(),
             selection_range: None,
             selecting: false,

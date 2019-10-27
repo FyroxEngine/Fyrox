@@ -81,7 +81,7 @@ impl Base {
     /// Returns current lifetime of a node. Will be None if node has undefined lifetime.
     /// For more info about lifetimes see [`set_lifetime`].
     pub fn get_lifetime(&self) -> Option<f32> {
-        self.lifetime.clone()
+        self.lifetime
     }
 
     /// Returns handle of parent node.

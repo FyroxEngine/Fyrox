@@ -388,6 +388,75 @@ impl Graph {
     pub fn pair_iter(&self) -> PoolPairIterator<Node> {
         self.pool.pair_iter()
     }
+
+    /// Create graph depth traversal iterator.
+    ///
+    /// # Notes
+    ///
+    /// This method allocated temporal array so it is not cheap! Should not be
+    /// used on each frame.
+    pub fn traverse_iter(&self, from: Handle<Node>) -> GraphTraverseIterator {
+        GraphTraverseIterator {
+            graph: self,
+            stack: vec![from]
+        }
+    }
+
+    /// Create graph depth traversal iterator which will emit *handles* to nodes.
+    ///
+    /// # Notes
+    ///
+    /// This method allocated temporal array so it is not cheap! Should not be
+    /// used on each frame.
+    pub fn traverse_handle_iter(&self, from: Handle<Node>) -> GraphHandleTraverseIterator {
+        GraphHandleTraverseIterator {
+            graph: self,
+            stack: vec![from]
+        }
+    }
+}
+
+pub struct GraphTraverseIterator<'a> {
+    graph: &'a Graph,
+    stack: Vec<Handle<Node>>
+}
+
+impl<'a> Iterator for GraphTraverseIterator<'a> {
+    type Item = &'a Node;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(handle) = self.stack.pop() {
+            let node = self.graph.get(handle);
+
+            for child_handle in node.base().get_children() {
+                self.stack.push(*child_handle);
+            }
+
+            return Some(node)
+        }
+
+        None
+    }
+}
+
+pub struct GraphHandleTraverseIterator<'a> {
+    graph: &'a Graph,
+    stack: Vec<Handle<Node>>
+}
+
+impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
+    type Item = Handle<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(handle) = self.stack.pop() {
+            for child_handle in self.graph.get(handle).base().get_children() {
+                self.stack.push(*child_handle);
+            }
+
+            return Some(handle)
+        }
+        None
+    }
 }
 
 impl Visit for Graph {

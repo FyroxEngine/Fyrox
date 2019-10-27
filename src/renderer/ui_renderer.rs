@@ -25,6 +25,7 @@ struct UIShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
+    is_font: UniformLocation,
 }
 
 impl UIShader {
@@ -35,6 +36,7 @@ impl UIShader {
         Ok(Self {
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
             diffuse_texture: program.get_uniform_location("diffuseTexture")?,
+            is_font: program.get_uniform_location("isFont")?,
             program,
         })
     }
@@ -45,6 +47,10 @@ impl UIShader {
 
     pub fn set_wvp_matrix(&self, mat: &Mat4) {
         self.program.set_mat4(self.wvp_matrix, mat)
+    }
+
+    pub fn set_is_font(&self, value: bool) {
+        self.program.set_bool(self.is_font, value)
     }
 
     pub fn set_diffuse_texture_sampler_id(&self, id: i32) {
@@ -134,13 +140,15 @@ impl UIRenderer {
                                         false).unwrap()
                                     );
                                 }
-                                font.texture.as_ref().unwrap().bind(0)
+                                font.texture.as_ref().unwrap().bind(0);
+                                self.shader.set_is_font(true);
                             },
                             CommandTexture::Texture(texture) => {
                                 let texture = texture.lock().unwrap();
                                 if let Some(texture) = &texture.gpu_tex {
                                     texture.bind(0)
                                 }
+                                self.shader.set_is_font(false);
                             }
                         }
 
