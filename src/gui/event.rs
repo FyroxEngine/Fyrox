@@ -1,6 +1,6 @@
 use crate::{
     gui::{UserInterface, node::UINode},
-    MouseButton, VirtualKeyCode,
+    event::{MouseButton, VirtualKeyCode},
 };
 use rg3d_core::{math::vec2::Vec2, pool::Handle};
 use std::any::Any;
@@ -71,6 +71,12 @@ pub enum UIEventKind {
     MinValueChanged(f32),
 
     SelectionChanged(Option<usize>),
+
+    Opened,
+
+    Closed,
+
+    Minimized(bool),
 
     /// Any kind of user-defined event.
     User(Box<dyn Any>),

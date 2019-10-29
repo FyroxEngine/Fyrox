@@ -9,23 +9,20 @@
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/formatted_text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/formatted_text.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/image.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/image.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pics/1.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pics/2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pics/3.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/button.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/button.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/event.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/event.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/text.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/text.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/gui/text_box.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/text_box.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/widget.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/widget.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/gpu_program.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gpu_program.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/window.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renderer/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/ui_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/ui_fs.glsl" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/animation.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/animation.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/base.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/base.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/graph.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/graph.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/particle_system.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/particle_system.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

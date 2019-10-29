@@ -8,11 +8,15 @@ WARNING: Some places are semi-complete or just does not implemented yet, this en
 
 These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter) which is a big demo for the engine.
 
-![1](pics/1.png?raw=true "Game 1")
+![1](pics/1.jpg?raw=true "Game 1")
 
-![2](pics/2.png?raw=true "Game 2")
+![2](pics/2.jpg?raw=true "Game 2")
 
-![3](pics/3.png?raw=true "Game 3")
+![3](pics/3.jpg?raw=true "Game 3")
+
+![4](pics/4.jpg?raw=true "Game 4")
+
+![5](pics/5.jpg?raw=true "Game 5")
 
 ## What is done already?
 

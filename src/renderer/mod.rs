@@ -17,7 +17,7 @@ mod sprite_renderer;
 use std::time;
 use rg3d_core::{
     math::{vec3::Vec3, mat4::Mat4},
-    color::Color
+    color::Color,
 };
 use glutin::PossiblyCurrent;
 use crate::{
@@ -32,13 +32,13 @@ use crate::{
         error::RendererError,
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
         flat_shader::FlatShader,
-        sprite_renderer::SpriteRenderer
+        sprite_renderer::SpriteRenderer,
     },
     scene::{
         SceneInterface,
         SceneContainer,
-        node::Node
-    }
+        node::Node,
+    },
 };
 
 #[repr(C)]
@@ -80,8 +80,6 @@ pub struct Statistics {
     pub capped_frame_time: f32,
     /// Total amount of frames been rendered in one second.
     pub frames_per_second: usize,
-    /// Max amount of frames per second renderer could give if it was not capped.
-    pub potential_frame_per_second: usize,
     frame_counter: usize,
     frame_start_time: time::Instant,
     last_fps_commit_time: time::Instant,
@@ -99,9 +97,6 @@ impl Statistics {
 
         self.pure_frame_time = current_time.duration_since(self.frame_start_time).as_secs_f32();
         self.frame_counter += 1;
-        if self.pure_frame_time > 0.0 {
-            self.potential_frame_per_second = (1.0 / self.pure_frame_time) as usize;
-        }
 
         if current_time.duration_since(self.last_fps_commit_time).as_secs_f32() >= 1.0 {
             self.last_fps_commit_time = current_time;
@@ -122,7 +117,6 @@ impl Default for Statistics {
             pure_frame_time: 0.0,
             capped_frame_time: 0.0,
             frames_per_second: 0,
-            potential_frame_per_second: 0,
             frame_counter: 0,
             frame_start_time: time::Instant::now(),
             last_fps_commit_time: time::Instant::now(),
@@ -154,27 +148,27 @@ impl Renderer {
     pub(in crate) fn new(frame_size: (u32, u32)) -> Result<Self, RendererError> {
         unsafe {
             gl::Enable(gl::DEPTH_TEST);
-
-            Ok(Self {
-                frame_size,
-                deferred_light_renderer: DeferredLightRenderer::new()?,
-                flat_shader: FlatShader::new()?,
-                gbuffer: GBuffer::new(frame_size)?,
-                statistics: Statistics::default(),
-                sprite_renderer: SpriteRenderer::new()?,
-                white_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                             PixelKind::RGBA8, &[255, 255, 255, 255],
-                                             false)?,
-                normal_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                              PixelKind::RGBA8, &[128, 128, 255, 255],
-                                              false)?,
-                quad: SurfaceSharedData::make_unit_xy_quad(),
-                ui_renderer: UIRenderer::new()?,
-                particle_system_renderer: ParticleSystemRenderer::new()?,
-                last_render_time: time::Instant::now(), // TODO: Is this right?
-                ambient_color: Color::opaque(100, 100, 100)
-            })
         }
+
+        Ok(Self {
+            frame_size,
+            deferred_light_renderer: DeferredLightRenderer::new()?,
+            flat_shader: FlatShader::new()?,
+            gbuffer: GBuffer::new(frame_size)?,
+            statistics: Statistics::default(),
+            sprite_renderer: SpriteRenderer::new()?,
+            white_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+                                         PixelKind::RGBA8, &[255, 255, 255, 255],
+                                         false)?,
+            normal_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+                                          PixelKind::RGBA8, &[128, 128, 255, 255],
+                                          false)?,
+            quad: SurfaceSharedData::make_unit_xy_quad(),
+            ui_renderer: UIRenderer::new()?,
+            particle_system_renderer: ParticleSystemRenderer::new()?,
+            last_render_time: time::Instant::now(), // TODO: Is this right?
+            ambient_color: Color::opaque(100, 100, 100),
+        })
     }
 
     pub fn set_ambient_color(&mut self, color: Color) {
@@ -195,7 +189,7 @@ impl Renderer {
             if texture.gpu_tex.is_none() {
                 let gpu_texture = GpuTexture::new(
                     GpuTextureKind::Rectangle { width: texture.width as usize, height: texture.height as usize },
-                     PixelKind::from(texture.kind), texture.bytes.as_slice(), true).unwrap();
+                    PixelKind::from(texture.kind), texture.bytes.as_slice(), true).unwrap();
                 gpu_texture.set_max_anisotropy();
                 texture.gpu_tex = Some(gpu_texture);
             }
@@ -223,52 +217,52 @@ impl Renderer {
             Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::new(frame_width, frame_height, 0.0));
 
-        unsafe {
-            // Render scenes into g-buffer.
-            for scene in scenes.iter() {
-                let SceneInterface { graph, .. } = scene.interface();
+        // Render scenes into g-buffer.
+        for scene in scenes.iter() {
+            let SceneInterface { graph, .. } = scene.interface();
 
-                // Prepare for render - fill lists of nodes participating in rendering.
-                let camera = match graph.linear_iter().find(|node| node.is_camera()) {
-                    Some(camera) => camera,
-                    None => continue
-                };
+            // Prepare for render - fill lists of nodes participating in rendering.
+            let camera = match graph.linear_iter().find(|node| node.is_camera()) {
+                Some(camera) => camera,
+                None => continue
+            };
 
-                let camera = match camera {
-                    Node::Camera(camera) => camera,
-                    _ => continue
-                };
+            let camera = match camera {
+                Node::Camera(camera) => camera,
+                _ => continue
+            };
 
-                self.gbuffer.fill(
-                    frame_width,
-                    frame_height,
-                    graph,
-                    camera,
-                    &self.white_dummy,
-                    &self.normal_dummy
-                );
-
-                self.deferred_light_renderer.render(
-                    frame_width,
-                    frame_height,
-                    scene,
-                    camera,
-                    &self.gbuffer,
-                    &self.white_dummy,
-                    self.ambient_color
-                );
-            }
-
-            self.particle_system_renderer.render(
-                scenes,
-                &self.white_dummy,
+            self.gbuffer.fill(
                 frame_width,
                 frame_height,
-                &self.gbuffer
+                graph,
+                camera,
+                &self.white_dummy,
+                &self.normal_dummy,
             );
 
-            self.sprite_renderer.render(scenes, &self.white_dummy);
+            self.deferred_light_renderer.render(
+                frame_width,
+                frame_height,
+                scene,
+                camera,
+                &self.gbuffer,
+                &self.white_dummy,
+                self.ambient_color,
+            );
+        }
 
+        self.particle_system_renderer.render(
+            scenes,
+            &self.white_dummy,
+            frame_width,
+            frame_height,
+            &self.gbuffer,
+        );
+
+        self.sprite_renderer.render(scenes, &self.white_dummy);
+
+        unsafe {
             // Finally render everything into back buffer.
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
             gl::Viewport(0, 0, frame_width as i32, frame_height as i32);
@@ -276,21 +270,23 @@ impl Renderer {
             gl::DepthMask(gl::TRUE);
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
+        }
+        self.flat_shader.bind();
+        self.flat_shader.set_wvp_matrix(&frame_matrix);
+        self.flat_shader.set_diffuse_texture(0);
 
-            self.flat_shader.bind();
-            self.flat_shader.set_wvp_matrix(&frame_matrix);
-            self.flat_shader.set_diffuse_texture(0);
+        unsafe {
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.frame_texture);
-            self.quad.draw();
-
-            self.ui_renderer.render(
-                frame_width,
-                frame_height,
-                drawing_context,
-                &self.white_dummy
-            )?;
         }
+        self.quad.draw();
+
+        self.ui_renderer.render(
+            frame_width,
+            frame_height,
+            drawing_context,
+            &self.white_dummy,
+        )?;
 
         self.statistics.end_frame();
 

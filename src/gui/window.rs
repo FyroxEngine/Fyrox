@@ -3,23 +3,7 @@ use rg3d_core::{
     pool::Handle,
     math::vec2::Vec2,
 };
-use crate::gui::{
-    event::UIEventKind,
-    border::BorderBuilder,
-    node::UINode,
-    UserInterface,
-    grid::{GridBuilder, Column, Row},
-    HorizontalAlignment,
-    text::TextBuilder,
-    Thickness,
-    button::ButtonBuilder,
-    scroll_viewer::ScrollViewerBuilder,
-    Layout,
-    widget::{Widget, WidgetBuilder, AsWidget},
-    Draw,
-    draw::DrawingContext,
-    Update
-};
+use crate::gui::{event::UIEventKind, border::BorderBuilder, node::UINode, UserInterface, grid::{GridBuilder, Column, Row}, HorizontalAlignment, text::TextBuilder, Thickness, button::ButtonBuilder, scroll_viewer::ScrollViewerBuilder, Layout, widget::{Widget, WidgetBuilder, AsWidget}, Draw, draw::DrawingContext, Update, event::UIEvent, Visibility};
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
@@ -29,6 +13,9 @@ pub struct Window {
     mouse_click_pos: Vec2,
     initial_position: Vec2,
     is_dragged: bool,
+    minimized: bool,
+    can_minimize: bool,
+    can_close: bool,
 }
 
 impl AsWidget for Window {
@@ -57,6 +44,20 @@ impl Layout for Window {
     }
 }
 
+impl Window {
+    pub fn close(&mut self) {
+        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Closed));
+    }
+
+    pub fn open(&mut self) {
+        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Opened));
+    }
+
+    pub fn minimize(&mut self, state: bool) {
+        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Minimized(state)));
+    }
+}
+
 impl Draw for Window {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
@@ -67,6 +68,9 @@ pub struct WindowBuilder<'a> {
     widget_builder: WidgetBuilder,
     content: Handle<UINode>,
     title: Option<WindowTitle<'a>>,
+    can_close: bool,
+    can_minimize: bool,
+    open: bool,
 }
 
 /// Window title can be either text or node.
@@ -87,6 +91,9 @@ impl<'a> WindowBuilder<'a> {
             widget_builder,
             content: Handle::NONE,
             title: None,
+            can_close: true,
+            can_minimize: true,
+            open: true,
         }
     }
 
@@ -97,6 +104,21 @@ impl<'a> WindowBuilder<'a> {
 
     pub fn with_title(mut self, title: WindowTitle<'a>) -> Self {
         self.title = Some(title);
+        self
+    }
+
+    pub fn can_close(mut self, can_close: bool) -> Self {
+        self.can_close = can_close;
+        self
+    }
+
+    pub fn can_minimize(mut self, can_minimize: bool) -> Self {
+        self.can_minimize = can_minimize;
+        self
+    }
+
+    pub fn open(mut self, open: bool) -> Self {
+        self.open = open;
         self
     }
 
@@ -162,12 +184,32 @@ impl<'a> WindowBuilder<'a> {
                 .with_child(ButtonBuilder::new(WidgetBuilder::new()
                     .on_row(0)
                     .on_column(1)
+                    .with_visibility(if self.can_minimize { Visibility::Visible } else { Visibility::Collapsed })
+                    .with_event_handler(Box::new(|ui, handle, evt| {
+                        if evt.source == handle {
+                            if let UIEventKind::Click = evt.kind {
+                                let window = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window())
+                                    .as_window_mut();
+                                window.minimize(!window.minimized);
+                            }
+                        }
+                    }))
                     .with_margin(Thickness::uniform(2.0)))
                     .with_text("_")
                     .build(ui))
                 .with_child(ButtonBuilder::new(WidgetBuilder::new()
                     .on_row(0)
                     .on_column(2)
+                    .with_visibility(if self.can_close { Visibility::Visible } else { Visibility::Collapsed })
+                    .with_event_handler(Box::new(|ui, handle, evt| {
+                        if evt.source == handle {
+                            if let UIEventKind::Click = evt.kind {
+                                ui.borrow_by_criteria_up_mut(handle, |node| node.is_window())
+                                    .as_window_mut()
+                                    .close();
+                            }
+                        }
+                    }))
                     .with_margin(Thickness::uniform(2.0)))
                     .with_text("X")
                     .build(ui)))
@@ -186,6 +228,29 @@ impl<'a> WindowBuilder<'a> {
 
         let window = UINode::Window(Window {
             widget: self.widget_builder
+                .with_visibility(if self.open { Visibility::Visible } else { Visibility::Collapsed })
+                .with_event_handler(Box::new(move |ui, handle, evt| {
+                    if evt.source == handle || evt.target == handle {
+                        match evt.kind {
+                            UIEventKind::Opened => {
+                                let window = ui.get_node_mut(handle).as_window_mut();
+                                window.widget.set_visibility(Visibility::Visible);
+                            }
+                            UIEventKind::Closed => {
+                                let window = ui.get_node_mut(handle).as_window_mut();
+                                window.widget.set_visibility(Visibility::Collapsed);
+                            }
+                            UIEventKind::Minimized(minimized) => {
+                                let window = ui.get_node_mut(handle).as_window_mut();
+                                window.minimized = minimized;
+                                let scroll_viewer = ui.get_node_mut(scroll_viewer).as_scroll_viewer_mut();
+                                let visibility = if !minimized { Visibility::Visible } else { Visibility::Collapsed };
+                                scroll_viewer.widget_mut().set_visibility(visibility);
+                            }
+                            _ => ()
+                        }
+                    }
+                }))
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_child(GridBuilder::new(WidgetBuilder::new()
                         .with_child(scroll_viewer)
@@ -200,6 +265,9 @@ impl<'a> WindowBuilder<'a> {
             mouse_click_pos: Vec2::ZERO,
             initial_position: Vec2::ZERO,
             is_dragged: false,
+            minimized: false,
+            can_minimize: self.can_minimize,
+            can_close: self.can_close,
         });
         ui.add_node(window)
     }

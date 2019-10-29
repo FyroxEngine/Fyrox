@@ -7,13 +7,17 @@ use rg3d_core::{
 };
 use rg3d_sound::context::Context;
 use std::sync::{Arc, Mutex};
-use glutin::{PossiblyCurrent, GlProfile, GlRequest, Api, EventsLoop};
 use crate::{
     engine::{resource_manager::ResourceManager, error::EngineError},
     gui::UserInterface,
     renderer::{Renderer, error::RendererError, gl},
-    WindowBuilder, Window,
+    window::{WindowBuilder, Window},
     scene::SceneContainer,
+};
+use crate::{
+    PossiblyCurrent, GlRequest, GlProfile,
+    WindowedContext, NotCurrent, Api,
+    event_loop::EventLoop
 };
 
 pub struct Engine {
@@ -50,8 +54,8 @@ impl Engine {
     ///
     /// ```
     /// use rg3d::engine::Engine;
-    /// use rg3d::WindowBuilder;
-    /// use rg3d::EventsLoop;
+    /// use rg3d::window::WindowBuilder;
+    /// use rg3d::event::EventsLoop;
     ///
     /// let evt = EventsLoop::new();
     /// let window_builder = WindowBuilder::new()
@@ -60,8 +64,8 @@ impl Engine {
     /// let mut engine = Engine::new(window_builder, &evt).unwrap();
     /// ```
     #[inline]
-    pub fn new(window_builder: WindowBuilder, events_loop: &EventsLoop) -> Result<Engine, EngineError> {
-        let context_wrapper = glutin::ContextBuilder::new()
+    pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine, EngineError> {
+        let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
@@ -76,7 +80,7 @@ impl Engine {
             context
         };
 
-        let client_size = context.window().get_inner_size().unwrap();
+        let client_size = context.window().inner_size();
 
         Ok(Engine {
             context,
@@ -99,7 +103,7 @@ impl Engine {
     /// destructuring, like this:
     /// ```no_run
     /// use rg3d::engine::{Engine, EngineInterfaceMut};
-    /// use rg3d::WindowBuilder;
+    /// use rg3d::window::WindowBuilder;
     /// use rg3d::EventsLoop;
     ///
     /// let evt = EventsLoop::new();
@@ -124,7 +128,7 @@ impl Engine {
     /// like this:
     /// ```no_run
     /// use rg3d::engine::{EngineInterface, Engine};
-    /// use rg3d::WindowBuilder;
+    /// use rg3d::window::WindowBuilder;
     /// use rg3d::EventsLoop;
     ///
     /// let evt = EventsLoop::new();
@@ -148,7 +152,7 @@ impl Engine {
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
     pub fn update(&mut self, dt: f32) {
-        let client_size = self.context.window().get_inner_size().unwrap();
+        let client_size = self.context.window().inner_size();
         let aspect_ratio = (client_size.width / client_size.height) as f32;
 
         self.resource_manager.update();

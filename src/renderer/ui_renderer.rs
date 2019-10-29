@@ -117,7 +117,6 @@ impl UIRenderer {
                         gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
                         // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
                         gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting() - 1), 0xFF);
-                        // gl::BindTexture(gl::TEXTURE_2D, white_dummy);
                         // Draw clipping geometry to stencil buffer
                         gl::StencilMask(0xFF);
                         gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);

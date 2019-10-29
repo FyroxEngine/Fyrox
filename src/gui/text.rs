@@ -130,6 +130,11 @@ impl TextBuilder {
         self
     }
 
+    pub fn with_opt_font(mut self, font: Option<Rc<RefCell<Font>>>) -> Self {
+        self.font = font;
+        self
+    }
+
     pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_text_alignment = Some(valign);
         self

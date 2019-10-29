@@ -22,6 +22,9 @@ use rg3d_core::{
     pool::Handle,
     math::vec2::Vec2,
 };
+use std::rc::Rc;
+use std::cell::RefCell;
+use crate::resource::ttf::Font;
 
 /// Button
 ///
@@ -72,6 +75,7 @@ pub enum ButtonContent {
 pub struct ButtonBuilder {
     widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
+    font: Option<Rc<RefCell<Font>>>
 }
 
 impl ButtonBuilder {
@@ -79,6 +83,7 @@ impl ButtonBuilder {
         Self {
             widget_builder,
             content: None,
+            font: None,
         }
     }
 
@@ -89,6 +94,11 @@ impl ButtonBuilder {
 
     pub fn with_node(mut self, node: Handle<UINode>) -> Self {
         self.content = Some(ButtonContent::Node(node));
+        self
+    }
+
+    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
+        self.font = Some(font);
         self
     }
 
@@ -140,6 +150,7 @@ impl ButtonBuilder {
                                 ButtonContent::Text(txt) => {
                                     TextBuilder::new(WidgetBuilder::new())
                                         .with_text(txt.as_str())
+                                        .with_opt_font(self.font)
                                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .build(ui)

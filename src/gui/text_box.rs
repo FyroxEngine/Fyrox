@@ -29,7 +29,7 @@ use crate::{
         node::UINode,
         Update,
     },
-    VirtualKeyCode, resource::ttf::Font, MouseButton,
+    event::{VirtualKeyCode, MouseButton}, resource::ttf::Font,
 };
 use std::{rc::Rc, cell::RefCell, cmp};
 
@@ -452,7 +452,7 @@ impl TextBoxBuilder {
             blink_interval: 0.5,
             formatted_text: FormattedTextBuilder::new()
                 .with_text(self.text)
-                .with_font(self.font.unwrap_or_else(||ui.get_default_font()))
+                .with_font(self.font.unwrap_or_else(|| ui.get_default_font()))
                 .build(),
             selection_range: None,
             selecting: false,

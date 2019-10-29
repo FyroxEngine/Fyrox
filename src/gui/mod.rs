@@ -36,9 +36,7 @@ use crate::{
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
-    ElementState,
-    WindowEvent,
-    MouseScrollDelta,
+    event::{ElementState,    WindowEvent,    MouseScrollDelta},
 };
 use rg3d_core::{
     color::Color,
@@ -669,6 +667,10 @@ impl UserInterface {
     pub fn borrow_by_criteria_up_mut<Func>(&mut self, start_node_handle: Handle<UINode>, func: Func) -> &mut UINode
         where Func: Fn(&UINode) -> bool {
         self.nodes.borrow_mut(self.find_by_criteria_up(start_node_handle, func))
+    }
+
+    pub fn send_event(&mut self, event: UIEvent) {
+        self.events.push_back(event);
     }
 
     pub fn poll_ui_event(&mut self) -> Option<UIEvent> {

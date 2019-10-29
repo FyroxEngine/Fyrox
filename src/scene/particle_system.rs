@@ -333,7 +333,7 @@ impl EmitterKind {
 impl Emit for EmitterKind {
     fn emit(&self, emitter: &Emitter, particle_system: &ParticleSystem, particle: &mut Particle) {
         match self {
-            EmitterKind::Unknown => (),
+            EmitterKind::Unknown => panic!("Unknown emitter kind is not supported"),
             EmitterKind::Box(box_emitter) => box_emitter.emit(emitter, particle_system, particle),
             EmitterKind::Sphere(sphere_emitter) => sphere_emitter.emit(emitter, particle_system, particle),
             EmitterKind::Custom(custom_emitter) => custom_emitter.emit(emitter, particle_system, particle)
@@ -344,7 +344,7 @@ impl Emit for EmitterKind {
 impl Clone for EmitterKind {
     fn clone(&self) -> Self {
         match self {
-            EmitterKind::Unknown => EmitterKind::Unknown,
+            EmitterKind::Unknown => panic!("Unknown emitter kind is not supported"),
             EmitterKind::Box(box_emitter) => EmitterKind::Box(box_emitter.clone()),
             EmitterKind::Sphere(sphere_emitter) => EmitterKind::Sphere(sphere_emitter.clone()),
             EmitterKind::Custom(custom_emitter) => EmitterKind::Custom(custom_emitter.box_clone())
@@ -355,7 +355,7 @@ impl Clone for EmitterKind {
 impl Visit for EmitterKind {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         match self {
-            EmitterKind::Unknown => panic!(""),
+            EmitterKind::Unknown => panic!("Unknown emitter kind is not supported"),
             EmitterKind::Box(box_emitter) => box_emitter.visit(name, visitor),
             EmitterKind::Sphere(sphere_emitter) => sphere_emitter.visit(name, visitor),
             EmitterKind::Custom(custom_emitter) => custom_emitter.visit(name, visitor),
@@ -420,6 +420,8 @@ pub struct Emitter {
     alive_particles: Cell<u32>,
     time: f32,
     particles_to_spawn: usize,
+    resurrect_particles: bool,
+    spawned_particles: u64,
 }
 
 pub struct EmitterBuilder {
@@ -435,6 +437,7 @@ pub struct EmitterBuilder {
     z_velocity: Option<NumericRange<f32>>,
     rotation_speed: Option<NumericRange<f32>>,
     rotation: Option<NumericRange<f32>>,
+    resurrect_particles: bool,
 }
 
 impl EmitterBuilder {
@@ -452,6 +455,7 @@ impl EmitterBuilder {
             z_velocity: None,
             rotation_speed: None,
             rotation: None,
+            resurrect_particles: true,
         }
     }
 
@@ -510,6 +514,11 @@ impl EmitterBuilder {
         self
     }
 
+    pub fn resurrect_particles(mut self, value: bool) -> Self {
+        self.resurrect_particles = value;
+        self
+    }
+
     pub fn build(self) -> Emitter {
         Emitter {
             kind: self.kind,
@@ -527,6 +536,8 @@ impl EmitterBuilder {
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
+            resurrect_particles: self.resurrect_particles,
+            spawned_particles: 0
         }
     }
 }
@@ -542,8 +553,13 @@ impl Emitter {
             if alive_particles < max_particles && alive_particles + particle_count > max_particles {
                 particle_count = max_particles - particle_count;
             }
+            if !self.resurrect_particles && self.spawned_particles > max_particles as u64 {
+                self.particles_to_spawn = 0;
+                return;
+            }
         }
         self.particles_to_spawn = particle_count as usize;
+        self.spawned_particles += self.particles_to_spawn as u64;
     }
 
     pub fn emit(&self, particle_system: &ParticleSystem, particle: &mut Particle) {
@@ -587,6 +603,8 @@ impl Visit for Emitter {
         self.rotation.visit("Rotation", visitor)?;
         self.alive_particles.visit("AliveParticles", visitor)?;
         self.time.visit("Time", visitor)?;
+        self.resurrect_particles.visit("ResurrectParticles", visitor)?;
+        self.spawned_particles.visit("SpawnedParticles", visitor)?;
 
         visitor.leave_region()
     }
@@ -610,6 +628,8 @@ impl Clone for Emitter {
             alive_particles: self.alive_particles.clone(),
             time: self.time,
             particles_to_spawn: 0,
+            resurrect_particles: self.resurrect_particles,
+            spawned_particles: self.spawned_particles,
         }
     }
 }
@@ -632,6 +652,8 @@ impl Default for Emitter {
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
+            resurrect_particles: true,
+            spawned_particles: 0
         }
     }
 }
@@ -704,7 +726,10 @@ impl ParticleSystem {
                 } else {
                     particle.velocity += acceleration_offset;
                     particle.position += particle.velocity;
-                    particle.size += particle.size_modifier;
+                    particle.size += particle.size_modifier * dt;
+                    if particle.size < 0.0 {
+                        particle.size = 0.0;
+                    }
                     particle.rotation += particle.rotation_speed;
                     if let Some(color_over_lifetime) = &self.color_over_lifetime {
                         let k = particle.lifetime / particle.initial_lifetime;
