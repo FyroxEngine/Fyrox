@@ -26,8 +26,12 @@ impl<T> Default for NumericRange<T> where T: Default {
     }
 }
 
-impl<T> NumericRange<T> where T: Copy + Sized + rand::distributions::uniform::SampleUniform + Send {
-    pub fn new(min: T, max: T) -> Self {
+impl<T> NumericRange<T> where T: Copy + Sized + rand::distributions::uniform::SampleUniform + Send + PartialOrd {
+    pub fn new(mut min: T, mut max: T) -> Self {
+        if min > max {
+            std::mem::swap(&mut min, &mut max);
+        }
+
         Self {
             min,
             max,
