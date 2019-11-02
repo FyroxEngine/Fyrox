@@ -278,6 +278,7 @@ mod windows {
     }
 }
 
+#[cfg(target_os = "linux")]
 mod linux {
     use crate::{
         device::{FeedCallback, SAMPLE_RATE, Sample},
