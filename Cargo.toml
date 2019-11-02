@@ -15,3 +15,6 @@ byteorder = "1.3.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = {version = "0.3.8", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+alsa-sys = { version = "0.2.0" }

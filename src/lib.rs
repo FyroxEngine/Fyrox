@@ -3,6 +3,9 @@
 #[cfg(target_os="windows")]
 extern crate winapi;
 
+#[cfg(target_os="linux")]
+extern crate alsa_sys;
+
 // Generic crates.
 extern crate byteorder;
 extern crate rg3d_core;

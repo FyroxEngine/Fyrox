@@ -3,22 +3,28 @@ extern crate rg3d_core;
 
 use rg3d_sound::{
     context::Context,
-    source::Source,
+    source::{
+        Source,
+        SourceKind
+    },
     buffer::{Buffer, BufferKind},
-    source::SourceKind,
 };
 use std::{
     path::Path,
     sync::{Arc, Mutex},
-    time,
+    time::{
+        self,
+        Duration
+    },
     thread,
-    time::Duration,
 };
 use rg3d_core::{
-    math::mat4::Mat4,
+    math::{
+        mat4::Mat4,
+        vec3::Vec3,
+        quat::Quat
+    },
     pool::Handle,
-    math::vec3::Vec3,
-    math::quat::Quat,
 };
 
 fn main() {
@@ -66,7 +72,7 @@ fn main() {
         // configured that it will send samples to output device with fixed rate
         // (usually 10 Hz), so more frequent changes won't make any effect but just
         // will consume precious CPU clocks.
-        context.update();
+        context.update().unwrap();
 
         // Limit rate of context updates.
         thread::sleep(Duration::from_millis(100));

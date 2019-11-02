@@ -10,6 +10,68 @@ pub struct Sample {
     pub right: i16,
 }
 
+impl Default for Sample {
+    fn default() -> Self {
+        Self {
+            left: 0,
+            right: 0,
+        }
+    }
+}
+
+pub type FeedCallback = dyn FnMut(&mut [(f32, f32)]) + Send;
+
+pub struct MixContext<'a> {
+    mix_buffer: &'a mut [(f32, f32)],
+    out_data: &'a mut Vec<Sample>,
+    callback: &'a mut Box<FeedCallback>,
+}
+
+trait Device {
+    fn get_mix_context(&mut self) -> MixContext;
+
+    fn feed(&mut self);
+
+    fn mix(&mut self) {
+        let context = self.get_mix_context();
+
+        // Clear mixer buffer.
+        for (left, right) in context.mix_buffer.iter_mut() {
+            *left = 0.0;
+            *right = 0.0;
+        }
+
+        // Fill it.
+        (context.callback)(context.mix_buffer);
+
+        let scale = f32::from(std::i16::MAX);
+        // Convert to i16 - device expects samples in this format.
+        context.out_data.clear();
+        for (left, right) in context.mix_buffer.iter() {
+            let left_clamped = if *left > 1.0 {
+                0.0
+            } else if *left < -1.0 {
+                -1.0
+            } else {
+                *left
+            };
+
+            let right_clamped = if *right > 1.0 {
+                0.0
+            } else if *right < -1.0 {
+                -1.0
+            } else {
+                *right
+            };
+
+            context.out_data.push(Sample {
+                left: (left_clamped * scale) as i16,
+                right: (right_clamped * scale) as i16,
+            })
+        }
+    }
+}
+
 #[cfg(target_os = "windows")]
 #[allow(non_snake_case)]
 mod windows {
@@ -38,6 +100,7 @@ mod windows {
         device::{Sample, FeedCallback, SAMPLE_RATE},
         error::SoundError,
     };
+    use crate::device::{Device, MixContext};
 
     // Declare missing structs and interfaces.
     STRUCT! {struct DSBPOSITIONNOTIFY {
@@ -148,42 +211,28 @@ mod windows {
                 })
             }
         }
+    }
 
-        pub fn feed(&mut self) {
-            // Clear mixer buffer.
-            for (left, right) in self.mix_buffer.iter_mut() {
-                *left = 0.0;
-                *right = 0.0;
+    impl Drop for DirectSoundDevice {
+        fn drop(&mut self) {
+            unsafe {
+                let direct_sound = self.direct_sound.load(Ordering::SeqCst);
+                assert_eq!((*direct_sound).Release(), 0);
             }
+        }
+    }
 
-            // Fill it.
-            (self.callback)(self.mix_buffer.as_mut_slice());
-
-            let scale = f32::from(std::i16::MAX);
-            // Convert to i16 - device expects samples in this format.
-            self.out_data.clear();
-            for (left, right) in self.mix_buffer.iter() {
-                let left_clamped = if *left > 1.0 {
-                    0.0
-                } else if *left < -1.0 {
-                    -1.0
-                } else {
-                    *left
-                };
-
-                let right_clamped = if *right > 1.0 {
-                    0.0
-                } else if *right < -1.0 {
-                    -1.0
-                } else {
-                    *right
-                };
-
-                self.out_data.push(Sample {
-                    left: (left_clamped * scale) as i16,
-                    right: (right_clamped * scale) as i16,
-                })
+    impl Device for DirectSoundDevice {
+        fn get_mix_context(&mut self) -> MixContext {
+            MixContext {
+                mix_buffer: self.mix_buffer.as_mut_slice(),
+                out_data: &mut self.out_data,
+                callback: &mut self.callback
             }
+        }
+
+        fn feed(&mut self) {
+            self.mix();
 
             let notify_points = [
                 self.notify_points[0].load(Ordering::SeqCst),
@@ -227,30 +276,140 @@ mod windows {
             }
         }
     }
+}
 
-    impl Drop for DirectSoundDevice {
+mod linux {
+    use crate::{
+        device::{FeedCallback, SAMPLE_RATE, Sample},
+        error::SoundError
+    };
+    use alsa_sys::*;
+    use std::{
+        ffi::{CStr, CString},
+        os::raw::c_int,
+        mem::size_of,
+        sync::atomic::{AtomicPtr, Ordering}
+    };
+    use crate::device::{Device, MixContext};
+
+    pub struct AlsaSoundDevice {
+        playback_device: AtomicPtr<snd_pcm_t>,
+        frame_count: u32,
+        callback: Box<FeedCallback>,
+        out_data: Vec<Sample>,
+        mix_buffer: Vec<(f32, f32)>,
+    }
+
+    pub fn err_code_to_string(err_code: c_int) -> String {
+        unsafe {
+            let message = CStr::from_ptr(snd_strerror(err_code) as *const _)
+                .to_bytes()
+                .to_vec();
+            String::from_utf8(message).unwrap()
+        }
+    }
+
+    pub fn check_result(err_code: c_int) -> Result<(), SoundError> {
+        if err_code < 0 {
+            Err(SoundError::FailedToInitializeDevice(err_code_to_string(err_code)))
+        } else {
+            Ok(())
+        }
+    }
+
+    impl AlsaSoundDevice {
+        pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
+            unsafe {
+                let frame_count = buffer_len_bytes / 4; /* 16-bit stereo is 4 bytes, so frame count is bufferHalfSize / 4 */
+                let mut playback_device = std::ptr::null_mut();
+                check_result(snd_pcm_open(&mut playback_device, CString::new("default").unwrap().as_ptr() as *const _, SND_PCM_STREAM_PLAYBACK, 0))?;
+                let mut hw_params = std::ptr::null_mut();
+                check_result(snd_pcm_hw_params_malloc(&mut hw_params))?;
+                check_result(snd_pcm_hw_params_any(playback_device, hw_params))?;
+                let access = SND_PCM_ACCESS_RW_INTERLEAVED;
+                check_result(snd_pcm_hw_params_set_access(playback_device, hw_params, access))?;
+                check_result(snd_pcm_hw_params_set_format(playback_device, hw_params, SND_PCM_FORMAT_S16_LE))?;
+                let mut exact_rate = SAMPLE_RATE;
+                check_result(snd_pcm_hw_params_set_rate_near(playback_device, hw_params, &mut exact_rate, std::ptr::null_mut()))?;
+                check_result(snd_pcm_hw_params_set_channels(playback_device, hw_params, 2))?;
+                let mut exact_size = (frame_count * 2) as u64;
+                check_result(snd_pcm_hw_params_set_buffer_size_near(playback_device, hw_params, &mut exact_size))?;
+                check_result(snd_pcm_hw_params(playback_device, hw_params))?;
+                snd_pcm_hw_params_free(hw_params);
+                let mut sw_params = std::ptr::null_mut();
+                check_result(snd_pcm_sw_params_malloc(&mut sw_params))?;
+                check_result(snd_pcm_sw_params_current(playback_device, sw_params))?;
+                check_result(snd_pcm_sw_params_set_avail_min(playback_device, sw_params, frame_count.into()))?;
+                check_result(snd_pcm_sw_params_set_start_threshold(playback_device, sw_params, frame_count.into()))?;
+                check_result(snd_pcm_sw_params(playback_device, sw_params))?;
+                check_result(snd_pcm_prepare(playback_device))?;
+
+                let samples_per_channel = buffer_len_bytes as usize / size_of::<Sample>();
+                Ok(Self {
+                    playback_device: AtomicPtr::new(playback_device),
+                    frame_count,
+                    callback,
+                    out_data: vec![Default::default(); samples_per_channel],
+                    mix_buffer: vec![(0.0, 0.0); samples_per_channel],
+                })
+            }
+        }
+    }
+
+    impl Device for AlsaSoundDevice {
+        fn get_mix_context(&mut self) -> MixContext {
+            MixContext {
+                mix_buffer: self.mix_buffer.as_mut_slice(),
+                out_data: &mut self.out_data,
+                callback: &mut self.callback
+            }
+        }
+
+        fn feed(&mut self) {
+            self.mix();
+
+            unsafe {
+                let device = self.playback_device.load(Ordering::SeqCst);
+                let err = snd_pcm_writei(device, self.out_data.as_ptr() as *const _, self.frame_count.into()) as i32;
+                if err == -32 {
+                    // EPIPE error (buffer underrun)
+                    snd_pcm_recover(device, err, 0);
+                }
+            }
+        }
+    }
+
+    impl Drop for AlsaSoundDevice {
         fn drop(&mut self) {
             unsafe {
-                let direct_sound = self.direct_sound.load(Ordering::SeqCst);
-                assert_eq!((*direct_sound).Release(), 0);
+                let device = self.playback_device.load(Ordering::SeqCst);
+
+                snd_pcm_close(device);
             }
         }
     }
 }
 
-pub type FeedCallback = dyn FnMut(&mut [(f32, f32)]) + Send;
+#[cfg(target_os = "linux")]
+pub fn run_device_internal(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
+    let mut device = linux::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
+    std::thread::spawn(move || {
+        loop { device.feed() }
+    });
+    Ok(())
+}
 
+#[cfg(target_os = "windows")]
+pub fn run_device_internal(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
+    let mut device = windows::DirectSoundDevice::new(buffer_len_bytes, callback)?;
+    std::thread::spawn(move || {
+        loop { device.feed() }
+    });
+    Ok(())
+}
+
+// Transfer ownership of device to separate mixer thread. It will
+// call the callback with a specified rate to get data to send to a physical device.
 pub fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
-    if cfg!(windows) {
-        // Transfer ownership of device to separate mixer thread. It will
-        // call the callback with a specified rate to get data to send to a physical device.
-        let mut device = windows::DirectSoundDevice::new(buffer_len_bytes, callback)?;
-        std::thread::spawn(move || {
-            loop { device.feed() }
-        });
-        Ok(())
-    } else {
-        println!("rg3d-sound - no backend implementation for this platform!");
-        Ok(())
-    }
+    run_device_internal(buffer_len_bytes, callback)
 }
