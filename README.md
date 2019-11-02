@@ -14,15 +14,16 @@ Examples can be found in `./examples`
 
 ## Supported OS
 
-For now only Windows is supported, because there is no backends were written yet for other OS.
+- Windows (DirectSound)
+- Linux (alsa)
 
 ## How to build
 
-Add `rg3d-sound = "0.1.0"` to your Cargo.toml
+Add `rg3d-sound = "0.2.0"` to your Cargo.toml
 
 ## Help needed
 
-It would be great if someone will make a backend for macOS. Linux backend is next on my list, it will be implemented using alsa.
+It would be great if someone make backend for macOS.
 
 ## License
 
