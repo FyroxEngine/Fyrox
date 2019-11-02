@@ -10,7 +10,7 @@ repository = "https://github.com/mrDIMAS/rg3d-sound"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core" }
+rg3d-core = "0.1.9"
 byteorder = "1.3.2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
