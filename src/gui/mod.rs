@@ -16,6 +16,7 @@ pub mod widget;
 pub mod list_box;
 pub mod stack_panel;
 pub mod text_box;
+pub mod check_box;
 
 use std::{
     collections::VecDeque,
@@ -36,7 +37,7 @@ use crate::{
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
-    event::{ElementState,    WindowEvent,    MouseScrollDelta},
+    event::{ElementState, WindowEvent, MouseScrollDelta},
 };
 use rg3d_core::{
     color::Color,
@@ -659,20 +660,46 @@ impl UserInterface {
         self.nodes.borrow_mut(self.find_by_name_down(start_node_handle, name))
     }
 
+    /// Searches for a node up on tree that satisfies some criteria and then borrows
+    /// shared reference.
+    ///
+    /// # Panics
+    ///
+    /// It will panic if there no node that satisfies given criteria.
     pub fn borrow_by_criteria_up<Func>(&self, start_node_handle: Handle<UINode>, func: Func) -> &UINode
         where Func: Fn(&UINode) -> bool {
         self.nodes.borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
+    /// Searches for a node up on tree that satisfies some criteria and then borrows
+    /// mutable reference.
+    ///
+    /// # Panics
+    ///
+    /// It will panic if there no node that satisfies given criteria.
     pub fn borrow_by_criteria_up_mut<Func>(&mut self, start_node_handle: Handle<UINode>, func: Func) -> &mut UINode
         where Func: Fn(&UINode) -> bool {
         self.nodes.borrow_mut(self.find_by_criteria_up(start_node_handle, func))
     }
 
+    /// Pushes new UI event to the common queue. Could be useful to send an event
+    /// to some specific node. Lets take a window for example, we can close or open
+    /// it by just sending an appropriate event - something like this:
+    ///
+    /// ```
+    /// use rg3d::gui::event::{UIEvent, UIEventKind};
+    ///
+    /// ui.send_event(UIEvent::targeted(options_window, UIEventKind::Opened));
+    /// ```
     pub fn send_event(&mut self, event: UIEvent) {
         self.events.push_back(event);
     }
 
+
+    /// Extracts UI event one-by-one from common queue. Each extracted event will go to *all*
+    /// available nodes first and only then will be moved outside of this method. This is one
+    /// of most important methods which must be called each frame of your game loop, otherwise
+    /// UI will not respond to any kind of events and simply speaking will just not work.
     pub fn poll_ui_event(&mut self) -> Option<UIEvent> {
         // Gather events from nodes.
         for (handle, node) in self.nodes.pair_iter_mut() {
@@ -720,6 +747,9 @@ impl UserInterface {
         event
     }
 
+    /// Translates raw window event into some specific UI event. This is one of the
+    /// most important methods of UI. You must call it each time you received a message
+    /// from a window.
     pub fn process_input_event(&mut self, event: &WindowEvent) -> bool {
         let mut event_processed = false;
 
@@ -884,3 +914,10 @@ impl UserInterface {
     }
 }
 
+pub fn bool_to_visibility(value: bool) -> Visibility {
+    if value {
+        Visibility::Visible
+    } else {
+        Visibility::Collapsed
+    }
+}

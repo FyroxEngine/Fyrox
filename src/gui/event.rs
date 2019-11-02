@@ -76,7 +76,15 @@ pub enum UIEventKind {
 
     Closed,
 
+    /// Widget just got keyboard focus.
+    GotFocus,
+
+    /// Widget lost keyboard focus.
+    LostFocus,
+
     Minimized(bool),
+
+    Checked(Option<bool>),
 
     /// Any kind of user-defined event.
     User(Box<dyn Any>),

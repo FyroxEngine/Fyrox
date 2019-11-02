@@ -1,5 +1,26 @@
 use rg3d_core::math::vec2::Vec2;
-use crate::gui::{draw::DrawingContext, button::Button, text::Text, border::Border, scroll_bar::ScrollBar, scroll_viewer::ScrollViewer, image::Image, grid::Grid, scroll_content_presenter::ScrollContentPresenter, window::Window, Draw, Layout, UserInterface, canvas::Canvas, widget::{Widget, AsWidget}, list_box::ListBox, stack_panel::StackPanel, text_box::TextBox, Update};
+use crate::gui::{
+    draw::DrawingContext,
+    button::Button,
+    text::Text,
+    border::Border,
+    scroll_bar::ScrollBar,
+    scroll_viewer::ScrollViewer,
+    image::Image,
+    grid::Grid,
+    scroll_content_presenter::ScrollContentPresenter,
+    window::Window,
+    Draw,
+    Layout,
+    UserInterface,
+    canvas::Canvas,
+    widget::{Widget, AsWidget},
+    list_box::ListBox,
+    stack_panel::StackPanel,
+    text_box::TextBox,
+    Update,
+    check_box::CheckBox,
+};
 
 /// UI node is a building block for all UI widgets. For example button could be a node with
 /// this structure
@@ -34,6 +55,7 @@ pub enum UINode {
     ListBox(ListBox),
     StackPanel(StackPanel),
     TextBox(TextBox),
+    CheckBox(CheckBox),
 }
 
 macro_rules! dispatch {
@@ -53,6 +75,7 @@ macro_rules! dispatch {
             UINode::ListBox(v) => v.$func($($args),*),
             UINode::StackPanel(v) => v.$func($($args),*),
             UINode::TextBox(v) => v.$func($($args),*),
+            UINode::CheckBox(v) => v.$func($($args),*),
         }
     };
 }
@@ -128,4 +151,5 @@ impl UINode {
     define_is_as!(is_list_box, as_list_box, as_list_box_mut, ListBox, ListBox);
     define_is_as!(is_stack_panel, as_stack_panel, as_stack_panel_mut, StackPanel, StackPanel);
     define_is_as!(is_text_box, as_text_box, as_text_box_mut, TextBox, TextBox);
+    define_is_as!(is_check_box, as_check_box, as_check_box_mut, CheckBox, CheckBox);
 }
