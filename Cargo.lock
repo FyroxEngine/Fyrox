@@ -6,6 +6,15 @@ version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "alsa-sys"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.65 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pkg-config 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "andrew"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -992,14 +1001,15 @@ dependencies = [
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lexical 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rg3d-core 0.1.9",
- "rg3d-physics 0.1.7",
- "rg3d-sound 0.1.3",
+ "rg3d-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rg3d-physics 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rg3d-sound 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rg3d-core"
 version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1009,17 +1019,20 @@ dependencies = [
 [[package]]
 name = "rg3d-physics"
 version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "rg3d-core 0.1.9",
+ "rg3d-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rg3d-sound"
-version = "0.1.3"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
+ "alsa-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rg3d-core 0.1.9",
+ "rg3d-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1343,6 +1356,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum adler32 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "7e522997b529f05601e05166c07ed17789691f562762c7f3b987263d2dedee5c"
+"checksum alsa-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7e95eaae787b8047ceefb94fd90682b03dd3f82f2d6fcaa83908c3814a8bef36"
 "checksum andrew 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "48fb30d9ad567e58e97dfeedcb54c66a6fbdeae3fc869075f5c0a2739dc2d849"
 "checksum android_glue 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "000444226fcff248f2bc4c7625be32c63caccfecc2723a2b9f78a7487a49c407"
 "checksum approx 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f0e60b75072ecd4168020818c0107f2857bb6c4e64252d8d3983f6263b40a5c3"
@@ -1456,6 +1470,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon-core 1.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b055d1e92aba6877574d8fe604a63c8b5df60f60e5982bf7ccbb1338ea527356"
 "checksum rdrand 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 "checksum redox_syscall 0.1.56 (registry+https://github.com/rust-lang/crates.io-index)" = "2439c63f3f6139d1b57529d16bc3b8bb855230c8efcc5d3a896c8bea7c3b1e84"
+"checksum rg3d-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "a4c9eaabf9444b41515507e927c1ac532023b37befb5f095ca5db04d047e0287"
+"checksum rg3d-physics 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "21eb5d6bc1b06c16ceb25658a034ef742f6db1f3e2fe150c5d58ebeaa4c0ce7d"
+"checksum rg3d-sound 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "096d4db764f1fb0c99b50eb0966637841f6f300c6e939419b9b5aa3a34064246"
 "checksum rustc_version 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
 "checksum rusttype 0.7.5 (registry+https://github.com/rust-lang/crates.io-index)" = "ce3926a2057b315b3e8bca6d1cec1e97f19436a8f9127621cd538cda9c96a38b"
 "checksum ryu 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c92464b447c0ee8c4fb3824ecc8383b81717b9f1e74ba2e72540aef7b9f82997"
