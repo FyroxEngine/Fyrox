@@ -9,5 +9,5 @@ keywords = ["physics", "game"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-rg3d-core= "0.1.9"
+rg3d-core= { path = "../rg3d-core", version = "0.1.9" }
 bitflags = "1.2.1"
