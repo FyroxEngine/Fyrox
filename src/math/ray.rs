@@ -203,7 +203,7 @@ impl Ray {
     pub fn triangle_intersection(&self, vertices: &[Vec3; 3]) -> Option<Vec3> {
         let ba = vertices[1] - vertices[0];
         let ca = vertices[2] - vertices[0];
-        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0])?;
+        let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0]).ok()?;
 
         if let Some(point) = self.plane_intersection_point(&plane) {
             if is_point_inside_triangle(&point, vertices) {
@@ -219,7 +219,7 @@ impl Ray {
     ///
     ///  Infinite cylinder oriented along line pa + va * t:
     ///      sqr_len(q - pa - dot(va, q - pa) * va) - r ^ 2 = 0
-    ///  where q - point on cylinder, substite q with ray p + v * t:
+    ///  where q - point on cylinder, substitute q with ray p + v * t:
     ///     sqr_len(p - pa + vt - dot(va, p - pa + vt) * va) - r ^ 2 = 0
     ///  reduce to A * t * t + B * t + C = 0 (quadratic equation), where:
     ///     A = sqr_len(v - dot(v, va) * va)

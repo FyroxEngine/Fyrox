@@ -35,15 +35,11 @@ impl Polygon {
         let next_index = self.vertices[index].next;
         let prev_index = self.vertices[index].prev;
 
-        {
-            let prev = &mut self.vertices[prev_index];
-            prev.next = next_index;
-        }
+        let prev = &mut self.vertices[prev_index];
+        prev.next = next_index;
 
-        {
-            let next = &mut self.vertices[next_index];
-            next.prev = prev_index;
-        }
+        let next = &mut self.vertices[next_index];
+        next.prev = prev_index;
 
         if index == self.head {
             self.head = next_index;
@@ -96,11 +92,11 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
 ///
 /// Triangulates specified polygon.
 ///
-pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usize)>) {
+pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<[usize; 3]>) {
     out_triangles.clear();
     if vertices.len() == 3 {
         // Triangulating a triangle?
-        out_triangles.push((0, 1, 2));
+        out_triangles.push([0, 1, 2]);
     } else if vertices.len() == 4 {
         // Special case for quadrilaterals (much faster than generic)
         let mut start_vertex = 0;
@@ -122,8 +118,8 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usi
                 }
             }
         }
-        out_triangles.push((start_vertex, (start_vertex + 1) % 4, (start_vertex + 2) % 4));
-        out_triangles.push((start_vertex, (start_vertex + 2) % 4, (start_vertex + 3) % 4));
+        out_triangles.push([start_vertex, (start_vertex + 1) % 4, (start_vertex + 2) % 4]);
+        out_triangles.push([start_vertex, (start_vertex + 2) % 4, (start_vertex + 3) % 4]);
     } else {
         // Ear-clipping for arbitrary polygon (requires one additional memory allocation, so
         // relatively slow)
@@ -152,7 +148,7 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<(usize, usize, usi
                 let next = &polygon.vertices[ear.next];
                 if is_ear(&polygon, prev, ear, next) {
                     let prev_index = prev.index;
-                    out_triangles.push((prev_index, ear.index, next.index));
+                    out_triangles.push([prev_index, ear.index, next.index]);
                     polygon.remove_vertex(ear_index);
                     ear_index = prev_index;
                     vertices_left -= 1;
@@ -173,7 +169,7 @@ fn quadrilaterals_triangulation_non_concave() {
         Vec3::new(3.0, 2.0, 1.0)
     ];
 
-    let mut ref_indices: Vec<(usize, usize, usize)> = Vec::new();
+    let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
     println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
@@ -188,7 +184,7 @@ fn quadrilaterals_triangulation_concave() {
         Vec3::new(3.0, 1.0, 1.0)
     ];
 
-    let mut ref_indices: Vec<(usize, usize, usize)> = Vec::new();
+    let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
     println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
@@ -207,7 +203,7 @@ fn ear_clip_test() {
     ];
 
     // First test flat case
-    let mut ref_indices: Vec<(usize, usize, usize)> = Vec::new();
+    let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
     println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
@@ -229,7 +225,7 @@ fn ear_clip_test() {
         while angle <= 360.0 {
             let mrot = Mat4::from_quat(Quat::from_axis_angle(*axis, angle.to_radians()));
             let rotated: Vec<Vec3> = polygon.iter().map(|v| mrot.transform_vector(*v)).collect();
-            let mut new_indices: Vec<(usize, usize, usize)> = Vec::new();
+            let mut new_indices = Vec::new();
             triangulate(rotated.as_slice(), &mut new_indices);
             println!("angle: {} {:?}", angle, new_indices);
             assert_eq!(new_indices, ref_indices);
