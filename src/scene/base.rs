@@ -65,6 +65,11 @@ impl Base {
         &mut self.local_transform
     }
 
+    /// Sets new local transform of a node.
+    pub fn set_local_transform(&mut self, transform: Transform) {
+        self.local_transform = transform;
+    }
+
     /// Sets lifetime of node in seconds, lifetime is useful for temporary objects.
     /// Example - you firing a gun, it produces two particle systems for each shot:
     /// one for gunpowder fumes and one when bullet hits some surface. These particle

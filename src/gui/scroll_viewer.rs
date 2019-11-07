@@ -108,7 +108,7 @@ impl ScrollViewerBuilder {
 
                         scroll_bar.set_max_value(new_value);
 
-                        if scroll_bar.get_max_value() == scroll_bar.get_min_value() {
+                        if (scroll_bar.get_max_value() - scroll_bar.get_min_value()).abs() <= std::f32::EPSILON {
                             scroll_bar.widget_mut().set_visibility(Visibility::Collapsed)
                         } else {
                             scroll_bar.widget_mut().set_visibility(Visibility::Visible)
@@ -130,7 +130,7 @@ impl ScrollViewerBuilder {
 
                         scroll_bar.set_max_value(new_value);
 
-                        if scroll_bar.get_max_value() == scroll_bar.get_min_value() {
+                        if (scroll_bar.get_max_value() - scroll_bar.get_min_value()).abs() <= std::f32::EPSILON {
                             scroll_bar.widget_mut().set_visibility(Visibility::Collapsed)
                         } else {
                             scroll_bar.widget_mut().set_visibility(Visibility::Visible)

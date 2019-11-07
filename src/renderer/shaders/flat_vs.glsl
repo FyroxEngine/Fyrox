@@ -9,6 +9,6 @@ out vec2 texCoord;
 
 void main()
 {
-	texCoord = vertexTexCoord;
-	gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
+    texCoord = vertexTexCoord;
+    gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
 }

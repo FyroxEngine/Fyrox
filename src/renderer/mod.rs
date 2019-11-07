@@ -4,6 +4,10 @@ pub mod surface;
 pub mod gpu_program;
 pub mod error;
 
+macro_rules! check_gl_error {
+    () => (crate::renderer::check_gl_error_internal(line!(), file!()))
+}
+
 mod geometry_buffer;
 mod ui_renderer;
 mod particle_system_renderer;
@@ -14,10 +18,14 @@ mod flat_shader;
 pub mod gpu_texture;
 mod sprite_renderer;
 
-use std::time;
+use std::{
+    time,
+    ffi::CStr,
+};
 use rg3d_core::{
     math::{vec3::Vec3, mat4::Mat4},
     color::Color,
+    math::vec2::Vec2,
 };
 use glutin::PossiblyCurrent;
 use crate::{
@@ -28,14 +36,17 @@ use crate::{
         surface::SurfaceSharedData,
         particle_system_renderer::ParticleSystemRenderer,
         gbuffer::GBuffer,
-        deferred_light_renderer::DeferredLightRenderer,
+        deferred_light_renderer::{
+            DeferredLightRenderer,
+            DeferredRendererContext
+        },
         error::RendererError,
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer,
+        gl::types::{GLsizei, GLenum, GLuint, GLchar},
     },
     scene::{
-        SceneInterface,
         SceneContainer,
         node::Node,
     },
@@ -48,31 +59,10 @@ pub struct TriangleDefinition {
     pub c: u32,
 }
 
-fn check_gl_error_internal(line: u32, file: &str) {
-    unsafe {
-        let error_code = gl::GetError();
-        if error_code != gl::NO_ERROR {
-            match error_code {
-                gl::INVALID_ENUM => print!("GL_INVALID_ENUM"),
-                gl::INVALID_VALUE => print!("GL_INVALID_VALUE"),
-                gl::INVALID_OPERATION => print!("GL_INVALID_OPERATION"),
-                gl::STACK_OVERFLOW => print!("GL_STACK_OVERFLOW"),
-                gl::STACK_UNDERFLOW => print!("GL_STACK_UNDERFLOW"),
-                gl::OUT_OF_MEMORY => print!("GL_OUT_OF_MEMORY"),
-                _ => (),
-            };
-
-            println!(" error has occurred! At line {} in file {}, stability is not guaranteed!", line, file);
-        }
-    }
-}
-
-macro_rules! check_gl_error {
-    () => (check_gl_error_internal(line!(), file!()))
-}
-
 #[derive(Copy, Clone)]
 pub struct Statistics {
+    /// Geometry statistics.
+    pub geometry: RenderPassStatistics,
     /// Real time consumed to render frame.
     pub pure_frame_time: f32,
     /// Total time renderer took to process single frame, usually includes
@@ -85,10 +75,85 @@ pub struct Statistics {
     last_fps_commit_time: time::Instant,
 }
 
+#[derive(Copy, Clone)]
+pub struct RenderPassStatistics {
+    pub draw_calls: usize,
+    pub triangles_rendered: usize,
+}
+
+impl Default for RenderPassStatistics {
+    fn default() -> Self {
+        Self {
+            draw_calls: 0,
+            triangles_rendered: 0
+        }
+    }
+}
+
+impl std::ops::AddAssign for RenderPassStatistics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.draw_calls += rhs.draw_calls;
+        self.triangles_rendered += rhs.triangles_rendered;
+    }
+}
+
+impl RenderPassStatistics {
+    pub fn add_draw_call(&mut self, triangles_rendered: usize) {
+        self.triangles_rendered += triangles_rendered;
+        self.draw_calls += 1;
+    }
+}
+
+impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
+    fn add_assign(&mut self, rhs: RenderPassStatistics) {
+        self.geometry += rhs;
+    }
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct QualitySettings {
+    /// Point shadows
+    /// Size of cube map face of shadow map texture in pixels.
+    pub point_shadow_map_size: usize,
+    /// Use or not percentage close filtering (smoothing) for point shadows.
+    pub point_soft_shadows: bool,
+    /// Point shadows enabled or not.
+    pub point_shadows_enabled: bool,
+    /// Maximum distance from camera to draw shadows.
+    pub point_shadows_distance: f32,
+
+    /// Spot shadows
+    /// Size of square shadow map texture in pixels
+    pub spot_shadow_map_size: usize,
+    /// Use or not percentage close filtering (smoothing) for spot shadows.
+    pub spot_soft_shadows: bool,
+    /// Spot shadows enabled or not.
+    pub spot_shadows_enabled: bool,
+    /// Maximum distance from camera to draw shadows.
+    pub spot_shadows_distance: f32,
+}
+
+impl Default for QualitySettings {
+    fn default() -> Self {
+        Self {
+            point_shadow_map_size: 1024,
+            point_shadows_distance: 10.0,
+            point_shadows_enabled: true,
+            point_soft_shadows: true,
+
+            spot_shadow_map_size: 1024,
+            spot_shadows_distance: 10.0,
+            spot_shadows_enabled: true,
+            spot_soft_shadows: true,
+        }
+    }
+}
+
 impl Statistics {
     /// Must be called before render anything.
     fn begin_frame(&mut self) {
         self.frame_start_time = time::Instant::now();
+        self.geometry = Default::default();
     }
 
     /// Must be called before SwapBuffers but after all rendering is done.
@@ -114,6 +179,7 @@ impl Statistics {
 impl Default for Statistics {
     fn default() -> Self {
         Self {
+            geometry: RenderPassStatistics::default(),
             pure_frame_time: 0.0,
             capped_frame_time: 0.0,
             frames_per_second: 0,
@@ -139,9 +205,9 @@ pub struct Renderer {
     ui_renderer: UIRenderer,
     statistics: Statistics,
     quad: SurfaceSharedData,
-    last_render_time: time::Instant,
     frame_size: (u32, u32),
     ambient_color: Color,
+    quality_settings: QualitySettings,
 }
 
 impl Renderer {
@@ -150,9 +216,11 @@ impl Renderer {
             gl::Enable(gl::DEPTH_TEST);
         }
 
+        let settings = QualitySettings::default();
+
         Ok(Self {
             frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new()?,
+            deferred_light_renderer: DeferredLightRenderer::new(&settings)?,
             flat_shader: FlatShader::new()?,
             gbuffer: GBuffer::new(frame_size)?,
             statistics: Statistics::default(),
@@ -166,8 +234,8 @@ impl Renderer {
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UIRenderer::new()?,
             particle_system_renderer: ParticleSystemRenderer::new()?,
-            last_render_time: time::Instant::now(), // TODO: Is this right?
             ambient_color: Color::opaque(100, 100, 100),
+            quality_settings: settings,
         })
     }
 
@@ -207,8 +275,20 @@ impl Renderer {
         self.frame_size
     }
 
-    pub(in crate) fn render(&mut self, scenes: &SceneContainer, drawing_context: &DrawingContext,
-                            context: &glutin::WindowedContext<PossiblyCurrent>) -> Result<(), RendererError> {
+    pub fn set_quality_settings(&mut self, settings: &QualitySettings) -> Result<(), RendererError> {
+        self.quality_settings = *settings;
+        self.deferred_light_renderer.set_quality_settings(settings)
+    }
+
+    pub fn get_quality_settings(&self) -> QualitySettings {
+        self.quality_settings
+    }
+
+    pub(in crate) fn render(&mut self,
+                            scenes: &SceneContainer,
+                            drawing_context: &DrawingContext,
+                            context: &glutin::WindowedContext<PossiblyCurrent>,
+    ) -> Result<(), RendererError> {
         self.statistics.begin_frame();
 
         let frame_width = self.frame_size.0 as f32;
@@ -219,7 +299,7 @@ impl Renderer {
 
         // Render scenes into g-buffer.
         for scene in scenes.iter() {
-            let SceneInterface { graph, .. } = scene.interface();
+            let graph = scene.interface().graph;
 
             // Prepare for render - fill lists of nodes participating in rendering.
             let camera = match graph.linear_iter().find(|node| node.is_camera()) {
@@ -232,7 +312,7 @@ impl Renderer {
                 _ => continue
             };
 
-            self.gbuffer.fill(
+            self.statistics += self.gbuffer.fill(
                 frame_width,
                 frame_height,
                 graph,
@@ -241,18 +321,18 @@ impl Renderer {
                 &self.normal_dummy,
             );
 
-            self.deferred_light_renderer.render(
-                frame_width,
-                frame_height,
+            self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
+                frame_size: Vec2::new(frame_width, frame_height),
                 scene,
                 camera,
-                &self.gbuffer,
-                &self.white_dummy,
-                self.ambient_color,
-            );
+                gbuffer: &self.gbuffer,
+                white_dummy: &self.white_dummy,
+                ambient_color: self.ambient_color,
+                settings: &self.quality_settings,
+            });
         }
 
-        self.particle_system_renderer.render(
+        self.statistics += self.particle_system_renderer.render(
             scenes,
             &self.white_dummy,
             frame_width,
@@ -260,7 +340,7 @@ impl Renderer {
             &self.gbuffer,
         );
 
-        self.sprite_renderer.render(scenes, &self.white_dummy);
+        self.statistics += self.sprite_renderer.render(scenes, &self.white_dummy);
 
         unsafe {
             // Finally render everything into back buffer.
@@ -279,9 +359,9 @@ impl Renderer {
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.frame_texture);
         }
-        self.quad.draw();
+        self.statistics.geometry.add_draw_call(self.quad.draw());
 
-        self.ui_renderer.render(
+        self.statistics += self.ui_renderer.render(
             frame_width,
             frame_height,
             drawing_context,
@@ -299,5 +379,121 @@ impl Renderer {
         self.statistics.finalize();
 
         Ok(())
+    }
+}
+
+fn check_gl_error_internal(line: u32, file: &str) {
+    unsafe {
+        let error_code = gl::GetError();
+        if error_code != gl::NO_ERROR {
+            match error_code {
+                gl::INVALID_ENUM => print!("GL_INVALID_ENUM"),
+                gl::INVALID_VALUE => print!("GL_INVALID_VALUE"),
+                gl::INVALID_OPERATION => print!("GL_INVALID_OPERATION"),
+                gl::STACK_OVERFLOW => print!("GL_STACK_OVERFLOW"),
+                gl::STACK_UNDERFLOW => print!("GL_STACK_UNDERFLOW"),
+                gl::OUT_OF_MEMORY => print!("GL_OUT_OF_MEMORY"),
+                _ => (),
+            };
+
+            println!(" error has occurred! At line {} in file {}, stability is not guaranteed!", line, file);
+
+            if gl::GetDebugMessageLog::is_loaded() {
+                let mut max_message_length = 0;
+                gl::GetIntegerv(gl::MAX_DEBUG_MESSAGE_LENGTH, &mut max_message_length);
+
+                let mut max_logged_messages = 0;
+                gl::GetIntegerv(gl::MAX_DEBUG_LOGGED_MESSAGES, &mut max_logged_messages);
+
+                let buffer_size = max_message_length * max_logged_messages;
+
+                let mut message_buffer: Vec<GLchar> = Vec::with_capacity(buffer_size as usize);
+                message_buffer.set_len(buffer_size as usize);
+
+                let mut sources: Vec<GLenum> = Vec::with_capacity(max_logged_messages as usize);
+                sources.set_len(max_logged_messages as usize);
+
+                let mut types: Vec<GLenum> = Vec::with_capacity(max_logged_messages as usize);
+                types.set_len(max_logged_messages as usize);
+
+                let mut ids: Vec<GLuint> = Vec::with_capacity(max_logged_messages as usize);
+                ids.set_len(max_logged_messages as usize);
+
+                let mut severities: Vec<GLenum> = Vec::with_capacity(max_logged_messages as usize);
+                severities.set_len(max_logged_messages as usize);
+
+                let mut lengths: Vec<GLsizei> = Vec::with_capacity(max_logged_messages as usize);
+                lengths.set_len(max_logged_messages as usize);
+
+                let message_count = gl::GetDebugMessageLog(
+                    max_logged_messages as u32,
+                    buffer_size,
+                    sources.as_mut_ptr(),
+                    types.as_mut_ptr(),
+                    ids.as_mut_ptr(),
+                    severities.as_mut_ptr(),
+                    lengths.as_mut_ptr(),
+                    message_buffer.as_mut_ptr(),
+                );
+
+                if message_count == 0 {
+                    println!("Debug info is not available - run with OpenGL debug flag!");
+                }
+
+                let mut message = message_buffer.as_ptr();
+
+                for i in 0..message_count as usize {
+                    let source = sources[i];
+                    let ty = types[i];
+                    let severity = severities[i];
+                    let id = ids[i];
+                    let len = lengths[i] as usize;
+
+                    let source_str =
+                        match source {
+                            gl::DEBUG_SOURCE_API => "API",
+                            gl::DEBUG_SOURCE_SHADER_COMPILER => "Shader Compiler",
+                            gl::DEBUG_SOURCE_WINDOW_SYSTEM => "Window System",
+                            gl::DEBUG_SOURCE_THIRD_PARTY => "Third Party",
+                            gl::DEBUG_SOURCE_APPLICATION => "Application",
+                            gl::DEBUG_SOURCE_OTHER => "Other",
+                            _ => "Unknown"
+                        };
+
+                    let type_str =
+                        match ty {
+                            gl::DEBUG_TYPE_ERROR => "Error",
+                            gl::DEBUG_TYPE_DEPRECATED_BEHAVIOR => "Deprecated Behavior",
+                            gl::DEBUG_TYPE_UNDEFINED_BEHAVIOR => "Undefined Behavior",
+                            gl::DEBUG_TYPE_PERFORMANCE => "Performance",
+                            gl::DEBUG_TYPE_PORTABILITY => "Portability",
+                            gl::DEBUG_TYPE_OTHER => "Other",
+                            _ => "Unknown",
+                        };
+
+                    let severity_str =
+                        match severity {
+                            gl::DEBUG_SEVERITY_HIGH => "High",
+                            gl::DEBUG_SEVERITY_MEDIUM => "Medium",
+                            gl::DEBUG_SEVERITY_LOW => "Low",
+                            gl::DEBUG_SEVERITY_NOTIFICATION => "Notification",
+                            _ => "Unknown"
+                        };
+
+                    let str_msg = CStr::from_ptr(message);
+
+                    println!("OpenGL message\nSource: {}\nType: {}\nId: {}\nSeverity: {}\nMessage: {:?}\n",
+                             source_str,
+                             type_str,
+                             id,
+                             severity_str,
+                             str_msg);
+
+                    message = message.add(len);
+                }
+            } else {
+                println!("Debug info is not available - glGetDebugMessageLog is not available!");
+            }
+        }
     }
 }

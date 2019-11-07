@@ -20,6 +20,7 @@ use crate::{
     },
     gui::draw::CommandTexture
 };
+use crate::renderer::RenderPassStatistics;
 
 struct UIShader {
     program: GpuProgram,
@@ -84,7 +85,9 @@ impl UIRenderer {
                                       frame_width: f32,
                                       frame_height: f32,
                                       drawing_context: &DrawingContext,
-                                      white_dummy: &GpuTexture) -> Result<(), RendererError> {
+                                      white_dummy: &GpuTexture) -> Result<RenderPassStatistics, RendererError> {
+        let mut statistics = RenderPassStatistics::default();
+
         unsafe {
             // Render UI on top of everything
             gl::Disable(gl::DEPTH_TEST);
@@ -157,9 +160,10 @@ impl UIRenderer {
                     }
                 }
 
-                self.geometry_buffer.draw_part(cmd.get_start_triangle(), cmd.get_triangle_count())?;
+                statistics.triangles_rendered += self.geometry_buffer.draw_part(cmd.get_start_triangle(), cmd.get_triangle_count())?;
+                statistics.draw_calls += 1;
             }
         }
-        Ok(())
+        Ok(statistics)
     }
 }

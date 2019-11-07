@@ -70,7 +70,8 @@ impl SurfaceSharedData {
         self.vertices.push(vertex);
     }
 
-    pub fn draw(&self) {
+    /// Draws surface, returns amount of triangles were rendered.
+    pub fn draw(&self) -> usize {
         if self.need_upload.get() {
             self.geometry_buffer.set_vertices(self.vertices.as_slice());
 
@@ -87,7 +88,7 @@ impl SurfaceSharedData {
             self.need_upload.set(false);
         }
 
-        self.geometry_buffer.draw();
+        self.geometry_buffer.draw()
     }
 
     /// Inserts vertex or its index. Performs optimizing insertion with checking if such

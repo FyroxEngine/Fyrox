@@ -3,7 +3,16 @@ use rg3d_core::{
     pool::Handle,
     math::vec2::Vec2,
 };
-use crate::gui::{event::UIEventKind, border::BorderBuilder, node::UINode, UserInterface, grid::{GridBuilder, Column, Row}, HorizontalAlignment, text::TextBuilder, Thickness, button::ButtonBuilder, scroll_viewer::ScrollViewerBuilder, Layout, widget::{Widget, WidgetBuilder, AsWidget}, Draw, draw::DrawingContext, Update, event::UIEvent, Visibility};
+use crate::gui::{
+    event::UIEventKind,
+    border::BorderBuilder, node::UINode,
+    UserInterface, grid::{GridBuilder, Column, Row},
+    HorizontalAlignment, text::TextBuilder, Thickness,
+    button::ButtonBuilder, scroll_viewer::ScrollViewerBuilder,
+    Layout, widget::{Widget, WidgetBuilder, AsWidget}, Draw,
+    draw::DrawingContext, Update, event::UIEvent, Visibility,
+    bool_to_visibility,
+};
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
@@ -55,6 +64,14 @@ impl Window {
 
     pub fn minimize(&mut self, state: bool) {
         self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Minimized(state)));
+    }
+
+    pub fn can_close(&mut self, state: bool) {
+        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::CanCloseChanged(state)));
+    }
+
+    pub fn can_minimize(&mut self, state: bool) {
+        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::CanMinimizeChanged(state)));
     }
 }
 
@@ -123,6 +140,9 @@ impl<'a> WindowBuilder<'a> {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+        let minimize_button;
+        let close_button;
+
         let header = BorderBuilder::new(WidgetBuilder::new()
             .with_color(Color::opaque(120, 120, 120))
             .with_horizontal_alignment(HorizontalAlignment::Stretch)
@@ -181,38 +201,44 @@ impl<'a> WindowBuilder<'a> {
                         }
                     }
                 })
-                .with_child(ButtonBuilder::new(WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(1)
-                    .with_visibility(if self.can_minimize { Visibility::Visible } else { Visibility::Collapsed })
-                    .with_event_handler(Box::new(|ui, handle, evt| {
-                        if evt.source == handle {
-                            if let UIEventKind::Click = evt.kind {
-                                let window = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window())
-                                    .as_window_mut();
-                                window.minimize(!window.minimized);
+                .with_child({
+                    minimize_button = ButtonBuilder::new(WidgetBuilder::new()
+                        .on_row(0)
+                        .on_column(1)
+                        .with_visibility(if self.can_minimize { Visibility::Visible } else { Visibility::Collapsed })
+                        .with_event_handler(Box::new(|ui, handle, evt| {
+                            if evt.source == handle {
+                                if let UIEventKind::Click = evt.kind {
+                                    let window = ui.borrow_by_criteria_up_mut(handle, |node| node.is_window())
+                                        .as_window_mut();
+                                    window.minimize(!window.minimized);
+                                }
                             }
-                        }
-                    }))
-                    .with_margin(Thickness::uniform(2.0)))
-                    .with_text("_")
-                    .build(ui))
-                .with_child(ButtonBuilder::new(WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(2)
-                    .with_visibility(if self.can_close { Visibility::Visible } else { Visibility::Collapsed })
-                    .with_event_handler(Box::new(|ui, handle, evt| {
-                        if evt.source == handle {
-                            if let UIEventKind::Click = evt.kind {
-                                ui.borrow_by_criteria_up_mut(handle, |node| node.is_window())
-                                    .as_window_mut()
-                                    .close();
+                        }))
+                        .with_margin(Thickness::uniform(2.0)))
+                        .with_text("_")
+                        .build(ui);
+                    minimize_button
+                })
+                .with_child({
+                    close_button = ButtonBuilder::new(WidgetBuilder::new()
+                        .on_row(0)
+                        .on_column(2)
+                        .with_visibility(if self.can_close { Visibility::Visible } else { Visibility::Collapsed })
+                        .with_event_handler(Box::new(|ui, handle, evt| {
+                            if evt.source == handle {
+                                if let UIEventKind::Click = evt.kind {
+                                    ui.borrow_by_criteria_up_mut(handle, |node| node.is_window())
+                                        .as_window_mut()
+                                        .close();
+                                }
                             }
-                        }
-                    }))
-                    .with_margin(Thickness::uniform(2.0)))
-                    .with_text("X")
-                    .build(ui)))
+                        }))
+                        .with_margin(Thickness::uniform(2.0)))
+                        .with_text("X")
+                        .build(ui);
+                    close_button
+                }))
                 .add_column(Column::stretch())
                 .add_column(Column::strict(30.0))
                 .add_column(Column::strict(30.0))
@@ -246,6 +272,20 @@ impl<'a> WindowBuilder<'a> {
                                 let scroll_viewer = ui.get_node_mut(scroll_viewer).as_scroll_viewer_mut();
                                 let visibility = if !minimized { Visibility::Visible } else { Visibility::Collapsed };
                                 scroll_viewer.widget_mut().set_visibility(visibility);
+                            }
+                            UIEventKind::CanMinimizeChanged(value) => {
+                                let window = ui.get_node_mut(handle).as_window_mut();
+                                window.can_minimize = value;
+                                ui.get_node_mut(minimize_button)
+                                    .widget_mut()
+                                    .set_visibility(bool_to_visibility(value));
+                            }
+                            UIEventKind::CanCloseChanged(value) => {
+                                let window = ui.get_node_mut(handle).as_window_mut();
+                                window.can_close = value;
+                                ui.get_node_mut(close_button)
+                                    .widget_mut()
+                                    .set_visibility(bool_to_visibility(value));
                             }
                             _ => ()
                         }

@@ -20,6 +20,7 @@ use crate::{
         base::AsBase
     }
 };
+use crate::renderer::RenderPassStatistics;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -116,12 +117,16 @@ impl ParticleSystemRenderer {
         })
     }
 
+    #[must_use]
     pub fn render(&mut self,
                   scenes: &SceneContainer,
                   white_dummy: &GpuTexture,
                   frame_width: f32,
                   frame_height: f32,
-                  gbuffer: &GBuffer) {
+                  gbuffer: &GBuffer
+    ) -> RenderPassStatistics {
+        let mut statistics = RenderPassStatistics::default();
+
         unsafe {
             gl::Disable(gl::CULL_FACE);
             gl::Enable(gl::BLEND);
@@ -179,7 +184,7 @@ impl ParticleSystemRenderer {
                 self.shader.set_inv_screen_size(Vec2::new(1.0 / frame_width, 1.0 / frame_height));
                 self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
 
-                self.geometry_buffer.draw();
+                statistics.add_draw_call(self.geometry_buffer.draw());
             }
         }
 
@@ -187,5 +192,7 @@ impl ParticleSystemRenderer {
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
         }
+
+        statistics
     }
 }

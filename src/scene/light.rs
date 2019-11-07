@@ -40,6 +40,11 @@ impl SpotLight {
     }
 
     #[inline]
+    pub fn get_cone_angle(&self) -> f32 {
+        self.cone_angle
+    }
+
+    #[inline]
     pub fn set_cone_angle(&mut self, cone_angle: f32) {
         self.cone_angle = cone_angle;
         self.cone_angle_cos = cone_angle.cos();
@@ -149,6 +154,7 @@ pub struct Light {
     base: Base,
     kind: LightKind,
     color: Color,
+    cast_shadows: bool,
 }
 
 impl AsBase for Light {
@@ -167,6 +173,7 @@ impl Default for Light {
             base: Default::default(),
             kind: LightKind::Point(Default::default()),
             color: Color::WHITE,
+            cast_shadows: true,
         }
     }
 }
@@ -183,6 +190,7 @@ impl Visit for Light {
         self.kind.visit("Kind", visitor)?;
         self.color.visit("Color", visitor)?;
         self.base.visit("Base", visitor)?;
+        self.cast_shadows.visit("CastShadows", visitor)?;
 
         visitor.leave_region()
     }
@@ -191,9 +199,8 @@ impl Visit for Light {
 impl Light {
     pub fn new(kind: LightKind) -> Self {
         Self {
-            base: Default::default(),
             kind,
-            color: Color::WHITE,
+            .. Default::default()
         }
     }
 
@@ -221,7 +228,8 @@ impl Light {
 pub struct LightBuilder {
     base_builder: BaseBuilder,
     kind: LightKind,
-    color: Option<Color>,
+    color: Color,
+    cast_shadows: bool,
 }
 
 impl LightBuilder {
@@ -229,12 +237,18 @@ impl LightBuilder {
         Self {
             base_builder,
             kind,
-            color: None
+            color: Color::WHITE,
+            cast_shadows: true,
         }
     }
 
     pub fn with_color(mut self, color: Color) -> Self {
-        self.color = Some(color);
+        self.color = color;
+        self
+    }
+
+    pub fn cast_shadows(mut self, cast_shadows: bool) -> Self {
+        self.cast_shadows = cast_shadows;
         self
     }
 
@@ -242,7 +256,8 @@ impl LightBuilder {
         Light {
             base: self.base_builder.build(),
             kind: self.kind,
-            color: self.color.unwrap_or(Color::WHITE)
+            color: self.color,
+            cast_shadows: self.cast_shadows
         }
     }
 }

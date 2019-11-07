@@ -13,22 +13,22 @@ out vec2 texCoord;
 
 void main()
 {
-   vec4 localPosition = vec4(0);
+    vec4 localPosition = vec4(0);
 
-   if(useSkeletalAnimation)
-   {
-	   vec4 vertex = vec4(vertexPosition, 1.0);
+    if (useSkeletalAnimation)
+    {
+        vec4 vertex = vec4(vertexPosition, 1.0);
 
-	   localPosition += boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-	   localPosition += boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-	   localPosition += boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-	   localPosition += boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
-   }
-   else
-   {
-	   localPosition = vec4(vertexPosition, 1.0);
-   }
+        localPosition += boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
+        localPosition += boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
+        localPosition += boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
+        localPosition += boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+    }
+    else
+    {
+        localPosition = vec4(vertexPosition, 1.0);
+    }
 
-   gl_Position = worldViewProjection * localPosition;
-   texCoord = vertexTexCoord;
+    gl_Position = worldViewProjection * localPosition;
+    texCoord = vertexTexCoord;
 }

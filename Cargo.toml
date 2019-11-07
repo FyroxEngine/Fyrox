@@ -1,6 +1,6 @@
 [package]
 name = "rg3d"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -16,7 +16,7 @@ opt-level = 0
 opt-level = 3
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.1.9" }
+rg3d-core = { path = "../rg3d-core", version = "0.2.0" }
 rg3d-sound = { path = "../rg3d-sound", version = "0.2.0" }
 rg3d-physics = { path = "../rg3d-physics", version = "0.1.7" }
 glutin = "0.22.0-alpha3"

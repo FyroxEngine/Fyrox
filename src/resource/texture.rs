@@ -89,10 +89,4 @@ impl Texture {
             gpu_tex: None,
         })
     }
-
-    pub(in crate) fn bind(&self, sampler_index: usize) {
-        if let Some(texture) = &self.gpu_tex {
-            texture.bind(sampler_index)
-        }
-    }
 }

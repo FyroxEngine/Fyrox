@@ -11,7 +11,7 @@ out vec4 color;
 
 void main()
 {
-	texCoord = vertexTexCoord;
-	color = vertexColor;
-	gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
+    texCoord = vertexTexCoord;
+    color = vertexColor;
+    gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
 }

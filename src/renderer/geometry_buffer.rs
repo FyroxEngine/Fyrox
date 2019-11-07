@@ -23,6 +23,7 @@ pub struct GeometryBuffer<T> {
 }
 
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 pub enum AttributeKind {
     Float,
     Float2,
@@ -228,7 +229,7 @@ impl<T> GeometryBuffer<T> where T: Sized {
         }
     }
 
-    pub fn draw_part(&self, start_triangle: usize, triangle_count: usize) -> Result<(), RendererError> {
+    pub fn draw_part(&self, start_triangle: usize, triangle_count: usize) -> Result<usize, RendererError> {
         let last_triangle_index = start_triangle + triangle_count;
 
         if last_triangle_index > self.triangle_count.get() {
@@ -243,15 +244,17 @@ impl<T> GeometryBuffer<T> where T: Sized {
 
             unsafe { self.draw_internal(start_index, index_count); }
 
-            Ok(())
+            Ok(triangle_count)
         }
     }
 
-    pub fn draw(&self) {
+    pub fn draw(&self) -> usize {
         let start_index = 0;
         let index_count = self.triangle_count.get() * 3;
 
         unsafe { self.draw_internal(start_index, index_count) }
+
+        self.triangle_count.get()
     }
 
     unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {

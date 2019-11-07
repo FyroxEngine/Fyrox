@@ -7,7 +7,7 @@ pub enum RendererError {
         error_message: String,
     },
 
-    /// Means that shader link state failed, exact reason is inside `error_message`
+    /// Means that shader link stage failed, exact reason is inside `error_message`
     ShaderLinkingFailed {
         shader_name: String,
         error_message: String,

@@ -3,8 +3,8 @@ use rg3d_core::{
     math::{
         Rect,
         mat4::Mat4,
-        vec2::Vec2
-    }
+        vec2::Vec2,
+    },
 };
 use crate::scene::base::{Base, AsBase};
 
@@ -31,22 +31,22 @@ impl AsBase for Camera {
 
 impl Default for Camera {
     fn default() -> Camera {
-        let fov: f32 = 75.0;
-        let z_near: f32 = 0.025;
-        let z_far: f32 = 2048.0;
+        let fov = 75.0f32;
+        let z_near = 0.025;
+        let z_far = 2048.0;
 
         Camera {
-            base: Base::default(),
             fov,
-            z_near,
             z_far,
-            view_matrix: Mat4::IDENTITY,
+            z_near,
             projection_matrix: Mat4::perspective(
                 fov.to_radians(),
                 1.0,
                 z_near,
-                z_far
+                z_far,
             ),
+            base: Base::default(),
+            view_matrix: Mat4::IDENTITY,
             viewport: Rect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
         }
     }
@@ -92,6 +92,11 @@ impl Camera {
     #[inline]
     pub fn get_view_projection_matrix(&self) -> Mat4 {
         self.projection_matrix * self.view_matrix
+    }
+
+    #[inline]
+    pub fn get_projection_matrix(&self) -> Mat4 {
+        self.projection_matrix
     }
 
     #[inline]

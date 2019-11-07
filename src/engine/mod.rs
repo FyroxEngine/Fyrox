@@ -68,6 +68,7 @@ impl Engine {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
+            .with_gl_debug_flag(true)
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
             .build_windowed(window_builder, events_loop)?;
 

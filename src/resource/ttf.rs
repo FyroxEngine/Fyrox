@@ -89,7 +89,6 @@ pub struct Font {
     glyphs: Vec<FontGlyph>,
     ascender: f32,
     descender: f32,
-    line_gap: f32,
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
     atlas_size: i32,
@@ -582,12 +581,6 @@ impl TrueType {
         }
     }
 
-    fn get_line_gap(&self) -> i16 {
-        unsafe {
-            get_i16(self.hhea_table.offset(8))
-        }
-    }
-
     fn read_glyphs(&mut self) {
         unsafe {
             self.glyphs = Vec::with_capacity(self.num_glyphs as usize);
@@ -881,7 +874,6 @@ impl Font {
             glyphs: Vec::new(),
             ascender: scale * f32::from(ttf.get_ascender()),
             descender: scale * f32::from(ttf.get_descender()),
-            line_gap: scale * f32::from(ttf.get_line_gap()),
             char_map: HashMap::new(),
             texture: None,
             atlas: Vec::new(),

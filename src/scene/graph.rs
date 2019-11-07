@@ -289,10 +289,9 @@ impl Graph {
                         let SceneInterface { graph: resource_graph, .. } = model.get_scene().interface();
                         if let Node::Mesh(resource_mesh) = resource_graph.get(resource_node_handle) {
                             // Copy surfaces from resource and assign to meshes.
-                            let surfaces = mesh.get_surfaces_mut();
-                            surfaces.clear();
+                            mesh.clear_surfaces();
                             for resource_surface in resource_mesh.get_surfaces() {
-                                surfaces.push(resource_surface.clone());
+                                mesh.add_surface(resource_surface.clone());
                             }
 
                             // Remap bones
@@ -393,7 +392,7 @@ impl Graph {
     ///
     /// # Notes
     ///
-    /// This method allocated temporal array so it is not cheap! Should not be
+    /// This method allocates temporal array so it is not cheap! Should not be
     /// used on each frame.
     pub fn traverse_iter(&self, from: Handle<Node>) -> GraphTraverseIterator {
         GraphTraverseIterator {
@@ -406,7 +405,7 @@ impl Graph {
     ///
     /// # Notes
     ///
-    /// This method allocated temporal array so it is not cheap! Should not be
+    /// This method allocates temporal array so it is not cheap! Should not be
     /// used on each frame.
     pub fn traverse_handle_iter(&self, from: Handle<Node>) -> GraphHandleTraverseIterator {
         GraphHandleTraverseIterator {
@@ -425,7 +424,7 @@ impl<'a> Iterator for GraphTraverseIterator<'a> {
     type Item = &'a Node;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(handle) = self.stack.pop() {
+        if let Some(handle) = self.stack.pop() {
             let node = self.graph.get(handle);
 
             for child_handle in node.base().get_children() {
@@ -448,7 +447,7 @@ impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
     type Item = Handle<Node>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(handle) = self.stack.pop() {
+        if let Some(handle) = self.stack.pop() {
             for child_handle in self.graph.get(handle).base().get_children() {
                 self.stack.push(*child_handle);
             }

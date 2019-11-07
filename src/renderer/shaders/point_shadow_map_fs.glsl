@@ -8,8 +8,8 @@ in vec3 worldPosition;
 
 layout(location = 0) out float depth;
 
-void main() 
+void main()
 {
-   if(texture(diffuseTexture, texCoord).a < 0.2) discard;
-   depth = length(lightPosition - worldPosition);
+    if (texture(diffuseTexture, texCoord).a < 0.2) discard;
+    depth = length(lightPosition - worldPosition);
 }

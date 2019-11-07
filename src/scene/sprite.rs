@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 use crate::{
     resource::texture::Texture,
+    scene::base::{BaseBuilder, Base, AsBase}
 };
 use rg3d_core::{
     color::Color,
     visitor::{Visit, VisitResult, Visitor}
 };
-use crate::scene::base::{BaseBuilder, Base, AsBase};
 
 #[derive(Clone)]
 pub struct Sprite {

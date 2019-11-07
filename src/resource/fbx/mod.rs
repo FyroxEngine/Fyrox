@@ -2,6 +2,7 @@ mod fbx_ascii;
 mod fbx_binary;
 mod texture;
 mod attribute;
+mod geometry;
 pub mod error;
 
 use std::{
@@ -10,7 +11,6 @@ use std::{
     io::{Read, Cursor},
     collections::{HashMap, HashSet},
     time::Instant,
-    any::{Any, TypeId},
 };
 use rg3d_core::{
     color::Color,
@@ -58,19 +58,14 @@ use crate::{
     renderer::{
         surface::{
             SurfaceSharedData, Surface,
-            Vertex, VertexWeightSet, VertexWeight,
+            Vertex, VertexWeightSet,
         }
     },
 };
+use crate::resource::fbx::geometry::FbxGeometry;
 
+// https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
-
-struct FbxKeyframe {
-    time: f32,
-    position: Vec3,
-    scale: Vec3,
-    rotation: Vec3,
-}
 
 struct FbxTimeValuePair {
     time: f32,
@@ -327,159 +322,21 @@ impl FbxNode {
     }
 }
 
-struct FbxGeometry {
-    vertices: Vec<Vec3>,
-    indices: Vec<i32>,
-
-    normals: Vec<Vec3>,
-    normal_mapping: FbxMapping,
-    normal_reference: FbxReference,
-
-    tangents: Vec<Vec3>,
-    tangent_mapping: FbxMapping,
-    tangent_reference: FbxReference,
-
-    binormals: Vec<Vec3>,
-    binormal_mapping: FbxMapping,
-    binormal_reference: FbxReference,
-
-    uvs: Vec<Vec2>,
-    uv_index: Vec<i32>,
-    uv_mapping: FbxMapping,
-    uv_reference: FbxReference,
-
-    materials: Vec<i32>,
-    material_mapping: FbxMapping,
-    material_reference: FbxReference,
-
-    deformers: Vec<Handle<FbxComponent>>,
+pub struct FbxContainer<T> {
+    elements: Vec<T>,
+    index: Vec<i32>,
+    mapping: FbxMapping,
+    reference: FbxReference,
 }
 
-impl FbxGeometry {
-    pub fn read(geom_node_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<FbxGeometry, String> {
-        let mut geom = FbxGeometry {
-            vertices: Vec::new(),
-            indices: Vec::new(),
-            normals: Vec::new(),
-            normal_mapping: FbxMapping::Unknown,
-            normal_reference: FbxReference::Unknown,
-            tangents: Vec::new(),
-            tangent_mapping: FbxMapping::Unknown,
-            tangent_reference: FbxReference::Unknown,
-            binormals: Vec::new(),
-            binormal_mapping: FbxMapping::Unknown,
-            binormal_reference: FbxReference::Unknown,
-            uvs: Vec::new(),
-            uv_index: Vec::new(),
-            uv_mapping: FbxMapping::Unknown,
-            uv_reference: FbxReference::Unknown,
-            materials: Vec::new(),
-            material_mapping: FbxMapping::Unknown,
-            material_reference: FbxReference::Unknown,
-            deformers: Vec::new(),
-        };
-
-        // Read vertices
-        let vertices_node_handle = find_node(nodes, geom_node_handle, "Vertices")?;
-        let vertices_array_node = find_and_borrow_node(nodes, vertices_node_handle, "a")?;
-        let vertex_count = vertices_array_node.attrib_count() / 3;
-        geom.vertices = Vec::with_capacity(vertex_count);
-        for i in 0..vertex_count {
-            geom.vertices.push(vertices_array_node.get_vec3_at(i * 3)?);
+impl<T> Default for FbxContainer<T> {
+    fn default() -> Self {
+        Self {
+            index: Vec::new(),
+            elements: Vec::new(),
+            mapping: FbxMapping::Unknown,
+            reference: FbxReference::Unknown
         }
-
-        // Read faces
-        let indices_node_handle = find_node(nodes, geom_node_handle, "PolygonVertexIndex")?;
-        let indices_array_node = find_and_borrow_node(nodes, indices_node_handle, "a")?;
-        let index_count = indices_array_node.attrib_count();
-        geom.indices = Vec::with_capacity(index_count);
-        for i in 0..index_count {
-            let index = indices_array_node.get_attrib(i)?.as_i32()?;
-            geom.indices.push(index);
-        }
-
-        // Read normals (normals can not exist)
-        if let Ok(layer_element_normal_node_handle) = find_node(nodes, geom_node_handle, "LayerElementNormal") {
-            let map_type_node = find_and_borrow_node(nodes, layer_element_normal_node_handle, "MappingInformationType")?;
-            geom.normal_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
-
-            let ref_type_node = find_and_borrow_node(nodes, layer_element_normal_node_handle, "ReferenceInformationType")?;
-            geom.normal_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
-
-            let normals_node_handle = find_node(nodes, layer_element_normal_node_handle, "Normals")?;
-            let normals_array_node = find_and_borrow_node(nodes, normals_node_handle, "a")?;
-            let count = normals_array_node.attrib_count() / 3;
-            for i in 0..count {
-                geom.normals.push(normals_array_node.get_vec3_at(i * 3)?);
-            }
-        }
-
-        // todo: read tangents
-
-        // Read UVs
-        if let Ok(layer_element_uv_node_handle) = find_node(nodes, geom_node_handle, "LayerElementUV") {
-            let map_type_node = find_and_borrow_node(nodes, layer_element_uv_node_handle, "MappingInformationType")?;
-            geom.uv_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
-
-            let ref_type_node = find_and_borrow_node(nodes, layer_element_uv_node_handle, "ReferenceInformationType")?;
-            geom.uv_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
-
-            let uvs_node_handle = find_node(nodes, layer_element_uv_node_handle, "UV")?;
-            let uvs_array_node = find_and_borrow_node(nodes, uvs_node_handle, "a")?;
-            let count = uvs_array_node.attrib_count() / 2;
-            for i in 0..count {
-                let uv = uvs_array_node.get_vec2_at(i * 2)?;
-                geom.uvs.push(Vec2 { x: uv.x, y: -uv.y }); // Hack FIXME
-            }
-
-            if geom.uv_reference == FbxReference::IndexToDirect {
-                let uv_index_node = find_node(nodes, layer_element_uv_node_handle, "UVIndex")?;
-                let uv_index_array_node = find_and_borrow_node(nodes, uv_index_node, "a")?;
-                for i in 0..uv_index_array_node.attrib_count() {
-                    geom.uv_index.push(uv_index_array_node.get_attrib(i)?.as_i32()?);
-                }
-            }
-        }
-
-        // Read materials
-        if let Ok(layer_element_material_node_handle) = find_node(nodes, geom_node_handle, "LayerElementMaterial") {
-            let map_type_node = find_and_borrow_node(nodes, layer_element_material_node_handle, "MappingInformationType")?;
-            geom.material_mapping = string_to_mapping(&map_type_node.get_attrib(0)?.as_string());
-
-            let ref_type_node = find_and_borrow_node(nodes, layer_element_material_node_handle, "ReferenceInformationType")?;
-            geom.material_reference = string_to_reference(&ref_type_node.get_attrib(0)?.as_string());
-
-            let materials_node_handle = find_node(nodes, layer_element_material_node_handle, "Materials")?;
-            let materials_array_node = find_and_borrow_node(nodes, materials_node_handle, "a")?;
-            for i in 0..materials_array_node.attrib_count() {
-                geom.materials.push(materials_array_node.get_attrib(i)?.as_i32()?);
-            }
-        }
-
-        Ok(geom)
-    }
-
-    fn get_skin_data(&self, components: &Pool<FbxComponent>) -> Result<Vec<VertexWeightSet>, FbxError> {
-        let mut out = vec![VertexWeightSet::default(); self.vertices.len()];
-        for deformer_handle in self.deformers.iter() {
-            for sub_deformer_handle in components.borrow(*deformer_handle)
-                .as_deformer()?.sub_deformers.iter() {
-                let sub_deformer = components.borrow(*sub_deformer_handle)
-                    .as_sub_deformer()?;
-                for (index, weight) in sub_deformer.weights.iter() {
-                    let bone_set = out.get_mut(*index as usize)
-                        .ok_or(FbxError::IndexOutOfBounds)?;
-                    if !bone_set.push(VertexWeight {
-                        value: *weight,
-                        effector: sub_deformer.model.into(),
-                    }) {
-                        // TODO: Maybe gather all weights, but then renormalize them to 4-bones?
-                        println!("FBX: More than 4 bones per vertex?! Excess will be discarded");
-                    }
-                }
-            }
-        }
-        Ok(out)
     }
 }
 
@@ -640,56 +497,25 @@ enum FbxComponent {
     Geometry(Box<FbxGeometry>),
 }
 
-impl FbxComponent {
-    fn type_id(&self) -> TypeId {
-        match self {
-            FbxComponent::Deformer(deformer) => deformer.type_id(),
-            FbxComponent::SubDeformer(subdeformer) => subdeformer.type_id(),
-            FbxComponent::Texture(texture) => texture.type_id(),
-            FbxComponent::Light(light) => light.type_id(),
-            FbxComponent::Model(model) => model.type_id(),
-            FbxComponent::Material(material) => material.type_id(),
-            FbxComponent::AnimationCurveNode(anim_curve_node) => anim_curve_node.type_id(),
-            FbxComponent::AnimationCurve(anim_curve) => anim_curve.type_id(),
-            FbxComponent::Geometry(geometry) => geometry.type_id()
+macro_rules! define_as {
+    ($self:ident, $name:ident, $ty:ty, $kind:ident) => {
+        fn $name(&$self) -> Result<&$ty, FbxError> {
+            if let FbxComponent::$kind(component) = $self {
+                Ok(component)
+            } else {
+                Err(FbxError::UnexpectedType)
+            }
         }
     }
+}
 
-    fn as_deformer(&self) -> Result<&FbxDeformer, FbxError> {
-        if let FbxComponent::Deformer(deformer) = self { Ok(deformer) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_sub_deformer(&self) -> Result<&FbxSubDeformer, FbxError> {
-        if let FbxComponent::SubDeformer(sub_deformer) = self { Ok(sub_deformer) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_texture(&self) -> Result<&FbxTexture, FbxError> {
-        if let FbxComponent::Texture(texture) = self { Ok(texture) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_light(&self) -> Result<&FbxLight, FbxError> {
-        if let FbxComponent::Light(light) = self { Ok(light) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_model(&self) -> Result<&FbxModel, FbxError> {
-        if let FbxComponent::Model(model) = self { Ok(model) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_material(&self) -> Result<&FbxMaterial, FbxError> {
-        if let FbxComponent::Material(material) = self { Ok(material) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_animation_curve_node(&self) -> Result<&FbxAnimationCurveNode, FbxError> {
-        if let FbxComponent::AnimationCurveNode(acn) = self { Ok(acn) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_animation_curve(&self) -> Result<&FbxAnimationCurve, FbxError> {
-        if let FbxComponent::AnimationCurve(ac) = self { Ok(ac) } else { Err(FbxError::UnexpectedType) }
-    }
-
-    fn as_geometry(&self) -> Result<&FbxGeometry, FbxError> {
-        if let FbxComponent::Geometry(geom) = self { Ok(geom) } else { Err(FbxError::UnexpectedType) }
-    }
+impl FbxComponent {
+    define_as!(self, as_deformer, FbxDeformer, Deformer);
+    define_as!(self, as_sub_deformer, FbxSubDeformer, SubDeformer);
+    define_as!(self, as_texture, FbxTexture, Texture);
+    define_as!(self, as_light, FbxLight, Light);
+    define_as!(self, as_material, FbxMaterial, Material);
+    define_as!(self, as_geometry, FbxGeometry, Geometry);
 }
 
 pub struct Fbx {
@@ -822,7 +648,7 @@ fn quat_from_euler(euler: Vec3) -> Quat {
 /// is actually index 2 but it xor'ed using -1.
 fn fix_index(index: i32) -> usize {
     if index < 0 {
-        (-index - 1) as usize
+        (index ^ -1) as usize
     } else {
         index as usize
     }
@@ -833,8 +659,8 @@ fn fix_index(index: i32) -> usize {
 fn prepare_next_face(geom: &FbxGeometry,
                      start: usize,
                      temp_vertices: &mut Vec<Vec3>,
-                     out_triangles: &mut Vec<(usize, usize, usize)>,
-                     out_relative_triangles: &mut Vec<(usize, usize, usize)>) -> usize {
+                     out_triangles: &mut Vec<[usize; 3]>,
+                     out_relative_triangles: &mut Vec<[usize; 3]>) -> usize {
     out_triangles.clear();
     out_relative_triangles.clear();
 
@@ -856,21 +682,21 @@ fn prepare_next_face(geom: &FbxGeometry,
         // and they'll blow up loader.
         if a < geom.vertices.len() && b < geom.vertices.len() && c < geom.vertices.len() {
             // We have a triangle
-            out_triangles.push((a, b, c));
-            out_relative_triangles.push((0, 1, 2));
+            out_triangles.push([a, b, c]);
+            out_relative_triangles.push([0, 1, 2]);
         }
     } else if vertex_per_face > 3 {
-        // Triangulate a polygon. Triangulate it!
+        // Found arbitrary polygon, triangulate it.
         temp_vertices.clear();
         for i in 0..vertex_per_face {
             temp_vertices.push(geom.vertices[fix_index(geom.indices[start + i])]);
         }
         triangulate(&temp_vertices.as_slice(), out_relative_triangles);
         for triangle in out_relative_triangles.iter() {
-            out_triangles.push((
-                fix_index(geom.indices[start + triangle.0]),
-                fix_index(geom.indices[start + triangle.1]),
-                fix_index(geom.indices[start + triangle.2])));
+            out_triangles.push([
+                fix_index(geom.indices[start + triangle[0]]),
+                fix_index(geom.indices[start + triangle[1]]),
+                fix_index(geom.indices[start + triangle[2]])]);
         }
     }
 
@@ -881,36 +707,35 @@ fn convert_vertex(geom: &FbxGeometry,
                   mesh: &mut Mesh,
                   geometric_transform: &Mat4,
                   material_index: usize,
-                  origin: usize,
                   index: usize,
                   relative_index: usize,
                   skin_data: &[VertexWeightSet]) -> Result<(), FbxError> {
     let position = geometric_transform.transform_vector(*geom.vertices.get(index)
         .ok_or(FbxError::IndexOutOfBounds)?);
 
-    let normal = geometric_transform.transform_vector_normal(match geom.normal_mapping {
-        FbxMapping::ByPolygonVertex => *geom.normals.get(origin + relative_index)
+    let normal = geometric_transform.transform_vector_normal(match geom.normals.mapping {
+        FbxMapping::ByPolygonVertex => *geom.normals.elements.get(relative_index)
             .ok_or(FbxError::IndexOutOfBounds)?,
-        FbxMapping::ByVertex => *geom.normals.get(index).ok_or(FbxError::IndexOutOfBounds)?,
+        FbxMapping::ByVertex => *geom.normals.elements.get(index).ok_or(FbxError::IndexOutOfBounds)?,
         _ => Vec3 { x: 0.0, y: 1.0, z: 0.0 }
     });
 
-    let tangent = geometric_transform.transform_vector_normal(match geom.tangent_mapping {
-        FbxMapping::ByPolygonVertex => *geom.tangents.get(origin + relative_index)
+    let tangent = geometric_transform.transform_vector_normal(match geom.tangents.mapping {
+        FbxMapping::ByPolygonVertex => *geom.tangents.elements.get(relative_index)
             .ok_or(FbxError::IndexOutOfBounds)?,
-        FbxMapping::ByVertex => *geom.tangents.get(index).ok_or(FbxError::IndexOutOfBounds)?,
+        FbxMapping::ByVertex => *geom.tangents.elements.get(index).ok_or(FbxError::IndexOutOfBounds)?,
         _ => Vec3 { x: 0.0, y: 1.0, z: 0.0 }
     });
 
-    let uv = match geom.uv_mapping {
+    let uv = match geom.uvs.mapping {
         FbxMapping::ByPolygonVertex => {
-            match geom.uv_reference {
-                FbxReference::Direct => *geom.uvs.get(origin + relative_index)
+            match geom.uvs.reference {
+                FbxReference::Direct => *geom.uvs.elements.get(relative_index)
                     .ok_or(FbxError::IndexOutOfBounds)?,
                 FbxReference::IndexToDirect => {
-                    let uv_index = *geom.uv_index.get(origin + relative_index)
+                    let uv_index = *geom.uvs.index.get(relative_index)
                         .ok_or(FbxError::IndexOutOfBounds)? as usize;
-                    *geom.uvs.get(uv_index).ok_or(FbxError::IndexOutOfBounds)?
+                    *geom.uvs.elements.get(uv_index).ok_or(FbxError::IndexOutOfBounds)?
                 }
                 _ => Vec2 { x: 0.0, y: 0.0 }
             }
@@ -918,9 +743,9 @@ fn convert_vertex(geom: &FbxGeometry,
         _ => Vec2 { x: 0.0, y: 0.0 }
     };
 
-    let material = match geom.material_mapping {
-        FbxMapping::AllSame => *geom.materials.first().ok_or(FbxError::IndexOutOfBounds)? as usize,
-        FbxMapping::ByPolygon => *geom.materials.get(material_index).ok_or(FbxError::IndexOutOfBounds)? as usize,
+    let material = match geom.materials.mapping {
+        FbxMapping::AllSame => *geom.materials.elements.first().ok_or(FbxError::IndexOutOfBounds)? as usize,
+        FbxMapping::ByPolygon => *geom.materials.elements.get(material_index).ok_or(FbxError::IndexOutOfBounds)? as usize,
         _ => 0
     };
 
@@ -1108,8 +933,8 @@ impl Fbx {
             Mat4::scale(model.geometric_scale);
 
         let mut temp_vertices: Vec<Vec3> = Vec::new();
-        let mut triangles: Vec<(usize, usize, usize)> = Vec::new();
-        let mut relative_triangles: Vec<(usize, usize, usize)> = Vec::new();
+        let mut triangles = Vec::new();
+        let mut relative_triangles = Vec::new();
 
         for geom_handle in &model.geoms {
             let geom = self.component_pool.borrow(*geom_handle).as_geometry()?;
@@ -1125,17 +950,17 @@ impl Fbx {
                 for i in 0..triangles.len() {
                     let triangle = &triangles[i];
                     let relative_triangle = &relative_triangles[i];
-
-                    convert_vertex(geom, &mut mesh, &geometric_transform, material_index, origin, triangle.0, relative_triangle.0, &skin_data)?;
-                    convert_vertex(geom, &mut mesh, &geometric_transform, material_index, origin, triangle.1, relative_triangle.1, &skin_data)?;
-                    convert_vertex(geom, &mut mesh, &geometric_transform, material_index, origin, triangle.2, relative_triangle.2, &skin_data)?;
+                    for (index, relative_index) in triangle.iter().zip(relative_triangle.iter()) {
+                        let relative_index = origin + *relative_index;
+                        convert_vertex(geom, &mut mesh, &geometric_transform, material_index, *index, relative_index, &skin_data)?;
+                    }
                 }
-                if geom.material_mapping == FbxMapping::ByPolygon {
+                if geom.materials.mapping == FbxMapping::ByPolygon {
                     material_index += 1;
                 }
             }
 
-            if geom.tangent_mapping == FbxMapping::Unknown {
+            if geom.tangents.mapping == FbxMapping::Unknown {
                 for surface in mesh.get_surfaces_mut() {
                     surface.get_data().lock().unwrap().calculate_tangents();
                 }
@@ -1337,7 +1162,7 @@ impl Fbx {
         Ok(root)
     }
 
-    pub fn print(&mut self) {
+    pub fn pretty_print(&mut self) {
         let mut stack: Vec<Handle<FbxNode>> = Vec::new();
         stack.push(self.root);
         while let Some(handle) = stack.pop() {

@@ -541,6 +541,12 @@ impl UserInterface {
     }
 
     fn pick_node(&self, node_handle: Handle<UINode>, pt: Vec2, level: &mut i32) -> Handle<UINode> {
+        let widget = self.nodes.borrow(node_handle).widget();
+
+        if !widget.is_hit_test_visible {
+            return Handle::NONE;
+        }
+
         let (mut picked, mut topmost_picked_level) =
             if self.is_node_contains_point(node_handle, pt) {
                 (node_handle, *level)
@@ -548,7 +554,6 @@ impl UserInterface {
                 (Handle::NONE, 0)
             };
 
-        let widget = self.nodes.borrow(node_handle).widget();
         for child_handle in widget.children.iter() {
             *level += 1;
             let picked_child = self.pick_node(*child_handle, pt, level);

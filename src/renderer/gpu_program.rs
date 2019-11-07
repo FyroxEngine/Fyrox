@@ -19,7 +19,6 @@ use rg3d_core::{
 };
 
 pub struct GpuProgram {
-    name: String,
     id: GLuint,
     name_buf: Vec<u8>,
 }
@@ -80,7 +79,6 @@ impl GpuProgram {
                 })
             } else {
                 Ok(Self {
-                    name: name.to_owned(),
                     id: program,
                     name_buf: Vec::new(),
                 })

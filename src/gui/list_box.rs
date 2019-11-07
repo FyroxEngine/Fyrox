@@ -23,7 +23,6 @@ use crate::gui::{
 
 pub struct ListBox {
     widget: Widget,
-    panel: Handle<UINode>,
     selected_index: Option<usize>,
     items: Vec<Handle<UINode>>,
 }
@@ -45,6 +44,10 @@ impl ListBox {
 
     pub fn get_selected(&self) -> Option<usize> {
         self.selected_index
+    }
+
+    pub fn get_items(&self) -> &[Handle<UINode>] {
+        &self.items
     }
 }
 
@@ -162,7 +165,6 @@ impl ListBoxBuilder {
                     .build(ui))
                 .build(),
             selected_index: None,
-            panel,
             items,
         });
 

@@ -9,13 +9,13 @@ in vec4 color;
 
 void main()
 {
-	if (isFont)
-	{
-		FragColor = color;
-		FragColor.a *= texture(diffuseTexture, texCoord).r;
-	}
-	else
-	{
-		FragColor = color * texture(diffuseTexture, texCoord);
-	}
+    if (isFont)
+    {
+        FragColor = color;
+        FragColor.a *= texture(diffuseTexture, texCoord).r;
+    }
+    else
+    {
+        FragColor = color * texture(diffuseTexture, texCoord);
+    }
 }

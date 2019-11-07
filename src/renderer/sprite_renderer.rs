@@ -18,6 +18,7 @@ use crate::{
         gl, gpu_texture::GpuTexture,
     },
 };
+use crate::renderer::RenderPassStatistics;
 
 pub struct SpriteShader {
     program: GpuProgram,
@@ -101,7 +102,10 @@ impl SpriteRenderer {
         })
     }
 
-    pub fn render(&mut self, scenes: &SceneContainer, white_dummy: &GpuTexture) {
+    #[must_use]
+    pub fn render(&mut self, scenes: &SceneContainer, white_dummy: &GpuTexture) -> RenderPassStatistics {
+        let mut statistics = RenderPassStatistics::default();
+
         unsafe {
             gl::Disable(gl::CULL_FACE);
             gl::Enable(gl::BLEND);
@@ -153,7 +157,7 @@ impl SpriteRenderer {
                 self.shader.set_color(sprite.get_color());
                 self.shader.set_rotation(sprite.get_rotation());
 
-                self.surface.draw();
+                statistics.add_draw_call(self.surface.draw());
             }
         }
 
@@ -161,5 +165,7 @@ impl SpriteRenderer {
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
         }
+
+        statistics
     }
 }

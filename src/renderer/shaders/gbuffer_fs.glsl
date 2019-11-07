@@ -16,12 +16,12 @@ in vec3 binormal;
 
 void main()
 {
-   outDepth = position.z / position.w;
-   outColor = texture2D(diffuseTexture, texCoord);
-   if(outColor.a < 0.5) discard;
-   outColor.a = 1;
-   vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);
-   mat3 tangentSpace = mat3(tangent, binormal, normal);
-   outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
-   outNormal.w = texture2D(specularTexture, texCoord).r;
+    outDepth = position.z / position.w;
+    outColor = texture2D(diffuseTexture, texCoord);
+    if (outColor.a < 0.5) discard;
+    outColor.a = 1;
+    vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);
+    mat3 tangentSpace = mat3(tangent, binormal, normal);
+    outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
+    outNormal.w = texture2D(specularTexture, texCoord).r;
 }

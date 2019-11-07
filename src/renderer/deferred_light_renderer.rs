@@ -1,26 +1,36 @@
 use std::ffi::CString;
-use rg3d_core::{
-    color::Color,
-    math::{vec3::Vec3, mat4::Mat4},
-};
 use crate::{
-    renderer::gpu_texture::GpuTexture,
     scene::{
         camera::Camera,
         Scene,
         node::Node,
         SceneInterface,
         light::LightKind,
-        base::AsBase
+        base::AsBase,
     },
     renderer::{
         surface::SurfaceSharedData,
         gpu_program::{UniformLocation, GpuProgram},
-        gl, gbuffer::GBuffer,
-        FlatShader, error::RendererError,
+        gl,
+        gbuffer::GBuffer,
+        FlatShader,
+        error::RendererError,
         shadow_map_renderer::SpotShadowMapRenderer,
+        gpu_texture::GpuTexture,
+        shadow_map_renderer::PointShadowMapRenderer,
+        QualitySettings,
     },
 };
+use rg3d_core::{
+    math::{
+        vec2::Vec2,
+        vec3::Vec3,
+        mat4::Mat4,
+        frustum::Frustum,
+    },
+    color::Color,
+};
+use crate::renderer::RenderPassStatistics;
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -144,7 +154,7 @@ impl DeferredLightingShader {
     }
 
     fn set_soft_shadows_enabled(&self, enabled: bool) {
-        self.program.set_int(self.soft_shadows, if enabled { 1 } else { 0 })
+        self.program.set_bool(self.soft_shadows, enabled)
     }
 
     fn set_shadow_map_inv_size(&self, value: f32) {
@@ -187,29 +197,51 @@ pub struct DeferredLightRenderer {
     sphere: SurfaceSharedData,
     flat_shader: FlatShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
+    point_shadow_map_renderer: PointShadowMapRenderer,
+}
+
+pub struct DeferredRendererContext<'a> {
+    pub frame_size: Vec2,
+    pub scene: &'a Scene,
+    pub camera: &'a Camera,
+    pub gbuffer: &'a GBuffer,
+    pub white_dummy: &'a GpuTexture,
+    pub ambient_color: Color,
+    pub settings: &'a QualitySettings,
 }
 
 impl DeferredLightRenderer {
-    pub fn new() -> Result<Self, RendererError> {
+    pub fn new(settings: &QualitySettings) -> Result<Self, RendererError> {
         Ok(Self {
             shader: DeferredLightingShader::new()?,
             ambient_light_shader: AmbientLightShader::new()?,
             quad: SurfaceSharedData::make_unit_xy_quad(),
             sphere: SurfaceSharedData::make_sphere(6, 6, 1.0),
             flat_shader: FlatShader::new()?,
-            spot_shadow_map_renderer: SpotShadowMapRenderer::new(1024)?,
+            spot_shadow_map_renderer: SpotShadowMapRenderer::new(settings.spot_shadow_map_size)?,
+            point_shadow_map_renderer: PointShadowMapRenderer::new(settings.point_shadow_map_size)?,
         })
     }
 
-    pub fn render(&mut self, frame_width: f32, frame_height: f32, scene: &Scene,
-                  camera: &Camera, gbuffer: &GBuffer, white_dummy: &GpuTexture, ambient_color: Color) {
+    pub fn set_quality_settings(&mut self, settings: &QualitySettings) -> Result<(), RendererError> {
+        self.spot_shadow_map_renderer = SpotShadowMapRenderer::new(settings.spot_shadow_map_size)?;
+        self.point_shadow_map_renderer = PointShadowMapRenderer::new(settings.point_shadow_map_size)?;
+        Ok(())
+    }
+
+    #[must_use]
+    pub fn render(&mut self, context: DeferredRendererContext) -> RenderPassStatistics {
+        let mut statistics = RenderPassStatistics::default();
+
+        let frustum = Frustum::from(context.camera.get_view_projection_matrix()).unwrap();
+
         let frame_matrix =
-            Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
-                Mat4::scale(Vec3::new(frame_width, frame_height, 0.0));
+            Mat4::ortho(0.0, context.frame_size.x, context.frame_size.y, 0.0, -1.0, 1.0) *
+                Mat4::scale(Vec3::new(context.frame_size.x, context.frame_size.y, 0.0));
 
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, gbuffer.opt_fbo);
-            gl::Viewport(0, 0, frame_width as i32, frame_height as i32);
+            gl::BindFramebuffer(gl::FRAMEBUFFER, context.gbuffer.opt_fbo);
+            gl::Viewport(0, 0, context.frame_size.x as i32, context.frame_size.y as i32);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 
             gl::Disable(gl::BLEND);
@@ -221,26 +253,26 @@ impl DeferredLightRenderer {
             // Ambient light.
             self.ambient_light_shader.bind();
             self.ambient_light_shader.set_wvp_matrix(&frame_matrix);
-            self.ambient_light_shader.set_ambient_color(ambient_color);
+            self.ambient_light_shader.set_ambient_color(context.ambient_color);
             self.ambient_light_shader.set_diffuse_texture(0);
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, gbuffer.color_texture);
+            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.color_texture);
             self.quad.draw();
 
             // Lighting
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::ONE, gl::ONE);
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
+            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.depth_texture);
             gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D, gbuffer.color_texture);
+            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.color_texture);
             gl::ActiveTexture(gl::TEXTURE2);
-            gl::BindTexture(gl::TEXTURE_2D, gbuffer.normal_texture);
+            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.normal_texture);
 
-            let view_projection = camera.get_view_projection_matrix();
+            let view_projection = context.camera.get_view_projection_matrix();
             let inv_view_projection = view_projection.inverse().unwrap();
 
-            let SceneInterface { graph, .. } = scene.interface();
+            let SceneInterface { graph, .. } = context.scene.interface();
 
             for light_node in graph.linear_iter() {
                 if !light_node.base().get_global_visibility() {
@@ -258,22 +290,58 @@ impl DeferredLightRenderer {
                 };
 
                 let light_position = light_node.base().get_global_position();
-                let light_radius_scale =  light_node.base().get_local_transform().get_scale().max_value();
+                let light_radius_scale = light_node.base().get_local_transform().get_scale().max_value();
                 let light_radius = light_radius_scale * raw_radius;
                 let light_r_inflate = 1.05 * light_radius;
                 let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
                 let light_emit_direction = light_node.base().get_up_vector().normalized().unwrap_or(Vec3::UP);
 
-                match light.get_kind() {
-                    LightKind::Spot(_) => {
-                        self.spot_shadow_map_renderer.render(graph, &Mat4::IDENTITY, white_dummy, gbuffer.opt_fbo);
-                    }
-                    LightKind::Point(_) => {}
+                if !frustum.is_intersects_sphere(light_position, light_radius) {
+                    continue;
                 }
 
-                let light_type = match light.get_kind() {
-                    LightKind::Spot(_) => 2,
-                    LightKind::Point(_) => -1, // TODO
+                let distance_to_camera = (light.base().get_global_position() - context.camera.base().get_global_position()).len();
+
+                let mut light_view_projection = Mat4::IDENTITY;
+                let apply_shadows = match light.get_kind() {
+                    LightKind::Spot(spot) if distance_to_camera <= context.settings.spot_shadows_distance && context.settings.spot_shadows_enabled => {
+                        let light_projection_matrix = Mat4::perspective(
+                            spot.get_cone_angle(),
+                            1.0,
+                            0.01,
+                            light_radius,
+                        );
+
+                        let emit_direction = light.base().get_up_vector().normalized().unwrap_or(Vec3::LOOK);
+
+                        let light_look_at = light_position - emit_direction;
+
+                        let light_up_vec = light.base().get_look_vector().normalized().unwrap_or(Vec3::UP);
+
+                        let light_view_matrix = Mat4::look_at(light_position, light_look_at, light_up_vec)
+                            .unwrap_or_default();
+
+                        light_view_projection = light_projection_matrix * light_view_matrix;
+
+                        statistics += self.spot_shadow_map_renderer.render(
+                            graph,
+                            &light_view_projection,
+                            context.white_dummy,
+                        );
+
+                        true
+                    }
+                    LightKind::Point(_) if distance_to_camera <= context.settings.point_shadows_distance && context.settings.point_shadows_enabled => {
+                        statistics += self.point_shadow_map_renderer.render(
+                            graph,
+                            context.white_dummy,
+                            light_position,
+                            light_radius,
+                        );
+
+                        true
+                    }
+                    _ => false
                 };
 
                 // Mark lighted areas in stencil buffer to do light calculations only on them.
@@ -290,12 +358,12 @@ impl DeferredLightRenderer {
                 gl::CullFace(gl::FRONT);
                 gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
                 gl::StencilOp(gl::KEEP, gl::INCR, gl::KEEP);
-                self.sphere.draw();
+                statistics.add_draw_call(self.sphere.draw());
 
                 gl::CullFace(gl::BACK);
                 gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
                 gl::StencilOp(gl::KEEP, gl::DECR, gl::KEEP);
-                self.sphere.draw();
+                statistics.add_draw_call(self.sphere.draw());
 
                 gl::StencilFunc(gl::NOTEQUAL, 0, 0xFF);
                 gl::StencilOp(gl::KEEP, gl::KEEP, gl::ZERO);
@@ -311,24 +379,47 @@ impl DeferredLightRenderer {
 
                 // Finally render light.
                 self.shader.bind();
+
+                match light.get_kind() {
+                    LightKind::Spot(_) => {
+                        gl::ActiveTexture(gl::TEXTURE3);
+                        gl::BindTexture(gl::TEXTURE_2D, self.spot_shadow_map_renderer.texture);
+                        self.shader.set_spot_shadow_texture(3);
+                        self.shader.set_light_view_proj_matrix(&light_view_projection);
+                        self.shader.set_soft_shadows_enabled(context.settings.spot_soft_shadows);
+                    }
+                    LightKind::Point(_) => {
+                        gl::ActiveTexture(gl::TEXTURE3);
+                        gl::BindTexture(gl::TEXTURE_CUBE_MAP, self.point_shadow_map_renderer.texture);
+                        self.shader.set_point_shadow_texture(3);
+                        self.shader.set_soft_shadows_enabled(context.settings.point_soft_shadows);
+                    }
+                }
+
+                let light_type = match light.get_kind() {
+                    LightKind::Spot(_) if apply_shadows => 2,
+                    LightKind::Point(_) if apply_shadows => 0,
+                    _ => -1
+                };
+
                 self.shader.set_light_position(&light_position);
                 self.shader.set_light_direction(&light_emit_direction);
-                self.shader.set_light_type(light_type); // Disable shadows for now
+                self.shader.set_light_type(light_type);
                 self.shader.set_light_radius(light_radius);
                 self.shader.set_inv_view_proj_matrix(&inv_view_projection);
                 self.shader.set_light_color(light.get_color());
                 self.shader.set_light_cone_angle_cos(cone_angle_cos);
                 self.shader.set_wvp_matrix(&frame_matrix);
-                self.shader.set_shadow_map_inv_size(0.0); // TODO
-                self.shader.set_camera_position(&camera.base().get_global_position());
+                self.shader.set_shadow_map_inv_size(1.0 / (self.spot_shadow_map_renderer.size as f32));
+                self.shader.set_camera_position(&context.camera.base().get_global_position());
                 self.shader.set_depth_sampler_id(0);
                 self.shader.set_color_sampler_id(1);
                 self.shader.set_normal_sampler_id(2);
 
                 gl::ActiveTexture(gl::TEXTURE0);
-                gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
+                gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.depth_texture);
 
-                self.quad.draw();
+                statistics.add_draw_call(self.quad.draw());
 
                 gl::ActiveTexture(gl::TEXTURE3);
                 gl::BindTexture(gl::TEXTURE_2D, 0);
@@ -348,5 +439,7 @@ impl DeferredLightRenderer {
             gl::ActiveTexture(gl::TEXTURE2);
             gl::BindTexture(gl::TEXTURE_2D, 0);
         }
+
+        statistics
     }
 }

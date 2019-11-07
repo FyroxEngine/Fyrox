@@ -10,7 +10,6 @@
       <sourceFolder url="file://C:/rg3d\examples" isTestSource="false" />
       <sourceFolder url="file://C:/rg3d\tests" isTestSource="true" />
       <sourceFolder url="file://C:/rg3d\benches" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/../rg3d\examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../rg3d\tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/../rg3d\benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />

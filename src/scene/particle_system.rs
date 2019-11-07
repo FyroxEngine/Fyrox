@@ -553,7 +553,7 @@ impl Emitter {
             if alive_particles < max_particles && alive_particles + particle_count > max_particles {
                 particle_count = max_particles - particle_count;
             }
-            if !self.resurrect_particles && self.spawned_particles > max_particles as u64 {
+            if !self.resurrect_particles && self.spawned_particles > u64::from(max_particles) {
                 self.particles_to_spawn = 0;
                 return;
             }

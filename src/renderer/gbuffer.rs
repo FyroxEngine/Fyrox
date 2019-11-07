@@ -1,17 +1,16 @@
 use std::ffi::CString;
-use rg3d_core::{
-    math::{
-        mat4::Mat4,
-        vec2::Vec2,
-        Rect,
-    },
+use rg3d_core::math::{
+    mat4::Mat4,
+    vec2::Vec2,
+    Rect,
+    frustum::Frustum,
 };
 use crate::{
     scene::{
         node::Node,
         graph::Graph,
         camera::Camera,
-        base::AsBase
+        base::AsBase,
     },
     renderer::{
         gl::types::GLuint, gl,
@@ -20,6 +19,7 @@ use crate::{
         gpu_texture::GpuTexture,
     },
 };
+use crate::renderer::RenderPassStatistics;
 
 struct GBufferShader {
     program: GpuProgram,
@@ -208,13 +208,19 @@ impl GBuffer {
         }
     }
 
+    #[must_use]
     pub fn fill(&mut self,
                 frame_width: f32,
                 frame_height: f32,
                 graph: &Graph,
                 camera: &Camera,
                 white_dummy: &GpuTexture,
-                normal_dummy: &GpuTexture) {
+                normal_dummy: &GpuTexture
+    ) -> RenderPassStatistics {
+        let mut statistics = RenderPassStatistics::default();
+
+        let frustum = Frustum::from(camera.get_view_projection_matrix()).unwrap();
+
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
@@ -239,6 +245,12 @@ impl GBuffer {
 
         for node in graph.linear_iter() {
             if let Node::Mesh(mesh) = node {
+                let global_transform = node.base().get_global_transform();
+
+                if !frustum.is_intersects_aabb_transform(&mesh.get_bounding_box(), &global_transform) {
+                    continue;
+                }
+
                 if !node.base().get_global_visibility() {
                     continue;
                 }
@@ -284,10 +296,12 @@ impl GBuffer {
                         normal_dummy.bind(1);
                     }
 
-                    surface.get_data().lock().unwrap().draw();
+                    statistics.add_draw_call(surface.get_data().lock().unwrap().draw());
                 }
             }
         }
+
+        statistics
     }
 }
 

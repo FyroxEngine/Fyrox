@@ -1,17 +1,12 @@
-use std::path::{
-    PathBuf,
-    Path,
-};
-use crate::{
-    resource::fbx::{
-        FbxNode,
-    },
-    resource::fbx::find_and_borrow_node
+use std::path::PathBuf;
+use crate::resource::fbx::{
+    FbxNode,
+    find_and_borrow_node,
 };
 use rg3d_core::{
     pool::{
         Handle,
-        Pool
+        Pool,
     }
 };
 
