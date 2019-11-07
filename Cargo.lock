@@ -1002,7 +1002,7 @@ dependencies = [
  "lexical 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rg3d-core 0.2.0",
- "rg3d-physics 0.1.7",
+ "rg3d-physics 0.1.8",
  "rg3d-sound 0.2.0",
 ]
 
@@ -1017,7 +1017,7 @@ dependencies = [
 
 [[package]]
 name = "rg3d-physics"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rg3d-core 0.2.0",

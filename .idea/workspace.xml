@@ -5,58 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/rg3d.iml" beforeDir="false" afterPath="$PROJECT_DIR$/rg3d.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/engine/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/event.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/event.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/grid.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/grid.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/list_box.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/list_box.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/scroll_viewer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/gui/window.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/window.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/lib.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/deferred_light_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/error.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/error.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/gbuffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gbuffer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/geometry_buffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/geometry_buffer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/gpu_program.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gpu_program.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/particle_system_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/particle_system_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/ambient_light_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/ambient_light_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/ambient_light_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/ambient_light_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/deferred_light_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/deferred_light_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/deferred_light_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/deferred_light_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/flat_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/flat_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/flat_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/flat_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/gbuffer_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/gbuffer_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/gbuffer_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/gbuffer_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/particle_system_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/particle_system_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/particle_system_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/particle_system_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/point_shadow_map_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/point_shadow_map_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/point_shadow_map_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/point_shadow_map_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/spot_shadow_map_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/spot_shadow_map_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/spot_shadow_map_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/spot_shadow_map_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/sprite_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/sprite_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/sprite_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/sprite_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/ui_fs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/ui_fs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shaders/ui_vs.glsl" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shaders/ui_vs.glsl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/shadow_map_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/sprite_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/sprite_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/surface.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/surface.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/ui_renderer.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/fbx/texture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/texture.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/texture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/texture.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/base.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/base.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/camera.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/camera.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/graph.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/graph.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/light.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/light.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/mesh.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mesh.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/particle_system.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/particle_system.rs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/scene/sprite.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/sprite.rs" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
