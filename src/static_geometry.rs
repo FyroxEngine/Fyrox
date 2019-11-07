@@ -96,7 +96,7 @@ impl StaticTriangle {
         let ca_dot_ca = ca.dot(&ca);
         let ca_dot_ba = ca.dot(&ba);
         let ba_dot_ba = ba.dot(&ba);
-        if let Some(plane) = Plane::from_normal_and_point(&ba.cross(&ca), a) {
+        if let Ok(plane) = Plane::from_normal_and_point(&ba.cross(&ca), a) {
             return Some(StaticTriangle {
                 points: [*a, *b, *c],
                 ba,
