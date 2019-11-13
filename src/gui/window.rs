@@ -5,12 +5,21 @@ use rg3d_core::{
 };
 use crate::gui::{
     event::UIEventKind,
-    border::BorderBuilder, node::UINode,
-    UserInterface, grid::{GridBuilder, Column, Row},
-    HorizontalAlignment, text::TextBuilder, Thickness,
-    button::ButtonBuilder, scroll_viewer::ScrollViewerBuilder,
-    Layout, widget::{Widget, WidgetBuilder, AsWidget}, Draw,
-    draw::DrawingContext, Update, event::UIEvent, Visibility,
+    border::BorderBuilder,
+    node::UINode,
+    UserInterface,
+    grid::{GridBuilder, Column, Row},
+    HorizontalAlignment,
+    text::TextBuilder,
+    Thickness,
+    button::ButtonBuilder,
+    scroll_viewer::ScrollViewerBuilder,
+    Layout,
+    widget::{Widget, WidgetBuilder, AsWidget},
+    Draw,
+    draw::DrawingContext,
+    Update, event::UIEvent,
+    Visibility,
     bool_to_visibility,
 };
 

@@ -1054,7 +1054,7 @@ mod test {
     #[test]
     fn font_test() {
         let font_bytes = std::include_bytes!("../built_in_font.ttf").to_vec();
-        let font = Font::from_memory(font_bytes, 20.0, (0..255).collect()).unwrap();
+        let font = Font::from_memory(font_bytes, 20.0, Font::default_char_set()).unwrap();
         let font = Rc::new(RefCell::new(font));
         let raster_path = Path::new("./raster");
         if !raster_path.exists() {

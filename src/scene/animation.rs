@@ -16,7 +16,9 @@ use rg3d_core::{
         Handle,
         PoolIterator,
         PoolIteratorMut,
-    },
+        PoolPairIterator,
+        PoolPairIteratorMut
+    }
 };
 use std::sync::{Mutex, Arc};
 use crate::{
@@ -28,7 +30,6 @@ use crate::{
     },
     resource::model::Model,
 };
-use rg3d_core::pool::{PoolPairIterator, PoolPairIteratorMut};
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {

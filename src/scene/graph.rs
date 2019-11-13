@@ -397,7 +397,7 @@ impl Graph {
     pub fn traverse_iter(&self, from: Handle<Node>) -> GraphTraverseIterator {
         GraphTraverseIterator {
             graph: self,
-            stack: vec![from]
+            stack: vec![from],
         }
     }
 
@@ -410,14 +410,14 @@ impl Graph {
     pub fn traverse_handle_iter(&self, from: Handle<Node>) -> GraphHandleTraverseIterator {
         GraphHandleTraverseIterator {
             graph: self,
-            stack: vec![from]
+            stack: vec![from],
         }
     }
 }
 
 pub struct GraphTraverseIterator<'a> {
     graph: &'a Graph,
-    stack: Vec<Handle<Node>>
+    stack: Vec<Handle<Node>>,
 }
 
 impl<'a> Iterator for GraphTraverseIterator<'a> {
@@ -431,7 +431,7 @@ impl<'a> Iterator for GraphTraverseIterator<'a> {
                 self.stack.push(*child_handle);
             }
 
-            return Some(node)
+            return Some(node);
         }
 
         None
@@ -440,7 +440,7 @@ impl<'a> Iterator for GraphTraverseIterator<'a> {
 
 pub struct GraphHandleTraverseIterator<'a> {
     graph: &'a Graph,
-    stack: Vec<Handle<Node>>
+    stack: Vec<Handle<Node>>,
 }
 
 impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
@@ -452,7 +452,7 @@ impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
                 self.stack.push(*child_handle);
             }
 
-            return Some(handle)
+            return Some(handle);
         }
         None
     }
@@ -476,9 +476,12 @@ impl Visit for Graph {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::graph::Graph;
+    use crate::scene::{
+        graph::Graph,
+        node::Node,
+        base::Base,
+    };
     use rg3d_core::pool::Handle;
-    use crate::scene::node::{Node, NodeKind};
 
     #[test]
     fn graph_init_test() {
@@ -490,9 +493,9 @@ mod test {
     #[test]
     fn graph_node_test() {
         let mut graph = Graph::new();
-        let a = graph.add_node(Node::new(NodeKind::Base));
-        let b = graph.add_node(Node::new(NodeKind::Base));
-        let c = graph.add_node(Node::new(NodeKind::Base));
+        let a = graph.add_node(Node::Base(Base::default()));
+        let b = graph.add_node(Node::Base(Base::default()));
+        let c = graph.add_node(Node::Base(Base::default()));
         assert_eq!(graph.pool.alive_count(), 4);
     }
 }

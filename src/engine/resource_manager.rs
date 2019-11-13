@@ -5,12 +5,12 @@ use std::{
 use crate::resource::{
     texture::Texture,
     model::Model,
+    texture::TextureKind,
 };
 use rg3d_core::{
     visitor::{Visitor, VisitResult, Visit}
 };
 use rg3d_sound::buffer::{Buffer, BufferKind};
-use crate::resource::texture::TextureKind;
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,
@@ -195,7 +195,7 @@ impl ResourceManager {
 
         for old_model in self.get_models().to_vec() {
             let mut old_model = old_model.lock().unwrap();
-            let new_model = match Model::load(old_model.path.as_path(),self) {
+            let new_model = match Model::load(old_model.path.as_path(), self) {
                 Ok(new_model) => new_model,
                 Err(e) => {
                     println!("Unable to reload {:?} model! Reason: {}", old_model.path, e);

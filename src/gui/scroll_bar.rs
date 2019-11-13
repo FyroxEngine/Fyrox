@@ -13,7 +13,7 @@ use crate::gui::{
     widget::{Widget, WidgetBuilder, AsWidget},
     Draw,
     draw::DrawingContext,
-    Update
+    Update,
 };
 use rg3d_core::{
     color::Color, math,
@@ -262,61 +262,62 @@ impl ScrollBarBuilder {
             .with_width(30.0)
             .with_height(30.0)
             .with_event_handler(Box::new(move |ui, handle, evt| {
-                if evt.source == handle {
-                    match evt.kind {
-                        UIEventKind::MouseDown { pos, .. } => {
-                            let indicator_pos = ui.nodes.borrow(handle).widget().screen_position;
-                            let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
-                            let scroll_bar = scroll_bar_node.as_scroll_bar_mut();
-                            scroll_bar.is_dragging = true;
-                            scroll_bar.offset = indicator_pos - pos;
+                if evt.source != handle {
+                    return;
+                }
+                match evt.kind {
+                    UIEventKind::MouseDown { pos, .. } => {
+                        let indicator_pos = ui.nodes.borrow(handle).widget().screen_position;
+                        let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
+                        let scroll_bar = scroll_bar_node.as_scroll_bar_mut();
+                        scroll_bar.is_dragging = true;
+                        scroll_bar.offset = indicator_pos - pos;
 
-                            ui.capture_mouse(handle);
-                            evt.handled = true;
-                        }
-                        UIEventKind::MouseUp { .. } => {
-                            let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
-                            scroll_bar_node.as_scroll_bar_mut().is_dragging = false;
-                            ui.release_mouse_capture();
-                            evt.handled = true;
-                        }
-                        UIEventKind::MouseMove { pos, .. } => {
-                            let (field_pos, field_size) = {
-                                let canvas = ui.borrow_by_name_up(handle, ScrollBar::PART_CANVAS).widget();
-                                (canvas.screen_position, canvas.actual_size.get())
-                            };
-
-                            let bar_size = ui.nodes.borrow(handle).widget().actual_size.get();
-                            let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
-                            let scroll_bar = scroll_bar_node.as_scroll_bar_mut();
-                            let orientation = scroll_bar.orientation;
-                            if scroll_bar.is_dragging {
-                                let percent = match orientation {
-                                    Orientation::Horizontal => {
-                                        let span = field_size.x - bar_size.x;
-                                        let offset = pos.x - field_pos.x + scroll_bar.offset.x;
-                                        if span > 0.0 {
-                                            math::clampf(offset / span, 0.0, 1.0)
-                                        } else {
-                                            0.0
-                                        }
-                                    }
-                                    Orientation::Vertical => {
-                                        let span = field_size.y - bar_size.y;
-                                        let offset = pos.y - field_pos.y + scroll_bar.offset.y;
-                                        if span > 0.0 {
-                                            math::clampf(offset / span, 0.0, 1.0)
-                                        } else {
-                                            0.0
-                                        }
-                                    }
-                                };
-                                scroll_bar.set_value(percent * (scroll_bar.max - scroll_bar.min));
-                                evt.handled = true;
-                            }
-                        }
-                        _ => ()
+                        ui.capture_mouse(handle);
+                        evt.handled = true;
                     }
+                    UIEventKind::MouseUp { .. } => {
+                        let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
+                        scroll_bar_node.as_scroll_bar_mut().is_dragging = false;
+                        ui.release_mouse_capture();
+                        evt.handled = true;
+                    }
+                    UIEventKind::MouseMove { pos, .. } => {
+                        let (field_pos, field_size) = {
+                            let canvas = ui.borrow_by_name_up(handle, ScrollBar::PART_CANVAS).widget();
+                            (canvas.screen_position, canvas.actual_size.get())
+                        };
+
+                        let bar_size = ui.nodes.borrow(handle).widget().actual_size.get();
+                        let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
+                        let scroll_bar = scroll_bar_node.as_scroll_bar_mut();
+                        let orientation = scroll_bar.orientation;
+                        if scroll_bar.is_dragging {
+                            let percent = match orientation {
+                                Orientation::Horizontal => {
+                                    let span = field_size.x - bar_size.x;
+                                    let offset = pos.x - field_pos.x + scroll_bar.offset.x;
+                                    if span > 0.0 {
+                                        math::clampf(offset / span, 0.0, 1.0)
+                                    } else {
+                                        0.0
+                                    }
+                                }
+                                Orientation::Vertical => {
+                                    let span = field_size.y - bar_size.y;
+                                    let offset = pos.y - field_pos.y + scroll_bar.offset.y;
+                                    if span > 0.0 {
+                                        math::clampf(offset / span, 0.0, 1.0)
+                                    } else {
+                                        0.0
+                                    }
+                                }
+                            };
+                            scroll_bar.set_value(percent * (scroll_bar.max - scroll_bar.min));
+                            evt.handled = true;
+                        }
+                    }
+                    _ => ()
                 }
             })))
             .with_stroke_color(Color::opaque(50, 50, 50))

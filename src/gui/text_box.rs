@@ -247,7 +247,7 @@ impl Draw for TextBox {
         drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
 
         self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
-        self.formatted_text.set_color(self.widget.color);
+        self.formatted_text.set_color(self.widget.color());
         self.formatted_text.build();
 
         if let Some(ref selection_range) = self.selection_range {

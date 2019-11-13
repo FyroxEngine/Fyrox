@@ -62,7 +62,7 @@ impl Draw for Text {
         if self.need_update {
             self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
             self.formatted_text.set_text(self.text.as_str());
-            self.formatted_text.set_color(self.widget.color);
+            self.formatted_text.set_color(self.widget.color());
             self.formatted_text.set_horizontal_alignment(self.horizontal_alignment);
             self.formatted_text.set_vertical_alignment(self.vertical_alignment);
             self.formatted_text.build();

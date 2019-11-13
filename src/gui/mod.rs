@@ -17,11 +17,13 @@ pub mod list_box;
 pub mod stack_panel;
 pub mod text_box;
 pub mod check_box;
+pub mod style;
 
 use std::{
     collections::VecDeque,
     rc::Rc,
     cell::RefCell,
+    any::Any
 };
 use crate::{
     gui::{
@@ -34,6 +36,7 @@ use crate::{
             UIEventKind,
             UIEventHandler,
         },
+        style::Style
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
@@ -104,17 +107,37 @@ pub enum Visibility {
     Hidden,
 }
 
-trait Layout {
+pub trait Layout {
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2;
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2;
 }
 
-trait Draw {
+pub trait Draw {
     fn draw(&mut self, drawing_context: &mut DrawingContext);
 }
 
-trait Update {
+pub trait Update {
     fn update(&mut self, dt: f32);
+}
+
+pub trait Styleable: AsWidget {
+    fn set_property(&mut self, name: &str, value: &dyn Any);
+    fn get_property(&self, name: &str) -> Option<&'_ dyn Any>;
+
+    fn apply_style(&mut self, style: Rc<Style>) {
+        // Apply base style first.
+        if let Some(base_style) = style.base_style() {
+            self.apply_style(base_style);
+        }
+
+        // Remember last applied style.
+        self.widget_mut().set_style(style.clone());
+
+        // Then apply current.
+        for setter in style.setters() {
+            self.set_property(setter.name(), setter.value());
+        }
+    }
 }
 
 pub struct UserInterface {
@@ -691,7 +714,7 @@ impl UserInterface {
     /// to some specific node. Lets take a window for example, we can close or open
     /// it by just sending an appropriate event - something like this:
     ///
-    /// ```
+    /// ```no_run
     /// use rg3d::gui::event::{UIEvent, UIEventKind};
     ///
     /// ui.send_event(UIEvent::targeted(options_window, UIEventKind::Opened));
@@ -699,7 +722,6 @@ impl UserInterface {
     pub fn send_event(&mut self, event: UIEvent) {
         self.events.push_back(event);
     }
-
 
     /// Extracts UI event one-by-one from common queue. Each extracted event will go to *all*
     /// available nodes first and only then will be moved outside of this method. This is one

@@ -19,7 +19,8 @@ use crate::{
         gpu_texture::GpuTexture,
         shadow_map_renderer::PointShadowMapRenderer,
         QualitySettings,
-    },
+        RenderPassStatistics
+    }
 };
 use rg3d_core::{
     math::{
@@ -30,7 +31,6 @@ use rg3d_core::{
     },
     color::Color,
 };
-use crate::renderer::RenderPassStatistics;
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -224,8 +224,12 @@ impl DeferredLightRenderer {
     }
 
     pub fn set_quality_settings(&mut self, settings: &QualitySettings) -> Result<(), RendererError> {
-        self.spot_shadow_map_renderer = SpotShadowMapRenderer::new(settings.spot_shadow_map_size)?;
-        self.point_shadow_map_renderer = PointShadowMapRenderer::new(settings.point_shadow_map_size)?;
+        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.size {
+            self.spot_shadow_map_renderer = SpotShadowMapRenderer::new(settings.spot_shadow_map_size)?;
+        }
+        if settings.point_shadow_map_size != self.point_shadow_map_renderer.size {
+            self.point_shadow_map_renderer = PointShadowMapRenderer::new(settings.point_shadow_map_size)?;
+        }
         Ok(())
     }
 

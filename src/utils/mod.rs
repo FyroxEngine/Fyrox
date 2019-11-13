@@ -1,7 +1,11 @@
+pub mod astar;
+
 use std::marker::PhantomData;
-use crate::scene::mesh::Mesh;
+use crate::{
+    scene::mesh::Mesh,
+    scene::base::AsBase
+};
 use rg3d_physics::static_geometry::{StaticGeometry, StaticTriangle};
-use crate::scene::base::AsBase;
 
 pub struct UnsafeCollectionView<T> {
     items: *const T,

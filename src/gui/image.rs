@@ -1,19 +1,21 @@
 use std::sync::{Mutex, Arc};
+use rg3d_core::{
+    math::vec2::Vec2,
+    pool::Handle
+};
 use crate::{
-    resource::texture::Texture,
     gui::{
+        node::UINode,
         Draw,
         draw::{DrawingContext, CommandKind, CommandTexture},
         widget::{Widget, AsWidget},
         Layout,
         UserInterface,
         Update,
+        widget::WidgetBuilder
     },
+    resource::texture::Texture,
 };
-use rg3d_core::math::vec2::Vec2;
-use crate::gui::node::UINode;
-use rg3d_core::pool::Handle;
-use crate::gui::widget::WidgetBuilder;
 
 pub struct Image {
     widget: Widget,
@@ -33,7 +35,7 @@ impl AsWidget for Image {
 impl Draw for Image {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, self.widget.color);
+        drawing_context.push_rect_filled(&bounds, None, self.widget.color());
         let texture = self.texture.as_ref().map_or(CommandTexture::None,
                                           |t| { CommandTexture::Texture(t.clone()) });
         drawing_context.commit(CommandKind::Geometry, texture);

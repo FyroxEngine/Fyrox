@@ -1,10 +1,24 @@
-use crate::gui::{widget::{Widget, AsWidget, WidgetBuilder}, Draw, Layout, UserInterface, Update, draw::DrawingContext, node::UINode, event::{UIEvent, UIEventKind}, Thickness, Visibility, bool_to_visibility};
+use crate::gui::{
+    widget::{Widget, AsWidget, WidgetBuilder},
+    Draw,
+    Layout,
+    UserInterface,
+    Update,
+    draw::DrawingContext,
+    node::UINode,
+    event::{UIEvent, UIEventKind},
+    Thickness,
+    Visibility,
+    bool_to_visibility,
+    Styleable,
+    border::BorderBuilder,
+};
 use rg3d_core::{
     math::vec2::Vec2,
     pool::Handle,
+    color::Color
 };
-use crate::gui::border::BorderBuilder;
-use rg3d_core::color::Color;
+use std::any::Any;
 
 pub struct CheckBox {
     widget: Widget,
@@ -138,5 +152,15 @@ impl CheckBoxBuilder {
         });
 
         ui.add_node(check_box)
+    }
+}
+
+impl Styleable for CheckBox {
+    fn set_property(&mut self, name: &str, value: &dyn Any) {
+
+    }
+
+    fn get_property(&self, name: &str) -> Option<&dyn Any> {
+        None
     }
 }

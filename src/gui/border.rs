@@ -84,7 +84,7 @@ impl BorderBuilder {
 impl Draw for Border {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         let bounds= self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, self.widget.color);
+        drawing_context.push_rect_filled(&bounds, None, self.widget.color());
         drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.stroke_color);
         drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
     }

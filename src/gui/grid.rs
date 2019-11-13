@@ -171,8 +171,8 @@ impl Layout for Grid {
             let size_for_child = {
                 let child = ui.nodes.borrow(*child_handle).widget();
                 Vec2 {
-                    x: self.columns.borrow()[child.column].actual_width,
-                    y: self.rows.borrow()[child.row].actual_height,
+                    x: self.columns.borrow()[child.column()].actual_width,
+                    y: self.rows.borrow()[child.row()].actual_height,
                 }
             };
             ui.measure(*child_handle, size_for_child);
@@ -202,8 +202,8 @@ impl Layout for Grid {
             let mut final_rect = None;
 
             let child = ui.nodes.borrow(*child_handle).widget();
-            if let Some(column) = self.columns.borrow().get(child.column) {
-                if let Some(row) = self.rows.borrow().get(child.row) {
+            if let Some(column) = self.columns.borrow().get(child.column()) {
+                if let Some(row) = self.rows.borrow().get(child.row()) {
                     final_rect = Some(Rect::new(
                         column.x,
                         row.y,
@@ -290,7 +290,7 @@ impl Grid {
                 col.actual_width = col.desired_width;
                 for child_handle in self.widget.children.iter() {
                     let child = ui.nodes.borrow(*child_handle).widget();
-                    if child.column == i && child.visibility == Visibility::Visible && child.desired_size.get().x > col.actual_width {
+                    if child.column() == i && child.visibility == Visibility::Visible && child.desired_size.get().x > col.actual_width {
                         col.actual_width = child.desired_size.get().x;
                     }
                 }
@@ -313,7 +313,7 @@ impl Grid {
                 row.actual_height = row.desired_height;
                 for child_handle in self.widget.children.iter() {
                     let child = ui.nodes.borrow(*child_handle).widget();
-                    if child.row == i && child.visibility == Visibility::Visible && child.desired_size.get().y > row.actual_height {
+                    if child.row() == i && child.visibility == Visibility::Visible && child.desired_size.get().y > row.actual_height {
                         row.actual_height = child.desired_size.get().y;
                     }
                 }
@@ -329,7 +329,7 @@ impl Grid {
         if available_size.x.is_infinite() {
             for child_handle in self.widget.children.iter() {
                 let child = ui.nodes.borrow(*child_handle).widget();
-                if let Some(column) = self.columns.borrow().get(child.column) {
+                if let Some(column) = self.columns.borrow().get(child.column()) {
                     if column.size_mode == SizeMode::Stretch {
                         rest_width += child.desired_size.get().x;
                     }
@@ -362,7 +362,7 @@ impl Grid {
         if available_size.y.is_infinite() {
             for child_handle in self.widget.children.iter() {
                 let child = ui.nodes.borrow(*child_handle).widget();
-                if let Some(row) = self.rows.borrow().get(child.row) {
+                if let Some(row) = self.rows.borrow().get(child.row()) {
                     if row.size_mode == SizeMode::Stretch {
                         rest_height += child.desired_size.get().y;
                     }

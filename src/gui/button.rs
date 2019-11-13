@@ -1,30 +1,34 @@
-use crate::gui::{
-    node::UINode,
-    widget::{
-        Widget,
-        WidgetBuilder,
-        AsWidget
+use crate::{
+    gui::{
+        node::UINode,
+        widget::{
+            Widget,
+            WidgetBuilder,
+            AsWidget,
+        },
+        UserInterface,
+        HorizontalAlignment,
+        VerticalAlignment,
+        Thickness,
+        text::TextBuilder,
+        border::BorderBuilder,
+        event::{UIEvent, UIEventKind},
+        Layout,
+        Draw,
+        draw::DrawingContext,
+        Update,
     },
-    UserInterface,
-    HorizontalAlignment,
-    VerticalAlignment,
-    Thickness,
-    text::TextBuilder,
-    border::BorderBuilder,
-    event::{UIEvent, UIEventKind},
-    Layout,
-    Draw,
-    draw::DrawingContext,
-    Update,
+    resource::ttf::Font,
 };
 use rg3d_core::{
     color::Color,
     pool::Handle,
     math::vec2::Vec2,
 };
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::resource::ttf::Font;
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
 
 /// Button
 ///
@@ -75,7 +79,7 @@ pub enum ButtonContent {
 pub struct ButtonBuilder {
     widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
-    font: Option<Rc<RefCell<Font>>>
+    font: Option<Rc<RefCell<Font>>>,
 }
 
 impl ButtonBuilder {
@@ -130,16 +134,16 @@ impl ButtonBuilder {
                         if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
                             let back = ui.nodes.borrow_mut(handle).widget_mut();
                             match evt.kind {
-                                UIEventKind::MouseDown { .. } => back.color = pressed_color,
+                                UIEventKind::MouseDown { .. } => back.set_color(pressed_color),
                                 UIEventKind::MouseUp { .. } => {
                                     if back.is_mouse_over {
-                                        back.color = hover_color;
+                                        back.set_color(hover_color);
                                     } else {
-                                        back.color = normal_color;
+                                        back.set_color(normal_color);
                                     }
                                 }
-                                UIEventKind::MouseLeave => back.color = normal_color,
-                                UIEventKind::MouseEnter => back.color = hover_color,
+                                UIEventKind::MouseLeave => back.set_color(normal_color),
+                                UIEventKind::MouseEnter => back.set_color(hover_color),
                                 _ => ()
                             }
                         }

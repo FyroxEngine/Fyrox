@@ -13,10 +13,12 @@ use crate::{
     renderer::{Renderer, error::RendererError, gl},
     window::{WindowBuilder, Window},
     scene::SceneContainer,
-};
-use crate::{
-    PossiblyCurrent, GlRequest, GlProfile,
-    WindowedContext, NotCurrent, Api,
+    PossiblyCurrent,
+    GlRequest,
+    GlProfile,
+    WindowedContext,
+    NotCurrent,
+    Api,
     event_loop::EventLoop
 };
 
@@ -55,9 +57,9 @@ impl Engine {
     /// ```
     /// use rg3d::engine::Engine;
     /// use rg3d::window::WindowBuilder;
-    /// use rg3d::event::EventsLoop;
+    /// use rg3d::event_loop::EventLoop;
     ///
-    /// let evt = EventsLoop::new();
+    /// let evt = EventLoop::new();
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
@@ -105,9 +107,9 @@ impl Engine {
     /// ```no_run
     /// use rg3d::engine::{Engine, EngineInterfaceMut};
     /// use rg3d::window::WindowBuilder;
-    /// use rg3d::EventsLoop;
+    /// use rg3d::event_loop::EventLoop;
     ///
-    /// let evt = EventsLoop::new();
+    /// let evt = EventLoop::new();
     /// let mut engine = Engine::new(WindowBuilder::new(), &evt).unwrap();
     /// let EngineInterfaceMut{scenes, ui, renderer, sound_context, resource_manager} = engine.interface_mut();
     /// ```
@@ -130,9 +132,9 @@ impl Engine {
     /// ```no_run
     /// use rg3d::engine::{EngineInterface, Engine};
     /// use rg3d::window::WindowBuilder;
-    /// use rg3d::EventsLoop;
+    /// use rg3d::event_loop::EventLoop;
     ///
-    /// let evt = EventsLoop::new();
+    /// let evt = EventLoop::new();
     /// let engine = Engine::new(WindowBuilder::new(), &evt).unwrap();
     /// let EngineInterface{scenes, ui, renderer, sound_context, resource_manager} = engine.interface();
     /// ```

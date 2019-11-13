@@ -1,12 +1,10 @@
-use std::{
-    cell::Cell,
-    collections::VecDeque,
-};
 use rg3d_core::{
     color::Color,
-    math::vec2::Vec2,
+    math::{
+        vec2::Vec2,
+        Rect,
+    },
     pool::Handle,
-    math::Rect,
 };
 use crate::gui::{
     VerticalAlignment,
@@ -19,9 +17,19 @@ use crate::gui::{
     node::UINode,
     event::{UIEventHandler, UIEvent},
     draw::DrawingContext,
-    Update
+    Update,
+    Styleable,
+    style::Style,
 };
-use std::cell::RefCell;
+use std::{
+    cell::{
+        RefCell,
+        Cell,
+    },
+    collections::VecDeque,
+    any::Any,
+    rc::Rc
+};
 
 pub trait AsWidget {
     fn widget(&self) -> &Widget;
@@ -49,11 +57,11 @@ pub struct Widget {
     /// Maximum width and height
     pub(in crate::gui) max_size: Vec2,
     /// Overlay color of the node
-    pub(in crate::gui) color: Color,
+    color: Color,
     /// Index of row to which this node belongs
-    pub(in crate::gui) row: usize,
+    row: usize,
     /// Index of column to which this node belongs
-    pub(in crate::gui) column: usize,
+    column: usize,
     /// Vertical alignment
     pub(in crate::gui) vertical_alignment: VerticalAlignment,
     /// Horizontal alignment
@@ -73,6 +81,7 @@ pub struct Widget {
     pub(in crate::gui) event_handlers: Vec<Box<UIEventHandler>>,
     pub(in crate::gui) events: RefCell<VecDeque<UIEvent>>,
     pub(in crate::gui) is_hit_test_visible: bool,
+    pub(in crate::gui) style: Option<Rc<Style>>,
 }
 
 impl Default for Widget {
@@ -82,9 +91,7 @@ impl Default for Widget {
 }
 
 impl Update for Widget {
-    fn update(&mut self, _dt: f32) {
-
-    }
+    fn update(&mut self, _dt: f32) {}
 }
 
 impl Layout for Widget {
@@ -135,9 +142,26 @@ impl Draw for Widget {
 }
 
 impl Widget {
+    pub const WIDTH: &'static str = "Width";
+    pub const HEIGHT: &'static str = "Height";
+    pub const VERTICAL_ALIGNMENT: &'static str = "VerticalAlignment";
+    pub const HORIZONTAL_ALIGNMENT: &'static str = "HorizontalAlignment";
+    pub const MARGIN: &'static str = "Margin";
+    pub const ROW: &'static str = "Row";
+    pub const COLUMN: &'static str = "Column";
+    pub const COLOR: &'static str = "Color";
+    pub const VISIBILITY: &'static str = "Visibility";
+    pub const MIN_SIZE: &'static str = "MinSize";
+    pub const MAX_SIZE: &'static str = "MaxSize";
+
     #[inline]
     pub fn set_color(&mut self, color: Color) {
         self.color = color;
+    }
+
+    #[inline]
+    pub fn color(&self) -> Color {
+        self.color
     }
 
     #[inline]
@@ -166,6 +190,16 @@ impl Widget {
     }
 
     #[inline]
+    pub fn column(&self) -> usize {
+        self.column
+    }
+
+    #[inline]
+    pub fn row(&self) -> usize {
+        self.row
+    }
+
+    #[inline]
     pub fn get_screen_bounds(&self) -> Rect<f32> {
         Rect::new(self.screen_position.x, self.screen_position.y, self.actual_size.get().x, self.actual_size.get().y)
     }
@@ -178,6 +212,29 @@ impl Widget {
     #[inline]
     pub fn get_visibility(&self) -> Visibility {
         self.visibility
+    }
+
+    #[inline]
+    pub fn set_style(&mut self, style: Rc<Style>) {
+        self.style = Some(style);
+    }
+
+    fn raw_copy(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            width: self.width.clone(),
+            height: self.height.clone(),
+            min_size: self.min_size,
+            max_size: self.max_size,
+            color: self.color,
+            row: self.row,
+            column: self.column,
+            vertical_alignment: self.vertical_alignment,
+            horizontal_alignment: self.horizontal_alignment,
+            margin: self.margin,
+            visibility: self.visibility,
+            ..Default::default()
+        }
     }
 }
 
@@ -198,6 +255,7 @@ pub struct WidgetBuilder {
     event_handlers: Vec<Box<UIEventHandler>>,
     is_hit_test_visible: bool,
     visibility: Visibility,
+    style: Option<Rc<Style>>,
 }
 
 impl Default for WidgetBuilder {
@@ -224,7 +282,8 @@ impl WidgetBuilder {
             children: Vec::new(),
             event_handlers: Vec::new(),
             is_hit_test_visible: true,
-            visibility: Visibility::Visible
+            visibility: Visibility::Visible,
+            style: None,
         }
     }
 
@@ -283,6 +342,11 @@ impl WidgetBuilder {
         self
     }
 
+    pub fn with_style(mut self, style: Rc<Style>) -> Self {
+        self.style = Some(style);
+        self
+    }
+
     pub fn with_child(mut self, handle: Handle<UINode>) -> Self {
         if handle.is_some() {
             self.children.push(handle);
@@ -318,7 +382,7 @@ impl WidgetBuilder {
     }
 
     pub fn build(self) -> Widget {
-        Widget {
+        let mut widget = Widget {
             name: self.name.unwrap_or_default(),
             desired_local_position: Cell::new(self.desired_position.unwrap_or(Vec2::ZERO)),
             width: Cell::new(self.width.unwrap_or(std::f32::NAN)),
@@ -346,6 +410,53 @@ impl WidgetBuilder {
             event_handlers: self.event_handlers,
             events: RefCell::new(VecDeque::new()),
             is_hit_test_visible: self.is_hit_test_visible,
+            style: None,
+        };
+
+        if let Some(style) = self.style {
+            widget.apply_style(style);
+        }
+
+        widget
+    }
+}
+
+impl Styleable for Widget {
+    fn set_property(&mut self, name: &str, value: &dyn Any) {
+        match name {
+            Self::HORIZONTAL_ALIGNMENT => if let Some(value) = value.downcast_ref() { self.horizontal_alignment = *value },
+            Self::VERTICAL_ALIGNMENT => if let Some(value) = value.downcast_ref() { self.vertical_alignment = *value },
+            Self::WIDTH => {
+                if let Some(value) = value.downcast_ref() { self.width.set(*value) } else if let Some(value) = value.downcast_ref::<f64>() { self.width.set(*value as f32) }
+            }
+            Self::HEIGHT => {
+                if let Some(value) = value.downcast_ref() { self.height.set(*value) } else if let Some(value) = value.downcast_ref::<f64>() { self.height.set(*value as f32) }
+            }
+            Self::MARGIN => if let Some(value) = value.downcast_ref() { self.margin = *value },
+            Self::ROW => if let Some(value) = value.downcast_ref() { self.row = *value },
+            Self::COLUMN => if let Some(value) = value.downcast_ref() { self.column = *value },
+            Self::COLOR => if let Some(value) = value.downcast_ref() { self.color = *value },
+            Self::VISIBILITY => if let Some(value) = value.downcast_ref() { self.visibility = *value },
+            Self::MIN_SIZE => if let Some(value) = value.downcast_ref() { self.min_size = *value },
+            Self::MAX_SIZE => if let Some(value) = value.downcast_ref() { self.max_size = *value },
+            _ => ()
+        }
+    }
+
+    fn get_property(&self, name: &str) -> Option<&'_ dyn Any> {
+        match name {
+            Self::HORIZONTAL_ALIGNMENT => Some(&self.horizontal_alignment),
+            Self::VERTICAL_ALIGNMENT => Some(&self.vertical_alignment),
+            Self::WIDTH => Some(&self.width),
+            Self::HEIGHT => Some(&self.height),
+            Self::MARGIN => Some(&self.margin),
+            Self::ROW => Some(&self.row),
+            Self::COLUMN => Some(&self.column),
+            Self::VISIBILITY => Some(&self.visibility),
+            Self::COLOR => Some(&self.color),
+            Self::MIN_SIZE => Some(&self.min_size),
+            Self::MAX_SIZE => Some(&self.max_size),
+            _ => None,
         }
     }
 }
