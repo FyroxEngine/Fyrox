@@ -21,8 +21,12 @@ use std::cmp::Ordering;
 use crate::{
     rigid_body::RigidBody,
     static_geometry::StaticGeometry,
-    convex_shape::ConvexShape,
+    convex_shape::{
+        ConvexShape,
+        CircumRadius
+    }
 };
+use bitflags::_core::cell::RefCell;
 
 pub mod gjk_epa;
 pub mod convex_shape;
@@ -64,6 +68,7 @@ pub struct RayCastResult {
 pub struct Physics {
     bodies: Pool<RigidBody>,
     static_geoms: Pool<StaticGeometry>,
+    query_buffer: RefCell<Vec<u32>>
 }
 
 impl Visit for Physics {
@@ -88,6 +93,7 @@ impl Physics {
         Physics {
             bodies: Pool::new(),
             static_geoms: Pool::new(),
+            query_buffer: Default::default(),
         }
     }
 
@@ -149,7 +155,11 @@ impl Physics {
             }
 
             for (handle, static_geometry) in self.static_geoms.pair_iter() {
-                for (n, triangle) in static_geometry.triangles.iter().enumerate() {
+                let mut query_buffer = self.query_buffer.borrow_mut();
+                static_geometry.octree.sphere_query(body.position, body.shape.circumradius(), &mut query_buffer);
+
+                for n in query_buffer.iter().map(|i| *i as usize) {
+                    let triangle = static_geometry.triangles.get(n).unwrap();
                     body.solve_triangle_collision(&triangle, n, handle);
                 }
             }
@@ -235,18 +245,16 @@ impl Physics {
 
         // Check static geometries
         if !options.ignore_static_geometries {
-            for index in 0..self.static_geoms.get_capacity() {
-                let geom = if let Some(geom) = self.static_geoms.at(index) {
-                    geom
-                } else {
-                    continue;
-                };
+            for (handle, geom) in self.static_geoms.pair_iter() {
+                let mut query_buffer = self.query_buffer.borrow_mut();
+                geom.octree.ray_query(ray, &mut query_buffer);
 
-                for (triangle_index, triangle) in geom.triangles.iter().enumerate() {
+                for triangle_index in query_buffer.iter().map(|i| *i as usize) {
+                    let triangle = geom.triangles.get(triangle_index).unwrap();
                     if let Some(point) = ray.triangle_intersection(&triangle.points) {
                         result.push(RayCastResult {
                             kind: HitKind::StaticTriangle {
-                                static_geometry: self.static_geoms.handle_from_index(index),
+                                static_geometry: handle,
                                 triangle_index,
                             },
                             position: point,

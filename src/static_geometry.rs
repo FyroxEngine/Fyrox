@@ -1,27 +1,27 @@
-use rg3d_core::visitor::{Visit, VisitResult, Visitor, VisitError};
-use rg3d_core::math::vec3::Vec3;
-use rg3d_core::math::plane::Plane;
+use rg3d_core::{
+    math::{
+        vec3::Vec3,
+        plane::Plane
+    },
+    visitor::{Visit, VisitResult, Visitor, VisitError},
+    octree::Octree
+};
 
+#[derive(Default)]
 pub struct StaticGeometry {
-    pub(in crate) triangles: Vec<StaticTriangle>
+    pub(in crate) triangles: Vec<StaticTriangle>,
+    pub(in crate) octree: Octree,
 }
 
 impl StaticGeometry {
-    pub fn new() -> StaticGeometry {
+    pub const OCTREE_THRESHOLD: usize = 64;
+
+    pub fn new(triangles: Vec<StaticTriangle>) -> StaticGeometry {
+        let raw_triangles: Vec<[Vec3; 3]> = triangles.iter().map(|st| st.points).collect();
+
         StaticGeometry {
-            triangles: Vec::new()
-        }
-    }
-
-    pub fn add_triangle(&mut self, triangle: StaticTriangle) {
-        self.triangles.push(triangle);
-    }
-}
-
-impl Default for StaticGeometry {
-    fn default() -> Self {
-        Self {
-            triangles: Vec::new(),
+            octree: Octree::new(&raw_triangles, Self::OCTREE_THRESHOLD),
+            triangles
         }
     }
 }
@@ -31,6 +31,11 @@ impl Visit for StaticGeometry {
         visitor.enter_region(name)?;
 
         self.triangles.visit("Triangles", visitor)?;
+
+        if visitor.is_reading() {
+            let raw_triangles: Vec<[Vec3; 3]> = self.triangles.iter().map(|st| st.points).collect();
+            self.octree = Octree::new(&raw_triangles, Self::OCTREE_THRESHOLD);
+        }
 
         visitor.leave_region()
     }

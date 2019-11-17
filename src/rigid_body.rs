@@ -7,9 +7,11 @@ use crate::{
     contact::Contact,
     convex_shape::{ConvexShape, TriangleShape},
     gjk_epa,
-    static_geometry::StaticTriangle
+    static_geometry::{
+        StaticTriangle,
+        StaticGeometry
+    }
 };
-use crate::static_geometry::StaticGeometry;
 
 bitflags! {
     pub struct CollisionFlags: u8 {

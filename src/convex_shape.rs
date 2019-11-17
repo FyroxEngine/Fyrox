@@ -1,11 +1,19 @@
 use rg3d_core::{
-    math::vec3::Vec3, math,
-    visitor::{Visit, VisitResult, Visitor, VisitError}
+    math::{
+        vec3::Vec3,
+        self,
+        aabb::AxisAlignedBoundingBox
+    },
+    visitor::{Visit, VisitResult, Visitor, VisitError},
 };
 
 #[derive(Clone)]
 pub struct SphereShape {
     pub radius: f32
+}
+
+pub trait CircumRadius {
+    fn circumradius(&self) -> f32;
 }
 
 impl Visit for SphereShape {
@@ -15,6 +23,12 @@ impl Visit for SphereShape {
         self.radius.visit("Radius", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+impl CircumRadius for SphereShape {
+    fn circumradius(&self) -> f32 {
+        self.radius
     }
 }
 
@@ -50,6 +64,12 @@ impl SphereShape {
 #[derive(Clone)]
 pub struct TriangleShape {
     pub vertices: [Vec3; 3]
+}
+
+impl CircumRadius for TriangleShape {
+    fn circumradius(&self) -> f32 {
+        AxisAlignedBoundingBox::from_points(&self.vertices).half_extents().max_value()
+    }
 }
 
 impl Visit for TriangleShape {
@@ -94,6 +114,12 @@ impl TriangleShape {
 #[derive(Clone)]
 pub struct BoxShape {
     half_extents: Vec3,
+}
+
+impl CircumRadius for BoxShape {
+    fn circumradius(&self) -> f32 {
+        self.half_extents.max_value()
+    }
 }
 
 impl Visit for BoxShape {
@@ -149,6 +175,13 @@ impl BoxShape {
 #[derive(Clone)]
 pub struct PointCloudShape {
     points: Vec<Vec3>
+}
+
+impl CircumRadius for PointCloudShape {
+    fn circumradius(&self) -> f32 {
+        // TODO: Unoptimal, value should be cached.
+        AxisAlignedBoundingBox::from_points(&self.points).half_extents().max_value()
+    }
 }
 
 impl Visit for PointCloudShape {
@@ -209,6 +242,16 @@ pub struct CapsuleShape {
     axis: Axis,
     radius: f32,
     height: f32,
+}
+
+impl CircumRadius for CapsuleShape {
+    fn circumradius(&self) -> f32 {
+        if self.radius > self.height {
+            self.radius
+        } else {
+            self.height
+        }
+    }
 }
 
 impl Default for CapsuleShape {
@@ -344,6 +387,19 @@ macro_rules! define_is_as {
                 ConvexShape::$kind(ref mut val) => val,
                 _ => panic!("Cast to {} failed!", stringify!($kind))
             }
+        }
+    }
+}
+
+impl CircumRadius for ConvexShape {
+    fn circumradius(&self) -> f32 {
+        match self {
+            ConvexShape::Dummy => 0.0,
+            ConvexShape::Box(box_shape) => box_shape.circumradius(),
+            ConvexShape::Sphere(sphere) => sphere.circumradius(),
+            ConvexShape::Capsule(capsule) => capsule.circumradius(),
+            ConvexShape::Triangle(triangle) => triangle.circumradius(),
+            ConvexShape::PointCloud(point_cloud) => point_cloud.circumradius(),
         }
     }
 }

@@ -8,6 +8,7 @@ use crate::{
     static_geometry::StaticGeometry
 };
 
+#[derive(Debug)]
 pub struct Contact {
     pub body: Handle<RigidBody>,
     pub position: Vec3,
