@@ -7,10 +7,10 @@ use crate::resource::{
     model::Model,
     texture::TextureKind,
 };
-use rg3d_core::{
+use crate::core::{
     visitor::{Visitor, VisitResult, Visit}
 };
-use rg3d_sound::buffer::{Buffer, BufferKind};
+use crate::sound::buffer::{Buffer, BufferKind};
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,

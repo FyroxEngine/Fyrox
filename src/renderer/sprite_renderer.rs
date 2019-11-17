@@ -1,9 +1,9 @@
 use std::ffi::CString;
-use rg3d_core::{
+use crate::core::{
     math::mat4::Mat4,
     math::vec3::Vec3,
 };
-use rg3d_core::color::Color;
+use crate::core::color::Color;
 use crate::{
     scene::{
         SceneContainer,

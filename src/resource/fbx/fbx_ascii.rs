@@ -10,7 +10,7 @@ use crate::{
         fbx::error::FbxError,
     },
 };
-use rg3d_core::{
+use crate::core::{
     pool::{Pool, Handle},
 };
 

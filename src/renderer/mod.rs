@@ -22,7 +22,7 @@ use std::{
     time,
     ffi::CStr,
 };
-use rg3d_core::{
+use crate::core::{
     math::{vec3::Vec3, mat4::Mat4},
     color::Color,
     math::vec2::Vec2,

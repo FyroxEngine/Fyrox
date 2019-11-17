@@ -1,5 +1,5 @@
 use crate::renderer::error::RendererError;
-use rg3d_sound::error::SoundError;
+use crate::sound::error::SoundError;
 use glutin::{CreationError, ContextError};
 
 #[derive(Debug)]

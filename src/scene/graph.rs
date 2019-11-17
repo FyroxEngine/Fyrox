@@ -1,4 +1,4 @@
-use rg3d_core::{
+use crate::core::{
     pool::{Handle, Pool},
     math::mat4::Mat4,
     visitor::{Visit, Visitor, VisitResult},
@@ -481,7 +481,7 @@ mod test {
         node::Node,
         base::Base,
     };
-    use rg3d_core::pool::Handle;
+    use crate::core::pool::Handle;
 
     #[test]
     fn graph_init_test() {

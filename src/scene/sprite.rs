@@ -3,7 +3,7 @@ use crate::{
     resource::texture::Texture,
     scene::base::{BaseBuilder, Base, AsBase}
 };
-use rg3d_core::{
+use crate::core::{
     color::Color,
     visitor::{Visit, VisitResult, Visitor}
 };

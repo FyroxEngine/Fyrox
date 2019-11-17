@@ -12,7 +12,7 @@ use crate::{
     },
     renderer::surface::{VertexWeightSet, VertexWeight},
 };
-use rg3d_core::{
+use crate::core::{
     math::{
         vec3::Vec3,
         vec2::Vec2

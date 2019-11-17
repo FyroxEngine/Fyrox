@@ -9,7 +9,7 @@ use crate::{
     renderer::TriangleDefinition,
 };
 
-use rg3d_core::{
+use crate::core::{
     color::Color,
     math::{
         vec2::Vec2,

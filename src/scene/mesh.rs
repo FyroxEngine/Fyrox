@@ -2,7 +2,7 @@ use crate::{
     renderer::surface::Surface,
     scene::base::{Base, AsBase}
 };
-use rg3d_core::{
+use crate::core::{
     visitor::{
         Visit,
         Visitor,

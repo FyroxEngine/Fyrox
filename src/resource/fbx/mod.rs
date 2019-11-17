@@ -12,7 +12,7 @@ use std::{
     collections::{HashMap, HashSet},
     time::Instant,
 };
-use rg3d_core::{
+use crate::core::{
     color::Color,
     pool::{Handle, Pool},
     math::{
@@ -80,39 +80,49 @@ struct FbxSubDeformer {
 
 impl FbxSubDeformer {
     fn read(sub_deformer_handle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
-        let indices_handle = find_node(nodes, sub_deformer_handle, "Indexes")?;
-        let indices = find_and_borrow_node(nodes, indices_handle, "a")?;
+        // For some reason FBX exported from Blender can have sub deformer without weights and
+        // indices. This is still valid and we have to return dummy in this case, instead of
+        // error.
+        if let Ok(indices_handle) = find_node(nodes, sub_deformer_handle, "Indexes") {
+            let indices = find_and_borrow_node(nodes, indices_handle, "a")?;
 
-        let weights_handle = find_node(nodes, sub_deformer_handle, "Weights")?;
-        let weights = find_and_borrow_node(nodes, weights_handle, "a")?;
+            let weights_handle = find_node(nodes, sub_deformer_handle, "Weights")?;
+            let weights = find_and_borrow_node(nodes, weights_handle, "a")?;
 
-        let transform_handle = find_node(nodes, sub_deformer_handle, "Transform")?;
-        let transform_node = find_and_borrow_node(nodes, transform_handle, "a")?;
+            let transform_handle = find_node(nodes, sub_deformer_handle, "Transform")?;
+            let transform_node = find_and_borrow_node(nodes, transform_handle, "a")?;
 
-        if transform_node.attrib_count() != 16 {
-            return Err(format!("FBX: Wrong transform size! Expect 16, got {}", transform_node.attrib_count()));
+            if transform_node.attrib_count() != 16 {
+                return Err(format!("FBX: Wrong transform size! Expect 16, got {}", transform_node.attrib_count()));
+            }
+
+            if indices.attrib_count() != weights.attrib_count() {
+                return Err(String::from("invalid sub deformer, weights count does not match index count"));
+            }
+
+            let mut transform = Mat4::IDENTITY;
+            for i in 0..16 {
+                transform.f[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
+            }
+
+            let mut sub_deformer = FbxSubDeformer {
+                model: Handle::NONE,
+                weights: Vec::with_capacity(weights.attrib_count()),
+                transform,
+            };
+
+            for i in 0..weights.attrib_count() {
+                sub_deformer.weights.push((indices.get_attrib(i)?.as_i32()?, weights.get_attrib(i)?.as_f64()? as f32));
+            }
+
+            Ok(sub_deformer)
+        } else {
+            Ok(FbxSubDeformer {
+                model: Handle::NONE,
+                weights: Default::default(),
+                transform: Default::default(),
+            })
         }
-
-        if indices.attrib_count() != weights.attrib_count() {
-            return Err(String::from("invalid sub deformer, weights count does not match index count"));
-        }
-
-        let mut transform = Mat4::IDENTITY;
-        for i in 0..16 {
-            transform.f[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
-        }
-
-        let mut sub_deformer = FbxSubDeformer {
-            model: Handle::NONE,
-            weights: Vec::with_capacity(weights.attrib_count()),
-            transform,
-        };
-
-        for i in 0..weights.attrib_count() {
-            sub_deformer.weights.push((indices.get_attrib(i)?.as_i32()?, weights.get_attrib(i)?.as_f64()? as f32));
-        }
-
-        Ok(sub_deformer)
     }
 }
 
@@ -335,7 +345,7 @@ impl<T> Default for FbxContainer<T> {
             index: Vec::new(),
             elements: Vec::new(),
             mapping: FbxMapping::Unknown,
-            reference: FbxReference::Unknown
+            reference: FbxReference::Unknown,
         }
     }
 }

@@ -1,6 +1,6 @@
 use std::ffi::CString;
 
-use rg3d_core::math::mat4::Mat4;
+use crate::core::math::mat4::Mat4;
 use crate::{
     renderer::{
         gpu_program::{GpuProgram, UniformLocation},

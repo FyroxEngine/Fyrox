@@ -1,4 +1,4 @@
-use rg3d_core::{
+use crate::core::{
     pool::Handle,
     color::Color,
     math::vec2::Vec2,

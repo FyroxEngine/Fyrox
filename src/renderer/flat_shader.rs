@@ -5,7 +5,7 @@ use crate::{
     }
 };
 use std::ffi::CString;
-use rg3d_core::math::mat4::Mat4;
+use crate::core::math::mat4::Mat4;
 
 pub struct FlatShader {
     program: GpuProgram,

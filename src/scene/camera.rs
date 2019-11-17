@@ -1,4 +1,4 @@
-use rg3d_core::{
+use crate::core::{
     visitor::{Visitor, VisitResult, Visit},
     math::{
         Rect,

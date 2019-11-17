@@ -9,7 +9,7 @@ use std::{
     fs::File,
 };
 use byteorder::{LittleEndian, ReadBytesExt};
-use rg3d_core::{
+use crate::core::{
     pool::{Handle, Pool},
 };
 

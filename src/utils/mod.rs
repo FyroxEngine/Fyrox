@@ -5,7 +5,7 @@ use crate::{
     scene::mesh::Mesh,
     scene::base::AsBase
 };
-use rg3d_physics::static_geometry::{StaticGeometry, StaticTriangle};
+use crate::physics::static_geometry::{StaticGeometry, StaticTriangle};
 
 pub struct UnsafeCollectionView<T> {
     items: *const T,
@@ -69,7 +69,7 @@ impl<'a, T> Iterator for UnsafeCollectionViewIterator<'a, T> {
 /// resulting static geometry will have vertices that exactly matches given
 /// mesh.
 pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
-    let mut static_geometry = StaticGeometry::new();
+    let mut triangles = Vec::new();
     let global_transform = mesh.base().get_global_transform();
     for surface in mesh.get_surfaces() {
         let data_rc = surface.get_data();
@@ -86,7 +86,7 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
             let c = global_transform.transform_vector(vertices[indices[i + 2] as usize].position);
 
             if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
-                static_geometry.add_triangle(triangle);
+                triangles.push(triangle);
             } else {
                 println!("degenerated triangle!");
             }
@@ -94,5 +94,5 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
             i += 3;
         }
     }
-    static_geometry
+    StaticGeometry::new(triangles)
 }

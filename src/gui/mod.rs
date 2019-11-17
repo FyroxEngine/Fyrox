@@ -42,7 +42,7 @@ use crate::{
     utils::UnsafeCollectionView,
     event::{ElementState, WindowEvent, MouseScrollDelta},
 };
-use rg3d_core::{
+use crate::core::{
     color::Color,
     pool::{Pool, Handle},
     math::{vec2::Vec2, Rect},

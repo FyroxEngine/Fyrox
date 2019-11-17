@@ -14,7 +14,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
-use rg3d_core::{
+use crate::core::{
     pool::Handle,
     visitor::{Visit, VisitResult, Visitor},
 };

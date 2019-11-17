@@ -1,4 +1,4 @@
-use rg3d_core::math::vec3::Vec3;
+use crate::core::math::vec3::Vec3;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum PathVertexState {
@@ -241,7 +241,7 @@ impl PathFinder {
 #[cfg(test)]
 mod test {
     use crate::utils::astar::{PathFinder, PathVertex};
-    use rg3d_core::math::vec3::Vec3;
+    use crate::core::math::vec3::Vec3;
     use rand::Rng;
 
     #[test]

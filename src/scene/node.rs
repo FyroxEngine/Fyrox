@@ -1,4 +1,4 @@
-use rg3d_core::{
+use crate::core::{
     visitor::{Visit, VisitResult, Visitor},
 };
 use crate::scene::{

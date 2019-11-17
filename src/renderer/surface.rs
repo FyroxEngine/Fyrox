@@ -7,7 +7,7 @@ use crate::{
     resource::texture::Texture,
 };
 
-use rg3d_core::{
+use crate::core::{
     math::{
         vec2::Vec2,
         vec3::Vec3,

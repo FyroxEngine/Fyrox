@@ -1,11 +1,11 @@
 pub mod resource_manager;
 pub mod error;
 
-use rg3d_core::{
+use crate::core::{
     math::vec2::Vec2,
     visitor::{Visitor, VisitResult, Visit},
 };
-use rg3d_sound::context::Context;
+use crate::sound::context::Context;
 use std::sync::{Arc, Mutex};
 use crate::{
     engine::{resource_manager::ResourceManager, error::EngineError},

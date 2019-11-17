@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use rg3d_core::{
+use crate::core::{
     math::{
         vec3::Vec3,
         quat::Quat,

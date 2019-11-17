@@ -2,7 +2,7 @@ use crate::{
     gui::{UserInterface, node::UINode},
     event::{MouseButton, VirtualKeyCode},
 };
-use rg3d_core::{math::vec2::Vec2, pool::Handle};
+use crate::core::{math::vec2::Vec2, pool::Handle};
 use std::any::Any;
 
 pub type UIEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>, &mut UIEvent);

@@ -1,5 +1,5 @@
 use std::ffi::CString;
-use rg3d_core::math::{
+use crate::core::math::{
     mat4::Mat4,
     vec3::Vec3,
     frustum::Frustum,

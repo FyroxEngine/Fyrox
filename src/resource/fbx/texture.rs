@@ -3,7 +3,7 @@ use crate::resource::fbx::{
     FbxNode,
     find_and_borrow_node,
 };
-use rg3d_core::{
+use crate::core::{
     pool::{
         Handle,
         Pool,

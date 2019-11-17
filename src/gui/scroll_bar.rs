@@ -15,7 +15,7 @@ use crate::gui::{
     draw::DrawingContext,
     Update,
 };
-use rg3d_core::{
+use crate::core::{
     color::Color, math,
     pool::Handle, math::vec2::Vec2,
 };

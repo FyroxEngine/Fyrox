@@ -1,4 +1,4 @@
-use rg3d_core::math::vec2::Vec2;
+use crate::core::math::vec2::Vec2;
 use crate::gui::{
     draw::DrawingContext,
     button::Button,

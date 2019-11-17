@@ -6,7 +6,7 @@ use crate::{
         transform::Transform
     }
 };
-use rg3d_core::{
+use crate::core::{
     math::{vec3::Vec3, mat4::Mat4},
     visitor::{Visit, VisitResult, Visitor},
     pool::Handle,
@@ -90,7 +90,7 @@ impl Base {
     }
 
     /// Returns handle of parent node.
-    pub fn get_parent(&self) -> rg3d_core::pool::Handle<Node> {
+    pub fn get_parent(&self) -> crate::core::pool::Handle<Node> {
         self.parent
     }
 

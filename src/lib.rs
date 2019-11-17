@@ -55,9 +55,6 @@ extern crate inflate;
 extern crate rand;
 #[macro_use]
 extern crate lazy_static;
-extern crate rg3d_core;
-extern crate rg3d_sound;
-extern crate rg3d_physics;
 
 pub mod utils;
 pub mod scene;
@@ -67,3 +64,7 @@ pub mod resource;
 pub mod gui;
 
 pub use glutin::*;
+
+pub use rg3d_core as core;
+pub use rg3d_physics as physics;
+pub use rg3d_sound as sound;

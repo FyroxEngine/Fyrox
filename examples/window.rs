@@ -6,7 +6,7 @@ use rg3d::{
     engine::Engine
 };
 use std::time::Instant;
-use rg3d_core::color::Color;
+use crate::core::color::Color;
 
 fn main() {
     let event_loop = EventLoop::new();

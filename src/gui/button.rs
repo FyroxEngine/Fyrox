@@ -20,7 +20,7 @@ use crate::{
     },
     resource::ttf::Font,
 };
-use rg3d_core::{
+use crate::core::{
     color::Color,
     pool::Handle,
     math::vec2::Vec2,

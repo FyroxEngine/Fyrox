@@ -16,8 +16,8 @@ use crate::scene::{
     node::Node,
     base::AsBase,
 };
-use rg3d_physics::{Physics, rigid_body::RigidBody};
-use rg3d_core::{
+use crate::physics::{Physics, rigid_body::RigidBody};
+use crate::core::{
     visitor::{Visit, VisitResult, Visitor},
     pool::{
         Handle,

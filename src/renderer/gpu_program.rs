@@ -9,7 +9,7 @@ use crate::{
 };
 use crate::renderer::error::RendererError;
 
-use rg3d_core::{
+use crate::core::{
     math::{
         vec4::Vec4,
         mat4::Mat4,

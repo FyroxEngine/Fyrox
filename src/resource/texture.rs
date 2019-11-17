@@ -1,5 +1,5 @@
 use std::path::*;
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use crate::core::visitor::{Visit, VisitResult, Visitor};
 use crate::renderer::gpu_texture::GpuTexture;
 use image::GenericImageView;
 
