@@ -6,3 +6,4 @@ pub mod pool;
 pub mod visitor;
 pub mod math;
 pub mod color;
+pub mod octree;

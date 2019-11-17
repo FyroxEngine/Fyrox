@@ -26,6 +26,14 @@ impl AxisAlignedBoundingBox {
         }
     }
 
+    pub fn from_points(points: &[Vec3]) -> Self {
+        let mut aabb = AxisAlignedBoundingBox::default();
+        for pt in points {
+            aabb.add_point(*pt);
+        }
+        aabb
+    }
+
     pub fn add_point(&mut self, a: Vec3) {
         if a.x < self.min.x {
             self.min.x = a.x;
@@ -46,6 +54,14 @@ impl AxisAlignedBoundingBox {
         if a.z > self.max.z {
             self.max.z = a.z;
         }
+    }
+
+    pub fn center(&self) -> Vec3 {
+        (self.max + self.min).scale(0.5)
+    }
+
+    pub fn half_extents(&self) -> Vec3 {
+        (self.max - self.min).scale(0.5)
     }
 
     pub fn invalidate(&mut self) {
@@ -82,6 +98,28 @@ impl AxisAlignedBoundingBox {
         dmin <= r2 ||
             ((position.x >= self.min.x) && (position.x <= self.max.x) && (position.y >= self.min.y) &&
                 (position.y <= self.max.y) && (position.z >= self.min.z) && (position.z <= self.max.z))
+    }
+
+    pub fn intersect_aabb(&self, other: &Self) -> bool {
+        let self_center = self.center();
+        let self_half_extents = self.half_extents();
+
+        let other_half_extents = other.half_extents();
+        let other_center = other.center();
+
+        if (self_center.x - other_center.x).abs() > (self_half_extents.x + other_half_extents.x) {
+            return false;
+        }
+
+        if (self_center.y - other_center.y).abs() > (self_half_extents.y + other_half_extents.y) {
+            return false;
+        }
+
+        if (self_center.z - other_center.z).abs() > (self_half_extents.z + other_half_extents.z) {
+            return false;
+        }
+
+        true
     }
 }
 

@@ -193,7 +193,7 @@ impl Ray {
 
     pub fn plane_intersection_point(&self, plane: &Plane) -> Option<Vec3> {
         let t = self.plane_intersection(plane);
-        if t < 0.0 {
+        if t < 0.0 || t > 1.0 {
             None
         } else {
             Some(self.get_point(t))
@@ -288,5 +288,21 @@ impl Ray {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::math::ray::Ray;
+    use crate::math::vec3::Vec3;
+
+    #[test]
+    fn intersection() {
+        let triangle = [Vec3::new(0.0, 0.5, 0.0),
+            Vec3::new(-0.5, -0.5, 0.0),
+            Vec3::new(0.5, -0.5, 0.0)];
+        let ray = Ray::from_two_points(&Vec3::new(0.0, 0.0, -2.0),
+                                       &Vec3::new(0.0, 0.0, -1.0)).unwrap();
+        assert!(ray.triangle_intersection(&triangle).is_none());
     }
 }
