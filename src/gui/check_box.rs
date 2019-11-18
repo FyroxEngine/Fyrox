@@ -156,11 +156,11 @@ impl CheckBoxBuilder {
 }
 
 impl Styleable for CheckBox {
-    fn set_property(&mut self, name: &str, value: &dyn Any) {
-
+    fn set_property(&mut self, _name: &str, _value: &dyn Any) {
+        // TODO
     }
 
-    fn get_property(&self, name: &str) -> Option<&dyn Any> {
+    fn get_property(&self, _name: &str) -> Option<&dyn Any> {
         None
     }
 }
