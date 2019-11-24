@@ -900,7 +900,7 @@ impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
     }
 }
 
-impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S> where K: Visit + Default + Copy + Clone + Hash + Eq, V: Visit + Default {
+impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S> where K: Visit + Default + Clone + Hash + Eq, V: Visit + Default {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -929,7 +929,7 @@ impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S> where K: Visit 
 
                 visitor.enter_region(name.as_str())?;
 
-                let mut key = *key;
+                let mut key = key.clone();
                 key.visit("Key", visitor)?;
 
                 value.visit("Value", visitor)?;
