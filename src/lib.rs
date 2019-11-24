@@ -62,6 +62,7 @@ pub mod renderer;
 pub mod engine;
 pub mod resource;
 pub mod gui;
+pub mod animation;
 
 pub use glutin::*;
 

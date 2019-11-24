@@ -40,7 +40,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 - Fonts - TTF Loader (compound characters are not supported yet)
 - Built-in save/load using object visitor - save/load state of engine in one call.
 - Skinning
-- Animation blending - allows you to blend your animations as you want to, i.e. idle animation can be blended with walk.
+- Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
 - Automatic resource management
 	- Texture

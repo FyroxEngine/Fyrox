@@ -34,13 +34,13 @@ use crate::{
             error::FbxError,
         },
     },
+    animation::{
+        AnimationContainer,
+        Track,
+        KeyFrame,
+        Animation,
+    },
     scene::{
-        animation::{
-            AnimationContainer,
-            Track,
-            KeyFrame,
-            Animation,
-        },
         graph::Graph,
         SceneInterfaceMut,
         Scene,

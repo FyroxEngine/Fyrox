@@ -10,36 +10,6 @@ use crate::scene::{
     particle_system::ParticleSystem,
 };
 
-impl Visit for Node {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut kind_id = self.id();
-        kind_id.visit("KindId", visitor)?;
-        if visitor.is_reading() {
-            *self = Node::from_id(kind_id)?;
-        }
-
-        // Call appropriate visit method based on actual variant.
-        match self {
-            Node::Base(base) => base.visit(name, visitor),
-            Node::Light(light) => light.visit(name, visitor),
-            Node::Camera(camera) => camera.visit(name, visitor),
-            Node::Mesh(mesh) => mesh.visit(name, visitor),
-            Node::Sprite(sprite) => sprite.visit(name, visitor),
-            Node::ParticleSystem(particle_system) => particle_system.visit(name, visitor)
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum Node {
-    Base(Base),
-    Light(Light),
-    Camera(Camera),
-    Mesh(Mesh),
-    Sprite(Sprite),
-    ParticleSystem(ParticleSystem),
-}
-
 /// Helper macros to reduce code bloat - its purpose it to dispatch
 /// specified call by actual enum variant.
 macro_rules! dispatch {
@@ -53,6 +23,28 @@ macro_rules! dispatch {
             Node::Sprite(v) => v.$func($($args),*),
         }
     };
+}
+
+impl Visit for Node {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut kind_id = self.id();
+        kind_id.visit("KindId", visitor)?;
+        if visitor.is_reading() {
+            *self = Node::from_id(kind_id)?;
+        }
+
+        dispatch!(self, visit, name, visitor)
+    }
+}
+
+#[derive(Clone)]
+pub enum Node {
+    Base(Base),
+    Light(Light),
+    Camera(Camera),
+    Mesh(Mesh),
+    Sprite(Sprite),
+    ParticleSystem(ParticleSystem),
 }
 
 impl AsBase for Node {

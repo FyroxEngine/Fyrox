@@ -219,6 +219,7 @@ impl Widget {
         self.style = Some(style);
     }
 
+    #[allow(dead_code)] // TODO
     fn raw_copy(&self) -> Self {
         Self {
             name: self.name.clone(),

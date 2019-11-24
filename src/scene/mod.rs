@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod node;
-pub mod animation;
 pub mod mesh;
 pub mod camera;
 pub mod light;
@@ -10,21 +9,23 @@ pub mod sprite;
 pub mod graph;
 pub mod base;
 
-use crate::scene::{
-    animation::AnimationContainer,
-    graph::Graph,
-    node::Node,
-    base::AsBase,
-};
-use crate::physics::{Physics, rigid_body::RigidBody};
-use crate::core::{
-    visitor::{Visit, VisitResult, Visitor},
-    pool::{
-        Handle,
-        Pool,
-        PoolIterator,
-        PoolIteratorMut,
+use crate::{
+    core::{
+        visitor::{Visit, VisitResult, Visitor},
+        pool::{
+            Handle,
+            Pool,
+            PoolIterator,
+            PoolIteratorMut,
+        },
     },
+    physics::{Physics, rigid_body::RigidBody},
+    scene::{
+        graph::Graph,
+        node::Node,
+        base::AsBase,
+    },
+    animation::AnimationContainer
 };
 use std::collections::HashMap;
 
@@ -134,7 +135,7 @@ impl Scene {
 
     pub fn update(&mut self, aspect_ratio: f32, dt: f32) {
         self.update_physics(dt);
-        self.animations.update_animations(dt, &mut self.graph);
+        self.animations.update_animations(dt);
         self.graph.update_nodes(aspect_ratio, dt);
 
         // Keep pair when node and body are both alive.

@@ -1,13 +1,12 @@
 pub mod resource_manager;
 pub mod error;
 
-use crate::core::{
-    math::vec2::Vec2,
-    visitor::{Visitor, VisitResult, Visit},
-};
-use crate::sound::context::Context;
-use std::sync::{Arc, Mutex};
 use crate::{
+    core::{
+        math::vec2::Vec2,
+        visitor::{Visitor, VisitResult, Visit},
+    },
+    sound::context::Context,
     engine::{resource_manager::ResourceManager, error::EngineError},
     gui::UserInterface,
     renderer::{Renderer, error::RendererError, gl},
@@ -21,6 +20,7 @@ use crate::{
     Api,
     event_loop::EventLoop
 };
+use std::sync::{Arc, Mutex};
 
 pub struct Engine {
     context: glutin::WindowedContext<PossiblyCurrent>,
@@ -70,7 +70,6 @@ impl Engine {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
-            .with_gl_debug_flag(true)
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
             .build_windowed(window_builder, events_loop)?;
 

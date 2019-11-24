@@ -3,10 +3,10 @@ extern crate rg3d;
 use rg3d::{
     event::{Event, WindowEvent},
     event_loop::{EventLoop, ControlFlow},
-    engine::Engine
+    engine::Engine,
+    core::color::Color
 };
 use std::time::Instant;
-use crate::core::color::Color;
 
 fn main() {
     let event_loop = EventLoop::new();

@@ -2,21 +2,21 @@ use crate::{
     scene::{
         Scene,
         node::Node,
-        animation::Animation,
         SceneInterface,
         SceneInterfaceMut,
         base::AsBase
     },
+    animation::Animation,
     resource::{fbx, fbx::error::FbxError},
     engine::resource_manager::ResourceManager,
+    core::{
+        pool::Handle,
+        visitor::{Visit, VisitResult, Visitor},
+    }
 };
 use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
-};
-use crate::core::{
-    pool::Handle,
-    visitor::{Visit, VisitResult, Visitor},
 };
 
 pub struct Model {

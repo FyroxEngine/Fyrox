@@ -1,11 +1,14 @@
 // TTF loader, rasterizer, atlas builder.
 
-use crate::core::{
-    math::{
-        vec2::Vec2,
-        Rect,
+use crate::{
+    core::{
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
+        pool::{Pool, Handle},
     },
-    pool::{Pool, Handle},
+    renderer::gpu_texture::GpuTexture
 };
 use std::{
     cmp::Ordering,
@@ -14,7 +17,6 @@ use std::{
     fs::File,
     io::Read,
 };
-use crate::renderer::gpu_texture::GpuTexture;
 use std::ops::Range;
 
 const ON_CURVE_POINT: u8 = 1;

@@ -1,34 +1,38 @@
-use crate::core::{
-    math::{
-        vec3::Vec3,
-        quat::Quat,
-        clampf,
-        lerpf,
-        wrapf,
-    },
-    visitor::{
-        Visit,
-        VisitResult,
-        Visitor,
-    },
-    pool::{
-        Pool,
-        Handle,
-        PoolIterator,
-        PoolIteratorMut,
-        PoolPairIterator,
-        PoolPairIteratorMut
-    }
-};
-use std::sync::{Mutex, Arc};
+pub mod machine;
+
 use crate::{
+    core::{
+        math::{
+            vec3::Vec3,
+            quat::Quat,
+            clampf,
+            wrapf,
+        },
+        visitor::{
+            Visit,
+            VisitResult,
+            Visitor,
+        },
+        pool::{
+            Pool,
+            Handle,
+            PoolIterator,
+            PoolIteratorMut,
+            PoolPairIterator,
+            PoolPairIteratorMut
+        }
+    },
     scene::{
         SceneInterface,
         node::{Node},
         graph::Graph,
         base::AsBase
     },
-    resource::model::Model,
+    resource::model::Model
+};
+use std::{
+    sync::{Mutex, Arc},
+    collections::HashMap
 };
 
 #[derive(Copy, Clone)]
@@ -172,13 +176,20 @@ impl Track {
         &self.frames
     }
 
-    pub fn get_key_frame(&self, mut time: f32) -> Option<KeyFrame> {
+    pub fn get_local_pose(&self, mut time: f32) -> Option<LocalPose> {
         if self.frames.is_empty() {
             return None;
         }
 
         if time >= self.max_time {
-            return Some(*self.frames.last().unwrap());
+            return self.frames.last().map(|k| {
+                LocalPose {
+                    node: self.node,
+                    position: k.position,
+                    scale: k.scale,
+                    rotation: k.rotation
+                }
+            });
         }
 
         time = clampf(time, 0.0, self.max_time);
@@ -192,13 +203,20 @@ impl Track {
         }
 
         if right_index == 0 {
-            return Some(*self.frames.first().unwrap());
+            return self.frames.first().map(|k| {
+                LocalPose {
+                    node: self.node,
+                    position: k.position,
+                    scale: k.scale,
+                    rotation: k.rotation
+                }
+            });
         } else if let Some(left) = self.frames.get(right_index - 1) {
             if let Some(right) = self.frames.get(right_index) {
                 let interpolator = (time - left.time) / (right.time - left.time);
 
-                return Some(KeyFrame {
-                    time: lerpf(left.time, right.time, interpolator),
+                return Some(LocalPose {
+                    node: self.node,
                     position: left.position.lerp(&right.position, interpolator),
                     scale: left.scale.lerp(&right.scale, interpolator),
                     rotation: left.rotation.slerp(&right.rotation, interpolator),
@@ -211,15 +229,96 @@ impl Track {
 }
 
 pub struct Animation {
+    // TODO: Extract into separate struct AnimationTimeline
     tracks: Vec<Track>,
-    speed: f32,
     length: f32,
     time_position: f32,
+    ///////////////////////////////////////////////////////
+    speed: f32,
     looped: bool,
-    weight: f32,
-    fade_step: f32,
     enabled: bool,
     pub(in crate) resource: Option<Arc<Mutex<Model>>>,
+    pose: AnimationPose
+}
+
+/// Snapshot of scene node local transform state.
+#[derive(Clone)]
+pub struct LocalPose {
+    node: Handle<Node>,
+    position: Vec3,
+    scale: Vec3,
+    rotation: Quat,
+}
+
+impl Default for LocalPose {
+    fn default() -> Self {
+        Self {
+            node: Handle::NONE,
+            position: Vec3::ZERO,
+            scale: Vec3::UNIT,
+            rotation: Quat::IDENTITY
+        }
+    }
+}
+
+impl LocalPose {
+    fn weighted_clone(&self, weight: f32) -> Self  {
+        Self {
+            node: self.node,
+            position: self.position.scale(weight),
+            rotation: Quat::IDENTITY.nlerp(&self.rotation, weight),
+            scale: Vec3::UNIT // TODO: Implement scale blending
+        }
+    }
+
+    pub fn blend_with(&mut self, other: &LocalPose, weight: f32) {
+        self.position = self.position + other.position.scale(weight);
+        self.rotation = self.rotation.nlerp(&other.rotation, weight);
+        // TODO: Implement scale blending
+    }
+}
+
+#[derive(Default)]
+pub struct AnimationPose {
+    local_poses: HashMap<Handle<Node>, LocalPose>
+}
+
+impl AnimationPose {
+    pub fn clone_into(&self, dest: &mut AnimationPose) {
+        dest.reset();
+        for (handle, local_pose) in self.local_poses.iter() {
+            dest.local_poses.insert(*handle, local_pose.clone());
+        }
+    }
+
+    pub fn blend_with(&mut self, other: &AnimationPose, weight: f32) {
+        for (handle, other_pose) in other.local_poses.iter() {
+            if let Some(current_pose) = self.local_poses.get_mut(handle) {
+                current_pose.blend_with(other_pose, weight);
+            } else {
+                // There are no corresponding local pose, do fake blend between identity
+                // pose and other.
+                self.add_local_pose(other_pose.weighted_clone(weight));
+            }
+        }
+    }
+
+    fn add_local_pose(&mut self, local_pose: LocalPose) {
+        self.local_poses.insert(local_pose.node, local_pose);
+    }
+
+    pub fn reset(&mut self) {
+        self.local_poses.clear();
+    }
+
+    pub fn apply(&self, graph: &mut Graph) {
+        for (node, local_pose) in self.local_poses.iter() {
+            let local_transform = graph.get_mut(*node).base_mut().get_local_transform_mut();
+            local_transform.set_position(local_pose.position);
+            local_transform.set_rotation(local_pose.rotation);
+            local_transform.set_scale(local_pose.scale);
+        }
+    }
 }
 
 impl Clone for Animation {
@@ -229,11 +328,10 @@ impl Clone for Animation {
             speed: self.speed,
             length: self.length,
             time_position: self.time_position,
-            weight: self.weight,
-            fade_step: self.fade_step,
             looped: self.looped,
             enabled: self.enabled,
             resource: self.resource.clone(),
+            pose: Default::default()
         }
     }
 }
@@ -289,40 +387,6 @@ impl Animation {
         self.resource.clone()
     }
 
-    pub fn fade_in(&mut self, speed: f32) {
-        self.fade_step = speed.abs();
-    }
-
-    pub fn fade_out(&mut self, speed: f32) {
-        self.fade_step = -speed.abs()
-    }
-
-    pub fn get_weight(&self) -> f32 {
-        self.weight
-    }
-
-    pub fn is_fading(&self) -> bool {
-        self.fade_step != 0.0
-    }
-
-    pub fn set_weight(&mut self, weight: f32) {
-        self.weight = weight
-    }
-
-    pub fn update_fading(&mut self, dt: f32) {
-        if self.is_fading() {
-            self.weight += self.fade_step * dt;
-            if self.fade_step < 0.0 && self.weight <= 0.0 {
-                self.weight = 0.0;
-                self.enabled = false;
-                self.fade_step = 0.0;
-            } else if self.fade_step > 0.0 && self.weight >= 1.0 {
-                self.weight = 1.0;
-                self.fade_step = 0.0;
-            }
-        }
-    }
-
     pub(in crate) fn resolve(&mut self, graph: &Graph) {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
@@ -362,6 +426,19 @@ impl Animation {
             }
         }
     }
+
+    fn update_pose(&mut self) {
+        self.pose.reset();
+        for track in self.tracks.iter() {
+            if let Some(local_pose) = track.get_local_pose(self.time_position) {
+                self.pose.add_local_pose(local_pose);
+            }
+        }
+    }
+
+    pub fn get_pose(&self) -> &AnimationPose {
+        &self.pose
+    }
 }
 
 impl Default for Animation {
@@ -371,11 +448,10 @@ impl Default for Animation {
             speed: 1.0,
             length: 0.0,
             time_position: 0.0,
-            weight: 1.0,
             enabled: true,
-            fade_step: 0.0,
             looped: true,
             resource: Default::default(),
+            pose: Default::default()
         }
     }
 }
@@ -388,8 +464,6 @@ impl Visit for Animation {
         self.speed.visit("Speed", visitor)?;
         self.length.visit("Length", visitor)?;
         self.time_position.visit("TimePosition", visitor)?;
-        self.weight.visit("Weight", visitor)?;
-        self.fade_step.visit("FadeStep", visitor)?;
         self.resource.visit("Resource", visitor)?;
         self.looped.visit("Looped", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
@@ -476,44 +550,10 @@ impl AnimationContainer {
         println!("Animations resolved successfully!");
     }
 
-    pub fn update_animations(&mut self, dt: f32, graph: &mut Graph) {
-        // Reset local transform of animated nodes first
-        for animation in self.pool.iter() {
-            for track in animation.get_tracks() {
-                let base = graph.get_mut(track.get_node()).base_mut();
-                let transform = base.get_local_transform_mut();
-                transform.set_position(Default::default());
-                transform.set_rotation(Default::default());
-                // TODO: transform.set_scale(Vec3::new(1.0, 1.0, 1.0));
-            }
-        }
-
-        // Then apply animation.
-        for animation in self.pool.iter_mut() {
-            if !animation.is_enabled() {
-                continue;
-            }
-
-            let next_time_pos = animation.get_time_position() + dt * animation.get_speed();
-
-            let weight = animation.get_weight();
-
-            for track in animation.get_tracks() {
-                if !track.is_enabled() {
-                    continue;
-                }
-
-                if let Some(keyframe) = track.get_key_frame(animation.get_time_position()) {
-                    let base = graph.get_mut(track.get_node()).base_mut();
-                    let transform = base.get_local_transform_mut();
-                    transform.set_rotation(transform.get_rotation().nlerp(&keyframe.rotation, weight));
-                    transform.set_position(transform.get_position() + keyframe.position.scale(weight));
-                    // TODO: transform.set_scale(transform.get_scale().lerp(&keyframe.scale, weight));
-                }
-            }
-
-            animation.set_time_position(next_time_pos);
-            animation.update_fading(dt);
+    pub fn update_animations(&mut self, dt: f32) {
+        for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
+            animation.update_pose();
+            animation.set_time_position(animation.get_time_position() + dt * animation.get_speed());
         }
     }
 }
