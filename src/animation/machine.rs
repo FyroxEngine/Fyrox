@@ -106,6 +106,7 @@ use std::{
         VecDeque,
     },
 };
+use crate::animation::machine::PoseNode::BlendAnimations;
 
 pub enum Event {
     StateEnter(Handle<State>),
@@ -245,6 +246,20 @@ impl BlendPose {
             pose_source,
         }
     }
+
+    pub fn with_constant_weight(weight: f32, pose_source: Handle<PoseNode>) -> Self {
+        Self {
+            weight: PoseWeight::Constant(weight),
+            pose_source
+        }
+    }
+
+    pub fn with_param_weight(param_id: &str, pose_source: Handle<PoseNode>) -> Self {
+        Self {
+            weight: PoseWeight::Parameter(param_id.to_owned()),
+            pose_source
+        }
+    }
 }
 
 impl Visit for BlendPose {
@@ -295,6 +310,14 @@ impl Default for PoseNode {
 }
 
 impl PoseNode {
+    pub fn make_play_animation(animation: Handle<Animation>) -> Self {
+        PoseNode::PlayAnimation(PlayAnimation::new(animation))
+    }
+
+    pub fn make_blend_animations(poses: Vec<BlendPose>) -> Self {
+        PoseNode::BlendAnimations(BlendAnimation::new(poses))
+    }
+
     fn from_id(id: i32) -> Result<Self, String> {
         match id {
             0 => Ok(PoseNode::PlayAnimation(Default::default())),
@@ -420,7 +443,7 @@ pub struct Transition {
     /// Total amount of time to transition from `src` to `dst` state.
     transition_time: f32,
     elapsed_time: f32,
-    src: Handle<State>,
+    source: Handle<State>,
     dest: Handle<State>,
     /// Identifier of Rule parameter which defines is transition should be activated or not.
     rule: String,
@@ -435,7 +458,7 @@ impl Visit for Transition {
         self.name.visit("Name", visitor)?;
         self.transition_time.visit("TransitionTime", visitor)?;
         self.elapsed_time.visit("ElapsedTime", visitor)?;
-        self.src.visit("Source", visitor)?;
+        self.source.visit("Source", visitor)?;
         self.dest.visit("Dest", visitor)?;
         self.rule.visit("Rule", visitor)?;
         self.blend_factor.visit("BlendFactor", visitor)?;
@@ -450,7 +473,7 @@ impl Transition {
             name: name.to_owned(),
             transition_time: time,
             elapsed_time: 0.0,
-            src,
+            source: src,
             dest,
             rule: rule.to_owned(),
             blend_factor: 0.0,
@@ -484,7 +507,41 @@ pub struct Machine {
     active_state: Handle<State>,
     active_transition: Handle<Transition>,
     parameters: ParameterContainer,
-    events: VecDeque<Event>,
+    events: LimitedEventQueue,
+    debug: bool,
+}
+
+struct LimitedEventQueue {
+    queue: VecDeque<Event>,
+    limit: u32,
+}
+
+impl Default for LimitedEventQueue {
+    fn default() -> Self {
+        Self {
+            queue: Default::default(),
+            limit: std::u32::MAX,
+        }
+    }
+}
+
+impl LimitedEventQueue {
+    fn new(limit: u32) -> Self {
+        Self {
+            queue: Default::default(),
+            limit
+        }
+    }
+
+    fn push(&mut self, event: Event) {
+        if self.queue.len() < (self.limit as usize) {
+            self.queue.push_back(event);
+        }
+    }
+
+    fn pop(&mut self) -> Option<Event> {
+        self.queue.pop_front()
+    }
 }
 
 impl Machine {
@@ -497,7 +554,8 @@ impl Machine {
             active_state: Default::default(),
             active_transition: Default::default(),
             parameters: Default::default(),
-            events: Default::default(),
+            events: LimitedEventQueue::new(2048),
+            debug: false,
         }
     }
 
@@ -515,75 +573,103 @@ impl Machine {
         }
     }
 
+    pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
+        self.active_state = entry_state;
+    }
+
+    pub fn debug(&mut self, state: bool) {
+        self.debug = state;
+    }
+
     pub fn add_state(&mut self, state: State) -> Handle<State> {
-        self.states.spawn(state)
+        let state = self.states.spawn(state);
+        if self.active_state.is_none() {
+            self.active_state = state;
+        }
+        state
     }
 
     pub fn add_transition(&mut self, transition: Transition) {
         let _ = self.transitions.spawn(transition);
     }
 
-    pub fn get_state(&self, state: Handle<State>) -> Option<&State> {
-        self.states.try_borrow(state)
+    pub fn get_state(&self, state: Handle<State>) -> &State {
+        self.states.borrow(state)
     }
 
-    fn push_event(&mut self, event: Event) {
-        if self.events.len() < 2048 {
-            self.events.push_back(event)
-        }
+    pub fn get_transition(&self, transition: Handle<Transition>) -> &Transition {
+        self.transitions.borrow(transition)
     }
 
     pub fn pop_event(&mut self) -> Option<Event> {
-        self.events.pop_front()
+        self.events.pop()
     }
 
     pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
         self.final_pose.reset();
 
-        // Gather actual poses for each state.
-        for state in self.states.iter_mut() {
-            state.update(&self.nodes, &self.parameters, animations);
-        }
+        if self.active_state.is_some() || self.active_transition.is_some() {
+            // Gather actual poses for each state.
+            for state in self.states.iter_mut() {
+                state.update(&self.nodes, &self.parameters, animations);
+            }
 
-        if self.active_transition.is_none() {
-            // Find transition.
-            for (handle, transition) in self.transitions.pair_iter_mut() {
-                if transition.dest == self.active_state {
-                    continue;
-                }
-                if let Some(rule) = self.parameters.get(&transition.rule) {
-                    if let Parameter::Rule(active) = rule {
-                        if *active {
-                            self.active_transition = handle;
-                            self.active_state = transition.dest;
-                            break;
+            if self.active_transition.is_none() {
+                // Find transition.
+                for (handle, transition) in self.transitions.pair_iter_mut() {
+                    if transition.dest == self.active_state || transition.source != self.active_state {
+                        continue;
+                    }
+                    if let Some(rule) = self.parameters.get(&transition.rule) {
+                        if let Parameter::Rule(active) = rule {
+                            if *active {
+                                self.events.push(Event::StateLeave(self.active_state));
+                                if self.debug {
+                                    println!("Leaving state: {}", self.states.borrow(self.active_state).name);
+                                }
+
+                                self.events.push(Event::StateEnter(transition.source));
+                                if self.debug {
+                                    println!("Entering state: {}", self.states.borrow(transition.source).name);
+                                }
+
+                                self.active_state = Handle::NONE;
+                                self.active_transition = handle;
+
+                                break;
+                            }
                         }
-                    } else {
-                        // TODO: Assert?
                     }
                 }
             }
-        }
 
-        // Double check for active transition because we can have empty machine.
-        if self.active_transition.is_some() {
-            let transition = self.transitions.borrow_mut(self.active_transition);
+            // Double check for active transition because we can have empty machine.
+            if self.active_transition.is_some() {
+                let transition = self.transitions.borrow_mut(self.active_transition);
 
-            // Blend between source and dest states.
-            self.final_pose.blend_with(&self.states.borrow_mut(transition.src).pose, 1.0 - transition.blend_factor);
-            self.final_pose.blend_with(&self.states.borrow_mut(transition.dest).pose, transition.blend_factor);
+                // Blend between source and dest states.
+                self.final_pose.blend_with(&self.states.borrow_mut(transition.source).pose, 1.0 - transition.blend_factor);
+                self.final_pose.blend_with(&self.states.borrow_mut(transition.dest).pose, transition.blend_factor);
 
-            transition.update(dt);
+                transition.update(dt);
 
-            if transition.is_done() {
-                transition.reset();
-                self.active_transition = Handle::NONE;
+                if transition.is_done() {
+                    transition.reset();
+                    self.active_transition = Handle::NONE;
+                    self.active_state = transition.dest;
+                    self.events.push(Event::ActiveStateChanged(self.active_state));
+
+                    if self.debug {
+                        println!("Active state changed: {}", self.states.borrow(self.active_state).name);
+                    }
+                }
+            } else {
+                // We must have active state all the time when we do not have any active transition.
+                let state = self.states.borrow_mut(self.active_state);
+
+                // Just get pose from active state.
+                state.pose.clone_into(&mut self.final_pose);
             }
-        } else if self.active_state.is_some() {
-            let state = self.states.borrow_mut(self.active_state);
-
-            // Just get pose from active state.
-            state.pose.clone_into(&mut self.final_pose);
         }
 
         &self.final_pose
@@ -604,6 +690,3 @@ impl Visit for Machine {
         visitor.leave_region()
     }
 }
-
-pub struct MachineBuilder {}
-

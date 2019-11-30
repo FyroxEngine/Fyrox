@@ -113,6 +113,7 @@ impl Model {
     /// character starts walking.
     ///
     /// # Notes
+    ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
     pub fn retarget_animations(model_rc: Arc<Mutex<Model>>, root: Handle<Node>, dest_scene: &mut Scene) -> Vec<Handle<Animation>> {

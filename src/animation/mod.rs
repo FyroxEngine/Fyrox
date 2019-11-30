@@ -19,20 +19,20 @@ use crate::{
             PoolIterator,
             PoolIteratorMut,
             PoolPairIterator,
-            PoolPairIteratorMut
-        }
+            PoolPairIteratorMut,
+        },
     },
     scene::{
         SceneInterface,
-        node::{Node},
+        node::Node,
         graph::Graph,
-        base::AsBase
+        base::AsBase,
     },
-    resource::model::Model
+    resource::model::Model,
 };
 use std::{
     sync::{Mutex, Arc},
-    collections::HashMap
+    collections::HashMap,
 };
 
 #[derive(Copy, Clone)]
@@ -187,7 +187,7 @@ impl Track {
                     node: self.node,
                     position: k.position,
                     scale: k.scale,
-                    rotation: k.rotation
+                    rotation: k.rotation,
                 }
             });
         }
@@ -208,7 +208,7 @@ impl Track {
                     node: self.node,
                     position: k.position,
                     scale: k.scale,
-                    rotation: k.rotation
+                    rotation: k.rotation,
                 }
             });
         } else if let Some(left) = self.frames.get(right_index - 1) {
@@ -238,7 +238,7 @@ pub struct Animation {
     looped: bool,
     enabled: bool,
     pub(in crate) resource: Option<Arc<Mutex<Model>>>,
-    pose: AnimationPose
+    pose: AnimationPose,
 }
 
 /// Snapshot of scene node local transform state.
@@ -256,23 +256,23 @@ impl Default for LocalPose {
             node: Handle::NONE,
             position: Vec3::ZERO,
             scale: Vec3::UNIT,
-            rotation: Quat::IDENTITY
+            rotation: Quat::IDENTITY,
         }
     }
 }
 
 impl LocalPose {
-    fn weighted_clone(&self, weight: f32) -> Self  {
+    fn weighted_clone(&self, weight: f32) -> Self {
         Self {
             node: self.node,
             position: self.position.scale(weight),
             rotation: Quat::IDENTITY.nlerp(&self.rotation, weight),
-            scale: Vec3::UNIT // TODO: Implement scale blending
+            scale: Vec3::UNIT, // TODO: Implement scale blending
         }
     }
 
     pub fn blend_with(&mut self, other: &LocalPose, weight: f32) {
-        self.position = self.position + other.position.scale(weight);
+        self.position += other.position.scale(weight);
         self.rotation = self.rotation.nlerp(&other.rotation, weight);
         // TODO: Implement scale blending
     }
@@ -313,10 +313,14 @@ impl AnimationPose {
 
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.local_poses.iter() {
-            let local_transform = graph.get_mut(*node).base_mut().get_local_transform_mut();
-            local_transform.set_position(local_pose.position);
-            local_transform.set_rotation(local_pose.rotation);
-            local_transform.set_scale(local_pose.scale);
+            if node.is_none() {
+                println!("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!");
+            } else {
+                let local_transform = graph.get_mut(*node).base_mut().get_local_transform_mut();
+                local_transform.set_position(local_pose.position);
+                local_transform.set_rotation(local_pose.rotation);
+                local_transform.set_scale(local_pose.scale);
+            }
         }
     }
 }
@@ -331,7 +335,7 @@ impl Clone for Animation {
             looped: self.looped,
             enabled: self.enabled,
             resource: self.resource.clone(),
-            pose: Default::default()
+            pose: Default::default(),
         }
     }
 }
@@ -387,6 +391,39 @@ impl Animation {
         self.resource.clone()
     }
 
+    /// Enables or disables animation tracks for nodes in hierarchy starting from given root.
+    /// Could be useful to enable or disable animation for skeleton parts, i.e. you don't want
+    /// legs to be animated and you know that legs starts from torso bone, then you could do
+    /// this.
+    ///
+    /// ```
+    /// use rg3d::scene::node::Node;
+    /// use rg3d::animation::Animation;
+    /// use rg3d::core::pool::Handle;
+    /// use rg3d::scene::graph::Graph;
+    ///
+    /// fn disable_legs(torso_bone: Handle<Node>, aim_animation: &mut Animation, graph: &Graph) {
+    ///     aim_animation.set_tracks_enabled_from(torso_bone, false, graph)
+    /// }
+    /// ```
+    ///
+    /// After this legs won't be animated and animation could be blended together with run
+    /// animation so it will produce new animation - run and aim.
+    pub fn set_tracks_enabled_from(&mut self, handle: Handle<Node>, enabled: bool, graph: &Graph) {
+        let mut stack = vec![handle];
+        while let Some(node) = stack.pop() {
+            for track in self.tracks.iter_mut() {
+                if track.node == node {
+                    track.enabled = enabled;
+                    break;
+                }
+            }
+            for child in graph.get(node).base().get_children() {
+                stack.push(*child);
+            }
+        }
+    }
+
     pub(in crate) fn resolve(&mut self, graph: &Graph) {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
@@ -430,8 +467,10 @@ impl Animation {
     fn update_pose(&mut self) {
         self.pose.reset();
         for track in self.tracks.iter() {
-            if let Some(local_pose) = track.get_local_pose(self.time_position) {
-                self.pose.add_local_pose(local_pose);
+            if track.is_enabled() {
+                if let Some(local_pose) = track.get_local_pose(self.time_position) {
+                    self.pose.add_local_pose(local_pose);
+                }
             }
         }
     }
@@ -451,7 +490,7 @@ impl Default for Animation {
             enabled: true,
             looped: true,
             resource: Default::default(),
-            pose: Default::default()
+            pose: Default::default(),
         }
     }
 }
