@@ -24,7 +24,7 @@ pub type FeedCallback = dyn FnMut(&mut [(f32, f32)]) + Send;
 pub struct MixContext<'a> {
     mix_buffer: &'a mut [(f32, f32)],
     out_data: &'a mut Vec<Sample>,
-    callback: &'a mut Box<FeedCallback>,
+    callback: &'a mut FeedCallback
 }
 
 trait Device {
@@ -75,7 +75,10 @@ trait Device {
 #[cfg(target_os = "windows")]
 #[allow(non_snake_case)]
 mod windows {
-    use std::{mem::size_of, sync::atomic::{Ordering, AtomicPtr}};
+    use std::{
+        mem::size_of,
+        sync::atomic::{Ordering, AtomicPtr},
+    };
     use winapi::{
         um::{
             dsound::{
@@ -99,8 +102,8 @@ mod windows {
     use crate::{
         device::{Sample, FeedCallback, SAMPLE_RATE},
         error::SoundError,
+        device::{Device, MixContext},
     };
-    use crate::device::{Device, MixContext};
 
     // Declare missing structs and interfaces.
     STRUCT! {struct DSBPOSITIONNOTIFY {
@@ -123,7 +126,7 @@ mod windows {
         buffer_len_bytes: u32,
         out_data: Vec<Sample>,
         mix_buffer: Vec<(f32, f32)>,
-        callback: Box<FeedCallback>,
+        callback: Box<FeedCallback>
     }
 
     impl DirectSoundDevice {
@@ -200,6 +203,8 @@ mod windows {
                 let b = AtomicPtr::new(notify_points[1]);
 
                 let samples_per_channel = buffer_len_bytes as usize / size_of::<Sample>();
+
+
                 Ok(Self {
                     direct_sound: AtomicPtr::new(direct_sound),
                     buffer: AtomicPtr::new(buffer),
@@ -207,7 +212,7 @@ mod windows {
                     mix_buffer: vec![(0.0, 0.0); samples_per_channel],
                     notify_points: [a, b],
                     buffer_len_bytes,
-                    callback,
+                    callback
                 })
             }
         }
@@ -282,14 +287,14 @@ mod windows {
 mod linux {
     use crate::{
         device::{FeedCallback, SAMPLE_RATE, Sample},
-        error::SoundError
+        error::SoundError,
     };
     use alsa_sys::*;
     use std::{
         ffi::{CStr, CString},
         os::raw::c_int,
         mem::size_of,
-        sync::atomic::{AtomicPtr, Ordering}
+        sync::atomic::{AtomicPtr, Ordering},
     };
     use crate::device::{Device, MixContext};
 
@@ -362,7 +367,7 @@ mod linux {
             MixContext {
                 mix_buffer: self.mix_buffer.as_mut_slice(),
                 out_data: &mut self.out_data,
-                callback: &mut self.callback
+                callback: &mut self.callback,
             }
         }
 

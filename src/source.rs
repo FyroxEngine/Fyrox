@@ -1,5 +1,3 @@
-#![allow(clippy::or_fun_call)]
-
 use std::sync::{Arc, Mutex};
 use crate::{
     buffer::{Buffer, BufferKind},
@@ -10,6 +8,7 @@ use rg3d_core::{
     math::vec3::Vec3,
     visitor::{Visit, VisitResult, Visitor, VisitError},
 };
+use rustfft::num_complex::Complex;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
@@ -121,10 +120,10 @@ impl Visit for SourceKind {
 pub struct Source {
     kind: SourceKind,
     buffer: Option<Arc<Mutex<Buffer>>>,
-    /// Read position in the buffer. Differs from `playback_pos` if buffer is streaming.
-    /// In case of streaming buffer its maximum value will be size o
+    // Read position in the buffer. Differs from `playback_pos` if buffer is streaming.
+    // In case of streaming buffer its maximum value will be size o
     buf_read_pos: f64,
-    /// Real playback position.
+    // Real playback position.
     playback_pos: f64,
     pan: f32,
     pitch: f64,
@@ -132,16 +131,21 @@ pub struct Source {
     looping: bool,
     left_gain: f32,
     right_gain: f32,
-    /// Important coefficient for runtime resampling. It is used to modify playback speed
-    /// of a source in order to match output device sampling rate. PCM data can be stored
-    /// in various sampling rates (22050 Hz, 44100 Hz, 88200 Hz, etc.) but output device
-    /// is running at fixed sampling rate (usually 44100 Hz). For example if we we'll feed
-    /// data to device with rate of 22050 Hz but device is running at 44100 Hz then we'll
-    /// hear that sound will have high pitch (2.0), to fix that we'll just pre-multiply
-    /// playback speed by 0.5.
+    // Important coefficient for runtime resampling. It is used to modify playback speed
+    // of a source in order to match output device sampling rate. PCM data can be stored
+    // in various sampling rates (22050 Hz, 44100 Hz, 88200 Hz, etc.) but output device
+    // is running at fixed sampling rate (usually 44100 Hz). For example if we we'll feed
+    // data to device with rate of 22050 Hz but device is running at 44100 Hz then we'll
+    // hear that sound will have high pitch (2.0), to fix that we'll just pre-multiply
+    // playback speed by 0.5.
     resampling_multiplier: f64,
     status: Status,
     play_once: bool,
+    pub(in crate) look_dir: Vec3,
+    // Rest of samples from previous frame that has to be added to output signal.
+    pub(in crate) last_frame_left_samples: Vec<Complex<f32>>,
+    pub(in crate) last_frame_right_samples: Vec<Complex<f32>>,
+    pub(in crate) distance_gain: f32
 }
 
 impl Default for Source {
@@ -160,6 +164,10 @@ impl Default for Source {
             resampling_multiplier: 1.0,
             status: Status::Stopped,
             play_once: false,
+            look_dir: Default::default(),
+            last_frame_left_samples: Default::default(),
+            last_frame_right_samples: Default::default(),
+            distance_gain: 1.0
         }
     }
 }
@@ -184,17 +192,10 @@ impl Source {
         Ok(Self {
             kind,
             buffer: Some(buffer.clone()),
-            buf_read_pos: 0.0,
-            playback_pos: 0.0,
             resampling_multiplier: buffer_sample_rate / device_sample_rate,
-            pan: 0.0,
-            pitch: 1.0,
-            gain: 1.0,
-            looping: false,
-            left_gain: 1.0,
-            right_gain: 1.0,
-            status: Status::Stopped,
-            play_once: false,
+            last_frame_left_samples: Default::default(),
+            last_frame_right_samples: Default::default(),
+            ..Default::default()
         })
     }
 
@@ -266,11 +267,17 @@ impl Source {
             if sqr_distance < 0.0001 {
                 self.pan = 0.0;
             } else {
-                let norm_dir = dir.normalized().ok_or(SoundError::MathError("|v| == 0.0".to_string()))?;
+                let norm_dir = dir.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
                 self.pan = norm_dir.dot(&listener.ear_axis);
+
+                // Get view space position of source
+                let view_space_position = listener.view_matrix.transform_vector(spatial.position);
+                // Calculate vector to sound in view space
+                self.look_dir = (view_space_position - listener.position).normalized().unwrap_or_default();
             }
             dist_gain = 1.0 / (1.0 + (sqr_distance / (spatial.radius * spatial.radius)));
         }
+        self.distance_gain = dist_gain;
         self.left_gain = self.gain * dist_gain * (1.0 + self.pan);
         self.right_gain = self.gain * dist_gain * (1.0 - self.pan);
         Ok(())
@@ -298,14 +305,49 @@ impl Source {
         }
     }
 
+    fn next_sample_pos(&mut self, step: f64, buffer: &mut Buffer) -> usize {
+        self.buf_read_pos += step;
+        self.playback_pos += step;
+
+        let mut i = self.buf_read_pos as usize;
+
+        if i >= buffer.get_sample_per_channel() {
+            if buffer.get_kind() == BufferKind::Stream {
+                buffer.prepare_read_next_block();
+            }
+            self.buf_read_pos = 0.0;
+            i = 0;
+        }
+
+        if self.playback_pos >= buffer.get_total_sample_per_channel() as f64 {
+            self.playback_pos = 0.0;
+            if self.looping && buffer.get_kind() == BufferKind::Stream {
+                if buffer.get_sample_per_channel() != 0 {
+                    self.buf_read_pos = (i % buffer.get_sample_per_channel()) as f64;
+                } else {
+                    self.buf_read_pos = 0.0;
+                }
+            } else {
+                self.buf_read_pos = 0.0;
+            }
+            self.status = if self.looping {
+                Status::Playing
+            } else {
+                Status::Stopped
+            };
+        }
+
+        i
+    }
+
     pub(in crate) fn sample_into(&mut self, mix_buffer: &mut [(f32, f32)]) {
         if self.status != Status::Playing {
             return;
         }
 
-        let step = self.pitch * self.resampling_multiplier;
+        let step = self.sampling_step();
 
-        if let Some(buffer) = &self.buffer {
+        if let Some(buffer) = self.buffer.clone() {
             if let Ok(mut buffer) = buffer.lock() {
                 if buffer.is_empty() {
                     return;
@@ -316,36 +358,7 @@ impl Source {
                         break;
                     }
 
-                    self.buf_read_pos += step;
-                    self.playback_pos += step;
-
-                    let mut i = self.buf_read_pos as usize;
-
-                    if i >= buffer.get_sample_per_channel() {
-                        if buffer.get_kind() == BufferKind::Stream {
-                            buffer.prepare_read_next_block();
-                        }
-                        self.buf_read_pos = 0.0;
-                        i = 0;
-                    }
-
-                    if self.playback_pos >= buffer.get_total_sample_per_channel() as f64 {
-                        self.playback_pos = 0.0;
-                        if self.looping && buffer.get_kind() == BufferKind::Stream {
-                            if buffer.get_sample_per_channel() != 0 {
-                                self.buf_read_pos = (i % buffer.get_sample_per_channel()) as f64;
-                            } else {
-                                self.buf_read_pos = 0.0;
-                            }
-                        } else {
-                            self.buf_read_pos = 0.0;
-                        }
-                        self.status = if self.looping {
-                            Status::Playing
-                        } else {
-                            Status::Stopped
-                        };
-                    }
+                    let i = self.next_sample_pos(step, &mut buffer);
 
                     if buffer.get_channel_count() == 2 {
                         *left += self.left_gain * buffer.read(i);
@@ -356,8 +369,47 @@ impl Source {
                         *right += self.right_gain * sample;
                     }
                 }
-            }
+            };
         }
+    }
+
+    pub(in crate) fn raw_sample_into(&mut self, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
+        assert_eq!(left.len(), right.len());
+
+        if self.status != Status::Playing {
+            return;
+        }
+
+        let step = self.sampling_step();
+
+        if let Some(buffer) = self.buffer.clone() {
+            if let Ok(mut buffer) = buffer.lock() {
+                if buffer.is_empty() {
+                    return;
+                }
+
+                for (left, right) in left.iter_mut().zip(right) {
+                    if self.status != Status::Playing {
+                        break;
+                    }
+
+                    let i = self.next_sample_pos(step, &mut buffer);
+
+                    if buffer.get_channel_count() == 2 {
+                        *left = Complex::new(buffer.read(i), 0.0);
+                        *right = Complex::new(buffer.read(i + buffer.get_sample_per_channel()), 0.0);
+                    } else {
+                        let sample = Complex::new(buffer.read(i), 0.0);
+                        *left = sample;
+                        *right = sample;
+                    }
+                }
+            };
+        }
+    }
+
+    fn sampling_step(&self) -> f64 {
+        self.pitch * self.resampling_multiplier
     }
 }
 
@@ -392,3 +444,21 @@ impl Visit for Source {
         visitor.leave_region()
     }
 }
+
+/*
+ // Elevation and azimuth calculated by converting direction to sound from listener into
+                // spherical coordinates. Then each angle corrected by elevation and azimuth of listener
+                // axes.
+                let dir_sc = cartesian_to_spherical(&norm_dir);
+                let up_sc = cartesian_to_spherical(&listener.up_axis);
+                let ear_sc = cartesian_to_spherical(&listener.ear_axis);
+
+                self.azimuth = ear_sc.azimuth - dir_sc.azimuth + std::f32::consts::FRAC_PI_2;
+                if self.azimuth < 0.0 {
+                    self.azimuth += 2.0 * std::f32::consts::PI;
+                }
+
+                self.elevation = up_sc.elevation - dir_sc.elevation + std::f32::consts::FRAC_PI_2;
+                if self.elevation < 0.0 {
+                    self.elevation += 2.0 * std::f32::consts::PI;
+                }*/

@@ -12,6 +12,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.2.1" }
 byteorder = "1.3.2"
+rustfft = "3.0.0"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = {version = "0.3.8", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }

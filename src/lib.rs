@@ -9,6 +9,7 @@ extern crate alsa_sys;
 // Generic crates.
 extern crate byteorder;
 extern crate rg3d_core;
+extern crate rustfft;
 
 pub mod error;
 pub mod decoder;
@@ -17,3 +18,4 @@ pub mod source;
 pub mod device;
 pub mod context;
 pub mod listener;
+pub mod hrtf;

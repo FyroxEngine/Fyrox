@@ -26,24 +26,27 @@ use rg3d_core::{
     },
     pool::Handle,
 };
+use rg3d_sound::hrtf::Hrtf;
 
 fn main() {
+    let hrtf = Hrtf::new(Path::new("examples/data/hrir_base.bin")).unwrap();
+
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
+    context.lock().unwrap().set_hrtf(hrtf);
+
     // Load sound buffer.
-    let drop_path = Path::new("examples/data/drop.wav");
+    //let drop_path = Path::new("examples/data/helicopter.wav");
+    let drop_path = Path::new("examples/data/door_open.wav");
     let drop_buffer = Buffer::new(drop_path, BufferKind::Normal).unwrap();
+    let drop_buffer = Arc::new(Mutex::new(drop_buffer));
 
     // Create spatial source - spatial sources can be positioned in space.
     // Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer
     // between multiple sources.
-    let mut source = Source::new_spatial(Arc::new(Mutex::new(drop_buffer))).unwrap();
-
-    // Play sound explicitly, by default sound created as stopped.
-    source.play();
-
-    // Make sure that sound will play infinitely.
+    let mut source = Source::new_spatial(drop_buffer.clone()).unwrap();
+    source.play(); 
     source.set_looping(true);
 
     // Each sound sound must be added to context, context takes ownership on source
@@ -53,7 +56,7 @@ fn main() {
     // Move sound around listener for some time.
     let start_time = time::Instant::now();
     let mut angle = 0.0f32;
-    while (time::Instant::now() - start_time).as_secs() < 11 {
+    while (time::Instant::now() - start_time).as_secs() < 360 {
         {
             let mut context = context.lock().unwrap();
             let sound = context.get_source_mut(source_handle);
@@ -64,7 +67,8 @@ fn main() {
                 let position = rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 3.0));
                 spatial.set_position(&position);
             }
-            angle += 3.6;
+
+            angle += 1.6;
 
             // It is very important to call update context, on each update tick context
             // updates sound sources so they will take new spatial properties. Also
