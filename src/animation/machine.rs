@@ -106,7 +106,7 @@ use std::{
         VecDeque,
     },
 };
-use crate::animation::machine::PoseNode::BlendAnimations;
+use crate::utils::log::Log;
 
 pub enum Event {
     StateEnter(Handle<State>),
@@ -139,6 +139,7 @@ impl Visit for PlayAnimation {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum Parameter {
     Weight(f32),
     Rule(bool),
@@ -528,7 +529,7 @@ impl Default for LimitedEventQueue {
 impl LimitedEventQueue {
     fn new(limit: u32) -> Self {
         Self {
-            queue: Default::default(),
+            queue: VecDeque::with_capacity(limit as usize),
             limit
         }
     }
@@ -563,14 +564,11 @@ impl Machine {
         self.nodes.spawn(node)
     }
 
-    pub fn add_parameter(&mut self, id: &str, parameter: Parameter) {
-        self.parameters.insert(id.to_owned(), parameter);
-    }
-
-    pub fn set_parameter(&mut self, id: &str, parameter: Parameter) {
-        if let Some(param) = self.parameters.get_mut(id) {
-            *param = parameter;
-        }
+    pub fn set_parameter(&mut self, id: &str, parameter: Parameter) -> &mut Self {
+        self.parameters.entry(id.to_owned())
+            .and_modify(|p| *p = parameter)
+            .or_insert(parameter);
+        self
     }
 
     pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
@@ -589,16 +587,13 @@ impl Machine {
         state
     }
 
-    pub fn add_transition(&mut self, transition: Transition) {
+    pub fn add_transition(&mut self, transition: Transition) -> &mut Self {
         let _ = self.transitions.spawn(transition);
+        self
     }
 
     pub fn get_state(&self, state: Handle<State>) -> &State {
         self.states.borrow(state)
-    }
-
-    pub fn get_transition(&self, transition: Handle<Transition>) -> &Transition {
-        self.transitions.borrow(transition)
     }
 
     pub fn pop_event(&mut self) -> Option<Event> {
@@ -625,12 +620,12 @@ impl Machine {
                             if *active {
                                 self.events.push(Event::StateLeave(self.active_state));
                                 if self.debug {
-                                    println!("Leaving state: {}", self.states.borrow(self.active_state).name);
+                                    Log::writeln(format!("Leaving state: {}", self.states.borrow(self.active_state).name));
                                 }
 
                                 self.events.push(Event::StateEnter(transition.source));
                                 if self.debug {
-                                    println!("Entering state: {}", self.states.borrow(transition.source).name);
+                                    Log::writeln(format!("Entering state: {}", self.states.borrow(transition.source).name));
                                 }
 
                                 self.active_state = Handle::NONE;
@@ -660,7 +655,7 @@ impl Machine {
                     self.events.push(Event::ActiveStateChanged(self.active_state));
 
                     if self.debug {
-                        println!("Active state changed: {}", self.states.borrow(self.active_state).name);
+                        Log::writeln(format!("Active state changed: {}", self.states.borrow(self.active_state).name));
                     }
                 }
             } else {

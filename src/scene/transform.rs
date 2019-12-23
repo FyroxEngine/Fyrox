@@ -7,6 +7,7 @@ use crate::core::{
     },
     visitor::{Visit, VisitResult, Visitor},
 };
+use crate::utils::log::Log;
 
 #[derive(Clone)]
 pub struct Transform {
@@ -175,7 +176,7 @@ impl Transform {
     fn calculate_local_transform(&self) -> Mat4 {
         let pre_rotation = Mat4::from_quat(self.pre_rotation);
         let post_rotation = Mat4::from_quat(self.post_rotation).inverse().unwrap_or_else(|_| {
-            println!("Unable to inverse post rotation matrix! Fallback to identity matrix.");
+            Log::writeln("Unable to inverse post rotation matrix! Fallback to identity matrix.".to_owned());
             Mat4::IDENTITY
         });
         let rotation = Mat4::from_quat(self.local_rotation);
@@ -184,13 +185,13 @@ impl Transform {
         let rotation_offset = Mat4::translate(self.rotation_offset);
         let rotation_pivot = Mat4::translate(self.rotation_pivot);
         let rotation_pivot_inv = rotation_pivot.inverse().unwrap_or_else(|_| {
-            println!("Unable to inverse rotation pivot matrix! Fallback to identity matrix.");
+            Log::writeln("Unable to inverse rotation pivot matrix! Fallback to identity matrix.".to_owned());
             Mat4::IDENTITY
         });
         let scale_offset = Mat4::translate(self.scaling_offset);
         let scale_pivot = Mat4::translate(self.scaling_pivot);
         let scale_pivot_inv = scale_pivot.inverse().unwrap_or_else(|_| {
-            println!("Unable to inverse scale pivot matrix! Fallback to identity matrix.");
+            Log::writeln("Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned());
             Mat4::IDENTITY
         });
 

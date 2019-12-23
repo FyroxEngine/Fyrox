@@ -6,11 +6,23 @@
   <component name="ChangeListManager">
     <list default="true" id="1932b2c4-d6ff-413c-9558-19959667326b" name="Default Changelist" comment="scene graph">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Cargo.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/animation/machine.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/animation/machine.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/animation/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/animation/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/engine/resource_manager.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/engine/resource_manager.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/gui/draw.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/gui/draw.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/gpu_program.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/gpu_program.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/renderer/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/renderer/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/geometry.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/geometry.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/fbx/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/fbx/mod.rs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/resource/model.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/model.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/texture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/texture.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/resource/ttf.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/resource/ttf.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/graph.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/graph.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/scene/transform.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/scene/transform.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/mod.rs" afterDir="false" />
     </list>
-    <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -37,6 +49,11 @@
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="1" id="Add" />
   </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
   <component name="PropertiesComponent">
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
@@ -51,19 +68,7 @@
     <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
     <property name="settings.editor.splitter.proportion" value="0.23435949" />
   </component>
-  <component name="RunDashboard">
-    <option name="ruleStates">
-      <list>
-        <RuleState>
-          <option name="name" value="ConfigurationTypeDashboardGroupingRule" />
-        </RuleState>
-        <RuleState>
-          <option name="name" value="StatusDashboardGroupingRule" />
-        </RuleState>
-      </list>
-    </option>
-  </component>
-  <component name="RunManager" selected="Cargo Command.Clippy">
+  <component name="RunManager" selected="Cargo Command.Release">
     <configuration name="Clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
       <option name="channel" value="DEFAULT" />
       <option name="command" value="clippy" />
@@ -129,23 +134,22 @@
         <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
       </method>
     </configuration>
-    <list>
-      <item itemvalue="Cargo Command.Clippy" />
-      <item itemvalue="Cargo Command.Release" />
-      <item itemvalue="Cargo Command.Test" />
-      <item itemvalue="Cargo Command.Debug" />
-      <item itemvalue="Cargo Command.Run window" />
-    </list>
-    <recent_temporary>
-      <list>
-        <item itemvalue="Cargo Command.Run window" />
-        <item itemvalue="Cargo Command.Debug" />
-      </list>
-    </recent_temporary>
   </component>
   <component name="RustProjectSettings">
     <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
     <option name="version" value="2" />
+  </component>
+  <component name="ServiceViewManager">
+    <option name="viewStates">
+      <list>
+        <serviceView>
+          <treeState>
+            <expand />
+            <select />
+          </treeState>
+        </serviceView>
+      </list>
+    </option>
   </component>
   <component name="SvnConfiguration">
     <configuration />
@@ -200,6 +204,32 @@
     <MESSAGE value="split into modules" />
     <MESSAGE value="scene graph" />
     <option name="LAST_COMMIT_MESSAGE" value="scene graph" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="872" y="357" key="#Plugins" timestamp="1575656762221">
+      <screen x="0" y="0" width="2560" height="1400" />
+    </state>
+    <state x="872" y="357" key="#Plugins/0.0.2560.1400@0.0.2560.1400" timestamp="1575656762221" />
+    <state width="1220" height="280" key="GridCell.Tab.0.bottom" timestamp="1575661833621">
+      <screen x="0" y="0" width="2560" height="1400" />
+    </state>
+    <state width="1220" height="280" key="GridCell.Tab.0.bottom/0.0.2560.1400@0.0.2560.1400" timestamp="1575661833621" />
+    <state width="1220" height="280" key="GridCell.Tab.0.center" timestamp="1575661833621">
+      <screen x="0" y="0" width="2560" height="1400" />
+    </state>
+    <state width="1220" height="280" key="GridCell.Tab.0.center/0.0.2560.1400@0.0.2560.1400" timestamp="1575661833621" />
+    <state width="1220" height="280" key="GridCell.Tab.0.left" timestamp="1575661833621">
+      <screen x="0" y="0" width="2560" height="1400" />
+    </state>
+    <state width="1220" height="280" key="GridCell.Tab.0.left/0.0.2560.1400@0.0.2560.1400" timestamp="1575661833621" />
+    <state width="1220" height="280" key="GridCell.Tab.0.right" timestamp="1575661833621">
+      <screen x="0" y="0" width="2560" height="1400" />
+    </state>
+    <state width="1220" height="280" key="GridCell.Tab.0.right/0.0.2560.1400@0.0.2560.1400" timestamp="1575661833621" />
+    <state x="975" y="522" key="com.intellij.ide.util.TipDialog" timestamp="1575656772147">
+      <screen x="0" y="0" width="2560" height="1400" />
+    </state>
+    <state x="975" y="522" key="com.intellij.ide.util.TipDialog/0.0.2560.1400@0.0.2560.1400" timestamp="1575656772147" />
   </component>
   <component name="antWorkspaceConfiguration">
     <option name="IS_AUTOSCROLL_TO_SOURCE" value="false" />

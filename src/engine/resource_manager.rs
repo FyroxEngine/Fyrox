@@ -11,6 +11,7 @@ use crate::core::{
     visitor::{Visitor, VisitResult, Visit}
 };
 use crate::sound::buffer::{Buffer, BufferKind};
+use crate::utils::log::Log;
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,
@@ -45,16 +46,16 @@ impl ResourceManager {
                 Ok(texture) => {
                     let shared_texture = Arc::new(Mutex::new(texture));
                     self.textures.push(shared_texture.clone());
-                    println!("Texture {} is loaded!", path.display());
+                    Log::writeln(format!("Texture {} is loaded!", path.display()));
                     Some(shared_texture)
                 }
                 Err(e) => {
-                    println!("Unable to load texture {}! Reason {}", path.display(), e);
+                    Log::writeln(format!("Unable to load texture {}! Reason {}", path.display(), e));
                     None
                 }
             }
             _ => {
-                println!("Unsupported texture type {}!", path.display());
+                Log::writeln(format!("Unsupported texture type {}!", path.display()));
                 None
             }
         }
@@ -73,17 +74,18 @@ impl ResourceManager {
             "fbx" => match Model::load(path, self) {
                 Ok(model) => {
                     let model = Arc::new(Mutex::new(model));
+                    model.lock().unwrap().self_weak_ref = Some(Arc::downgrade(&model));
                     self.models.push(model.clone());
-                    println!("Model {} is loaded!", path.display());
+                    Log::writeln(format!("Model {} is loaded!", path.display()));
                     Some(model)
                 }
                 Err(e) => {
-                    println!("Unable to load model from {}! Reason {}", path.display(), e);
+                    Log::writeln(format!("Unable to load model from {}! Reason {}", path.display(), e));
                     None
                 }
             },
             _ => {
-                println!("Unsupported model type {}!", path.display());
+                Log::writeln(format!("Unsupported model type {}!", path.display()));
                 None
             }
         }
@@ -103,16 +105,16 @@ impl ResourceManager {
                 Ok(sound_buffer) => {
                     let sound_buffer = Arc::new(Mutex::new(sound_buffer));
                     self.sound_buffers.push(sound_buffer.clone());
-                    println!("Sound buffer {} is loaded!", path.display());
+                    Log::writeln(format!("Sound buffer {} is loaded!", path.display()));
                     Some(sound_buffer)
                 }
                 Err(e) => {
-                    println!("Unable to load sound buffer from {}! Reason {}", path.display(), e);
+                    Log::writeln(format!("Unable to load sound buffer from {}! Reason {}", path.display(), e));
                     None
                 }
             },
             _ => {
-                println!("Unsupported sound buffer type {}!", path.display());
+                Log::writeln(format!("Unsupported sound buffer type {}!", path.display()));
                 None
             }
         }
@@ -185,7 +187,7 @@ impl ResourceManager {
             let new_texture = match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
                 Ok(texture) => texture,
                 Err(e) => {
-                    println!("Unable to reload {:?} texture! Reason: {}", old_texture.path, e);
+                    Log::writeln(format!("Unable to reload {:?} texture! Reason: {}", old_texture.path, e));
                     continue;
                 }
             };
@@ -198,7 +200,7 @@ impl ResourceManager {
             let new_model = match Model::load(old_model.path.as_path(), self) {
                 Ok(new_model) => new_model,
                 Err(e) => {
-                    println!("Unable to reload {:?} model! Reason: {}", old_model.path, e);
+                    Log::writeln(format!("Unable to reload {:?} model! Reason: {}", old_model.path, e));
                     continue;
                 }
             };
@@ -211,7 +213,7 @@ impl ResourceManager {
             let new_sound_buffer = match Buffer::new(old_sound_buffer.get_source_path(), old_sound_buffer.get_kind()) {
                 Ok(new_sound_buffer) => new_sound_buffer,
                 Err(e) => {
-                    println!("Unable to reload {:?} sound buffer! Reason: {}", old_sound_buffer.get_source_path(), e);
+                    Log::writeln(format!("Unable to reload {:?} sound buffer! Reason: {}", old_sound_buffer.get_source_path(), e));
                     continue;
                 }
             };

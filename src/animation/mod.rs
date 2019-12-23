@@ -34,6 +34,7 @@ use std::{
     sync::{Mutex, Arc},
     collections::HashMap,
 };
+use crate::utils::log::Log;
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -314,7 +315,7 @@ impl AnimationPose {
     pub fn apply(&self, graph: &mut Graph) {
         for (node, local_pose) in self.local_poses.iter() {
             if node.is_none() {
-                println!("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!");
+                Log::writeln("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
             } else {
                 let local_transform = graph.get_mut(*node).base_mut().get_local_transform_mut();
                 local_transform.set_position(local_pose.position);
@@ -355,12 +356,17 @@ impl Animation {
         &self.tracks
     }
 
-    pub fn set_time_position(&mut self, time: f32) {
+    pub fn set_time_position(&mut self, time: f32) -> &mut Self {
         if self.looped {
             self.time_position = wrapf(time, 0.0, self.length);
         } else {
             self.time_position = clampf(time, 0.0, self.length);
         }
+        self
+    }
+
+    pub fn rewind(&mut self) -> &mut Self {
+        self.set_time_position(0.0)
     }
 
     pub fn get_time_position(&self) -> f32 {
@@ -371,16 +377,31 @@ impl Animation {
         self.speed
     }
 
-    pub fn set_enabled(&mut self, enabled: bool) {
+    pub fn set_loop(&mut self, state: bool) -> &mut Self {
+        self.looped = state;
+        self
+    }
+
+    pub fn is_loop(&self) -> bool {
+        self.looped
+    }
+
+    pub fn has_ended(&self) -> bool {
+        !self.looped && self.time_position == self.length
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
         self.enabled = enabled;
+        self
     }
 
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn set_speed(&mut self, speed: f32) {
+    pub fn set_speed(&mut self, speed: f32) -> &mut Self {
         self.speed = speed;
+        self
     }
 
     pub fn get_tracks_mut(&mut self) -> &mut [Track] {
@@ -457,7 +478,7 @@ impl Animation {
                         }
                     }
                     if !found {
-                        println!("Failed to copy key frames for node {}!", track_node.get_name());
+                        Log::write(format!("Failed to copy key frames for node {}!", track_node.get_name()));
                     }
                 }
             }
@@ -510,7 +531,6 @@ impl Visit for Animation {
         visitor.leave_region()
     }
 }
-
 
 pub struct AnimationContainer {
     pool: Pool<Animation>
@@ -582,11 +602,11 @@ impl AnimationContainer {
     }
 
     pub fn resolve(&mut self, graph: &Graph) {
-        println!("Resolving animations...");
+        Log::writeln("Resolving animations...".to_owned());
         for animation in self.pool.iter_mut() {
             animation.resolve(graph)
         }
-        println!("Animations resolved successfully!");
+        Log::writeln("Animations resolved successfully!".to_owned());
     }
 
     pub fn update_animations(&mut self, dt: f32) {

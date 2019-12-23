@@ -63,6 +63,7 @@ use crate::{
     },
 };
 use crate::resource::fbx::geometry::FbxGeometry;
+use crate::utils::log::Log;
 
 // https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
@@ -182,7 +183,7 @@ impl FbxAnimationCurve {
 
     fn eval(&self, time: f32) -> f32 {
         if self.keys.is_empty() {
-            println!("FBX: Trying to evaluate curve with no keys!");
+            Log::writeln("FBX: Trying to evaluate curve with no keys!".to_owned());
 
             return 0.0;
         }
@@ -395,7 +396,7 @@ impl FbxLight {
                         3 => FbxLightType::Area,
                         4 => FbxLightType::Volume,
                         _ => {
-                            println!("FBX: Unknown light type {}, fallback to Point!", type_code);
+                            Log::writeln(format!("FBX: Unknown light type {}, fallback to Point!", type_code));
                             FbxLightType::Point
                         }
                     };
@@ -1192,7 +1193,7 @@ pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, 
 
     let mut file = File::open(path)?;
 
-    println!("FBX: Trying to load {:?}", path);
+    Log::writeln(format!("FBX: Trying to load {:?}", path));
 
     let now = Instant::now();
     let is_bin = fbx_binary::is_binary(path)?;
@@ -1207,17 +1208,17 @@ pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, 
     } else {
         fbx_ascii::read_ascii(&mut reader, buf_len as u64)?
     };
-    println!("\tFBX: Parsing - {} ms", now.elapsed().as_millis());
+    Log::writeln(format!("\tFBX: Parsing - {} ms", now.elapsed().as_millis()));
 
     let now = Instant::now();
     fbx.prepare()?;
-    println!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis());
+    Log::writeln(format!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis()));
 
     let now = Instant::now();
     let result = fbx.convert(resource_manager, scene);
-    println!("\tFBX: Conversion - {} ms", now.elapsed().as_millis());
+    Log::writeln(format!("\tFBX: Conversion - {} ms", now.elapsed().as_millis()));
 
-    println!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis());
+    Log::writeln(format!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis()));
 
     result
 }

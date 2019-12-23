@@ -10,6 +10,7 @@ use crate::scene::{
     base::AsBase,
 };
 use std::collections::HashMap;
+use crate::utils::log::Log;
 
 pub struct Graph {
     root: Handle<Node>,
@@ -235,7 +236,7 @@ impl Graph {
     }
 
     pub(in crate) fn resolve(&mut self) {
-        println!("Resolving graph...");
+        Log::writeln("Resolving graph...".to_owned());
         self.update_transforms();
 
         // Resolve original handles. Original handle is a handle to a node in resource from which
@@ -258,7 +259,7 @@ impl Graph {
             }
         }
 
-        println!("Original handles resolved!");
+        Log::writeln("Original handles resolved!".to_owned());
 
         // Then iterate over all scenes and resolve changes in surface data, remap bones, etc.
         // This step is needed to take correct graphical data from resource, we do not store
@@ -305,7 +306,7 @@ impl Graph {
                 }
             }
         }
-        println!("Graph resolved successfully!");
+        Log::writeln("Graph resolved successfully!".to_owned());
     }
 
     pub fn update_transforms(&mut self) {

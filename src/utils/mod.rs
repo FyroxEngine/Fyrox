@@ -1,11 +1,11 @@
 pub mod astar;
+pub mod log;
 
 use std::marker::PhantomData;
 use crate::{
-    scene::mesh::Mesh,
-    scene::base::AsBase
+    scene::{mesh::Mesh, base::AsBase},
+    physics::static_geometry::{StaticGeometry, StaticTriangle},
 };
-use crate::physics::static_geometry::{StaticGeometry, StaticTriangle};
 
 pub struct UnsafeCollectionView<T> {
     items: *const T,
@@ -85,10 +85,9 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
             let b = global_transform.transform_vector(vertices[indices[i + 1] as usize].position);
             let c = global_transform.transform_vector(vertices[indices[i + 2] as usize].position);
 
+            // Silently ignore degenerated triangles.
             if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
                 triangles.push(triangle);
-            } else {
-                println!("degenerated triangle!");
             }
 
             i += 3;

@@ -28,6 +28,7 @@ use crate::{
     animation::AnimationContainer
 };
 use std::collections::HashMap;
+use crate::utils::log::Log;
 
 pub struct Scene {
     graph: Graph,
@@ -127,10 +128,10 @@ impl Scene {
     }
 
     pub fn resolve(&mut self) {
-        println!("Starting resolve...");
+        Log::writeln("Starting resolve...".to_owned());
         self.graph.resolve();
         self.animations.resolve(&self.graph);
-        println!("Resolve succeeded!");
+        Log::writeln("Resolve succeeded!".to_owned());
     }
 
     pub fn update(&mut self, aspect_ratio: f32, dt: f32) {

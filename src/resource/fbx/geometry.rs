@@ -19,6 +19,7 @@ use crate::core::{
     },
     pool::{Pool, Handle},
 };
+use crate::utils::log::Log;
 
 pub struct FbxGeometry {
     pub vertices: Vec<Vec3>,
@@ -174,7 +175,7 @@ impl FbxGeometry {
                         effector: sub_deformer.model.into(),
                     }) {
                         // TODO: Maybe gather all weights, but then re-normalize them to 4-bones?
-                        println!("FBX: More than 4 bones per vertex?! Excess will be discarded");
+                        Log::writeln("FBX: More than 4 bones per vertex?! Excess will be discarded".to_owned());
                     }
                 }
             }

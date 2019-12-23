@@ -8,7 +8,8 @@ use crate::{
         },
         pool::{Pool, Handle},
     },
-    renderer::gpu_texture::GpuTexture
+    renderer::gpu_texture::GpuTexture,
+    utils::log::Log
 };
 use std::{
     cmp::Ordering,
@@ -16,8 +17,8 @@ use std::{
     path::Path,
     fs::File,
     io::Read,
+    ops::Range
 };
-use std::ops::Range;
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -378,7 +379,7 @@ fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32)
         });
 
         if intersections.len() % 2 != 0 {
-            println!("scanline rasterization failed {:?}", intersections);
+            Log::writeln(format!("Font: Scanline rasterization failed {:?}", intersections));
         }
 
         /* Convert intersection points into scanlines */
@@ -764,7 +765,7 @@ impl TtfGlyph {
                         j += 1
                     } else {
                         j += 2;
-                        println!("Invalid point sequence! Probably a bug in de_ttf_prepare_contours");
+                        Log::writeln("Invalid point sequence! Probably a bug in de_ttf_prepare_contours".to_owned());
                     }
                 }
             }
@@ -994,7 +995,7 @@ impl Font {
                     src_row += 1;
                 }
             } else {
-                println!("Insufficient atlas size!");
+                Log::writeln("Insufficient atlas size!".to_owned());
             }
         }
     }

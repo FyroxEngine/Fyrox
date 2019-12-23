@@ -12,14 +12,20 @@ use crate::{
     core::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
-    }
+    },
+    utils::log::Log
 };
 use std::{
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{
+        Arc,
+        Mutex,
+        Weak
+    }
 };
 
 pub struct Model {
+    pub(in crate) self_weak_ref: Option<Weak<Mutex<Model>>>,
     pub(in crate) path: PathBuf,
     scene: Scene,
 }
@@ -27,6 +33,7 @@ pub struct Model {
 impl Default for Model {
     fn default() -> Self {
         Self {
+            self_weak_ref: None,
             path: PathBuf::new(),
             scene: Scene::new(),
         }
@@ -37,6 +44,7 @@ impl Visit for Model {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.self_weak_ref.visit("SelfWeakRef", visitor)?;
         self.path.visit("Path", visitor)?;
 
         visitor.leave_region()
@@ -48,11 +56,25 @@ pub struct ModelInstance {
     pub animations: Vec<Handle<Animation>>,
 }
 
+fn upgrade_self_weak_ref(self_weak_ref: &Option<Weak<Mutex<Model>>>) -> Arc<Mutex<Model>> {
+    // This .expect will never be triggered in normal conditions because there is only
+    // one way to get resource - through resource manager which always returns Arc and
+    // sets correct self ref.
+    let self_weak_ref = self_weak_ref
+        .as_ref()
+        .expect("Model self weak ref cannon be None!");
+
+    self_weak_ref
+        .upgrade()
+        .expect("Model self weak ref must be valid!")
+}
+
 impl Model {
     pub(in crate) fn load(path: &Path, resource_manager: &mut ResourceManager) -> Result<Model, FbxError> {
         let mut scene = Scene::new();
         fbx::load_to_scene(&mut scene, resource_manager, path)?;
         Ok(Model {
+            self_weak_ref: None,
             path: PathBuf::from(path),
             scene,
         })
@@ -60,11 +82,9 @@ impl Model {
 
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
-    pub fn instantiate_geometry(model_rc: Arc<Mutex<Model>>, dest_scene: &mut Scene) -> Handle<Node> {
-        let model = model_rc.lock().unwrap();
-
+    pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let SceneInterfaceMut { graph: dest_graph, .. } = dest_scene.interface_mut();
-        let SceneInterface { graph: resource_graph, .. } = model.scene.interface();
+        let SceneInterface { graph: resource_graph, .. } = self.scene.interface();
 
         let root = resource_graph.copy_node(resource_graph.get_root(), dest_graph);
         dest_graph.get_mut(root).base_mut().is_resource_instance = true;
@@ -74,7 +94,8 @@ impl Model {
         stack.push(root);
         while let Some(node_handle) = stack.pop() {
             let node = dest_graph.get_mut(node_handle);
-            node.base_mut().resource = Some(Arc::clone(&model_rc));
+
+            node.base_mut().resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
             // Continue on children.
             for child_handle in node.base().get_children() {
@@ -87,11 +108,11 @@ impl Model {
 
     /// Tries to instantiate model from given resource.
     /// Returns root handle to node of model instance along with available animations
-    pub fn instantiate(model: Arc<Mutex<Model>>, dest_scene: &mut Scene) -> ModelInstance {
-        let root = Self::instantiate_geometry(model.clone(), dest_scene);
+    pub fn instantiate(&self, dest_scene: &mut Scene) -> ModelInstance {
+        let root = self.instantiate_geometry(dest_scene);
         ModelInstance {
             root,
-            animations: Self::retarget_animations(model, root, dest_scene),
+            animations: self.retarget_animations(root, dest_scene),
         }
     }
 
@@ -116,22 +137,20 @@ impl Model {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    pub fn retarget_animations(model_rc: Arc<Mutex<Model>>, root: Handle<Node>, dest_scene: &mut Scene) -> Vec<Handle<Animation>> {
-        let model = model_rc.lock().unwrap();
-
+    pub fn retarget_animations(&self, root: Handle<Node>, dest_scene: &mut Scene) -> Vec<Handle<Animation>> {
         let mut animation_handles = Vec::new();
 
         let SceneInterface {
             animations: resource_animations,
             graph: resource_graph, ..
-        } = model.scene.interface();
+        } = self.scene.interface();
 
         for ref_anim in resource_animations.iter() {
             let mut anim_copy = ref_anim.clone();
 
             // Keep reference to resource from which this animation was taken from. This will help
             // us to correctly reload keyframes for each track when we'll be loading a save file.
-            anim_copy.resource = Some(model_rc.clone());
+            anim_copy.resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
             let SceneInterfaceMut {
                 animations: dest_animations,
@@ -146,7 +165,7 @@ impl Model {
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = dest_graph.find_by_name(root, ref_node.base().get_name());
                 if instance_node.is_none() {
-                    println!("Failed to retarget animation for node {}", ref_node.base().get_name())
+                    Log::writeln(format!("Failed to retarget animation for node {}", ref_node.base().get_name()));
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);
@@ -166,5 +185,13 @@ impl Model {
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
         let SceneInterface { graph, .. } = self.scene.interface();
         graph.find_by_name_from_root(name)
+    }
+}
+
+impl Drop for Model {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            Log::writeln(format!("Model resource {:?} destroyed!", self.path));
+        }
     }
 }

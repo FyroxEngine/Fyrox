@@ -1,6 +1,9 @@
 use std::path::*;
-use crate::core::visitor::{Visit, VisitResult, Visitor};
-use crate::renderer::gpu_texture::GpuTexture;
+use crate::{
+    renderer::gpu_texture::GpuTexture,
+    core::visitor::{Visit, VisitResult, Visitor},
+    utils::log::Log
+};
 use image::GenericImageView;
 
 pub struct Texture {
@@ -88,5 +91,13 @@ impl Texture {
             path: PathBuf::from(path),
             gpu_tex: None,
         })
+    }
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            Log::writeln(format!("Texture resource {:?} destroyed!", self.path));
+        }
     }
 }

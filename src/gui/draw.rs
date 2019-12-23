@@ -21,6 +21,7 @@ use std::{
     cell::RefCell,
     sync::{Arc, Mutex},
 };
+use crate::utils::log::Log;
 
 #[repr(C)]
 pub struct Vertex {
@@ -316,7 +317,7 @@ impl DrawingContext {
         let font = if let Some(font) = formatted_text.get_font() {
             font
         } else {
-            println!("Trying to draw text without font!");
+            Log::writeln("Trying to draw text without font!".to_owned());
             return;
         };
 

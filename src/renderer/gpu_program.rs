@@ -1,21 +1,22 @@
 use std::ffi::CStr;
+
 use crate::{
+    core::{
+        math::{
+            vec4::Vec4,
+            mat4::Mat4,
+            vec3::Vec3,
+            vec2::Vec2,
+        },
+    },
     renderer::{
+        error::RendererError,
         gl::types::GLuint,
         gl,
         gl::types::GLint,
-        gl::types::GLfloat,
+        gl::types::GLfloat
     },
-};
-use crate::renderer::error::RendererError;
-
-use crate::core::{
-    math::{
-        vec4::Vec4,
-        mat4::Mat4,
-        vec3::Vec3,
-        vec2::Vec2,
-    },
+    utils::log::Log
 };
 
 pub struct GpuProgram {
@@ -44,13 +45,13 @@ impl GpuProgram {
                 buffer.set_len(log_len as usize);
                 gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
                 let compilation_message = String::from_utf8_unchecked(buffer);
-                println!("Failed to compile {} shader: {}", name, compilation_message);
+                Log::writeln(format!("Failed to compile {} shader: {}", name, compilation_message));
                 Err(RendererError::ShaderCompilationFailed {
                     shader_name: name,
                     error_message: compilation_message,
                 })
             } else {
-                println!("Shader {} compiled!", name);
+                Log::writeln(format!("Shader {} compiled!", name));
                 Ok(shader)
             }
         }
