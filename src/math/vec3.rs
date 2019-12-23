@@ -152,10 +152,15 @@ impl Vec3 {
         }
     }
 
-    pub fn follow(&mut self, other: &Vec3, fraction: f32) {
+    pub fn follow(&mut self, other: &Self, fraction: f32) {
         self.x += (other.x - self.x) * fraction;
         self.y += (other.y - self.y) * fraction;
         self.z += (other.z - self.z) * fraction;
+    }
+
+    pub fn project(&self, normal: &Self) -> Self {
+        let n = normal.normalized().unwrap();
+        *self - n.scale(self.dot(&n))
     }
 }
 
@@ -221,6 +226,20 @@ impl ops::Neg for Vec3 {
             x: -self.x,
             y: -self.y,
             z: -self.z
+        }
+    }
+}
+
+impl ops::Index<usize> for Vec3 {
+    type Output = f32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        if index == 0 {
+            &self.x
+        } else if index == 1 {
+            &self.y
+        } else {
+            &self.z
         }
     }
 }

@@ -248,6 +248,26 @@ pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f
     (u, v, w)
 }
 
+pub fn get_barycentric_coords_2d(p: &Vec2, a: &Vec2, b: &Vec2, c: &Vec2) -> (f32, f32, f32)
+{
+    let v0 = *b - *a;
+    let v1 = *c - *a;
+    let v2 = *p - *a;
+
+    let d00 = v0.dot(v0);
+    let d01 = v0.dot(v1);
+    let d11 = v1.dot(v1);
+    let d20 = v2.dot(v0);
+    let d21 = v2.dot(v1);
+    let denom = d00 * d11 - d01 * d01;
+
+    let v = (d11 * d20 - d01 * d21) / denom;
+    let w = (d00 * d21 - d01 * d20) / denom;
+    let u = 1.0 - v - w;
+
+    (u, v, w)
+}
+
 pub fn is_point_inside_triangle(p: &Vec3, vertices: &[Vec3; 3]) -> bool {
     let ba = vertices[1] - vertices[0];
     let ca = vertices[2] - vertices[0];
@@ -283,4 +303,11 @@ pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
         let r2 = (-b - discr_root) / _2a;
         Some([r1, r2])
     }
+}
+
+pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3 {
+    let x = radius * elevation.sin() * azimuth.sin();
+    let y = radius * elevation.cos();
+    let z = -radius * elevation.sin() * azimuth.cos();
+    Vec3::new(x, y, z)
 }

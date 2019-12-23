@@ -1,5 +1,5 @@
 use std::{
-    rc::{Rc, Weak},
+    rc::{Rc},
     collections::HashMap,
     fs::File,
     any::Any,
@@ -9,6 +9,8 @@ use std::{
     string::FromUtf8Error,
     fmt::{Display, Formatter},
     sync::{Arc, Mutex},
+    hash::Hash,
+    collections::hash_map::Entry
 };
 use byteorder::{
     ReadBytesExt,
@@ -23,7 +25,6 @@ use crate::{
     },
     pool::{Handle, Pool},
 };
-use std::hash::Hash;
 
 pub enum FieldKind {
     Bool(bool),
@@ -186,7 +187,6 @@ pub enum VisitError {
     NotSupportedFormat,
     InvalidName,
     TypeMismatch,
-    RcIsNonUnique,
     RefCellAlreadyMutableBorrowed,
     User(String),
     UnexpectedRcNullIndex,
@@ -208,7 +208,6 @@ impl Display for VisitError {
             VisitError::NotSupportedFormat => write!(f, "not supported format"),
             VisitError::InvalidName => write!(f, "invalid name"),
             VisitError::TypeMismatch => write!(f, "type mismatch"),
-            VisitError::RcIsNonUnique => write!(f, "rc is non unique"),
             VisitError::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
             VisitError::User(msg) => write!(f, "user defined error: {}", msg),
             VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
@@ -604,14 +603,6 @@ impl Visitor {
         visitor.current_node = visitor.root;
         Ok(visitor)
     }
-
-    fn contains_rc(&self, index: u64) -> bool {
-        self.rc_map.contains_key(&index)
-    }
-
-    fn contains_arc(&self, index: u64) -> bool {
-        self.arc_map.contains_key(&index)
-    }
 }
 
 impl<T> Visit for RefCell<T> where T: Visit + 'static {
@@ -756,32 +747,23 @@ impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
                     return Err(VisitError::TypeMismatch);
                 }
             } else {
-                // Deserialize inner data. At this point Rc must be unique.
-                if let Some(data) = Rc::get_mut(self) {
-                    data.visit("RcData", visitor)?;
-                } else {
-                    return Err(VisitError::RcIsNonUnique);
-                }
-
                 // Remember that we already visited data Rc store.
                 visitor.rc_map.insert(raw as u64, self.clone());
+
+                let raw = rc_to_raw(self.clone());
+                unsafe { &mut *raw }.visit("RcData", visitor)?;
             }
         } else {
             // Take raw pointer to inner data.
-            let raw = Rc::into_raw(self.clone()) as *const T as *mut T;
-            unsafe { Rc::from_raw(raw); };
+            let raw = rc_to_raw(self.clone());
 
             // Save it as id.
             let mut index = raw as u64;
             index.visit("Id", visitor)?;
 
-            if !visitor.contains_rc(index) {
-                // Serialize inner data using raw pointer. This violates borrowing rules,
-                // but should be fine since visitor is not multithreaded (it simply cannot
-                // be multithreaded by its nature)
+            if let Entry::Vacant(entry) = visitor.rc_map.entry(index) {
+                entry.insert(self.clone());
                 unsafe { &mut *raw }.visit("RcData", visitor)?;
-
-                visitor.rc_map.insert(index, self.clone());
             }
         }
 
@@ -795,6 +777,18 @@ impl<T> Visit for Mutex<T> where T: Default + Visit + Send {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.lock()?.visit(name, visitor)
     }
+}
+
+fn arc_to_raw<T>(arc: Arc<T>) -> *mut T {
+    let raw = Arc::into_raw(arc) as *const T as *mut T;
+    unsafe { Arc::from_raw(raw); };
+    raw
+}
+
+fn rc_to_raw<T>(arc: Rc<T>) -> *mut T {
+    let raw = Rc::into_raw(arc) as *const T as *mut T;
+    unsafe { Rc::from_raw(raw); };
+    raw
 }
 
 impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
@@ -814,32 +808,23 @@ impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
                     return Err(VisitError::TypeMismatch);
                 }
             } else {
-                // Deserialize inner data. At this point Rc must be unique.
-                if let Some(data) = Arc::get_mut(self) {
-                    data.visit("RcData", visitor)?;
-                } else {
-                    return Err(VisitError::RcIsNonUnique);
-                }
-
                 // Remember that we already visited data Rc store.
                 visitor.arc_map.insert(raw as u64, self.clone());
+
+                let raw = arc_to_raw(self.clone());
+                unsafe { &mut *raw }.visit("ArcData", visitor)?;
             }
         } else {
             // Take raw pointer to inner data.
-            let raw = Arc::into_raw(self.clone()) as *const T as *mut T;
-            unsafe { Arc::from_raw(raw); };
+            let raw = arc_to_raw(self.clone());
 
             // Save it as id.
             let mut index = raw as u64;
             index.visit("Id", visitor)?;
 
-            if !visitor.contains_arc(index) {
-                // Serialize inner data using raw pointer. This violates borrowing rules,
-                // but should be fine since visitor is not multithreaded (it simply cannot
-                // be multithreaded by its nature)
-                unsafe { &mut *raw }.visit("RcData", visitor)?;
-
-                visitor.arc_map.insert(index, self.clone());
+            if let Entry::Vacant(entry) = visitor.arc_map.entry(index) {
+                entry.insert(self.clone());
+                unsafe { &mut *raw }.visit("ArcData", visitor)?;
             }
         }
 
@@ -849,7 +834,7 @@ impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
     }
 }
 
-impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
+impl<T> Visit for std::rc::Weak<T> where T: Default + Visit + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -866,28 +851,75 @@ impl<T> Visit for Weak<T> where T: Default + Visit + 'static {
                     }
                 } else {
                     // Create new value wrapped into Rc and deserialize it.
-                    let mut rc = Rc::new(T::default());
-                    Rc::get_mut(&mut rc).unwrap().visit("RcData", visitor)?;
+                    let rc = Rc::new(T::default());
                     visitor.rc_map.insert(raw as u64, rc.clone());
+
+                    let raw = rc_to_raw(rc.clone());
+                    unsafe { &mut *raw }.visit("RcData", visitor)?;
+
                     *self = Rc::downgrade(&rc);
                 }
             }
-        } else if let Some(rc) = Weak::upgrade(self) {
+        } else if let Some(rc) = std::rc::Weak::upgrade(self) {
             // Take raw pointer to inner data.
-            let raw = Rc::into_raw(rc.clone()) as *const T as *mut T;
-            unsafe { Rc::from_raw(raw); };
+            let raw = rc_to_raw(rc.clone());
 
             // Save it as id.
             let mut index = raw as u64;
             index.visit("Id", visitor)?;
 
-            if !visitor.contains_rc(index) {
-                // Serialize inner data using raw pointer. This violates borrowing rules,
-                // but should be fine since visitor is not multithreaded (it simply cannot
-                // be multithreaded by its nature)
+            if let Entry::Vacant(entry) = visitor.rc_map.entry(index) {
+                entry.insert(rc.clone());
                 unsafe { &mut *raw }.visit("RcData", visitor)?;
+            }
+        } else {
+            let mut index = 0u64;
+            index.visit("Id", visitor)?;
+        }
 
-                visitor.rc_map.insert(index, rc.clone());
+        visitor.leave_region()?;
+
+        Ok(())
+    }
+}
+
+impl<T> Visit for std::sync::Weak<T> where T: Default + Visit + Send + Sync + 'static  {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        if visitor.reading {
+            let mut raw = 0u64;
+            raw.visit("Id", visitor)?;
+
+            if raw != 0 {
+                if let Some(ptr) = visitor.arc_map.get(&raw) {
+                    if let Ok(res) = Arc::downcast::<T>(ptr.clone()) {
+                        *self = Arc::downgrade(&res);
+                    } else {
+                        return Err(VisitError::TypeMismatch);
+                    }
+                } else {
+                    // Create new value wrapped into Arc and deserialize it.
+                    let arc = Arc::new(T::default());
+                    visitor.arc_map.insert(raw as u64, arc.clone());
+
+                    let raw = arc_to_raw(arc.clone());
+                    unsafe { &mut *raw }.visit("ArcData", visitor)?;
+
+                    *self = Arc::downgrade(&arc);
+                }
+            }
+        } else if let Some(arc) = std::sync::Weak::upgrade(self) {
+            // Take raw pointer to inner data.
+            let raw = arc_to_raw(arc.clone());
+
+            // Save it as id.
+            let mut index = raw as u64;
+            index.visit("Id", visitor)?;
+
+            if let Entry::Vacant(entry) = visitor.arc_map.entry(index) {
+                entry.insert(arc.clone());
+                unsafe { &mut *raw }.visit("ArcData", visitor)?;
             }
         } else {
             let mut index = 0u64;
