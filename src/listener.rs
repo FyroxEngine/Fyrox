@@ -1,9 +1,11 @@
 use rg3d_core::{
-    math::vec3::Vec3,
+    math::{
+        vec3::Vec3,
+        mat4::Mat4
+    },
     visitor::{Visit, VisitResult, Visitor},
 };
 use crate::error::SoundError;
-use rg3d_core::math::mat4::Mat4;
 
 pub struct Listener {
     pub(in crate) position: Vec3,
@@ -20,7 +22,7 @@ impl Listener {
             look_axis: Vec3::new(0.0, 0.0, 1.0),
             up_axis: Vec3::new(0.0, 1.0, 0.0),
             ear_axis: Vec3::new(1.0, 0.0, 0.0),
-            view_matrix: Default::default()
+            view_matrix: Default::default(),
         }
     }
 
@@ -34,9 +36,9 @@ impl Listener {
     pub fn update(&mut self) {
         self.view_matrix = Mat4 {
             f: [
-                self.ear_axis.x, self.up_axis.x, self.look_axis.x, 0.0,
-                self.ear_axis.y, self.up_axis.y, self.look_axis.y, 0.0,
-                self.ear_axis.z, self.up_axis.z, self.look_axis.z, 0.0,
+                self.ear_axis.x, self.up_axis.x, -self.look_axis.x, 0.0,
+                self.ear_axis.y, self.up_axis.y, -self.look_axis.y, 0.0,
+                self.ear_axis.z, self.up_axis.z, -self.look_axis.z, 0.0,
                 -self.ear_axis.dot(&self.position), -self.up_axis.dot(&self.position), -self.look_axis.dot(&self.position), 1.0,
             ]};
     }

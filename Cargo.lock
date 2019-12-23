@@ -136,7 +136,7 @@ dependencies = [
 
 [[package]]
 name = "rg3d-core"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -149,7 +149,7 @@ version = "0.2.2"
 dependencies = [
  "alsa-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rg3d-core 0.2.2",
+ "rg3d-core 0.2.3",
  "rustfft 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

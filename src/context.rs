@@ -96,8 +96,8 @@ impl Context {
             ifft: FFTplanner::new(true),
             hrtf_buf: HrtfPoint {
                 pos: Default::default(),
-                left_hrir_spectrum: vec![],
-                right_hrir_spectrum: vec![],
+                left_hrtf: vec![],
+                right_hrtf: vec![],
             },
         };
 
@@ -118,6 +118,7 @@ impl Context {
     }
 
     fn render(&mut self, buf: &mut [(f32, f32)]) {
+        let current_time = time::Instant::now();
         for source in self.sources.iter_mut() {
             let use_hrtf = match source.get_kind() {
                 SourceKind::Flat => false,
@@ -129,11 +130,9 @@ impl Context {
 
                 let pad_length = Self::SAMPLE_PER_CHANNEL + hrtf.length - 1;
 
-                hrtf.sample_bilinear(&mut self.hrtf_buf, source.look_dir);
+                hrtf.sample_bilinear(&mut self.hrtf_buf, source.hrtf_sampling_vector);
 
                 let point = &self.hrtf_buf;
-
-                let current_time = time::Instant::now();
 
                 // Prepare buffers
                 if self.left_in_buffer.len() != pad_length {
@@ -156,25 +155,25 @@ impl Context {
                 }
 
                 // Gather samples for processing.
-                source.raw_sample_into(&mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
+                source.sample_for_hrtf(&mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
                                        &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
 
                 pad_zeros(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
                 pad_zeros(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
 
                 // Do magic.
-                assert_eq!(point.left_hrir_spectrum.len(), point.right_hrir_spectrum.len());
+                assert_eq!(point.left_hrtf.len(), point.right_hrtf.len());
 
                 convolve(&mut self.left_in_buffer,
                          &mut self.left_out_buffer,
-                         &point.left_hrir_spectrum,
+                         &point.left_hrtf,
                          &mut source.last_frame_left_samples,
                          &mut self.fft,
                          &mut self.ifft);
 
                 convolve(&mut self.right_in_buffer,
                          &mut self.right_out_buffer,
-                         &point.right_hrir_spectrum,
+                         &point.right_hrtf,
                          &mut source.last_frame_right_samples,
                          &mut self.fft,
                          &mut self.ifft);
@@ -183,17 +182,13 @@ impl Context {
                 let k = source.distance_gain / (pad_length as f32);
 
                 // Take only N samples as output data, rest will be used for next frame.
-                for i in 0..buf.len() {
-                    let (out_left, out_right) = buf.get_mut(i).unwrap();
-
-                    let left = self.left_in_buffer.get(i).unwrap();
+                for (i, (out_left, out_right)) in buf.iter_mut().enumerate() {
+                     let left = self.left_in_buffer.get(i).unwrap();
                     *out_left += left.re * k;
 
                     let right = self.right_in_buffer.get(i).unwrap();
                     *out_right += right.re * k;
                 }
-
-                println!("dt = {:?}", time::Instant::now() - current_time);
             } else {
                 source.sample_into(buf);
             }
@@ -204,6 +199,8 @@ impl Context {
             *left *= self.master_gain;
             *right *= self.master_gain;
         }
+
+        println!("sound render time = {:?}", time::Instant::now() - current_time);
     }
 
     pub fn set_hrtf(&mut self, hrtf: Hrtf) {

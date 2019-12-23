@@ -9,6 +9,7 @@ use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor, VisitError},
 };
 use rustfft::num_complex::Complex;
+use rustfft::num_traits::Zero;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
@@ -141,7 +142,7 @@ pub struct Source {
     resampling_multiplier: f64,
     status: Status,
     play_once: bool,
-    pub(in crate) look_dir: Vec3,
+    pub(in crate) hrtf_sampling_vector: Vec3,
     // Rest of samples from previous frame that has to be added to output signal.
     pub(in crate) last_frame_left_samples: Vec<Complex<f32>>,
     pub(in crate) last_frame_right_samples: Vec<Complex<f32>>,
@@ -164,11 +165,17 @@ impl Default for Source {
             resampling_multiplier: 1.0,
             status: Status::Stopped,
             play_once: false,
-            look_dir: Default::default(),
+            hrtf_sampling_vector: Default::default(),
             last_frame_left_samples: Default::default(),
             last_frame_right_samples: Default::default(),
             distance_gain: 1.0
         }
+    }
+}
+
+fn mute(buffer: &mut [Complex<f32>]) {
+    for s in buffer {
+        *s = Complex::zero();
     }
 }
 
@@ -270,10 +277,10 @@ impl Source {
                 let norm_dir = dir.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
                 self.pan = norm_dir.dot(&listener.ear_axis);
 
-                // Get view space position of source
-                let view_space_position = listener.view_matrix.transform_vector(spatial.position);
-                // Calculate vector to sound in view space
-                self.look_dir = (view_space_position - listener.position).normalized().unwrap_or_default();
+                self.hrtf_sampling_vector = listener.view_matrix
+                    .transform_vector_normal(spatial.position - listener.position)
+                    .normalized()
+                    .unwrap_or_default();
             }
             dist_gain = 1.0 / (1.0 + (sqr_distance / (spatial.radius * spatial.radius)));
         }
@@ -373,14 +380,18 @@ impl Source {
         }
     }
 
-    pub(in crate) fn raw_sample_into(&mut self, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
+    pub(in crate) fn sample_for_hrtf(&mut self, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
         assert_eq!(left.len(), right.len());
 
         if self.status != Status::Playing {
+            mute(left);
+            mute(right);
             return;
         }
 
         let step = self.sampling_step();
+
+        let mut anything_sampled = false;
 
         if let Some(buffer) = self.buffer.clone() {
             if let Ok(mut buffer) = buffer.lock() {
@@ -388,23 +399,34 @@ impl Source {
                     return;
                 }
 
-                for (left, right) in left.iter_mut().zip(right) {
-                    if self.status != Status::Playing {
-                        break;
-                    }
+                for (left, right) in left.iter_mut().zip(right.iter_mut()) {
+                    if self.status == Status::Playing {
+                        let i = self.next_sample_pos(step, &mut buffer);
 
-                    let i = self.next_sample_pos(step, &mut buffer);
-
-                    if buffer.get_channel_count() == 2 {
-                        *left = Complex::new(buffer.read(i), 0.0);
-                        *right = Complex::new(buffer.read(i + buffer.get_sample_per_channel()), 0.0);
+                        if buffer.get_channel_count() == 2 {
+                            // Ignore all channels except left. Only mono sounds can be processed by HRTF
+                            let complex = Complex::new(buffer.read(i), 0.0);
+                            *left = complex;
+                            *right = complex;
+                        } else {
+                            let sample = Complex::new(buffer.read(i), 0.0);
+                            *left = sample;
+                            *right = sample;
+                        }
                     } else {
-                        let sample = Complex::new(buffer.read(i), 0.0);
-                        *left = sample;
-                        *right = sample;
+                        // Fill rest with zeros
+                        *left = Complex::zero();
+                        *right = Complex::zero();
                     }
+
+                    anything_sampled = true;
                 }
-            };
+            }
+        }
+
+        if !anything_sampled {
+            mute(left);
+            mute(right);
         }
     }
 
@@ -444,21 +466,3 @@ impl Visit for Source {
         visitor.leave_region()
     }
 }
-
-/*
- // Elevation and azimuth calculated by converting direction to sound from listener into
-                // spherical coordinates. Then each angle corrected by elevation and azimuth of listener
-                // axes.
-                let dir_sc = cartesian_to_spherical(&norm_dir);
-                let up_sc = cartesian_to_spherical(&listener.up_axis);
-                let ear_sc = cartesian_to_spherical(&listener.ear_axis);
-
-                self.azimuth = ear_sc.azimuth - dir_sc.azimuth + std::f32::consts::FRAC_PI_2;
-                if self.azimuth < 0.0 {
-                    self.azimuth += 2.0 * std::f32::consts::PI;
-                }
-
-                self.elevation = up_sc.elevation - dir_sc.elevation + std::f32::consts::FRAC_PI_2;
-                if self.elevation < 0.0 {
-                    self.elevation += 2.0 * std::f32::consts::PI;
-                }*/

@@ -7,22 +7,22 @@ use crate::context::Context;
 use std::{
     fs::File,
     path::Path,
-    io::{BufReader, Read, Error}
+    io::{BufReader, Read, Error},
 };
 use rg3d_core::math::{
     get_barycentric_coords,
     vec3::Vec3,
-    ray::Ray
+    ray::Ray,
 };
 use byteorder::{
     ReadBytesExt,
-    LittleEndian
+    LittleEndian,
 };
 
 pub struct HrtfPoint {
     pub(in crate) pos: Vec3,
-    pub(in crate) left_hrir_spectrum: Vec<Complex<f32>>,
-    pub(in crate) right_hrir_spectrum: Vec<Complex<f32>>,
+    pub(in crate) left_hrtf: Vec<Complex<f32>>,
+    pub(in crate) right_hrtf: Vec<Complex<f32>>,
 }
 
 struct Face {
@@ -96,18 +96,18 @@ impl Hrtf {
             for _ in 0..length {
                 left_hrir.push(Complex::new(reader.read_f32::<LittleEndian>()?, 0.0));
             }
-            let left_hrir_spectrum = make_hrtf(left_hrir, pad_length, &mut planner);
+            let left_hrtf = make_hrtf(left_hrir, pad_length, &mut planner);
 
             let mut right_hrir = Vec::with_capacity(pad_length);
             for _ in 0..length {
                 right_hrir.push(Complex::new(reader.read_f32::<LittleEndian>()?, 0.0));
             }
-            let right_hrir_spectrum = make_hrtf(right_hrir, pad_length, &mut planner);
+            let right_hrtf = make_hrtf(right_hrir, pad_length, &mut planner);
 
             points.push(HrtfPoint {
                 pos: Vec3::new(x, y, z),
-                left_hrir_spectrum,
-                right_hrir_spectrum,
+                left_hrtf,
+                right_hrtf,
             });
         }
 
@@ -121,26 +121,48 @@ impl Hrtf {
     /// Sampling with bilinear interpolation
     /// http://www02.smt.ufrj.br/~diniz/conf/confi117.pdf
     pub fn sample_bilinear(&self, result: &mut HrtfPoint, dir: Vec3) {
-        let ray = Ray::from_two_points(&Vec3::ZERO, &dir.scale(10.0)).unwrap();
-        for face in self.faces.iter() {
-            let a = self.points.get(face.a).unwrap();
-            let b = self.points.get(face.b).unwrap();
-            let c = self.points.get(face.c).unwrap();
+        if let Some(ray) = Ray::from_two_points(&Vec3::ZERO, &dir.scale(10.0)) {
+            for face in self.faces.iter() {
+                let a = self.points.get(face.a).unwrap();
+                let b = self.points.get(face.b).unwrap();
+                let c = self.points.get(face.c).unwrap();
 
-            if let Some(p) = ray.triangle_intersection(&[a.pos, b.pos, c.pos]) {
-                let (ka, kb, kc) = get_barycentric_coords(&p, &a.pos, &b.pos, &c.pos);
+                if let Some(p) = ray.triangle_intersection(&[a.pos, b.pos, c.pos]) {
+                    let (ka, kb, kc) = get_barycentric_coords(&p, &a.pos, &b.pos, &c.pos);
 
-                let len = a.left_hrir_spectrum.len();
+                    let len = a.left_hrtf.len();
 
-                result.left_hrir_spectrum.clear();
-                for i in 0..len {
-                    result.left_hrir_spectrum.push(a.left_hrir_spectrum[i] * ka + b.left_hrir_spectrum[i] * kb + c.left_hrir_spectrum[i] * kc)
+                    result.left_hrtf.clear();
+                    for i in 0..len {
+                        result.left_hrtf.push(
+                            a.left_hrtf[i] * ka +
+                                b.left_hrtf[i] * kb +
+                                c.left_hrtf[i] * kc);
+                    }
+
+                    result.right_hrtf.clear();
+                    for i in 0..len {
+                        result.right_hrtf.push(
+                            a.right_hrtf[i] * ka +
+                                b.right_hrtf[i] * kb +
+                                c.right_hrtf[i] * kc);
+                    }
                 }
+            }
+        } else {
+            // In case if we have degenerated dir vector use first available point as HRTF.
+            let pt = self.points.first().unwrap();
 
-                result.right_hrir_spectrum.clear();
-                for i in 0..len {
-                    result.right_hrir_spectrum.push(a.right_hrir_spectrum[i] * ka + b.right_hrir_spectrum[i] * kb + c.right_hrir_spectrum[i] * kc)
-                }
+            let len = pt.left_hrtf.len();
+
+            result.left_hrtf.clear();
+            for i in 0..len {
+                result.left_hrtf.push(pt.left_hrtf[i])
+            }
+
+            result.right_hrtf.clear();
+            for i in 0..len {
+                result.right_hrtf.push(pt.right_hrtf[i])
             }
         }
     }

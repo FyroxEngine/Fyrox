@@ -37,21 +37,19 @@ fn main() {
     context.lock().unwrap().set_hrtf(hrtf);
 
     // Load sound buffer.
-    //let drop_path = Path::new("examples/data/helicopter.wav");
-    let drop_path = Path::new("examples/data/door_open.wav");
-    let drop_buffer = Buffer::new(drop_path, BufferKind::Normal).unwrap();
-    let drop_buffer = Arc::new(Mutex::new(drop_buffer));
-
-    // Create spatial source - spatial sources can be positioned in space.
-    // Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer
-    // between multiple sources.
-    let mut source = Source::new_spatial(drop_buffer.clone()).unwrap();
+    let sound_path = Path::new("examples/data/door_open.wav");
+    let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
+    let mut source = Source::new_spatial( Arc::new(Mutex::new(sound_buffer))).unwrap();
     source.play(); 
-    source.set_looping(true);
+    //source.set_looping(true);
+    let source_handle = context.lock().unwrap().add_source(source);
 
-    // Each sound sound must be added to context, context takes ownership on source
-    // and returns pool handle to it.
-    let source_handle: Handle<Source> = context.lock().unwrap().add_source(source);
+    let sound_path = Path::new("examples/data/helicopter.wav");
+    let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
+    let mut source = Source::new_spatial( Arc::new(Mutex::new(sound_buffer))).unwrap();
+    source.play();
+    source.set_looping(true);
+    let source_handle = context.lock().unwrap().add_source(source);
 
     // Move sound around listener for some time.
     let start_time = time::Instant::now();
