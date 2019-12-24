@@ -1,9 +1,18 @@
+/// Head-related transfer function (HRTF) loader, interpolator and renderer.
+
 use rustfft::{
     num_complex::Complex,
     num_traits::Zero,
     FFTplanner,
 };
-use crate::context::Context;
+use crate::{
+    context::Context,
+    device,
+    source::{
+        Source,
+        Status
+    }
+};
 use std::{
     fs::File,
     path::Path,
@@ -19,10 +28,10 @@ use byteorder::{
     LittleEndian,
 };
 
-pub struct HrtfPoint {
-    pub(in crate) pos: Vec3,
-    pub(in crate) left_hrtf: Vec<Complex<f32>>,
-    pub(in crate) right_hrtf: Vec<Complex<f32>>,
+struct HrtfPoint {
+    pos: Vec3,
+    left_hrtf: Vec<Complex<f32>>,
+    right_hrtf: Vec<Complex<f32>>,
 }
 
 struct Face {
@@ -31,15 +40,23 @@ struct Face {
     c: usize,
 }
 
-pub struct Hrtf {
-    pub(in crate) length: usize,
-    pub(in crate) points: Vec<HrtfPoint>,
+pub struct HrtfSphere {
+    length: usize,
+    points: Vec<HrtfPoint>,
     faces: Vec<Face>,
 }
 
 #[derive(Debug)]
 pub enum HrtfError {
+    /// Io error has occurred (file does not exists, etc.)
     IoError(std::io::Error),
+
+    /// Hrtf has sample rate that differs from device sample rate.
+    /// (current_sample_rate, device_sample_rate)
+    /// You should resample hrtf first.
+    InvalidSampleRate(u32, u32),
+
+    /// It is not valid hrtf base file.
     InvalidFileFormat,
 }
 
@@ -49,19 +66,38 @@ impl From<std::io::Error> for HrtfError {
     }
 }
 
-fn make_hrtf(mut raw_hrir: Vec<Complex<f32>>, pad_length: usize, planner: &mut FFTplanner<f32>) -> Vec<Complex<f32>> {
-    for _ in raw_hrir.len()..pad_length {
+fn make_hrtf(mut hrir: Vec<Complex<f32>>, pad_length: usize, planner: &mut FFTplanner<f32>) -> Vec<Complex<f32>> {
+    for _ in hrir.len()..pad_length {
         // Pad with zeros to length of context's output buffer.
-        raw_hrir.push(Complex::zero());
+        hrir.push(Complex::zero());
     }
-    let mut hrir_spectrum = vec![Complex::zero(); pad_length];
-    planner.plan_fft(pad_length)
-        .process(raw_hrir.as_mut(), hrir_spectrum.as_mut());
-    hrir_spectrum
+    let mut hrtf = vec![Complex::zero(); pad_length];
+    planner.plan_fft(pad_length).process(hrir.as_mut(), hrtf.as_mut());
+    hrtf
 }
 
-impl Hrtf {
-    pub fn new(path: &Path) -> Result<Hrtf, HrtfError> {
+fn read_hrir(reader: &mut dyn Read, len: usize) -> Result<Vec<Complex<f32>>, HrtfError> {
+    let mut hrir = Vec::with_capacity(len);
+    for _ in 0..len {
+        hrir.push(Complex::new(reader.read_f32::<LittleEndian>()?, 0.0));
+    }
+    Ok(hrir)
+}
+
+fn read_faces(reader: &mut dyn Read, index_count: usize) -> Result<Vec<Face>, HrtfError> {
+    let mut indices = Vec::with_capacity(index_count);
+    for _ in 0..index_count {
+        indices.push(reader.read_u32::<LittleEndian>()?);
+    }
+    let faces = indices.chunks(3)
+        .map(|f| Face { a: f[0] as usize, b: f[1] as usize, c: f[2] as usize })
+        .collect();
+    Ok(faces)
+}
+
+impl HrtfSphere {
+    /// Loads HRIR sphere and creates HRTF sphere from it.
+    pub fn new(path: &Path) -> Result<HrtfSphere, HrtfError> {
         let mut reader = BufReader::new(File::open(path)?);
 
         let mut magic = [0; 4];
@@ -71,17 +107,14 @@ impl Hrtf {
         }
 
         let sample_rate = reader.read_u32::<LittleEndian>()?;
+        if sample_rate != device::SAMPLE_RATE {
+            return Err(HrtfError::InvalidSampleRate(sample_rate, device::SAMPLE_RATE));
+        }
         let length = reader.read_u32::<LittleEndian>()? as usize;
         let vertex_count = reader.read_u32::<LittleEndian>()? as usize;
         let index_count = reader.read_u32::<LittleEndian>()? as usize;
 
-        let mut indices = Vec::with_capacity(index_count);
-        for _ in 0..index_count {
-            indices.push(reader.read_u32::<LittleEndian>()?);
-        }
-        let faces = indices.chunks(3)
-            .map(|f| Face { a: f[0] as usize, b: f[1] as usize, c: f[2] as usize })
-            .collect();
+        let faces = read_faces(&mut reader, index_count)?;
 
         let mut planner = FFTplanner::new(false);
         let pad_length = Context::SAMPLE_PER_CHANNEL + length - 1;
@@ -92,17 +125,8 @@ impl Hrtf {
             let y = reader.read_f32::<LittleEndian>()?;
             let z = reader.read_f32::<LittleEndian>()?;
 
-            let mut left_hrir = Vec::with_capacity(pad_length);
-            for _ in 0..length {
-                left_hrir.push(Complex::new(reader.read_f32::<LittleEndian>()?, 0.0));
-            }
-            let left_hrtf = make_hrtf(left_hrir, pad_length, &mut planner);
-
-            let mut right_hrir = Vec::with_capacity(pad_length);
-            for _ in 0..length {
-                right_hrir.push(Complex::new(reader.read_f32::<LittleEndian>()?, 0.0));
-            }
-            let right_hrtf = make_hrtf(right_hrir, pad_length, &mut planner);
+            let left_hrtf = make_hrtf(read_hrir(&mut reader, length)?, pad_length, &mut planner);
+            let right_hrtf = make_hrtf(read_hrir(&mut reader, length)?, pad_length, &mut planner);
 
             points.push(HrtfPoint {
                 pos: Vec3::new(x, y, z),
@@ -120,7 +144,7 @@ impl Hrtf {
 
     /// Sampling with bilinear interpolation
     /// http://www02.smt.ufrj.br/~diniz/conf/confi117.pdf
-    pub fn sample_bilinear(&self, result: &mut HrtfPoint, dir: Vec3) {
+    pub fn sample_bilinear(&self, left_hrtf: &mut Vec<Complex<f32>>, right_hrtf: &mut Vec<Complex<f32>>, dir: Vec3) {
         if let Some(ray) = Ray::from_two_points(&Vec3::ZERO, &dir.scale(10.0)) {
             for face in self.faces.iter() {
                 let a = self.points.get(face.a).unwrap();
@@ -132,17 +156,17 @@ impl Hrtf {
 
                     let len = a.left_hrtf.len();
 
-                    result.left_hrtf.clear();
+                    left_hrtf.clear();
                     for i in 0..len {
-                        result.left_hrtf.push(
+                        left_hrtf.push(
                             a.left_hrtf[i] * ka +
                                 b.left_hrtf[i] * kb +
                                 c.left_hrtf[i] * kc);
                     }
 
-                    result.right_hrtf.clear();
+                    right_hrtf.clear();
                     for i in 0..len {
-                        result.right_hrtf.push(
+                        right_hrtf.push(
                             a.right_hrtf[i] * ka +
                                 b.right_hrtf[i] * kb +
                                 c.right_hrtf[i] * kc);
@@ -155,21 +179,177 @@ impl Hrtf {
 
             let len = pt.left_hrtf.len();
 
-            result.left_hrtf.clear();
+            left_hrtf.clear();
             for i in 0..len {
-                result.left_hrtf.push(pt.left_hrtf[i])
+                left_hrtf.push(pt.left_hrtf[i])
             }
 
-            result.right_hrtf.clear();
+            right_hrtf.clear();
             for i in 0..len {
-                result.right_hrtf.push(pt.right_hrtf[i])
+                right_hrtf.push(pt.right_hrtf[i])
             }
         }
     }
 }
 
-#[cfg(test)]
-mod test {
-    #[test]
-    fn test_get_hrir_spectrum() {}
+/// Overlap-add convolution in frequency domain.
+///
+/// https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method
+///
+fn convolve(in_buffer: &mut [Complex<f32>],
+            out_buffer: &mut [Complex<f32>],
+            hrtf: &[Complex<f32>],
+            prev_samples: &mut Vec<Complex<f32>>,
+            fft: &mut FFTplanner<f32>,
+            ifft: &mut FFTplanner<f32>) {
+    assert_eq!(hrtf.len(), in_buffer.len());
+
+    fft.plan_fft(in_buffer.len()).process(in_buffer, out_buffer);
+
+    // Multiply HRIR and input signal in frequency domain
+    for (s, h) in out_buffer.iter_mut().zip(hrtf.iter()) {
+        *s *= *h;
+    }
+
+    ifft.plan_fft(in_buffer.len()).process(out_buffer, in_buffer);
+
+    // Add part from previous frame.
+    for (l, c) in prev_samples.iter().zip(in_buffer.iter_mut()) {
+        *c += *l;
+    }
+
+    // Remember samples from current frame as remainder for next frame.
+    prev_samples.clear();
+    for c in in_buffer.iter().skip(Context::SAMPLE_PER_CHANNEL) {
+        prev_samples.push(*c);
+    }
+}
+
+fn get_pad_len(hrtf_len: usize) -> usize {
+    // Total length for each temporary buffer.
+    // The value defined by overlap-add convolution method:
+    //
+    // pad_length = M + N - 1,
+    //
+    // where M - signal length, N - hrtf length
+    Context::SAMPLE_PER_CHANNEL + hrtf_len - 1
+}
+
+pub struct HrtfRenderer {
+    hrtf_sphere: HrtfSphere,
+    left_in_buffer: Vec<Complex<f32>>,
+    right_in_buffer: Vec<Complex<f32>>,
+    left_out_buffer: Vec<Complex<f32>>,
+    right_out_buffer: Vec<Complex<f32>>,
+    fft: FFTplanner<f32>,
+    ifft: FFTplanner<f32>,
+    left_hrtf: Vec<Complex<f32>>,
+    right_hrtf: Vec<Complex<f32>>,
+}
+
+fn mute(buffer: &mut [Complex<f32>]) {
+    for s in buffer {
+        *s = Complex::zero();
+    }
+}
+
+pub(in crate) fn get_raw_samples(source: &mut Source, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
+    assert_eq!(left.len(), right.len());
+
+    if source.get_status() != Status::Playing {
+        mute(left);
+        mute(right);
+        return;
+    }
+
+
+    let mut anything_sampled = false;
+
+    if let Some(buffer) = source.get_buffer().clone() {
+        if let Ok(mut buffer) = buffer.lock() {
+            if buffer.is_empty() {
+                return;
+            }
+
+            for (left, right) in left.iter_mut().zip(right.iter_mut()) {
+                if source.get_status() == Status::Playing {
+                    // Ignore all channels except left. Only mono sounds can be processed by HRTF.
+                    let (raw_left, _) = source.next_sample_pair(&mut buffer);
+                    let sample = Complex::new(raw_left, 0.0);
+                    *left = sample;
+                    *right = sample;
+                } else {
+                    // Fill rest with zeros
+                    *left = Complex::zero();
+                    *right = Complex::zero();
+                }
+
+                anything_sampled = true;
+            }
+        }
+    }
+
+    if !anything_sampled {
+        mute(left);
+        mute(right);
+    }
+}
+
+impl HrtfRenderer {
+    pub fn new(hrtf_sphere: HrtfSphere) -> Self {
+        let pad_length = get_pad_len(hrtf_sphere.length);
+
+        Self {
+            hrtf_sphere,
+            left_in_buffer: vec![Complex::zero(); pad_length],
+            right_in_buffer: vec![Complex::zero(); pad_length],
+            left_out_buffer: vec![Complex::zero(); pad_length],
+            right_out_buffer: vec![Complex::zero(); pad_length],
+            fft: FFTplanner::new(false),
+            ifft: FFTplanner::new(true),
+            left_hrtf: Default::default(),
+            right_hrtf: Default::default(),
+        }
+    }
+
+    pub(in crate) fn render_source(&mut self, source: &mut Source, out_buf: &mut [(f32, f32)]) {
+        // Still very unoptimal and heavy. TODO: Optimize.
+        let pad_length = get_pad_len(self.hrtf_sphere.length);
+
+        if source.last_frame_left_samples.len() != self.hrtf_sphere.length - 1 {
+            source.last_frame_left_samples = vec![Complex::zero(); pad_length];
+        }
+        if source.last_frame_right_samples.len() != self.hrtf_sphere.length - 1 {
+            source.last_frame_right_samples = vec![Complex::zero(); pad_length];
+        }
+
+        self.hrtf_sphere.sample_bilinear(&mut self.left_hrtf, &mut self.right_hrtf, source.hrtf_sampling_vector);
+
+        // Gather samples for processing.
+        get_raw_samples(source, &mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
+                               &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
+
+        mute(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
+        mute(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
+
+        convolve(&mut self.left_in_buffer, &mut self.left_out_buffer,
+                 &self.left_hrtf, &mut source.last_frame_left_samples,
+                 &mut self.fft, &mut self.ifft);
+
+        convolve(&mut self.right_in_buffer, &mut self.right_out_buffer,
+                 &self.right_hrtf, &mut source.last_frame_right_samples,
+                 &mut self.fft, &mut self.ifft);
+
+        // Mix samples into output buffer with rescaling.
+        let k = source.distance_gain / (pad_length as f32);
+
+        // Take only N samples as output data, rest will be used for next frame.
+        for (i, (out_left, out_right)) in out_buf.iter_mut().enumerate() {
+            let left = self.left_in_buffer.get(i).unwrap();
+            *out_left += left.re * k;
+
+            let right = self.right_in_buffer.get(i).unwrap();
+            *out_right += right.re * k;
+        }
+    }
 }

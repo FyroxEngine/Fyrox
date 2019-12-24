@@ -1,3 +1,5 @@
+/// Sound renderer.
+
 use std::{
     sync::{
         Arc,
@@ -7,79 +9,32 @@ use std::{
 };
 use crate::{
     error::SoundError,
-    source::Source,
     device::run_device,
     listener::Listener,
-    source::Status,
-    hrtf::Hrtf,
+    source::{
+        Status,
+        Source,
+        SourceKind,
+    },
+    renderer::Renderer,
 };
 use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visit, VisitResult, Visitor},
 };
-use rustfft::{
-    num_complex::Complex,
-    num_traits::Zero,
-    FFTplanner,
-};
-use crate::hrtf::HrtfPoint;
-use crate::source::SourceKind;
+use crate::renderer::{render_source_default};
 
 pub struct Context {
     sources: Pool<Source>,
     listener: Listener,
     master_gain: f32,
-    hrtf: Option<Hrtf>,
-    left_in_buffer: Vec<Complex<f32>>,
-    right_in_buffer: Vec<Complex<f32>>,
-    left_out_buffer: Vec<Complex<f32>>,
-    right_out_buffer: Vec<Complex<f32>>,
-    fft: FFTplanner<f32>,
-    ifft: FFTplanner<f32>,
-    hrtf_buf: HrtfPoint,
-}
-
-/// Overlap-add convolution in frequency domain.
-///
-/// https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method
-///
-fn convolve(in_buffer: &mut [Complex<f32>],
-            out_buffer: &mut [Complex<f32>],
-            hrir_spectrum: &[Complex<f32>],
-            prev_samples: &mut Vec<Complex<f32>>,
-            fft: &mut FFTplanner<f32>,
-            ifft: &mut FFTplanner<f32>,
-) {
-    assert_eq!(hrir_spectrum.len(), in_buffer.len());
-
-    fft.plan_fft(in_buffer.len())
-        .process(in_buffer, out_buffer);
-    // Multiply HRIR and input signal in frequency domain
-    for (s, h) in out_buffer.iter_mut().zip(hrir_spectrum.iter()) {
-        *s *= *h;
-    }
-    ifft.plan_fft(in_buffer.len())
-        .process(out_buffer, in_buffer);
-
-    // Add part from previous frame.
-    for (l, c) in prev_samples.iter().zip(in_buffer.iter_mut()) {
-        *c += *l;
-    }
-
-    // Remember samples from current frame as remainder for next frame.
-    prev_samples.clear();
-    for c in in_buffer.iter().skip(Context::SAMPLE_PER_CHANNEL) {
-        prev_samples.push(*c);
-    }
-}
-
-fn pad_zeros(buf: &mut [Complex<f32>]) {
-    for v in buf.iter_mut() {
-        *v = Complex::zero();
-    }
+    render_time: f32,
+    renderer: Renderer,
 }
 
 impl Context {
+    // TODO: This is magic constant that gives 4096 (power of two) number when summed with
+    //       HRTF length for faster FFT calculations. Find a better way of selecting this.
     pub const SAMPLE_PER_CHANNEL: usize = 3584;
 
     pub fn new() -> Result<Arc<Mutex<Self>>, SoundError> {
@@ -87,18 +42,8 @@ impl Context {
             sources: Pool::new(),
             listener: Listener::new(),
             master_gain: 1.0,
-            hrtf: None,
-            left_in_buffer: Default::default(),
-            right_in_buffer: Default::default(),
-            left_out_buffer: Default::default(),
-            right_out_buffer: Default::default(),
-            fft: FFTplanner::new(false),
-            ifft: FFTplanner::new(true),
-            hrtf_buf: HrtfPoint {
-                pos: Default::default(),
-                left_hrtf: vec![],
-                right_hrtf: vec![],
-            },
+            render_time: 0.0,
+            renderer: Renderer::Default,
         };
 
         let context = Arc::new(Mutex::new(context));
@@ -119,78 +64,27 @@ impl Context {
 
     fn render(&mut self, buf: &mut [(f32, f32)]) {
         let current_time = time::Instant::now();
+
         for source in self.sources.iter_mut() {
-            let use_hrtf = match source.get_kind() {
-                SourceKind::Flat => false,
-                SourceKind::Spatial(_) => self.hrtf.is_some(),
-            };
+            if source.get_status() != Status::Playing {
+                continue;
+            }
 
-            if use_hrtf {
-                let hrtf = self.hrtf.as_ref().unwrap();
-
-                let pad_length = Self::SAMPLE_PER_CHANNEL + hrtf.length - 1;
-
-                hrtf.sample_bilinear(&mut self.hrtf_buf, source.hrtf_sampling_vector);
-
-                let point = &self.hrtf_buf;
-
-                // Prepare buffers
-                if self.left_in_buffer.len() != pad_length {
-                    self.left_in_buffer = vec![Complex::zero(); pad_length];
+            match self.renderer {
+                Renderer::Default => {
+                    // Simple rendering path. Much faster (8-10 times) than HRTF path.
+                    render_source_default(source, buf);
                 }
-                if self.left_out_buffer.len() != pad_length {
-                    self.left_out_buffer = vec![Complex::zero(); pad_length];
+                Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
+                    match source.get_kind() {
+                        SourceKind::Flat => {
+                            render_source_default(source, buf);
+                        }
+                        SourceKind::Spatial(_) => {
+                            hrtf_renderer.render_source(source, buf);
+                        }
+                    }
                 }
-                if self.right_in_buffer.len() != pad_length {
-                    self.right_in_buffer = vec![Complex::zero(); pad_length];
-                }
-                if self.right_out_buffer.len() != pad_length {
-                    self.right_out_buffer = vec![Complex::zero(); pad_length];
-                }
-                if source.last_frame_left_samples.len() != hrtf.length - 1 {
-                    source.last_frame_left_samples = vec![Complex::zero(); pad_length];
-                }
-                if source.last_frame_right_samples.len() != hrtf.length - 1 {
-                    source.last_frame_right_samples = vec![Complex::zero(); pad_length];
-                }
-
-                // Gather samples for processing.
-                source.sample_for_hrtf(&mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
-                                       &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
-
-                pad_zeros(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
-                pad_zeros(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
-
-                // Do magic.
-                assert_eq!(point.left_hrtf.len(), point.right_hrtf.len());
-
-                convolve(&mut self.left_in_buffer,
-                         &mut self.left_out_buffer,
-                         &point.left_hrtf,
-                         &mut source.last_frame_left_samples,
-                         &mut self.fft,
-                         &mut self.ifft);
-
-                convolve(&mut self.right_in_buffer,
-                         &mut self.right_out_buffer,
-                         &point.right_hrtf,
-                         &mut source.last_frame_right_samples,
-                         &mut self.fft,
-                         &mut self.ifft);
-
-                // Mix samples into output buffer with rescaling.
-                let k = source.distance_gain / (pad_length as f32);
-
-                // Take only N samples as output data, rest will be used for next frame.
-                for (i, (out_left, out_right)) in buf.iter_mut().enumerate() {
-                     let left = self.left_in_buffer.get(i).unwrap();
-                    *out_left += left.re * k;
-
-                    let right = self.right_in_buffer.get(i).unwrap();
-                    *out_right += right.re * k;
-                }
-            } else {
-                source.sample_into(buf);
             }
         }
 
@@ -200,11 +94,15 @@ impl Context {
             *right *= self.master_gain;
         }
 
-        println!("sound render time = {:?}", time::Instant::now() - current_time);
+        self.render_time = (time::Instant::now() - current_time).as_secs_f32();
     }
 
-    pub fn set_hrtf(&mut self, hrtf: Hrtf) {
-        self.hrtf = Some(hrtf);
+    pub fn get_render_time(&self) -> f32 {
+        self.render_time
+    }
+
+    pub fn set_renderer(&mut self, renderer: Renderer) {
+        self.renderer = renderer;
     }
 
     pub fn set_master_gain(&mut self, gain: f32) {

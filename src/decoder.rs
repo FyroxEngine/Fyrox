@@ -1,5 +1,12 @@
-use std::io::{Read, Seek, SeekFrom};
-use byteorder::{ReadBytesExt, LittleEndian};
+use std::io::{
+    Read,
+    Seek,
+    SeekFrom
+};
+use byteorder::{
+    ReadBytesExt,
+    LittleEndian
+};
 use crate::error::SoundError;
 
 struct WavHeader {

@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc,
+    Mutex
+};
 use crate::{
     buffer::{Buffer, BufferKind},
     error::SoundError,
@@ -9,7 +12,6 @@ use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor, VisitError},
 };
 use rustfft::num_complex::Complex;
-use rustfft::num_traits::Zero;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
@@ -130,8 +132,8 @@ pub struct Source {
     pitch: f64,
     gain: f32,
     looping: bool,
-    left_gain: f32,
-    right_gain: f32,
+    pub(in crate) left_gain: f32,
+    pub(in crate) right_gain: f32,
     // Important coefficient for runtime resampling. It is used to modify playback speed
     // of a source in order to match output device sampling rate. PCM data can be stored
     // in various sampling rates (22050 Hz, 44100 Hz, 88200 Hz, etc.) but output device
@@ -173,11 +175,7 @@ impl Default for Source {
     }
 }
 
-fn mute(buffer: &mut [Complex<f32>]) {
-    for s in buffer {
-        *s = Complex::zero();
-    }
-}
+
 
 impl Source {
     pub fn new_spatial(buffer: Arc<Mutex<Buffer>>) -> Result<Self, SoundError> {
@@ -312,7 +310,9 @@ impl Source {
         }
     }
 
-    fn next_sample_pos(&mut self, step: f64, buffer: &mut Buffer) -> usize {
+    pub(in crate) fn next_sample_pair(&mut self, buffer: &mut Buffer) -> (f32, f32) {
+        let step = self.pitch * self.resampling_multiplier;
+
         self.buf_read_pos += step;
         self.playback_pos += step;
 
@@ -344,94 +344,14 @@ impl Source {
             };
         }
 
-        i
-    }
-
-    pub(in crate) fn sample_into(&mut self, mix_buffer: &mut [(f32, f32)]) {
-        if self.status != Status::Playing {
-            return;
+        if buffer.get_channel_count() == 2 {
+            let left = buffer.read(i);
+            let right = buffer.read(i + buffer.get_sample_per_channel());
+            (left, right)
+        } else {
+            let sample = buffer.read(i);
+            (sample, sample)
         }
-
-        let step = self.sampling_step();
-
-        if let Some(buffer) = self.buffer.clone() {
-            if let Ok(mut buffer) = buffer.lock() {
-                if buffer.is_empty() {
-                    return;
-                }
-
-                for (left, right) in mix_buffer {
-                    if self.status != Status::Playing {
-                        break;
-                    }
-
-                    let i = self.next_sample_pos(step, &mut buffer);
-
-                    if buffer.get_channel_count() == 2 {
-                        *left += self.left_gain * buffer.read(i);
-                        *right += self.right_gain * buffer.read(i + buffer.get_sample_per_channel());
-                    } else {
-                        let sample = buffer.read(i);
-                        *left += self.left_gain * sample;
-                        *right += self.right_gain * sample;
-                    }
-                }
-            };
-        }
-    }
-
-    pub(in crate) fn sample_for_hrtf(&mut self, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
-        assert_eq!(left.len(), right.len());
-
-        if self.status != Status::Playing {
-            mute(left);
-            mute(right);
-            return;
-        }
-
-        let step = self.sampling_step();
-
-        let mut anything_sampled = false;
-
-        if let Some(buffer) = self.buffer.clone() {
-            if let Ok(mut buffer) = buffer.lock() {
-                if buffer.is_empty() {
-                    return;
-                }
-
-                for (left, right) in left.iter_mut().zip(right.iter_mut()) {
-                    if self.status == Status::Playing {
-                        let i = self.next_sample_pos(step, &mut buffer);
-
-                        if buffer.get_channel_count() == 2 {
-                            // Ignore all channels except left. Only mono sounds can be processed by HRTF
-                            let complex = Complex::new(buffer.read(i), 0.0);
-                            *left = complex;
-                            *right = complex;
-                        } else {
-                            let sample = Complex::new(buffer.read(i), 0.0);
-                            *left = sample;
-                            *right = sample;
-                        }
-                    } else {
-                        // Fill rest with zeros
-                        *left = Complex::zero();
-                        *right = Complex::zero();
-                    }
-
-                    anything_sampled = true;
-                }
-            }
-        }
-
-        if !anything_sampled {
-            mute(left);
-            mute(right);
-        }
-    }
-
-    fn sampling_step(&self) -> f64 {
-        self.pitch * self.resampling_multiplier
     }
 }
 

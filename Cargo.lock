@@ -145,7 +145,7 @@ dependencies = [
 
 [[package]]
 name = "rg3d-sound"
-version = "0.2.2"
+version = "0.3.0"
 dependencies = [
  "alsa-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",

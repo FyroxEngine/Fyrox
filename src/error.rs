@@ -1,4 +1,8 @@
-use std::fmt::{Display, Formatter, Error};
+use std::fmt::{
+    Display,
+    Formatter,
+    Error
+};
 
 #[derive(Debug)]
 pub enum SoundError {

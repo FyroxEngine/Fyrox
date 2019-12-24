@@ -1,20 +1,12 @@
 extern crate rg3d_sound;
 extern crate rg3d_core;
 
-use rg3d_sound::{
-    context::Context,
-    source::{
-        Source,
-        SourceKind
-    },
-    buffer::{Buffer, BufferKind},
-};
 use std::{
     path::Path,
     sync::{Arc, Mutex},
     time::{
         self,
-        Duration
+        Duration,
     },
     thread,
 };
@@ -22,31 +14,41 @@ use rg3d_core::{
     math::{
         mat4::Mat4,
         vec3::Vec3,
-        quat::Quat
+        quat::Quat,
     },
-    pool::Handle,
 };
-use rg3d_sound::hrtf::Hrtf;
+use rg3d_sound::{
+    hrtf::{
+        HrtfRenderer,
+        HrtfSphere
+    },
+    context::Context,
+    source::{
+        Source,
+        SourceKind,
+    },
+    buffer::{Buffer, BufferKind},
+    renderer::Renderer
+};
 
 fn main() {
-    let hrtf = Hrtf::new(Path::new("examples/data/hrir_base.bin")).unwrap();
+    let hrtf = HrtfSphere::new(Path::new("examples/data/hrir_base.bin")).unwrap();
 
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
-    context.lock().unwrap().set_hrtf(hrtf);
+    context.lock().unwrap().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
-    // Load sound buffer.
     let sound_path = Path::new("examples/data/door_open.wav");
     let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
-    let mut source = Source::new_spatial( Arc::new(Mutex::new(sound_buffer))).unwrap();
-    source.play(); 
+    let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
+    source.play();
     //source.set_looping(true);
-    let source_handle = context.lock().unwrap().add_source(source);
+    context.lock().unwrap().add_source(source);
 
     let sound_path = Path::new("examples/data/helicopter.wav");
     let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
-    let mut source = Source::new_spatial( Arc::new(Mutex::new(sound_buffer))).unwrap();
+    let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
     source.play();
     source.set_looping(true);
     let source_handle = context.lock().unwrap().add_source(source);

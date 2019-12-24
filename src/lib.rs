@@ -19,3 +19,4 @@ pub mod device;
 pub mod context;
 pub mod listener;
 pub mod hrtf;
+pub mod renderer;
