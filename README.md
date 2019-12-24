@@ -7,6 +7,7 @@ Sound library for games written in Rust.
 - Spatial and flat sounds
 - Built-in streaming for large sounds
 - WAV format support (non-compressed)
+- [HRTF](https://en.wikipedia.org/wiki/Head-related_transfer_function) support for excellent positioning and binaural effects.
 
 ## Examples
 
@@ -19,7 +20,7 @@ Examples can be found in `./examples`
 
 ## How to build
 
-Add `rg3d-sound = "0.2.0"` to your Cargo.toml
+Add `rg3d-sound = "0.3.0"` to your Cargo.toml
 
 ## Help needed
 
