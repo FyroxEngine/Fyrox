@@ -24,6 +24,10 @@ Make sure you run examples with `--release` flag, `debug` version is very slow a
 
 Add `rg3d-sound = "0.3.0"` to your Cargo.toml
 
+## HRTF
+
+Library has full HRTF support, it uses HRIR spheres generated using [IRCAM](http://recherche.ircam.fr/equipes/salles/listen/) HRIR database. HRIR spheres are produced using small tool written in C++ - [hrir_sphere_builder](https://github.com/mrDIMAS/hrir_sphere_builder )
+
 ## Help needed
 
 It would be great if someone make backend for macOS.
