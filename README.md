@@ -13,6 +13,8 @@ Sound library for games written in Rust.
 
 Examples can be found in `./examples`
 
+Make sure you run examples with `--release` flag, `debug` version is very slow and may cause tearing of output sound.
+
 ## Supported OS
 
 - Windows (DirectSound)
