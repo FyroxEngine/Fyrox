@@ -137,6 +137,7 @@ dependencies = [
 [[package]]
 name = "rg3d-core"
 version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -149,7 +150,7 @@ version = "0.3.0"
 dependencies = [
  "alsa-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rg3d-core 0.2.3",
+ "rg3d-core 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustfft 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -219,6 +220,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rand_chacha 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "03a2a90da8c7523f554344f921aa97283eadf6ac484a6d2a7d0212fa7f8d6853"
 "checksum rand_core 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "90bde5296fc891b0cef12a6d03ddccc162ce7b2aff54160af9338f8d40df6d19"
 "checksum rand_hc 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
+"checksum rg3d-core 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "da386f4a460afda6ccb5c51939b609d8f6c86c2d5f466daa4911de8963ddfad0"
 "checksum rustfft 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c86a9dc178e87c7933f6e79bb93fa26c27548d551ab022b7f24ee2117aa4cb3"
 "checksum strength_reduce 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "965b1bd4ba2fafdbfe9e0e5432b758e4fdbc8c705e6d436a4a5927207de8e96e"
 "checksum transpose 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "643e21580bb0627c7bb09e5cedbb42c8705b19d012de593ed6b0309270b3cd1e"
