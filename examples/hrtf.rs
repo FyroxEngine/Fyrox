@@ -32,18 +32,18 @@ use rg3d_sound::{
 };
 
 fn main() {
-    let hrtf = HrtfSphere::new(Path::new("examples/data/hrir_base.bin")).unwrap();
+    let hrtf = HrtfSphere::new(Path::new("examples/data/IRC_1002_C.bin")).unwrap();
 
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
+    // Set HRTF renderer instead of default.
     context.lock().unwrap().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
     let sound_path = Path::new("examples/data/door_open.wav");
     let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
     let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
     source.play();
-    //source.set_looping(true);
     context.lock().unwrap().add_source(source);
 
     let sound_path = Path::new("examples/data/helicopter.wav");

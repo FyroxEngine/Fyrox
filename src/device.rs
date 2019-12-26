@@ -49,7 +49,7 @@ trait Device {
         context.out_data.clear();
         for (left, right) in context.mix_buffer.iter() {
             let left_clamped = if *left > 1.0 {
-                0.0
+                1.0
             } else if *left < -1.0 {
                 -1.0
             } else {
@@ -57,7 +57,7 @@ trait Device {
             };
 
             let right_clamped = if *right > 1.0 {
-                0.0
+                1.0
             } else if *right < -1.0 {
                 -1.0
             } else {

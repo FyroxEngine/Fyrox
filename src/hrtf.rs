@@ -51,13 +51,16 @@ pub enum HrtfError {
     /// Io error has occurred (file does not exists, etc.)
     IoError(std::io::Error),
 
-    /// Hrtf has sample rate that differs from device sample rate.
-    /// (current_sample_rate, device_sample_rate)
-    /// You should resample hrtf first.
+    /// HRIR has sample rate that differs from device sample rate.
+    /// Tuple holds pair (current_sample_rate, device_sample_rate)
+    /// You should resample HRIR's first and regenerate sphere.
     InvalidSampleRate(u32, u32),
 
-    /// It is not valid hrtf base file.
+    /// It is not valid HRIR sphere file.
     InvalidFileFormat,
+
+    /// HRIR has invalid length (zero)
+    InvalidLength(usize)
 }
 
 impl From<std::io::Error> for HrtfError {
@@ -111,6 +114,9 @@ impl HrtfSphere {
             return Err(HrtfError::InvalidSampleRate(sample_rate, device::SAMPLE_RATE));
         }
         let length = reader.read_u32::<LittleEndian>()? as usize;
+        if length == 0 {
+            return Err(HrtfError::InvalidLength(length))
+        }
         let vertex_count = reader.read_u32::<LittleEndian>()? as usize;
         let index_count = reader.read_u32::<LittleEndian>()? as usize;
 
@@ -299,6 +305,11 @@ impl HrtfRenderer {
     pub fn new(hrtf_sphere: HrtfSphere) -> Self {
         let pad_length = get_pad_len(hrtf_sphere.length);
 
+        // Acquire default hrtf's for left and right channels.
+        let pt = hrtf_sphere.points.first().unwrap();
+        let left_hrtf = pt.left_hrtf.clone();
+        let right_hrtf = pt.right_hrtf.clone();
+
         Self {
             hrtf_sphere,
             left_in_buffer: vec![Complex::zero(); pad_length],
@@ -307,8 +318,8 @@ impl HrtfRenderer {
             right_out_buffer: vec![Complex::zero(); pad_length],
             fft: FFTplanner::new(false),
             ifft: FFTplanner::new(true),
-            left_hrtf: Default::default(),
-            right_hrtf: Default::default(),
+            left_hrtf,
+            right_hrtf,
         }
     }
 
