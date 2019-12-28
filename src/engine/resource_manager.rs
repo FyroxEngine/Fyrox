@@ -2,16 +2,19 @@ use std::{
     path::{PathBuf, Path},
     sync::{Arc, Mutex},
 };
-use crate::resource::{
-    texture::Texture,
-    model::Model,
-    texture::TextureKind,
+use crate::{
+    sound::buffer::{Buffer, BufferKind},
+    core::{
+        visitor::{Visitor, VisitResult, Visit}
+    },
+    resource::{
+        texture::Texture,
+        model::Model,
+        texture::TextureKind,
+    },
+    utils::log::Log
 };
-use crate::core::{
-    visitor::{Visitor, VisitResult, Visit}
-};
-use crate::sound::buffer::{Buffer, BufferKind};
-use crate::utils::log::Log;
+use rg3d_sound::buffer::DataSource;
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,
@@ -96,25 +99,23 @@ impl ResourceManager {
             return Some(sound_buffer);
         }
 
-        let extension = path.extension().
-            and_then(|os| os.to_str()).
-            map_or(String::from(""), |s| s.to_ascii_lowercase());
+        let source = match DataSource::from_file(path) {
+            Ok(source) => source,
+            Err(e) => {
+                Log::writeln(format!("Invalid data source: {:?}", e));
+                return None;
+            }
+        };
 
-        match extension.as_str() {
-            "wav" => match Buffer::new(path, kind) {
-                Ok(sound_buffer) => {
-                    let sound_buffer = Arc::new(Mutex::new(sound_buffer));
-                    self.sound_buffers.push(sound_buffer.clone());
-                    Log::writeln(format!("Sound buffer {} is loaded!", path.display()));
-                    Some(sound_buffer)
-                }
-                Err(e) => {
-                    Log::writeln(format!("Unable to load sound buffer from {}! Reason {}", path.display(), e));
-                    None
-                }
-            },
-            _ => {
-                Log::writeln(format!("Unsupported sound buffer type {}!", path.display()));
+        match Buffer::new(source, kind) {
+            Ok(sound_buffer) => {
+                let sound_buffer = Arc::new(Mutex::new(sound_buffer));
+                self.sound_buffers.push(sound_buffer.clone());
+                Log::writeln(format!("Sound buffer {} is loaded!", path.display()));
+                Some(sound_buffer)
+            }
+            Err(_) => {
+                Log::writeln(format!("Unable to load sound buffer from {}!", path.display()));
                 None
             }
         }
@@ -155,8 +156,10 @@ impl ResourceManager {
 
     pub fn find_sound_buffer(&self, path: &Path) -> Option<Arc<Mutex<Buffer>>> {
         for sound_buffer in self.sound_buffers.iter() {
-            if sound_buffer.lock().unwrap().get_source_path() == path {
-                return Some(sound_buffer.clone());
+            if let Some(ext_path) = sound_buffer.lock().unwrap().get_external_data_path() {
+                if ext_path == path {
+                    return Some(sound_buffer.clone());
+                }
             }
         }
         None
@@ -210,15 +213,18 @@ impl ResourceManager {
 
         for old_sound_buffer in self.get_sound_buffers() {
             let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
-            let new_sound_buffer = match Buffer::new(old_sound_buffer.get_source_path(), old_sound_buffer.get_kind()) {
-                Ok(new_sound_buffer) => new_sound_buffer,
-                Err(e) => {
-                    Log::writeln(format!("Unable to reload {:?} sound buffer! Reason: {}", old_sound_buffer.get_source_path(), e));
-                    continue;
+            if let Some(ext_path) = old_sound_buffer.get_external_data_path() {
+                if let Ok(data_source) = DataSource::from_file(ext_path.as_path()) {
+                    let new_sound_buffer = match Buffer::new(data_source, old_sound_buffer.get_kind()) {
+                        Ok(new_sound_buffer) => new_sound_buffer,
+                        Err(_) => {
+                            Log::writeln(format!("Unable to reload {:?} sound buffer!", ext_path));
+                            continue;
+                        }
+                    };
+                    *old_sound_buffer = new_sound_buffer;
                 }
-            };
-
-            *old_sound_buffer = new_sound_buffer;
+            }
         }
     }
 }
