@@ -16,13 +16,15 @@ use crate::{
         Source,
         SourceKind,
     },
-    renderer::Renderer,
+    renderer::{
+        Renderer,
+        render_source_default
+    }
 };
 use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visit, VisitResult, Visitor},
 };
-use crate::renderer::{render_source_default};
 
 pub struct Context {
     sources: Pool<Source>,

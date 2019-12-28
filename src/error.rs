@@ -3,6 +3,13 @@ use std::fmt::{
     Formatter,
     Error
 };
+use lewton::VorbisError;
+
+#[derive(Debug)]
+pub enum DecoderError {
+    Wav,
+    Ogg(lewton::VorbisError)
+}
 
 #[derive(Debug)]
 pub enum SoundError {
@@ -33,6 +40,8 @@ pub enum SoundError {
     /// used by some other source. This is wrong because only one source can play
     /// sound from streaming buffer.
     StreamingBufferAlreadyInUse,
+
+    DecoderError(DecoderError),
 }
 
 impl From<std::io::Error> for SoundError {
@@ -47,6 +56,12 @@ impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for Sound
     }
 }
 
+impl From<lewton::VorbisError> for SoundError {
+    fn from(ve: VorbisError) -> Self {
+        SoundError::DecoderError(DecoderError::Ogg(ve))
+    }
+}
+
 impl Display for SoundError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
@@ -58,6 +73,7 @@ impl Display for SoundError {
             SoundError::PoisonedMutex => write!(f, "attempt to use poisoned mutex")?,
             SoundError::MathError(reason) => write!(f, "math error has occurred. reason: {}", reason)?,
             SoundError::StreamingBufferAlreadyInUse => write!(f, "streaming buffer in already in use")?,
+            SoundError::DecoderError(de) => write!(f, "internal decoder error: {:?}", de)?,
         }
         Ok(())
     }

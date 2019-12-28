@@ -7,10 +7,13 @@ use rg3d_sound::{
         Source,
         SourceKind
     },
-    buffer::{Buffer, BufferKind},
+    buffer::{
+        Buffer,
+        BufferKind,
+        DataSource
+    },
 };
 use std::{
-    path::Path,
     sync::{Arc, Mutex},
     time::{
         self,
@@ -32,8 +35,7 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Load sound buffer.
-    let drop_path = Path::new("examples/data/drop.wav");
-    let drop_buffer = Buffer::new(drop_path, BufferKind::Normal).unwrap();
+    let drop_buffer = Buffer::new(DataSource::from_file("examples/data/drop.wav").unwrap(), BufferKind::Normal).unwrap();
 
     // Create spatial source - spatial sources can be positioned in space.
     // Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer

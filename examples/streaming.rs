@@ -3,9 +3,18 @@ extern crate rg3d_sound;
 use rg3d_sound::{
     context::Context,
     source::Source,
-    buffer::{Buffer, BufferKind}
+    buffer::{
+        Buffer,
+        BufferKind,
+        DataSource
+    }
 };
-use std::{path::Path, sync::{Arc, Mutex}, thread, time::Duration, time};
+use std::{
+    sync::{Arc, Mutex},
+    thread,
+    time::Duration,
+    time
+};
 use rg3d_core::pool::Handle;
 
 fn main() {
@@ -13,8 +22,7 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Load sound buffer.
-    let waterfall_path = Path::new("examples/data/waterfall.wav");
-    let waterfall_buffer = Buffer::new(waterfall_path, BufferKind::Stream).unwrap();
+    let waterfall_buffer = Buffer::new(DataSource::from_file("examples/data/waterfall.ogg").unwrap(), BufferKind::Stream).unwrap();
 
     // Create flat source (without spatial effects) using that buffer.
     // Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer
@@ -31,11 +39,13 @@ fn main() {
     let _source_handle: Handle<Source> = context.lock().unwrap().add_source(source);
 
     let start_time = time::Instant::now();
-    while (time::Instant::now() - start_time).as_secs() < 60 {
-        // It is very important to call update context, on each update tick context
-        // updates will check if it is the time to upload next piece of data into buffer
-        // (perform streaming).
-        context.lock().unwrap().update().unwrap();
+    while (time::Instant::now() - start_time).as_secs() < 600 {
+        {
+            // It is very important to call update context, on each update tick context
+            // updates will check if it is the time to upload next piece of data into buffer
+            // (perform streaming).
+            context.lock().unwrap().update().unwrap();
+        }
 
         // Limit rate of context updates.
         thread::sleep(Duration::from_millis(100));

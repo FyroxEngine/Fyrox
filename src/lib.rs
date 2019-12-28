@@ -10,6 +10,7 @@ extern crate alsa_sys;
 extern crate byteorder;
 extern crate rg3d_core;
 extern crate rustfft;
+extern crate lewton;
 
 pub mod error;
 pub mod decoder;

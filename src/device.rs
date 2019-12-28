@@ -5,12 +5,12 @@ pub const SAMPLE_RATE: u32 = 44100;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
-pub struct Sample {
+pub struct NativeSample {
     pub left: i16,
     pub right: i16,
 }
 
-impl Default for Sample {
+impl Default for NativeSample {
     fn default() -> Self {
         Self {
             left: 0,
@@ -23,8 +23,20 @@ pub type FeedCallback = dyn FnMut(&mut [(f32, f32)]) + Send;
 
 pub struct MixContext<'a> {
     mix_buffer: &'a mut [(f32, f32)],
-    out_data: &'a mut Vec<Sample>,
-    callback: &'a mut FeedCallback
+    out_data: &'a mut [NativeSample],
+    callback: &'a mut FeedCallback,
+}
+
+fn sample_to_i16(sample: f32) -> i16 {
+    const SCALE: f32 = std::i16::MAX as f32;
+    let clamped = if sample > 1.0 {
+        1.0
+    } else if sample < -1.0 {
+        -1.0
+    } else {
+        sample
+    };
+    (clamped * SCALE) as i16
 }
 
 trait Device {
@@ -44,30 +56,11 @@ trait Device {
         // Fill it.
         (context.callback)(context.mix_buffer);
 
-        let scale = f32::from(std::i16::MAX);
         // Convert to i16 - device expects samples in this format.
-        context.out_data.clear();
-        for (left, right) in context.mix_buffer.iter() {
-            let left_clamped = if *left > 1.0 {
-                1.0
-            } else if *left < -1.0 {
-                -1.0
-            } else {
-                *left
-            };
-
-            let right_clamped = if *right > 1.0 {
-                1.0
-            } else if *right < -1.0 {
-                -1.0
-            } else {
-                *right
-            };
-
-            context.out_data.push(Sample {
-                left: (left_clamped * scale) as i16,
-                right: (right_clamped * scale) as i16,
-            })
+        assert_eq!(context.mix_buffer.len(), context.out_data.len());
+        for ((left, right), ref mut out_sample) in context.mix_buffer.iter().zip(context.out_data) {
+            out_sample.left = sample_to_i16(*left);
+            out_sample.right = sample_to_i16(*right);
         }
     }
 }
@@ -100,9 +93,8 @@ mod windows {
         ctypes::c_void,
     };
     use crate::{
-        device::{Sample, FeedCallback, SAMPLE_RATE},
+        device::{NativeSample, FeedCallback, SAMPLE_RATE, Device, MixContext},
         error::SoundError,
-        device::{Device, MixContext},
     };
 
     // Declare missing structs and interfaces.
@@ -124,9 +116,9 @@ mod windows {
         buffer: AtomicPtr<IDirectSoundBuffer>,
         notify_points: [AtomicPtr<c_void>; 2],
         buffer_len_bytes: u32,
-        out_data: Vec<Sample>,
+        out_data: Vec<NativeSample>,
         mix_buffer: Vec<(f32, f32)>,
-        callback: Box<FeedCallback>
+        callback: Box<FeedCallback>,
     }
 
     impl DirectSoundDevice {
@@ -142,8 +134,8 @@ mod windows {
                 }
 
                 let channels_count = 2;
-                let bits_per_sample = 8 * size_of::<i16>() as u16;
-                let block_align = (bits_per_sample / 8) * channels_count;
+                let byte_per_sample = size_of::<i16>() as u16;
+                let block_align = byte_per_sample * channels_count;
 
                 let mut buffer_format = WAVEFORMATEX {
                     wFormatTag: WAVE_FORMAT_PCM,
@@ -151,7 +143,7 @@ mod windows {
                     nSamplesPerSec: SAMPLE_RATE,
                     nAvgBytesPerSec: SAMPLE_RATE * u32::from(block_align),
                     nBlockAlign: block_align,
-                    wBitsPerSample: bits_per_sample,
+                    wBitsPerSample: 8 * byte_per_sample,
                     cbSize: size_of::<WAVEFORMATEX>() as u16,
                 };
 
@@ -202,17 +194,16 @@ mod windows {
                 let a = AtomicPtr::new(notify_points[0]);
                 let b = AtomicPtr::new(notify_points[1]);
 
-                let samples_per_channel = buffer_len_bytes as usize / size_of::<Sample>();
-
+                let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
 
                 Ok(Self {
                     direct_sound: AtomicPtr::new(direct_sound),
                     buffer: AtomicPtr::new(buffer),
-                    out_data: Vec::with_capacity(samples_per_channel),
+                    out_data: vec![Default::default(); samples_per_channel],
                     mix_buffer: vec![(0.0, 0.0); samples_per_channel],
                     notify_points: [a, b],
                     buffer_len_bytes,
-                    callback
+                    callback,
                 })
             }
         }
@@ -227,12 +218,20 @@ mod windows {
         }
     }
 
+    unsafe fn write(ds_buffer: *mut IDirectSoundBuffer, offset_bytes: u32, len_bytes: u32, data: &[NativeSample]) {
+        let mut size = 0;
+        let mut device_buffer = std::ptr::null_mut();
+        (*ds_buffer).Lock(offset_bytes, len_bytes, &mut device_buffer, &mut size, std::ptr::null_mut(), std::ptr::null_mut(), 0);
+        std::ptr::copy_nonoverlapping(data.as_ptr() as *mut u8, device_buffer as *mut u8, size as usize);
+        (*ds_buffer).Unlock(device_buffer, size, std::ptr::null_mut(), 0);
+    }
+
     impl Device for DirectSoundDevice {
         fn get_mix_context(&mut self) -> MixContext {
             MixContext {
                 mix_buffer: self.mix_buffer.as_mut_slice(),
                 out_data: &mut self.out_data,
-                callback: &mut self.callback
+                callback: &mut self.callback,
             }
         }
 
@@ -244,39 +243,14 @@ mod windows {
                 self.notify_points[1].load(Ordering::SeqCst)
             ];
             let buffer = self.buffer.load(Ordering::SeqCst);
-            let mut output_data: *mut c_void = std::ptr::null_mut();
-            let mut size: DWORD = 0;
 
             // Wait and send.
             unsafe {
-                let result = WaitForMultipleObjects(2,
-                                                    notify_points.as_ptr(),
-                                                    0,
-                                                    INFINITE);
-                if result == WAIT_OBJECT_0 {
-                    (*buffer).Lock(self.buffer_len_bytes,
-                                   self.buffer_len_bytes,
-                                   &mut output_data,
-                                   &mut size,
-                                   std::ptr::null_mut(),
-                                   std::ptr::null_mut(),
-                                   0);
-                    std::ptr::copy_nonoverlapping(self.out_data.as_ptr() as *mut u8,
-                                                  output_data as *mut u8,
-                                                  size as usize);
-                    (*buffer).Unlock(output_data, size, std::ptr::null_mut(), 0);
-                } else if result == WAIT_OBJECT_0 + 1 {
-                    (*buffer).Lock(0,
-                                   self.buffer_len_bytes,
-                                   &mut output_data,
-                                   &mut size,
-                                   std::ptr::null_mut(),
-                                   std::ptr::null_mut(),
-                                   0);
-                    std::ptr::copy_nonoverlapping(self.out_data.as_ptr() as *mut u8,
-                                                  output_data as *mut u8,
-                                                  size as usize);
-                    (*buffer).Unlock(output_data, size, std::ptr::null_mut(), 0);
+                const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
+                match WaitForMultipleObjects(2, notify_points.as_ptr(), 0, INFINITE) {
+                    WAIT_OBJECT_0 => write(buffer, self.buffer_len_bytes, self.buffer_len_bytes, &self.out_data),
+                    WAIT_OBJECT_1 => write(buffer, 0, self.buffer_len_bytes, &self.out_data),
+                    _ => panic!("Unknown buffer point!")
                 }
             }
         }
@@ -286,7 +260,7 @@ mod windows {
 #[cfg(target_os = "linux")]
 mod linux {
     use crate::{
-        device::{FeedCallback, SAMPLE_RATE, Sample},
+        device::{FeedCallback, SAMPLE_RATE, NativeSample},
         error::SoundError,
     };
     use alsa_sys::*;
@@ -302,7 +276,7 @@ mod linux {
         playback_device: AtomicPtr<snd_pcm_t>,
         frame_count: u32,
         callback: Box<FeedCallback>,
-        out_data: Vec<Sample>,
+        out_data: Vec<NativeSample>,
         mix_buffer: Vec<(f32, f32)>,
     }
 
@@ -350,7 +324,7 @@ mod linux {
                 check_result(snd_pcm_sw_params(playback_device, sw_params))?;
                 check_result(snd_pcm_prepare(playback_device))?;
 
-                let samples_per_channel = buffer_len_bytes as usize / size_of::<Sample>();
+                let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
                 Ok(Self {
                     playback_device: AtomicPtr::new(playback_device),
                     frame_count,

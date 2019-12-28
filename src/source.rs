@@ -1,6 +1,6 @@
 use std::sync::{
     Arc,
-    Mutex
+    Mutex,
 };
 use crate::{
     buffer::{Buffer, BufferKind},
@@ -12,6 +12,7 @@ use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor, VisitError},
 };
 use rustfft::num_complex::Complex;
+use std::time::Duration;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
@@ -148,7 +149,7 @@ pub struct Source {
     // Rest of samples from previous frame that has to be added to output signal.
     pub(in crate) last_frame_left_samples: Vec<Complex<f32>>,
     pub(in crate) last_frame_right_samples: Vec<Complex<f32>>,
-    pub(in crate) distance_gain: f32
+    pub(in crate) distance_gain: f32,
 }
 
 impl Default for Source {
@@ -170,12 +171,24 @@ impl Default for Source {
             hrtf_sampling_vector: Default::default(),
             last_frame_left_samples: Default::default(),
             last_frame_right_samples: Default::default(),
-            distance_gain: 1.0
+            distance_gain: 1.0,
         }
     }
 }
 
+fn position_to_index(position: f64, channel_count: usize) -> usize {
+    let index = position as usize;
 
+    let aligned = if channel_count == 1 {
+        index
+    } else {
+        index - index % channel_count
+    };
+
+    debug_assert_eq!(aligned % channel_count, 0);
+
+    aligned
+}
 
 impl Source {
     pub fn new_spatial(buffer: Arc<Mutex<Buffer>>) -> Result<Self, SoundError> {
@@ -248,10 +261,13 @@ impl Source {
         self.looping
     }
 
+    pub fn set_pitch(&mut self, pitch: f64) {
+        self.pitch = pitch;
+    }
+
     pub fn stop(&mut self) -> Result<(), SoundError> {
         self.status = Status::Stopped;
 
-        self.buf_read_pos = 0.0;
         self.playback_pos = 0.0;
 
         if let Some(buffer) = &self.buffer {
@@ -262,9 +278,6 @@ impl Source {
     }
 
     pub(in crate) fn update(&mut self, listener: &Listener) -> Result<(), SoundError> {
-        if let Some(buffer) = &self.buffer {
-            buffer.lock()?.update()?;
-        }
         let mut dist_gain = 1.0;
         if let SourceKind::Spatial(spatial) = &self.kind {
             let dir = spatial.position - listener.position;
@@ -310,46 +323,51 @@ impl Source {
         }
     }
 
+    pub fn get_playback_time(&self) -> Duration {
+        if let Some(ref buffer) = self.buffer {
+            if let Ok(buffer) = buffer.lock() {
+                return Duration::from_secs_f64(self.playback_pos / buffer.get_sample_rate() as f64);
+            }
+        }
+        Duration::from_secs(0)
+    }
+
     pub(in crate) fn next_sample_pair(&mut self, buffer: &mut Buffer) -> (f32, f32) {
-        let step = self.pitch * self.resampling_multiplier;
+        let step = self.pitch * self.resampling_multiplier * buffer.get_channel_count() as f64;
 
         self.buf_read_pos += step;
         self.playback_pos += step;
 
-        let mut i = self.buf_read_pos as usize;
+        let mut i = position_to_index(self.buf_read_pos, buffer.get_channel_count());
 
-        if i >= buffer.get_sample_per_channel() {
+        let len = buffer.get_samples().len();
+        if i > len - buffer.get_channel_count() {
+            let mut end_reached = true;
             if buffer.get_kind() == BufferKind::Stream {
-                buffer.prepare_read_next_block();
+                // Means that this is the last available block.
+                if len != buffer.get_channel_count() * Buffer::STREAM_SAMPLE_COUNT {
+                    let _ = buffer.rewind();
+                } else {
+                    end_reached = false;
+                }
+                buffer.read_next_block();
+            }
+            if end_reached {
+                if !self.looping {
+                    self.status = Status::Stopped;
+                }
+                self.playback_pos = 0.0;
             }
             self.buf_read_pos = 0.0;
             i = 0;
         }
 
-        if self.playback_pos >= buffer.get_total_sample_per_channel() as f64 {
-            self.playback_pos = 0.0;
-            if self.looping && buffer.get_kind() == BufferKind::Stream {
-                if buffer.get_sample_per_channel() != 0 {
-                    self.buf_read_pos = (i % buffer.get_sample_per_channel()) as f64;
-                } else {
-                    self.buf_read_pos = 0.0;
-                }
-            } else {
-                self.buf_read_pos = 0.0;
-            }
-            self.status = if self.looping {
-                Status::Playing
-            } else {
-                Status::Stopped
-            };
-        }
-
         if buffer.get_channel_count() == 2 {
-            let left = buffer.read(i);
-            let right = buffer.read(i + buffer.get_sample_per_channel());
+            let left = buffer.read_at(i);
+            let right = buffer.read_at(i + 1);
             (left, right)
         } else {
-            let sample = buffer.read(i);
+            let sample = buffer.read_at(i);
             (sample, sample)
         }
     }

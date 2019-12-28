@@ -3,10 +3,13 @@ extern crate rg3d_sound;
 use rg3d_sound::{
     context::Context,
     source::Source,
-    buffer::{Buffer, BufferKind}
+    buffer::{
+        Buffer,
+        BufferKind,
+        DataSource
+    }
 };
 use std::{
-    path::Path,
     sync::{Arc, Mutex},
     thread,
     time::Duration
@@ -18,8 +21,7 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Load sound buffer.
-    let door_open_path = Path::new("examples/data/door_open.wav");
-    let door_open_buffer = Buffer::new(door_open_path, BufferKind::Normal).unwrap();
+    let door_open_buffer = Buffer::new(DataSource::from_file("examples/data/door_open.wav").unwrap(), BufferKind::Normal).unwrap();
 
     // Create flat source (without spatial effects) using that buffer.
     // Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer

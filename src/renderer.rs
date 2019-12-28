@@ -16,7 +16,7 @@ pub(in crate) fn render_source_default(source: &mut Source, mix_buffer: &mut [(f
         return;
     }
 
-    if let Some(buffer) = source.get_buffer().clone() {
+    if let Some(buffer) = source.get_buffer() {
         if let Ok(mut buffer) = buffer.lock() {
             if buffer.is_empty() {
                 return;

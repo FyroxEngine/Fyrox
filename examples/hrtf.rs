@@ -27,8 +27,12 @@ use rg3d_sound::{
         Source,
         SourceKind,
     },
-    buffer::{Buffer, BufferKind},
-    renderer::Renderer
+    buffer::{
+        Buffer,
+        BufferKind,
+        DataSource
+    },
+    renderer::Renderer,
 };
 
 fn main() {
@@ -40,14 +44,12 @@ fn main() {
     // Set HRTF renderer instead of default.
     context.lock().unwrap().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
-    let sound_path = Path::new("examples/data/door_open.wav");
-    let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
+    let sound_buffer = Buffer::new(DataSource::from_file("examples/data/door_open.wav").unwrap(), BufferKind::Normal).unwrap();
     let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
     source.play();
     context.lock().unwrap().add_source(source);
 
-    let sound_path = Path::new("examples/data/helicopter.wav");
-    let sound_buffer = Buffer::new(sound_path, BufferKind::Normal).unwrap();
+    let sound_buffer = Buffer::new(DataSource::from_file("examples/data/helicopter.wav").unwrap(), BufferKind::Normal).unwrap();
     let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
     source.play();
     source.set_looping(true);
@@ -78,6 +80,8 @@ fn main() {
             // (usually 10 Hz), so more frequent changes won't make any effect but just
             // will consume precious CPU clocks.
             context.update().unwrap();
+
+            println!("sound render time {} ms", context.get_render_time() * 1000.0);
         }
 
         // Limit rate of context updates.

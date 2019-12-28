@@ -268,10 +268,9 @@ pub(in crate) fn get_raw_samples(source: &mut Source, left: &mut [Complex<f32>],
         return;
     }
 
-
     let mut anything_sampled = false;
 
-    if let Some(buffer) = source.get_buffer().clone() {
+    if let Some(buffer) = source.get_buffer() {
         if let Ok(mut buffer) = buffer.lock() {
             if buffer.is_empty() {
                 return;
