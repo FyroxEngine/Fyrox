@@ -44,7 +44,7 @@ fn main() {
             // It is very important to call update context, on each update tick context
             // updates will check if it is the time to upload next piece of data into buffer
             // (perform streaming).
-            context.lock().unwrap().update().unwrap();
+            context.lock().unwrap().update();
         }
 
         // Limit rate of context updates.

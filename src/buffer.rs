@@ -11,7 +11,8 @@ use rg3d_core::visitor::{
 use std::{
     io::{BufReader, Cursor, SeekFrom, Seek, Read},
     path::{PathBuf, Path},
-    fs::File
+    fs::File,
+    time::Duration
 };
 
 #[derive(Debug)]
@@ -182,26 +183,37 @@ impl Buffer {
         })
     }
 
+    #[inline]
     pub fn get_external_data_path(&self) -> Option<PathBuf> {
         self.external_source_path.clone()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.samples.is_empty()
     }
 
+    #[inline]
     pub fn get_kind(&self) -> BufferKind {
         self.kind
     }
 
+    #[inline]
     pub fn get_samples(&self) -> &[f32] {
         &self.samples
     }
 
+    #[inline]
     pub fn get_channel_count(&self) -> usize {
         self.channel_count
     }
 
+    #[inline]
+    pub fn index_of_last_sample(&self) -> usize {
+        self.samples.len() - self.channel_count
+    }
+
+    #[inline]
     pub fn get_sample_rate(&self) -> usize {
         self.sample_rate
     }
@@ -224,5 +236,11 @@ impl Buffer {
             decoder.rewind()?;
         }
         Ok(())
+    }
+
+    pub(in crate) fn time_seek(&mut self, location: Duration) {
+        if let Some(decoder) = self.decoder.as_mut() {
+            decoder.time_seek(location);
+        }
     }
 }

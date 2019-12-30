@@ -13,11 +13,13 @@ extern crate rustfft;
 extern crate lewton;
 
 pub mod error;
-pub mod decoder;
 pub mod buffer;
 pub mod source;
-pub mod device;
 pub mod context;
 pub mod listener;
 pub mod hrtf;
 pub mod renderer;
+pub mod effects;
+pub mod dsp;
+pub mod decoder;
+pub mod device;

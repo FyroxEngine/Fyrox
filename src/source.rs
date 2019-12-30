@@ -1,6 +1,9 @@
-use std::sync::{
-    Arc,
-    Mutex,
+use std::{
+    sync::{
+        Arc,
+        Mutex,
+    },
+    time::Duration,
 };
 use crate::{
     buffer::{Buffer, BufferKind},
@@ -12,7 +15,6 @@ use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor, VisitError},
 };
 use rustfft::num_complex::Complex;
-use std::time::Duration;
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
@@ -176,6 +178,16 @@ impl Default for Source {
     }
 }
 
+/// Returns index of sample aligned to first channel by given arbitrary position.
+/// Buffers has samples in interleaved format, it means that for channel amount > 1
+/// samples will have this layout: LRLRLR..., when we reading from buffer we want
+/// to start reading from first channel in buffer, but since we using automatic
+/// resampling and variable pitch, read pos can have fractional part and even be
+/// unaligned to first channel. This function fixes that, it takes arbitrary
+/// position and aligns it to first channel so we can start reading samples for
+/// each channel by:
+/// left = read(index)
+/// right = read(index + 1)
 fn position_to_index(position: f64, channel_count: usize) -> usize {
     let index = position as usize;
 
@@ -277,28 +289,27 @@ impl Source {
         Ok(())
     }
 
-    pub(in crate) fn update(&mut self, listener: &Listener) -> Result<(), SoundError> {
+    pub(in crate) fn update(&mut self, listener: &Listener) {
         let mut dist_gain = 1.0;
         if let SourceKind::Spatial(spatial) = &self.kind {
             let dir = spatial.position - listener.position;
             let sqr_distance = dir.sqr_len();
             if sqr_distance < 0.0001 {
                 self.pan = 0.0;
+                self.hrtf_sampling_vector = Vec3::new(0.0, 0.0, 1.0);
             } else {
-                let norm_dir = dir.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
+                let norm_dir = dir.normalized().unwrap_or(Vec3::new(0.0, 0.0, 1.0));
                 self.pan = norm_dir.dot(&listener.ear_axis);
-
                 self.hrtf_sampling_vector = listener.view_matrix
                     .transform_vector_normal(spatial.position - listener.position)
                     .normalized()
-                    .unwrap_or_default();
+                    .unwrap_or(Vec3::new(0.0, 0.0, 1.0));
             }
             dist_gain = 1.0 / (1.0 + (sqr_distance / (spatial.radius * spatial.radius)));
         }
         self.distance_gain = dist_gain;
         self.left_gain = self.gain * dist_gain * (1.0 + self.pan);
         self.right_gain = self.gain * dist_gain * (1.0 - self.pan);
-        Ok(())
     }
 
     pub fn get_kind(&self) -> &SourceKind {
@@ -324,12 +335,33 @@ impl Source {
     }
 
     pub fn get_playback_time(&self) -> Duration {
-        if let Some(ref buffer) = self.buffer {
-            if let Ok(buffer) = buffer.lock() {
-                return Duration::from_secs_f64(self.playback_pos / buffer.get_sample_rate() as f64);
-            }
+        if let Some(buffer) = self.buffer.as_ref().and_then(|b| b.lock().ok()) {
+            let i = position_to_index(self.playback_pos, buffer.get_channel_count());
+            return Duration::from_secs_f64((i / buffer.get_sample_rate()) as f64);
         }
         Duration::from_secs(0)
+    }
+
+    pub fn set_playback_time(&mut self, time: Duration) {
+        if let Some(mut buffer) = self.buffer.as_mut().and_then(|b| b.lock().ok()) {
+            // Make sure decoder is at right position.
+            buffer.time_seek(time);
+            // Set absolute position first.
+            self.playback_pos = (time.as_secs_f64() * buffer.get_channel_count() as f64)
+                .min(buffer.index_of_last_sample() as f64);
+            // Then adjust buffer read position.
+            self.buf_read_pos =
+                if buffer.get_kind() == BufferKind::Stream {
+                    // Make sure to load correct data into buffer from decoder.
+                    buffer.read_next_block();
+                    // Streaming sources has different buffer read position because
+                    // buffer contains only small portion of data.
+                    self.playback_pos % buffer.get_samples().len() as f64
+                } else {
+                    self.playback_pos
+                };
+            assert!(position_to_index(self.buf_read_pos, buffer.get_channel_count()) < buffer.get_samples().len());
+        }
     }
 
     pub(in crate) fn next_sample_pair(&mut self, buffer: &mut Buffer) -> (f32, f32) {
@@ -341,7 +373,7 @@ impl Source {
         let mut i = position_to_index(self.buf_read_pos, buffer.get_channel_count());
 
         let len = buffer.get_samples().len();
-        if i > len - buffer.get_channel_count() {
+        if i > buffer.index_of_last_sample() {
             let mut end_reached = true;
             if buffer.get_kind() == BufferKind::Stream {
                 // Means that this is the last available block.

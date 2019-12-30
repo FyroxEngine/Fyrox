@@ -79,7 +79,7 @@ fn main() {
             // configured that it will send samples to output device with fixed rate
             // (usually 10 Hz), so more frequent changes won't make any effect but just
             // will consume precious CPU clocks.
-            context.update().unwrap();
+            context.update();
 
             println!("sound render time {} ms", context.get_render_time() * 1000.0);
         }

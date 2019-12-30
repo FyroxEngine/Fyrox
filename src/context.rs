@@ -1,5 +1,3 @@
-/// Sound renderer.
-
 use std::{
     sync::{
         Arc,
@@ -10,16 +8,17 @@ use std::{
 use crate::{
     error::SoundError,
     device::run_device,
-    listener::Listener,
-    source::{
+    listener::Listener, source::{
         Status,
         Source,
         SourceKind,
     },
     renderer::{
         Renderer,
-        render_source_default
-    }
+        render_source_default,
+    },
+    effects::Effect,
+    device,
 };
 use rg3d_core::{
     pool::{Pool, Handle},
@@ -32,12 +31,13 @@ pub struct Context {
     master_gain: f32,
     render_time: f32,
     renderer: Renderer,
+    effects: Pool<Effect>,
 }
 
 impl Context {
     // TODO: This is magic constant that gives 4096 (power of two) number when summed with
     //       HRTF length for faster FFT calculations. Find a better way of selecting this.
-    pub const SAMPLE_PER_CHANNEL: usize = 3584;
+    pub const SAMPLE_PER_CHANNEL: usize = 3585;
 
     pub fn new() -> Result<Arc<Mutex<Self>>, SoundError> {
         let context = Self {
@@ -46,6 +46,7 @@ impl Context {
             master_gain: 1.0,
             render_time: 0.0,
             renderer: Renderer::Default,
+            effects: Pool::new(),
         };
 
         let context = Arc::new(Mutex::new(context));
@@ -65,7 +66,7 @@ impl Context {
     }
 
     fn render(&mut self, buf: &mut [(f32, f32)]) {
-        let current_time = time::Instant::now();
+        let last_time = time::Instant::now();
 
         for source in self.sources.iter_mut() {
             if source.get_status() != Status::Playing {
@@ -74,7 +75,7 @@ impl Context {
 
             match self.renderer {
                 Renderer::Default => {
-                    // Simple rendering path. Much faster (8-10 times) than HRTF path.
+                    // Simple rendering path. Much faster (4-5 times) than HRTF path.
                     render_source_default(source, buf);
                 }
                 Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
@@ -90,13 +91,33 @@ impl Context {
             }
         }
 
+        for effect in self.effects.iter_mut() {
+            for (left, right) in buf.iter_mut() {
+                let (out_left, out_right) = effect.feed(*left, *right);
+                *left = out_left;
+                *right = out_right;
+            }
+        }
+
         // Apply master gain to be able to control total sound volume.
         for (left, right) in buf {
             *left *= self.master_gain;
             *right *= self.master_gain;
         }
 
-        self.render_time = (time::Instant::now() - current_time).as_secs_f32();
+        self.render_time = (time::Instant::now() - last_time).as_secs_f32();
+    }
+
+    pub fn add_effect(&mut self, effect: Effect) -> Handle<Effect> {
+        self.effects.spawn(effect)
+    }
+
+    pub fn remove_effect(&mut self, effect: Handle<Effect>) {
+        self.effects.free(effect)
+    }
+
+    pub fn normalize_frequency(&self, f: f32) -> f32 {
+        f / device::SAMPLE_RATE as f32
     }
 
     pub fn get_render_time(&self) -> f32 {
@@ -143,10 +164,10 @@ impl Context {
         &mut self.listener
     }
 
-    pub fn update(&mut self) -> Result<(), SoundError> {
+    pub fn update(&mut self) {
         self.listener.update();
         for source in self.sources.iter_mut() {
-            source.update(&self.listener)?;
+            source.update(&self.listener);
         }
         for i in 0..self.sources.get_capacity() {
             if let Some(source) = self.sources.at(i) {
@@ -155,7 +176,6 @@ impl Context {
                 }
             }
         }
-        Ok(())
     }
 }
 

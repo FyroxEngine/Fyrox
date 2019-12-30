@@ -1,5 +1,3 @@
-/// Head-related transfer function (HRTF) loader, interpolator and renderer.
-
 use rustfft::{
     num_complex::Complex,
     num_traits::Zero,
@@ -10,8 +8,8 @@ use crate::{
     device,
     source::{
         Source,
-        Status
-    }
+        Status,
+    },
 };
 use std::{
     fs::File,
@@ -60,7 +58,7 @@ pub enum HrtfError {
     InvalidFileFormat,
 
     /// HRIR has invalid length (zero)
-    InvalidLength(usize)
+    InvalidLength(usize),
 }
 
 impl From<std::io::Error> for HrtfError {
@@ -115,7 +113,7 @@ impl HrtfSphere {
         }
         let length = reader.read_u32::<LittleEndian>()? as usize;
         if length == 0 {
-            return Err(HrtfError::InvalidLength(length))
+            return Err(HrtfError::InvalidLength(length));
         }
         let vertex_count = reader.read_u32::<LittleEndian>()? as usize;
         let index_count = reader.read_u32::<LittleEndian>()? as usize;
@@ -300,6 +298,10 @@ pub(in crate) fn get_raw_samples(source: &mut Source, left: &mut [Complex<f32>],
     }
 }
 
+fn is_pow2(x: usize) -> bool {
+    (x & (x - 1)) == 0
+}
+
 impl HrtfRenderer {
     pub fn new(hrtf_sphere: HrtfSphere) -> Self {
         let pad_length = get_pad_len(hrtf_sphere.length);
@@ -326,6 +328,12 @@ impl HrtfRenderer {
         // Still very unoptimal and heavy. TODO: Optimize.
         let pad_length = get_pad_len(self.hrtf_sphere.length);
 
+        // TODO: Remove this warning when there will be ability to control output buffer length
+        //       from context.
+        if !is_pow2(pad_length) {
+            println!("rg3d-sound PERFORMANCE WARNING: Hrtf pad length is not power of two, performance will be ~2 times worse.")
+        }
+
         if source.last_frame_left_samples.len() != self.hrtf_sphere.length - 1 {
             source.last_frame_left_samples = vec![Complex::zero(); pad_length];
         }
@@ -337,7 +345,7 @@ impl HrtfRenderer {
 
         // Gather samples for processing.
         get_raw_samples(source, &mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
-                               &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
+                        &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
 
         mute(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
         mute(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
