@@ -10,7 +10,7 @@ repository = "https://github.com/mrDIMAS/rg3d-sound"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.2.3" }
+rg3d-core = "0.2.3"
 byteorder = "1.3.2"
 rustfft = "3.0.0"
 lewton = "0.9.4"
