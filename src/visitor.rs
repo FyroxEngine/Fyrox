@@ -869,7 +869,7 @@ impl<T> Visit for std::rc::Weak<T> where T: Default + Visit + 'static {
             index.visit("Id", visitor)?;
 
             if let Entry::Vacant(entry) = visitor.rc_map.entry(index) {
-                entry.insert(rc.clone());
+                entry.insert(rc);
                 unsafe { &mut *raw }.visit("RcData", visitor)?;
             }
         } else {
@@ -918,7 +918,7 @@ impl<T> Visit for std::sync::Weak<T> where T: Default + Visit + Send + Sync + 's
             index.visit("Id", visitor)?;
 
             if let Entry::Vacant(entry) = visitor.arc_map.entry(index) {
-                entry.insert(arc.clone());
+                entry.insert(arc);
                 unsafe { &mut *raw }.visit("ArcData", visitor)?;
             }
         } else {

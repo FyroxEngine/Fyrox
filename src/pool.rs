@@ -350,7 +350,7 @@ impl<T> Pool<T> {
     /// *b = 22;
     /// ```
     #[inline]
-    #[must_use]
+    #[must_use = "Handle set must not be ignored"]
     pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>))
                           -> Result<(&mut T, &mut T), ()> {
         // Prevent giving two mutable references to same record.
@@ -387,7 +387,7 @@ impl<T> Pool<T> {
     /// *c = 33;
     /// ```
     #[inline]
-    #[must_use]
+    #[must_use = "Handle set must not be ignored"]
     pub fn borrow_three_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>))
                             -> Result<(&mut T, &mut T, &mut T), ()> {
         // Prevent giving mutable references to same record.
@@ -429,7 +429,7 @@ impl<T> Pool<T> {
     /// *d = 44;
     /// ```
     #[inline]
-    #[must_use]
+    #[must_use = "Handle set must not be ignored"]
     pub fn borrow_four_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>))
                            -> Result<(&mut T, &mut T, &mut T, &mut T), ()> {
         // Prevent giving mutable references to same record.

@@ -85,15 +85,8 @@ impl ColorGradient {
 
     pub fn add_point(&mut self, pt: GradientPoint) {
         self.points.push(pt);
-
         self.points.sort_by(|a, b| {
-            if a.location < b.location {
-                Ordering::Less
-            } else if a.location > b.location {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
+            a.location.partial_cmp(&b.location).unwrap_or(Ordering::Equal)
         });
     }
 

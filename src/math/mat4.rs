@@ -97,29 +97,6 @@ impl Mat4 {
         }
     }
 
-    pub fn mul(a: Self, b: Self) -> Self {
-        Self {
-            f: [
-                a.f[0] * b.f[0] + a.f[4] * b.f[1] + a.f[8] * b.f[2] + a.f[12] * b.f[3],
-                a.f[1] * b.f[0] + a.f[5] * b.f[1] + a.f[9] * b.f[2] + a.f[13] * b.f[3],
-                a.f[2] * b.f[0] + a.f[6] * b.f[1] + a.f[10] * b.f[2] + a.f[14] * b.f[3],
-                a.f[3] * b.f[0] + a.f[7] * b.f[1] + a.f[11] * b.f[2] + a.f[15] * b.f[3],
-                a.f[0] * b.f[4] + a.f[4] * b.f[5] + a.f[8] * b.f[6] + a.f[12] * b.f[7],
-                a.f[1] * b.f[4] + a.f[5] * b.f[5] + a.f[9] * b.f[6] + a.f[13] * b.f[7],
-                a.f[2] * b.f[4] + a.f[6] * b.f[5] + a.f[10] * b.f[6] + a.f[14] * b.f[7],
-                a.f[3] * b.f[4] + a.f[7] * b.f[5] + a.f[11] * b.f[6] + a.f[15] * b.f[7],
-                a.f[0] * b.f[8] + a.f[4] * b.f[9] + a.f[8] * b.f[10] + a.f[12] * b.f[11],
-                a.f[1] * b.f[8] + a.f[5] * b.f[9] + a.f[9] * b.f[10] + a.f[13] * b.f[11],
-                a.f[2] * b.f[8] + a.f[6] * b.f[9] + a.f[10] * b.f[10] + a.f[14] * b.f[11],
-                a.f[3] * b.f[8] + a.f[7] * b.f[9] + a.f[11] * b.f[10] + a.f[15] * b.f[11],
-                a.f[0] * b.f[12] + a.f[4] * b.f[13] + a.f[8] * b.f[14] + a.f[12] * b.f[15],
-                a.f[1] * b.f[12] + a.f[5] * b.f[13] + a.f[9] * b.f[14] + a.f[13] * b.f[15],
-                a.f[2] * b.f[12] + a.f[6] * b.f[13] + a.f[10] * b.f[14] + a.f[14] * b.f[15],
-                a.f[3] * b.f[12] + a.f[7] * b.f[13] + a.f[11] * b.f[14] + a.f[15] * b.f[15]
-            ]
-        }
-    }
-
     pub fn look_at(eye: Vec3, at: Vec3, up: Vec3) -> Option<Mat4> {
         let zaxis = (eye - at).normalized()?;
         let xaxis = up.cross(&zaxis).normalized()?;
@@ -212,6 +189,27 @@ impl Mat4 {
 impl ops::Mul<Self> for Mat4 {
     type Output = Self;
     fn mul(self, b: Self) -> Self {
-        Mat4::mul(self, b)
+        Self {
+            f: [
+                self.f[0] * b.f[0] + self.f[4] * b.f[1] + self.f[8] * b.f[2] + self.f[12] * b.f[3],
+                self.f[1] * b.f[0] + self.f[5] * b.f[1] + self.f[9] * b.f[2] + self.f[13] * b.f[3],
+                self.f[2] * b.f[0] + self.f[6] * b.f[1] + self.f[10] * b.f[2] + self.f[14] * b.f[3],
+                self.f[3] * b.f[0] + self.f[7] * b.f[1] + self.f[11] * b.f[2] + self.f[15] * b.f[3],
+                self.f[0] * b.f[4] + self.f[4] * b.f[5] + self.f[8] * b.f[6] + self.f[12] * b.f[7],
+                self.f[1] * b.f[4] + self.f[5] * b.f[5] + self.f[9] * b.f[6] + self.f[13] * b.f[7],
+                self.f[2] * b.f[4] + self.f[6] * b.f[5] + self.f[10] * b.f[6] + self.f[14] * b.f[7],
+                self.f[3] * b.f[4] + self.f[7] * b.f[5] + self.f[11] * b.f[6] + self.f[15] * b.f[7],
+                self.f[0] * b.f[8] + self.f[4] * b.f[9] + self.f[8] * b.f[10] + self.f[12] * b.f[11],
+                self.f[1] * b.f[8] + self.f[5] * b.f[9] + self.f[9] * b.f[10] + self.f[13] * b.f[11],
+                self.f[2] * b.f[8] + self.f[6] * b.f[9] + self.f[10] * b.f[10] + self.f[14] * b.f[11],
+                self.f[3] * b.f[8] + self.f[7] * b.f[9] + self.f[11] * b.f[10] + self.f[15] * b.f[11],
+                self.f[0] * b.f[12] + self.f[4] * b.f[13] + self.f[8] * b.f[14] + self.f[12] * b.f[15],
+                self.f[1] * b.f[12] + self.f[5] * b.f[13] + self.f[9] * b.f[14] + self.f[13] * b.f[15],
+                self.f[2] * b.f[12] + self.f[6] * b.f[13] + self.f[10] * b.f[14] + self.f[14] * b.f[15],
+                self.f[3] * b.f[12] + self.f[7] * b.f[13] + self.f[11] * b.f[14] + self.f[15] * b.f[15]
+            ]
+        }
     }
 }
+
+

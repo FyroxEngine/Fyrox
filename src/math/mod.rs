@@ -248,11 +248,11 @@ pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f
     (u, v, w)
 }
 
-pub fn get_barycentric_coords_2d(p: &Vec2, a: &Vec2, b: &Vec2, c: &Vec2) -> (f32, f32, f32)
+pub fn get_barycentric_coords_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> (f32, f32, f32)
 {
-    let v0 = *b - *a;
-    let v1 = *c - *a;
-    let v2 = *p - *a;
+    let v0 = b - a;
+    let v1 = c - a;
+    let v2 = p - a;
 
     let d00 = v0.dot(v0);
     let d01 = v0.dot(v1);
