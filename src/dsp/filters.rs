@@ -108,7 +108,6 @@ impl AllPass {
         let sum_left = sample + am_arm;
         let b0_arm = sum_left * self.gain;
         self.delay_line.feed(sum_left);
-        let sum_right = delay_line_output + b0_arm;
-        sum_right
+        delay_line_output + b0_arm
     }
 }

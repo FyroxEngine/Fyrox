@@ -1,16 +1,16 @@
 [package]
 name = "rg3d-sound"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
 description = "Sound library for games."
-keywords = ["sound", "game", "hrtf", "binaural"]
+keywords = ["sound", "game", "hrtf", "binaural", "reverb"]
 repository = "https://github.com/mrDIMAS/rg3d-sound"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
 
 [dependencies]
-rg3d-core = "0.2.3"
+rg3d-core = { path = "../rg3d-core", version = "0.2.4" }
 byteorder = "1.3.2"
 rustfft = "3.0.0"
 lewton = "0.9.4"

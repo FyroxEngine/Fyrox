@@ -17,7 +17,10 @@ use std::{
 };
 
 pub struct OggDecoder {
-    reader: Option<OggStreamReader<DataSource>>,
+    // Option here is because we need to bypass a bug in lewton by replacing
+    // the whole OggStreamReader on rewind by extracting data source and
+    // create new OggStreamReader from it. Its ugly.
+    reader: Option<Box<OggStreamReader<DataSource>>>,
     samples: vec::IntoIter<f32>,
     pub channel_count: usize,
     pub sample_rate: usize,
@@ -73,7 +76,7 @@ impl OggDecoder {
                 samples,
                 channel_count: reader.ident_hdr.audio_channels as usize,
                 sample_rate: reader.ident_hdr.audio_sample_rate as usize,
-                reader: Some(reader),
+                reader: Some(Box::new(reader)),
             })
         } else {
             Err(source)
@@ -106,5 +109,9 @@ impl OggDecoder {
         if self.reader.as_mut().unwrap().seek_absgp_pg(sample_index as u64).is_err() {
             println!("Failed to seek vorbis/ogg, see https://github.com/RustAudio/lewton/issues/73")
         }
+    }
+
+    pub fn duration(&self) -> Option<Duration> {
+        None
     }
 }

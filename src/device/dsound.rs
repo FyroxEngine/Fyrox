@@ -1,18 +1,9 @@
 #![allow(non_snake_case)]
 
-use std::{
-    mem::size_of,
-    sync::atomic::{Ordering, AtomicPtr},
-};
+use std::mem::size_of;
 use winapi::{
     um::{
-        dsound::{
-            IDirectSound, DirectSoundCreate,
-            DSBCAPS_CTRLPOSITIONNOTIFY, DSSCL_PRIORITY,
-            DS_OK, DSBCAPS_GLOBALFOCUS,
-            DSBUFFERDESC, IDirectSoundBuffer,
-            IID_IDirectSoundNotify, DSBPLAY_LOOPING,
-        },
+        dsound::*,
         winuser::GetForegroundWindow,
         synchapi::{CreateEventA, WaitForMultipleObjects},
         unknwnbase::{IUnknownVtbl, IUnknown},
@@ -44,26 +35,34 @@ RIDL! {#[uuid(0xb021_0783, 0x89cd, 0x11d0, 0xaf, 0x8, 0x0, 0xa0, 0xc9, 0x25, 0xc
     }}
 
 pub struct DirectSoundDevice {
-    direct_sound: AtomicPtr<IDirectSound>,
-    buffer: AtomicPtr<IDirectSoundBuffer>,
-    notify_points: [AtomicPtr<c_void>; 2],
+    direct_sound: *mut IDirectSound,
+    buffer: *mut IDirectSoundBuffer,
+    notify_points: [*mut c_void; 2],
     buffer_len_bytes: u32,
     out_data: Vec<NativeSample>,
     mix_buffer: Vec<(f32, f32)>,
     callback: Box<FeedCallback>,
 }
 
+unsafe impl Send for DirectSoundDevice {}
+
+fn check<S: Into<String>>(code: i32, message: S) -> Result<(), SoundError> {
+    if code == DS_OK {
+        Ok(())
+    } else {
+        Err(SoundError::FailedToInitializeDevice(message.into()))
+    }
+}
+
 impl DirectSoundDevice {
     pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
         unsafe {
             let mut direct_sound = std::ptr::null_mut();
-            if DirectSoundCreate(std::ptr::null(), &mut direct_sound, std::ptr::null_mut()) != DS_OK {
-                return Err(SoundError::FailedToInitializeDevice("Failed to initialize DirectSound".to_string()));
-            }
+            check(DirectSoundCreate(std::ptr::null(), &mut direct_sound, std::ptr::null_mut()),
+                  "Failed to initialize DirectSound")?;
 
-            if (*direct_sound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY) != DS_OK {
-                return Err(SoundError::FailedToInitializeDevice("Failed to set cooperative level".to_string()));
-            }
+            check((*direct_sound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY),
+                  "Failed to set cooperative level")?;
 
             let channels_count = 2;
             let byte_per_sample = size_of::<i16>() as u16;
@@ -88,15 +87,13 @@ impl DirectSoundDevice {
                 guid3DAlgorithm: IID_NULL,
             };
 
-            let mut buffer: *mut IDirectSoundBuffer = std::ptr::null_mut();
-            if (*direct_sound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()) != DS_OK {
-                return Err(SoundError::FailedToInitializeDevice("Failed to create back buffer.".to_string()));
-            }
+            let mut buffer = std::ptr::null_mut();
+            check((*direct_sound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()),
+                  "Failed to create back buffer.")?;
 
             let mut notify: *mut IDirectSoundNotify = std::ptr::null_mut();
-            if (*buffer).QueryInterface(&IID_IDirectSoundNotify, ((&mut notify) as *mut *mut IDirectSoundNotify) as *mut *mut c_void) != DS_OK {
-                return Err(SoundError::FailedToInitializeDevice("Failed to obtain IDirectSoundNotify interface.".to_string()));
-            }
+            check((*buffer).QueryInterface(&IID_IDirectSoundNotify, ((&mut notify) as *mut *mut _) as *mut *mut c_void),
+                "Failed to obtain IDirectSoundNotify interface.")?;
 
             let notify_points = [
                 CreateEventA(std::ptr::null_mut(), 0, 0, std::ptr::null()),
@@ -114,26 +111,19 @@ impl DirectSoundDevice {
                 }
             ];
 
-            let pos_ptr = &mut pos as *mut [DSBPOSITIONNOTIFY; 2];
-            if (*notify).SetNotificationPositions(2, pos_ptr as *mut c_void) != DS_OK {
-                return Err(SoundError::FailedToInitializeDevice("Failed to set notification positions.".to_string()));
-            }
+            check((*notify).SetNotificationPositions(pos.len() as u32, &mut pos as *mut _ as *mut c_void),
+                "Failed to set notification positions.")?;
 
-            if (*buffer).Play(0, 0, DSBPLAY_LOOPING) != DS_OK {
-                return Err(SoundError::FailedToInitializeDevice("Failed to begin playing back buffer.".to_string()));
-            }
-
-            let a = AtomicPtr::new(notify_points[0]);
-            let b = AtomicPtr::new(notify_points[1]);
+            check((*buffer).Play(0, 0, DSBPLAY_LOOPING), "Failed to begin playing back buffer.")?;
 
             let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
 
             Ok(Self {
-                direct_sound: AtomicPtr::new(direct_sound),
-                buffer: AtomicPtr::new(buffer),
+                direct_sound,
+                buffer,
                 out_data: vec![Default::default(); samples_per_channel],
                 mix_buffer: vec![(0.0, 0.0); samples_per_channel],
-                notify_points: [a, b],
+                notify_points,
                 buffer_len_bytes,
                 callback,
             })
@@ -144,8 +134,7 @@ impl DirectSoundDevice {
 impl Drop for DirectSoundDevice {
     fn drop(&mut self) {
         unsafe {
-            let direct_sound = self.direct_sound.load(Ordering::SeqCst);
-            assert_eq!((*direct_sound).Release(), 0);
+            assert_eq!((*self.direct_sound).Release(), 0);
         }
     }
 }
@@ -170,18 +159,12 @@ impl Device for DirectSoundDevice {
     fn feed(&mut self) {
         self.mix();
 
-        let notify_points = [
-            self.notify_points[0].load(Ordering::SeqCst),
-            self.notify_points[1].load(Ordering::SeqCst)
-        ];
-        let buffer = self.buffer.load(Ordering::SeqCst);
-
         // Wait and send.
         unsafe {
             const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
-            match WaitForMultipleObjects(2, notify_points.as_ptr(), 0, INFINITE) {
-                WAIT_OBJECT_0 => write(buffer, self.buffer_len_bytes, self.buffer_len_bytes, &self.out_data),
-                WAIT_OBJECT_1 => write(buffer, 0, self.buffer_len_bytes, &self.out_data),
+            match WaitForMultipleObjects(2, self.notify_points.as_ptr(), 0, INFINITE) {
+                WAIT_OBJECT_0 => write(self.buffer, self.buffer_len_bytes, self.buffer_len_bytes, &self.out_data),
+                WAIT_OBJECT_1 => write(self.buffer, 0, self.buffer_len_bytes, &self.out_data),
                 _ => panic!("Unknown buffer point!")
             }
         }

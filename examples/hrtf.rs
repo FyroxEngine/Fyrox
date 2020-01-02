@@ -1,38 +1,33 @@
-extern crate rg3d_sound;
-extern crate rg3d_core;
-
 use std::{
     path::Path,
-    sync::{Arc, Mutex},
     time::{
         self,
         Duration,
     },
     thread,
 };
-use rg3d_core::{
+use rg3d_sound::{
     math::{
         mat4::Mat4,
         vec3::Vec3,
         quat::Quat,
     },
-};
-use rg3d_sound::{
     hrtf::{
         HrtfRenderer,
-        HrtfSphere
+        HrtfSphere,
     },
     context::Context,
-    source::{
-        Source,
-        SourceKind,
-    },
     buffer::{
-        Buffer,
-        BufferKind,
-        DataSource
+        DataSource,
+        SoundBuffer,
     },
     renderer::Renderer,
+    source::{
+        generic::GenericSourceBuilder,
+        SoundSource,
+        spatial::SpatialSourceBuilder,
+        Status,
+    },
 };
 
 fn main() {
@@ -42,49 +37,53 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Set HRTF renderer instead of default.
-    context.lock().unwrap().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
+    context.lock()
+        .unwrap()
+        .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
-    let sound_buffer = Buffer::new(DataSource::from_file("examples/data/door_open.wav").unwrap(), BufferKind::Normal).unwrap();
-    let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
-    source.play();
-    context.lock().unwrap().add_source(source);
+    // Create some sounds.
+    let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap()).unwrap();
+    let source = SpatialSourceBuilder::new(
+        GenericSourceBuilder::new(sound_buffer)
+            .with_status(Status::Playing)
+            .build()
+            .unwrap())
+        .build_source();
+    context.lock()
+        .unwrap()
+        .add_source(source);
 
-    let sound_buffer = Buffer::new(DataSource::from_file("examples/data/helicopter.wav").unwrap(), BufferKind::Normal).unwrap();
-    let mut source = Source::new_spatial(Arc::new(Mutex::new(sound_buffer))).unwrap();
-    source.play();
-    source.set_looping(true);
-    let source_handle = context.lock().unwrap().add_source(source);
+    let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/helicopter.wav").unwrap()).unwrap();
+    let source = SpatialSourceBuilder::new(
+        GenericSourceBuilder::new(sound_buffer)
+            .with_status(Status::Playing)
+            .with_looping(true)
+            .build()
+            .unwrap())
+        .build_source();
+    let source_handle = context.lock()
+        .unwrap()
+        .add_source(source);
 
-    // Move sound around listener for some time.
+    // Move source sound around listener for some time.
     let start_time = time::Instant::now();
     let mut angle = 0.0f32;
     while (time::Instant::now() - start_time).as_secs() < 360 {
         {
             let mut context = context.lock().unwrap();
             let sound = context.get_source_mut(source_handle);
-            if let SourceKind::Spatial(spatial) = sound.get_kind_mut() {
+            if let SoundSource::Spatial(spatial) = sound {
                 let axis = Vec3::new(0.0, 1.0, 0.0);
                 let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
-
-                let position = rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 3.0));
-                spatial.set_position(&position);
+                spatial.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 3.0)));
             }
 
             angle += 1.6;
 
-            // It is very important to call update context, on each update tick context
-            // updates sound sources so they will take new spatial properties. Also
-            // it will perform streaming. Update should be performed at least 5-10
-            // times per second, no need to call it more frequently because context
-            // configured that it will send samples to output device with fixed rate
-            // (usually 10 Hz), so more frequent changes won't make any effect but just
-            // will consume precious CPU clocks.
-            context.update();
-
-            println!("sound render time {} ms", context.get_render_time() * 1000.0);
+            println!("sound render time {} ms", context.full_render_time() * 1000.0);
         }
 
-        // Limit rate of context updates.
+        // Limit rate of updates.
         thread::sleep(Duration::from_millis(100));
     }
 }

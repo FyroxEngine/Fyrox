@@ -1,20 +1,28 @@
+/// Hrtf renderer.
+///
+/// # Known problems
+///
+/// This renderer still suffers from small audible clicks in fast moving sounds,
+/// it is due the fact that hrtf is different from frame to frame which gives
+/// "bumps" in amplitude of signal. This can be fixed by short cross fade between
+/// small amount of samples from previous frame with same amount of frames of current
+/// as proposed in http://csoundjournal.com/issue9/newHRTFOpcodes.html
+/// Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving
+/// around listener.
+
 use rustfft::{
     num_complex::Complex,
     num_traits::Zero,
     FFTplanner,
 };
-use crate::{
-    context::Context,
-    device,
-    source::{
-        Source,
-        Status,
-    },
-};
 use std::{
     fs::File,
     path::Path,
-    io::{BufReader, Read, Error},
+    io::{
+        BufReader,
+        Read,
+        Error,
+    },
 };
 use rg3d_core::math::{
     get_barycentric_coords,
@@ -25,6 +33,14 @@ use byteorder::{
     ReadBytesExt,
     LittleEndian,
 };
+use crate::{context::{
+    DistanceModel,
+    Context,
+}, listener::Listener, renderer::render_source_default, device, source::{
+    Status,
+    spatial::SpatialSource,
+    SoundSource,
+}};
 
 struct HrtfPoint {
     pos: Vec3,
@@ -205,7 +221,8 @@ fn convolve(in_buffer: &mut [Complex<f32>],
             hrtf: &[Complex<f32>],
             prev_samples: &mut Vec<Complex<f32>>,
             fft: &mut FFTplanner<f32>,
-            ifft: &mut FFTplanner<f32>) {
+            ifft: &mut FFTplanner<f32>)
+{
     assert_eq!(hrtf.len(), in_buffer.len());
 
     fft.plan_fft(in_buffer.len()).process(in_buffer, out_buffer);
@@ -257,10 +274,10 @@ fn mute(buffer: &mut [Complex<f32>]) {
     }
 }
 
-pub(in crate) fn get_raw_samples(source: &mut Source, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
+pub(in crate) fn get_raw_samples(source: &mut SpatialSource, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
     assert_eq!(left.len(), right.len());
 
-    if source.get_status() != Status::Playing {
+    if source.generic().status() != Status::Playing {
         mute(left);
         mute(right);
         return;
@@ -268,27 +285,25 @@ pub(in crate) fn get_raw_samples(source: &mut Source, left: &mut [Complex<f32>],
 
     let mut anything_sampled = false;
 
-    if let Some(buffer) = source.get_buffer() {
-        if let Ok(mut buffer) = buffer.lock() {
-            if buffer.is_empty() {
-                return;
+    if let Some(mut buffer) = source.generic().buffer().as_ref().and_then(|b| b.lock().ok()) {
+        if buffer.generic().is_empty() {
+            return;
+        }
+
+        for (left, right) in left.iter_mut().zip(right.iter_mut()) {
+            if source.generic().status() == Status::Playing {
+                // Ignore all channels except left. Only mono sounds can be processed by HRTF.
+                let (raw_left, _) = source.generic_mut().next_sample_pair(&mut buffer);
+                let sample = Complex::new(raw_left, 0.0);
+                *left = sample;
+                *right = sample;
+            } else {
+                // Fill rest with zeros
+                *left = Complex::zero();
+                *right = Complex::zero();
             }
 
-            for (left, right) in left.iter_mut().zip(right.iter_mut()) {
-                if source.get_status() == Status::Playing {
-                    // Ignore all channels except left. Only mono sounds can be processed by HRTF.
-                    let (raw_left, _) = source.next_sample_pair(&mut buffer);
-                    let sample = Complex::new(raw_left, 0.0);
-                    *left = sample;
-                    *right = sample;
-                } else {
-                    // Fill rest with zeros
-                    *left = Complex::zero();
-                    *right = Complex::zero();
-                }
-
-                anything_sampled = true;
-            }
+            anything_sampled = true;
         }
     }
 
@@ -324,50 +339,53 @@ impl HrtfRenderer {
         }
     }
 
-    pub(in crate) fn render_source(&mut self, source: &mut Source, out_buf: &mut [(f32, f32)]) {
-        // Still very unoptimal and heavy. TODO: Optimize.
-        let pad_length = get_pad_len(self.hrtf_sphere.length);
+    pub(in crate) fn render_source(&mut self,
+                                   source: &mut SoundSource,
+                                   listener: &Listener,
+                                   distance_model: DistanceModel,
+                                   out_buf: &mut [(f32, f32)],
+    ) {
+        match source {
+            SoundSource::Generic(_) => {
+                render_source_default(source, listener, distance_model, out_buf)
+            }
+            SoundSource::Spatial(spatial) => {
+                // Still very unoptimal and heavy. TODO: Optimize.
+                let pad_length = get_pad_len(self.hrtf_sphere.length);
 
-        // TODO: Remove this warning when there will be ability to control output buffer length
-        //       from context.
-        if !is_pow2(pad_length) {
-            println!("rg3d-sound PERFORMANCE WARNING: Hrtf pad length is not power of two, performance will be ~2 times worse.")
-        }
+                // TODO: Remove this warning when there will be ability to control output buffer length
+                //       from context.
+                if !is_pow2(pad_length) {
+                    println!("rg3d-sound PERFORMANCE WARNING: Hrtf pad length is not power of two, performance will be ~2 times worse.")
+                }
 
-        if source.last_frame_left_samples.len() != self.hrtf_sphere.length - 1 {
-            source.last_frame_left_samples = vec![Complex::zero(); pad_length];
-        }
-        if source.last_frame_right_samples.len() != self.hrtf_sphere.length - 1 {
-            source.last_frame_right_samples = vec![Complex::zero(); pad_length];
-        }
+                let sampling_vector = spatial.get_sampling_vector(listener);
+                self.hrtf_sphere.sample_bilinear(&mut self.left_hrtf, &mut self.right_hrtf, sampling_vector);
 
-        self.hrtf_sphere.sample_bilinear(&mut self.left_hrtf, &mut self.right_hrtf, source.hrtf_sampling_vector);
+                // Gather samples for processing.
+                get_raw_samples(spatial, &mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
+                                &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
 
-        // Gather samples for processing.
-        get_raw_samples(source, &mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
-                        &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
+                mute(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
+                mute(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
 
-        mute(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
-        mute(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
+                convolve(&mut self.left_in_buffer, &mut self.left_out_buffer,
+                         &self.left_hrtf, &mut spatial.last_frame_left_samples,
+                         &mut self.fft, &mut self.ifft);
 
-        convolve(&mut self.left_in_buffer, &mut self.left_out_buffer,
-                 &self.left_hrtf, &mut source.last_frame_left_samples,
-                 &mut self.fft, &mut self.ifft);
+                convolve(&mut self.right_in_buffer, &mut self.right_out_buffer,
+                         &self.right_hrtf, &mut spatial.last_frame_right_samples,
+                         &mut self.fft, &mut self.ifft);
 
-        convolve(&mut self.right_in_buffer, &mut self.right_out_buffer,
-                 &self.right_hrtf, &mut source.last_frame_right_samples,
-                 &mut self.fft, &mut self.ifft);
+                // Mix samples into output buffer with rescaling.
+                let k = spatial.get_distance_gain(listener, distance_model) / (pad_length as f32);
 
-        // Mix samples into output buffer with rescaling.
-        let k = source.distance_gain / (pad_length as f32);
-
-        // Take only N samples as output data, rest will be used for next frame.
-        for (i, (out_left, out_right)) in out_buf.iter_mut().enumerate() {
-            let left = self.left_in_buffer.get(i).unwrap();
-            *out_left += left.re * k;
-
-            let right = self.right_in_buffer.get(i).unwrap();
-            *out_right += right.re * k;
+                // Take only N samples as output data, rest will be used for next frame.
+                for (i, (out_left, out_right)) in out_buf.iter_mut().enumerate() {
+                    *out_left += self.left_in_buffer[i].re * k;
+                    *out_right += self.right_in_buffer[i].re * k;
+                }
+            }
         }
     }
 }

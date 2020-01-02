@@ -23,3 +23,7 @@ pub mod effects;
 pub mod dsp;
 pub mod decoder;
 pub mod device;
+
+// Reexport some modules because there some types of them in public API.
+pub use rg3d_core::math as math;
+pub use rg3d_core::pool as pool;

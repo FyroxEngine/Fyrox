@@ -1,3 +1,7 @@
+// Clippy is being stupid here again, filters cannot be empty and there is no
+// need to define is_empty() method.
+#![allow(clippy::len_without_is_empty)]
+
 /// Digital signal processing module.
 ///
 /// # Abbreviations
@@ -38,4 +42,16 @@ impl DelayLine {
     pub fn last(&self) -> f32 {
         self.last
     }
+}
+
+pub fn hamming_window(i: usize, sample_count: usize) -> f32 {
+    0.54 - 0.46 * (2.0 * std::f32::consts::PI * i as f32 / (sample_count - 1) as f32).cos()
+}
+
+pub fn hann_window(i: usize, sample_count: usize) -> f32 {
+    0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / (sample_count - 1) as f32).cos()
+}
+
+pub fn make_window<W: Fn(usize, usize) -> f32>(sample_count: usize, func: W) -> Vec<f32> {
+    (0..sample_count).map(|i| func(i, sample_count)).collect()
 }

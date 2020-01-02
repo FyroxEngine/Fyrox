@@ -119,6 +119,10 @@ impl WavDecoder {
             self.sample_rate as f64 * self.byte_per_sample as f64;
         let _ = self.source.seek(SeekFrom::Start(Self::HEADER_SIZE + byte_index as u64));
     }
+
+    pub fn duration(&self) -> Option<Duration> {
+        Some(Duration::from_secs_f64((self.total_samples / (self.sample_rate * self.channel_count)) as f64))
+    }
 }
 
 impl Iterator for WavDecoder {
@@ -137,8 +141,8 @@ impl Iterator for WavDecoder {
                 let b = self.source.read_u8().ok()? as i32;
                 let c = self.source.read_u8().ok()? as i32;
                 let ival = a | (b << 8) | (c << 16);
-                let sign = if ival & 0x800000 != 0 { -1.0 } else { 1.0 };
-                Some(sign * ival as f32 / 8388608.0)
+                let sign = if ival & 0x0080_0000 != 0 { -1.0 } else { 1.0 };
+                Some(sign * ival as f32 / 8_388_608.0)
             } else if self.byte_per_sample == 4 {
                 Some(self.source.read_f32::<LittleEndian>().ok()?)
             } else {

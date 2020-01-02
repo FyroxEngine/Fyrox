@@ -92,6 +92,12 @@ pub struct Reverb {
     right: ChannelReverb,
 }
 
+impl Default for Reverb {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Reverb {
     const GAIN: f32 = 0.015;
 

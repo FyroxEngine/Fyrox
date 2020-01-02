@@ -3,7 +3,11 @@ use rg3d_core::{
         vec3::Vec3,
         mat4::Mat4
     },
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::{
+        Visit,
+        VisitResult,
+        Visitor
+    },
 };
 use crate::error::SoundError;
 
@@ -30,10 +34,11 @@ impl Listener {
         self.ear_axis = up.cross(look).normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
         self.look_axis = look.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
         self.up_axis = up.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
+        self.update_matrix();
         Ok(())
     }
 
-    pub fn update(&mut self) {
+    fn update_matrix(&mut self) {
         self.view_matrix = Mat4 {
             f: [
                 self.ear_axis.x, self.up_axis.x, -self.look_axis.x, 0.0,
@@ -45,21 +50,22 @@ impl Listener {
 
     pub fn set_position(&mut self, position: &Vec3) {
         self.position = *position;
+        self.update_matrix();
     }
 
-    pub fn get_position(&self) -> Vec3 {
+    pub fn position(&self) -> Vec3 {
         self.position
     }
 
-    pub fn get_up_axis(&self) -> Vec3 {
+    pub fn up_axis(&self) -> Vec3 {
         self.up_axis
     }
 
-    pub fn get_look_axis(&self) -> Vec3 {
+    pub fn look_axis(&self) -> Vec3 {
         self.look_axis
     }
 
-    pub fn get_ear_axis(&self) -> Vec3 {
+    pub fn ear_axis(&self) -> Vec3 {
         self.ear_axis
     }
 }
@@ -72,6 +78,10 @@ impl Visit for Listener {
         self.look_axis.visit("LookAxis", visitor)?;
         self.up_axis.visit("UpAxis", visitor)?;
         self.ear_axis.visit("EarAxis", visitor)?;
+
+        if visitor.is_reading() {
+            self.update_matrix();
+        }
 
         visitor.leave_region()
     }
