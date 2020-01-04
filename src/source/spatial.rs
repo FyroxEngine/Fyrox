@@ -3,7 +3,6 @@ use rg3d_core::visitor::{
     VisitResult,
     Visit,
 };
-use rustfft::num_complex::Complex;
 use crate::{
     math::vec3::Vec3,
     source::{
@@ -21,9 +20,11 @@ pub struct SpatialSource {
     position: Vec3,
     max_distance: f32,
     rolloff_factor: f32,
-    // Rest of samples from previous frame that has to be added to output signal.
-    pub(in crate) last_frame_left_samples: Vec<Complex<f32>>,
-    pub(in crate) last_frame_right_samples: Vec<Complex<f32>>,
+    // Some data that needed for iterative overlap-save convolution.
+    pub(in crate) prev_left_samples: Vec<f32>,
+    pub(in crate) prev_right_samples: Vec<f32>,
+    pub(in crate) prev_sampling_vector: Vec3,
+    pub(in crate) prev_distance_gain: f32,
 }
 
 impl SpatialSource {
@@ -113,8 +114,10 @@ impl Default for SpatialSource {
             position: Vec3::ZERO,
             max_distance: std::f32::MAX,
             rolloff_factor: 1.0,
-            last_frame_left_samples: Default::default(),
-            last_frame_right_samples: Default::default(),
+            prev_left_samples: Default::default(),
+            prev_right_samples: Default::default(),
+            prev_sampling_vector: Vec3::new(0.0, 0.0, 1.0),
+            prev_distance_gain: 1.0
         }
     }
 }
@@ -165,8 +168,9 @@ impl SpatialSourceBuilder {
             position: self.position,
             max_distance: self.max_distance,
             rolloff_factor: self.rolloff_factor,
-            last_frame_left_samples: Default::default(),
-            last_frame_right_samples: Default::default(),
+            prev_left_samples: Default::default(),
+            prev_right_samples: Default::default(),
+            .. Default::default()
         }
     }
 

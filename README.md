@@ -24,7 +24,7 @@ Make sure you run examples with `--release` flag, `debug` version is very slow a
 
 ## How to build
 
-Add `rg3d-sound = "0.6.0"` to your Cargo.toml
+Add `rg3d-sound = "0.7.0"` to your Cargo.toml
 Supported Rust version is >= 1.38
 
 ## HRTF
@@ -47,7 +47,8 @@ MIT
 4. Fábio P. Freeland, Luiz W. P. Biscainho, Paulo S. R. Diniz, "Interpolation of Head-related transfer function (HRTFS): A Multi-source approarch"
 5. [IRCAM Head-related impulse response database](http://recherche.ircam.fr/equipes/salles/listen/)
 6. [Reverb](https://ccrma.stanford.edu/~jos/pasp/Freeverb.html)
-7. [Overlap-add convolution](https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method)
-8. [OpenAL Specification](https://www.openal.org/documentation/openal-1.1-specification.pdf) - distance models and general design considerations.
-9. http://csoundjournal.com/issue9/newHRTFOpcodes.html - some ideas to remove clicks in hrtf renderer
-10. https://phaidra.kug.ac.at/open/o:11024
+7. [Overlap-add convolution](https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method) - not used anymore due to significant distortions at segment boundary when impulse response changes.
+8. [Overlap-save convolution](https://dsp-nbsphinx.readthedocs.io/en/nbsphinx-experiment/nonrecursive_filters/segmented_convolution.html) - works much better when impulse response changes, there are only phase shift issues which are more less acceptable.
+9. [OpenAL Specification](https://www.openal.org/documentation/openal-1.1-specification.pdf) - distance models and general design considerations.
+10. http://csoundjournal.com/issue9/newHRTFOpcodes.html - some ideas to remove clicks in hrtf renderer
+11. https://phaidra.kug.ac.at/open/o:11024

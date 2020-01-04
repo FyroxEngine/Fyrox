@@ -86,7 +86,7 @@ fn main() {
             if let SoundSource::Spatial(sound) = context.get_source_mut(source_handle) {
                 let axis = Vec3::new(0.0, 1.0, 0.0);
                 let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
-                sound.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 3.0)));
+                sound.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 1.0)));
             }
 
             angle += 1.6;

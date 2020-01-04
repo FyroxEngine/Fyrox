@@ -2,9 +2,10 @@
 ///
 /// # Known problems
 ///
-/// This renderer still suffers from small audible clicks in fast moving sounds,
-/// it is due the fact that hrtf is different from frame to frame which gives
-/// "bumps" in amplitude of signal. This can be fixed by short cross fade between
+/// This renderer still suffers from small audible clicks in very fast moving sounds,
+/// clicks sounds more like "buzzing" - it is due the fact that hrtf is different
+/// from frame to frame which gives "bumps" in amplitude of signal because of phase
+/// shift each impulse response have. This can be fixed by short cross fade between
 /// small amount of samples from previous frame with same amount of frames of current
 /// as proposed in http://csoundjournal.com/issue9/newHRTFOpcodes.html
 /// Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving
@@ -33,14 +34,21 @@ use byteorder::{
     ReadBytesExt,
     LittleEndian,
 };
-use crate::{context::{
-    DistanceModel,
-    Context,
-}, listener::Listener, renderer::render_source_default, device, source::{
-    Status,
-    spatial::SpatialSource,
-    SoundSource,
-}};
+use crate::{
+    context::{
+        DistanceModel,
+        Context,
+    },
+    listener::Listener,
+    renderer::render_source_default,
+    device,
+    source::{
+        Status,
+        spatial::SpatialSource,
+        SoundSource,
+    },
+    math,
+};
 
 struct HrtfPoint {
     pos: Vec3,
@@ -90,6 +98,7 @@ fn make_hrtf(mut hrir: Vec<Complex<f32>>, pad_length: usize, planner: &mut FFTpl
     }
     let mut hrtf = vec![Complex::zero(); pad_length];
     planner.plan_fft(pad_length).process(hrir.as_mut(), hrtf.as_mut());
+    // Smooth
     hrtf
 }
 
@@ -137,7 +146,7 @@ impl HrtfSphere {
         let faces = read_faces(&mut reader, index_count)?;
 
         let mut planner = FFTplanner::new(false);
-        let pad_length = Context::SAMPLE_PER_CHANNEL + length - 1;
+        let pad_length = Context::HRTF_BLOCK_LEN + length - 1;
 
         let mut points = Vec::with_capacity(vertex_count);
         for _ in 0..vertex_count {
@@ -212,38 +221,55 @@ impl HrtfSphere {
     }
 }
 
-/// Overlap-add convolution in frequency domain.
+fn copy_replace(prev_samples: &mut Vec<f32>, raw_buffer: &mut [Complex<f32>], segment_len: usize) {
+    if prev_samples.len() != segment_len {
+        *prev_samples = vec![0.0; segment_len];
+    }
+
+    // Copy samples from previous iteration in the beginning of the buffer.
+    for (prev_sample, raw_sample) in prev_samples.iter().zip(&mut raw_buffer[..segment_len]) {
+        *raw_sample = Complex::new(*prev_sample, 0.0);
+    }
+
+    // Replace last samples by samples from end of the buffer for next iteration.
+    let last_start = raw_buffer.len() - segment_len;
+    for (prev_sample, raw_sample) in prev_samples.iter_mut().zip(&mut raw_buffer[last_start..]) {
+        *prev_sample = raw_sample.re;
+    }
+}
+
+/// Overlap-save convolution. See more info here:
+/// https://dsp-nbsphinx.readthedocs.io/en/nbsphinx-experiment/nonrecursive_filters/segmented_convolution.html
 ///
-/// https://en.wikipedia.org/wiki/Overlap%E2%80%93add_method
+/// # Notes
 ///
-fn convolve(in_buffer: &mut [Complex<f32>],
-            out_buffer: &mut [Complex<f32>],
-            hrtf: &[Complex<f32>],
-            prev_samples: &mut Vec<Complex<f32>>,
-            fft: &mut FFTplanner<f32>,
-            ifft: &mut FFTplanner<f32>)
+/// It is much faster that direct convolution (in case for long impulse responses
+/// and signals). Check table here:
+/// https://ccrma.stanford.edu/~jos/ReviewFourier/FFT_Convolution_vs_Direct.html
+///
+/// I measured performance and direct convolution was 8-10 times slower than
+/// overlap-save convolution with impulse response length of 512 and signal length
+/// of 3545 samples.
+fn convolve_overlap_save(in_buffer: &mut [Complex<f32>],
+                         out_buffer: &mut [Complex<f32>],
+                         hrtf: &[Complex<f32>],
+                         hrtf_len: usize,
+                         prev_samples: &mut Vec<f32>,
+                         fft: &mut FFTplanner<f32>,
+                         ifft: &mut FFTplanner<f32>)
 {
     assert_eq!(hrtf.len(), in_buffer.len());
 
+    copy_replace(prev_samples, in_buffer, hrtf_len);
+
     fft.plan_fft(in_buffer.len()).process(in_buffer, out_buffer);
 
-    // Multiply HRIR and input signal in frequency domain
+    // Multiply HRIR and input signal in frequency domain.
     for (s, h) in out_buffer.iter_mut().zip(hrtf.iter()) {
         *s *= *h;
     }
 
     ifft.plan_fft(in_buffer.len()).process(out_buffer, in_buffer);
-
-    // Add part from previous frame.
-    for (l, c) in prev_samples.iter().zip(in_buffer.iter_mut()) {
-        *c += *l;
-    }
-
-    // Remember samples from current frame as remainder for next frame.
-    prev_samples.clear();
-    for c in in_buffer.iter().skip(Context::SAMPLE_PER_CHANNEL) {
-        prev_samples.push(*c);
-    }
 }
 
 fn get_pad_len(hrtf_len: usize) -> usize {
@@ -253,7 +279,7 @@ fn get_pad_len(hrtf_len: usize) -> usize {
     // pad_length = M + N - 1,
     //
     // where M - signal length, N - hrtf length
-    Context::SAMPLE_PER_CHANNEL + hrtf_len - 1
+    Context::HRTF_BLOCK_LEN + hrtf_len - 1
 }
 
 pub struct HrtfRenderer {
@@ -268,9 +294,9 @@ pub struct HrtfRenderer {
     right_hrtf: Vec<Complex<f32>>,
 }
 
-fn mute(buffer: &mut [Complex<f32>]) {
-    for s in buffer {
-        *s = Complex::zero();
+fn fill_zeros(buffer: &mut [Complex<f32>]) {
+    for sample in buffer {
+        *sample = Complex::zero();
     }
 }
 
@@ -278,8 +304,8 @@ pub(in crate) fn get_raw_samples(source: &mut SpatialSource, left: &mut [Complex
     assert_eq!(left.len(), right.len());
 
     if source.generic().status() != Status::Playing {
-        mute(left);
-        mute(right);
+        fill_zeros(left);
+        fill_zeros(right);
         return;
     }
 
@@ -308,8 +334,8 @@ pub(in crate) fn get_raw_samples(source: &mut SpatialSource, left: &mut [Complex
     }
 
     if !anything_sampled {
-        mute(left);
-        mute(right);
+        fill_zeros(left);
+        fill_zeros(right);
     }
 }
 
@@ -359,32 +385,48 @@ impl HrtfRenderer {
                     println!("rg3d-sound PERFORMANCE WARNING: Hrtf pad length is not power of two, performance will be ~2 times worse.")
                 }
 
-                let sampling_vector = spatial.get_sampling_vector(listener);
-                self.hrtf_sphere.sample_bilinear(&mut self.left_hrtf, &mut self.right_hrtf, sampling_vector);
+                // Overlap-save convolution with HRTF interpolation.
+                // It divides given output buffer into N parts, fetches samples from source
+                // performs convolution and writes processed samples to output buffer. Output
+                // buffer divided into parts because of HRTF interpolation which significantly
+                // reduces distortion in output signal.
+                let new_sampling_vector = spatial.get_sampling_vector(listener);
+                let new_distance_gain = spatial.get_distance_gain(listener, distance_model);
+                for step in 0..Context::HRTF_INTERPOLATION_STEPS {
+                    let next = step + 1;
+                    let out = &mut out_buf[(step * Context::HRTF_BLOCK_LEN)..(next * Context::HRTF_BLOCK_LEN)];
 
-                // Gather samples for processing.
-                get_raw_samples(spatial, &mut self.left_in_buffer[0..Context::SAMPLE_PER_CHANNEL],
-                                &mut self.right_in_buffer[0..Context::SAMPLE_PER_CHANNEL]);
+                    let t = next as f32 / Context::HRTF_INTERPOLATION_STEPS as f32;
+                    let sampling_vector = spatial.prev_sampling_vector.lerp(&new_sampling_vector, t);
+                    self.hrtf_sphere.sample_bilinear(&mut self.left_hrtf, &mut self.right_hrtf, sampling_vector);
 
-                mute(&mut self.left_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
-                mute(&mut self.right_in_buffer[Context::SAMPLE_PER_CHANNEL..pad_length]);
+                    let hrtf_len = self.hrtf_sphere.length - 1;
 
-                convolve(&mut self.left_in_buffer, &mut self.left_out_buffer,
-                         &self.left_hrtf, &mut spatial.last_frame_left_samples,
-                         &mut self.fft, &mut self.ifft);
+                    get_raw_samples(spatial, &mut self.left_in_buffer[hrtf_len..],
+                                    &mut self.right_in_buffer[hrtf_len..]);
 
-                convolve(&mut self.right_in_buffer, &mut self.right_out_buffer,
-                         &self.right_hrtf, &mut spatial.last_frame_right_samples,
-                         &mut self.fft, &mut self.ifft);
+                    convolve_overlap_save(&mut self.left_in_buffer, &mut self.left_out_buffer,
+                                          &self.left_hrtf, hrtf_len, &mut spatial.prev_left_samples,
+                                          &mut self.fft, &mut self.ifft);
 
-                // Mix samples into output buffer with rescaling.
-                let k = spatial.get_distance_gain(listener, distance_model) / (pad_length as f32);
+                    convolve_overlap_save(&mut self.right_in_buffer, &mut self.right_out_buffer,
+                                          &self.right_hrtf, hrtf_len, &mut spatial.prev_right_samples,
+                                          &mut self.fft, &mut self.ifft);
 
-                // Take only N samples as output data, rest will be used for next frame.
-                for (i, (out_left, out_right)) in out_buf.iter_mut().enumerate() {
-                    *out_left += self.left_in_buffer[i].re * k;
-                    *out_right += self.right_in_buffer[i].re * k;
+                    // Mix samples into output buffer with rescaling and apply distance gain.
+                    let distance_gain = math::lerpf(spatial.prev_distance_gain, new_distance_gain, t);
+                    let k = distance_gain / (pad_length as f32);
+
+                    let left_payload = &self.left_in_buffer[hrtf_len..];
+                    let right_payload = &self.right_in_buffer[hrtf_len..];
+                    for ((out_left, out_right), (processed_left, processed_right))
+                        in out.iter_mut().zip(left_payload.iter().zip(right_payload)) {
+                        *out_left += processed_left.re * k;
+                        *out_right += processed_right.re * k;
+                    }
                 }
+                spatial.prev_sampling_vector = new_sampling_vector;
+                spatial.prev_distance_gain = new_distance_gain;
             }
         }
     }

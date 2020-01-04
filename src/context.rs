@@ -38,15 +38,18 @@ pub struct Context {
     listener: Listener,
     master_gain: f32,
     render_time: f32,
-    renderer: Renderer,
-    effects: Pool<Effect>,
+    renderer: Renderer,    effects: Pool<Effect>,
     distance_model: DistanceModel,
 }
 
 impl Context {
-    // TODO: This is magic constant that gives 4096 (power of two) number when summed with
+    // TODO: This is magic constant that gives 1024 + 1 number when summed with
     //       HRTF length for faster FFT calculations. Find a better way of selecting this.
-    pub const SAMPLE_PER_CHANNEL: usize = 3585;
+    pub const HRTF_BLOCK_LEN: usize = 513;
+
+    pub const HRTF_INTERPOLATION_STEPS: usize = 8;
+
+    pub const SAMPLES_PER_CHANNEL: usize = Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
 
     pub fn new() -> Result<Arc<Mutex<Self>>, SoundError> {
         let context = Self {
@@ -63,7 +66,7 @@ impl Context {
 
         // Run device with a mixer callback. Mixer callback will mix samples
         // from source with a fixed rate.
-        run_device(4 * Self::SAMPLE_PER_CHANNEL as u32, {
+        run_device(4 * Self::SAMPLES_PER_CHANNEL as u32, {
             let context = context.clone();
             Box::new(move |buf| {
                 if let Ok(mut context) = context.lock() {
@@ -117,6 +120,14 @@ impl Context {
         }
 
         self.render_time = (time::Instant::now() - last_time).as_secs_f32();
+    }
+
+    pub fn set_distance_model(&mut self, distance_model: DistanceModel) {
+        self.distance_model = distance_model;
+    }
+
+    pub fn distance_model(&self) -> DistanceModel {
+        self.distance_model
     }
 
     pub fn add_effect(&mut self, effect: Effect) -> Handle<Effect> {
