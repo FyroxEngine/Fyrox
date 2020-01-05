@@ -1,7 +1,14 @@
+//! Listener module.
+//!
+//! # Overview
+//!
+//! Engine has only one listener which can be positioned and oriented in space. Listener defined as coordinate
+//! system which is used to compute spatial properties of sound sources.
+
 use rg3d_core::{
     math::{
         vec3::Vec3,
-        mat4::Mat4
+        mat3::Mat3
     },
     visitor::{
         Visit,
@@ -9,64 +16,88 @@ use rg3d_core::{
         Visitor
     },
 };
-use crate::error::SoundError;
 
+/// See module docs.
 pub struct Listener {
-    pub(in crate) position: Vec3,
-    pub(in crate) look_axis: Vec3,
-    pub(in crate) up_axis: Vec3,
-    pub(in crate) ear_axis: Vec3,
-    pub(in crate) view_matrix: Mat4,
+    basis: Mat3,
+    position: Vec3
 }
 
 impl Listener {
     pub(in crate) fn new() -> Self {
         Self {
-            position: Vec3::ZERO,
-            look_axis: Vec3::new(0.0, 0.0, 1.0),
-            up_axis: Vec3::new(0.0, 1.0, 0.0),
-            ear_axis: Vec3::new(1.0, 0.0, 0.0),
-            view_matrix: Default::default(),
+            basis: Default::default(),
+            position: Default::default()
         }
     }
 
-    pub fn set_orientation(&mut self, look: &Vec3, up: &Vec3) -> Result<(), SoundError> {
-        self.ear_axis = up.cross(look).normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
-        self.look_axis = look.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
-        self.up_axis = up.normalized().ok_or_else(|| SoundError::MathError("|v| == 0.0".to_string()))?;
-        self.update_matrix();
-        Ok(())
+    /// Sets new basis from given vectors in left-handed coordinate system.
+    /// See `set_basis` for more info.
+    pub fn set_orientation_lh(&mut self, look: Vec3, up: Vec3) {
+        self.basis = Mat3::from_vectors(look.cross(&up), up, look)
     }
 
-    fn update_matrix(&mut self) {
-        self.view_matrix = Mat4 {
-            f: [
-                self.ear_axis.x, self.up_axis.x, -self.look_axis.x, 0.0,
-                self.ear_axis.y, self.up_axis.y, -self.look_axis.y, 0.0,
-                self.ear_axis.z, self.up_axis.z, -self.look_axis.z, 0.0,
-                -self.ear_axis.dot(&self.position), -self.up_axis.dot(&self.position), -self.look_axis.dot(&self.position), 1.0,
-            ]};
+    /// Sets new basis from given vectors in right-handed coordinate system.
+    /// See `set_basis` for more info.
+    pub fn set_orientation_rh(&mut self, look: Vec3, up: Vec3) {
+        self.basis = Mat3::from_vectors(up.cross(&look), up, look)
     }
 
-    pub fn set_position(&mut self, position: &Vec3) {
-        self.position = *position;
-        self.update_matrix();
+    /// Sets arbitrary basis. Basis defines orientation of the listener in space.
+    /// In your application you can take basis of camera in world coordinates and
+    /// pass it to this method. If you using HRTF, make sure your basis is in
+    /// right-handed coordinate system! You can make fake right-handed basis from
+    /// left handed, by inverting Z axis. It is fake because it will work only for
+    /// positions (engine interested in positions only), but not for rotation, shear
+    /// etc.
+    ///
+    /// # Notes
+    ///
+    /// Basis must have mutually perpendicular axes.
+    ///
+    /// ```
+    /// use rg3d_sound::listener::Listener;
+    /// use rg3d_sound::math::mat3::Mat3;
+    /// use rg3d_sound::math::vec3::Vec3;
+    /// use rg3d_sound::math::quat::Quat;
+    ///
+    /// fn orient_listener(listener: &mut Listener) {
+    ///     let basis = Mat3::from_quat(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), 45.0f32.to_radians()));
+    ///     listener.set_basis(basis);
+    /// }
+    /// ```
+    pub fn set_basis(&mut self, matrix: Mat3) {
+        self.basis = matrix;
     }
 
+    /// Returns shared reference to current basis.
+    pub fn basis(&self) -> &Mat3 {
+        &self.basis
+    }
+
+    /// Sets current position in world space.
+    pub fn set_position(&mut self, position: Vec3) {
+        self.position = position;
+    }
+
+    /// Returns position of listener.
     pub fn position(&self) -> Vec3 {
         self.position
     }
 
+    /// Returns up axis from basis.
     pub fn up_axis(&self) -> Vec3 {
-        self.up_axis
+        self.basis.up()
     }
 
+    /// Returns look axis from basis.
     pub fn look_axis(&self) -> Vec3 {
-        self.look_axis
+        self.basis.look()
     }
 
+    /// Returns ear axis from basis.
     pub fn ear_axis(&self) -> Vec3 {
-        self.ear_axis
+        self.basis.side()
     }
 }
 
@@ -74,14 +105,8 @@ impl Visit for Listener {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.basis.visit("Basis", visitor)?;
         self.position.visit("Position", visitor)?;
-        self.look_axis.visit("LookAxis", visitor)?;
-        self.up_axis.visit("UpAxis", visitor)?;
-        self.ear_axis.visit("EarAxis", visitor)?;
-
-        if visitor.is_reading() {
-            self.update_matrix();
-        }
 
         visitor.leave_region()
     }

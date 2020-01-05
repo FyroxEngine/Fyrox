@@ -24,7 +24,7 @@ Make sure you run examples with `--release` flag, `debug` version is very slow a
 
 ## How to build
 
-Add `rg3d-sound = "0.7.0"` to your Cargo.toml
+Add `rg3d-sound = "0.8.0"` to your Cargo.toml
 Supported Rust version is >= 1.38
 
 ## HRTF

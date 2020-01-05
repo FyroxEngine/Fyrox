@@ -1,3 +1,10 @@
+//! Context module.
+//!
+//! # Overview
+//!
+//! Context holds all sound sources, feeds renderer with samples, applies effects, applies master gain, etc.
+//!
+
 use std::{
     sync::{
         Arc,
@@ -24,39 +31,81 @@ use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visit, VisitResult, Visitor},
 };
+use std::time::Duration;
 
+/// Distance model defines how volume of sound will decay when distance to listener changes.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DistanceModel {
+    /// No distance attenuation at all.
     None,
+
+    /// Distance will decay using following formula:
+    ///
+    /// `clamped_distance = min(max(distance, radius), max_distance)`
+    /// `attenuation = radius / (radius + rolloff_factor * (clamped_distance - radius))`
+    ///
+    /// where - `radius` - of source at which it has maximum volume,
+    ///         `max_distance` - distance at which decay will stop,
+    ///         `rolloff_factor` - coefficient that defines how fast volume will decay
+    ///
+    /// # Notes
+    ///
+    /// This is default distance model of context.
     InverseDistance,
+
+    /// Distance will decay using following formula:
+    ///
+    /// `clamped_distance = min(max(distance, radius), max_distance)`
+    /// `attenuation = 1.0 - radius * (clamped_distance - radius) / (max_distance - radius)`
+    ///
+    /// where - `radius` - of source at which it has maximum volume,
+    ///         `max_distance` - distance at which decay will stop
+    ///
+    /// # Notes
+    ///
+    /// As you can see `rolloff_factor` is ignored here because of linear law.
     LinearDistance,
+
+    /// Distance will decay using following formula:
+    ///
+    /// `clamped_distance = min(max(distance, radius), max_distance)`
+    /// `(clamped_distance / radius) ^ (-rolloff_factor)`
+    ///
+    /// where - `radius` - of source at which it has maximum volume,
+    ///         `max_distance` - distance at which decay will stop,
+    ///         `rolloff_factor` - coefficient that defines how fast volume will decay
     ExponentDistance,
 }
 
+/// See module docs.
 pub struct Context {
     sources: Pool<SoundSource>,
     listener: Listener,
     master_gain: f32,
-    render_time: f32,
-    renderer: Renderer,    effects: Pool<Effect>,
+    render_duration: Duration,
+    renderer: Renderer,
+    effects: Pool<Effect>,
     distance_model: DistanceModel,
 }
 
 impl Context {
     // TODO: This is magic constant that gives 1024 + 1 number when summed with
     //       HRTF length for faster FFT calculations. Find a better way of selecting this.
-    pub const HRTF_BLOCK_LEN: usize = 513;
+    pub(in crate) const HRTF_BLOCK_LEN: usize = 513;
 
-    pub const HRTF_INTERPOLATION_STEPS: usize = 8;
+    pub(in crate) const HRTF_INTERPOLATION_STEPS: usize = 8;
 
-    pub const SAMPLES_PER_CHANNEL: usize = Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
+    pub(in crate) const SAMPLES_PER_CHANNEL: usize = Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
 
+    /// Creates new instance of context. Internally context starts new thread which will call render all
+    /// sound source and send samples to default output device. This method returns Arc<Mutex<Context>>
+    /// because separate thread also uses context.
     pub fn new() -> Result<Arc<Mutex<Self>>, SoundError> {
         let context = Self {
             sources: Pool::new(),
             listener: Listener::new(),
             master_gain: 1.0,
-            render_time: 0.0,
+            render_duration: Default::default(),
             renderer: Renderer::Default,
             effects: Pool::new(),
             distance_model: DistanceModel::InverseDistance,
@@ -76,6 +125,88 @@ impl Context {
         })?;
 
         Ok(context)
+    }
+
+    /// Sets new distance model.
+    pub fn set_distance_model(&mut self, distance_model: DistanceModel) {
+        self.distance_model = distance_model;
+    }
+
+    /// Returns current distance model.
+    pub fn distance_model(&self) -> DistanceModel {
+        self.distance_model
+    }
+
+    /// Adds new effect to effects chain. Each sample from
+    pub fn add_effect(&mut self, effect: Effect) -> Handle<Effect> {
+        self.effects.spawn(effect)
+    }
+
+    /// Removes effect by given handle.
+    pub fn remove_effect(&mut self, effect: Handle<Effect>) {
+        self.effects.free(effect)
+    }
+
+    /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
+    /// to create filters.
+    pub fn normalize_frequency(&self, f: f32) -> f32 {
+        f / device::SAMPLE_RATE as f32
+    }
+
+    /// Returns amount of time context spent on rendering all sound sources.
+    pub fn full_render_duration(&self) -> Duration {
+        self.render_duration
+    }
+
+    /// Sets new renderer.
+    pub fn set_renderer(&mut self, renderer: Renderer) {
+        self.renderer = renderer;
+    }
+
+    /// Sets new master gain. Master gain is used to control total sound volume that will be passed to output
+    /// device.
+    pub fn set_master_gain(&mut self, gain: f32) {
+        self.master_gain = gain;
+    }
+
+    /// Returns master gain.
+    pub fn master_gain(&self) -> f32 {
+        self.master_gain
+    }
+
+    /// Adds new sound source and returns handle of it by which it can be accessed later on.
+    pub fn add_source(&mut self, source: SoundSource) -> Handle<SoundSource> {
+        self.sources.spawn(source)
+    }
+
+    /// Returns shared reference to a pool with all sound sources.
+    pub fn sources(&self) -> &Pool<SoundSource> {
+        &self.sources
+    }
+
+    /// Returns mutable reference to a pool with all sound sources.
+    pub fn sources_mut(&mut self) -> &mut Pool<SoundSource> {
+        &mut self.sources
+    }
+
+    /// Returns shared reference to sound source at given handle. If handle is invalid, this method will panic.
+    pub fn source(&self, handle: Handle<SoundSource>) -> &SoundSource {
+        self.sources.borrow(handle)
+    }
+
+    /// Returns mutable reference to sound source at given handle. If handle is invalid, this method will panic.
+    pub fn source_mut(&mut self, handle: Handle<SoundSource>) -> &mut SoundSource {
+        self.sources.borrow_mut(handle)
+    }
+
+    /// Returns shared reference to listener. Engine has only one listener.
+    pub fn listener(&self) -> &Listener {
+        &self.listener
+    }
+
+    /// Returns mutable reference to listener. Engine has only one listener.
+    pub fn listener_mut(&mut self) -> &mut Listener {
+        &mut self.listener
     }
 
     fn render(&mut self, buf: &mut [(f32, f32)]) {
@@ -119,71 +250,7 @@ impl Context {
             *right *= self.master_gain;
         }
 
-        self.render_time = (time::Instant::now() - last_time).as_secs_f32();
-    }
-
-    pub fn set_distance_model(&mut self, distance_model: DistanceModel) {
-        self.distance_model = distance_model;
-    }
-
-    pub fn distance_model(&self) -> DistanceModel {
-        self.distance_model
-    }
-
-    pub fn add_effect(&mut self, effect: Effect) -> Handle<Effect> {
-        self.effects.spawn(effect)
-    }
-
-    pub fn remove_effect(&mut self, effect: Handle<Effect>) {
-        self.effects.free(effect)
-    }
-
-    pub fn normalize_frequency(&self, f: f32) -> f32 {
-        f / device::SAMPLE_RATE as f32
-    }
-
-    pub fn full_render_time(&self) -> f32 {
-        self.render_time
-    }
-
-    pub fn set_renderer(&mut self, renderer: Renderer) {
-        self.renderer = renderer;
-    }
-
-    pub fn set_master_gain(&mut self, gain: f32) {
-        self.master_gain = gain;
-    }
-
-    pub fn master_gain(&self) -> f32 {
-        self.master_gain
-    }
-
-    pub fn add_source(&mut self, source: SoundSource) -> Handle<SoundSource> {
-        self.sources.spawn(source)
-    }
-
-    pub fn sources(&self) -> &Pool<SoundSource> {
-        &self.sources
-    }
-
-    pub fn sources_mut(&mut self) -> &mut Pool<SoundSource> {
-        &mut self.sources
-    }
-
-    pub fn source(&self, handle: Handle<SoundSource>) -> &SoundSource {
-        self.sources.borrow(handle)
-    }
-
-    pub fn get_source_mut(&mut self, handle: Handle<SoundSource>) -> &mut SoundSource {
-        self.sources.borrow_mut(handle)
-    }
-
-    pub fn listener(&self) -> &Listener {
-        &self.listener
-    }
-
-    pub fn listener_mut(&mut self) -> &mut Listener {
-        &mut self.listener
+        self.render_duration = time::Instant::now() - last_time;
     }
 }
 

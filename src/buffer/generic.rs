@@ -1,3 +1,25 @@
+//! Generic buffer module.
+//!
+//! # Overview
+//!
+//! Generic buffer is just an array of raw samples in IEEE float format with some additional info (sample rate,
+//! channel count, etc.). All samples stored in interleaved format, which means samples for each channel are
+//! near - `LRLRLR...`.
+//!
+//! # Usage
+//!
+//! Generic source can be created like so:
+//!
+//! ```no_run
+//! use std::sync::{Mutex, Arc};
+//! use rg3d_sound::buffer::{SoundBuffer, DataSource};
+//!
+//! fn make_buffer() -> Arc<Mutex<SoundBuffer>> {
+//!     let data_source = DataSource::from_file("sound.wav").unwrap();
+//!     SoundBuffer::new_generic(data_source).unwrap()
+//! }
+//! ```
+
 use std::path::PathBuf;
 use rg3d_core::visitor::{
     Visitor,
@@ -10,6 +32,7 @@ use crate::{
 };
 use std::time::Duration;
 
+/// Generic sound buffer that contains decoded samples and allows random access.
 pub struct GenericBuffer {
     /// Interleaved decoded samples (mono sounds: L..., stereo sounds: LR...)
     /// For streaming buffers it contains only small part of decoded data
@@ -42,6 +65,8 @@ impl Visit for GenericBuffer {
 }
 
 impl GenericBuffer {
+    /// Creates new generic buffer from specified data source. May fail if data source has unsupported
+    /// format, corrupted, etc.
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
         let external_source_path =
             if let DataSource::File { path, .. } = &source {
@@ -60,39 +85,51 @@ impl GenericBuffer {
         })
     }
 
-
+    /// In case if buffer was created from file, this method returns file name. Can be useful for
+    /// serialization needs where you just need to know which file needs to be reloaded from disk
+    /// when you loading a saved game.
     #[inline]
     pub fn external_data_path(&self) -> Option<PathBuf> {
         self.external_source_path.clone()
     }
 
+    /// Checks if buffer is empty or not.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.samples.is_empty()
     }
 
+    /// Returns shared reference to an array with samples.
     #[inline]
     pub fn samples(&self) -> &[f32] {
         &self.samples
     }
 
+    /// Returns mutable reference to an array with samples that could be modified.
+    pub fn samples_mut(&mut self) -> &mut [f32] {
+        &mut self.samples
+    }
+
+    /// Returns exact amount of channels in the buffer.
     #[inline]
     pub fn channel_count(&self) -> usize {
         self.channel_count
     }
 
-    #[inline]
-    pub fn index_of_last_sample(&self) -> usize {
-        self.samples.len() - self.channel_count
-    }
-
+    /// Returns sample rate of the buffer.
     #[inline]
     pub fn sample_rate(&self) -> usize {
         self.sample_rate
     }
 
+    /// Returns exact duration of the buffer.
     #[inline]
     pub fn duration(&self) -> Duration {
         Duration::from_secs_f64((self.samples.len() / (self.channel_count * self.sample_rate)) as f64)
+    }
+
+    #[inline]
+    pub(in crate) fn index_of_last_sample(&self) -> usize {
+        self.samples.len() - self.channel_count
     }
 }

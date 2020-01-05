@@ -1,3 +1,32 @@
+//! Generic sound source.
+//!
+//! # Overview
+//!
+//! Generic sound source is base building block for each other types of sound sources. It holds state of buffer read
+//! cursor, information about panning, pitch, looping, etc. It performs automatic resampling on the fly.
+//!
+//! # Usage
+//!
+//! Generic sound source can be constructed using GenericSourceBuilder like this:
+//!
+//! ```no_run
+//! use std::sync::{Arc, Mutex};
+//! use rg3d_sound::buffer::SoundBuffer;
+//! use rg3d_sound::pool::Handle;
+//! use rg3d_sound::source::{SoundSource, Status};
+//! use rg3d_sound::source::generic::GenericSourceBuilder;
+//! use rg3d_sound::context::Context;
+//!
+//! fn make_source(context: &mut Context, buffer: Arc<Mutex<SoundBuffer>>) -> Handle<SoundSource> {
+//!     let source = GenericSourceBuilder::new(buffer)
+//!        .with_status(Status::Playing)
+//!        .build_source()
+//!        .unwrap();
+//!     context.add_source(source)
+//! }
+//!
+//! ```
+
 use std::{
     sync::{
         Arc,
@@ -22,6 +51,7 @@ use rg3d_core::visitor::{
     Visitor,
 };
 
+/// See module info.
 pub struct GenericSource {
     buffer: Option<Arc<Mutex<SoundBuffer>>>,
     // Read position in the buffer. Differs from `playback_pos` if buffer is streaming.
@@ -91,7 +121,9 @@ fn position_to_index(position: f64, channel_count: usize) -> usize {
 }
 
 impl GenericSource {
-    pub fn set_buffer(&mut self, buffer: Arc<Mutex<SoundBuffer>>) -> Result<Arc<Mutex<SoundBuffer>>, SoundError> {
+    /// Changes buffer of source. Returns old buffer. Source will continue playing from beginning, old
+    /// position will be discarded.
+    pub fn set_buffer(&mut self, buffer: Arc<Mutex<SoundBuffer>>) -> Result<Option<Arc<Mutex<SoundBuffer>>>, SoundError> {
         self.buf_read_pos = 0.0;
         self.playback_pos = 0.0;
 
@@ -111,71 +143,99 @@ impl GenericSource {
             }
         }
 
-        Ok(self.buffer.replace(buffer).unwrap())
+        Ok(self.buffer.replace(buffer))
     }
 
+    /// Returns current buffer if any.
     pub fn buffer(&self) -> Option<Arc<Mutex<SoundBuffer>>> {
         self.buffer.clone()
     }
 
+    /// Marks buffer for single play. It will be automatically destroyed when it will finish playing.
+    ///
+    /// # Notes
+    ///
+    /// Make sure you not using handles to "play once" sounds, attempt to get reference of "play once" sound
+    /// may result in panic if source already deleted. Looping sources will never be automatically deleted
+    /// because their playback never stops.
     pub fn set_play_once(&mut self, play_once: bool) {
         self.play_once = play_once;
     }
 
+    /// Returns true if this source is marked for single play, false - otherwise.
     pub fn is_play_once(&self) -> bool {
         self.play_once
     }
 
+    /// Sets new gain (volume) of sound. Value should be in 0..1 range, but it is not clamped
+    /// and larger values can be used to "overdrive" sound.
+    ///
+    /// # Notes
+    ///
+    /// Physical volume has non-linear scale (logarithmic) so perception of sound at 0.25 gain
+    /// will be different if logarithmic scale was used.
     pub fn set_gain(&mut self, gain: f32) -> &mut Self {
         self.gain = gain;
         self
     }
 
+    /// Returns current gain (volume) of sound. Value is in 0..1 range.
     pub fn gain(&self) -> f32 {
         self.gain
     }
 
+    /// Sets panning coefficient. Value must be in -1..+1 range. Where -1 - only left channel will be audible,
+    /// 0 - both, +1 - only right.
     pub fn set_panning(&mut self, panning: f32) -> &mut Self {
         self.panning = panning.max(-1.0).min(1.0);
         self
     }
 
+    /// Returns current panning coefficient in -1..+1 range. For more info see `set_panning`. Default value is 0.
     pub fn panning(&self) -> f32 {
         self.panning
     }
 
+    /// Returns status of sound source.
     pub fn status(&self) -> Status {
         self.status
     }
 
+    /// Changes status to `Playing`.
     pub fn play(&mut self) -> &mut Self {
         self.status = Status::Playing;
         self
     }
 
+    /// Changes status to `Paused`
     pub fn pause(&mut self) -> &mut Self {
         self.status = Status::Paused;
         self
     }
 
+    /// Enabled or disables sound looping. Looping sound will never stops. Useful for music, ambient sounds, etc.
     pub fn set_looping(&mut self, looping: bool) -> &mut Self {
         self.looping = looping;
         self
     }
 
+    /// Returns looping status.
     pub fn is_looping(&self) -> bool {
         self.looping
     }
 
+    /// Sets sound pitch. Defines "tone" of sounds. Default value is 1.0
     pub fn set_pitch(&mut self, pitch: f64) -> &mut Self {
-        self.pitch = pitch;
+        self.pitch = pitch.abs();
         self
     }
 
+    /// Returns pitch of sound source.
     pub fn pitch(&self) -> f64 {
         self.pitch
     }
 
+    /// Stops sound source. Automatically rewinds streaming buffers.
     pub fn stop(&mut self) -> Result<(), SoundError> {
         self.status = Status::Stopped;
 
@@ -191,6 +251,7 @@ impl GenericSource {
         Ok(())
     }
 
+    /// Returns playback duration.
     pub fn playback_time(&self) -> Duration {
         if let Some(buffer) = self.buffer.as_ref().and_then(|b| b.lock().ok()) {
             let i = position_to_index(self.playback_pos, buffer.generic().channel_count());
@@ -200,6 +261,7 @@ impl GenericSource {
         }
     }
 
+    /// Sets playback duration.
     pub fn set_playback_time(&mut self, time: Duration) {
         if let Some(mut buffer) = self.buffer.as_mut().and_then(|b| b.lock().ok()) {
             if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
@@ -299,6 +361,36 @@ impl Visit for GenericSource {
     }
 }
 
+/// Allows you to construct generic sound source with desired state.
+///
+/// # Usage
+///
+/// ```no_run
+/// use std::sync::{Arc, Mutex};
+/// use rg3d_sound::buffer::SoundBuffer;
+/// use rg3d_sound::source::generic::{GenericSource, GenericSourceBuilder};
+/// use rg3d_sound::source::{Status, SoundSource};
+///
+/// fn make_generic_source(buffer: Arc<Mutex<SoundBuffer>>) -> GenericSource {
+///     GenericSourceBuilder::new(buffer)
+///         .with_status(Status::Playing)
+///         .with_gain(0.5)
+///         .with_looping(true)
+///         .with_pitch(1.25)
+///         .build()
+///         .unwrap()
+/// }
+///
+/// fn make_source(buffer: Arc<Mutex<SoundBuffer>>) -> SoundSource {
+///     GenericSourceBuilder::new(buffer)
+///         .with_status(Status::Playing)
+///         .with_gain(0.5)
+///         .with_looping(true)
+///         .with_pitch(1.25)
+///         .build_source() // build_source creates SoundSource::Generic directly
+///         .unwrap()
+/// }
+/// ```
 pub struct GenericSourceBuilder {
     buffer: Arc<Mutex<SoundBuffer>>,
     gain: f32,
@@ -310,6 +402,7 @@ pub struct GenericSourceBuilder {
 }
 
 impl GenericSourceBuilder {
+    /// Creates new generic source builder with specified buffer.
     pub fn new(buffer: Arc<Mutex<SoundBuffer>>) -> Self {
         Self {
             buffer,
@@ -322,36 +415,43 @@ impl GenericSourceBuilder {
         }
     }
 
+    /// See `set_gain` of GenericSource
     pub fn with_gain(mut self, gain: f32) -> Self {
         self.gain = gain;
         self
     }
 
+    /// See `set_pitch` of GenericSource
     pub fn with_pitch(mut self, pitch: f32) -> Self {
         self.pitch = pitch;
         self
     }
 
+    /// See `set_panning` of GenericSource
     pub fn with_panning(mut self, panning: f32) -> Self {
         self.panning = panning;
         self
     }
 
+    /// See `set_looping` of GenericSource
     pub fn with_looping(mut self, looping: bool) -> Self {
         self.looping = looping;
         self
     }
 
+    /// Sets desired status of source.
     pub fn with_status(mut self, status: Status) -> Self {
         self.status = status;
         self
     }
 
+    /// See `set_play_once` of GenericSource
     pub fn with_play_once(mut self, play_once: bool) -> Self {
         self.play_once = play_once;
         self
     }
 
+    /// Creates new instance of generic sound source. May fail if buffer is invalid.
     pub fn build(self) -> Result<GenericSource, SoundError> {
         let device_sample_rate = f64::from(crate::device::SAMPLE_RATE);
         let mut locked_buffer = self.buffer.lock()?;
@@ -377,6 +477,7 @@ impl GenericSourceBuilder {
         })
     }
 
+    /// Creates new instance of sound source of `Generic` variant.
     pub fn build_source(self) -> Result<SoundSource, SoundError> {
         Ok(SoundSource::Generic(self.build()?))
     }

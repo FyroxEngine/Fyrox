@@ -1,3 +1,10 @@
+//! Renderer module.
+//!
+//! # Overview
+//!
+//! Renderer processes samples from each sound source before they'll be passed to output device. Exact
+//! behaviour of renderer depends of variant being used.
+
 use crate::{
     hrtf::HrtfRenderer,
     source::{
@@ -10,12 +17,14 @@ use crate::{
     math,
 };
 
+/// See module docs.
 // This "large size difference" is not a problem because renderer
 // can be only one at a time on context.
 #[allow(clippy::large_enum_variant)]
 pub enum Renderer {
     /// Stateless default renderer.
     Default,
+
     /// Can be used *only* with mono sounds, stereo sounds will be rendered through
     /// default renderer.
     HrtfRenderer(HrtfRenderer),

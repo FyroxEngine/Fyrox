@@ -1,3 +1,11 @@
+//! Sound source module.
+//!
+//! # Overview
+//!
+//! Sound source is a "work horse" of the engine. It allows you to play sounds, apply effects (such as positioning, HRTF,
+//! etc.), control volume, pitch, panning and other. Exact behaviour defined by a variant of sound buffer (generic or
+//! spatial). See docs at those modules for more info.
+
 use crate::source::{
     generic::GenericSource,
     spatial::SpatialSource,
@@ -12,19 +20,33 @@ use rg3d_core::visitor::{
 pub mod generic;
 pub mod spatial;
 
+/// Status (state) of sound source.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Status {
+    /// Sound is stopped - it won't produces any sample and won't load mixer. This is default
+    /// state of all sound sources.
     Stopped,
+
+    /// Sound is playing.
     Playing,
+
+    /// Sound is paused, it can stay in this state any amount if time. Playback can be continued by
+    /// setting `Playing` status.
     Paused,
 }
 
+/// See module docs.
 pub enum SoundSource {
+    /// See `generic` module docs.
     Generic(GenericSource),
+
+    /// See `spatial` module docs.
     Spatial(SpatialSource),
 }
 
 impl SoundSource {
+    /// Returns shared reference to generic source of each sound source variant. It is possible because
+    /// `Spatial` sources are composed using generic source.
     pub fn generic(&self) -> &GenericSource {
         match self {
             SoundSource::Generic(generic) => generic,
@@ -32,6 +54,8 @@ impl SoundSource {
         }
     }
 
+    /// Returns mutable reference to generic source of each sound source variant. It is possible because
+    /// `Spatial` sources are composed using generic source.
     pub fn generic_mut(&mut self) -> &mut GenericSource {
         match self {
             SoundSource::Generic(generic) => generic,
@@ -39,6 +63,9 @@ impl SoundSource {
         }
     }
 
+    /// Tries to "cast" sound source to spatial source. It will panic if this is not spatial source.
+    /// This is useful method for situations where you definitely know that source is spatial. So there
+    /// is no need to use patter matching to take reference as a spatial source.
     pub fn spatial(&self) -> &SpatialSource {
         match self {
             SoundSource::Generic(_) => panic!("Cast as spatial sound failed!"),
@@ -46,6 +73,9 @@ impl SoundSource {
         }
     }
 
+    /// Tries to "cast" sound source to spatial source. It will panic if this is not spatial source.
+    /// This is useful method for situations where you definitely know that source is spatial. So there
+    /// is no need to use patter matching to take reference as a spatial source.
     pub fn spatial_mut(&mut self) -> &mut SpatialSource {
         match self {
             SoundSource::Generic(_) => panic!("Cast as spatial sound failed!"),

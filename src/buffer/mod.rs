@@ -1,3 +1,13 @@
+//! This module provides all needed types and methods to create/load sound buffers from different sources.
+//!
+//! # Overview
+//!
+//! Buffer is data source for sound sources in the engine. Each sound sound will fetch samples it needs
+//! from a buffer, process them and send to output device. Buffer can be shared across multiple sources,
+//! this is why each instance wrapped into `Arc<Mutex<>>`. Why not just load a buffer per source? This
+//! is just inefficient memory-wise. Sound samples are very heavy: for example a mono sound that lasts
+//! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
+
 use rg3d_core::visitor::{
     Visit,
     VisitResult,
@@ -17,26 +27,39 @@ use std::{
         Path,
     },
     fs::File,
+    sync::{
+        Arc,
+        Mutex
+    }
 };
 use crate::buffer::{
     streaming::StreamingBuffer,
     generic::GenericBuffer,
 };
-use std::sync::{Arc, Mutex};
 
 pub mod generic;
 pub mod streaming;
 
+/// Data source enumeration. Provides unified way of selecting data source for sound buffers. It can be either
+/// a file or memory block.
 #[derive(Debug)]
 pub enum DataSource {
+    /// Data source is a file of any supported format.
     File {
+        /// Path to file.
         path: PathBuf,
+
+        /// Buffered file opened for read.
         data: BufReader<File>,
     },
+
+    /// Data source is a memory block. Memory block must be in valid format (wav or vorbis/ogg). This variant can
+    /// be used together with virtual file system.
     Memory(Cursor<Vec<u8>>),
 }
 
 impl DataSource {
+    /// Tries to create new `File` data source from given path. May fail if file does not exists.
     pub fn from_file<P>(path: P) -> Result<Self, std::io::Error> where P: AsRef<Path> {
         Ok(DataSource::File {
             path: path.as_ref().to_path_buf(),
@@ -44,6 +67,8 @@ impl DataSource {
         })
     }
 
+    /// Creates new data source from given memory block. This function does not checks if this is valid source or
+    /// not. Data source validity will be checked on first use.
     pub fn from_memory(data: Vec<u8>) -> Self {
         DataSource::Memory(Cursor::new(data))
     }
@@ -67,6 +92,7 @@ impl Seek for DataSource {
     }
 }
 
+/// Sound buffer is a data source for sound sources. See module documentation for more info.
 pub enum SoundBuffer {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.
@@ -86,22 +112,32 @@ impl Default for SoundBuffer {
 }
 
 impl SoundBuffer {
+    /// Tries to create new streaming sound buffer from a given data source. Returns sound source
+    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
     pub fn new_streaming(data_source: DataSource) -> Result<Arc<Mutex<Self>>, DataSource> {
         Ok(Arc::new(Mutex::new(SoundBuffer::Streaming(StreamingBuffer::new(data_source)?))))
     }
 
+    /// Tries to create new generic sound buffer from a given data source. Returns sound source
+    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
     pub fn new_generic(data_source: DataSource) -> Result<Arc<Mutex<Self>>, DataSource> {
         Ok(Arc::new(Mutex::new(SoundBuffer::Generic(GenericBuffer::new(data_source)?))))
     }
 
+    /// Tries to create new streaming sound buffer from a given data source. It returns raw sound
+    /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
     pub fn raw_streaming(data_source: DataSource) -> Result<Self, DataSource> {
         Ok(SoundBuffer::Streaming(StreamingBuffer::new(data_source)?))
     }
 
+    /// Tries to create new generic sound buffer from a given data source. It returns raw sound
+    /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
     pub fn raw_generic(data_source: DataSource) -> Result<Self, DataSource> {
         Ok(SoundBuffer::Generic(GenericBuffer::new(data_source)?))
     }
 
+    /// Returns shared reference to generic buffer for any enum variant. It is possible because
+    /// streaming sound buffers are built on top of generic buffers.
     pub fn generic(&self) -> &GenericBuffer {
         match self {
             SoundBuffer::Generic(generic) => generic,
@@ -109,6 +145,8 @@ impl SoundBuffer {
         }
     }
 
+    /// Returns mutable reference to generic buffer for any enum variant. It is possible because
+    /// streaming sound buffers are built on top of generic buffers.
     pub fn generic_mut(&mut self) -> &mut GenericBuffer {
         match self {
             SoundBuffer::Generic(generic) => generic,

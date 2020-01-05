@@ -1,3 +1,31 @@
+//! Streaming buffer.
+//!
+//! # Overview
+//!
+//! Streaming buffers are used for long sounds (usually longer than 15 seconds) to reduce memory usage.
+//! Some sounds in games are very long - music, ambient sounds, voice, etc. and it is too inefficient
+//! to load and decode them directly into memory all at once - it will just take enormous amount of memory
+//! that could be used to something more useful.
+//!
+//! # Usage
+//!
+//! There are almost no difference with generic buffers:
+//!
+//! ```no_run
+//! use std::sync::{Mutex, Arc};
+//! use rg3d_sound::buffer::{SoundBuffer, DataSource};
+//!
+//! fn make_streaming_buffer() -> Arc<Mutex<SoundBuffer>> {
+//!     let data_source = DataSource::from_file("some_long_sound.ogg").unwrap();
+//!     SoundBuffer::new_streaming(data_source).unwrap()
+//! }
+//! ```
+//!
+//! # Notes
+//!
+//! Streaming buffer cannot be shared across multiple source. On attempt to create a source with a streaming
+//! buffer that already in use you'll get error.
+
 use crate::{
     decoder::Decoder,
     buffer::{
@@ -13,6 +41,7 @@ use rg3d_core::visitor::{
     VisitResult
 };
 
+/// Streaming buffer for long sounds. Does not support random access.
 pub struct StreamingBuffer {
     pub(in crate) generic: GenericBuffer,
     /// Count of sources that share this buffer, it is important to keep only one
@@ -46,8 +75,12 @@ fn read_samples(buffer: &mut Vec<f32>, decoder: &mut Decoder, count: usize) -> u
 }
 
 impl StreamingBuffer {
+    /// Defines amount of samples `per channel` which each streaming buffer will use for internal buffer.
     pub const STREAM_SAMPLE_COUNT: usize = 44100;
 
+    /// Creates new streaming buffer using given data source. May fail if data source has unsupported format
+    /// or it has corrupted data. Length of internal generic buffer cannot be changed but can be fetched from
+    /// `StreamingBuffer::STREAM_SAMPLE_COUNT`
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
         let external_source_path =
             if let DataSource::File { path, .. } = &source {
@@ -75,14 +108,18 @@ impl StreamingBuffer {
         })
     }
 
+    /// Returns shared reference to internal generic buffer. Can be useful to get some info (sample rate,
+    /// channel count).
     pub fn generic(&self) -> &GenericBuffer {
         &self.generic
     }
 
+    /// Returns mutable reference to internal generic buffer. Can be used to modify it.
     pub fn generic_mut(&mut self) -> &mut GenericBuffer {
         &mut self.generic
     }
 
+    /// Returns total duration of data. Can be `None` if internal decoder does not supports seeking.
     pub fn duration(&self) -> Option<Duration> {
         self.decoder.duration()
     }

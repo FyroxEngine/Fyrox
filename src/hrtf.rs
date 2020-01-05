@@ -1,15 +1,53 @@
-/// Hrtf renderer.
-///
-/// # Known problems
-///
-/// This renderer still suffers from small audible clicks in very fast moving sounds,
-/// clicks sounds more like "buzzing" - it is due the fact that hrtf is different
-/// from frame to frame which gives "bumps" in amplitude of signal because of phase
-/// shift each impulse response have. This can be fixed by short cross fade between
-/// small amount of samples from previous frame with same amount of frames of current
-/// as proposed in http://csoundjournal.com/issue9/newHRTFOpcodes.html
-/// Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving
-/// around listener.
+//! Head-Related Transfer Function (HRTF) module. Provides all needed types and methods for HRTF rendering.
+//!
+//! # Overview
+//!
+//! HRTF stands for [Head-Related Transfer Function](https://en.wikipedia.org/wiki/Head-related_transfer_function)
+//! For each of such sound source after it was processed by HRTF you can defininitely tell from which location
+//! sound came from. In other words HRTF improves perception of sound to the level of real life.
+//!
+//! # HRIR Spheres
+//!
+//! This library uses Head-Related Impulse Response (HRIR) spheres to create HRTF spheres. HRTF sphere is a set of
+//! points in 3D space which are connected into a mesh forming triangulated sphere. Each point contains spectrum
+//! for left and right ears which will be used to modify samples from each spatial sound source to create binaural
+//! sound. HRIR spheres can be found [here](https://github.com/mrDIMAS/hrir_sphere_builder/tree/master/hrtf_base/IRCAM)
+//!
+//! # Usage
+//!
+//! To use HRTF you need to change default renderer to HRTF renderer like so:
+//!
+//! ```no_run
+//! use rg3d_sound::context::Context;
+//! use rg3d_sound::hrtf::{HrtfSphere, HrtfRenderer};
+//! use rg3d_sound::renderer::Renderer;
+//! use std::path::Path;
+//!
+//! fn use_hrtf(context: &mut Context) {
+//!     // IRC_1002_C.bin is HRIR sphere in binary format, can be any valid HRIR sphere
+//!     // from base mentioned above.
+//!     let hrtf = HrtfSphere::new(Path::new("IRC_1002_C.bin")).unwrap();
+//!
+//!     context.set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
+//! }
+//! ```
+//!
+//! # Performance
+//!
+//! HRTF is `heavy`. Usually it 4-5 slower than default renderer, this is essential because HRTF requires some heavy
+//! math (fast Fourier transform, convolution, etc.). On Ryzen 1700 it takes 400-450 μs (0.4 - 0.45 ms) per source.
+//! In most cases this is ok, engine works in separate thread and it has around 100 ms to prepare new portion of
+//! samples for output device.
+//!
+//! # Known problems
+//!
+//! This renderer still suffers from small audible clicks in very fast moving sounds, clicks sounds more like
+//! "buzzing" - it is due the fact that hrtf is different from frame to frame which gives "bumps" in amplitude
+//! of signal because of phase shift each impulse response have. This can be fixed by short cross fade between
+//! small amount of samples from previous frame with same amount of frames of current as proposed in
+//! [here](http://csoundjournal.com/issue9/newHRTFOpcodes.html)
+//!
+//! Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving around listener.
 
 use rustfft::{
     num_complex::Complex,
@@ -47,13 +85,30 @@ use crate::{
         spatial::SpatialSource,
         SoundSource,
     },
-    math,
+    math::{
+        self,
+        mat4::Mat4
+    }
 };
 
-struct HrtfPoint {
-    pos: Vec3,
+/// Single point of HRTF sphere. See module docs for more info.
+pub struct HrtfPoint {
+    /// Position of point in cartesian coordinate space.
+    pub pos: Vec3,
     left_hrtf: Vec<Complex<f32>>,
     right_hrtf: Vec<Complex<f32>>,
+}
+
+impl HrtfPoint {
+    /// Returns shared reference to spectrum for left ear.
+    pub fn left_hrtf(&self) -> &[Complex<f32>] {
+        &self.left_hrtf
+    }
+
+    /// Returns shared reference to spectrum for right ear.
+    pub fn right_hrtf(&self) -> &[Complex<f32>] {
+        &self.right_hrtf
+    }
 }
 
 struct Face {
@@ -62,12 +117,14 @@ struct Face {
     c: usize,
 }
 
+/// See module docs.
 pub struct HrtfSphere {
     length: usize,
     points: Vec<HrtfPoint>,
     faces: Vec<Face>,
 }
 
+/// All possible error that can occur during HRIR sphere loading.
 #[derive(Debug)]
 pub enum HrtfError {
     /// Io error has occurred (file does not exists, etc.)
@@ -123,6 +180,13 @@ fn read_faces(reader: &mut dyn Read, index_count: usize) -> Result<Vec<Face>, Hr
 
 impl HrtfSphere {
     /// Loads HRIR sphere and creates HRTF sphere from it.
+    ///
+    /// # Coordinate system
+    ///
+    /// Hrtf spheres made in `right-handed` coordinate system. This fact can give
+    /// weird positioning issues if your application uses `left-handed` coordinate
+    /// system. However this can be fixed very easily: just invert z-axis of
+    /// listener basis, or use appropriate `set_orientation_XXX` method.
     pub fn new(path: &Path) -> Result<HrtfSphere, HrtfError> {
         let mut reader = BufReader::new(File::open(path)?);
 
@@ -169,6 +233,25 @@ impl HrtfSphere {
             length,
             faces,
         })
+    }
+
+    /// Applies specified transform to each point in sphere. Can be used
+    /// to rotate or scale sphere. Transform shouldn't have translation
+    /// part, otherwise result of bilinear sampling is undefined.
+    pub fn transform(&mut self, matrix: Mat4) {
+        for pt in self.points.iter_mut() {
+            pt.pos = matrix.transform_vector(pt.pos);
+        }
+    }
+
+    /// Returns shared reference to sphere points array.
+    pub fn points(&self) -> &[HrtfPoint] {
+        &self.points
+    }
+
+    /// Returns mutable reference to sphere points array.
+    pub fn points_mut(&mut self) -> &mut [HrtfPoint] {
+        &mut self.points
     }
 
     /// Sampling with bilinear interpolation
@@ -282,6 +365,7 @@ fn get_pad_len(hrtf_len: usize) -> usize {
     Context::HRTF_BLOCK_LEN + hrtf_len - 1
 }
 
+/// See module docs.
 pub struct HrtfRenderer {
     hrtf_sphere: HrtfSphere,
     left_in_buffer: Vec<Complex<f32>>,
@@ -344,6 +428,7 @@ fn is_pow2(x: usize) -> bool {
 }
 
 impl HrtfRenderer {
+    /// Creates new HRTF renderer using specified HRTF sphere. See module docs for more info.
     pub fn new(hrtf_sphere: HrtfSphere) -> Self {
         let pad_length = get_pad_len(hrtf_sphere.length);
 

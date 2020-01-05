@@ -1,3 +1,5 @@
+//! Contains all possible errors that can occur in the engine.
+
 use std::fmt::{
     Display,
     Formatter,
@@ -5,12 +7,17 @@ use std::fmt::{
 };
 use lewton::VorbisError;
 
+/// Decoder specific error.
 #[derive(Debug)]
 pub enum DecoderError {
+    /// WAV specific decoder error.
     Wav,
+
+    /// Ogg/vorbis (lewton) specific error.
     Ogg(lewton::VorbisError)
 }
 
+/// Generic error enumeration for each error in this engine.
 #[derive(Debug)]
 pub enum SoundError {
     /// Generic input error.
@@ -41,6 +48,8 @@ pub enum SoundError {
     /// sound from streaming buffer.
     StreamingBufferAlreadyInUse,
 
+    /// Decoder specific error, can occur in the decoder by any reason (invalid format,
+    /// insufficient data, etc.). Exact reason stored in inner value.
     DecoderError(DecoderError),
 }
 

@@ -2,11 +2,11 @@
 // need to define is_empty() method.
 #![allow(clippy::len_without_is_empty)]
 
-/// Digital signal processing module.
-///
-/// # Abbreviations
-///
-/// `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
+//! Digital signal processing module. Provides basic elements to process signal sample-by-sample.
+//!
+//! # Abbreviations
+//!
+//! `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
 
 pub mod filters;
 

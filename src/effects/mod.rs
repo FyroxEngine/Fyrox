@@ -1,3 +1,9 @@
+//! Effects module
+//!
+//! # Overview
+//!
+//! Provides unified way of creating and using effects.
+
 use crate::effects::reverb::Reverb;
 
 pub mod reverb;

@@ -71,9 +71,9 @@ trait Device {
     }
 }
 
-// Transfer ownership of device to separate mixer thread. It will
-// call the callback with a specified rate to get data to send to a physical device.
-pub fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
+/// Transfer ownership of device to separate mixer thread. It will
+/// call the callback with a specified rate to get data to send to a physical device.
+pub(in crate) fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
     #[cfg(target_os = "windows")]
         let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback)?;
     #[cfg(target_os = "linux")]

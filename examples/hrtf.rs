@@ -71,7 +71,7 @@ fn main() {
     while (time::Instant::now() - start_time).as_secs() < 360 {
         {
             let mut context = context.lock().unwrap();
-            let sound = context.get_source_mut(source_handle);
+            let sound = context.source_mut(source_handle);
             if let SoundSource::Spatial(spatial) = sound {
                 let axis = Vec3::new(0.0, 1.0, 0.0);
                 let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
@@ -80,7 +80,7 @@ fn main() {
 
             angle += 1.6;
 
-            println!("sound render time {} ms", context.full_render_time() * 1000.0);
+            println!("Sound render time {:?}", context.full_render_duration());
         }
 
         // Limit rate of updates.

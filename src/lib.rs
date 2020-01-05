@@ -5,10 +5,8 @@
 //! - Generic and spatial sounds.
 //! - WAV and OGG/Vorbis formats support.
 //! - Streaming.
-//! - Head-related transfer function support ([HRTF]).
+//! - Head-related transfer function support ([HRTF](https://en.wikipedia.org/wiki/Head-related_transfer_function)).
 //! - Reverb effect.
-//!
-//! [HRTF](https://en.wikipedia.org/wiki/Head-related_transfer_function)
 //!
 //! ## Examples
 //!
@@ -32,22 +30,21 @@
 //!     },
 //! };
 //!
-//! fn main() {
-//!     let context = Context::new().unwrap();
+//!  let context = Context::new().unwrap();
 //!
-//!     let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("sound.wav").unwrap()).unwrap();
+//!  let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("sound.wav").unwrap()).unwrap();
 //!
-//!     let source = GenericSourceBuilder::new(sound_buffer)
-//!         .with_status(Status::Playing)
-//!         .build_source()
-//!         .unwrap();
+//!  let source = GenericSourceBuilder::new(sound_buffer)
+//!     .with_status(Status::Playing)
+//!     .build_source()
+//!     .unwrap();
 //!
-//!     context.lock()
-//!         .unwrap()
-//!         .add_source(source);
+//!  context.lock()
+//!     .unwrap()
+//!     .add_source(source);
 //!
-//!     thread::sleep(Duration::from_secs(3));
-//! }
+//!  thread::sleep(Duration::from_secs(3));
+//!
 //! ```
 //!
 //! Other examples can be found in `./examples` folder. Make sure you run them with `--release` flag.
@@ -60,10 +57,7 @@
 //!
 //! Library uses special HRIR Spheres which were composed from IRCAM HRIR database. Since
 //! HRTF is very specific to each person, you should try some of them to find best for you.
-//! They can be found [here].
-//!
-//! [here](https://github.com/mrDIMAS/hrir_sphere_builder/tree/master/hrtf_base/IRCAM)
-//!
+//! They can be found [here](https://github.com/mrDIMAS/hrir_sphere_builder/tree/master/hrtf_base/IRCAM).
 
 // Platform-dependent crates
 #[macro_use]
@@ -88,9 +82,10 @@ pub mod hrtf;
 pub mod renderer;
 pub mod effects;
 pub mod dsp;
-pub mod decoder;
-pub mod device;
 
 // Reexport some modules because there some types of them in public API.
 pub use rg3d_core::math as math;
 pub use rg3d_core::pool as pool;
+
+mod decoder;
+mod device;
