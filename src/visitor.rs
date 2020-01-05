@@ -25,6 +25,7 @@ use crate::{
     },
     pool::{Handle, Pool},
 };
+use crate::math::mat3::Mat3;
 
 pub enum FieldKind {
     Bool(bool),
@@ -42,6 +43,7 @@ pub enum FieldKind {
     Quat(Quat),
     Mat4(Mat4),
     Data(Vec<u8>),
+    Mat3(Mat3)
 }
 
 impl FieldKind {
@@ -77,6 +79,13 @@ impl FieldKind {
                     Err(_) => base64::encode(data)
                 };
                 format!("<data = {}>, ", out)
+            }
+            FieldKind::Mat3(data) => {
+                let mut out = String::from("<mat3 = ");
+                for f in &data.f {
+                    out += format!("{}; ", f).as_str();
+                }
+                out
             }
         }
     }
@@ -125,6 +134,7 @@ impl_field_data!(Vec3, FieldKind::Vec3);
 impl_field_data!(Quat, FieldKind::Quat);
 impl_field_data!(Mat4, FieldKind::Mat4);
 impl_field_data!(bool, FieldKind::Bool);
+impl_field_data!(Mat3, FieldKind::Mat3);
 
 impl<T> Visit for T where T: FieldData + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -323,6 +333,12 @@ impl Field {
                 file.write_u8(15)?;
                 file.write_u8(if *data { 1 } else { 0 })?;
             }
+            FieldKind::Mat3(data) => {
+                file.write_u8(16)?;
+                for f in &data.f {
+                    file.write_f32::<LittleEndian>(*f)?;
+                }
+            }
         }
         Ok(())
     }
@@ -372,6 +388,13 @@ impl Field {
                 vec
             }),
             15 => FieldKind::Bool(file.read_u8()? != 0),
+            16 => FieldKind::Mat3({
+                let mut f = [0.0f32; 9];
+                for n in &mut f {
+                    *n = file.read_f32::<LittleEndian>()?;
+                }
+                Mat3 { f }
+            }),
             _ => return Err(VisitError::UnknownFieldType(id))
         }))
     }
