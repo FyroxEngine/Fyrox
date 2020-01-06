@@ -59,6 +59,8 @@
 //! HRTF is very specific to each person, you should try some of them to find best for you.
 //! They can be found [here](https://github.com/mrDIMAS/hrir_sphere_builder/tree/master/hrtf_base/IRCAM).
 
+#![warn(missing_docs)]
+
 // Platform-dependent crates
 #[macro_use]
 #[cfg(target_os="windows")]

@@ -1,3 +1,10 @@
+//! Device module.
+//!
+//! # Overview
+//!
+//! Device is an abstraction over output device which provides unified way of communication with
+//! output device.
+
 use crate::error::SoundError;
 
 #[cfg(target_os = "windows")]

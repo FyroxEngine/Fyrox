@@ -1,3 +1,11 @@
+//! Filters module.
+//!
+//! # Overview
+//!
+//! This module contains some of common filters used in digital signal processing.
+//! Since this is very specific theme with lots of background, every filter has link to source with good
+//! description of each filter. There is no need to describe them all here.
+
 use crate::dsp::DelayLine;
 
 /// One-pole Filter.
@@ -13,6 +21,7 @@ fn get_b1(fc: f32) -> f32 {
 }
 
 impl OnePole {
+    /// Creates new instance of one pole filter with given normalized frequency.
     pub fn new(fc: f32) -> Self {
         let b1 = get_b1(fc);
         Self {
@@ -22,16 +31,19 @@ impl OnePole {
         }
     }
 
+    /// Sets normalized frequency of the filter.
     pub fn set_fc(&mut self, fc: f32) {
         self.b1 = get_b1(fc);
         self.a0 = 1.0 - self.b1;
     }
 
+    /// Sets pole of filter directly.
     pub fn set_pole(&mut self, pole: f32) {
         self.b1 = pole.min(1.0).max(0.0);
         self.a0 = 1.0 - self.b1;
     }
 
+    /// Processes single sample.
     pub fn feed(&mut self, sample: f32) -> f32 {
         let result = sample * self.a0 + self.last * self.b1;
         self.last = result;
@@ -48,6 +60,7 @@ pub struct LpfComb {
 }
 
 impl LpfComb {
+    /// Creates new instance of lowpass-feedback comb filter with given parameters.
     pub fn new(len: usize, fc: f32, feedback: f32) -> Self {
         Self {
             low_pass: OnePole::new(fc),
@@ -56,22 +69,27 @@ impl LpfComb {
         }
     }
 
+    /// Sets feedback factor. For numeric stability factor should be in 0..1 range.
     pub fn set_feedback(&mut self, feedback: f32) {
         self.feedback = feedback;
     }
 
-    pub fn get_feedback(&self) -> f32 {
+    /// Returns current feedback factor.
+    pub fn feedback(&self) -> f32 {
         self.feedback
     }
 
+    /// Sets normalized frequency of internal lowpass filter.
     pub fn set_fc(&mut self, fc: f32) {
         self.low_pass.set_fc(fc)
     }
 
+    /// Returns total length of internal delay line (in samples)
     pub fn len(&self) -> usize {
         self.delay_line.len()
     }
 
+    /// Processes single sample.
     pub fn feed(&mut self, sample: f32) -> f32 {
         let result = sample + self.feedback * self.low_pass.feed(self.delay_line.last());
         self.delay_line.feed(result);
@@ -87,6 +105,7 @@ pub struct AllPass {
 }
 
 impl AllPass {
+    /// Creates new instance of allpass filter.
     pub fn new(len: usize, gain: f32) -> Self {
         Self {
             delay_line: DelayLine::new(len),
@@ -94,14 +113,17 @@ impl AllPass {
         }
     }
 
+    /// Sets overall gain of feedback parts of filter. Should be in 0..1 range.
     pub fn set_gain(&mut self, gain: f32) {
         self.gain = gain;
     }
 
+    /// Returns length of internal delay line.
     pub fn len(&self) -> usize {
         self.delay_line.len()
     }
 
+    /// Processes single sample.
     pub fn feed(&mut self, sample: f32) -> f32 {
         let delay_line_output = self.delay_line.last();
         let am_arm = -self.gain * delay_line_output;

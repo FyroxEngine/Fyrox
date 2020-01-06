@@ -65,7 +65,7 @@ impl SoundSource {
 
     /// Tries to "cast" sound source to spatial source. It will panic if this is not spatial source.
     /// This is useful method for situations where you definitely know that source is spatial. So there
-    /// is no need to use patter matching to take reference as a spatial source.
+    /// is no need to use pattern matching to take reference as a spatial source.
     pub fn spatial(&self) -> &SpatialSource {
         match self {
             SoundSource::Generic(_) => panic!("Cast as spatial sound failed!"),
@@ -75,7 +75,7 @@ impl SoundSource {
 
     /// Tries to "cast" sound source to spatial source. It will panic if this is not spatial source.
     /// This is useful method for situations where you definitely know that source is spatial. So there
-    /// is no need to use patter matching to take reference as a spatial source.
+    /// is no need to use pattern matching to take reference as a spatial source.
     pub fn spatial_mut(&mut self) -> &mut SpatialSource {
         match self {
             SoundSource::Generic(_) => panic!("Cast as spatial sound failed!"),

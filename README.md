@@ -1,6 +1,6 @@
 # rg3d-sound
 
-Sound library for games written in Rust with HRTF support.
+Sound library for games and interactive applications written in Rust.
 
 ## Key features
 
@@ -13,9 +13,7 @@ Sound library for games written in Rust with HRTF support.
 
 ## Examples
 
-Examples can be found in `./examples`
-
-Make sure you run examples with `--release` flag, `debug` version is very slow and may cause tearing of output sound.
+Examples can be found in `./examples`. Make sure you run examples with `--release` flag, `debug` version is very slow and may cause tearing of output sound.
 
 ## Supported OS
 
@@ -24,22 +22,23 @@ Make sure you run examples with `--release` flag, `debug` version is very slow a
 
 ## How to build
 
-Add `rg3d-sound = "0.8.0"` to your Cargo.toml
-Supported Rust version is >= 1.38
+Add `rg3d-sound = "0.9.0"` to your Cargo.toml. Supported Rust version is >= 1.38.
 
 ## HRTF
 
-Library has full HRTF support, it uses HRIR spheres generated using [IRCAM](http://recherche.ircam.fr/equipes/salles/listen/) HRIR database. HRIR spheres are produced using small tool written in C++ - [hrir_sphere_builder](https://github.com/mrDIMAS/hrir_sphere_builder )
+Library has full HRTF support, it uses HRIR spheres generated using [IRCAM](http://recherche.ircam.fr/equipes/salles/listen/) HRIR database. HRIR spheres are produced using small tool written in C++ - [hrir_sphere_builder](https://github.com/mrDIMAS/hrir_sphere_builder ). It is very important to find HRTF that suits you because they're very individual and overall perception fully defined by use of correct HRTF.
 
-## Help needed
+## Contributions
 
-It would be great if someone make backend for macOS.
+Any contributions are very appreciated! Check `Issues` page to see how can you help project. 
 
 ## License
 
 MIT
 
 ## References
+
+This library wouldn't have been ever created without work of these people. Thank you all!
 
 1. [Digital signal processing and filters](https://ccrma.stanford.edu/~jos/filters/) 
 2. [Physical Audio Signal Processing](https://ccrma.stanford.edu/~jos/pasp/)

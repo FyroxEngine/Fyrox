@@ -1,5 +1,4 @@
 use std::{
-    path::Path,
     time::{
         self,
         Duration,
@@ -35,7 +34,7 @@ use rg3d_sound::{
 };
 
 fn main() {
-    let hrtf = HrtfSphere::new(Path::new("examples/data/IRC_1002_C.bin")).unwrap();
+    let hrtf = HrtfSphere::new("examples/data/IRC_1002_C.bin").unwrap();
 
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
@@ -80,6 +79,8 @@ fn main() {
     let start_time = time::Instant::now();
     let mut angle = 0.0f32;
     while (time::Instant::now() - start_time).as_secs() < 360 {
+        // Separate scope for update to make sure that mutex lock will be released before
+        // thread::sleep will be called so context can actually work in background thread.
         {
             let mut context = context.lock().unwrap();
 

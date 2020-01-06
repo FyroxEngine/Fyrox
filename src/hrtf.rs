@@ -3,8 +3,9 @@
 //! # Overview
 //!
 //! HRTF stands for [Head-Related Transfer Function](https://en.wikipedia.org/wiki/Head-related_transfer_function)
-//! For each of such sound source after it was processed by HRTF you can defininitely tell from which location
-//! sound came from. In other words HRTF improves perception of sound to the level of real life.
+//! and can work only with spatial sounds. For each of such sound source after it was processed by HRTF you can
+//! defininitely tell from which locationsound came from. In other words HRTF improves perception of sound to
+//! the level of real life.
 //!
 //! # HRIR Spheres
 //!
@@ -187,7 +188,7 @@ impl HrtfSphere {
     /// weird positioning issues if your application uses `left-handed` coordinate
     /// system. However this can be fixed very easily: just invert z-axis of
     /// listener basis, or use appropriate `set_orientation_XXX` method.
-    pub fn new(path: &Path) -> Result<HrtfSphere, HrtfError> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<HrtfSphere, HrtfError> {
         let mut reader = BufReader::new(File::open(path)?);
 
         let mut magic = [0; 4];

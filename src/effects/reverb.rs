@@ -1,3 +1,32 @@
+//! Reverberation module
+//!
+//! # Overview
+//!
+//! This is implementation of [Freeverb reverb effect](https://ccrma.stanford.edu/~jos/pasp/Freeverb.html)
+//! Reverberation gives you scene a "volume" and improves overall perception of sound.
+//!
+//! # Usage
+//!
+//! ```
+//! use std::time::Duration;
+//! use rg3d_sound::context::Context;
+//! use rg3d_sound::effects::reverb::Reverb;
+//! use rg3d_sound::effects::Effect;
+//!
+//! fn set_reverberator(context: &mut Context) {
+//!     let mut reverb = Reverb::new();
+//!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
+//!     context.lock()
+//! 	    .unwrap()
+//!     	.add_effect(Effect::Reverb(reverb));
+//! }
+//! ```
+//!
+//! # Known problems
+//!
+//! This reverberator has little "metallic" tone, but since this is one of the simplest reverberators this
+//! is acceptable. To remove this effect, more complex reverberator should be implemented.
+
 use crate::dsp::filters::{
     LpfComb,
     AllPass,
@@ -46,7 +75,7 @@ impl ChannelReverb {
     fn set_sample_rate(&mut self, sample_rate: usize) {
         let scale = sample_rate as f32 / DESIGN_SAMPLE_RATE as f32;
 
-        let feedback = self.lp_fb_comb_filters[0].get_feedback();
+        let feedback = self.lp_fb_comb_filters[0].feedback();
         // TODO: According to many papers delay line lengths should be prime numbers to
         //       remove metallic ringing effect. But still not sure why then initial lengths
         //       are not 100% prime, for example 1422 is not prime number.
@@ -83,8 +112,7 @@ impl ChannelReverb {
     }
 }
 
-/// Freeverb implementation with small differences.
-/// For details see - https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
+/// See module docs.
 pub struct Reverb {
     dry: f32,
     wet: f32,
@@ -101,6 +129,8 @@ impl Default for Reverb {
 impl Reverb {
     const GAIN: f32 = 0.015;
 
+    /// Creates new instance of reberb effect with cutoff frequency of ~11.2 kHz and
+    /// 5 seconds decay time.
     pub fn new() -> Self {
         let fc = 0.25615; // 11296 Hz at 44100 Hz sample rate
         let feedback = 0.84;
@@ -113,38 +143,62 @@ impl Reverb {
         }
     }
 
+    /// Sets how much of input signal should be passed to output without any processing.
+    /// Default value is 1.0.
     pub fn set_dry(&mut self, dry: f32) {
         self.dry = dry.min(1.0).max(0.0);
     }
 
+    /// Returns dry part.
     pub fn get_dry(&self) -> f32 {
         self.dry
     }
 
+    /// Sets stereo mixing of processed signal.
+    /// 0.0 - left is left, right is right
+    /// 1.0 - right is left, left is right.
+    /// 0.5 - left is (left + right) * 0.5, right is (left + right) * 0.5
+    /// and so on.
     pub fn set_wet(&mut self, wet: f32) {
         self.wet = wet.min(1.0).max(0.0);
     }
 
+    /// Returns stereo mixing coefficient.
     pub fn get_wet(&self) -> f32 {
         self.wet
     }
 
+    /// Sets actual sample rate of effect. It was designed to 44100 Hz sampling rate.
+    /// TODO: This shouldn't be in public API.
     pub fn set_sample_rate(&mut self, sample_rate: usize) {
         self.left.set_sample_rate(sample_rate);
         self.right.set_sample_rate(sample_rate);
     }
 
+    /// Sets desired duration of reverberation, the more size your environment has,
+    /// the larger duration of reverberation should be.
     pub fn set_decay_time(&mut self, decay_time: Duration) {
         self.left.set_decay_time(decay_time);
         self.right.set_decay_time(decay_time)
     }
 
+    /// Sets cutoff frequency for lowpass filter in comb filters. Basically this parameter defines
+    /// "tone" of reflections, when frequency is higher - then more high frequencies will be in
+    /// output signal, and vice versa. For example if you have environment with high absorption of
+    /// high frequencies, then sound in reality will be muffled - to simulate this you could set
+    /// frequency to 3-4 kHz.
+    ///
+    /// # Notes
+    ///
+    /// This method uses normalized frequency as input, this means that you should divide your desired
+    /// frequency in hertz by sample rate of sound context. Context has `normalize_frequency` method
+    /// exactly for this purpose.
     pub fn set_fc(&mut self, fc: f32) {
         self.left.set_fc(fc);
         self.right.set_fc(fc);
     }
 
-    pub fn feed(&mut self, left: f32, right: f32) -> (f32, f32) {
+    pub(in crate) fn feed(&mut self, left: f32, right: f32) -> (f32, f32) {
         let wet1 = self.wet;
         let wet2 = 1.0 - self.wet;
 
