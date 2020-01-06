@@ -5,6 +5,7 @@ use crate::{
         quat::*,
     }
 };
+use crate::math::mat3::Mat3;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Mat4 {
@@ -65,6 +66,14 @@ impl Mat4 {
                 0.0, 0.0, z_far / (z_near - z_far), -1.0,
                 0.0, 0.0, z_near * z_far / (z_near - z_far), 0.0
             ]
+        }
+    }
+
+    pub fn basis(&self) -> Mat3 {
+        Mat3 {
+            f: [self.f[0], self.f[1], self.f[2],
+                self.f[4], self.f[5], self.f[6],
+                self.f[8], self.f[9], self.f[10]]
         }
     }
 
