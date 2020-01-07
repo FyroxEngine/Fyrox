@@ -29,8 +29,8 @@ use std::{
     fs::File,
     sync::{
         Arc,
-        Mutex
-    }
+        Mutex,
+    },
 };
 use crate::buffer::{
     streaming::StreamingBuffer,
@@ -56,6 +56,24 @@ pub enum DataSource {
     /// Data source is a memory block. Memory block must be in valid format (wav or vorbis/ogg). This variant can
     /// be used together with virtual file system.
     Memory(Cursor<Vec<u8>>),
+
+    /// Raw samples in interleaved format with specified sample rate and channel count. Can be used for procedural
+    /// sounds.
+    ///
+    /// # Notes
+    ///
+    /// Cannot be used with streaming buffers - it makes no sense to stream data that is already loaded into memory.
+    Raw {
+        /// Sample rate, typical values 22050, 44100, 48000, etc.
+        sample_rate: usize,
+
+        /// Total amount of channels.
+        channel_count: usize,
+
+        /// Raw samples in interleaved format. Count of samples must be multiple to channel count, otherwise you'll
+        /// get error at attempt to use such buffer.
+        samples: Vec<f32>,
+    },
 }
 
 impl DataSource {
@@ -79,6 +97,7 @@ impl Read for DataSource {
         match self {
             DataSource::File { data, .. } => data.read(buf),
             DataSource::Memory(b) => b.read(buf),
+            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Read trait!")
         }
     }
 }
@@ -88,6 +107,7 @@ impl Seek for DataSource {
         match self {
             DataSource::File { data, .. } => data.seek(pos),
             DataSource::Memory(b) => b.seek(pos),
+            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Seek trait!")
         }
     }
 }

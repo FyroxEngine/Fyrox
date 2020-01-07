@@ -20,8 +20,7 @@ fn main() {
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
-    // Load sound buffer. Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer
-    // between multiple sources.
+    // Load sound buffer.
     let door_open_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap()).unwrap();
 
     // Create generic source (without spatial effects) using that buffer.

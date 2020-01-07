@@ -4,12 +4,13 @@ Sound library for games and interactive applications written in Rust.
 
 ## Key features
 
-- Spatial and flat sounds
-- Built-in streaming for large sounds
-- WAV format support (non-compressed)
-- Vorbis/ogg support (using [lewton](https://crates.io/crates/lewton))
+- Generic and Spatial sound sources.
+- Built-in streaming for large sounds.
+- Raw samples playback support.
+- WAV format support (non-compressed).
+- Vorbis/ogg support (using [lewton](https://crates.io/crates/lewton)).
 - [HRTF](https://en.wikipedia.org/wiki/Head-related_transfer_function) support for excellent positioning and binaural effects.
-- Reberb effect
+- Reberb effect.
 
 ## Examples
 

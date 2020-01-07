@@ -81,7 +81,17 @@ impl StreamingBuffer {
     /// Creates new streaming buffer using given data source. May fail if data source has unsupported format
     /// or it has corrupted data. Length of internal generic buffer cannot be changed but can be fetched from
     /// `StreamingBuffer::STREAM_SAMPLE_COUNT`
+    ///
+    /// # Notes
+    ///
+    /// This function will return Err if data source is `Raw`. It makes no sense to stream raw data which
+    /// is already loaded into memory. Use Generic source instead!
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
+        match source {
+            DataSource::Raw {..} => return Err(source),
+            _ => ()
+        };
+
         let external_source_path =
             if let DataSource::File { path, .. } = &source {
                 Some(path.clone())

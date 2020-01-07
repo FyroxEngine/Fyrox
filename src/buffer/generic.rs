@@ -20,7 +20,10 @@
 //! }
 //! ```
 
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    time::Duration
+};
 use rg3d_core::visitor::{
     Visitor,
     VisitResult,
@@ -30,7 +33,6 @@ use crate::{
     buffer::DataSource,
     decoder::Decoder,
 };
-use std::time::Duration;
 
 /// Generic sound buffer that contains decoded samples and allows random access.
 pub struct GenericBuffer {
@@ -67,22 +69,47 @@ impl Visit for GenericBuffer {
 impl GenericBuffer {
     /// Creates new generic buffer from specified data source. May fail if data source has unsupported
     /// format, corrupted, etc.
+    ///
+    /// # Notes
+    ///
+    /// Data source with raw samples must have sample count multiple of channel count, otherwise this
+    /// function will return `Err`.
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
-        let external_source_path =
-            if let DataSource::File { path, .. } = &source {
-                Some(path.clone())
-            } else {
-                None
-            };
+        match source {
+            DataSource::Raw { sample_rate, channel_count, samples } => {
+                if samples.len() % channel_count != 0 {
+                    Err(DataSource::Raw {
+                        sample_rate,
+                        channel_count,
+                        samples
+                    })
+                } else {
+                    Ok(Self {
+                        samples,
+                        channel_count,
+                        sample_rate,
+                        external_source_path: None,
+                    })
+                }
+            },
+            _ => {
+                let external_source_path =
+                    if let DataSource::File { path, .. } = &source {
+                        Some(path.clone())
+                    } else {
+                        None
+                    };
 
-        let decoder = Decoder::new(source)?;
+                let decoder = Decoder::new(source)?;
 
-        Ok(Self {
-            sample_rate: decoder.get_sample_rate(),
-            channel_count: decoder.get_channel_count(),
-            samples: decoder.into_samples(),
-            external_source_path,
-        })
+                Ok(Self {
+                    sample_rate: decoder.get_sample_rate(),
+                    channel_count: decoder.get_channel_count(),
+                    samples: decoder.into_samples(),
+                    external_source_path,
+                })
+            }
+        }
     }
 
     /// In case if buffer was created from file, this method returns file name. Can be useful for

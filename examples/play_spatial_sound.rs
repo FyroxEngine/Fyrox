@@ -29,8 +29,7 @@ fn main() {
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
-    // Load sound buffer. Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer
-    // between multiple sources.
+    // Load sound buffer.
     let drop_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
 
     // Create spatial source - spatial sources can be positioned in space.

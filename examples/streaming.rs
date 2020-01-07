@@ -20,8 +20,7 @@ fn main() {
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
-    // Load sound buffer. Buffer must be wrapped into Arc<Mutex<>> to be able to share buffer
-    // between multiple sources.
+    // Load sound buffer.
     let waterfall_buffer = SoundBuffer::new_streaming(DataSource::from_file("examples/data/waterfall.ogg").unwrap()).unwrap();
 
     // Create flat source (without spatial effects) using that buffer.

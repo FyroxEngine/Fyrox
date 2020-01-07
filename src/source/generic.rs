@@ -55,7 +55,8 @@ use rg3d_core::visitor::{
 pub struct GenericSource {
     buffer: Option<Arc<Mutex<SoundBuffer>>>,
     // Read position in the buffer. Differs from `playback_pos` if buffer is streaming.
-    // In case of streaming buffer its maximum value will be size o
+    // In case of streaming buffer its maximum value will be some fixed value which is
+    // implementation defined.
     buf_read_pos: f64,
     // Real playback position.
     playback_pos: f64,
@@ -70,6 +71,7 @@ pub struct GenericSource {
     // data to device with rate of 22050 Hz but device is running at 44100 Hz then we'll
     // hear that sound will have high pitch (2.0), to fix that we'll just pre-multiply
     // playback speed by 0.5.
+    // However such auto-resampling has poor quality, but it is fast.
     resampling_multiplier: f64,
     status: Status,
     play_once: bool,
@@ -213,7 +215,8 @@ impl GenericSource {
         self
     }
 
-    /// Enabled or disables sound looping. Looping sound will never stops. Useful for music, ambient sounds, etc.
+    /// Enabled or disables sound looping. Looping sound will never stop by itself, but can be stopped or paused
+    /// by calling `stop` or `pause` methods. Useful for music, ambient sounds, etc.
     pub fn set_looping(&mut self, looping: bool) -> &mut Self {
         self.looping = looping;
         self
