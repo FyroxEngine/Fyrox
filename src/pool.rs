@@ -549,11 +549,12 @@ impl<T> Pool<T> {
     #[must_use]
     pub fn take(&mut self, handle: Handle<T>) -> Option<T> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
-            self.free_stack.push(handle.index);
-            record.payload.take()
-        } else {
-            None
+            if record.generation == handle.generation {
+                self.free_stack.push(handle.index);
+                return record.payload.take();
+            }
         }
+        None
     }
 
     /// Moves object by specified index out of the pool. All handles to the object will become
@@ -576,6 +577,25 @@ impl<T> Pool<T> {
         if let Some(record) = self.records.get_mut(index) {
             self.free_stack.push(index as u32);
             record.payload.take()
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    pub fn replace(&mut self, handle: Handle<T>, payload: T) -> Option<T> {
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            if record.generation == handle.generation {
+                return record.payload.replace(payload);
+            }
+        }
+        None
+    }
+
+    #[inline]
+    pub fn replace_at(&mut self, index: usize, payload: T) -> Option<T> {
+        if let Some(record) = self.records.get_mut(index) {
+            record.payload.replace(payload)
         } else {
             None
         }
