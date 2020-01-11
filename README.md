@@ -23,7 +23,7 @@ Examples can be found in `./examples`. Make sure you run examples with `--releas
 
 ## How to build
 
-Add `rg3d-sound = "0.9.0"` to your Cargo.toml. Supported Rust version is >= 1.38.
+Add `rg3d-sound = "0.11.0"` to your Cargo.toml. Supported Rust version is >= 1.38.
 
 ## HRTF
 
