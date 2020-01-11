@@ -13,7 +13,7 @@ use crate::dsp::DelayLine;
 pub struct OnePole {
     a0: f32,
     b1: f32,
-    last: f32
+    last: f32,
 }
 
 fn get_b1(fc: f32) -> f32 {
@@ -27,7 +27,7 @@ impl OnePole {
         Self {
             b1,
             a0: 1.0 - b1,
-            last: 0.0
+            last: 0.0,
         }
     }
 
@@ -56,7 +56,7 @@ impl OnePole {
 pub struct LpfComb {
     low_pass: OnePole,
     delay_line: DelayLine,
-    feedback: f32
+    feedback: f32,
 }
 
 impl LpfComb {
@@ -65,7 +65,7 @@ impl LpfComb {
         Self {
             low_pass: OnePole::new(fc),
             delay_line: DelayLine::new(len),
-            feedback
+            feedback,
         }
     }
 
@@ -101,7 +101,7 @@ impl LpfComb {
 /// For details see - https://ccrma.stanford.edu/~jos/pasp/Allpass_Two_Combs.html
 pub struct AllPass {
     delay_line: DelayLine,
-    gain: f32
+    gain: f32,
 }
 
 impl AllPass {
@@ -109,7 +109,7 @@ impl AllPass {
     pub fn new(len: usize, gain: f32) -> Self {
         Self {
             delay_line: DelayLine::new(len),
-            gain
+            gain,
         }
     }
 
@@ -131,5 +131,163 @@ impl AllPass {
         let b0_arm = sum_left * self.gain;
         self.delay_line.feed(sum_left);
         delay_line_output + b0_arm
+    }
+}
+
+/// Exact kind of biquad filter - it defines coefficients of the filter.
+/// More info here: https://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
+pub enum BiquadKind {
+    /// Reduces amplitude of frequencies higher F_center.
+    LowPass,
+
+    /// Reduces amplitude of frequencies lower F_center.
+    HighPass,
+
+    /// Reduces amplitude of all frequencies except in some band around F_center giving _/̅ \_ shape
+    BandPass,
+
+    /// Passes all frequencies but gives 90* phase shift to a signal at F_center.
+    AllPass,
+
+    /// Reduces amplitude of frequencies in a shape like this ̅ \_ where location of center of /
+    /// defined by F_center.
+    LowShelf,
+
+    /// Reduces amplitude of frequencies in a shape like this _/̅  where location of center of /
+    /// defined by F_center.
+    HighShelf,
+}
+
+/// Generic second order digital filter.
+/// More info here: https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html
+pub struct Biquad {
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+    prev1: f32,
+    prev2: f32,
+}
+
+impl Biquad {
+    /// Creates new filter of given kind with specified parameters, where:
+    /// `fc` - normalized frequency
+    /// `gain` - desired gain at `fc`
+    /// `quality` - defines band width at which amplitude decays by half (or by 3 db in log scale), the lower it will
+    /// be, the wider band will be and vice versa. See more info [here](https://ccrma.stanford.edu/~jos/filters/Quality_Factor_Q.html)
+    pub fn new(kind: BiquadKind, fc: f32, gain: f32, quality: f32) -> Self {
+        let mut filter = Self {
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a1: 0.0,
+            a2: 0.0,
+            prev1: 0.0,
+            prev2: 0.0,
+        };
+
+        filter.tune(kind, fc, gain, quality);
+
+        filter
+    }
+
+    /// Creates new instance of filter with given coefficients.
+    pub fn from_coefficients(b0: f32, b1: f32, b2: f32, a1: f32, a2: f32) -> Self {
+        Self {
+            b0,
+            b1,
+            b2,
+            a1,
+            a2,
+            prev1: 0.0,
+            prev2: 0.0
+        }
+    }
+
+    /// Tunes filter using specified parameters.
+    /// `kind` - new kind of filter.
+    /// `fc` - normalized frequency
+    /// `gain` - desired gain at `fc`
+    /// `quality` - defines band width at which amplitude decays by half (or by 3 db in log scale), the lower it will
+    /// be, the wider band will be and vice versa. See more info [here](https://ccrma.stanford.edu/~jos/filters/Quality_Factor_Q.html)
+    pub fn tune(&mut self, kind: BiquadKind, fc: f32, gain: f32, quality: f32) {
+        let w0 = 2.0 * std::f32::consts::PI * fc;
+        let w0_cos = w0.cos();
+        let w0_sin = w0.sin();
+        let alpha = w0_sin / (2.0 * quality);
+
+        let (b0, b1, b2, a0, a1, a2) = match kind {
+            BiquadKind::LowPass => {
+                let b0 = (1.0 - w0_cos) / 2.0;
+                let b1 = 1.0 - w0_cos;
+                let b2 = b0;
+                let a0 = 1.0 + alpha;
+                let a1 = -2.0 * w0_cos;
+                let a2 = 1.0 - alpha;
+                (b0, b1, b2, a0, a1, a2)
+            }
+            BiquadKind::HighPass => {
+                let b0 = (1.0 + w0_cos) / 2.0;
+                let b1 = -(1.0 + w0_cos);
+                let b2 = b0;
+                let a0 = 1.0 + alpha;
+                let a1 = -2.0 * w0_cos;
+                let a2 = 1.0 - alpha;
+                (b0, b1, b2, a0, a1, a2)
+            }
+            BiquadKind::BandPass => {
+                let b0 = w0_sin / 2.0;
+                let b1 = 0.0;
+                let b2 = -b0;
+                let a0 = 1.0 + alpha;
+                let a1 = -2.0 * w0_cos;
+                let a2 = 1.0 - alpha;
+                (b0, b1, b2, a0, a1, a2)
+            }
+            BiquadKind::AllPass => {
+                let b0 = 1.0 - alpha;
+                let b1 = -2.0 * w0_cos;
+                let b2 = 1.0 + alpha;
+                let a0 = b2;
+                let a1 = -2.0 * w0_cos;
+                let a2 = 1.0 - alpha;
+                (b0, b1, b2, a0, a1, a2)
+            }
+            BiquadKind::LowShelf => {
+                let sq = 2.0 * gain.sqrt() * alpha;
+                let b0 = gain * ((gain + 1.0) - (gain - 1.0) * w0_cos + sq);
+                let b1 = 2.0 * gain * ((gain - 1.0) - (gain + 1.0) * w0_cos);
+                let b2 = gain * ((gain + 1.0) - (gain - 1.0) * w0_cos - sq);
+                let a0 = (gain + 1.0) + (gain - 1.0) * w0_cos + sq;
+                let a1 = -2.0 * ((gain - 1.0) + (gain + 1.0) * w0_cos);
+                let a2 = (gain + 1.0) + (gain - 1.0) * w0_cos - sq;
+                (b0, b1, b2, a0, a1, a2)
+            }
+            BiquadKind::HighShelf => {
+                let sq = 2.0 * gain.sqrt() * alpha;
+                let b0 = gain * ((gain + 1.0) + (gain - 1.0) * w0_cos + sq);
+                let b1 = -2.0 * gain * ((gain - 1.0) + (gain + 1.0) * w0_cos);
+                let b2 = gain * ((gain + 1.0) + (gain - 1.0) * w0_cos - sq);
+                let a0 = (gain + 1.0) - (gain - 1.0) * w0_cos + sq;
+                let a1 = 2.0 * ((gain - 1.0) - (gain + 1.0) * w0_cos);
+                let a2 = (gain + 1.0) - (gain - 1.0) * w0_cos - sq;
+                (b0, b1, b2, a0, a1, a2)
+            }
+        };
+
+        self.b0 = b0 / a0;
+        self.b1 = b1 / a0;
+        self.b2 = b2 / a0;
+        self.a1 = a1 / a0;
+        self.a2 = a2 / a0;
+    }
+
+    /// Processes single sample.
+    pub fn feed(&mut self, sample: f32) -> f32 {
+        let result = sample * self.b0 + self.prev1;
+        self.prev1 = sample * self.b1 - result * self.a1 + self.prev2;
+        self.prev2 = sample * self.b2 - result * self.a2;
+        result
     }
 }

@@ -13,16 +13,17 @@ use std::{
     ffi::{CStr, CString},
     os::raw::c_int,
     mem::size_of,
-    sync::atomic::{AtomicPtr, Ordering},
 };
 
 pub struct AlsaSoundDevice {
-    playback_device: AtomicPtr<snd_pcm_t>,
     frame_count: u32,
+    playback_device: *mut snd_pcm_t,
     callback: Box<FeedCallback>,
     out_data: Vec<NativeSample>,
     mix_buffer: Vec<(f32, f32)>,
 }
+
+unsafe impl Send for AlsaSoundDevice {}
 
 pub fn err_code_to_string(err_code: c_int) -> String {
     unsafe {
@@ -44,7 +45,8 @@ pub fn check(err_code: c_int) -> Result<(), SoundError> {
 impl AlsaSoundDevice {
     pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
         unsafe {
-            let frame_count = buffer_len_bytes / 4; /* 16-bit stereo is 4 bytes, so frame count is bufferHalfSize / 4 */
+            // 16-bit stereo is 4 bytes, so frame count is bufferHalfSize / 4
+            let frame_count = buffer_len_bytes / 4;
             let mut playback_device = std::ptr::null_mut();
             check(snd_pcm_open(&mut playback_device, CString::new("default").unwrap().as_ptr() as *const _, SND_PCM_STREAM_PLAYBACK, 0))?;
             let mut hw_params = std::ptr::null_mut();
@@ -70,7 +72,7 @@ impl AlsaSoundDevice {
 
             let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
             Ok(Self {
-                playback_device: AtomicPtr::new(playback_device),
+                playback_device,
                 frame_count,
                 callback,
                 out_data: vec![Default::default(); samples_per_channel],
@@ -93,11 +95,10 @@ impl Device for AlsaSoundDevice {
         self.mix();
 
         unsafe {
-            let device = self.playback_device.load(Ordering::SeqCst);
-            let err = snd_pcm_writei(device, self.out_data.as_ptr() as *const _, self.frame_count.into()) as i32;
+            let err = snd_pcm_writei(self.playback_device, self.out_data.as_ptr() as *const _, self.frame_count.into()) as i32;
             if err == -32 {
                 // EPIPE error (buffer underrun)
-                snd_pcm_recover(device, err, 0);
+                snd_pcm_recover(self.playback_device, err, 0);
             }
         }
     }
@@ -106,9 +107,7 @@ impl Device for AlsaSoundDevice {
 impl Drop for AlsaSoundDevice {
     fn drop(&mut self) {
         unsafe {
-            let device = self.playback_device.load(Ordering::SeqCst);
-
-            snd_pcm_close(device);
+            snd_pcm_close(self.playback_device);
         }
     }
 }
