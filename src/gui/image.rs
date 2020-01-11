@@ -1,28 +1,25 @@
 use std::sync::{Mutex, Arc};
 use crate::core::{
-    math::vec2::Vec2,
     pool::Handle
 };
 use crate::{
     gui::{
-        node::UINode,
-        Draw,
+        UINode,
         draw::{DrawingContext, CommandKind, CommandTexture},
-        widget::{Widget, AsWidget},
-        Layout,
+        widget::{Widget},
         UserInterface,
-        Update,
         widget::WidgetBuilder
     },
     resource::texture::Texture,
 };
+use crate::gui::Control;
 
 pub struct Image {
     widget: Widget,
     texture: Option<Arc<Mutex<Texture>>>,
 }
 
-impl AsWidget for Image {
+impl Control for Image {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -30,31 +27,13 @@ impl AsWidget for Image {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Draw for Image {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, self.widget.color());
+        drawing_context.push_rect_filled(&bounds, None, self.widget.background());
         let texture = self.texture.as_ref().map_or(CommandTexture::None,
                                           |t| { CommandTexture::Texture(t.clone()) });
         drawing_context.commit(CommandKind::Geometry, texture);
-    }
-}
-
-impl Layout for Image {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.widget.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        self.widget.arrange_override(ui, final_size)
-    }
-}
-
-impl Update for Image {
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
     }
 }
 
@@ -82,10 +61,10 @@ impl ImageBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let image = UINode::Image(Image {
+        let image = Image {
             widget: self.widget_builder.build(),
             texture: self.texture,
-        });
+        };
 
         ui.add_node(image)
     }

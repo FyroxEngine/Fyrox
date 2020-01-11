@@ -1,13 +1,11 @@
 use crate::gui::{
-    Draw,
-    Layout,
     UserInterface,
     maxf,
-    widget::{Widget, AsWidget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder},
     draw::DrawingContext,
-    node::UINode,
+    UINode,
     scroll_bar::Orientation,
-    Update
+    Control
 };
 use crate::core::{
     math::{
@@ -22,19 +20,15 @@ pub struct StackPanel {
     orientation: Orientation,
 }
 
-impl Draw for StackPanel {
+impl Control for StackPanel {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
     }
-}
 
-impl Update for StackPanel {
     fn update(&mut self, dt: f32) {
         self.widget.update(dt)
     }
-}
 
-impl Layout for StackPanel {
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let mut child_constraint = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
 
@@ -72,7 +66,7 @@ impl Layout for StackPanel {
         let mut measured_size = Vec2::ZERO;
 
         for child_handle in self.widget.children.iter() {
-            ui.measure(*child_handle, child_constraint);
+            ui.get_node(*child_handle).measure(ui, child_constraint);
 
             let child = ui.get_node(*child_handle).widget();
             let desired = child.desired_size.get();
@@ -114,7 +108,7 @@ impl Layout for StackPanel {
                         maxf(width, child.desired_size.get().x),
                         child.desired_size.get().y,
                     );
-                    ui.arrange(*child_handle, &child_bounds);
+                    ui.get_node(*child_handle).arrange(ui, &child_bounds);
                     width = maxf(width, child.desired_size.get().x);
                     height += child.desired_size.get().y;
                 }
@@ -125,7 +119,7 @@ impl Layout for StackPanel {
                         child.desired_size.get().x,
                         maxf(height, child.desired_size.get().y),
                     );
-                    ui.arrange(*child_handle, &child_bounds);
+                    ui.get_node(*child_handle).arrange(ui, &child_bounds);
                     width += child.desired_size.get().x;
                     height = maxf(height, child.desired_size.get().y);
                 }
@@ -143,9 +137,7 @@ impl Layout for StackPanel {
 
         Vec2::new(width, height)
     }
-}
 
-impl AsWidget for StackPanel {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -174,10 +166,10 @@ impl StackPanelBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let stack_panel = UINode::StackPanel(StackPanel {
+        let stack_panel = StackPanel {
             widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
-        });
+        };
 
         ui.add_node(stack_panel)
     }

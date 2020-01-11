@@ -1,10 +1,13 @@
 use crate::{
+    core::{
+        color::Color,
+        pool::Handle,
+    },
     gui::{
-        node::UINode,
+        UINode,
         widget::{
             Widget,
             WidgetBuilder,
-            AsWidget,
         },
         UserInterface,
         HorizontalAlignment,
@@ -13,22 +16,14 @@ use crate::{
         text::TextBuilder,
         border::BorderBuilder,
         event::{UIEvent, UIEventKind},
-        Layout,
-        Draw,
-        draw::DrawingContext,
-        Update,
     },
     resource::ttf::Font,
-};
-use crate::core::{
-    color::Color,
-    pool::Handle,
-    math::vec2::Vec2,
 };
 use std::{
     rc::Rc,
     cell::RefCell,
 };
+use crate::gui::Control;
 
 /// Button
 ///
@@ -37,9 +32,10 @@ use std::{
 /// [`Click`] - spawned when user click button.
 pub struct Button {
     widget: Widget,
+    body: Handle<UINode>,
 }
 
-impl AsWidget for Button {
+impl Control for Button {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -47,27 +43,45 @@ impl AsWidget for Button {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Layout for Button {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.widget.measure_override(ui, available_size)
-    }
+    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
+        let normal_color = Color::opaque(120, 120, 120);
+        let pressed_color = Color::opaque(100, 100, 100);
+        let hover_color = Color::opaque(160, 160, 160);
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        self.widget.arrange_override(ui, final_size)
-    }
-}
+        if evt.source == self_handle || self.widget().has_descendant(evt.source, ui) {
+            match evt.kind {
+                UIEventKind::MouseUp { .. } => {
+                    // Generate Click event
+                    self.widget_mut()
+                        .events
+                        .borrow_mut()
+                        .push_back(UIEvent::new(UIEventKind::Click));
+                    ui.release_mouse_capture();
+                }
+                UIEventKind::MouseDown { .. } => {
+                    ui.capture_mouse(evt.source);
+                }
+                _ => ()
+            }
+        }
 
-impl Draw for Button {
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context)
-    }
-}
-
-impl Update for Button {
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
+        if evt.source == self.body || ui.is_node_child_of(evt.source, self.body) {
+            let back = ui.nodes.borrow_mut(self.body).widget_mut();
+            match evt.kind {
+                UIEventKind::MouseDown { .. } => back.set_background(pressed_color),
+                UIEventKind::MouseUp { .. } => {
+                    if back.is_mouse_over {
+                        back.set_background(hover_color);
+                    } else {
+                        back.set_background(normal_color);
+                    }
+                }
+                UIEventKind::MouseLeave => back.set_background(normal_color),
+                UIEventKind::MouseEnter => back.set_background(hover_color),
+                _ => ()
+            }
+        }
     }
 }
 
@@ -108,67 +122,35 @@ impl ButtonBuilder {
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         let normal_color = Color::opaque(120, 120, 120);
-        let pressed_color = Color::opaque(100, 100, 100);
-        let hover_color = Color::opaque(160, 160, 160);
 
-        let button = UINode::Button(Button {
-            widget: self.widget_builder
-                .with_event_handler(Box::new(move |ui, handle, evt| {
-                    if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                        match evt.kind {
-                            UIEventKind::MouseUp { .. } => {
-                                // Generate Click event
-                                ui.get_node_mut(handle).widget_mut().events.borrow_mut().push_back(UIEvent::new(UIEventKind::Click));
-                                ui.release_mouse_capture();
-                            }
-                            UIEventKind::MouseDown { .. } => {
-                                ui.capture_mouse(evt.source);
-                            }
-                            _ => ()
+        let body = BorderBuilder::new(WidgetBuilder::new()
+            .with_background(normal_color)
+            .with_foreground(Color::opaque(200, 200, 200))
+            .with_child(
+                if let Some(content) = self.content {
+                    match content {
+                        ButtonContent::Text(txt) => {
+                            TextBuilder::new(WidgetBuilder::new())
+                                .with_text(txt.as_str())
+                                .with_opt_font(self.font)
+                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ui)
                         }
+                        ButtonContent::Node(node) => node
                     }
+                } else {
+                    Handle::NONE
                 }))
-                .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_color(normal_color)
-                    .with_event_handler(Box::new(move |ui, handle, evt| {
-                        if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                            let back = ui.nodes.borrow_mut(handle).widget_mut();
-                            match evt.kind {
-                                UIEventKind::MouseDown { .. } => back.set_color(pressed_color),
-                                UIEventKind::MouseUp { .. } => {
-                                    if back.is_mouse_over {
-                                        back.set_color(hover_color);
-                                    } else {
-                                        back.set_color(normal_color);
-                                    }
-                                }
-                                UIEventKind::MouseLeave => back.set_color(normal_color),
-                                UIEventKind::MouseEnter => back.set_color(hover_color),
-                                _ => ()
-                            }
-                        }
-                    }))
-                    .with_child(
-                        if let Some(content) = self.content {
-                            match content {
-                                ButtonContent::Text(txt) => {
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_text(txt.as_str())
-                                        .with_opt_font(self.font)
-                                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .build(ui)
-                                }
-                                ButtonContent::Node(node) => node
-                            }
-                        } else {
-                            Handle::NONE
-                        }))
-                    .with_stroke_color(Color::opaque(200, 200, 200))
-                    .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
-                    .build(ui))
+            .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
+            .build(ui);
+
+        let button = Button {
+            widget: self.widget_builder
+                .with_child(body)
                 .build(),
-        });
+            body,
+        };
         ui.add_node(button)
     }
 }

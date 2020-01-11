@@ -71,8 +71,8 @@ impl TextureKind {
 }
 
 impl Texture {
-    pub(in crate) fn load_from_file(path: &Path, kind: TextureKind) -> Result<Texture, image::ImageError> {
-        let dyn_img = image::open(path)?;
+    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P, kind: TextureKind) -> Result<Texture, image::ImageError> {
+        let dyn_img = image::open(path.as_ref())?;
 
         let width = dyn_img.width();
         let height = dyn_img.height();
@@ -88,7 +88,7 @@ impl Texture {
             width,
             height,
             bytes,
-            path: PathBuf::from(path),
+            path: path.as_ref().to_path_buf(),
             gpu_tex: None,
         })
     }

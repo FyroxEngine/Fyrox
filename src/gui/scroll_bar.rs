@@ -1,19 +1,9 @@
 use crate::gui::{
-    border::BorderBuilder,
-    canvas::CanvasBuilder,
-    event::UIEventKind,
-    button::ButtonBuilder,
-    node::UINode,
-    UserInterface,
-    maxf,
-    Thickness,
-    Layout,
-    grid::{GridBuilder, Column, Row},
-    event::UIEvent,
-    widget::{Widget, WidgetBuilder, AsWidget},
-    Draw,
-    draw::DrawingContext,
-    Update,
+    border::BorderBuilder, canvas::CanvasBuilder, event::UIEventKind,
+    button::ButtonBuilder, UserInterface, maxf, Thickness,
+    grid::{GridBuilder, Column, Row}, event::UIEvent,
+    widget::{Widget, WidgetBuilder},
+    Control, UINode
 };
 use crate::core::{
     color::Color, math,
@@ -40,7 +30,7 @@ pub struct ScrollBar {
     field: Handle<UINode>,
 }
 
-impl AsWidget for ScrollBar {
+impl Control for ScrollBar {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -48,17 +38,98 @@ impl AsWidget for ScrollBar {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Draw for ScrollBar {
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context)
+    fn handle_event(&mut self, _self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
+        if let UIEventKind::Click = evt.kind {
+            if evt.source == self.increase {
+                self.set_value(self.value + self.step);
+            } else if evt.source == self.decrease {
+                self.set_value(self.value - self.step);
+            }
+        }
+
+        if evt.source == self.indicator {
+            match evt.kind {
+                UIEventKind::MouseDown { pos, .. } => {
+                    let indicator_pos = ui.nodes
+                        .borrow(self.indicator)
+                        .widget()
+                        .screen_position;
+                    self.is_dragging = true;
+                    self.offset = indicator_pos - pos;
+                    ui.capture_mouse(self.indicator);
+                    evt.handled = true;
+                }
+                UIEventKind::MouseUp { .. } => {
+                    self.is_dragging = false;
+                    ui.release_mouse_capture();
+                    evt.handled = true;
+                }
+                UIEventKind::MouseMove { pos, .. } => {
+                    let (field_pos, field_size) = {
+                        let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS).widget();
+                        (canvas.screen_position, canvas.actual_size.get())
+                    };
+
+                    let bar_size = ui.nodes.borrow(self.indicator).widget().actual_size.get();
+                    let orientation = self.orientation;
+                    if self.is_dragging {
+                        let percent = match orientation {
+                            Orientation::Horizontal => {
+                                let span = field_size.x - bar_size.x;
+                                let offset = pos.x - field_pos.x + self.offset.x;
+                                if span > 0.0 {
+                                    math::clampf(offset / span, 0.0, 1.0)
+                                } else {
+                                    0.0
+                                }
+                            }
+                            Orientation::Vertical => {
+                                let span = field_size.y - bar_size.y;
+                                let offset = pos.y - field_pos.y + self.offset.y;
+                                if span > 0.0 {
+                                    math::clampf(offset / span, 0.0, 1.0)
+                                } else {
+                                    0.0
+                                }
+                            }
+                        };
+                        self.set_value(percent * (self.max - self.min));
+                        evt.handled = true;
+                    }
+                }
+                _ => ()
+            }
+        }
     }
-}
 
-impl Update for ScrollBar {
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        let size = self.widget.arrange_override(ui, final_size);
+
+        // Adjust indicator position according to current value
+        let percent = (self.value - self.min) / (self.max - self.min);
+
+        let field_size = ui.get_node(self.field).widget().actual_size.get();
+
+        let indicator = ui.get_node(self.indicator).widget();
+        match self.orientation {
+            Orientation::Horizontal => {
+                indicator.set_desired_local_position(Vec2::new(
+                    percent * maxf(0.0, field_size.x - indicator.actual_size.get().x),
+                    0.0)
+                );
+                indicator.height.set(field_size.y);
+            }
+            Orientation::Vertical => {
+                indicator.set_desired_local_position(Vec2::new(
+                    0.0,
+                    percent * maxf(0.0, field_size.y - indicator.actual_size.get().y))
+                );
+                indicator.width.set(field_size.x);
+            }
+        }
+
+        size
     }
 }
 
@@ -124,41 +195,6 @@ impl ScrollBar {
                 old_value,
                 new_value: self.value,
             }));
-    }
-}
-
-impl Layout for ScrollBar {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.widget.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        let size = self.widget.arrange_override(ui, final_size);
-
-        // Adjust indicator position according to current value
-        let percent = (self.value - self.min) / (self.max - self.min);
-
-        let field_size = ui.get_node(self.field).widget().actual_size.get();
-
-        let indicator = ui.get_node(self.indicator).widget();
-        match self.orientation {
-            Orientation::Horizontal => {
-                indicator.set_desired_local_position(Vec2::new(
-                    percent * maxf(0.0, field_size.x - indicator.actual_size.get().x),
-                    0.0)
-                );
-                indicator.height.set(field_size.y);
-            }
-            Orientation::Vertical => {
-                indicator.set_desired_local_position(Vec2::new(
-                    0.0,
-                    percent * maxf(0.0, field_size.y - indicator.actual_size.get().y))
-                );
-                indicator.width.set(field_size.x);
-            }
-        }
-
-        size
     }
 }
 
@@ -258,69 +294,10 @@ impl ScrollBarBuilder {
             .build(ui);
 
         let indicator = BorderBuilder::new(WidgetBuilder::new()
-            .with_color(Color::opaque(255, 255, 255))
+            .with_background(Color::opaque(255, 255, 255))
+            .with_foreground(Color::opaque(50, 50, 50))
             .with_width(30.0)
-            .with_height(30.0)
-            .with_event_handler(Box::new(move |ui, handle, evt| {
-                if evt.source != handle {
-                    return;
-                }
-                match evt.kind {
-                    UIEventKind::MouseDown { pos, .. } => {
-                        let indicator_pos = ui.nodes.borrow(handle).widget().screen_position;
-                        let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
-                        let scroll_bar = scroll_bar_node.as_scroll_bar_mut();
-                        scroll_bar.is_dragging = true;
-                        scroll_bar.offset = indicator_pos - pos;
-
-                        ui.capture_mouse(handle);
-                        evt.handled = true;
-                    }
-                    UIEventKind::MouseUp { .. } => {
-                        let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
-                        scroll_bar_node.as_scroll_bar_mut().is_dragging = false;
-                        ui.release_mouse_capture();
-                        evt.handled = true;
-                    }
-                    UIEventKind::MouseMove { pos, .. } => {
-                        let (field_pos, field_size) = {
-                            let canvas = ui.borrow_by_name_up(handle, ScrollBar::PART_CANVAS).widget();
-                            (canvas.screen_position, canvas.actual_size.get())
-                        };
-
-                        let bar_size = ui.nodes.borrow(handle).widget().actual_size.get();
-                        let scroll_bar_node = ui.borrow_by_criteria_up_mut(handle, |node| node.is_scroll_bar());
-                        let scroll_bar = scroll_bar_node.as_scroll_bar_mut();
-                        let orientation = scroll_bar.orientation;
-                        if scroll_bar.is_dragging {
-                            let percent = match orientation {
-                                Orientation::Horizontal => {
-                                    let span = field_size.x - bar_size.x;
-                                    let offset = pos.x - field_pos.x + scroll_bar.offset.x;
-                                    if span > 0.0 {
-                                        math::clampf(offset / span, 0.0, 1.0)
-                                    } else {
-                                        0.0
-                                    }
-                                }
-                                Orientation::Vertical => {
-                                    let span = field_size.y - bar_size.y;
-                                    let offset = pos.y - field_pos.y + scroll_bar.offset.y;
-                                    if span > 0.0 {
-                                        math::clampf(offset / span, 0.0, 1.0)
-                                    } else {
-                                        0.0
-                                    }
-                                }
-                            };
-                            scroll_bar.set_value(percent * (scroll_bar.max - scroll_bar.min));
-                            evt.handled = true;
-                        }
-                    }
-                    _ => ()
-                }
-            })))
-            .with_stroke_color(Color::opaque(50, 50, 50))
+            .with_height(30.0))
             .with_stroke_thickness(match orientation {
                 Orientation::Horizontal => Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 },
                 Orientation::Vertical => Thickness { left: 0.0, top: 1.0, right: 0.0, bottom: 1.0 }
@@ -340,10 +317,11 @@ impl ScrollBarBuilder {
             .with_child(indicator)
         ).build(ui);
 
-        let scroll_bar = UINode::ScrollBar(ScrollBar {
+        let scroll_bar = ScrollBar {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_color(Color::opaque(120, 120, 120))
+                    .with_background(Color::opaque(120, 120, 120))
+                    .with_foreground(Color::opaque(200, 200, 200))
                     .with_child(GridBuilder::new(WidgetBuilder::new()
                         .with_child(decrease)
                         .with_child(field)
@@ -363,20 +341,8 @@ impl ScrollBarBuilder {
                         .build(ui)
                     ))
                     .with_stroke_thickness(Thickness::uniform(1.0))
-                    .with_stroke_color(Color::opaque(200, 200, 200))
                     .build(ui)
                 )
-                .with_event_handler(Box::new(move |ui, handle, event| {
-                    if let UIEventKind::Click = event.kind {
-                        if let UINode::ScrollBar(scroll_bar) = ui.nodes.borrow_mut(handle) {
-                            if event.source == scroll_bar.increase {
-                                scroll_bar.set_value(scroll_bar.value + scroll_bar.step);
-                            } else if event.source == scroll_bar.decrease {
-                                scroll_bar.set_value(scroll_bar.value - scroll_bar.step);
-                            }
-                        }
-                    }
-                }))
                 .build(),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
@@ -389,7 +355,7 @@ impl ScrollBarBuilder {
             decrease,
             indicator,
             field,
-        });
+        };
         ui.add_node(scroll_bar)
     }
 }

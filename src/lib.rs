@@ -55,6 +55,8 @@ extern crate inflate;
 extern crate rand;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate downcast_rs;
 
 pub mod utils;
 pub mod scene;

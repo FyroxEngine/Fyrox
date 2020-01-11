@@ -7,18 +7,15 @@ use crate::{
     gui::{
         VerticalAlignment,
         HorizontalAlignment,
-        Draw,
         draw::DrawingContext,
-        node::{
-            UINode,
-        },
         UserInterface,
         formatted_text::{FormattedText, FormattedTextBuilder},
-        widget::{Widget, WidgetBuilder, AsWidget},
-        Layout, Update
+        widget::{Widget, WidgetBuilder},
+        UINode
     },
     resource::ttf::Font,
 };
+use crate::gui::Control;
 
 pub struct Text {
     widget: Widget,
@@ -30,7 +27,7 @@ pub struct Text {
     formatted_text: FormattedText,
 }
 
-impl AsWidget for Text {
+impl Control for Text {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -38,31 +35,13 @@ impl AsWidget for Text {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Update for Text {
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
-    }
-}
-
-impl Layout for Text {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.widget.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        self.widget.arrange_override(ui, final_size)
-    }
-}
-
-impl Draw for Text {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
         if self.need_update {
             self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
             self.formatted_text.set_text(self.text.as_str());
-            self.formatted_text.set_color(self.widget.color());
+            self.formatted_text.set_color(self.widget.foreground());
             self.formatted_text.set_horizontal_alignment(self.horizontal_alignment);
             self.formatted_text.set_vertical_alignment(self.vertical_alignment);
             self.formatted_text.build();
@@ -73,9 +52,9 @@ impl Draw for Text {
 }
 
 impl Text {
-    pub fn set_text(&mut self, text: &str) -> &mut Self {
+    pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         self.text.clear();
-        self.text += text;
+        self.text += text.as_ref();
         self.need_update = true;
         self
     }
@@ -152,7 +131,7 @@ impl TextBuilder {
             ui.default_font.clone()
         };
 
-        ui.add_node(UINode::Text(Text {
+        ui.add_node(Text {
             widget: self.widget_builder.build(),
             text: self.text.unwrap_or_default(),
             need_update: true,
@@ -160,6 +139,6 @@ impl TextBuilder {
             horizontal_alignment: self.horizontal_text_alignment.unwrap_or(HorizontalAlignment::Left),
             formatted_text: FormattedTextBuilder::new().with_font(font.clone()).build(),
             font
-        }))
+        })
     }
 }

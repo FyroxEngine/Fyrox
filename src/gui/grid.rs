@@ -7,14 +7,12 @@ use crate::core::{
     },
 };
 use crate::gui::{
-    Draw,
-    Layout,
-    node::UINode,
     Visibility,
     UserInterface,
     draw::DrawingContext,
-    widget::{WidgetBuilder, Widget, AsWidget},
-    Update
+    widget::{WidgetBuilder, Widget},
+    Control,
+    UINode
 };
 
 #[derive(PartialEq)]
@@ -121,7 +119,7 @@ pub struct Grid {
     columns: RefCell<Vec<Column>>,
 }
 
-impl AsWidget for Grid {
+impl Control for Grid {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -129,21 +127,15 @@ impl AsWidget for Grid {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Draw for Grid {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
     }
-}
 
-impl Update for Grid {
     fn update(&mut self, dt: f32) {
         self.widget.update(dt)
     }
-}
 
-impl Layout for Grid {
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
@@ -153,7 +145,7 @@ impl Layout for Grid {
         let mut desired_size = Vec2::ZERO;
         // Step 1. Measure every children with relaxed constraints (size of grid).
         for child_handle in self.widget.children.iter() {
-            ui.measure(*child_handle, available_size);
+            ui.get_node(*child_handle).measure(ui, available_size);
         }
 
         // Step 2. Calculate width of columns and heights of rows.
@@ -175,7 +167,7 @@ impl Layout for Grid {
                     y: self.rows.borrow()[child.row()].actual_height,
                 }
             };
-            ui.measure(*child_handle, size_for_child);
+            ui.get_node(*child_handle).measure(ui, size_for_child);
         }
 
         // Step 4. Calculate desired size of grid.
@@ -193,7 +185,7 @@ impl Layout for Grid {
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
             for child_handle in self.widget.children.iter() {
-                ui.arrange(*child_handle, &rect);
+                ui.get_node(*child_handle).arrange(ui, &rect);
             }
             return final_size;
         }
@@ -214,7 +206,7 @@ impl Layout for Grid {
             }
 
             if let Some(rect) = final_rect {
-                ui.arrange(*child_handle, &rect);
+                ui.nodes.borrow(*child_handle).arrange(ui, &rect);
             }
         }
 
@@ -258,12 +250,11 @@ impl GridBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        ui.add_node(UINode::Grid(Grid {
+        ui.add_node(Grid {
             widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
-        }
-        ))
+        })
     }
 }
 

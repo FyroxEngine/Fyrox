@@ -1,5 +1,4 @@
 pub mod draw;
-pub mod node;
 pub mod text;
 pub mod border;
 pub mod image;
@@ -23,29 +22,27 @@ use std::{
     collections::VecDeque,
     rc::Rc,
     cell::RefCell,
-    any::Any
+    any::Any,
 };
 use crate::{
+    core::{
+        color::Color,
+        pool::{Pool, Handle},
+        math::{vec2::Vec2, Rect},
+    },
     gui::{
-        node::UINode,
-        widget::AsWidget,
         draw::{DrawingContext, CommandKind, CommandTexture},
         canvas::Canvas,
         event::{
             UIEvent,
             UIEventKind,
-            UIEventHandler,
         },
-        style::Style
+        style::Style,
+        widget::Widget
     },
     resource::{ttf::Font},
     utils::UnsafeCollectionView,
     event::{ElementState, WindowEvent, MouseScrollDelta},
-};
-use crate::core::{
-    color::Color,
-    pool::{Pool, Handle},
-    math::{vec2::Vec2, Rect},
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -107,22 +104,211 @@ pub enum Visibility {
     Hidden,
 }
 
-pub trait Layout {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2;
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2;
-}
+/// Trait for all UI controls in engine.
+///
+/// Control must provide at least references (shared and mutable) to inner widget,
+/// which means that any control must be based on widget struct.
+/// Any other methods will be auto-implemented.
+pub trait Control: downcast_rs::Downcast {
+    fn widget(&self) -> &Widget;
 
-pub trait Draw {
-    fn draw(&mut self, drawing_context: &mut DrawingContext);
-}
+    fn widget_mut(&mut self) -> &mut Widget;
 
-pub trait Update {
-    fn update(&mut self, dt: f32);
-}
+    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+        let mut size = Vec2::ZERO;
 
-pub trait Styleable: AsWidget {
-    fn set_property(&mut self, name: &str, value: &dyn Any);
-    fn get_property(&self, name: &str) -> Option<&'_ dyn Any>;
+        for child_handle in self.widget().children.iter() {
+            ui.get_node(*child_handle).measure(ui, available_size);
+
+            let child = ui.get_node(*child_handle).widget();
+            let child_desired_size = child.desired_size.get();
+            if child_desired_size.x > size.x {
+                size.x = child_desired_size.x;
+            }
+            if child_desired_size.y > size.y {
+                size.y = child_desired_size.y;
+            }
+        }
+
+        size
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
+
+        for child_handle in self.widget().children.iter() {
+            ui.get_node(*child_handle).arrange(ui, &final_rect);
+        }
+
+        final_size
+    }
+
+    fn arrange(&self, ui: &UserInterface, final_rect: &Rect<f32>) {
+        let widget = self.widget();
+        if widget.visibility != Visibility::Visible {
+            return;
+        }
+
+        let margin_x = widget.margin.left + widget.margin.right;
+        let margin_y = widget.margin.top + widget.margin.bottom;
+
+        let mut origin_x = final_rect.x + widget.margin.left;
+        let mut origin_y = final_rect.y + widget.margin.top;
+
+        let mut size = Vec2 {
+            x: maxf(0.0, final_rect.w - margin_x),
+            y: maxf(0.0, final_rect.h - margin_y),
+        };
+
+        let size_without_margin = size;
+
+        if widget.horizontal_alignment != HorizontalAlignment::Stretch {
+            size.x = minf(size.x, widget.desired_size.get().x - margin_x);
+        }
+        if widget.vertical_alignment != VerticalAlignment::Stretch {
+            size.y = minf(size.y, widget.desired_size.get().y - margin_y);
+        }
+
+        if widget.width.get() > 0.0 {
+            size.x = widget.width.get();
+        }
+        if widget.height.get() > 0.0 {
+            size.y = widget.height.get();
+        }
+
+        size = self.arrange_override(ui, size);
+
+        if size.x > final_rect.w {
+            size.x = final_rect.w;
+        }
+        if size.y > final_rect.h {
+            size.y = final_rect.h;
+        }
+
+        match widget.horizontal_alignment {
+            HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
+                origin_x += (size_without_margin.x - size.x) * 0.5;
+            }
+            HorizontalAlignment::Right => {
+                origin_x += size_without_margin.x - size.x;
+            }
+            _ => ()
+        }
+
+        match widget.vertical_alignment {
+            VerticalAlignment::Center | VerticalAlignment::Stretch => {
+                origin_y += (size_without_margin.y - size.y) * 0.5;
+            }
+            VerticalAlignment::Bottom => {
+                origin_y += size_without_margin.y - size.y;
+            }
+            _ => ()
+        }
+
+        widget.actual_size.set(size);
+        widget.actual_local_position.set(Vec2 { x: origin_x, y: origin_y });
+        widget.arrange_valid.set(true);
+    }
+
+    fn measure(&self, ui: &UserInterface, available_size: Vec2) {
+        let widget = self.widget();
+        let margin = Vec2 {
+            x: widget.margin.left + widget.margin.right,
+            y: widget.margin.top + widget.margin.bottom,
+        };
+
+        let size_for_child = Vec2 {
+            x: {
+                let w = if widget.width.get() > 0.0 {
+                    widget.width.get()
+                } else {
+                    maxf(0.0, available_size.x - margin.x)
+                };
+
+                if w > widget.max_size.x {
+                    widget.max_size.x
+                } else if w < widget.min_size.x {
+                    widget.min_size.x
+                } else {
+                    w
+                }
+            },
+            y: {
+                let h = if widget.height.get() > 0.0 {
+                    widget.height.get()
+                } else {
+                    maxf(0.0, available_size.y - margin.y)
+                };
+
+                if h > widget.max_size.y {
+                    widget.max_size.y
+                } else if h < widget.min_size.y {
+                    widget.min_size.y
+                } else {
+                    h
+                }
+            },
+        };
+
+        if widget.visibility == Visibility::Visible {
+            let mut desired_size = self.measure_override(ui, size_for_child);
+
+            if !widget.width.get().is_nan() {
+                desired_size.x = widget.width.get();
+            }
+
+            if desired_size.x > widget.max_size.x {
+                desired_size.x = widget.max_size.x;
+            } else if desired_size.x < widget.min_size.x {
+                desired_size.x = widget.min_size.x;
+            }
+
+            if desired_size.y > widget.max_size.y {
+                desired_size.y = widget.max_size.y;
+            } else if desired_size.y < widget.min_size.y {
+                desired_size.y = widget.min_size.y;
+            }
+
+            if !widget.height.get().is_nan() {
+                desired_size.y = widget.height.get();
+            }
+
+            desired_size += margin;
+
+            // Make sure that node won't go outside of available bounds.
+            if desired_size.x > available_size.x {
+                desired_size.x = available_size.x;
+            }
+            if desired_size.y > available_size.y {
+                desired_size.y = available_size.y;
+            }
+
+            widget.desired_size.set(desired_size);
+        } else {
+            widget.desired_size.set(Vec2::new(0.0, 0.0));
+        }
+
+        widget.measure_valid.set(true)
+    }
+
+    fn draw(&mut self, _drawing_context: &mut DrawingContext) {}
+
+    fn update(&mut self, _dt: f32) {}
+
+    fn set_property(&mut self, _name: &str, _value: &dyn Any) {}
+
+    fn get_property(&self, _name: &str) -> Option<&'_ dyn Any> {
+        None
+    }
+
+    /// Performs event-specific actions.
+    ///
+    /// # Notes
+    ///
+    /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
+    /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
+    /// to check if event came from/for this node or to capture input on node.
+    fn handle_event(&mut self, _self_handle: Handle<UINode>, _ui: &mut UserInterface, _evt: &mut UIEvent) {}
 
     fn apply_style(&mut self, style: Rc<Style>) {
         // Apply base style first.
@@ -140,6 +326,10 @@ pub trait Styleable: AsWidget {
     }
 }
 
+impl_downcast!(Control);
+
+pub type UINode = Box<dyn Control>;
+
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
@@ -153,7 +343,6 @@ pub struct UserInterface {
     keyboard_focus_node: Handle<UINode>,
     mouse_position: Vec2,
     events: VecDeque<UIEvent>,
-    event_handlers: Vec<Option<Box<UIEventHandler>>>,
 }
 
 #[inline]
@@ -190,10 +379,9 @@ impl UserInterface {
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
-            event_handlers: Vec::new(),
             keyboard_focus_node: Handle::NONE,
         };
-        ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new()));
+        ui.root_canvas = ui.add_node(Canvas::new());
         ui
     }
 
@@ -202,10 +390,10 @@ impl UserInterface {
         self.default_font.clone()
     }
 
-    pub fn add_node(&mut self, mut node: UINode) -> Handle<UINode> {
+    pub fn add_node<T: Control + 'static>(&mut self, mut node: T) -> Handle<UINode> {
         let children = node.widget().children.clone();
         node.widget_mut().children.clear();
-        let node_handle = self.nodes.spawn(node);
+        let node_handle = self.nodes.spawn(Box::new(node));
         if self.root_canvas.is_some() {
             self.link_nodes(node_handle, self.root_canvas);
         }
@@ -217,12 +405,12 @@ impl UserInterface {
 
     #[inline]
     pub fn capture_mouse(&mut self, node: Handle<UINode>) -> bool {
-        if self.captured_node.is_none() && self.nodes.is_valid_handle(node) {
+        if self.captured_node.is_none() {
             self.captured_node = node;
-            return true;
+            true
+        } else {
+            false
         }
-
-        false
     }
 
     #[inline]
@@ -278,156 +466,6 @@ impl UserInterface {
         &mut self.drawing_context
     }
 
-    fn measure(&self, node_handle: Handle<UINode>, available_size: Vec2) {
-        let node = self.nodes.borrow(node_handle);
-        let widget = self.nodes.borrow(node_handle).widget();
-        let margin = Vec2 {
-            x: widget.margin.left + widget.margin.right,
-            y: widget.margin.top + widget.margin.bottom,
-        };
-
-        let size_for_child = Vec2 {
-            x: {
-                let w = if widget.width.get() > 0.0 {
-                    widget.width.get()
-                } else {
-                    maxf(0.0, available_size.x - margin.x)
-                };
-
-                if w > widget.max_size.x {
-                    widget.max_size.x
-                } else if w < widget.min_size.x {
-                    widget.min_size.x
-                } else {
-                    w
-                }
-            },
-            y: {
-                let h = if widget.height.get() > 0.0 {
-                    widget.height.get()
-                } else {
-                    maxf(0.0, available_size.y - margin.y)
-                };
-
-                if h > widget.max_size.y {
-                    widget.max_size.y
-                } else if h < widget.min_size.y {
-                    widget.min_size.y
-                } else {
-                    h
-                }
-            },
-        };
-
-        if widget.visibility == Visibility::Visible {
-            let mut desired_size = node.measure_override(self, size_for_child);
-
-            if !widget.width.get().is_nan() {
-                desired_size.x = widget.width.get();
-            }
-
-            if desired_size.x > widget.max_size.x {
-                desired_size.x = widget.max_size.x;
-            } else if desired_size.x < widget.min_size.x {
-                desired_size.x = widget.min_size.x;
-            }
-
-            if desired_size.y > widget.max_size.y {
-                desired_size.y = widget.max_size.y;
-            } else if desired_size.y < widget.min_size.y {
-                desired_size.y = widget.min_size.y;
-            }
-
-            if !widget.height.get().is_nan() {
-                desired_size.y = widget.height.get();
-            }
-
-            desired_size += margin;
-
-            // Make sure that node won't go outside of available bounds.
-            if desired_size.x > available_size.x {
-                desired_size.x = available_size.x;
-            }
-            if desired_size.y > available_size.y {
-                desired_size.y = available_size.y;
-            }
-
-            widget.desired_size.set(desired_size);
-        } else {
-            widget.desired_size.set(Vec2::new(0.0, 0.0));
-        }
-
-        widget.measure_valid.set(true)
-    }
-
-    fn arrange(&self, node_handle: Handle<UINode>, final_rect: &Rect<f32>) {
-        let node = self.nodes.borrow(node_handle);
-        let widget = node.widget();
-        if widget.visibility != Visibility::Visible {
-            return;
-        }
-
-        let margin_x = widget.margin.left + widget.margin.right;
-        let margin_y = widget.margin.top + widget.margin.bottom;
-
-        let mut origin_x = final_rect.x + widget.margin.left;
-        let mut origin_y = final_rect.y + widget.margin.top;
-
-        let mut size = Vec2 {
-            x: maxf(0.0, final_rect.w - margin_x),
-            y: maxf(0.0, final_rect.h - margin_y),
-        };
-
-        let size_without_margin = size;
-
-        if widget.horizontal_alignment != HorizontalAlignment::Stretch {
-            size.x = minf(size.x, widget.desired_size.get().x - margin_x);
-        }
-        if widget.vertical_alignment != VerticalAlignment::Stretch {
-            size.y = minf(size.y, widget.desired_size.get().y - margin_y);
-        }
-
-        if widget.width.get() > 0.0 {
-            size.x = widget.width.get();
-        }
-        if widget.height.get() > 0.0 {
-            size.y = widget.height.get();
-        }
-
-        size = node.arrange_override(self, size);
-
-        if size.x > final_rect.w {
-            size.x = final_rect.w;
-        }
-        if size.y > final_rect.h {
-            size.y = final_rect.h;
-        }
-
-        match widget.horizontal_alignment {
-            HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
-                origin_x += (size_without_margin.x - size.x) * 0.5;
-            }
-            HorizontalAlignment::Right => {
-                origin_x += size_without_margin.x - size.x;
-            }
-            _ => ()
-        }
-
-        match widget.vertical_alignment {
-            VerticalAlignment::Center | VerticalAlignment::Stretch => {
-                origin_y += (size_without_margin.y - size.y) * 0.5;
-            }
-            VerticalAlignment::Bottom => {
-                origin_y += size_without_margin.y - size.y;
-            }
-            _ => ()
-        }
-
-        widget.actual_size.set(size);
-        widget.actual_local_position.set(Vec2 { x: origin_x, y: origin_y });
-        widget.arrange_valid.set(true);
-    }
-
     fn update_node(&mut self, node_handle: Handle<UINode>) {
         let widget = self.nodes.borrow(node_handle).widget();
         let children = UnsafeCollectionView::from_slice(&widget.children);
@@ -450,8 +488,8 @@ impl UserInterface {
     }
 
     pub fn update(&mut self, screen_size: Vec2, dt: f32) {
-        self.measure(self.root_canvas, screen_size);
-        self.arrange(self.root_canvas, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
+        self.get_node(self.root_canvas).measure(self, screen_size);
+        self.get_node(self.root_canvas).arrange(self, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
         self.update_node(self.root_canvas);
         for node in self.nodes.iter_mut() {
             node.update(dt)
@@ -635,17 +673,7 @@ impl UserInterface {
     /// Checks if specified node is a child of some other node on `root_handle`. This method
     /// is useful to understand if some event came from some node down by tree.
     pub fn is_node_child_of(&self, node_handle: Handle<UINode>, root_handle: Handle<UINode>) -> bool {
-        for child_handle in self.nodes.borrow(root_handle).widget().children.iter() {
-            if *child_handle == node_handle {
-                return true;
-            }
-
-            let result = self.is_node_child_of(node_handle, *child_handle);
-            if result {
-                return true;
-            }
-        }
-        false
+        self.nodes.borrow(root_handle).widget().has_descendant(node_handle, self)
     }
 
     /// Checks if specified node is a direct child of some other node on `root_handle`.
@@ -738,35 +766,13 @@ impl UserInterface {
 
         let mut event = self.events.pop_front();
 
-        // Dispatch events to nodes first. This is a bit tricky because we
-        // need to pass self as mutable to event handler, but since multple
-        // mutable borrow is not allowed we using take-call-putback trick.
         if let Some(ref mut event) = event {
             for i in 0..self.nodes.get_capacity() {
-                // Take all event handlers.
-                self.event_handlers.clear();
-                if let Some(node) = self.nodes.at_mut(i) {
-                    for event_handler in node.widget_mut().event_handlers.drain(..) {
-                        self.event_handlers.push(Some(event_handler));
-                    }
-                } else {
-                    continue;
-                };
+                if let Some(mut node) = self.nodes.take_at(i) {
+                    node.handle_event(self.nodes.handle_from_index(i), self, event);
 
-                // Iterate over and call one-by-one.
-                for k in 0..self.event_handlers.len() {
-                    let mut handler = self.event_handlers[k].take().unwrap();
-                    handler(self, self.nodes.handle_from_index(i), event);
-                    self.event_handlers[k].replace(handler);
-                }
-
-                // Transfer event handlers back to node if it exists. At this
-                // point there is not guarantee that node still alive so we
-                // doing additional checks.
-                if let Some(node) = self.nodes.at_mut(i) {
-                    for event_handler in self.event_handlers.drain(..) {
-                        node.widget_mut().event_handlers.push(event_handler.unwrap());
-                    }
+                    let old = self.nodes.replace_at(i, node);
+                    assert!(old.is_none());
                 }
             }
         }

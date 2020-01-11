@@ -1,25 +1,22 @@
 use crate::core::{
     pool::Handle,
     color::Color,
-    math::vec2::Vec2,
 };
 use crate::gui::{
     scroll_viewer::ScrollViewerBuilder,
     Thickness,
     border::BorderBuilder,
-    widget::{Widget, AsWidget, WidgetBuilder},
-    node::UINode,
+    widget::{Widget, WidgetBuilder},
+    UINode,
     UserInterface,
-    Draw,
-    Layout,
-    draw::DrawingContext,
     stack_panel::StackPanelBuilder,
     event::{
         UIEventKind,
         UIEvent,
     },
-    Update
+    Control
 };
+use crate::gui::border::Border;
 
 pub struct ListBox {
     widget: Widget,
@@ -36,7 +33,8 @@ impl ListBox {
         if old_value.is_none() && new_index.is_some() ||
             old_value.is_some() && new_index.is_none() ||
             old_value.unwrap() != new_index.unwrap() {
-            self.widget.events
+            self.widget
+                .events
                 .borrow_mut()
                 .push_back(UIEvent::new(UIEventKind::SelectionChanged(self.selected_index)))
         }
@@ -51,7 +49,13 @@ impl ListBox {
     }
 }
 
-impl AsWidget for ListBox {
+pub struct ListBoxItem {
+    widget: Widget,
+    body: Handle<UINode>,
+    index: usize,
+}
+
+impl Control for ListBoxItem {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -59,27 +63,54 @@ impl AsWidget for ListBox {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Draw for ListBox {
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context)
+    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
+        let list_box = self.widget().find_by_criteria_up(ui, |node| node.is::<ListBox>());
+        if evt.source == self_handle || self.widget().has_descendant(evt.source, ui) {
+            let body = ui.get_node_mut(self.body).downcast_mut::<Border>().unwrap();
+            match evt.kind {
+                UIEventKind::MouseLeave => {
+                    body.widget_mut().set_background(Color::opaque(100, 100, 100));
+                }
+                UIEventKind::MouseEnter => {
+                    body.widget_mut().set_background(Color::opaque(130, 130, 130));
+                }
+                UIEventKind::MouseDown { .. } => {
+                    // Explicitly set selection on parent list box. This will send
+                    // SelectionChanged event and all items will react.
+                    ui.get_node_mut(list_box)
+                        .downcast_mut::<ListBox>()
+                        .unwrap()
+                        .set_selected(Some(self.index))
+                }
+                _ => ()
+            }
+        } else if evt.source == list_box {
+            let border = ui.get_node_mut(self.body).downcast_mut::<Border>().unwrap();
+            if let UIEventKind::SelectionChanged(new_value) = evt.kind {
+                // We know now that selection has changed in parent list box,
+                // check at which index and keep visual state according to it.
+                if let Some(new_value) = new_value {
+                    if new_value == self.index {
+                        border.widget_mut().set_foreground(Color::opaque(0, 0, 0));
+                        border.set_stroke_thickness(Thickness::uniform(2.0));
+                        return;
+                    }
+                }
+                border.widget_mut().set_foreground(Color::opaque(80, 80, 80));
+                border.set_stroke_thickness(Thickness::uniform(1.0));
+            }
+        }
     }
 }
 
-impl Update for ListBox {
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
-    }
-}
-
-impl Layout for ListBox {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.widget.measure_override(ui, available_size)
+impl Control for ListBox {
+    fn widget(&self) -> &Widget {
+        &self.widget
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        self.widget.arrange_override(ui, final_size)
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
     }
 }
 
@@ -104,48 +135,22 @@ impl ListBoxBuilder {
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
         // Wrap each item into container which will have selection behaviour
         let items: Vec<Handle<UINode>> = self.items.iter().enumerate().map(|(index, item)| {
-            BorderBuilder::new(WidgetBuilder::new()
-                .with_child(*item)
-                .with_event_handler(Box::new(move |ui, handle, evt| {
-                    let list_box = ui.find_by_criteria_up(handle, |node| node.is_list_box());
-                    if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                        let border = ui.get_node_mut(handle).as_border_mut();
-                        match evt.kind {
-                            UIEventKind::MouseLeave => {
-                                border.widget_mut().set_color(Color::opaque(100, 100, 100));
-                            }
-                            UIEventKind::MouseEnter => {
-                                border.widget_mut().set_color(Color::opaque(130, 130, 130));
-                            }
-                            UIEventKind::MouseDown { .. } => {
-                                // Explicitly set selection on parent list box. This will send
-                                // SelectionChanged event and all items will react.
-                                let list_box = ui.get_node_mut(list_box).as_list_box_mut();
-                                list_box.set_selected(Some(index))
-                            }
-                            _ => ()
-                        }
-                    } else if evt.source == list_box {
-                        let border = ui.get_node_mut(handle).as_border_mut();
-                        if let UIEventKind::SelectionChanged(new_value) = evt.kind {
-                            // We know now that selection has changed in parent list box,
-                            // check at which index and keep visual state according to it.
-                            if let Some(new_value) = new_value {
-                                if new_value == index {
-                                    border.set_stroke_color(Color::opaque(0, 0, 0));
-                                    border.set_stroke_thickness(Thickness::uniform(2.0));
-                                    return;
-                                }
-                            }
-                            border.set_stroke_color(Color::opaque(80, 80, 80));
-                            border.set_stroke_thickness(Thickness::uniform(1.0));
-                        }
-                    }
-                }))
-                .with_color(Color::opaque(80, 80, 80)))
-                .with_stroke_color(Color::opaque(60, 60, 60))
+            let body = BorderBuilder::new(WidgetBuilder::new()
+                .with_foreground(Color::opaque(60, 60, 60))
+                .with_background(Color::opaque(80, 80, 80))
+                .with_child(*item))
                 .with_stroke_thickness(Thickness::uniform(1.0))
-                .build(ui)
+                .build(ui);
+
+            let item = ListBoxItem {
+                widget: WidgetBuilder::new()
+                    .with_child(body)
+                    .build(),
+                body,
+                index
+            };
+
+            ui.add_node(item)
         }).collect();
 
         let panel = StackPanelBuilder::new(WidgetBuilder::new()
@@ -157,16 +162,16 @@ impl ListBoxBuilder {
             .with_content(panel)
             .build(ui);
 
-        let list_box = UINode::ListBox(ListBox {
+        let list_box = ListBox {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_color(Color::opaque(100, 100, 100))
+                    .with_background(Color::opaque(100, 100, 100))
                     .with_child(scroll_viewer))
                     .build(ui))
                 .build(),
             selected_index: None,
             items,
-        });
+        };
 
         ui.add_node(list_box)
     }

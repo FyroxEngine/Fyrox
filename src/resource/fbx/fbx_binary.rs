@@ -140,7 +140,7 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
     Ok(node_handle)
 }
 
-pub fn is_binary(path: &Path) -> Result<bool, FbxError> {
+pub fn is_binary<P: AsRef<Path>>(path: P) -> Result<bool, FbxError> {
     let mut file = File::open(path)?;
     let mut magic = [0; 18];
     file.read_exact(&mut magic)?;

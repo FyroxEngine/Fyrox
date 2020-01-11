@@ -11,11 +11,8 @@ use crate::{
         event::UIEventKind,
         widget::{
             WidgetBuilder,
-            AsWidget,
             Widget,
         },
-        Draw,
-        Layout,
         UserInterface,
         draw::{
             DrawingContext,
@@ -26,12 +23,13 @@ use crate::{
             FormattedText,
             FormattedTextBuilder,
         },
-        node::UINode,
-        Update,
+        UINode,
+        Control
     },
     event::{VirtualKeyCode, MouseButton}, resource::ttf::Font,
 };
 use std::{rc::Rc, cell::RefCell, cmp};
+use crate::gui::event::UIEvent;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -228,7 +226,7 @@ impl TextBox {
     }
 }
 
-impl AsWidget for TextBox {
+impl Control for TextBox {
     fn widget(&self) -> &Widget {
         &self.widget
     }
@@ -236,9 +234,73 @@ impl AsWidget for TextBox {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
-}
 
-impl Draw for TextBox {
+    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
+        if evt.source == self_handle || self.widget().has_descendant(evt.source, ui) {
+            match evt.kind {
+                UIEventKind::Text { symbol } => {
+                    self.insert_char(symbol);
+                }
+                UIEventKind::KeyDown { code } => {
+                    match code {
+                        VirtualKeyCode::Up => {
+                            self.move_caret_y(1, VerticalDirection::Up);
+                        }
+                        VirtualKeyCode::Down => {
+                            self.move_caret_y(1, VerticalDirection::Down);
+                        }
+                        VirtualKeyCode::Right => {
+                            self.move_caret_x(1, HorizontalDirection::Right);
+                        }
+                        VirtualKeyCode::Left => {
+                            self.move_caret_x(1, HorizontalDirection::Left);
+                        }
+                        VirtualKeyCode::Delete => {
+                            self.remove_char(HorizontalDirection::Right);
+                        }
+                        VirtualKeyCode::Back => {
+                            self.remove_char(HorizontalDirection::Left);
+                        }
+                        _ => ()
+                    }
+                }
+                UIEventKind::MouseDown { pos, button } => {
+                    if button == MouseButton::Left {
+                        self.selection_range = None;
+                        self.selecting = true;
+
+                        if let Some(position) = self.screen_pos_to_text_pos(pos) {
+                            self.caret_line = position.line;
+                            self.caret_offset = position.offset;
+
+                            self.selection_range = Some(SelectionRange {
+                                begin: position,
+                                end: position,
+                            })
+                        }
+
+                        ui.capture_mouse(self_handle);
+                    }
+                }
+                UIEventKind::MouseMove { pos } => {
+                    if self.selecting {
+                        if let Some(position) = self.screen_pos_to_text_pos(pos) {
+                            if let Some(ref mut sel_range) = self.selection_range {
+                                sel_range.end = position;
+                            }
+                        }
+                    }
+                }
+                UIEventKind::MouseUp { .. } => {
+                    self.selecting = false;
+
+                    ui.release_mouse_capture();
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context);
 
@@ -247,7 +309,7 @@ impl Draw for TextBox {
         drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
 
         self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
-        self.formatted_text.set_color(self.widget.color());
+        self.formatted_text.set_color(self.widget.background());
         self.formatted_text.build();
 
         if let Some(ref selection_range) = self.selection_range {
@@ -327,19 +389,7 @@ impl Draw for TextBox {
             }
         }
     }
-}
 
-impl Layout for TextBox {
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.widget.measure_override(ui, available_size)
-    }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        self.widget.arrange_override(ui, final_size)
-    }
-}
-
-impl Update for TextBox {
     fn update(&mut self, dt: f32) {
         self.widget.update(dt);
         self.blink_timer += dt;
@@ -376,75 +426,8 @@ impl TextBoxBuilder {
     }
 
     pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let text_box = UINode::TextBox(TextBox {
-            widget: self.widget_builder
-                .with_event_handler(Box::new(|ui, handle, evt| {
-                    if evt.source == handle || ui.is_node_child_of(evt.source, handle) {
-                        let text_box = ui.get_node_mut(handle).as_text_box_mut();
-                        match evt.kind {
-                            UIEventKind::Text { symbol } => {
-                                text_box.insert_char(symbol);
-                            }
-                            UIEventKind::KeyDown { code } => {
-                                match code {
-                                    VirtualKeyCode::Up => {
-                                        text_box.move_caret_y(1, VerticalDirection::Up);
-                                    }
-                                    VirtualKeyCode::Down => {
-                                        text_box.move_caret_y(1, VerticalDirection::Down);
-                                    }
-                                    VirtualKeyCode::Right => {
-                                        text_box.move_caret_x(1, HorizontalDirection::Right);
-                                    }
-                                    VirtualKeyCode::Left => {
-                                        text_box.move_caret_x(1, HorizontalDirection::Left);
-                                    }
-                                    VirtualKeyCode::Delete => {
-                                        text_box.remove_char(HorizontalDirection::Right);
-                                    }
-                                    VirtualKeyCode::Back => {
-                                        text_box.remove_char(HorizontalDirection::Left);
-                                    }
-                                    _ => ()
-                                }
-                            }
-                            UIEventKind::MouseDown { pos, button } => {
-                                if button == MouseButton::Left {
-                                    text_box.selection_range = None;
-                                    text_box.selecting = true;
-
-                                    if let Some(position) = text_box.screen_pos_to_text_pos(pos) {
-                                        text_box.caret_line = position.line;
-                                        text_box.caret_offset = position.offset;
-
-                                        text_box.selection_range = Some(SelectionRange {
-                                            begin: position,
-                                            end: position,
-                                        })
-                                    }
-
-                                    ui.capture_mouse(handle);
-                                }
-                            }
-                            UIEventKind::MouseMove { pos } => {
-                                if text_box.selecting {
-                                    if let Some(position) = text_box.screen_pos_to_text_pos(pos) {
-                                        if let Some(ref mut sel_range) = text_box.selection_range {
-                                            sel_range.end = position;
-                                        }
-                                    }
-                                }
-                            }
-                            UIEventKind::MouseUp { .. } => {
-                                text_box.selecting = false;
-
-                                ui.release_mouse_capture();
-                            }
-                            _ => {}
-                        }
-                    }
-                }))
-                .build(),
+        let text_box = TextBox {
+            widget: self.widget_builder.build(),
             caret_line: 0,
             caret_offset: 0,
             caret_visible: true,
@@ -456,7 +439,7 @@ impl TextBoxBuilder {
                 .build(),
             selection_range: None,
             selecting: false,
-        });
+        };
 
         ui.add_node(text_box)
     }

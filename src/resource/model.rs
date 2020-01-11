@@ -70,12 +70,12 @@ fn upgrade_self_weak_ref(self_weak_ref: &Option<Weak<Mutex<Model>>>) -> Arc<Mute
 }
 
 impl Model {
-    pub(in crate) fn load(path: &Path, resource_manager: &mut ResourceManager) -> Result<Model, FbxError> {
+    pub(in crate) fn load<P: AsRef<Path>>(path: P, resource_manager: &mut ResourceManager) -> Result<Model, FbxError> {
         let mut scene = Scene::new();
-        fbx::load_to_scene(&mut scene, resource_manager, path)?;
+        fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
         Ok(Model {
             self_weak_ref: None,
-            path: PathBuf::from(path),
+            path: path.as_ref().to_path_buf(),
             scene,
         })
     }

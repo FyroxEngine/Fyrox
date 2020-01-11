@@ -1188,15 +1188,15 @@ impl Fbx {
     }
 }
 
-pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, path: &Path) -> Result<Handle<Node>, FbxError> {
+pub fn load_to_scene<P: AsRef<Path>>(scene: &mut Scene, resource_manager: &mut ResourceManager, path: P) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
-    let mut file = File::open(path)?;
+    let mut file = File::open(path.as_ref())?;
 
-    Log::writeln(format!("FBX: Trying to load {:?}", path));
+    Log::writeln(format!("FBX: Trying to load {:?}", path.as_ref()));
 
     let now = Instant::now();
-    let is_bin = fbx_binary::is_binary(path)?;
+    let is_bin = fbx_binary::is_binary(path.as_ref())?;
 
     let buf_len = file.metadata()?.len() as usize;
     let mut file_content = Vec::with_capacity(buf_len);
@@ -1218,7 +1218,7 @@ pub fn load_to_scene(scene: &mut Scene, resource_manager: &mut ResourceManager, 
     let result = fbx.convert(resource_manager, scene);
     Log::writeln(format!("\tFBX: Conversion - {} ms", now.elapsed().as_millis()));
 
-    Log::writeln(format!("\tFBX: {:?} loaded in {} ms", path, start_time.elapsed().as_millis()));
+    Log::writeln(format!("\tFBX: {:?} loaded in {} ms", path.as_ref(), start_time.elapsed().as_millis()));
 
     result
 }

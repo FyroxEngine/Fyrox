@@ -163,8 +163,6 @@ impl Engine {
             scene.update(aspect_ratio, dt);
         }
 
-        self.sound_context.lock().unwrap().update().unwrap();
-
         self.user_interface.update(Vec2::new(client_size.width as f32, client_size.height as f32), dt);
     }
 

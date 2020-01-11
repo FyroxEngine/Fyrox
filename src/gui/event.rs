@@ -1,11 +1,9 @@
 use crate::{
-    gui::{UserInterface, node::UINode},
+    core::{math::vec2::Vec2, pool::Handle},
     event::{MouseButton, VirtualKeyCode},
+    gui::UINode
 };
-use crate::core::{math::vec2::Vec2, pool::Handle};
 use std::any::Any;
-
-pub type UIEventHandler = dyn FnMut(&mut UserInterface, Handle<UINode>, &mut UIEvent);
 
 pub enum UIEventKind {
     /// Generated when some mouse button was pressed.
@@ -137,7 +135,7 @@ impl UIEvent {
             kind,
             handled: false,
             source: Handle::NONE,
-            target
+            target,
         }
     }
 
@@ -146,7 +144,7 @@ impl UIEvent {
             kind,
             handled: false,
             source: Handle::NONE,
-            target: Handle::NONE
+            target: Handle::NONE,
         }
     }
 

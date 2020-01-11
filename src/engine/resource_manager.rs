@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use crate::{
-    sound::buffer::{Buffer, BufferKind},
+    sound::buffer::{SoundBuffer, DataSource},
     core::{
         visitor::{Visitor, VisitResult, Visit}
     },
@@ -14,12 +14,11 @@ use crate::{
     },
     utils::log::Log
 };
-use rg3d_sound::buffer::DataSource;
 
 pub struct ResourceManager {
     textures: Vec<Arc<Mutex<Texture>>>,
     models: Vec<Arc<Mutex<Model>>>,
-    sound_buffers: Vec<Arc<Mutex<Buffer>>>,
+    sound_buffers: Vec<Arc<Mutex<SoundBuffer>>>,
     /// Path to textures, extensively used for resource files which stores path in weird
     /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
@@ -35,71 +34,71 @@ impl ResourceManager {
         }
     }
 
-    pub fn request_texture(&mut self, path: &Path, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {
-        if let Some(texture) = self.find_texture(path) {
+    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {
+        if let Some(texture) = self.find_texture(path.as_ref()) {
             return Some(texture);
         }
 
-        let extension = path.extension().
+        let extension = path.as_ref().extension().
             and_then(|os| os.to_str()).
             map_or(String::from(""), |s| s.to_ascii_lowercase());
 
         match extension.as_str() {
-            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load_from_file(path, kind) {
+            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load_from_file(path.as_ref(), kind) {
                 Ok(texture) => {
                     let shared_texture = Arc::new(Mutex::new(texture));
                     self.textures.push(shared_texture.clone());
-                    Log::writeln(format!("Texture {} is loaded!", path.display()));
+                    Log::writeln(format!("Texture {} is loaded!", path.as_ref().display()));
                     Some(shared_texture)
                 }
                 Err(e) => {
-                    Log::writeln(format!("Unable to load texture {}! Reason {}", path.display(), e));
+                    Log::writeln(format!("Unable to load texture {}! Reason {}", path.as_ref().display(), e));
                     None
                 }
             }
             _ => {
-                Log::writeln(format!("Unsupported texture type {}!", path.display()));
+                Log::writeln(format!("Unsupported texture type {}!", path.as_ref().display()));
                 None
             }
         }
     }
 
-    pub fn request_model(&mut self, path: &Path) -> Option<Arc<Mutex<Model>>> {
-        if let Some(model) = self.find_model(path) {
+    pub fn request_model<P: AsRef<Path>>(&mut self, path: P) -> Option<Arc<Mutex<Model>>> {
+        if let Some(model) = self.find_model(path.as_ref()) {
             return Some(model);
         }
 
-        let extension = path.extension().
+        let extension = path.as_ref().extension().
             and_then(|os| os.to_str()).
             map_or(String::from(""), |s| s.to_ascii_lowercase());
 
         match extension.as_str() {
-            "fbx" => match Model::load(path, self) {
+            "fbx" => match Model::load(path.as_ref(), self) {
                 Ok(model) => {
                     let model = Arc::new(Mutex::new(model));
                     model.lock().unwrap().self_weak_ref = Some(Arc::downgrade(&model));
                     self.models.push(model.clone());
-                    Log::writeln(format!("Model {} is loaded!", path.display()));
+                    Log::writeln(format!("Model {} is loaded!", path.as_ref().display()));
                     Some(model)
                 }
                 Err(e) => {
-                    Log::writeln(format!("Unable to load model from {}! Reason {}", path.display(), e));
+                    Log::writeln(format!("Unable to load model from {}! Reason {}", path.as_ref().display(), e));
                     None
                 }
             },
             _ => {
-                Log::writeln(format!("Unsupported model type {}!", path.display()));
+                Log::writeln(format!("Unsupported model type {}!", path.as_ref().display()));
                 None
             }
         }
     }
 
-    pub fn request_sound_buffer(&mut self, path: &Path, kind: BufferKind) -> Option<Arc<Mutex<Buffer>>> {
-        if let Some(sound_buffer) = self.find_sound_buffer(path) {
+    pub fn request_sound_buffer<P: AsRef<Path>>(&mut self, path: P, stream: bool) -> Option<Arc<Mutex<SoundBuffer>>> {
+        if let Some(sound_buffer) = self.find_sound_buffer(path.as_ref()) {
             return Some(sound_buffer);
         }
 
-        let source = match DataSource::from_file(path) {
+        let source = match DataSource::from_file(path.as_ref()) {
             Ok(source) => source,
             Err(e) => {
                 Log::writeln(format!("Invalid data source: {:?}", e));
@@ -107,15 +106,19 @@ impl ResourceManager {
             }
         };
 
-        match Buffer::new(source, kind) {
+        let buffer = if stream {
+            SoundBuffer::new_streaming(source)
+        } else {
+            SoundBuffer::new_generic(source)
+        };
+        match buffer {
             Ok(sound_buffer) => {
-                let sound_buffer = Arc::new(Mutex::new(sound_buffer));
                 self.sound_buffers.push(sound_buffer.clone());
-                Log::writeln(format!("Sound buffer {} is loaded!", path.display()));
+                Log::writeln(format!("Sound buffer {} is loaded!", path.as_ref().display()));
                 Some(sound_buffer)
             }
             Err(_) => {
-                Log::writeln(format!("Unable to load sound buffer from {}!", path.display()));
+                Log::writeln(format!("Unable to load sound buffer from {}!", path.as_ref().display()));
                 None
             }
         }
@@ -126,9 +129,9 @@ impl ResourceManager {
         &self.textures
     }
 
-    pub fn find_texture(&self, path: &Path) -> Option<Arc<Mutex<Texture>>> {
+    pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<Arc<Mutex<Texture>>> {
         for texture in self.textures.iter() {
-            if texture.lock().unwrap().path.as_path() == path {
+            if texture.lock().unwrap().path.as_path() == path.as_ref() {
                 return Some(texture.clone());
             }
         }
@@ -140,9 +143,9 @@ impl ResourceManager {
         &self.models
     }
 
-    pub fn find_model(&self, path: &Path) -> Option<Arc<Mutex<Model>>> {
+    pub fn find_model<P: AsRef<Path>>(&self, path: P) -> Option<Arc<Mutex<Model>>> {
         for model in self.models.iter() {
-            if model.lock().unwrap().path.as_path() == path {
+            if model.lock().unwrap().path.as_path() == path.as_ref() {
                 return Some(model.clone());
             }
         }
@@ -150,14 +153,14 @@ impl ResourceManager {
     }
 
     #[inline]
-    pub fn get_sound_buffers(&self) -> &[Arc<Mutex<Buffer>>] {
+    pub fn get_sound_buffers(&self) -> &[Arc<Mutex<SoundBuffer>>] {
         &self.sound_buffers
     }
 
-    pub fn find_sound_buffer(&self, path: &Path) -> Option<Arc<Mutex<Buffer>>> {
+    pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<Arc<Mutex<SoundBuffer>>> {
         for sound_buffer in self.sound_buffers.iter() {
-            if let Some(ext_path) = sound_buffer.lock().unwrap().get_external_data_path() {
-                if ext_path == path {
+            if let Some(ext_path) = sound_buffer.lock().unwrap().generic().external_data_path() {
+                if ext_path == path.as_ref() {
                     return Some(sound_buffer.clone());
                 }
             }
@@ -213,9 +216,13 @@ impl ResourceManager {
 
         for old_sound_buffer in self.get_sound_buffers() {
             let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
-            if let Some(ext_path) = old_sound_buffer.get_external_data_path() {
+            if let Some(ext_path) = old_sound_buffer.generic().external_data_path() {
                 if let Ok(data_source) = DataSource::from_file(ext_path.as_path()) {
-                    let new_sound_buffer = match Buffer::new(data_source, old_sound_buffer.get_kind()) {
+                    let new_sound_buffer = match *old_sound_buffer {
+                        SoundBuffer::Generic(_) => SoundBuffer::raw_generic(data_source),
+                        SoundBuffer::Streaming(_) => SoundBuffer::raw_streaming(data_source),
+                    };
+                    let new_sound_buffer = match new_sound_buffer {
                         Ok(new_sound_buffer) => new_sound_buffer,
                         Err(_) => {
                             Log::writeln(format!("Unable to reload {:?} sound buffer!", ext_path));
