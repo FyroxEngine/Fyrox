@@ -17,32 +17,53 @@ pub mod stack_panel;
 pub mod text_box;
 pub mod check_box;
 pub mod style;
+pub mod tab_control;
 
 use std::{
-    collections::VecDeque,
-    rc::Rc,
-    cell::RefCell,
+    collections::{
+        VecDeque,
+        HashMap
+    },
     any::Any,
+    sync::{
+        Arc,
+        Mutex
+    },
+    rc::Rc
 };
 use crate::{
     core::{
         color::Color,
-        pool::{Pool, Handle},
-        math::{vec2::Vec2, Rect},
+        pool::{
+            Pool,
+            Handle,
+        },
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
     },
     gui::{
-        draw::{DrawingContext, CommandKind, CommandTexture},
+        draw::{
+            DrawingContext,
+            CommandKind,
+            CommandTexture,
+        },
         canvas::Canvas,
         event::{
             UIEvent,
             UIEventKind,
         },
         style::Style,
-        widget::Widget
+        widget::Widget,
     },
-    resource::{ttf::Font},
+    resource::ttf::Font,
     utils::UnsafeCollectionView,
-    event::{ElementState, WindowEvent, MouseScrollDelta},
+    event::{
+        ElementState,
+        WindowEvent,
+        MouseScrollDelta,
+    },
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -114,13 +135,18 @@ pub trait Control: downcast_rs::Downcast {
 
     fn widget_mut(&mut self) -> &mut Widget;
 
+    /// Creates raw copy of control
+    fn raw_copy(&self) -> Box<dyn Control>;
+
+    fn resolve(&mut self, template: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>);
+
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         let mut size = Vec2::ZERO;
 
         for child_handle in self.widget().children.iter() {
-            ui.get_node(*child_handle).measure(ui, available_size);
+            ui.node(*child_handle).measure(ui, available_size);
 
-            let child = ui.get_node(*child_handle).widget();
+            let child = ui.node(*child_handle).widget();
             let child_desired_size = child.desired_size.get();
             if child_desired_size.x > size.x {
                 size.x = child_desired_size.x;
@@ -137,7 +163,7 @@ pub trait Control: downcast_rs::Downcast {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
         for child_handle in self.widget().children.iter() {
-            ui.get_node(*child_handle).arrange(ui, &final_rect);
+            ui.node(*child_handle).arrange(ui, &final_rect);
         }
 
         final_size
@@ -333,7 +359,6 @@ pub type UINode = Box<dyn Control>;
 pub struct UserInterface {
     nodes: Pool<UINode>,
     drawing_context: DrawingContext,
-    default_font: Rc<RefCell<Font>>,
     visual_debug: bool,
     /// Every UI node will live on the window-sized canvas.
     root_canvas: Handle<UINode>,
@@ -363,15 +388,19 @@ fn minf(a: f32, b: f32) -> f32 {
     }
 }
 
-impl UserInterface {
-    pub(in crate) fn new() -> UserInterface {
+lazy_static! {
+    static ref DEFAULT_FONT: Arc<Mutex<Font>> = {
         let font_bytes = std::include_bytes!("../built_in_font.ttf").to_vec();
         let font = Font::from_memory(font_bytes, 20.0, Font::default_char_set()).unwrap();
-        let font = Rc::new(RefCell::new(font));
+        Arc::new(Mutex::new(font))
+    };
+}
+
+impl UserInterface {
+    pub(in crate) fn new() -> UserInterface {
         let mut ui = UserInterface {
             events: VecDeque::new(),
             visual_debug: false,
-            default_font: font,
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
@@ -381,26 +410,8 @@ impl UserInterface {
             prev_picked_node: Handle::NONE,
             keyboard_focus_node: Handle::NONE,
         };
-        ui.root_canvas = ui.add_node(Canvas::new());
+        ui.root_canvas = ui.add_node(Box::new(Canvas::new(Widget::default())));
         ui
-    }
-
-    #[inline]
-    pub fn get_default_font(&self) -> Rc<RefCell<Font>> {
-        self.default_font.clone()
-    }
-
-    pub fn add_node<T: Control + 'static>(&mut self, mut node: T) -> Handle<UINode> {
-        let children = node.widget().children.clone();
-        node.widget_mut().children.clear();
-        let node_handle = self.nodes.spawn(Box::new(node));
-        if self.root_canvas.is_some() {
-            self.link_nodes(node_handle, self.root_canvas);
-        }
-        for child in children {
-            self.link_nodes(child, node_handle)
-        }
-        node_handle
     }
 
     #[inline]
@@ -416,44 +427,6 @@ impl UserInterface {
     #[inline]
     pub fn release_mouse_capture(&mut self) {
         self.captured_node = Handle::NONE;
-    }
-
-    /// Links specified child with specified parent.
-    #[inline]
-    pub fn link_nodes(&mut self, child_handle: Handle<UINode>, parent_handle: Handle<UINode>) {
-        self.unlink_node(child_handle);
-        let child = self.nodes.borrow_mut(child_handle).widget_mut();
-        child.parent = parent_handle;
-        let parent = self.nodes.borrow_mut(parent_handle).widget_mut();
-        parent.children.push(child_handle);
-    }
-
-    /// Unlinks specified node from its parent, so node will become root.
-    #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<UINode>) {
-        let parent_handle;
-        // Replace parent handle of child
-        let node = self.nodes.borrow_mut(node_handle);
-        parent_handle = node.widget().parent;
-        node.widget_mut().parent = Handle::NONE;
-
-        // Remove child from parent's children list
-        if parent_handle.is_some() {
-            let parent = self.nodes.borrow_mut(parent_handle);
-            if let Some(i) = parent.widget().children.iter().position(|h| *h == node_handle) {
-                parent.widget_mut().children.remove(i);
-            }
-        }
-    }
-
-    #[inline]
-    pub fn get_node(&self, node_handle: Handle<UINode>) -> &UINode {
-        self.nodes.borrow(node_handle)
-    }
-
-    #[inline]
-    pub fn get_node_mut(&mut self, node_handle: Handle<UINode>) -> &mut UINode {
-        self.nodes.borrow_mut(node_handle)
     }
 
     #[inline]
@@ -488,8 +461,10 @@ impl UserInterface {
     }
 
     pub fn update(&mut self, screen_size: Vec2, dt: f32) {
-        self.get_node(self.root_canvas).measure(self, screen_size);
-        self.get_node(self.root_canvas).arrange(self, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
+        self.node(self.root_canvas)
+            .measure(self, screen_size);
+        self.node(self.root_canvas)
+            .arrange(self, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
         self.update_node(self.root_canvas);
         for node in self.nodes.iter_mut() {
             node.update(dt)
@@ -953,4 +928,167 @@ pub fn bool_to_visibility(value: bool) -> Visibility {
     } else {
         Visibility::Collapsed
     }
+}
+
+impl UINodeContainer for UserInterface {
+    fn nodes(&self) -> &Pool<UINode> {
+        &self.nodes
+    }
+
+    fn nodes_mut(&mut self) -> &mut Pool<UINode> {
+        &mut self.nodes
+    }
+
+    fn root(&self) -> Handle<UINode> {
+        self.root_canvas
+    }
+
+    fn add_node(&mut self, mut node: UINode) -> Handle<UINode> {
+        let children = node.widget().children.clone();
+        node.widget_mut().children.clear();
+        let node_handle = self.nodes_mut().spawn(node);
+        if self.root_canvas.is_some() {
+            self.link_nodes(node_handle, self.root_canvas);
+        }
+        for child in children {
+            self.link_nodes(child, node_handle)
+        }
+        node_handle
+    }
+}
+
+pub struct ControlTemplate {
+    nodes: Pool<UINode>
+}
+
+impl UINodeContainer for ControlTemplate {
+    fn nodes(&self) -> &Pool<UINode> {
+        &self.nodes
+    }
+
+    fn nodes_mut(&mut self) -> &mut Pool<UINode> {
+        &mut self.nodes
+    }
+
+    fn root(&self) -> Handle<UINode> {
+        for (handle, node) in self.nodes.pair_iter() {
+            if node.widget().parent.is_none() {
+                return handle;
+            }
+        }
+        Handle::NONE
+    }
+
+    fn add_node(&mut self, mut node: UINode) -> Handle<UINode> {
+        let children = node.widget().children.clone();
+        node.widget_mut().children.clear();
+        let node_handle = self.nodes_mut().spawn(node);
+        for child in children {
+            self.link_nodes(child, node_handle)
+        }
+        node_handle
+    }
+}
+
+impl ControlTemplate {
+    pub fn new() -> Self {
+        Self {
+            nodes: Default::default()
+        }
+    }
+
+    pub fn instantiate(&self, container: &mut dyn UINodeContainer) -> Handle<UINode> {
+        let mut map = HashMap::new();
+
+        let root = self.instantiate_internal(self.root(), container, &mut map);
+
+        // Resolve all instantiated nodes using template-to-ui node mapping.
+        // This stage is required because some ui nodes may contain handles
+        // to *template* nodes because of `raw_copy` method which does not
+        // perform remapping.
+        for node_handle in map.values() {
+            container.nodes_mut()
+                .borrow_mut(*node_handle)
+                .resolve(self, &map);
+        }
+
+        root
+    }
+
+    fn instantiate_internal(&self, node_handle: Handle<UINode>, container: &mut dyn UINodeContainer, map: &mut HashMap<Handle<UINode>, Handle<UINode>>) -> Handle<UINode> {
+        let node = self.nodes.borrow(node_handle);
+
+        // Instantiate children first.
+        let resolved_children = node.widget()
+            .children
+            .iter()
+            .map(|c| self.instantiate_internal(*c, container, map))
+            .collect();
+
+        // Instantiate node.
+        let mut copy = node.raw_copy();
+        copy.widget_mut().children = resolved_children;
+        let copy_handle = container.add_node(copy);
+        map.insert(node_handle, copy_handle);
+        copy_handle
+    }
+}
+
+pub trait UINodeContainer {
+    fn nodes(&self) -> &Pool<UINode>;
+
+    fn nodes_mut(&mut self) -> &mut Pool<UINode>;
+
+    fn root(&self) -> Handle<UINode>;
+
+    fn add_node(&mut self, node: UINode) -> Handle<UINode>;
+
+    #[inline]
+    fn node(&self, node_handle: Handle<UINode>) -> &UINode {
+        self.nodes()
+            .borrow(node_handle)
+    }
+
+    #[inline]
+    fn node_mut(&mut self, node_handle: Handle<UINode>) -> &mut UINode {
+        self.nodes_mut()
+            .borrow_mut(node_handle)
+    }
+
+    /// Links specified child with specified parent.
+    #[inline]
+    fn link_nodes(&mut self, child_handle: Handle<UINode>, parent_handle: Handle<UINode>) {
+        assert_ne!(child_handle, parent_handle);
+        self.unlink_node(child_handle);
+        let child = self.nodes_mut()
+            .borrow_mut(child_handle)
+            .widget_mut();
+        child.parent = parent_handle;
+        let parent = self.nodes_mut()
+            .borrow_mut(parent_handle)
+            .widget_mut();
+        parent.children.push(child_handle);
+    }
+
+    /// Unlinks specified node from its parent, so node will become root.
+    #[inline]
+    fn unlink_node(&mut self, node_handle: Handle<UINode>) {
+        let parent_handle;
+        // Replace parent handle of child
+        let node = self.nodes_mut().borrow_mut(node_handle);
+        parent_handle = node.widget().parent;
+        node.widget_mut().parent = Handle::NONE;
+
+        // Remove child from parent's children list
+        if parent_handle.is_some() {
+            let parent = self.nodes_mut().borrow_mut(parent_handle);
+            if let Some(i) = parent.widget().children.iter().position(|h| *h == node_handle) {
+                parent.widget_mut().children.remove(i);
+            }
+        }
+    }
+}
+
+pub trait Builder {
+    fn build(self, container: &mut dyn UINodeContainer) -> Handle<UINode> where Self: Sized;
 }

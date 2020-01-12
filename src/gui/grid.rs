@@ -1,27 +1,38 @@
-use std::cell::RefCell;
-use crate::core::{
-    pool::Handle,
-    math::{
-        vec2::Vec2,
-        Rect,
-    },
+use std::{
+    cell::RefCell,
+    collections::HashMap
 };
-use crate::gui::{
-    Visibility,
-    UserInterface,
-    draw::DrawingContext,
-    widget::{WidgetBuilder, Widget},
-    Control,
-    UINode
+use crate::{
+    core::{
+        pool::Handle,
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
+    },
+    gui::{
+        Visibility,
+        UserInterface,
+        widget::{
+            WidgetBuilder,
+            Widget
+        },
+        Control,
+        UINode,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
+    }
 };
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
     Strict,
     Auto,
     Stretch,
 }
 
+#[derive(Clone, Copy)]
 pub struct Column {
     size_mode: SizeMode,
     desired_width: f32,
@@ -67,6 +78,7 @@ impl Column {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct Row {
     size_mode: SizeMode,
     desired_height: f32,
@@ -128,12 +140,16 @@ impl Control for Grid {
         &mut self.widget
     }
 
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context)
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            rows: self.rows.clone(),
+            columns: self.columns.clone(),
+        })
     }
 
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
+
     }
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
@@ -145,7 +161,7 @@ impl Control for Grid {
         let mut desired_size = Vec2::ZERO;
         // Step 1. Measure every children with relaxed constraints (size of grid).
         for child_handle in self.widget.children.iter() {
-            ui.get_node(*child_handle).measure(ui, available_size);
+            ui.node(*child_handle).measure(ui, available_size);
         }
 
         // Step 2. Calculate width of columns and heights of rows.
@@ -167,7 +183,7 @@ impl Control for Grid {
                     y: self.rows.borrow()[child.row()].actual_height,
                 }
             };
-            ui.get_node(*child_handle).measure(ui, size_for_child);
+            ui.node(*child_handle).measure(ui, size_for_child);
         }
 
         // Step 4. Calculate desired size of grid.
@@ -185,7 +201,7 @@ impl Control for Grid {
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
             for child_handle in self.widget.children.iter() {
-                ui.get_node(*child_handle).arrange(ui, &rect);
+                ui.node(*child_handle).arrange(ui, &rect);
             }
             return final_size;
         }
@@ -248,17 +264,27 @@ impl GridBuilder {
         self.columns.append(&mut columns);
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        ui.add_node(Grid {
+impl Builder for GridBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+        ui.add_node(Box::new(Grid {
             widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
-        })
+        }))
     }
 }
 
 impl Grid {
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget,
+            rows: Default::default(),
+            columns: Default::default()
+        }
+    }
+
     pub fn add_row(&mut self, row: Row) -> &mut Self {
         self.rows.borrow_mut().push(row);
         self
@@ -267,6 +293,22 @@ impl Grid {
     pub fn add_column(&mut self, column: Column) -> &mut Self {
         self.columns.borrow_mut().push(column);
         self
+    }
+
+    pub fn clear_columns(&mut self) {
+        self.columns.borrow_mut().clear();
+    }
+
+    pub fn clear_rows(&mut self) {
+        self.rows.borrow_mut().clear();
+    }
+
+    pub fn set_columns(&mut self, columns: Vec<Column>) {
+        self.columns = RefCell::new(columns);
+    }
+
+    pub fn set_rows(&mut self, rows: Vec<Row>) {
+        self.rows = RefCell::new(rows);
     }
 
     fn calculate_preset_width(&self, ui: &UserInterface) -> f32 {

@@ -1,12 +1,12 @@
-use crate::core::{
-    math::{
-        vec2::Vec2,
-        Rect,
-    },
-    pool::Handle,
-    color::Color,
-};
 use crate::{
+    core::{
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
+        pool::Handle,
+        color::Color,
+    },
     gui::{
         event::UIEventKind,
         widget::{
@@ -24,12 +24,23 @@ use crate::{
             FormattedTextBuilder,
         },
         UINode,
-        Control
+        Control,
+        event::UIEvent,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
     },
-    event::{VirtualKeyCode, MouseButton}, resource::ttf::Font,
+    event::{
+        VirtualKeyCode,
+        MouseButton
+    },
+    resource::ttf::Font,
 };
-use std::{rc::Rc, cell::RefCell, cmp};
-use crate::gui::event::UIEvent;
+use std::{
+    collections::HashMap,
+    cmp,
+    sync::{Mutex, Arc}
+};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -68,7 +79,23 @@ pub struct TextBox {
 }
 
 impl TextBox {
-    fn reset_blink(&mut self) {
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget,
+            caret_line: 0,
+            caret_offset: 0,
+            caret_visible: false,
+            blink_timer: 0.0,
+            blink_interval: 0.0,
+            formatted_text: FormattedTextBuilder::new()
+                .with_font(crate::gui::DEFAULT_FONT.clone())
+                .build(),
+            selection_range: None,
+            selecting: false
+        }
+    }
+
+    pub fn reset_blink(&mut self) {
         self.caret_visible = true;
         self.blink_timer = 0.0;
     }
@@ -196,7 +223,7 @@ impl TextBox {
     pub fn screen_pos_to_text_pos(&self, screen_pos: Vec2) -> Option<Position> {
         let mut caret_pos = self.widget.screen_position;
         if let Some(font) = self.formatted_text.get_font() {
-            let font = font.borrow();
+            let font = font.lock().unwrap();
             for (line_index, line) in self.formatted_text.get_lines().iter().enumerate() {
                 let line_bounds =
                     Rect::new(caret_pos.x + line.x_offset, caret_pos.y, line.width, font.get_ascender());
@@ -233,6 +260,122 @@ impl Control for TextBox {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            caret_line: self.caret_line,
+            caret_offset: self.caret_offset,
+            caret_visible: self.caret_visible,
+            blink_timer: self.blink_timer,
+            blink_interval: self.blink_interval,
+            formatted_text: FormattedTextBuilder::new().with_font(self.formatted_text.get_font().unwrap()).build(),
+            selection_range: self.selection_range,
+            selecting: self.selecting
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
+
+    }
+
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context);
+
+        let bounds = self.widget.get_screen_bounds();
+        drawing_context.push_rect_filled(&bounds, None, Color::opaque(80, 80, 80));
+        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+
+        self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
+        self.formatted_text.set_color(self.widget.background());
+        self.formatted_text.build();
+
+        if let Some(ref selection_range) = self.selection_range {
+            let text = &self.formatted_text;
+            let lines = text.get_lines();
+            if selection_range.begin.line == selection_range.end.line {
+                let line = lines[selection_range.begin.line];
+                let begin = selection_range.begin.offset;
+                let end = selection_range.end.offset;
+                // Begin line
+                let offset = text.get_range_width(line.begin..(line.begin + begin));
+                let width = text.get_range_width((line.begin + begin)..(line.begin + end));
+                let bounds = Rect::new(bounds.x + line.x_offset + offset,
+                                       bounds.y + line.y_offset,
+                                       width,
+                                       line.height);
+                drawing_context.push_rect_filled(&bounds, None, Color::opaque(65, 65, 90));
+            } else {
+                for (i, line) in text.get_lines().iter().enumerate() {
+                    if i >= selection_range.begin.line && i <= selection_range.end.line {
+                        let bounds = if i == selection_range.begin.line {
+                            // Begin line
+                            let offset = text.get_range_width(line.begin..(line.begin + selection_range.begin.offset));
+                            let width = text.get_range_width((line.begin + selection_range.begin.offset)..line.end);
+                            Rect::new(bounds.x + line.x_offset + offset,
+                                      bounds.y + line.y_offset,
+                                      width,
+                                      line.height)
+                        } else if i == selection_range.end.line {
+                            // End line
+                            let width = text.get_range_width(line.begin..(line.begin + selection_range.end.offset));
+                            Rect::new(bounds.x + line.x_offset,
+                                      bounds.y + line.y_offset,
+                                      width,
+                                      line.height)
+                        } else {
+                            // Everything between
+                            Rect::new(bounds.x + line.x_offset,
+                                      bounds.y + line.y_offset,
+                                      line.width,
+                                      line.height)
+                        };
+                        drawing_context.push_rect_filled(&bounds, None, Color::opaque(90, 90, 120));
+                    }
+                }
+            }
+        }
+        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+
+        let screen_position = Vec2::new(bounds.x, bounds.y);
+        drawing_context.draw_text(screen_position, &self.formatted_text);
+
+        if self.caret_visible {
+            if let Some(font) = self.formatted_text.get_font() {
+                let font = font.lock().unwrap();
+                if let Some(line) = self.formatted_text.get_lines().get(self.caret_line) {
+                    let text = self.formatted_text.get_raw_text();
+                    let mut caret_pos = Vec2::new(
+                        screen_position.x,
+                        screen_position.y + self.caret_line as f32 * font.get_ascender(),
+                    );
+                    for (offset, char_index) in (line.begin..line.end).enumerate() {
+                        if offset >= self.caret_offset {
+                            break;
+                        }
+                        if let Some(glyph) = font.get_glyph(text[char_index]) {
+                            caret_pos.x += glyph.get_advance();
+                        } else {
+                            caret_pos.x += font.get_height();
+                        }
+                    }
+
+                    let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.get_height());
+                    drawing_context.push_rect_filled(&caret_bounds, None, Color::WHITE);
+                    drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+                }
+            }
+        }
+    }
+
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt);
+        self.blink_timer += dt;
+        if self.blink_timer >= self.blink_interval {
+            self.blink_timer = 0.0;
+            self.caret_visible = !self.caret_visible;
+        }
     }
 
     fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
@@ -300,109 +443,11 @@ impl Control for TextBox {
             }
         }
     }
-
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context);
-
-        let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, Color::opaque(80, 80, 80));
-        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
-
-        self.formatted_text.set_size(Vec2::new(bounds.w, bounds.h));
-        self.formatted_text.set_color(self.widget.background());
-        self.formatted_text.build();
-
-        if let Some(ref selection_range) = self.selection_range {
-            let text = &self.formatted_text;
-            let lines = text.get_lines();
-            if selection_range.begin.line == selection_range.end.line {
-                let line = lines[selection_range.begin.line];
-                let begin = selection_range.begin.offset;
-                let end = selection_range.end.offset;
-                // Begin line
-                let offset = text.get_range_width(line.begin..(line.begin + begin));
-                let width = text.get_range_width((line.begin + begin)..(line.begin + end));
-                let bounds = Rect::new(bounds.x + line.x_offset + offset,
-                                       bounds.y + line.y_offset,
-                                       width,
-                                       line.height);
-                drawing_context.push_rect_filled(&bounds, None, Color::opaque(65, 65, 90));
-            } else {
-                for (i, line) in text.get_lines().iter().enumerate() {
-                    if i >= selection_range.begin.line && i <= selection_range.end.line {
-                        let bounds = if i == selection_range.begin.line {
-                            // Begin line
-                            let offset = text.get_range_width(line.begin..(line.begin + selection_range.begin.offset));
-                            let width = text.get_range_width((line.begin + selection_range.begin.offset)..line.end);
-                            Rect::new(bounds.x + line.x_offset + offset,
-                                      bounds.y + line.y_offset,
-                                      width,
-                                      line.height)
-                        } else if i == selection_range.end.line {
-                            // End line
-                            let width = text.get_range_width(line.begin..(line.begin + selection_range.end.offset));
-                            Rect::new(bounds.x + line.x_offset,
-                                      bounds.y + line.y_offset,
-                                      width,
-                                      line.height)
-                        } else {
-                            // Everything between
-                            Rect::new(bounds.x + line.x_offset,
-                                      bounds.y + line.y_offset,
-                                      line.width,
-                                      line.height)
-                        };
-                        drawing_context.push_rect_filled(&bounds, None, Color::opaque(90, 90, 120));
-                    }
-                }
-            }
-        }
-        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
-
-        let screen_position = Vec2::new(bounds.x, bounds.y);
-        drawing_context.draw_text(screen_position, &self.formatted_text);
-
-        if self.caret_visible {
-            if let Some(font) = self.formatted_text.get_font() {
-                let font = font.borrow();
-                if let Some(line) = self.formatted_text.get_lines().get(self.caret_line) {
-                    let text = self.formatted_text.get_raw_text();
-                    let mut caret_pos = Vec2::new(
-                        screen_position.x,
-                        screen_position.y + self.caret_line as f32 * font.get_ascender(),
-                    );
-                    for (offset, char_index) in (line.begin..line.end).enumerate() {
-                        if offset >= self.caret_offset {
-                            break;
-                        }
-                        if let Some(glyph) = font.get_glyph(text[char_index]) {
-                            caret_pos.x += glyph.get_advance();
-                        } else {
-                            caret_pos.x += font.get_height();
-                        }
-                    }
-
-                    let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.get_height());
-                    drawing_context.push_rect_filled(&caret_bounds, None, Color::WHITE);
-                    drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
-                }
-            }
-        }
-    }
-
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt);
-        self.blink_timer += dt;
-        if self.blink_timer >= self.blink_interval {
-            self.blink_timer = 0.0;
-            self.caret_visible = !self.caret_visible;
-        }
-    }
 }
 
 pub struct TextBoxBuilder {
     widget_builder: WidgetBuilder,
-    font: Option<Rc<RefCell<Font>>>,
+    font: Option<Arc<Mutex<Font>>>,
     text: String,
 }
 
@@ -415,7 +460,7 @@ impl TextBoxBuilder {
         }
     }
 
-    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
+    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
         self.font = Some(font);
         self
     }
@@ -424,8 +469,10 @@ impl TextBoxBuilder {
         self.text = text;
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+impl Builder for TextBoxBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let text_box = TextBox {
             widget: self.widget_builder.build(),
             caret_line: 0,
@@ -435,13 +482,12 @@ impl TextBoxBuilder {
             blink_interval: 0.5,
             formatted_text: FormattedTextBuilder::new()
                 .with_text(self.text)
-                .with_font(self.font.unwrap_or_else(|| ui.get_default_font()))
+                .with_font(self.font.unwrap_or(crate::gui::DEFAULT_FONT.clone()))
                 .build(),
             selection_range: None,
             selecting: false,
         };
 
-        ui.add_node(text_box)
+        ui.add_node(Box::new(text_box))
     }
 }
-

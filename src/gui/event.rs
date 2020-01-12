@@ -1,6 +1,12 @@
 use crate::{
-    core::{math::vec2::Vec2, pool::Handle},
-    event::{MouseButton, VirtualKeyCode},
+    core::{
+        math::vec2::Vec2,
+        pool::Handle
+    },
+    event::{
+        MouseButton,
+        VirtualKeyCode
+    },
     gui::UINode
 };
 use std::any::Any;

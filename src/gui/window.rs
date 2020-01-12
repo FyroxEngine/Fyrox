@@ -1,26 +1,43 @@
-use crate::core::{
-    color::Color,
-    pool::Handle,
-    math::vec2::Vec2,
+use crate::{
+    gui::{
+        event::{
+            UIEventKind,
+            UIEvent
+        },
+        border::BorderBuilder,
+        UINode,
+        UserInterface,
+        grid::{
+            GridBuilder,
+            Column,
+            Row
+        },
+        HorizontalAlignment,
+        text::TextBuilder,
+        Thickness,
+        button::ButtonBuilder,
+        scroll_viewer::{
+            ScrollViewerBuilder,
+            ScrollViewer
+        },
+        widget::{
+            Widget,
+            WidgetBuilder
+        },
+        Visibility,
+        bool_to_visibility,
+        Control,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
+    },
+    core::{
+        color::Color,
+        pool::Handle,
+        math::vec2::Vec2,
+    },
 };
-use crate::gui::{
-    event::UIEventKind,
-    border::BorderBuilder,
-    UINode,
-    UserInterface,
-    grid::{GridBuilder, Column, Row},
-    HorizontalAlignment,
-    text::TextBuilder,
-    Thickness,
-    button::ButtonBuilder,
-    scroll_viewer::ScrollViewerBuilder,
-    widget::{Widget, WidgetBuilder},
-    event::UIEvent,
-    Visibility,
-    bool_to_visibility,
-    Control
-};
-use crate::gui::scroll_viewer::ScrollViewer;
+use std::collections::HashMap;
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
@@ -46,6 +63,29 @@ impl Control for Window {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            mouse_click_pos: self.mouse_click_pos,
+            initial_position: self.initial_position,
+            is_dragged: self.is_dragged,
+            minimized: self.minimized,
+            can_minimize: self.can_minimize,
+            can_close: self.can_close,
+            header: self.header,
+            minimize_button: self.minimize_button,
+            close_button: self.close_button,
+            scroll_viewer: self.scroll_viewer
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+        self.header = *node_map.get(&self.header).unwrap();
+        self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
+        self.close_button = *node_map.get(&self.close_button).unwrap();
+        self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
     }
 
     fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
@@ -96,19 +136,19 @@ impl Control for Window {
                 }
                 UIEventKind::Minimized(minimized) => {
                     self.minimized = minimized;
-                    let scroll_viewer = ui.get_node_mut(self.scroll_viewer).downcast_mut::<ScrollViewer>().unwrap();
+                    let scroll_viewer = ui.node_mut(self.scroll_viewer).downcast_mut::<ScrollViewer>().unwrap();
                     let visibility = if !minimized { Visibility::Visible } else { Visibility::Collapsed };
                     scroll_viewer.widget_mut().set_visibility(visibility);
                 }
                 UIEventKind::CanMinimizeChanged(value) => {
                     self.can_minimize = value;
-                    ui.get_node_mut(self.minimize_button)
+                    ui.node_mut(self.minimize_button)
                         .widget_mut()
                         .set_visibility(bool_to_visibility(value));
                 }
                 UIEventKind::CanCloseChanged(value) => {
                     self.can_close = value;
-                    ui.get_node_mut(self.close_button)
+                    ui.node_mut(self.close_button)
                         .widget_mut()
                         .set_visibility(bool_to_visibility(value));
                 }
@@ -119,24 +159,61 @@ impl Control for Window {
 }
 
 impl Window {
+    pub fn new(
+        widget: Widget,
+        header: Handle<UINode>,
+        minimize_button: Handle<UINode>,
+        close_button: Handle<UINode>,
+        scroll_viewer: Handle<UINode>,
+    ) -> Self {
+        Self {
+            widget,
+            mouse_click_pos: Default::default(),
+            initial_position: Default::default(),
+            is_dragged: false,
+            minimized: false,
+            can_minimize: true,
+            can_close: true,
+            header,
+            minimize_button,
+            close_button,
+            scroll_viewer
+        }
+    }
+
     pub fn close(&mut self) {
-        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Closed));
+        self.widget
+            .events
+            .borrow_mut()
+            .push_back(UIEvent::new(UIEventKind::Closed));
     }
 
     pub fn open(&mut self) {
-        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Opened));
+        self.widget
+            .events
+            .borrow_mut()
+            .push_back(UIEvent::new(UIEventKind::Opened));
     }
 
     pub fn minimize(&mut self, state: bool) {
-        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Minimized(state)));
+        self.widget
+            .events
+            .borrow_mut()
+            .push_back(UIEvent::new(UIEventKind::Minimized(state)));
     }
 
     pub fn can_close(&mut self, state: bool) {
-        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::CanCloseChanged(state)));
+        self.widget
+            .events
+            .borrow_mut()
+            .push_back(UIEvent::new(UIEventKind::CanCloseChanged(state)));
     }
 
     pub fn can_minimize(&mut self, state: bool) {
-        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::CanMinimizeChanged(state)));
+        self.widget
+            .events
+            .borrow_mut()
+            .push_back(UIEvent::new(UIEventKind::CanMinimizeChanged(state)));
     }
 }
 
@@ -197,8 +274,10 @@ impl<'a> WindowBuilder<'a> {
         self.open = open;
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+impl Builder for WindowBuilder<'_> {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let minimize_button;
         let close_button;
 
@@ -284,6 +363,6 @@ impl<'a> WindowBuilder<'a> {
             close_button,
             scroll_viewer
         };
-        ui.add_node(window)
+        ui.add_node(Box::new(window))
     }
 }

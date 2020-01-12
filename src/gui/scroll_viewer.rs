@@ -1,22 +1,42 @@
-use crate::gui::{
-    UserInterface,
-    maxf,
-    scroll_content_presenter::ScrollContentPresenterBuilder,
-    scroll_bar::{ScrollBarBuilder, Orientation},
-    grid::{Row, GridBuilder, Column},
-    event::UIEventKind,
-    widget::{Widget, WidgetBuilder},
-    Visibility,
-    event::UIEvent,
-    Control,
-    UINode
+use crate::{
+    gui::{
+        UserInterface,
+        maxf,
+        scroll_content_presenter::{
+            ScrollContentPresenterBuilder,
+            ScrollContentPresenter
+        },
+        scroll_bar::{
+            ScrollBarBuilder,
+            Orientation,
+            ScrollBar
+        },
+        grid::{
+            Row,
+            GridBuilder,
+            Column
+        },
+        event::{
+            UIEventKind,
+            UIEvent
+        },
+        widget::{
+            Widget,
+            WidgetBuilder
+        },
+        Visibility,
+        Control,
+        UINode,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
+    },
+    core::{
+        pool::Handle,
+        math::vec2::Vec2,
+    },
 };
-use crate::core::{
-    pool::Handle,
-    math::vec2::Vec2,
-};
-use crate::gui::scroll_bar::ScrollBar;
-use crate::gui::scroll_content_presenter::ScrollContentPresenter;
+use std::collections::HashMap;
 
 pub struct ScrollViewer {
     widget: Widget,
@@ -24,6 +44,24 @@ pub struct ScrollViewer {
     content_presenter: Handle<UINode>,
     v_scroll_bar: Handle<UINode>,
     h_scroll_bar: Handle<UINode>,
+}
+
+impl ScrollViewer {
+    pub fn new(
+        widget: Widget,
+        content: Handle<UINode>,
+        content_presenter: Handle<UINode>,
+        v_scroll_bar: Handle<UINode>,
+        h_scroll_bar: Handle<UINode>,
+    ) -> Self {
+        Self {
+            widget,
+            content,
+            content_presenter,
+            v_scroll_bar,
+            h_scroll_bar
+        }
+    }
 }
 
 impl Control for ScrollViewer {
@@ -35,11 +73,28 @@ impl Control for ScrollViewer {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            content: self.content,
+            content_presenter: self.content_presenter,
+            v_scroll_bar: self.v_scroll_bar,
+            h_scroll_bar: self.h_scroll_bar
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+        self.content = *node_map.get(&self.content).unwrap();
+        self.content_presenter = *node_map.get(&self.content_presenter).unwrap();
+        self.v_scroll_bar = *node_map.get(&self.v_scroll_bar).unwrap();
+        self.h_scroll_bar = *node_map.get(&self.h_scroll_bar).unwrap();
+    }
+
     fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 
-        let content_size = ui.get_node(self.content).widget().desired_size.get();
-        let available_size_for_content = ui.get_node(self.content_presenter).widget().desired_size.get();
+        let content_size = ui.node(self.content).widget().desired_size.get();
+        let available_size_for_content = ui.node(self.content_presenter).widget().desired_size.get();
 
         let x_max = maxf(0.0, content_size.x - available_size_for_content.x);
         self.widget.events.borrow_mut()
@@ -55,46 +110,52 @@ impl Control for ScrollViewer {
     fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
         if evt.target == self.v_scroll_bar {
             if let UIEventKind::MaxValueChanged(new_value) = evt.kind {
-                let scroll_bar =  ui.get_node_mut(self.v_scroll_bar).downcast_mut::<ScrollBar>().unwrap();
+                if let Some(scroll_bar) = ui.node_mut(self.v_scroll_bar).downcast_mut::<ScrollBar>() {
+                    scroll_bar.set_max_value(new_value);
 
-                scroll_bar.set_max_value(new_value);
-
-                if (scroll_bar.get_max_value() - scroll_bar.get_min_value()).abs() <= std::f32::EPSILON {
-                    scroll_bar.widget_mut().set_visibility(Visibility::Collapsed)
-                } else {
-                    scroll_bar.widget_mut().set_visibility(Visibility::Visible)
+                    if (scroll_bar.max_value() - scroll_bar.min_value()).abs() <= std::f32::EPSILON {
+                        scroll_bar.widget_mut()
+                            .set_visibility(Visibility::Collapsed);
+                    } else {
+                        scroll_bar.widget_mut()
+                            .set_visibility(Visibility::Visible);
+                    }
                 }
             }
         }
 
         if evt.target == self.h_scroll_bar {
             if let UIEventKind::MaxValueChanged(new_value) = evt.kind {
-                let scroll_bar = ui.get_node_mut(self.h_scroll_bar).downcast_mut::<ScrollBar>().unwrap();
+                if let Some(scroll_bar) = ui.node_mut(self.h_scroll_bar).downcast_mut::<ScrollBar>() {
+                    scroll_bar.set_max_value(new_value);
 
-                scroll_bar.set_max_value(new_value);
-
-                if (scroll_bar.get_max_value() - scroll_bar.get_min_value()).abs() <= std::f32::EPSILON {
-                    scroll_bar.widget_mut().set_visibility(Visibility::Collapsed)
-                } else {
-                    scroll_bar.widget_mut().set_visibility(Visibility::Visible)
+                    if (scroll_bar.max_value() - scroll_bar.min_value()).abs() <= std::f32::EPSILON {
+                        scroll_bar.widget_mut()
+                            .set_visibility(Visibility::Collapsed);
+                    } else {
+                        scroll_bar.widget_mut()
+                            .set_visibility(Visibility::Visible);
+                    }
                 }
             }
         }
 
         match evt.kind {
             UIEventKind::NumericValueChanged { new_value, .. } => {
-                let content_presenter = ui.get_node_mut(self.content_presenter).downcast_mut::<ScrollContentPresenter>().unwrap();
-                if evt.source == self.h_scroll_bar {
-                    content_presenter.set_horizontal_scroll(new_value);
-                } else if evt.source == self.v_scroll_bar {
-                    content_presenter.set_vertical_scroll(new_value);
+                if let Some(content_presenter) = ui.node_mut(self.content_presenter).downcast_mut::<ScrollContentPresenter>() {
+                    if evt.source == self.h_scroll_bar {
+                        content_presenter.set_horizontal_scroll(new_value);
+                    } else if evt.source == self.v_scroll_bar {
+                        content_presenter.set_vertical_scroll(new_value);
+                    }
                 }
             }
             UIEventKind::MouseWheel { amount, .. } => {
                 if !evt.handled && (evt.source == self_handle || self.widget().has_descendant(evt.source, ui)) {
-                    let v_scroll_bar = ui.get_node_mut(self.v_scroll_bar).downcast_mut::<ScrollBar>().unwrap();
-                    v_scroll_bar.scroll(-amount * 10.0);
-                    evt.handled = true;
+                    if let Some(v_scroll_bar) = ui.node_mut(self.v_scroll_bar).downcast_mut::<ScrollBar>() {
+                        v_scroll_bar.scroll(-amount * 10.0);
+                        evt.handled = true;
+                    }
                 }
             }
             _ => {}
@@ -119,8 +180,10 @@ impl ScrollViewerBuilder {
         self.content = content;
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+impl Builder for ScrollViewerBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let content_presenter = ScrollContentPresenterBuilder::new(WidgetBuilder::new()
             .with_child(self.content)
             .on_row(0)
@@ -158,6 +221,6 @@ impl ScrollViewerBuilder {
             h_scroll_bar,
             content_presenter,
         };
-        ui.add_node(scroll_viewer)
+        ui.add_node(Box::new(scroll_viewer))
     }
 }

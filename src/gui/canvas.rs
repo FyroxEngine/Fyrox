@@ -1,20 +1,26 @@
-use crate::core::{
-    pool::Handle,
-    math::{
-        vec2::Vec2,
-        Rect,
+use crate::{
+    core::{
+        pool::Handle,
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
     },
+    gui::{
+        UINode,
+        widget::{
+            Widget,
+            WidgetBuilder,
+        },
+        UserInterface,
+        draw::DrawingContext,
+        Control,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
+    }
 };
-use crate::gui::{
-    UINode,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UserInterface,
-    draw::DrawingContext,
-    Control,
-};
+use std::collections::HashMap;
 
 /// Allows user to directly set position and size of a node
 pub struct Canvas {
@@ -30,8 +36,14 @@ impl Control for Canvas {
         &mut self.widget
     }
 
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
+
     }
 
     fn measure_override(&self, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
@@ -41,7 +53,7 @@ impl Control for Canvas {
         );
 
         for child_handle in self.widget.children.iter() {
-            ui.get_node(*child_handle).measure(ui, size_for_child);
+            ui.node(*child_handle).measure(ui, size_for_child);
         }
 
         Vec2::ZERO
@@ -63,19 +75,17 @@ impl Control for Canvas {
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context)
     }
-}
 
-impl Canvas {
-    pub fn new() -> Self {
-        Self {
-            widget: Default::default()
-        }
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 
-impl Default for Canvas {
-    fn default() -> Self {
-        Self::new()
+impl Canvas {
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget
+        }
     }
 }
 
@@ -89,10 +99,12 @@ impl CanvasBuilder {
             widget_builder,
         }
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        ui.add_node(Canvas {
+impl Builder for CanvasBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+        ui.add_node(Box::new(Canvas {
             widget: self.widget_builder.build()
-        })
+        }))
     }
 }

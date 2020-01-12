@@ -1,28 +1,34 @@
-use crate::core::{
-    color::Color,
-    math::{
-        vec2::Vec2,
-        Rect,
+use crate::{
+    core::{
+        color::Color,
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
+        pool::Handle,
     },
-    pool::Handle,
-};
-use crate::gui::{
-    VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    Visibility,
-    UserInterface,
-    UINode,
-    event::{UIEvent},
-    style::Style,
-    Control
+    gui::{
+        VerticalAlignment,
+        HorizontalAlignment,
+        Thickness,
+        Visibility,
+        UserInterface,
+        UINode,
+        event::UIEvent,
+        style::Style,
+        Control,
+        ControlTemplate,
+    },
 };
 use std::{
     cell::{
         RefCell,
         Cell,
     },
-    collections::VecDeque,
+    collections::{
+        VecDeque,
+        HashMap,
+    },
     any::Any,
     rc::Rc,
 };
@@ -88,6 +94,41 @@ impl Control for Widget {
     fn widget_mut(&mut self) -> &mut Widget {
         self
     }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            name: self.name.clone(),
+            desired_local_position: self.desired_local_position.clone(),
+            width: self.width.clone(),
+            height: self.height.clone(),
+            screen_position: self.screen_position,
+            desired_size: self.desired_size.clone(),
+            actual_local_position: self.actual_local_position.clone(),
+            actual_size: self.actual_size.clone(),
+            min_size: self.min_size,
+            max_size: self.max_size,
+            background: self.background,
+            foreground: self.foreground,
+            row: self.row,
+            column: self.column,
+            vertical_alignment: self.vertical_alignment,
+            horizontal_alignment: self.horizontal_alignment,
+            margin: self.margin,
+            visibility: self.visibility,
+            global_visibility: self.global_visibility,
+            children: self.children.clone(),
+            parent: self.parent.clone(),
+            command_indices: Default::default(),
+            is_mouse_over: self.is_mouse_over.clone(),
+            measure_valid: Cell::new(false),
+            arrange_valid: Cell::new(false),
+            events: Default::default(),
+            is_hit_test_visible: self.is_hit_test_visible,
+            style: self.style.clone(),
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
 
     fn set_property(&mut self, name: &str, value: &dyn Any) {
         match name {
@@ -171,8 +212,47 @@ impl Widget {
     pub const MAX_SIZE: &'static str = "MaxSize";
 
     #[inline]
-    pub fn set_background(&mut self, color: Color) {
+    pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
+        self.name = name.as_ref().to_owned();
+        self
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    #[inline]
+    pub fn actual_size(&self) -> Vec2 {
+        self.actual_size.get()
+    }
+
+    #[inline]
+    pub fn set_min_size(&mut self, value: Vec2) -> &mut Self {
+        self.min_size = value;
+        self
+    }
+
+    #[inline]
+    pub fn min_size(&self) -> Vec2 {
+        self.min_size
+    }
+
+    #[inline]
+    pub fn set_max_size(&mut self, value: Vec2) -> &mut Self {
+        self.max_size = value;
+        self
+    }
+
+    #[inline]
+    pub fn max_size(&self) -> Vec2 {
+        self.max_size
+    }
+
+    #[inline]
+    pub fn set_background(&mut self, color: Color) -> &mut Self {
         self.background = color;
+        self
     }
 
     #[inline]
@@ -181,8 +261,9 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_foreground(&mut self, color: Color) {
+    pub fn set_foreground(&mut self, color: Color) -> &mut Self {
         self.foreground = color;
+        self
     }
 
     #[inline]
@@ -191,33 +272,86 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_width(&mut self, width: f32) {
+    pub fn set_width(&mut self, width: f32) -> &mut Self {
         self.width.set(width);
+        self
     }
 
     #[inline]
-    pub fn set_height(&mut self, height: f32) {
+    pub fn set_height(&mut self, height: f32) -> &mut Self {
         self.height.set(height);
+        self
     }
 
     #[inline]
-    pub fn set_desired_local_position(&self, pos: Vec2) {
+    pub fn set_desired_local_position(&mut self, pos: Vec2) -> &mut Self {
         self.desired_local_position.set(pos);
+        self
     }
 
     #[inline]
-    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) {
+    pub fn desired_local_position(&self) -> Vec2 {
+        self.desired_local_position.get()
+    }
+
+    #[inline]
+    pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
         self.vertical_alignment = valign;
+        self
     }
 
     #[inline]
-    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) {
+    pub fn vertical_alignment(&self) -> VerticalAlignment {
+        self.vertical_alignment
+    }
+
+    #[inline]
+    pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) -> &mut Self {
         self.horizontal_alignment = halign;
+        self
+    }
+
+    #[inline]
+    pub fn horizontal_alignment(&self) -> HorizontalAlignment {
+        self.horizontal_alignment
+    }
+
+    #[inline]
+    pub fn set_column(&mut self, column: usize) -> &mut Self {
+        self.column = column;
+        self
+    }
+
+    #[inline]
+    pub fn set_margin(&mut self, margin: Thickness) -> &mut Self {
+        self.margin = margin;
+        self
+    }
+
+    #[inline]
+    pub fn margin(&self) -> Thickness {
+        self.margin
+    }
+
+    #[inline]
+    pub fn children(&self) -> &[Handle<UINode>] {
+        &self.children
+    }
+
+    #[inline]
+    pub fn parent(&self) -> Handle<UINode> {
+        self.parent
     }
 
     #[inline]
     pub fn column(&self) -> usize {
         self.column
+    }
+
+    #[inline]
+    pub fn set_row(&mut self, row: usize) -> &mut Self {
+        self.row = row;
+        self
     }
 
     #[inline]
@@ -227,12 +361,18 @@ impl Widget {
 
     #[inline]
     pub fn get_screen_bounds(&self) -> Rect<f32> {
-        Rect::new(self.screen_position.x, self.screen_position.y, self.actual_size.get().x, self.actual_size.get().y)
+        Rect::new(
+            self.screen_position.x,
+            self.screen_position.y,
+            self.actual_size.get().x,
+            self.actual_size.get().y,
+        )
     }
 
     #[inline]
-    pub fn set_visibility(&mut self, visibility: Visibility) {
+    pub fn set_visibility(&mut self, visibility: Visibility) -> &mut Self {
         self.visibility = visibility;
+        self
     }
 
     #[inline]
@@ -241,8 +381,14 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_style(&mut self, style: Rc<Style>) {
+    pub fn set_style(&mut self, style: Rc<Style>) -> &mut Self {
         self.style = Some(style);
+        self
+    }
+
+    #[inline]
+    pub fn style(&self) -> Option<Rc<Style>> {
+        self.style.clone()
     }
 
     pub fn has_descendant(&self, node_handle: Handle<UINode>, ui: &UserInterface) -> bool {

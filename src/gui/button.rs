@@ -15,15 +15,24 @@ use crate::{
         Thickness,
         text::TextBuilder,
         border::BorderBuilder,
-        event::{UIEvent, UIEventKind},
+        event::{
+            UIEvent,
+            UIEventKind
+        },
+        Control,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
     },
     resource::ttf::Font,
 };
 use std::{
-    rc::Rc,
-    cell::RefCell,
+    collections::HashMap,
+    sync::{
+        Arc,
+        Mutex
+    }
 };
-use crate::gui::Control;
 
 /// Button
 ///
@@ -35,6 +44,15 @@ pub struct Button {
     body: Handle<UINode>,
 }
 
+impl Button {
+    pub fn new(widget: Widget, body: Handle<UINode>) -> Self {
+        Self {
+            widget,
+            body
+        }
+    }
+}
+
 impl Control for Button {
     fn widget(&self) -> &Widget {
         &self.widget
@@ -42,6 +60,17 @@ impl Control for Button {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            body: self.body
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+        self.body = *node_map.get(&self.body).unwrap();
     }
 
     fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
@@ -69,7 +98,9 @@ impl Control for Button {
         if evt.source == self.body || ui.is_node_child_of(evt.source, self.body) {
             let back = ui.nodes.borrow_mut(self.body).widget_mut();
             match evt.kind {
-                UIEventKind::MouseDown { .. } => back.set_background(pressed_color),
+                UIEventKind::MouseDown { .. } => {
+                    back.set_background(pressed_color);
+                },
                 UIEventKind::MouseUp { .. } => {
                     if back.is_mouse_over {
                         back.set_background(hover_color);
@@ -77,8 +108,12 @@ impl Control for Button {
                         back.set_background(normal_color);
                     }
                 }
-                UIEventKind::MouseLeave => back.set_background(normal_color),
-                UIEventKind::MouseEnter => back.set_background(hover_color),
+                UIEventKind::MouseLeave => {
+                    back.set_background(normal_color);
+                },
+                UIEventKind::MouseEnter => {
+                    back.set_background(hover_color);
+                },
                 _ => ()
             }
         }
@@ -93,7 +128,7 @@ pub enum ButtonContent {
 pub struct ButtonBuilder {
     widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
-    font: Option<Rc<RefCell<Font>>>,
+    font: Option<Arc<Mutex<Font>>>,
 }
 
 impl ButtonBuilder {
@@ -110,17 +145,17 @@ impl ButtonBuilder {
         self
     }
 
-    pub fn with_node(mut self, node: Handle<UINode>) -> Self {
+    pub fn with_content(mut self, node: Handle<UINode>) -> Self {
         self.content = Some(ButtonContent::Node(node));
         self
     }
 
-    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
+    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
         self.font = Some(font);
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+    pub fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let normal_color = Color::opaque(120, 120, 120);
 
         let body = BorderBuilder::new(WidgetBuilder::new()
@@ -151,6 +186,6 @@ impl ButtonBuilder {
                 .build(),
             body,
         };
-        ui.add_node(button)
+        ui.add_node(Box::new(button))
     }
 }

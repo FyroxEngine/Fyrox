@@ -1,23 +1,34 @@
-use crate::core::{
-    pool::Handle,
-    math::{
-        vec2::Vec2,
-        Rect,
+use crate::{
+    core::{
+        pool::Handle,
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
     },
+    gui::{
+        UINode,
+        draw::{
+            CommandKind,
+            DrawingContext,
+        },
+        Thickness,
+        UserInterface,
+        widget::{
+            Widget,
+            WidgetBuilder,
+        },
+        draw::CommandTexture,
+        Control,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
+    }
 };
-use crate::gui::{
-    UINode,
-    draw::{
-        CommandKind,
-        DrawingContext,
-    },
-    Thickness, UserInterface, widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    draw::CommandTexture, Control,
+use std::{
+    any::Any,
+    collections::HashMap
 };
-use std::any::Any;
 
 pub struct Border {
     widget: Widget,
@@ -41,8 +52,10 @@ impl BorderBuilder {
         self.stroke_thickness = Some(stroke_thickness);
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+impl Builder for BorderBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let style = self.widget_builder.style.clone();
 
         let mut border = Border {
@@ -54,7 +67,7 @@ impl BorderBuilder {
             border.apply_style(style);
         }
 
-        ui.add_node(border)
+        ui.add_node(Box::new(border))
     }
 }
 
@@ -67,11 +80,15 @@ impl Control for Border {
         &mut self.widget
     }
 
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, self.widget.background());
-        drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.widget.foreground());
-        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            stroke_thickness: self.stroke_thickness
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
+
     }
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
@@ -85,7 +102,7 @@ impl Control for Border {
         let mut desired_size = Vec2::ZERO;
 
         for child_handle in self.widget.children.iter() {
-            ui.get_node(*child_handle).measure(ui, size_for_child);
+            ui.node(*child_handle).measure(ui, size_for_child);
             let child = ui.nodes.borrow(*child_handle).widget();
             let child_desired_size = child.desired_size.get();
             if child_desired_size.x > desired_size.x {
@@ -110,10 +127,17 @@ impl Control for Border {
         );
 
         for child_handle in self.widget.children.iter() {
-            ui.get_node(*child_handle).arrange(ui, &rect_for_child);
+            ui.node(*child_handle).arrange(ui, &rect_for_child);
         }
 
         final_size
+    }
+
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        let bounds = self.widget.get_screen_bounds();
+        drawing_context.push_rect_filled(&bounds, None, self.widget.background());
+        drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.widget.foreground());
+        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
     }
 
     fn set_property(&mut self, name: &str, value: &dyn Any) {
@@ -135,6 +159,13 @@ impl Control for Border {
 
 impl Border {
     pub const STROKE_THICKNESS: &'static str = "StrokeThickness";
+
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget,
+            stroke_thickness: Thickness::uniform(1.0)
+        }
+    }
 
     pub fn set_stroke_thickness(&mut self, thickness: Thickness) -> &mut Self {
         self.stroke_thickness = thickness;

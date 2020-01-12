@@ -1,5 +1,5 @@
 /target
 **/*.rs.bk
 /cloc
-Cargo.toml
+*.lock
 .*

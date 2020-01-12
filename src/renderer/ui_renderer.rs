@@ -132,7 +132,7 @@ impl UIRenderer {
                         match cmd.get_texture() {
                             CommandTexture::None => white_dummy.bind(0),
                             CommandTexture::Font(font) => {
-                                let mut font = font.borrow_mut();
+                                let mut font = font.lock().unwrap();
                                 if font.texture.is_none() {
                                     font.texture = Some(GpuTexture::new(
                                         GpuTextureKind::Rectangle {

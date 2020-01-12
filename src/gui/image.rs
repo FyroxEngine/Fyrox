@@ -1,22 +1,47 @@
-use std::sync::{Mutex, Arc};
-use crate::core::{
-    pool::Handle
+use std::{
+    sync::{
+        Mutex,
+        Arc
+    },
+    collections::HashMap
 };
 use crate::{
+    core::{
+        pool::Handle
+    },
     gui::{
         UINode,
-        draw::{DrawingContext, CommandKind, CommandTexture},
-        widget::{Widget},
-        UserInterface,
-        widget::WidgetBuilder
+        draw::{
+            DrawingContext,
+            CommandKind,
+            CommandTexture
+        },
+        widget::Widget,
+        widget::WidgetBuilder,
+        Control,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
     },
     resource::texture::Texture,
 };
-use crate::gui::Control;
 
 pub struct Image {
     widget: Widget,
     texture: Option<Arc<Mutex<Texture>>>,
+}
+
+impl Image {
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget,
+            texture: None
+        }
+    }
+
+    pub fn set_texture(&mut self, texture: Arc<Mutex<Texture>>) {
+        self.texture = Some(texture);
+    }
 }
 
 impl Control for Image {
@@ -26,6 +51,17 @@ impl Control for Image {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            texture: self.texture.clone()
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
+
     }
 
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
@@ -59,13 +95,15 @@ impl ImageBuilder {
         self.texture = texture;
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+impl Builder for ImageBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let image = Image {
             widget: self.widget_builder.build(),
             texture: self.texture,
         };
 
-        ui.add_node(image)
+        ui.add_node(Box::new(image))
     }
 }

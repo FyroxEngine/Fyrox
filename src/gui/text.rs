@@ -1,27 +1,41 @@
-use crate::core::{
-    pool::Handle,
-    math::{vec2::Vec2},
-};
-use std::{cell::RefCell, rc::Rc};
 use crate::{
+    core::{
+        pool::Handle,
+        math::vec2::Vec2,
+    },
     gui::{
         VerticalAlignment,
         HorizontalAlignment,
         draw::DrawingContext,
-        UserInterface,
-        formatted_text::{FormattedText, FormattedTextBuilder},
-        widget::{Widget, WidgetBuilder},
-        UINode
+        formatted_text::{
+            FormattedText,
+            FormattedTextBuilder,
+        },
+        widget::{
+            Widget,
+            WidgetBuilder,
+        },
+        UINode,
+        Control,
+        ControlTemplate,
+        UINodeContainer,
+        Builder
     },
     resource::ttf::Font,
 };
-use crate::gui::Control;
+use std::{
+    collections::HashMap,
+    sync::{
+        Mutex,
+        Arc
+    }
+};
 
 pub struct Text {
     widget: Widget,
     need_update: bool,
     text: String,
-    font: Rc<RefCell<Font>>,
+    font: Arc<Mutex<Font>>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     formatted_text: FormattedText,
@@ -35,6 +49,22 @@ impl Control for Text {
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
     }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            need_update: self.need_update,
+            text: self.text.clone(),
+            font: self.font.clone(),
+            vertical_alignment: self.vertical_alignment,
+            horizontal_alignment: self.horizontal_alignment,
+            formatted_text: FormattedTextBuilder::new()
+                .with_font(self.font.clone())
+                .build(),
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
 
     fn draw(&mut self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
@@ -52,6 +82,20 @@ impl Control for Text {
 }
 
 impl Text {
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget,
+            need_update: true,
+            text: "".to_string(),
+            formatted_text: FormattedTextBuilder::new()
+                .with_font(crate::gui::DEFAULT_FONT.clone())
+                .build(),
+            font: crate::gui::DEFAULT_FONT.clone(),
+            vertical_alignment: VerticalAlignment::Stretch,
+            horizontal_alignment: HorizontalAlignment::Stretch,
+        }
+    }
+
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         self.text.clear();
         self.text += text.as_ref();
@@ -59,14 +103,18 @@ impl Text {
         self
     }
 
-    pub fn get_text(&self) -> &str {
+    pub fn text(&self) -> &str {
         self.text.as_str()
     }
 
-    pub fn set_font(&mut self, font: Rc<RefCell<Font>>) -> &mut Self {
+    pub fn set_font(&mut self, font: Arc<Mutex<Font>>) -> &mut Self {
         self.font = font;
         self.need_update = true;
         self
+    }
+
+    pub fn font(&self) -> Arc<Mutex<Font>> {
+        self.font.clone()
     }
 
     pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
@@ -74,16 +122,24 @@ impl Text {
         self
     }
 
+    pub fn vertical_alignment(&self) -> VerticalAlignment {
+        self.vertical_alignment
+    }
+
     pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) -> &mut Self {
         self.horizontal_alignment = halign;
         self
+    }
+
+    pub fn horizontal_alignment(&self) -> HorizontalAlignment {
+        self.horizontal_alignment
     }
 }
 
 pub struct TextBuilder {
     widget_builder: WidgetBuilder,
     text: Option<String>,
-    font: Option<Rc<RefCell<Font>>>,
+    font: Option<Arc<Mutex<Font>>>,
     vertical_text_alignment: Option<VerticalAlignment>,
     horizontal_text_alignment: Option<HorizontalAlignment>,
 }
@@ -104,12 +160,12 @@ impl TextBuilder {
         self
     }
 
-    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
+    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
         self.font = Some(font);
         self
     }
 
-    pub fn with_opt_font(mut self, font: Option<Rc<RefCell<Font>>>) -> Self {
+    pub fn with_opt_font(mut self, font: Option<Arc<Mutex<Font>>>) -> Self {
         self.font = font;
         self
     }
@@ -123,22 +179,24 @@ impl TextBuilder {
         self.horizontal_text_alignment = Some(halign);
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
-        let font =   if let Some(font) = self.font {
+impl Builder for TextBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+        let font = if let Some(font) = self.font {
             font
         } else {
-            ui.default_font.clone()
+            crate::gui::DEFAULT_FONT.clone()
         };
 
-        ui.add_node(Text {
+        ui.add_node(Box::new(Text {
             widget: self.widget_builder.build(),
             text: self.text.unwrap_or_default(),
             need_update: true,
             vertical_alignment: self.vertical_text_alignment.unwrap_or(VerticalAlignment::Top),
             horizontal_alignment: self.horizontal_text_alignment.unwrap_or(HorizontalAlignment::Left),
             formatted_text: FormattedTextBuilder::new().with_font(font.clone()).build(),
-            font
-        })
+            font,
+        }))
     }
 }

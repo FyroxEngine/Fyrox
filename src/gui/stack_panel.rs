@@ -1,32 +1,71 @@
-use crate::gui::{
-    UserInterface,
-    maxf,
-    widget::{Widget, WidgetBuilder},
-    draw::DrawingContext,
-    UINode,
-    scroll_bar::Orientation,
-    Control
-};
-use crate::core::{
-    math::{
-        vec2::Vec2,
-        Rect,
+use crate::{
+    gui::{
+        UserInterface,
+        maxf,
+        widget::{
+            Widget,
+            WidgetBuilder
+        },
+        draw::DrawingContext,
+        UINode,
+        scroll_bar::Orientation,
+        Control
     },
-    pool::Handle,
+    core::{
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
+        pool::Handle,
+    },
+    gui::{
+        ControlTemplate,
+        UINodeContainer,
+        Builder
+    }
 };
+use std::collections::HashMap;
 
 pub struct StackPanel {
     widget: Widget,
     orientation: Orientation,
 }
 
-impl Control for StackPanel {
-    fn draw(&mut self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context)
+impl StackPanel {
+    pub fn new(widget: Widget) -> Self {
+        Self {
+            widget,
+            orientation: Orientation::Vertical
+        }
     }
 
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
+    pub fn set_orientation(&mut self, orientation: Orientation) {
+        self.orientation = orientation;
+    }
+
+    pub fn orientation(&self) -> Orientation {
+        self.orientation
+    }
+}
+
+impl Control for StackPanel {
+    fn widget(&self) -> &Widget {
+        &self.widget
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget {
+        &mut self.widget
+    }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            orientation: self.orientation
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
+
     }
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
@@ -66,9 +105,9 @@ impl Control for StackPanel {
         let mut measured_size = Vec2::ZERO;
 
         for child_handle in self.widget.children.iter() {
-            ui.get_node(*child_handle).measure(ui, child_constraint);
+            ui.node(*child_handle).measure(ui, child_constraint);
 
-            let child = ui.get_node(*child_handle).widget();
+            let child = ui.node(*child_handle).widget();
             let desired = child.desired_size.get();
             match self.orientation {
                 Orientation::Vertical => {
@@ -99,7 +138,7 @@ impl Control for StackPanel {
         }
 
         for child_handle in self.widget.children.iter() {
-            let child = ui.get_node(*child_handle).widget();
+            let child = ui.node(*child_handle).widget();
             match self.orientation {
                 Orientation::Vertical => {
                     let child_bounds = Rect::new(
@@ -108,7 +147,7 @@ impl Control for StackPanel {
                         maxf(width, child.desired_size.get().x),
                         child.desired_size.get().y,
                     );
-                    ui.get_node(*child_handle).arrange(ui, &child_bounds);
+                    ui.node(*child_handle).arrange(ui, &child_bounds);
                     width = maxf(width, child.desired_size.get().x);
                     height += child.desired_size.get().y;
                 }
@@ -119,7 +158,7 @@ impl Control for StackPanel {
                         child.desired_size.get().x,
                         maxf(height, child.desired_size.get().y),
                     );
-                    ui.get_node(*child_handle).arrange(ui, &child_bounds);
+                    ui.node(*child_handle).arrange(ui, &child_bounds);
                     width += child.desired_size.get().x;
                     height = maxf(height, child.desired_size.get().y);
                 }
@@ -138,12 +177,12 @@ impl Control for StackPanel {
         Vec2::new(width, height)
     }
 
-    fn widget(&self) -> &Widget {
-        &self.widget
+    fn draw(&mut self, drawing_context: &mut DrawingContext) {
+        self.widget.draw(drawing_context)
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
-        &mut self.widget
+    fn update(&mut self, dt: f32) {
+        self.widget.update(dt)
     }
 }
 
@@ -164,13 +203,15 @@ impl StackPanelBuilder {
         self.orientation = Some(orientation);
         self
     }
+}
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+impl Builder for StackPanelBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let stack_panel = StackPanel {
             widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
         };
 
-        ui.add_node(stack_panel)
+        ui.add_node(Box::new(stack_panel))
     }
 }

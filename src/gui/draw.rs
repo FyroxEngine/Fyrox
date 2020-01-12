@@ -1,27 +1,23 @@
 use crate::{
     gui::{
-        Thickness, formatted_text::FormattedText,
+        Thickness,
+        formatted_text::FormattedText,
     },
     resource::{
         ttf::Font,
         texture::Texture,
     },
     renderer::TriangleDefinition,
-};
-
-use crate::core::{
-    color::Color,
-    math::{
-        vec2::Vec2,
-        Rect,
+    core::{
+        color::Color,
+        math::{
+            vec2::Vec2,
+            Rect,
+        },
     },
+    utils::log::Log,
 };
-use std::{
-    rc::Rc,
-    cell::RefCell,
-    sync::{Arc, Mutex},
-};
-use crate::utils::log::Log;
+use std::sync::{Arc, Mutex};
 
 #[repr(C)]
 pub struct Vertex {
@@ -50,7 +46,7 @@ pub enum CommandKind {
 pub enum CommandTexture {
     None,
     Texture(Arc<Mutex<Texture>>),
-    Font(Rc<RefCell<Font>>),
+    Font(Arc<Mutex<Font>>),
 }
 
 #[derive(Clone)]

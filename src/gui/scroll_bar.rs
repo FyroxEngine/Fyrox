@@ -1,14 +1,34 @@
-use crate::gui::{
-    border::BorderBuilder, canvas::CanvasBuilder, event::UIEventKind,
-    button::ButtonBuilder, UserInterface, maxf, Thickness,
-    grid::{GridBuilder, Column, Row}, event::UIEvent,
-    widget::{Widget, WidgetBuilder},
-    Control, UINode
+use crate::{
+    gui::{
+        border::BorderBuilder,
+        canvas::CanvasBuilder,
+        event::UIEventKind,
+        button::ButtonBuilder,
+        UserInterface,
+        maxf,
+        Thickness,
+        grid::{
+            GridBuilder,
+            Column,
+            Row,
+        },
+        event::UIEvent,
+        widget::{
+            Widget,
+            WidgetBuilder,
+        },
+        Control,
+        UINode,
+        ControlTemplate,
+        UINodeContainer,
+        Builder,
+    },
+    core::{
+        color::Color, math,
+        pool::Handle, math::vec2::Vec2,
+    },
 };
-use crate::core::{
-    color::Color, math,
-    pool::Handle, math::vec2::Vec2,
-};
+use std::collections::HashMap;
 
 /// Scroll bar
 ///
@@ -37,6 +57,58 @@ impl Control for ScrollBar {
 
     fn widget_mut(&mut self) -> &mut Widget {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> Box<dyn Control> {
+        Box::new(Self {
+            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+            min: self.min,
+            max: self.max,
+            value: self.value,
+            step: self.step,
+            orientation: self.orientation,
+            is_dragging: self.is_dragging,
+            offset: self.offset,
+            increase: self.increase,
+            decrease: self.decrease,
+            indicator: self.indicator,
+            field: self.field,
+        })
+    }
+
+    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+        self.increase = *node_map.get(&self.increase).unwrap();
+        self.decrease = *node_map.get(&self.decrease).unwrap();
+        self.indicator = *node_map.get(&self.indicator).unwrap();
+        self.field = *node_map.get(&self.field).unwrap();
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+        let size = self.widget.arrange_override(ui, final_size);
+
+        // Adjust indicator position according to current value
+        let percent = (self.value - self.min) / (self.max - self.min);
+
+        let field_size = ui.node(self.field).widget().actual_size.get();
+
+        let indicator = ui.node(self.indicator).widget();
+        match self.orientation {
+            Orientation::Horizontal => {
+                indicator.desired_local_position.set(Vec2::new(
+                    percent * maxf(0.0, field_size.x - indicator.actual_size.get().x),
+                    0.0));
+                indicator.height.set(field_size.y);
+            }
+            Orientation::Vertical => {
+                indicator.desired_local_position.set(Vec2::new(
+                    0.0,
+                    percent * maxf(0.0, field_size.y - indicator.actual_size.get().y))
+                );
+                indicator.width.set(field_size.x);
+            }
+        }
+
+        size
     }
 
     fn handle_event(&mut self, _self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
@@ -102,41 +174,29 @@ impl Control for ScrollBar {
             }
         }
     }
-
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        let size = self.widget.arrange_override(ui, final_size);
-
-        // Adjust indicator position according to current value
-        let percent = (self.value - self.min) / (self.max - self.min);
-
-        let field_size = ui.get_node(self.field).widget().actual_size.get();
-
-        let indicator = ui.get_node(self.indicator).widget();
-        match self.orientation {
-            Orientation::Horizontal => {
-                indicator.set_desired_local_position(Vec2::new(
-                    percent * maxf(0.0, field_size.x - indicator.actual_size.get().x),
-                    0.0)
-                );
-                indicator.height.set(field_size.y);
-            }
-            Orientation::Vertical => {
-                indicator.set_desired_local_position(Vec2::new(
-                    0.0,
-                    percent * maxf(0.0, field_size.y - indicator.actual_size.get().y))
-                );
-                indicator.width.set(field_size.x);
-            }
-        }
-
-        size
-    }
 }
 
 impl ScrollBar {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
-    pub fn set_value(&mut self, value: f32) {
+    pub fn new(widget: Widget, increase: Handle<UINode>, decrease: Handle<UINode>, indicator: Handle<UINode>, field: Handle<UINode>) -> Self {
+        Self {
+            widget,
+            min: 0.0,
+            max: 100.0,
+            value: 0.0,
+            step: 1.0,
+            orientation: Orientation::Vertical,
+            is_dragging: false,
+            offset: Default::default(),
+            increase,
+            decrease,
+            indicator,
+            field,
+        }
+    }
+
+    pub fn set_value(&mut self, value: f32) -> &mut Self {
         let old_value = self.value;
         let new_value = math::clampf(value, self.min, self.max);
         if (new_value - old_value).abs() > std::f32::EPSILON {
@@ -147,13 +207,14 @@ impl ScrollBar {
                     new_value,
                 }));
         }
+        self
     }
 
-    pub fn get_value(&self) -> f32 {
+    pub fn value(&self) -> f32 {
         self.value
     }
 
-    pub fn set_max_value(&mut self, max: f32) {
+    pub fn set_max_value(&mut self, max: f32) -> &mut Self {
         self.max = max;
         if self.max < self.min {
             std::mem::swap(&mut self.min, &mut self.max);
@@ -163,13 +224,14 @@ impl ScrollBar {
         if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
             self.set_value(clamped_new_value);
         }
+        self
     }
 
-    pub fn get_max_value(&self) -> f32 {
+    pub fn max_value(&self) -> f32 {
         self.max
     }
 
-    pub fn set_min_value(&mut self, min: f32) {
+    pub fn set_min_value(&mut self, min: f32) -> &mut Self {
         self.min = min;
         if self.min > self.max {
             std::mem::swap(&mut self.min, &mut self.max);
@@ -179,10 +241,20 @@ impl ScrollBar {
         if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
             self.set_value(clamped_new_value);
         }
+        self
     }
 
-    pub fn get_min_value(&self) -> f32 {
+    pub fn min_value(&self) -> f32 {
         self.min
+    }
+
+    pub fn set_step(&mut self, step: f32) -> &mut Self {
+        self.step = step;
+        self
+    }
+
+    pub fn step(&self) -> f32 {
+        self.step
     }
 
     pub fn scroll(&mut self, amount: f32) {
@@ -205,6 +277,10 @@ pub struct ScrollBarBuilder {
     value: Option<f32>,
     step: Option<f32>,
     orientation: Option<Orientation>,
+    increase: Option<Handle<UINode>>,
+    decrease: Option<Handle<UINode>>,
+    indicator: Option<Handle<UINode>>,
+    body: Option<Handle<UINode>>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -222,6 +298,10 @@ impl ScrollBarBuilder {
             value: None,
             step: None,
             orientation: None,
+            increase: None,
+            decrease: None,
+            indicator: None,
+            body: None,
         }
     }
 
@@ -250,59 +330,96 @@ impl ScrollBarBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface) -> Handle<UINode> {
+    pub fn with_increase(mut self, increase: Handle<UINode>) -> Self {
+        self.increase = Some(increase);
+        self
+    }
+
+    pub fn with_decrease(mut self, decrease: Handle<UINode>) -> Self {
+        self.decrease = Some(decrease);
+        self
+    }
+
+    pub fn with_indicator(mut self, indicator: Handle<UINode>) -> Self {
+        self.indicator = Some(indicator);
+        self
+    }
+
+    pub fn with_body(mut self, body: Handle<UINode>) -> Self {
+        self.body = Some(body);
+        self
+    }
+}
+
+impl Builder for ScrollBarBuilder {
+    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
-        let increase = ButtonBuilder::new(WidgetBuilder::new()
-            .with_width(match orientation {
+        let increase = self.increase.unwrap_or_else(|| {
+            ButtonBuilder::new(WidgetBuilder::new())
+                .with_text(match orientation {
+                    Orientation::Horizontal => ">",
+                    Orientation::Vertical => "v"
+                })
+                .build(ui)
+        });
+
+        ui.node_mut(increase)
+            .widget_mut()
+            .set_width(match orientation {
                 Orientation::Horizontal => 30.0,
                 Orientation::Vertical => std::f32::NAN
             })
-            .with_height(match orientation {
+            .set_height(match orientation {
                 Orientation::Horizontal => std::f32::NAN,
                 Orientation::Vertical => 30.0
             })
-            .on_column(match orientation {
+            .set_column(match orientation {
                 Orientation::Horizontal => 2,
                 Orientation::Vertical => 0
             })
-            .on_row(match orientation {
+            .set_row(match orientation {
                 Orientation::Horizontal => 0,
                 Orientation::Vertical => 2
-            }))
-            .with_text(match orientation {
-                Orientation::Horizontal => ">",
-                Orientation::Vertical => "v"
-            })
-            .build(ui);
+            });
 
-        let decrease = ButtonBuilder::new(WidgetBuilder::new()
-            .on_column(0)
-            .on_row(0)
-            .with_width(match orientation {
+        let decrease = self.decrease.unwrap_or_else(|| {
+            ButtonBuilder::new(WidgetBuilder::new())
+                .with_text(match orientation {
+                    Orientation::Horizontal => "<",
+                    Orientation::Vertical => "^"
+                })
+                .build(ui)
+        });
+
+        ui.node_mut(decrease)
+            .widget_mut()
+            .set_column(0)
+            .set_row(0)
+            .set_width(match orientation {
                 Orientation::Horizontal => 30.0,
                 Orientation::Vertical => std::f32::NAN
             })
-            .with_height(match orientation {
+            .set_height(match orientation {
                 Orientation::Horizontal => std::f32::NAN,
                 Orientation::Vertical => 30.0
-            }))
-            .with_text(match orientation {
-                Orientation::Horizontal => "<",
-                Orientation::Vertical => "^"
-            })
-            .build(ui);
+            });
 
-        let indicator = BorderBuilder::new(WidgetBuilder::new()
-            .with_background(Color::opaque(255, 255, 255))
-            .with_foreground(Color::opaque(50, 50, 50))
-            .with_width(30.0)
-            .with_height(30.0))
-            .with_stroke_thickness(match orientation {
-                Orientation::Horizontal => Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 },
-                Orientation::Vertical => Thickness { left: 0.0, top: 1.0, right: 0.0, bottom: 1.0 }
-            })
-            .build(ui);
+        let indicator = self.indicator.unwrap_or_else(|| {
+            BorderBuilder::new(WidgetBuilder::new())
+                .with_stroke_thickness(match orientation {
+                    Orientation::Horizontal => Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 },
+                    Orientation::Vertical => Thickness { left: 0.0, top: 1.0, right: 0.0, bottom: 1.0 }
+                })
+                .build(ui)
+        });
+
+        ui.node_mut(indicator)
+            .widget_mut()
+            .set_background(Color::opaque(255, 255, 255))
+            .set_foreground(Color::opaque(50, 50, 50))
+            .set_width(30.0)
+            .set_height(30.0);
 
         let field = CanvasBuilder::new(WidgetBuilder::new()
             .with_name(ScrollBar::PART_CANVAS)
@@ -317,32 +434,37 @@ impl ScrollBarBuilder {
             .with_child(indicator)
         ).build(ui);
 
+        let grid = GridBuilder::new(WidgetBuilder::new()
+            .with_child(decrease)
+            .with_child(field)
+            .with_child(increase))
+            .add_rows(match orientation {
+                Orientation::Horizontal => vec![Row::stretch()],
+                Orientation::Vertical => vec![Row::auto(),
+                                              Row::stretch(),
+                                              Row::auto()]
+            })
+            .add_columns(match orientation {
+                Orientation::Horizontal => vec![Column::auto(),
+                                                Column::stretch(),
+                                                Column::auto()],
+                Orientation::Vertical => vec![Column::stretch()]
+            })
+            .build(ui);
+
+        let body = self.body.unwrap_or_else(|| {
+            BorderBuilder::new(WidgetBuilder::new()
+                .with_background(Color::opaque(120, 120, 120))
+                .with_foreground(Color::opaque(200, 200, 200)))
+                .with_stroke_thickness(Thickness::uniform(1.0))
+                .build(ui)
+        });
+
+        ui.link_nodes(grid, body);
+
         let scroll_bar = ScrollBar {
             widget: self.widget_builder
-                .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Color::opaque(120, 120, 120))
-                    .with_foreground(Color::opaque(200, 200, 200))
-                    .with_child(GridBuilder::new(WidgetBuilder::new()
-                        .with_child(decrease)
-                        .with_child(field)
-                        .with_child(increase))
-                        .add_rows(match orientation {
-                            Orientation::Horizontal => vec![Row::stretch()],
-                            Orientation::Vertical => vec![Row::auto(),
-                                                          Row::stretch(),
-                                                          Row::auto()]
-                        })
-                        .add_columns(match orientation {
-                            Orientation::Horizontal => vec![Column::auto(),
-                                                            Column::stretch(),
-                                                            Column::auto()],
-                            Orientation::Vertical => vec![Column::stretch()]
-                        })
-                        .build(ui)
-                    ))
-                    .with_stroke_thickness(Thickness::uniform(1.0))
-                    .build(ui)
-                )
+                .with_child(body)
                 .build(),
             min: self.min.unwrap_or(0.0),
             max: self.max.unwrap_or(100.0),
@@ -356,6 +478,6 @@ impl ScrollBarBuilder {
             indicator,
             field,
         };
-        ui.add_node(scroll_bar)
+        ui.add_node(Box::new(scroll_bar))
     }
 }

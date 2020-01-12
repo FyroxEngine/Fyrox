@@ -1,19 +1,24 @@
-use crate::core::{
-    color::Color,
-    math::{
-        vec2::Vec2,
-        Rect
+use crate::{
+    core::{
+        color::Color,
+        math::{
+            vec2::Vec2,
+            Rect
+        }
+    },
+    resource::ttf::Font,
+    gui::{
+        HorizontalAlignment,
+        VerticalAlignment
     }
 };
 use std::{
-    rc::Rc,
-    cell::RefCell
+    ops::Range,
+    sync::{
+        Arc,
+        Mutex
+    }
 };
-use crate::{
-    resource::ttf::Font,
-    gui::{HorizontalAlignment, VerticalAlignment}
-};
-use std::ops::Range;
 
 #[derive(Debug)]
 pub struct TextGlyph {
@@ -74,7 +79,7 @@ impl TextLine {
 }
 
 pub struct FormattedText {
-    font: Option<Rc<RefCell<Font>>>,
+    font: Option<Arc<Mutex<Font>>>,
     /// Text in UTF32 format.
     text: Vec<u32>,
     /// Temporary buffer used to split text on lines. We need it to reduce memory allocations
@@ -94,11 +99,11 @@ impl FormattedText {
         &self.glyphs
     }
 
-    pub fn get_font(&self) -> Option<Rc<RefCell<Font>>> {
+    pub fn get_font(&self) -> Option<Arc<Mutex<Font>>> {
         self.font.clone()
     }
 
-    pub fn set_font(&mut self, font: Rc<RefCell<Font>>) {
+    pub fn set_font(&mut self, font: Arc<Mutex<Font>>) {
         self.font = Some(font);
     }
 
@@ -129,7 +134,7 @@ impl FormattedText {
     pub fn get_range_width(&self, range: Range<usize>) -> f32 {
         let mut width = 0.0;
         if let Some(ref font) = self.font {
-            let font = font.borrow();
+            let font = font.lock().unwrap();
             for index in range {
                 width += font.get_glyph_advance(self.text[index]);
             }
@@ -160,7 +165,7 @@ impl FormattedText {
 
     pub fn build(&mut self) {
         let font = if let Some(font) = &self.font {
-            font.borrow()
+            font.lock().unwrap()
         } else {
             return;
         };
@@ -266,7 +271,7 @@ impl FormattedText {
 }
 
 pub struct FormattedTextBuilder {
-    font: Option<Rc<RefCell<Font>>>,
+    font: Option<Arc<Mutex<Font>>>,
     color: Color,
     size: Vec2,
     text: String,
@@ -293,7 +298,7 @@ impl FormattedTextBuilder {
         }
     }
 
-    pub fn with_font(mut self, font: Rc<RefCell<Font>>) -> Self {
+    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
         self.font = Some(font);
         self
     }
