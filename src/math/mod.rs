@@ -312,3 +312,10 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3
     let z = -radius * elevation.sin() * azimuth.cos();
     Vec3::new(x, y, z)
 }
+
+#[repr(C)]
+pub struct TriangleDefinition {
+    pub a: u32,
+    pub b: u32,
+    pub c: u32,
+}
