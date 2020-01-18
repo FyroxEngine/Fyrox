@@ -10,17 +10,20 @@ use crate::{
             GeometryBuffer,
             AttributeDefinition,
             AttributeKind,
-            GeometryBufferKind
+            GeometryBufferKind,
         },
-        gpu_texture::{GpuTexture, GpuTextureKind, PixelKind}
+        gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
     },
     gui::{
         draw::{DrawingContext, CommandKind},
         self,
     },
-    gui::draw::CommandTexture
+    gui::draw::CommandTexture,
 };
 use crate::renderer::RenderPassStatistics;
+use std::sync::{Mutex};
+use crate::resource::texture::Texture;
+use std::any::Any;
 
 struct UIShader {
     program: GpuProgram,
@@ -63,7 +66,6 @@ pub struct UIRenderer {
     shader: UIShader,
     geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
 }
-
 
 impl UIRenderer {
     pub(in crate::renderer) fn new() -> Result<Self, RendererError> {
@@ -134,22 +136,27 @@ impl UIRenderer {
                             CommandTexture::Font(font) => {
                                 let mut font = font.lock().unwrap();
                                 if font.texture.is_none() {
-                                    font.texture = Some(GpuTexture::new(
+                                    font.texture = Some(Box::new(GpuTexture::new(
                                         GpuTextureKind::Rectangle {
                                             width: font.get_atlas_size() as usize,
-                                            height: font.get_atlas_size() as usize
+                                            height: font.get_atlas_size() as usize,
                                         }, PixelKind::R8, font.get_atlas_pixels(),
                                         false).unwrap()
-                                    );
+                                    ));
                                 }
-                                font.texture.as_ref().unwrap().bind(0);
+                                (font.texture.as_ref().unwrap().as_ref() as &dyn Any)
+                                    .downcast_ref::<GpuTexture>().unwrap().bind(0);
                                 self.shader.set_is_font(true);
-                            },
+                            }
                             CommandTexture::Texture(texture) => {
-                                let texture = texture.lock().unwrap();
-                                if let Some(texture) = &texture.gpu_tex {
-                                    texture.bind(0)
+                                let texture = texture.clone().downcast::<Mutex<Texture>>();
+                                if let Ok(texture) = texture {
+                                    let texture = texture.lock().unwrap();
+                                    if let Some(texture) = &texture.gpu_tex {
+                                        texture.bind(0)
+                                    }
                                 }
+
                                 self.shader.set_is_font(false);
                             }
                         }

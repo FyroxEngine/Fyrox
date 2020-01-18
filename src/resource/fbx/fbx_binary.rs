@@ -1,16 +1,28 @@
 use crate::{
-    resource::{
-        fbx::{FbxNode, Fbx, attribute::FbxAttribute, error::FbxError}
+    resource::fbx::{
+        FbxNode,
+        Fbx,
+        attribute::FbxAttribute,
+        error::FbxError,
+    },
+    core::pool::{
+        Handle,
+        Pool,
     },
 };
 use std::{
-    io::{Read, Cursor, Seek, SeekFrom},
+    io::{
+        Read,
+        Cursor,
+        Seek,
+        SeekFrom,
+    },
     path::Path,
     fs::File,
 };
-use byteorder::{LittleEndian, ReadBytesExt};
-use crate::core::{
-    pool::{Handle, Pool},
+use byteorder::{
+    LittleEndian,
+    ReadBytesExt,
 };
 
 fn read_attrib<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>

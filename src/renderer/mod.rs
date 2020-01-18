@@ -52,13 +52,7 @@ use crate::{
     },
 };
 use crate::utils::log::Log;
-
-#[repr(C)]
-pub struct TriangleDefinition {
-    pub a: u32,
-    pub b: u32,
-    pub c: u32,
-}
+use crate::core::math::TriangleDefinition;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {

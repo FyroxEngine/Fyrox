@@ -26,9 +26,9 @@ use crate::core::{
 };
 use crate::{
     resource::texture::Texture,
-    renderer::TriangleDefinition,
     scene::base::{BaseBuilder, Base, AsBase}
 };
+use crate::core::math::TriangleDefinition;
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]

@@ -8,7 +8,9 @@ use crate::{
     },
     sound::context::Context,
     engine::{resource_manager::ResourceManager, error::EngineError},
-    gui::UserInterface,
+    gui::{
+        UserInterface,
+    },
     renderer::{Renderer, error::RendererError, gl},
     window::{WindowBuilder, Window},
     scene::SceneContainer,
@@ -18,33 +20,17 @@ use crate::{
     WindowedContext,
     NotCurrent,
     Api,
-    event_loop::EventLoop
+    event_loop::EventLoop,
 };
 use std::sync::{Arc, Mutex};
 
 pub struct Engine {
     context: glutin::WindowedContext<PossiblyCurrent>,
-    renderer: Renderer,
-    user_interface: UserInterface,
-    sound_context: Arc<Mutex<Context>>,
-    resource_manager: ResourceManager,
-    scenes: SceneContainer,
-}
-
-pub struct EngineInterfaceMut<'a> {
-    pub ui: &'a mut UserInterface,
-    pub renderer: &'a mut Renderer,
+    pub renderer: Renderer,
+    pub user_interface: UserInterface,
     pub sound_context: Arc<Mutex<Context>>,
-    pub resource_manager: &'a mut ResourceManager,
-    pub scenes: &'a mut SceneContainer,
-}
-
-pub struct EngineInterface<'a> {
-    pub ui: &'a UserInterface,
-    pub renderer: &'a Renderer,
-    pub sound_context: Arc<Mutex<Context>>,
-    pub resource_manager: &'a ResourceManager,
-    pub scenes: &'a SceneContainer,
+    pub resource_manager: ResourceManager,
+    pub scenes: SceneContainer,
 }
 
 impl Engine {
@@ -101,55 +87,6 @@ impl Engine {
         self.context.window()
     }
 
-    /// Borrows as mutable all available components at once. Should be used in pair with
-    /// destructuring, like this:
-    /// ```no_run
-    /// use rg3d::engine::{Engine, EngineInterfaceMut};
-    /// use rg3d::window::WindowBuilder;
-    /// use rg3d::event_loop::EventLoop;
-    ///
-    /// let evt = EventLoop::new();
-    /// let mut engine = Engine::new(WindowBuilder::new(), &evt).unwrap();
-    /// let EngineInterfaceMut{scenes, ui, renderer, sound_context, resource_manager} = engine.interface_mut();
-    /// ```
-    /// This is much more easier than if there would be separate `get_resource_manager_mut()`,
-    /// `get_ui_mut()`, etc. Also this allows you to have mutable references to all
-    /// components at once, which would be impossible if there would be separate methods.
-    #[inline]
-    pub fn interface_mut(&mut self) -> EngineInterfaceMut {
-        EngineInterfaceMut {
-            scenes: &mut self.scenes,
-            renderer: &mut self.renderer,
-            ui: &mut self.user_interface,
-            sound_context: self.sound_context.clone(),
-            resource_manager: &mut self.resource_manager,
-        }
-    }
-
-    /// Borrows all available components at once. Should be used in pair with destructuring,
-    /// like this:
-    /// ```no_run
-    /// use rg3d::engine::{EngineInterface, Engine};
-    /// use rg3d::window::WindowBuilder;
-    /// use rg3d::event_loop::EventLoop;
-    ///
-    /// let evt = EventLoop::new();
-    /// let engine = Engine::new(WindowBuilder::new(), &evt).unwrap();
-    /// let EngineInterface{scenes, ui, renderer, sound_context, resource_manager} = engine.interface();
-    /// ```
-    /// This is much more easier than if there would be separate `get_resource_manager()`,
-    /// `get_ui()`, etc.
-    #[inline]
-    pub fn interface(&self) -> EngineInterface {
-        EngineInterface {
-            scenes: &self.scenes,
-            ui: &self.user_interface,
-            renderer: &self.renderer,
-            resource_manager: &self.resource_manager,
-            sound_context: self.sound_context.clone(),
-        }
-    }
-
     /// Performs single update tick with given time delta. Engine internally will perform update
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
@@ -201,3 +138,4 @@ impl Visit for Engine {
         visitor.leave_region()
     }
 }
+
