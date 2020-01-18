@@ -1,0 +1,12 @@
+[package]
+name = "rg3d-ui"
+version = "0.1.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rg3d-core = { path = "../rg3d-core", version = "0.4.0" }
+lazy_static = "1.4.0"
+downcast-rs = "1.1.1"
