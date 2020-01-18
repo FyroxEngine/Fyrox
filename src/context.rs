@@ -159,8 +159,18 @@ impl Context {
     }
 
     /// Sets new renderer.
-    pub fn set_renderer(&mut self, renderer: Renderer) {
-        self.renderer = renderer;
+    pub fn set_renderer(&mut self, renderer: Renderer) -> Renderer {
+        std::mem::replace(&mut self.renderer, renderer)
+    }
+
+    /// Returns shared reference to current renderer.
+    pub fn renderer(&self) -> &Renderer {
+        &self.renderer
+    }
+
+    /// Returns mutable reference to current renderer.
+    pub fn renderer_mut(&mut self) -> &mut Renderer {
+        &mut self.renderer
     }
 
     /// Sets new master gain. Master gain is used to control total sound volume that will be passed to output
