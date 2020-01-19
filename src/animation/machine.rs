@@ -506,6 +506,7 @@ pub struct Machine {
     transitions: Pool<Transition>,
     final_pose: AnimationPose,
     active_state: Handle<State>,
+    entry_state: Handle<State>,
     active_transition: Handle<Transition>,
     parameters: ParameterContainer,
     events: LimitedEventQueue,
@@ -553,6 +554,7 @@ impl Machine {
             transitions: Default::default(),
             final_pose: Default::default(),
             active_state: Default::default(),
+            entry_state: Default::default(),
             active_transition: Default::default(),
             parameters: Default::default(),
             events: LimitedEventQueue::new(2048),
@@ -573,6 +575,7 @@ impl Machine {
 
     pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
         self.active_state = entry_state;
+        self.entry_state = entry_state;
     }
 
     pub fn debug(&mut self, state: bool) {
@@ -598,6 +601,18 @@ impl Machine {
 
     pub fn pop_event(&mut self) -> Option<Event> {
         self.events.pop()
+    }
+
+    pub fn reset(&mut self) {
+        for transition in self.transitions.iter_mut() {
+            transition.reset();
+        }
+
+        self.active_state = self.entry_state;
+    }
+
+    pub fn active_state(&self) -> Handle<State> {
+        self.active_state
     }
 
     pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
@@ -680,6 +695,7 @@ impl Visit for Machine {
         self.transitions.visit("Transitions", visitor)?;
         self.states.visit("States", visitor)?;
         self.active_state.visit("ActiveState", visitor)?;
+        self.entry_state.visit("EntryState", visitor)?;
         self.active_transition.visit("ActiveTransition", visitor)?;
 
         visitor.leave_region()
