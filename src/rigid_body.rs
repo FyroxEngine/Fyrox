@@ -27,7 +27,7 @@ pub struct RigidBody {
     pub(in crate) last_position: Vec3,
     pub(in crate) acceleration: Vec3,
     pub(in crate) contacts: Vec<Contact>,
-    pub(in crate) friction: f32,
+    pub(in crate) friction: Vec3,
     pub(in crate) gravity: Vec3,
     pub(in crate) speed_limit: f32,
     pub(in crate) lifetime: Option<f32>,
@@ -101,7 +101,7 @@ impl RigidBody {
             position: Vec3::ZERO,
             last_position: Vec3::ZERO,
             acceleration: Vec3::ZERO,
-            friction: 0.2,
+            friction: Vec3::new(0.2, 0.2, 0.2),
             gravity: Vec3::new(0.0, -9.81, 0.0),
             shape,
             contacts: Vec::new(),
@@ -151,18 +151,14 @@ impl RigidBody {
     }
 
     #[inline]
-    pub fn set_friction(&mut self, friction: f32) {
-        self.friction = friction;
-
-        if self.friction < 0.0 {
-            self.friction = 0.0;
-        } else if self.friction > 1.0 {
-            self.friction = 1.0;
-        }
+    pub fn set_friction(&mut self, friction: Vec3) {
+        self.friction.x = friction.x.max(0.0).min(1.0);
+        self.friction.y = friction.y.max(0.0).min(1.0);
+        self.friction.z = friction.z.max(0.0).min(1.0);
     }
 
     #[inline]
-    pub fn get_friction(&self) -> f32 {
+    pub fn get_friction(&self) -> Vec3 {
         self.friction
     }
 
@@ -221,19 +217,16 @@ impl RigidBody {
             if !self.collision_flags.contains(CollisionFlags::DISABLE_COLLISION_RESPONSE) && !self.contacts.is_empty() {
                 self.friction
             } else {
-                air_friction
+                Vec3::new(air_friction, air_friction, air_friction)
             };
-
-        let k1 = 2.0 - friction;
-        let k2 = 1.0 - friction;
 
         let last_position = self.position;
 
         // Verlet integration
         self.position = Vec3 {
-            x: k1 * self.position.x - k2 * self.last_position.x + self.acceleration.x * sqr_delta_time,
-            y: k1 * self.position.y - k2 * self.last_position.y + self.acceleration.y * sqr_delta_time,
-            z: k1 * self.position.z - k2 * self.last_position.z + self.acceleration.z * sqr_delta_time,
+            x: (2.0 - friction.x) * self.position.x - (1.0 - friction.x) * self.last_position.x + self.acceleration.x * sqr_delta_time,
+            y: (2.0 - friction.y) * self.position.y - (1.0 - friction.y) * self.last_position.y + self.acceleration.y * sqr_delta_time,
+            z: (2.0 - friction.z) * self.position.z - (1.0 - friction.z) * self.last_position.z + self.acceleration.z * sqr_delta_time,
         };
 
         self.last_position = last_position;
