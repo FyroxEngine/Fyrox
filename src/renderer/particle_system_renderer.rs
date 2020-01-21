@@ -17,8 +17,8 @@ use crate::{
         particle_system,
         SceneInterface,
         SceneContainer,
-        base::AsBase
-    }
+        base::AsBase,
+    },
 };
 use crate::renderer::RenderPassStatistics;
 
@@ -123,7 +123,7 @@ impl ParticleSystemRenderer {
                   white_dummy: &GpuTexture,
                   frame_width: f32,
                   frame_height: f32,
-                  gbuffer: &GBuffer
+                  gbuffer: &GBuffer,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -165,7 +165,11 @@ impl ParticleSystemRenderer {
                 self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
                 if let Some(texture) = particle_system.get_texture() {
-                    texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                    if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                        texture.bind(0);
+                    } else {
+                        white_dummy.bind(0)
+                    }
                 } else {
                     white_dummy.bind(0)
                 }

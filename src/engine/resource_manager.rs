@@ -1,7 +1,4 @@
-use std::{
-    path::{PathBuf, Path},
-    sync::{Arc, Mutex},
-};
+use std::{path::{PathBuf, Path}, sync::{Arc, Mutex}, time};
 use crate::{
     sound::buffer::{SoundBuffer, DataSource},
     core::{
@@ -12,7 +9,7 @@ use crate::{
         model::Model,
         texture::TextureKind,
     },
-    utils::log::Log
+    utils::log::Log,
 };
 
 pub struct ResourceManager {
@@ -34,30 +31,48 @@ impl ResourceManager {
         }
     }
 
+    pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {
+        if let Some(texture) = self.find_texture(path.as_ref()) {
+            return Some(texture);
+        }
+
+        let texture = Arc::new(Mutex::new(Texture::default()));
+        self.textures.push(texture.clone());
+        let result = texture.clone();
+
+        let path = PathBuf::from(path.as_ref());
+        std::thread::spawn(move || {
+            if let Ok(mut texture) = texture.lock() {
+                let time = time::Instant::now();
+                match Texture::load_from_file(&path, kind) {
+                    Ok(raw_texture) => {
+                        *texture = raw_texture;
+                        Log::writeln(format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()));
+                    }
+                    Err(e) => {
+                        Log::writeln(format!("Unable to load texture {:?}! Reason {}", path, e));
+                    }
+                }
+            }
+        });
+
+        Some(result)
+    }
+
     pub fn request_texture<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return Some(texture);
         }
 
-        let extension = path.as_ref().extension().
-            and_then(|os| os.to_str()).
-            map_or(String::from(""), |s| s.to_ascii_lowercase());
-
-        match extension.as_str() {
-            "jpg" | "jpeg" | "png" | "tif" | "tiff" | "tga" | "bmp" => match Texture::load_from_file(path.as_ref(), kind) {
-                Ok(texture) => {
-                    let shared_texture = Arc::new(Mutex::new(texture));
-                    self.textures.push(shared_texture.clone());
-                    Log::writeln(format!("Texture {} is loaded!", path.as_ref().display()));
-                    Some(shared_texture)
-                }
-                Err(e) => {
-                    Log::writeln(format!("Unable to load texture {}! Reason {}", path.as_ref().display(), e));
-                    None
-                }
+        match Texture::load_from_file(path.as_ref(), kind) {
+            Ok(texture) => {
+                let shared_texture = Arc::new(Mutex::new(texture));
+                self.textures.push(shared_texture.clone());
+                Log::writeln(format!("Texture {} is loaded!", path.as_ref().display()));
+                Some(shared_texture)
             }
-            _ => {
-                Log::writeln(format!("Unsupported texture type {}!", path.as_ref().display()));
+            Err(e) => {
+                Log::writeln(format!("Unable to load texture {}! Reason {}", path.as_ref().display(), e));
                 None
             }
         }
@@ -175,7 +190,7 @@ impl ResourceManager {
 
     pub(in crate) fn update(&mut self) {
         self.textures.retain(|resource| {
-            Arc::strong_count(resource) > 1
+            !resource.lock().unwrap().loaded || Arc::strong_count(resource) > 1
         });
 
         self.models.retain(|models| {
@@ -188,7 +203,7 @@ impl ResourceManager {
     }
 
     pub fn reload_resources(&mut self) {
-        for old_texture in self.get_textures() {
+        for old_texture in self.textures.iter() {
             let mut old_texture = old_texture.lock().unwrap();
             let new_texture = match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
                 Ok(texture) => texture,
@@ -197,20 +212,22 @@ impl ResourceManager {
                     continue;
                 }
             };
-
+            old_texture.path = Default::default();
             *old_texture = new_texture;
         }
 
         for old_model in self.get_models().to_vec() {
+            let old_model_arc = old_model.clone();
             let mut old_model = old_model.lock().unwrap();
-            let new_model = match Model::load(old_model.path.as_path(), self) {
+            let mut new_model = match Model::load(old_model.path.as_path(), self) {
                 Ok(new_model) => new_model,
                 Err(e) => {
                     Log::writeln(format!("Unable to reload {:?} model! Reason: {}", old_model.path, e));
                     continue;
                 }
             };
-
+            new_model.self_weak_ref = Some(Arc::downgrade(&old_model_arc));
+            old_model.path = Default::default();
             *old_model = new_model;
         }
 

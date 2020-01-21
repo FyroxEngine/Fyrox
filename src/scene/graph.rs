@@ -11,6 +11,7 @@ use crate::scene::{
 };
 use std::collections::HashMap;
 use crate::utils::log::Log;
+use rg3d_core::math::vec3::Vec3;
 
 pub struct Graph {
     root: Handle<Node>,
@@ -95,7 +96,7 @@ impl Graph {
     /// Destroys node and its children recursively.
     #[inline]
     pub fn remove_node(&mut self, node_handle: Handle<Node>) {
-        self.unlink_nodes(node_handle);
+        self.unlink_internal(node_handle);
 
         self.stack.clear();
         self.stack.push(node_handle);
@@ -108,19 +109,7 @@ impl Graph {
         }
     }
 
-    /// Links specified child with specified parent.
-    #[inline]
-    pub fn link_nodes(&mut self, child_handle: Handle<Node>, parent_handle: Handle<Node>) {
-        self.unlink_nodes(child_handle);
-        let child = self.pool.borrow_mut(child_handle);
-        child.base_mut().parent = parent_handle;
-        let parent = self.pool.borrow_mut(parent_handle);
-        parent.base_mut().children.push(child_handle);
-    }
-
-    /// Unlinks specified node from its parent, so node will become root.
-    #[inline]
-    pub fn unlink_nodes(&mut self, node_handle: Handle<Node>) {
+    fn unlink_internal(&mut self, node_handle: Handle<Node>) {
         // Replace parent handle of child
         let node = self.pool.borrow_mut(node_handle);
         let parent_handle = node.base().parent;
@@ -133,6 +122,27 @@ impl Graph {
                 parent.base_mut().children.remove(i);
             }
         }
+    }
+
+    /// Links specified child with specified parent.
+    #[inline]
+    pub fn link_nodes(&mut self, child_handle: Handle<Node>, parent_handle: Handle<Node>) {
+        self.unlink_internal(child_handle);
+        let child = self.pool.borrow_mut(child_handle);
+        child.base_mut().parent = parent_handle;
+        let parent = self.pool.borrow_mut(parent_handle);
+        parent.base_mut().children.push(child_handle);
+    }
+
+    /// Unlinks specified node from its parent and attaches it to root graph node.
+    #[inline]
+    pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
+        self.unlink_internal(node_handle);
+        self.link_nodes(node_handle, self.root);
+        self.get_mut(node_handle)
+            .base_mut()
+            .get_local_transform_mut()
+            .set_position(Vec3::ZERO);
     }
 
     /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
@@ -319,18 +329,18 @@ impl Graph {
 
             let (parent_global_transform, parent_visibility) =
                 if parent_handle.is_some() {
-                    let parent = self.pool.borrow(parent_handle);
-                    (parent.base().get_global_transform(), parent.base().get_global_visibility())
+                    let parent = self.pool.borrow(parent_handle).base();
+                    (parent.get_global_transform(), parent.get_global_visibility())
                 } else {
                     (Mat4::IDENTITY, true)
                 };
 
-            let node = self.pool.borrow_mut(handle);
-            node.base_mut().global_transform = parent_global_transform * node.base().get_local_transform().get_matrix();
-            node.base_mut().global_visibility = parent_visibility && node.base().get_visibility();
+            let base = self.pool.borrow_mut(handle).base_mut();
+            base.global_transform = parent_global_transform * base.get_local_transform().get_matrix();
+            base.global_visibility = parent_visibility && base.get_visibility();
 
             // Queue children and continue traversal on them
-            for child_handle in node.base().get_children() {
+            for child_handle in base.get_children() {
                 self.stack.push(child_handle.clone());
             }
         }

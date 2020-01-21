@@ -22,11 +22,6 @@ use std::{
     time,
     ffi::CStr,
 };
-use crate::core::{
-    math::{vec3::Vec3, mat4::Mat4},
-    color::Color,
-    math::vec2::Vec2,
-};
 use glutin::PossiblyCurrent;
 use crate::{
     engine::resource_manager::ResourceManager,
@@ -50,9 +45,14 @@ use crate::{
         SceneContainer,
         node::Node,
     },
+    core::{
+        math::{vec3::Vec3, mat4::Mat4},
+        color::Color,
+        math::vec2::Vec2,
+    },
+    utils::log::Log,
+    core::math::TriangleDefinition
 };
-use crate::utils::log::Log;
-use crate::core::math::TriangleDefinition;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -132,12 +132,12 @@ impl Default for QualitySettings {
     fn default() -> Self {
         Self {
             point_shadow_map_size: 1024,
-            point_shadows_distance: 10.0,
+            point_shadows_distance: 5.0,
             point_shadows_enabled: true,
             point_soft_shadows: true,
 
             spot_shadow_map_size: 1024,
-            spot_shadows_distance: 10.0,
+            spot_shadows_distance: 5.0,
             spot_shadows_enabled: true,
             spot_soft_shadows: true,
         }
@@ -249,7 +249,7 @@ impl Renderer {
     pub fn upload_resources(&mut self, resource_manager: &mut ResourceManager) {
         for texture_rc in resource_manager.get_textures() {
             let mut texture = texture_rc.lock().unwrap();
-            if texture.gpu_tex.is_none() {
+            if texture.loaded && texture.gpu_tex.is_none() {
                 let gpu_texture = GpuTexture::new(
                     GpuTextureKind::Rectangle { width: texture.width as usize, height: texture.height as usize },
                     PixelKind::from(texture.kind), texture.bytes.as_slice(), true).unwrap();

@@ -119,7 +119,7 @@ impl SpotShadowMapRenderer {
     pub fn render(&mut self,
                   graph: &Graph,
                   light_view_projection: &Mat4,
-                  white_dummy: &GpuTexture
+                  white_dummy: &GpuTexture,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -184,7 +184,11 @@ impl SpotShadowMapRenderer {
                     // Bind diffuse texture.
                     self.shader.set_diffuse_texture(0);
                     if let Some(texture) = surface.get_diffuse_texture() {
-                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                        if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                            texture.bind(0);
+                        } else {
+                            white_dummy.bind(0);
+                        }
                     } else {
                         white_dummy.bind(0);
                     }
@@ -391,7 +395,7 @@ impl PointShadowMapRenderer {
                   graph: &Graph,
                   white_dummy: &GpuTexture,
                   light_pos: Vec3,
-                  light_radius: f32
+                  light_radius: f32,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -469,7 +473,11 @@ impl PointShadowMapRenderer {
                             // Bind diffuse texture.
                             self.shader.set_diffuse_texture(0);
                             if let Some(texture) = surface.get_diffuse_texture() {
-                                texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                                if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                                    texture.bind(0);
+                                } else {
+                                    white_dummy.bind(0);
+                                }
                             } else {
                                 white_dummy.bind(0);
                             }

@@ -284,14 +284,22 @@ impl GBuffer {
 
                     // Bind diffuse texture.
                     if let Some(texture) = surface.get_diffuse_texture() {
-                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                        if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                            texture.bind(0);
+                        } else {
+                            white_dummy.bind(0);
+                        }
                     } else {
                         white_dummy.bind(0);
                     }
 
                     // Bind normal texture.
                     if let Some(texture) = surface.get_normal_texture() {
-                        texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(1);
+                        if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                            texture.bind(1);
+                        } else {
+                            normal_dummy.bind(1);
+                        }
                     } else {
                         normal_dummy.bind(1);
                     }

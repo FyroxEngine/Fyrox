@@ -143,7 +143,11 @@ impl SpriteRenderer {
                 };
 
                 if let Some(texture) = sprite.get_texture() {
-                    texture.lock().unwrap().gpu_tex.as_ref().unwrap().bind(0);
+                    if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                        texture.bind(0);
+                    } else {
+                        white_dummy.bind(0)
+                    }
                 } else {
                     white_dummy.bind(0)
                 }

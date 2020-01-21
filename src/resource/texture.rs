@@ -12,7 +12,8 @@ pub struct Texture {
     pub(in crate) height: u32,
     pub(in crate) gpu_tex: Option<GpuTexture>,
     pub(in crate) bytes: Vec<u8>,
-    pub(in crate) kind: TextureKind
+    pub(in crate) kind: TextureKind,
+    pub(in crate) loaded: bool
 }
 
 impl Default for Texture {
@@ -23,7 +24,8 @@ impl Default for Texture {
             height: 0,
             gpu_tex: None,
             bytes: Vec::new(),
-            kind: TextureKind::RGBA8
+            kind: TextureKind::RGBA8,
+            loaded: false
         }
     }
 }
@@ -90,6 +92,7 @@ impl Texture {
             bytes,
             path: path.as_ref().to_path_buf(),
             gpu_tex: None,
+            loaded: true,
         })
     }
 }
