@@ -107,6 +107,7 @@ use std::{
     },
 };
 use crate::utils::log::Log;
+use rg3d_core::pool::PoolIterator;
 
 pub enum Event {
     StateEnter(Handle<State>),
@@ -116,7 +117,7 @@ pub enum Event {
 
 #[derive(Default)]
 pub struct PlayAnimation {
-    animation: Handle<Animation>,
+    pub animation: Handle<Animation>,
     output_pose: RefCell<AnimationPose>,
 }
 
@@ -609,6 +610,10 @@ impl Machine {
         }
 
         self.active_state = self.entry_state;
+    }
+
+    pub fn nodes(&self) -> PoolIterator<PoseNode> {
+        self.nodes.iter()
     }
 
     pub fn active_state(&self) -> Handle<State> {

@@ -909,9 +909,7 @@ impl Fbx {
                         // Here we will load *every* texture as RGBA8, this probably is overkill,
                         // that will lead to higher memory consumption, but this will remove
                         // problems with transparent textures (like mesh texture, etc.)
-                        if let Some(texture_resource) = resource_manager.request_texture(diffuse_path.as_path(), TextureKind::RGBA8) {
-                            surface.set_diffuse_texture(texture_resource);
-                        }
+                        surface.set_diffuse_texture(resource_manager.request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8));
 
                         let mut normal_map_name = file_stem.to_os_string();
                         normal_map_name.push("_normal.");
@@ -921,9 +919,7 @@ impl Fbx {
                             // Not sure if alpha channel is useful on normal maps, so will use RGB8 here.
                             // Potentially it can be used to store some per-pixel material data like
                             // roughness, shininess, etc. For now this is a TODO.
-                            if let Some(texture_resource) = resource_manager.request_texture(normal_path.as_path(), TextureKind::RGB8) {
-                                surface.set_normal_texture(texture_resource);
-                            }
+                            surface.set_normal_texture(resource_manager.request_texture_async(normal_path.as_path(), TextureKind::RGB8));
                         }
                     }
                 }

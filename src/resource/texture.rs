@@ -1,7 +1,11 @@
 use std::path::*;
 use crate::{
     renderer::gpu_texture::GpuTexture,
-    core::visitor::{Visit, VisitResult, Visitor},
+    core::visitor::{
+        Visit,
+        VisitResult,
+        Visitor
+    },
     utils::log::Log
 };
 use image::GenericImageView;
@@ -94,6 +98,10 @@ impl Texture {
             gpu_tex: None,
             loaded: true,
         })
+    }
+
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
     }
 }
 

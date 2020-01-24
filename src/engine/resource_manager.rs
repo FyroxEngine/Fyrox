@@ -31,9 +31,13 @@ impl ResourceManager {
         }
     }
 
-    pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {
+    /// Experimental async texture loader. Always returns valid texture object which could still
+    /// be not loaded, you should check is_loaded flag to ensure.
+    ///
+    /// It extensively used in model loader to speed up loading.
+    pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Arc<Mutex<Texture>> {
         if let Some(texture) = self.find_texture(path.as_ref()) {
-            return Some(texture);
+            return texture;
         }
 
         let texture = Arc::new(Mutex::new(Texture::default()));
@@ -56,7 +60,7 @@ impl ResourceManager {
             }
         });
 
-        Some(result)
+        result
     }
 
     pub fn request_texture<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Option<Arc<Mutex<Texture>>> {

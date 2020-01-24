@@ -53,6 +53,9 @@ impl Visit for Model {
 
 pub struct ModelInstance {
     pub root: Handle<Node>,
+
+    /// List of instantiated animations that were inside model resource.
+    /// You must free them when you do not need model anymore
     pub animations: Vec<Handle<Animation>>,
 }
 

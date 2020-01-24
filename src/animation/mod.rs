@@ -458,7 +458,11 @@ impl Animation {
             } = resource.get_scene().interface();
             if let Some(ref_animation) = resource_animations.pool.at(0) {
                 for track in self.get_tracks_mut() {
+                    // This may panic if animation has track that refers to a deleted node,
+                    // it can happen if you deleted a node but forgot to remove animation
+                    // that uses this node.
                     let track_node = graph.get(track.get_node()).base();
+
                     // Find corresponding track in resource using names of nodes, not
                     // original handles of instantiated nodes. We can't use original
                     // handles here because animation can be targetted to a node that
