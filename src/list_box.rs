@@ -144,7 +144,7 @@ impl Control for ListBox {
     fn raw_copy(&self) -> Box<dyn Control> {
         Box::new(Self {
             widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
-            selected_index: self.selected_index.clone(),
+            selected_index: self.selected_index,
             items: self.items.clone(),
         })
     }

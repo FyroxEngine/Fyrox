@@ -157,14 +157,14 @@ impl DrawingContext {
 
     #[inline]
     fn push_triangle(&mut self, a: u32, b: u32, c: u32) {
-        self.triangle_buffer.push(TriangleDefinition { a, b, c });
+        self.triangle_buffer.push(TriangleDefinition { indices: [a, b, c] });
         self.triangles_to_commit += 1;
     }
 
     #[inline]
     fn get_index_origin(&self) -> u32 {
         match self.triangle_buffer.last() {
-            Some(last) => last.c + 1,
+            Some(last) => last.indices.last().unwrap() + 1,
             None => 0
         }
     }
@@ -185,15 +185,15 @@ impl DrawingContext {
                 return false;
             };
 
-            let va = match self.vertex_buffer.get(triangle.a as usize) {
+            let va = match self.vertex_buffer.get(triangle.indices[0] as usize) {
                 Some(v) => v,
                 None => return false
             };
-            let vb = match self.vertex_buffer.get(triangle.b as usize) {
+            let vb = match self.vertex_buffer.get(triangle.indices[1] as usize) {
                 Some(v) => v,
                 None => return false
             };
-            let vc = match self.vertex_buffer.get(triangle.c as usize) {
+            let vc = match self.vertex_buffer.get(triangle.indices[2] as usize) {
                 Some(v) => v,
                 None => return false
             };
