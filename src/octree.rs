@@ -3,8 +3,8 @@ use crate::{
     math::{
         aabb::AxisAlignedBoundingBox,
         vec3::Vec3,
-        ray::{Ray, IntersectionResult}
-    }
+        ray::{Ray, IntersectionResult},
+    },
 };
 
 pub enum OctreeNode {
@@ -110,6 +110,28 @@ impl Octree {
                 if ray.box_intersection(&bounds.min, &bounds.max, &mut result) {
                     for leaf in leaves {
                         self.ray_recursive_query(*leaf, ray, buffer)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn point_query(&self, point: Vec3, buffer: &mut Vec<u32>) {
+        buffer.clear();
+        self.point_recursive_query(self.root, point, buffer);
+    }
+
+    fn point_recursive_query(&self, node: Handle<OctreeNode>, point: Vec3, buffer: &mut Vec<u32>) {
+        match self.nodes.borrow(node) {
+            OctreeNode::Leaf { indices, bounds } => {
+                if bounds.is_contains_point(point) {
+                    buffer.extend_from_slice(indices)
+                }
+            }
+            OctreeNode::Branch { bounds, leaves } => {
+                if bounds.is_contains_point(point) {
+                    for leaf in leaves {
+                        self.point_recursive_query(*leaf, point, buffer)
                     }
                 }
             }

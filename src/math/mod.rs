@@ -313,9 +313,53 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3
     Vec3::new(x, y, z)
 }
 
+#[derive(Clone, PartialEq, Eq)]
 #[repr(C)]
 pub struct TriangleDefinition {
-    pub a: u32,
-    pub b: u32,
-    pub c: u32,
+    pub indices: [u32; 3]
+}
+
+pub trait PositionProvider: Sized {
+    fn position(&self) -> Vec3;
+}
+
+impl PositionProvider for Vec3 {
+    fn position(&self) -> Vec3 {
+        *self
+    }
+}
+
+/// Tries to find a point closest to given point.
+///
+/// # Notes
+///
+/// O(n) complexity.
+pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vec3) -> Option<usize> {
+    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_index = None;
+    for (i, vertex) in points.iter().enumerate() {
+        let sqr_distance = (vertex.position() - point).sqr_len();
+        if sqr_distance < closest_sqr_distance {
+            closest_sqr_distance = sqr_distance;
+            closest_index = Some(i);
+        }
+    }
+    closest_index
+}
+
+pub fn get_closest_point_triangles<P: PositionProvider>(points: &[P], triangles: &[TriangleDefinition], triangle_indices: &[u32], point: Vec3) -> Option<usize> {
+    let mut closest_sqr_distance = std::f32::MAX;
+    let mut closest_index = None;
+    for triangle_index in triangle_indices {
+        let triangle = triangles.get(*triangle_index as usize).unwrap();
+        for point_index in triangle.indices.iter() {
+            let vertex = points.get(*point_index as usize).unwrap();
+            let sqr_distance = (vertex.position() - point).sqr_len();
+            if sqr_distance < closest_sqr_distance {
+                closest_sqr_distance = sqr_distance;
+                closest_index = Some(*point_index as usize);
+            }
+        }
+    }
+    closest_index
 }

@@ -19,6 +19,12 @@ impl Default for Color {
     }
 }
 
+impl Into<u32> for Color {
+    fn into(self) -> u32 {
+        ((self.r as u32) << 24) | ((self.g as u32) << 16) | ((self.b as u32) << 8) | (self.a as u32)
+    }
+}
+
 impl Color {
     pub const WHITE: Self = Self { r: 255, g: 255, b: 255, a: 255 };
     pub const BLACK: Self = Self { r: 0, g: 0, b: 0, a: 255 };
