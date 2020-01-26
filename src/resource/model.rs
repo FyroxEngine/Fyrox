@@ -2,8 +2,6 @@ use crate::{
     scene::{
         Scene,
         node::Node,
-        SceneInterface,
-        SceneInterfaceMut,
         base::AsBase
     },
     animation::Animation,
@@ -86,17 +84,14 @@ impl Model {
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let SceneInterfaceMut { graph: dest_graph, .. } = dest_scene.interface_mut();
-        let SceneInterface { graph: resource_graph, .. } = self.scene.interface();
-
-        let root = resource_graph.copy_node(resource_graph.get_root(), dest_graph);
-        dest_graph.get_mut(root).base_mut().is_resource_instance = true;
+        let root = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph);
+        dest_scene.graph.get_mut(root).base_mut().is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = Vec::new();
         stack.push(root);
         while let Some(node_handle) = stack.pop() {
-            let node = dest_graph.get_mut(node_handle);
+            let node = dest_scene.graph.get_mut(node_handle);
 
             node.base_mut().resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
@@ -143,30 +138,20 @@ impl Model {
     pub fn retarget_animations(&self, root: Handle<Node>, dest_scene: &mut Scene) -> Vec<Handle<Animation>> {
         let mut animation_handles = Vec::new();
 
-        let SceneInterface {
-            animations: resource_animations,
-            graph: resource_graph, ..
-        } = self.scene.interface();
-
-        for ref_anim in resource_animations.iter() {
+        for ref_anim in self.scene.animations.iter() {
             let mut anim_copy = ref_anim.clone();
 
             // Keep reference to resource from which this animation was taken from. This will help
             // us to correctly reload keyframes for each track when we'll be loading a save file.
             anim_copy.resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
-            let SceneInterfaceMut {
-                animations: dest_animations,
-                graph: dest_graph, ..
-            } = dest_scene.interface_mut();
-
             // Remap animation track nodes from resource to instance. This is required
             // because we've made a plain copy and it has tracks with node handles mapped
             // to nodes of internal scene.
             for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
-                let ref_node = resource_graph.get(ref_track.get_node());
+                let ref_node = self.scene.graph.get(ref_track.get_node());
                 // Find instantiated node that corresponds to node in resource
-                let instance_node = dest_graph.find_by_name(root, ref_node.base().get_name());
+                let instance_node = dest_scene.graph.find_by_name(root, ref_node.base().get_name());
                 if instance_node.is_none() {
                     Log::writeln(format!("Failed to retarget animation for node {}", ref_node.base().get_name()));
                 }
@@ -174,7 +159,7 @@ impl Model {
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);
             }
 
-            animation_handles.push(dest_animations.add(anim_copy));
+            animation_handles.push(dest_scene.animations.add(anim_copy));
         }
 
         animation_handles
@@ -186,8 +171,7 @@ impl Model {
     }
 
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
-        let SceneInterface { graph, .. } = self.scene.interface();
-        graph.find_by_name_from_root(name)
+        self.scene.graph.find_by_name_from_root(name)
     }
 }
 

@@ -16,9 +16,9 @@ pub enum RendererError {
     UnableToFindShaderUniform(String),
     InvalidTextureData,
 
-    /// Means that you tried to draw triangle range from GeometryBuffer that
-    /// does not have enough triangles.
-    InvalidTriangleRange {
+    /// Means that you tried to draw element range from GeometryBuffer that
+    /// does not have enough elements.
+    InvalidElementRange {
         start: usize,
         end: usize,
         total: usize,
@@ -31,7 +31,7 @@ pub enum RendererError {
     /// But you described second attribute as Float4, then you'll get this error.
     InvalidAttributeDescriptor,
 
-    InvalidFrameBuffer
+    InvalidFrameBuffer,
 }
 
 impl From<NulError> for RendererError {

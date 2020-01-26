@@ -17,7 +17,7 @@ fn main() {
 
     let mut engine = Engine::new(window_builder, &event_loop).unwrap();
 
-    engine.interface_mut().renderer.set_ambient_color(Color::opaque(100, 100, 200));
+    engine.renderer.set_ambient_color(Color::opaque(100, 100, 200));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

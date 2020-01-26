@@ -6,7 +6,6 @@ use crate::core::{
 };
 use crate::scene::{
     node::Node,
-    SceneInterface,
     base::AsBase,
 };
 use std::collections::HashMap;
@@ -258,8 +257,7 @@ impl Graph {
             let base = node.base_mut();
             if let Some(model) = base.get_resource() {
                 let model = model.lock().unwrap();
-                let SceneInterface { graph: resource_graph, .. } = model.get_scene().interface();
-                for (handle, resource_node) in resource_graph.pair_iter() {
+                for (handle, resource_node) in model.get_scene().graph.pair_iter() {
                     if resource_node.base().get_name() == base.get_name() {
                         base.original = handle;
                         base.inv_bind_pose_transform = resource_node.base().get_inv_bind_pose_transform();
@@ -297,8 +295,7 @@ impl Graph {
                     if let Some(model) = mesh.base().get_resource() {
                         let model = model.lock().unwrap();
                         let resource_node_handle = model.find_node_by_name(node_name.as_str());
-                        let SceneInterface { graph: resource_graph, .. } = model.get_scene().interface();
-                        if let Node::Mesh(resource_mesh) = resource_graph.get(resource_node_handle) {
+                        if let Node::Mesh(resource_mesh) = model.get_scene().graph.get(resource_node_handle) {
                             // Copy surfaces from resource and assign to meshes.
                             mesh.clear_surfaces();
                             for resource_surface in resource_mesh.get_surfaces() {

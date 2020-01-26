@@ -161,7 +161,7 @@ impl Parameter {
         }
     }
 
-    fn id(&self) -> i32 {
+    fn id(self) -> i32 {
         match self {
             Parameter::Weight(_) => 0,
             Parameter::Rule(_) => 1,

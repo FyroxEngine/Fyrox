@@ -23,18 +23,17 @@ use crate::{
         },
     },
     scene::{
-        SceneInterface,
         node::Node,
         graph::Graph,
         base::AsBase,
     },
     resource::model::Model,
+    utils::log::Log
 };
 use std::{
     sync::{Mutex, Arc},
     collections::HashMap,
 };
-use crate::utils::log::Log;
 
 #[derive(Copy, Clone)]
 pub struct KeyFrame {
@@ -452,11 +451,7 @@ impl Animation {
         if let Some(resource) = self.resource.clone() {
             let resource = resource.lock().unwrap();
             // TODO: Here we assume that resource contains only *one* animation.
-            let SceneInterface {
-                animations: resource_animations,
-                graph: resource_graph, ..
-            } = resource.get_scene().interface();
-            if let Some(ref_animation) = resource_animations.pool.at(0) {
+            if let Some(ref_animation) = resource.get_scene().animations.pool.at(0) {
                 for track in self.get_tracks_mut() {
                     // This may panic if animation has track that refers to a deleted node,
                     // it can happen if you deleted a node but forgot to remove animation
@@ -475,7 +470,7 @@ impl Animation {
                     // animation targetted to character instance.
                     let mut found = false;
                     for ref_track in ref_animation.get_tracks().iter() {
-                        if track_node.get_name() == resource_graph.get(ref_track.get_node()).base().get_name() {
+                        if track_node.get_name() == resource.get_scene().graph.get(ref_track.get_node()).base().get_name() {
                             track.set_key_frames(ref_track.get_key_frames());
                             found = true;
                             break;

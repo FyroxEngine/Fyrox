@@ -4,7 +4,6 @@ use crate::{
         camera::Camera,
         Scene,
         node::Node,
-        SceneInterface,
         light::LightKind,
         base::AsBase,
     },
@@ -20,16 +19,16 @@ use crate::{
         shadow_map_renderer::PointShadowMapRenderer,
         QualitySettings,
         RenderPassStatistics
-    }
-};
-use crate::core::{
-    math::{
-        vec2::Vec2,
-        vec3::Vec3,
-        mat4::Mat4,
-        frustum::Frustum,
     },
-    color::Color,
+    core::{
+        math::{
+            vec2::Vec2,
+            vec3::Vec3,
+            mat4::Mat4,
+            frustum::Frustum,
+        },
+        color::Color,
+    }
 };
 
 struct AmbientLightShader {
@@ -276,9 +275,7 @@ impl DeferredLightRenderer {
             let view_projection = context.camera.get_view_projection_matrix();
             let inv_view_projection = view_projection.inverse().unwrap();
 
-            let SceneInterface { graph, .. } = context.scene.interface();
-
-            for light_node in graph.linear_iter() {
+            for light_node in context.scene.graph.linear_iter() {
                 if !light_node.base().get_global_visibility() {
                     continue;
                 }
@@ -328,7 +325,7 @@ impl DeferredLightRenderer {
                         light_view_projection = light_projection_matrix * light_view_matrix;
 
                         statistics += self.spot_shadow_map_renderer.render(
-                            graph,
+                            &context.scene.graph,
                             &light_view_projection,
                             context.white_dummy,
                         );
@@ -337,7 +334,7 @@ impl DeferredLightRenderer {
                     }
                     LightKind::Point(_) if distance_to_camera <= context.settings.point_shadows_distance && context.settings.point_shadows_enabled => {
                         statistics += self.point_shadow_map_renderer.render(
-                            graph,
+                            &context.scene.graph,
                             context.white_dummy,
                             light_position,
                             light_radius,

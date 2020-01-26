@@ -1,6 +1,8 @@
 use crate::core::math::vec3::Vec3;
+use crate::core::math;
+use rg3d_core::math::PositionProvider;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathVertexState {
     NonVisited,
     Open,
@@ -35,13 +37,17 @@ impl PathVertex {
         self.state = PathVertexState::NonVisited;
         self.parent = None;
     }
+
+    pub fn neighbours(&self) -> &[usize] {
+        &self.neighbours
+    }
 }
 
 pub struct PathFinder {
     vertices: Vec<PathVertex>
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathKind {
     Full,
     Partial,
@@ -58,6 +64,13 @@ impl Default for PathFinder {
     }
 }
 
+impl PositionProvider for PathVertex {
+    fn position(&self) -> Vec3 {
+        self.position
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub enum PathError {
     InvalidIndex(usize),
     CyclicReferenceFound,
@@ -83,16 +96,7 @@ impl PathFinder {
     ///
     /// O(n) complexity.
     pub fn get_closest_vertex_to(&self, point: Vec3) -> Option<usize> {
-        let mut closest_sqr_distance = std::f32::MAX;
-        let mut closest_index = None;
-        for (i, vertex) in self.vertices.iter().enumerate() {
-            let sqr_distance = (vertex.position - point).sqr_len();
-            if sqr_distance < closest_sqr_distance {
-                closest_sqr_distance = sqr_distance;
-                closest_index = Some(i);
-            }
-        }
-        closest_index
+        math::get_closest_point(&self.vertices, point)
     }
 
     /// Creates bidirectional link between two vertices. Bidirectional means
@@ -114,6 +118,10 @@ impl PathFinder {
     /// Returns shared reference to path vertex at given index.
     pub fn get_vertex(&self, index: usize) -> Option<&PathVertex> {
         self.vertices.get(index)
+    }
+
+    pub fn vertices(&self) -> &[PathVertex] {
+        &self.vertices
     }
 
     /// Tries to build path from begin point to end point. Returns path kind:
@@ -150,11 +158,11 @@ impl PathFinder {
         let mut open_set_size = 1;
         while open_set_size > 0 {
             let mut current_index = 0;
+            let mut lowest_f_score = std::f32::MAX;
             for (i, vertex) in self.vertices.iter().enumerate() {
-                let current_vertex = self.vertices.get(current_index)
-                    .ok_or(PathError::InvalidIndex(current_index))?;
-                if vertex.state == PathVertexState::Open && vertex.f_score < current_vertex.f_score {
+                if vertex.state == PathVertexState::Open && vertex.f_score < lowest_f_score {
                     current_index = i;
+                    lowest_f_score = vertex.f_score;
                 }
             }
 
@@ -171,7 +179,8 @@ impl PathFinder {
                 &mut *(&mut self.vertices as *mut _)
             };
 
-            let current_vertex = self.vertices.get_mut(current_index)
+            let current_vertex = self.vertices
+                .get_mut(current_index)
                 .ok_or(PathError::InvalidIndex(current_index))?;
 
             current_vertex.state = PathVertexState::Closed;
@@ -183,25 +192,21 @@ impl PathFinder {
                 }
 
                 // Safely get mutable reference to neighbour
-                let neighbour = unsafe_vertices.get_mut(*neighbour_index)
+                let neighbour = unsafe_vertices
+                    .get_mut(*neighbour_index)
                     .ok_or(PathError::InvalidIndex(*neighbour_index))?;
 
-                if neighbour.state == PathVertexState::Closed {
-                    continue;
+                let g_score = current_vertex.g_score + current_vertex.position.sqr_distance(&neighbour.position);
+                if g_score < neighbour.g_score {
+                    neighbour.parent = Some(current_index);
+                    neighbour.g_score = g_score;
+                    neighbour.f_score = g_score + heuristic(neighbour.position, end_pos);
+
+                    if neighbour.state != PathVertexState::Open {
+                        neighbour.state = PathVertexState::Open;
+                        open_set_size += 1;
+                    }
                 }
-
-                neighbour.state = PathVertexState::Open;
-                open_set_size += 1;
-
-                let g_score = current_vertex.g_score + heuristic(current_vertex.position, neighbour.position);
-
-                if g_score >= neighbour.g_score {
-                    continue;
-                }
-
-                neighbour.parent = Some(current_index);
-                neighbour.g_score = g_score;
-                neighbour.f_score = g_score + heuristic(neighbour.position, end_pos);
             }
         }
 

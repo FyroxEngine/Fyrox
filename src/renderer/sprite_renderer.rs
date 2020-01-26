@@ -1,24 +1,26 @@
 use std::ffi::CString;
-use crate::core::{
-    math::mat4::Mat4,
-    math::vec3::Vec3,
-};
-use crate::core::color::Color;
 use crate::{
     scene::{
         SceneContainer,
         node::Node,
-        SceneInterface,
         base::AsBase
     },
     renderer::{
         surface::SurfaceSharedData,
         gpu_program::{GpuProgram, UniformLocation},
         error::RendererError,
-        gl, gpu_texture::GpuTexture,
+        gl,
+        gpu_texture::GpuTexture,
+        RenderPassStatistics
     },
+    core::{
+        color::Color,
+        math::{
+            mat4::Mat4,
+            vec3::Vec3
+        }
+    }
 };
-use crate::renderer::RenderPassStatistics;
 
 pub struct SpriteShader {
     program: GpuProgram,
@@ -115,10 +117,8 @@ impl SpriteRenderer {
         self.shader.bind();
 
         for scene in scenes.iter() {
-            let SceneInterface { graph, .. } = scene.interface();
-
             // Prepare for render - fill lists of nodes participating in rendering.
-            let camera_node = match graph.linear_iter().find(|node| node.is_camera()) {
+            let camera_node = match scene.graph.linear_iter().find(|node| node.is_camera()) {
                 Some(camera_node) => camera_node,
                 None => continue
             };
@@ -135,7 +135,7 @@ impl SpriteRenderer {
             let camera_up = inv_view.up();
             let camera_side = inv_view.side();
 
-            for node in graph.linear_iter() {
+            for node in scene.graph.linear_iter() {
                 let sprite = if let Node::Sprite(sprite) = node {
                     sprite
                 } else {

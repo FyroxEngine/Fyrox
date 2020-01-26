@@ -3,6 +3,7 @@ pub(in crate) mod gl;
 pub mod surface;
 pub mod gpu_program;
 pub mod error;
+pub mod debug_renderer;
 
 macro_rules! check_gl_error {
     () => (crate::renderer::check_gl_error_internal(line!(), file!()))
@@ -18,11 +19,11 @@ mod flat_shader;
 pub mod gpu_texture;
 mod sprite_renderer;
 
+use glutin::PossiblyCurrent;
 use std::{
     time,
     ffi::CStr,
 };
-use glutin::PossiblyCurrent;
 use crate::{
     engine::resource_manager::ResourceManager,
     gui::draw::DrawingContext,
@@ -33,25 +34,29 @@ use crate::{
         gbuffer::GBuffer,
         deferred_light_renderer::{
             DeferredLightRenderer,
-            DeferredRendererContext
+            DeferredRendererContext,
         },
         error::RendererError,
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer,
         gl::types::{GLsizei, GLenum, GLuint, GLchar},
+        debug_renderer::DebugRenderer,
     },
     scene::{
         SceneContainer,
         node::Node,
     },
     core::{
-        math::{vec3::Vec3, mat4::Mat4},
+        math::{
+            vec3::Vec3,
+            mat4::Mat4,
+            vec2::Vec2,
+            TriangleDefinition,
+        },
         color::Color,
-        math::vec2::Vec2,
     },
     utils::log::Log,
-    core::math::TriangleDefinition
 };
 
 #[derive(Copy, Clone)]
@@ -80,7 +85,7 @@ impl Default for RenderPassStatistics {
     fn default() -> Self {
         Self {
             draw_calls: 0,
-            triangles_rendered: 0
+            triangles_rendered: 0,
         }
     }
 }
@@ -203,6 +208,7 @@ pub struct Renderer {
     frame_size: (u32, u32),
     ambient_color: Color,
     quality_settings: QualitySettings,
+    pub debug_renderer: DebugRenderer,
 }
 
 impl Renderer {
@@ -231,6 +237,7 @@ impl Renderer {
             particle_system_renderer: ParticleSystemRenderer::new()?,
             ambient_color: Color::opaque(100, 100, 100),
             quality_settings: settings,
+            debug_renderer: DebugRenderer::new()?,
         })
     }
 
@@ -294,7 +301,7 @@ impl Renderer {
 
         // Render scenes into g-buffer.
         for scene in scenes.iter() {
-            let graph = scene.interface().graph;
+            let graph = &scene.graph;
 
             // Prepare for render - fill lists of nodes participating in rendering.
             let camera = match graph.linear_iter().find(|node| node.is_camera()) {
@@ -336,6 +343,8 @@ impl Renderer {
         );
 
         self.statistics += self.sprite_renderer.render(scenes, &self.white_dummy);
+
+        self.statistics += self.debug_renderer.render(scenes);
 
         unsafe {
             // Finally render everything into back buffer.

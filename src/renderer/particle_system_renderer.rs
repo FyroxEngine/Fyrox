@@ -1,26 +1,32 @@
 use std::ffi::CString;
-use crate::core::math::{
-    mat4::Mat4,
-    vec3::Vec3,
-    vec2::Vec2,
-};
 use crate::{
     renderer::{
-        geometry_buffer::{GeometryBuffer, GeometryBufferKind, AttributeDefinition, AttributeKind},
-        gl, gpu_program::{GpuProgram, UniformLocation},
+        geometry_buffer::{
+            GeometryBuffer,
+            GeometryBufferKind,
+            AttributeDefinition,
+            AttributeKind
+        },
+        gl,
+        gpu_program::{GpuProgram, UniformLocation},
         gbuffer::GBuffer,
         error::RendererError,
         gpu_texture::GpuTexture,
+        RenderPassStatistics,
+        geometry_buffer::ElementKind
     },
     scene::{
         node::Node,
         particle_system,
-        SceneInterface,
         SceneContainer,
         base::AsBase,
     },
+    core::math::{
+        mat4::Mat4,
+        vec3::Vec3,
+        vec2::Vec2,
+    },
 };
-use crate::renderer::RenderPassStatistics;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -99,7 +105,7 @@ pub struct ParticleSystemRenderer {
 
 impl ParticleSystemRenderer {
     pub fn new() -> Result<Self, RendererError> {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw);
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
         geometry_buffer.describe_attributes(vec![
             AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
@@ -137,10 +143,8 @@ impl ParticleSystemRenderer {
         self.shader.bind();
 
         for scene in scenes.iter() {
-            let SceneInterface { graph, .. } = scene.interface();
-
             // Prepare for render - fill lists of nodes participating in rendering.
-            let camera = match graph.linear_iter().find(|node| node.is_camera()) {
+            let camera = match scene.graph.linear_iter().find(|node| node.is_camera()) {
                 Some(camera) => camera.as_camera(),
                 None => continue
             };
@@ -150,7 +154,7 @@ impl ParticleSystemRenderer {
             let camera_up = inv_view.up();
             let camera_side = inv_view.side();
 
-            for node in graph.linear_iter() {
+            for node in scene.graph.linear_iter() {
                 let particle_system = if let Node::ParticleSystem(particle_system) = node {
                     particle_system
                 } else {

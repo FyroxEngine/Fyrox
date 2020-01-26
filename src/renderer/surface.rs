@@ -19,6 +19,7 @@ use std::{
     sync::{Mutex, Arc},
     cell::Cell,
 };
+use crate::renderer::geometry_buffer::ElementKind;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -46,7 +47,7 @@ impl Default for SurfaceSharedData {
 
 impl SurfaceSharedData {
     pub fn new() -> Self {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw);
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
 
         geometry_buffer.describe_attributes(vec![
             AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
@@ -77,11 +78,7 @@ impl SurfaceSharedData {
 
             let mut triangles = Vec::with_capacity(self.indices.len() / 3);
             for i in (0..self.indices.len()).step_by(3) {
-                triangles.push(TriangleDefinition {
-                    a: self.indices[i],
-                    b: self.indices[i + 1],
-                    c: self.indices[i + 2],
-                });
+                triangles.push(TriangleDefinition { indices: [self.indices[i], self.indices[i + 1], self.indices[i + 2]] });
             }
 
             self.geometry_buffer.set_triangles(&triangles);
@@ -102,7 +99,7 @@ impl SurfaceSharedData {
         self.indices.push(match self.vertices.iter().rposition(|v| {
             v.position == vertex.position && v.normal == vertex.normal && v.tex_coord == vertex.tex_coord
         }) {
-            Some(exisiting_index) => exisiting_index as u32, // Already have such vertex
+            Some(existing_index) => existing_index as u32, // Already have such vertex
             None => { // No such vertex, add it
                 is_unique = true;
                 let index = self.vertices.len() as u32;
@@ -705,7 +702,7 @@ impl Surface {
 
     #[inline]
     pub fn get_data(&self) -> Arc<Mutex<SurfaceSharedData>> {
-        Arc::clone(&self.data)
+        self.data.clone()
     }
 
     #[inline]

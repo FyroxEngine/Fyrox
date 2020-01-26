@@ -24,6 +24,7 @@ use crate::renderer::RenderPassStatistics;
 use std::sync::{Mutex};
 use crate::resource::texture::Texture;
 use std::any::Any;
+use crate::renderer::geometry_buffer::ElementKind;
 
 struct UIShader {
     program: GpuProgram,
@@ -69,7 +70,7 @@ pub struct UIRenderer {
 
 impl UIRenderer {
     pub(in crate::renderer) fn new() -> Result<Self, RendererError> {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw);
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
         geometry_buffer.describe_attributes(vec![
             AttributeDefinition { kind: AttributeKind::Float2, normalized: false },

@@ -11,20 +11,8 @@ use std::{
     io::{Read, Cursor},
     collections::{HashMap, HashSet},
     time::Instant,
+    sync::{Arc, Mutex}
 };
-use crate::core::{
-    color::Color,
-    pool::{Handle, Pool},
-    math::{
-        vec4::Vec4,
-        vec3::Vec3,
-        vec2::Vec2,
-        mat4::Mat4,
-        quat::{Quat, RotationOrder},
-        triangulator::triangulate,
-    },
-};
-use std::sync::{Arc, Mutex};
 use crate::{
     resource::{
         texture::TextureKind,
@@ -33,6 +21,7 @@ use crate::{
             attribute::FbxAttribute,
             error::FbxError,
         },
+        fbx::geometry::FbxGeometry
     },
     animation::{
         AnimationContainer,
@@ -42,7 +31,6 @@ use crate::{
     },
     scene::{
         graph::Graph,
-        SceneInterfaceMut,
         Scene,
         node::Node,
         mesh::Mesh,
@@ -61,9 +49,20 @@ use crate::{
             Vertex, VertexWeightSet,
         }
     },
+    core::{
+        color::Color,
+        pool::{Handle, Pool},
+        math::{
+            vec4::Vec4,
+            vec3::Vec3,
+            vec2::Vec2,
+            mat4::Mat4,
+            quat::{Quat, RotationOrder},
+            triangulator::triangulate,
+        },
+    },
+    utils::log::Log
 };
-use crate::resource::fbx::geometry::FbxGeometry;
-use crate::utils::log::Log;
 
 // https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
@@ -725,14 +724,21 @@ fn convert_vertex(geom: &FbxGeometry,
         .ok_or(FbxError::IndexOutOfBounds)?);
 
     let normal = geometric_transform.transform_vector_normal(match geom.normals.mapping {
-        FbxMapping::ByPolygonVertex => *geom.normals.elements.get(relative_index)
+        FbxMapping::ByPolygonVertex => *geom.normals
+            .elements
+            .get(relative_index)
             .ok_or(FbxError::IndexOutOfBounds)?,
-        FbxMapping::ByVertex => *geom.normals.elements.get(index).ok_or(FbxError::IndexOutOfBounds)?,
+        FbxMapping::ByVertex => *geom.normals
+            .elements
+            .get(index)
+            .ok_or(FbxError::IndexOutOfBounds)?,
         _ => Vec3 { x: 0.0, y: 1.0, z: 0.0 }
     });
 
     let tangent = geometric_transform.transform_vector_normal(match geom.tangents.mapping {
-        FbxMapping::ByPolygonVertex => *geom.tangents.elements.get(relative_index)
+        FbxMapping::ByPolygonVertex => *geom.tangents
+            .elements
+            .get(relative_index)
             .ok_or(FbxError::IndexOutOfBounds)?,
         FbxMapping::ByVertex => *geom.tangents.elements.get(index).ok_or(FbxError::IndexOutOfBounds)?,
         _ => Vec3 { x: 0.0, y: 1.0, z: 0.0 }
@@ -741,12 +747,19 @@ fn convert_vertex(geom: &FbxGeometry,
     let uv = match geom.uvs.mapping {
         FbxMapping::ByPolygonVertex => {
             match geom.uvs.reference {
-                FbxReference::Direct => *geom.uvs.elements.get(relative_index)
+                FbxReference::Direct => *geom.uvs
+                    .elements
+                    .get(relative_index)
                     .ok_or(FbxError::IndexOutOfBounds)?,
                 FbxReference::IndexToDirect => {
-                    let uv_index = *geom.uvs.index.get(relative_index)
+                    let uv_index = *geom.uvs
+                        .index
+                        .get(relative_index)
                         .ok_or(FbxError::IndexOutOfBounds)? as usize;
-                    *geom.uvs.elements.get(uv_index).ok_or(FbxError::IndexOutOfBounds)?
+                    *geom.uvs
+                        .elements
+                        .get(uv_index)
+                        .ok_or(FbxError::IndexOutOfBounds)?
                 }
                 _ => Vec2 { x: 0.0, y: 0.0 }
             }
@@ -755,12 +768,20 @@ fn convert_vertex(geom: &FbxGeometry,
     };
 
     let material = match geom.materials.mapping {
-        FbxMapping::AllSame => *geom.materials.elements.first().ok_or(FbxError::IndexOutOfBounds)? as usize,
-        FbxMapping::ByPolygon => *geom.materials.elements.get(material_index).ok_or(FbxError::IndexOutOfBounds)? as usize,
+        FbxMapping::AllSame => *geom.materials
+            .elements
+            .first()
+            .ok_or(FbxError::IndexOutOfBounds)? as usize,
+        FbxMapping::ByPolygon => *geom.materials
+            .elements
+            .get(material_index)
+            .ok_or(FbxError::IndexOutOfBounds)? as usize,
         _ => 0
     };
 
-    let surface = mesh.get_surfaces_mut().get_mut(material).unwrap();
+    let surface = mesh.get_surfaces_mut()
+        .get_mut(material)
+        .unwrap();
 
     let is_unique_vertex = surface.get_data().lock().unwrap().insert_vertex(Vertex {
         position,
@@ -1094,17 +1115,16 @@ impl Fbx {
     /// Converts FBX DOM to native engine representation.
     ///
     pub fn convert(&self, resource_manager: &mut ResourceManager, scene: &mut Scene) -> Result<Handle<Node>, FbxError> {
-        let SceneInterfaceMut { animations, graph, .. } = scene.interface_mut();
         let mut instantiated_nodes = Vec::new();
-        let root = graph.add_node(Node::Base(Base::default()));
-        let animation_handle = animations.add(Animation::default());
+        let root = scene.graph.add_node(Node::Base(Base::default()));
+        let animation_handle = scene.animations.add(Animation::default());
         let mut fbx_model_to_node_map = HashMap::new();
         for component_handle in self.components.iter() {
             let component = self.component_pool.borrow(*component_handle);
             if let FbxComponent::Model(model) = component {
-                let node = self.convert_model(model, resource_manager, graph, animations, animation_handle)?;
+                let node = self.convert_model(model, resource_manager, &mut scene.graph, &mut scene.animations, animation_handle)?;
                 instantiated_nodes.push(node);
-                graph.link_nodes(node, root);
+                scene.graph.link_nodes(node, root);
                 fbx_model_to_node_map.insert(*component_handle, node);
             }
         }
@@ -1113,17 +1133,17 @@ impl Fbx {
             if let FbxComponent::Model(fbx_model) = self.component_pool.borrow(*fbx_model_handle) {
                 for fbx_child_handle in fbx_model.children.iter() {
                     if let Some(child_handle) = fbx_model_to_node_map.get(fbx_child_handle) {
-                        graph.link_nodes(*child_handle, *node_handle);
+                        scene.graph.link_nodes(*child_handle, *node_handle);
                     }
                 }
             }
         }
-        graph.update_transforms();
+        scene.graph.update_transforms();
 
         // Remap handles from fbx model to handles of instantiated nodes
         // on each surface of each mesh.
         for handle in instantiated_nodes.iter() {
-            let node = graph.get_mut(*handle);
+            let node = scene.graph.get_mut(*handle);
             if let Node::Mesh(mesh) = node {
                 let mut surface_bones = HashSet::new();
                 for surface in mesh.get_surfaces_mut() {

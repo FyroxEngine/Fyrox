@@ -19,7 +19,8 @@ pub struct GeometryBuffer<T> {
     element_buffer_object: GLuint,
     meta: PhantomData<T>,
     kind: GeometryBufferKind,
-    triangle_count: Cell<usize>,
+    element_count: Cell<usize>,
+    element_kind: ElementKind
 }
 
 #[derive(Copy, Clone)]
@@ -130,8 +131,23 @@ pub enum GeometryBufferKind {
     DynamicDraw,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum ElementKind {
+    Triangle,
+    Line
+}
+
+impl ElementKind {
+    fn index_per_element(self) -> usize {
+        match self {
+            ElementKind::Triangle => 3,
+            ElementKind::Line => 2,
+        }
+    }
+}
+
 impl<T> GeometryBuffer<T> where T: Sized {
-    pub fn new(kind: GeometryBufferKind) -> Self {
+    pub fn new(kind: GeometryBufferKind, element_kind: ElementKind) -> Self {
         unsafe {
             let mut vao = 0;
             gl::GenVertexArrays(1, &mut vao);
@@ -148,7 +164,8 @@ impl<T> GeometryBuffer<T> where T: Sized {
                 element_buffer_object: ebo,
                 meta: PhantomData,
                 kind,
-                triangle_count: Cell::new(0),
+                element_count: Cell::new(0),
+                element_kind
             }
         }
     }
@@ -212,49 +229,73 @@ impl<T> GeometryBuffer<T> where T: Sized {
     }
 
     pub fn set_triangles(&self, triangles: &[TriangleDefinition]) {
-        self.triangle_count.set(triangles.len());
+        assert_eq!(self.element_kind, ElementKind::Triangle);
+        self.element_count.set(triangles.len());
 
         let index_count = triangles.len() * 3;
         let size = (index_count * size_of::<u32>()) as isize;
         let data = triangles.as_ptr() as *const c_void;
-        let usage = self.get_usage();
 
-        unsafe {
-            gl::BindVertexArray(self.vertex_array_object);
-
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, data, usage);
-
-            gl::BindVertexArray(0);
-        }
+        unsafe { self.set_elements(data, size) }
     }
 
-    pub fn draw_part(&self, start_triangle: usize, triangle_count: usize) -> Result<usize, RendererError> {
-        let last_triangle_index = start_triangle + triangle_count;
+    pub fn set_lines(&self, lines: &[[u32; 2]]) {
+        assert_eq!(self.element_kind, ElementKind::Line);
+        self.element_count.set(lines.len());
 
-        if last_triangle_index > self.triangle_count.get() {
-            Err(RendererError::InvalidTriangleRange {
-                start: start_triangle,
+        let index_count = lines.len() * 2;
+        let size = (index_count * size_of::<u32>()) as isize;
+        let data = lines.as_ptr() as *const c_void;
+
+        unsafe { self.set_elements(data, size) }
+    }
+
+    unsafe fn set_elements(&self, elements: *const c_void, size: isize) {
+        let usage = self.get_usage();
+
+        gl::BindVertexArray(self.vertex_array_object);
+
+        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
+        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, usage);
+
+        gl::BindVertexArray(0);
+    }
+
+    pub fn draw_part(&self, offset: usize, count: usize) -> Result<usize, RendererError> {
+        let last_triangle_index = offset + count;
+
+        if last_triangle_index > self.element_count.get() {
+            Err(RendererError::InvalidElementRange {
+                start: offset,
                 end: last_triangle_index,
-                total: self.triangle_count.get()
+                total: self.element_count.get()
             })
         } else {
-            let start_index = start_triangle * 3;
-            let index_count = triangle_count * 3;
+            let index_per_element = self.element_kind.index_per_element();
+            let start_index = offset * index_per_element;
+            let index_count = count * index_per_element;
 
             unsafe { self.draw_internal(start_index, index_count); }
 
-            Ok(triangle_count)
+            Ok(count)
+        }
+    }
+
+    fn mode(&self) -> GLuint {
+        match self.element_kind {
+            ElementKind::Triangle => gl::TRIANGLES,
+            ElementKind::Line => gl::LINES,
         }
     }
 
     pub fn draw(&self) -> usize {
         let start_index = 0;
-        let index_count = self.triangle_count.get() * 3;
+        let index_per_element = self.element_kind.index_per_element();
+        let index_count = self.element_count.get() * index_per_element;
 
         unsafe { self.draw_internal(start_index, index_count) }
 
-        self.triangle_count.get()
+        self.element_count.get()
     }
 
     unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
@@ -263,7 +304,7 @@ impl<T> GeometryBuffer<T> where T: Sized {
 
             gl::BindVertexArray(self.vertex_array_object);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
-            gl::DrawElements(gl::TRIANGLES, index_count as i32, gl::UNSIGNED_INT, indices);
+            gl::DrawElements(self.mode(), index_count as i32, gl::UNSIGNED_INT, indices);
         }
     }
 }

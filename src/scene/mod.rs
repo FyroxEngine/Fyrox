@@ -19,22 +19,57 @@ use crate::{
             PoolIteratorMut,
         },
     },
-    physics::{Physics, rigid_body::RigidBody},
+    physics::{
+        Physics,
+        rigid_body::RigidBody
+    },
     scene::{
         graph::Graph,
         node::Node,
         base::AsBase,
     },
-    animation::AnimationContainer
+    animation::AnimationContainer,
+    utils::log::Log
 };
 use std::collections::HashMap;
-use crate::utils::log::Log;
+
+pub struct PhysicsBinder {
+    node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
+}
+
+impl Default for PhysicsBinder {
+    fn default() -> Self {
+        Self {
+            node_rigid_body_map: Default::default()
+        }
+    }
+}
+
+impl PhysicsBinder {
+    pub fn bind(&mut self, node: Handle<Node>, rigid_body: Handle<RigidBody>) -> Option<Handle<RigidBody>> {
+        self.node_rigid_body_map.insert(node, rigid_body)
+    }
+
+    pub fn unbind(&mut self, node: Handle<Node>) -> Option<Handle<RigidBody>> {
+        self.node_rigid_body_map.remove(&node)
+    }
+}
+
+impl Visit for PhysicsBinder {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.node_rigid_body_map.visit("Map", visitor)?;
+
+        visitor.leave_region()
+    }
+}
 
 pub struct Scene {
-    graph: Graph,
-    animations: AnimationContainer,
-    physics: Physics,
-    node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>,
+    pub graph: Graph,
+    pub animations: AnimationContainer,
+    pub physics: Physics,
+    pub physics_binder: PhysicsBinder,
 }
 
 impl Default for Scene {
@@ -43,23 +78,9 @@ impl Default for Scene {
             graph: Default::default(),
             animations: Default::default(),
             physics: Default::default(),
-            node_rigid_body_map: Default::default(),
+            physics_binder: Default::default(),
         }
     }
-}
-
-pub struct SceneInterface<'a> {
-    pub graph: &'a Graph,
-    pub physics: &'a Physics,
-    pub animations: &'a AnimationContainer,
-    pub node_rigid_body_map: &'a HashMap<Handle<Node>, Handle<RigidBody>>,
-}
-
-pub struct SceneInterfaceMut<'a> {
-    pub graph: &'a mut Graph,
-    pub physics: &'a mut Physics,
-    pub animations: &'a mut AnimationContainer,
-    pub node_rigid_body_map: &'a mut HashMap<Handle<Node>, Handle<RigidBody>>,
 }
 
 impl Scene {
@@ -69,25 +90,7 @@ impl Scene {
             graph: Graph::new(),
             physics: Physics::new(),
             animations: AnimationContainer::new(),
-            node_rigid_body_map: HashMap::new(),
-        }
-    }
-
-    pub fn interface(&self) -> SceneInterface {
-        SceneInterface {
-            graph: &self.graph,
-            physics: &self.physics,
-            animations: &self.animations,
-            node_rigid_body_map: &self.node_rigid_body_map,
-        }
-    }
-
-    pub fn interface_mut(&mut self) -> SceneInterfaceMut {
-        SceneInterfaceMut {
-            graph: &mut self.graph,
-            physics: &mut self.physics,
-            animations: &mut self.animations,
-            node_rigid_body_map: &mut self.node_rigid_body_map,
+            physics_binder: Default::default(),
         }
     }
 
@@ -95,7 +98,7 @@ impl Scene {
         self.physics.step(dt);
 
         // Sync node positions with assigned physics bodies
-        for (node, body) in self.node_rigid_body_map.iter() {
+        for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
             if self.graph.is_valid_handle(*node) {
                 let node = self.graph.get_mut(*node).base_mut();
                 if self.physics.is_valid_body_handle(*body) {
@@ -142,7 +145,7 @@ impl Scene {
         // Keep pair when node and body are both alive.
         let graph = &self.graph;
         let physics = &self.physics;
-        self.node_rigid_body_map.retain(|node, body| {
+        self.physics_binder.node_rigid_body_map.retain(|node, body| {
             graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
         });
     }
@@ -151,7 +154,7 @@ impl Scene {
 impl Visit for Scene {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
-        self.node_rigid_body_map.visit("BodyMap", visitor)?;
+        self.physics_binder.visit("PhysicsBinder", visitor)?;
         self.graph.visit("Graph", visitor)?;
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;

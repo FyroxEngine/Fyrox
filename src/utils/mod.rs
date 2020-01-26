@@ -1,15 +1,22 @@
 pub mod astar;
 pub mod log;
+pub mod navmesh;
 
 use crate::{
     scene::{mesh::Mesh, base::AsBase},
     physics::static_geometry::{StaticGeometry, StaticTriangle},
     event::{ElementState, VirtualKeyCode, WindowEvent, MouseScrollDelta},
     gui::event::{KeyCode, OsEvent, ButtonState},
-    core::math::vec2::Vec2,
+    core::{
+        math::vec2::Vec2,
+        math::TriangleDefinition
+    },
+    utils::navmesh::Navmesh,
 };
-use std::any::Any;
-use std::sync::Arc;
+use std::{
+    any::Any,
+    sync::Arc,
+};
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
@@ -23,8 +30,8 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
     let mut triangles = Vec::new();
     let global_transform = mesh.base().get_global_transform();
     for surface in mesh.get_surfaces() {
-        let data_rc = surface.get_data();
-        let shared_data = data_rc.lock().unwrap();
+        let shared_data = surface.get_data();
+        let shared_data = shared_data.lock().unwrap();
 
         let vertices = shared_data.get_vertices();
         let indices = shared_data.get_indices();
@@ -45,6 +52,69 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
         }
     }
     StaticGeometry::new(triangles)
+}
+
+pub struct SimpleMesh<T> {
+    pub vertices: Vec<T>,
+    pub indices: Vec<u32>,
+}
+
+impl<T> Default for SimpleMesh<T> {
+    fn default() -> Self {
+        Self {
+            vertices: Default::default(),
+            indices: Default::default(),
+        }
+    }
+}
+
+impl<T: PartialEq> SimpleMesh<T> {
+    /// Inserts vertex or its index. Performs optimizing insertion with checking if such
+    /// vertex already exists. Returns true if inserted vertex was unique.
+    pub fn insert_vertex(&mut self, vertex: T) -> bool {
+        // Reverse search is much faster because it is most likely that we'll find identic
+        // vertex at the end of the array.
+        let mut is_unique = false;
+        self.indices.push(match self.vertices.iter().rposition(|v| v.eq(&vertex)) {
+            Some(existing_index) => existing_index as u32, // Already have such vertex
+            None => { // No such vertex, add it
+                is_unique = true;
+                let index = self.vertices.len() as u32;
+                self.vertices.push(vertex);
+                index
+            }
+        });
+        is_unique
+    }
+}
+
+pub fn mesh_to_navmesh(mesh: &Mesh) -> Navmesh {
+    // Join surfaces into one simple mesh.
+    let mut simple_mesh = SimpleMesh::default();
+    let global_transform = mesh.base().get_global_transform();
+    for surface in mesh.get_surfaces() {
+        let shared_data = surface.get_data();
+        let shared_data = shared_data.lock().unwrap();
+
+        let vertices = shared_data.get_vertices();
+        let indices = shared_data.get_indices();
+
+        let last = indices.len() - indices.len() % 3;
+        let mut i: usize = 0;
+        while i < last {
+            simple_mesh.insert_vertex(global_transform.transform_vector(vertices[indices[i] as usize].position));
+            simple_mesh.insert_vertex(global_transform.transform_vector(vertices[indices[i + 1] as usize].position));
+            simple_mesh.insert_vertex(global_transform.transform_vector(vertices[indices[i + 2] as usize].position));
+            i += 3;
+        }
+    }
+
+    // Then build navmesh.
+    let triangles = simple_mesh.indices
+        .chunks(3)
+        .map(|v| TriangleDefinition { indices: [v[0], v[1], v[2]] })
+        .collect::<Vec<_>>();
+    Navmesh::new(&triangles, &simple_mesh.vertices)
 }
 
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
