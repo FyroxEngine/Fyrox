@@ -36,6 +36,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Text
 	- Text box
 	- List box	
+	- Tab control	
 	- Window 
 - Fonts - TTF Loader (compound characters are not supported yet)
 - Built-in save/load using object visitor - save/load state of engine in one call.
@@ -50,17 +51,13 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Point light
 	- Spot light
 	- Bump mapping
+- A* pathfinder + Navmesh support.
 - Particle systems with soft particles.
 - Sounds - using [rg3d-sound](https://github.com/mrDIMAS/rg3d-sound) crate.
 - Physics - using [rg3d-physics](https://github.com/mrDIMAS/rg3d-physics) crate.
 
-### What will be added soon? 
-
-- Shadows
-
 ### Plans
 
-- Optimization - some places of engine lacks optimization - there is still no culling, space partitioning for physics, etc.
 - Simple editor - would be so nice to have, but until UI is not stabilized enough there is no point to try to write editor.
 - Documentation - it is still incomplete because engine contstantly changing its API.
 
