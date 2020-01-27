@@ -1,16 +1,20 @@
-use crate::core::{
-    pool::{Handle, Pool},
-    math::mat4::Mat4,
-    visitor::{Visit, Visitor, VisitResult},
-    pool::{PoolIterator, PoolIteratorMut, PoolPairIterator},
-};
-use crate::scene::{
-    node::Node,
-    base::AsBase,
-};
 use std::collections::HashMap;
-use crate::utils::log::Log;
-use rg3d_core::math::vec3::Vec3;
+use crate::{
+    utils::log::Log,
+    scene::{
+        node::Node,
+        base::AsBase,
+    },
+    core::{
+        pool::{Handle, Pool},
+        math::{
+            mat4::Mat4,
+            vec3::Vec3
+        },
+        visitor::{Visit, Visitor, VisitResult},
+        pool::{PoolIterator, PoolIteratorMut, PoolPairIterator},
+    }
+};
 
 pub struct Graph {
     root: Handle<Node>,

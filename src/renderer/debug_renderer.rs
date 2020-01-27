@@ -1,11 +1,13 @@
 use std::ffi::CString;
 use crate::{
+    renderer::RenderPassStatistics,
     core::{
         color::Color,
         math::{
             vec3::Vec3,
-            mat4::Mat4
-        }
+            mat4::Mat4,
+        },
+        math::frustum::Frustum,
     },
     renderer::{
         gpu_program::UniformLocation,
@@ -14,23 +16,22 @@ use crate::{
             GeometryBuffer,
             GeometryBufferKind,
             AttributeDefinition,
-            AttributeKind
+            AttributeKind,
         },
         error::RendererError,
-        gpu_program::GpuProgram
+        gpu_program::GpuProgram,
     },
     scene::{
         SceneContainer,
-        node::Node
+        node::Node,
     },
+    renderer::geometry_buffer::ElementKind,
 };
-use crate::renderer::RenderPassStatistics;
-use crate::renderer::geometry_buffer::ElementKind;
 
 #[repr(C)]
 struct Vertex {
     position: Vec3,
-    color: u32
+    color: u32,
 }
 
 pub struct DebugRenderer {
@@ -38,7 +39,7 @@ pub struct DebugRenderer {
     lines: Vec<Line>,
     vertices: Vec<Vertex>,
     line_indices: Vec<[u32; 2]>,
-    shader: DebugShader
+    shader: DebugShader,
 }
 
 pub struct DebugShader {
@@ -53,7 +54,7 @@ impl DebugShader {
         let mut program = GpuProgram::from_source("DebugShader", &vertex_source, &fragment_source)?;
         Ok(Self {
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
-            program
+            program,
         })
     }
 
@@ -69,7 +70,7 @@ impl DebugShader {
 pub struct Line {
     pub begin: Vec3,
     pub end: Vec3,
-    pub color: Color
+    pub color: Color,
 }
 
 impl DebugRenderer {
@@ -96,6 +97,36 @@ impl DebugRenderer {
 
     pub fn clear_lines(&mut self) {
         self.lines.clear()
+    }
+
+    pub fn draw_frustum(&mut self, frustum: &Frustum, color: Color) {
+        let left_top_front = frustum.left_top_front_corner();
+        let left_bottom_front = frustum.left_bottom_front_corner();
+        let right_bottom_front = frustum.right_bottom_front_corner();
+        let right_top_front = frustum.right_top_front_corner();
+
+        let left_top_back = frustum.left_top_back_corner();
+        let left_bottom_back = frustum.left_bottom_back_corner();
+        let right_bottom_back = frustum.right_bottom_back_corner();
+        let right_top_back = frustum.right_top_back_corner();
+
+        // Front face
+        self.add_line(Line { begin: left_top_front, end: right_top_front, color });
+        self.add_line(Line { begin: right_top_front, end: right_bottom_front, color });
+        self.add_line(Line { begin: right_bottom_front, end: left_bottom_front, color });
+        self.add_line(Line { begin: left_bottom_front, end: left_top_front, color });
+
+        // Back face
+        self.add_line(Line { begin: left_top_back, end: right_top_back, color });
+        self.add_line(Line { begin: right_top_back, end: right_bottom_back, color });
+        self.add_line(Line { begin: right_bottom_back, end: left_bottom_back, color });
+        self.add_line(Line { begin: left_bottom_back, end: left_top_back, color });
+
+        // Edges
+        self.add_line(Line { begin: left_top_front, end: left_top_back, color });
+        self.add_line(Line { begin: right_top_front, end: right_top_back, color });
+        self.add_line(Line { begin: right_bottom_front, end: right_bottom_back, color });
+        self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
     }
 
     pub(in crate) fn render(&mut self, scenes: &SceneContainer) -> RenderPassStatistics {
