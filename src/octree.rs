@@ -3,7 +3,7 @@ use crate::{
     math::{
         aabb::AxisAlignedBoundingBox,
         vec3::Vec3,
-        ray::{Ray, IntersectionResult},
+        ray::Ray,
     },
 };
 
@@ -99,15 +99,14 @@ impl Octree {
     }
 
     fn ray_recursive_query(&self, node: Handle<OctreeNode>, ray: &Ray, buffer: &mut Vec<u32>) {
-        let mut result = IntersectionResult::default();
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { indices, bounds } => {
-                if ray.box_intersection(&bounds.min, &bounds.max, &mut result) {
+                if let Some(_) = ray.box_intersection(&bounds.min, &bounds.max) {
                     buffer.extend_from_slice(indices)
                 }
             }
             OctreeNode::Branch { bounds, leaves } => {
-                if ray.box_intersection(&bounds.min, &bounds.max, &mut result) {
+                if let Some(_) = ray.box_intersection(&bounds.min, &bounds.max) {
                     for leaf in leaves {
                         self.ray_recursive_query(*leaf, ray, buffer)
                     }

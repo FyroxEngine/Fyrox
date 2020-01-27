@@ -10,6 +10,7 @@ use crate::{
 
 #[derive(Copy, Clone)]
 pub struct Frustum {
+    /// 0 - left, 1 - right, 2 - top, 3 - bottom, 4 - far, 5 - near
     planes: [Plane; 6]
 }
 
@@ -31,6 +32,81 @@ impl Frustum {
                 Plane::from_abcd(m.f[3] + m.f[2], m.f[7] + m.f[6], m.f[11] + m.f[10], m.f[15] + m.f[14])?,
             ]
         })
+    }
+
+    #[inline]
+    pub fn left(&self) -> &Plane {
+        self.planes.get(0).unwrap()
+    }
+
+    #[inline]
+    pub fn right(&self) -> &Plane {
+        self.planes.get(1).unwrap()
+    }
+
+    #[inline]
+    pub fn top(&self) -> &Plane {
+        self.planes.get(2).unwrap()
+    }
+
+    #[inline]
+    pub fn bottom(&self) -> &Plane {
+        self.planes.get(3).unwrap()
+    }
+
+    #[inline]
+    pub fn far(&self) -> &Plane {
+        self.planes.get(4).unwrap()
+    }
+
+    #[inline]
+    pub fn near(&self) -> &Plane {
+        self.planes.get(5).unwrap()
+    }
+
+    #[inline]
+    pub fn planes(&self) -> &[Plane] {
+        &self.planes
+    }
+
+    #[inline]
+    pub fn left_top_front_corner(&self) -> Vec3 {
+        self.left().intersection_point(self.top(), self.far())
+    }
+
+    #[inline]
+    pub fn left_bottom_front_corner(&self) -> Vec3 {
+        self.left().intersection_point(self.bottom(), self.far())
+    }
+
+    #[inline]
+    pub fn right_bottom_front_corner(&self) -> Vec3 {
+        self.right().intersection_point(self.bottom(), self.far())
+    }
+
+    #[inline]
+    pub fn right_top_front_corner(&self) -> Vec3 {
+        self.right().intersection_point(self.top(), self.far())
+    }
+
+    #[inline]
+    pub fn left_top_back_corner(&self) -> Vec3 {
+        self.left().intersection_point(self.top(), self.near())
+    }
+
+    #[inline]
+    pub fn left_bottom_back_corner(&self) -> Vec3 {
+        self.left().intersection_point(self.bottom(), self.near())
+    }
+
+    #[inline]
+    pub fn right_bottom_back_corner(&self) -> Vec3 {
+        self.right().intersection_point(self.bottom(), self.near())
+    }
+
+    #[inline]
+    pub fn right_top_back_corner(&self) -> Vec3 {
+        self.right().intersection_point(self.top(), self.near())
     }
 
     pub fn is_intersects_point_cloud(&self, points: &[Vec3]) -> bool {

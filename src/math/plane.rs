@@ -1,6 +1,6 @@
 use crate::{
     math::vec3::Vec3,
-    visitor::{Visit, Visitor, VisitResult}
+    visitor::{Visit, Visitor, VisitResult},
 };
 
 #[derive(Copy, Clone)]
@@ -13,7 +13,7 @@ impl Default for Plane {
     fn default() -> Self {
         Plane {
             normal: Vec3::new(0.0, 1.0, 0.0),
-            d: 0.0
+            d: 0.0,
         }
     }
 }
@@ -45,7 +45,7 @@ impl Plane {
             let k = 1.0 / len;
             Ok(Self {
                 normal: normal.scale(k),
-                d: d * k
+                d: d * k,
             })
         }
     }
@@ -58,6 +58,17 @@ impl Plane {
     #[inline]
     pub fn distance(&self, point: &Vec3) -> f32 {
         self.dot(point).abs()
+    }
+
+    /// http://geomalgorithms.com/a05-_intersect-1.html
+    pub fn intersection_point(&self, b: &Plane, c: &Plane) -> Vec3 {
+        let f = -1.0 / self.normal.dot(&b.normal.cross(&c.normal));
+
+        let v1 = b.normal.cross(&c.normal).scale(self.d);
+        let v2 = c.normal.cross(&self.normal).scale(b.d);
+        let v3 = self.normal.cross(&b.normal).scale(c.d);
+
+        return (v1 + v2 + v3).scale(f);
     }
 }
 

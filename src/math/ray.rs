@@ -23,24 +23,45 @@ impl Default for Ray {
 }
 
 /// Pair of ray equation parameters.
+#[derive(Clone, Debug)]
 pub struct IntersectionResult {
     pub min: f32,
     pub max: f32,
 }
 
-impl Default for IntersectionResult {
-    fn default() -> Self {
+impl IntersectionResult {
+    pub fn from_slice(roots: &[f32]) -> Self {
+        let mut min = std::f32::MAX;
+        let mut max = -std::f32::MAX;
+        for n in roots {
+            min = min.min(*n);
+            max = max.max(*n);
+        }
         Self {
-            min: std::f32::MAX,
-            max: -std::f32::MAX,
+            min,
+            max,
         }
     }
-}
 
-impl IntersectionResult {
+    pub fn from_set(results: &[Option<IntersectionResult>]) -> Option<Self> {
+        let mut result = None;
+        for v in results {
+            match result {
+                None => result = v.clone(),
+                Some(ref mut result) => {
+                    if let Some(v) = v {
+                        result.merge(v.min);
+                        result.merge(v.max);
+                    }
+                }
+            }
+        }
+        result
+    }
+
     /// Updates min and max ray equation parameters according to a new parameter -
     /// expands range if `param` was outside of that range.
-    pub fn push(&mut self, param: f32) {
+    pub fn merge(&mut self, param: f32) {
         if param < self.min {
             self.min = param;
         }
@@ -49,9 +70,9 @@ impl IntersectionResult {
         }
     }
 
-    pub fn push_slice(&mut self, params: &[f32]) {
+    pub fn merge_slice(&mut self, params: &[f32]) {
         for param in params {
-            self.push(*param)
+            self.merge(*param)
         }
     }
 }
@@ -78,24 +99,18 @@ impl Ray {
     /// if there was no intersection.
     #[inline]
     pub fn sphere_intersection_points(&self, position: &Vec3, radius: f32) -> Option<[Vec3; 2]> {
-        let mut result = IntersectionResult::default();
-        if self.sphere_intersection(position, radius, &mut result) {
-            Some([self.get_point(result.min), self.get_point(result.max)])
-        } else {
-            None
-        }
+        self.try_eval_points(self.sphere_intersection(position, radius))
     }
 
-    pub fn sphere_intersection(&self, position: &Vec3, radius: f32, result: &mut IntersectionResult) -> bool {
+    pub fn sphere_intersection(&self, position: &Vec3, radius: f32) -> Option<IntersectionResult> {
         let d = self.origin - *position;
         let a = self.dir.dot(&self.dir);
         let b = 2.0 * self.dir.dot(&d);
         let c = d.dot(&d) - radius * radius;
         if let Some(roots) = solve_quadratic(a, b, c) {
-            result.push_slice(&roots);
-            true
+            Some(IntersectionResult::from_slice(&roots))
         } else {
-            false
+            None
         }
     }
 
@@ -122,7 +137,7 @@ impl Ray {
         self.origin + self.dir.scale(t)
     }
 
-    pub fn box_intersection(&self, min: &Vec3, max: &Vec3, result: &mut IntersectionResult) -> bool {
+    pub fn box_intersection(&self, min: &Vec3, max: &Vec3) -> Option<IntersectionResult> {
         let (mut tmin, mut tmax) = if self.dir.x >= 0.0 {
             ((min.x - self.origin.x) / self.dir.x,
              (max.x - self.origin.x) / self.dir.x)
@@ -140,7 +155,7 @@ impl Ray {
         };
 
         if tmin > tymax || (tymin > tmax) {
-            return false;
+            return None;
         }
         if tymin > tmin {
             tmin = tymin;
@@ -157,7 +172,7 @@ impl Ray {
         };
 
         if (tmin > tzmax) || (tzmin > tmax) {
-            return false;
+            return None;
         }
         if tzmin > tmin {
             tmin = tzmin;
@@ -166,21 +181,17 @@ impl Ray {
             tmax = tzmax;
         }
         if tmin < 1.0 && tmax > 0.0 {
-            result.push(tmin);
-            result.push(tmax);
-            true
+            Some(IntersectionResult {
+                min: tmin,
+                max: tmax,
+            })
         } else {
-            false
+            None
         }
     }
 
     pub fn box_intersection_points(&self, min: &Vec3, max: &Vec3) -> Option<[Vec3; 2]> {
-        let mut result = IntersectionResult::default();
-        if self.box_intersection(min, max, &mut result) {
-            Some([self.get_point(result.min), self.get_point(result.max)])
-        } else {
-            None
-        }
+        self.try_eval_points(self.box_intersection(min, max))
     }
 
     /// Solves plane equation in order to find ray equation parameter.
@@ -228,8 +239,8 @@ impl Ray {
     ///     where dp = p - pa
     ///  to find intersection points we have to solve quadratic equation
     ///  to get root which will be t parameter of ray equation.
-    pub fn cylinder_intersection(&self, pa: &Vec3, pb: &Vec3, r: f32, kind: CylinderKind, result: &mut IntersectionResult) -> bool {
-        let va = *pb - *pa;
+    pub fn cylinder_intersection(&self, pa: &Vec3, pb: &Vec3, r: f32, kind: CylinderKind) -> Option<IntersectionResult> {
+        let va = (*pb - *pa).normalized().unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
         let vl = self.dir - va.scale(self.dir.dot(&va));
         let dp = self.origin - *pa;
         let dpva = dp - va.scale(dp.dot(&va));
@@ -241,8 +252,9 @@ impl Ray {
         // Get roots for cylinder surfaces
         if let Some(cylinder_roots) = solve_quadratic(a, b, c) {
             match kind {
-                CylinderKind::Infinite => result.push_slice(&cylinder_roots),
+                CylinderKind::Infinite => Some(IntersectionResult::from_slice(&cylinder_roots)),
                 CylinderKind::Capped => {
+                    let mut result = IntersectionResult::from_slice(&cylinder_roots);
                     // In case of cylinder with caps we have to check intersection with caps
                     for (cap_center, cap_normal) in [(pa, -va), (pb, va)].iter() {
                         let cap_plane = Plane::from_normal_and_point(cap_normal, cap_center).unwrap();
@@ -251,43 +263,72 @@ impl Ray {
                             let intersection = self.get_point(t);
                             if cap_center.sqr_distance(&intersection) <= r * r {
                                 // Point inside cap bounds
-                                result.push(t);
+                                result.merge(t);
                             }
                         }
                     }
-                    result.push_slice(&cylinder_roots);
+                    result.merge_slice(&cylinder_roots);
+                    Some(result)
                 }
                 CylinderKind::Finite => {
                     // In case of finite cylinder without caps we have to check that intersection
                     // points on cylinder surface are between two planes of caps.
+                    let mut result = None;
                     for root in cylinder_roots.iter() {
                         let int_point = self.get_point(*root);
                         if (int_point - *pa).dot(&va) >= 0.0 && (*pb - int_point).dot(&va) >= 0.0 {
-                            result.push(*root);
+                            match &mut result {
+                                None => result = Some(IntersectionResult { min: *root, max: *root }),
+                                Some(result) => result.merge(*root),
+                            }
                         }
+                    }
+                    result
+                }
+            }
+        } else {
+            // We have no roots, so no intersection.
+            None
+        }
+    }
+
+    pub fn try_eval_points(&self, result: Option<IntersectionResult>) -> Option<[Vec3; 2]> {
+        match result {
+            None => None,
+            Some(result) => {
+                let a = if result.min >= 0.0 && result.min <= 1.0 {
+                    Some(self.get_point(result.min))
+                } else {
+                    None
+                };
+
+                let b = if result.max >= 0.0 && result.max <= 1.0 {
+                    Some(self.get_point(result.max))
+                } else {
+                    None
+                };
+
+                match a {
+                    None => match b {
+                        None => None,
+                        Some(b) => Some([b, b]),
+                    }
+                    Some(a) => match b {
+                        None => Some([a, a]),
+                        Some(b) => Some([a, b])
                     }
                 }
             }
-
-            true
-        } else {
-            // We have no roots, so no intersection.
-            false
         }
     }
 
     pub fn capsule_intersection(&self, pa: &Vec3, pb: &Vec3, radius: f32) -> Option<[Vec3; 2]> {
-        // Dumb approach - check intersection with finite cylinder without caps, then check
-        // two sphere caps.
-        let mut result = IntersectionResult::default();
-
-        if self.cylinder_intersection(pa, pb, radius, CylinderKind::Finite, &mut result) ||
-            self.sphere_intersection(pa, radius, &mut result) ||
-            self.sphere_intersection(pb, radius, &mut result) {
-            Some([self.get_point(result.min), self.get_point(result.max)])
-        } else {
-            None
-        }
+        // Dumb approach - check intersection with finite cylinder without caps,
+        // then check two sphere caps.
+        let cylinder = self.cylinder_intersection(pa, pb, radius, CylinderKind::Finite);
+        let cap_a = self.sphere_intersection(pa, radius);
+        let cap_b = self.sphere_intersection(pb, radius);
+        self.try_eval_points(IntersectionResult::from_set(&[cylinder, cap_a, cap_b]))
     }
 }
 
