@@ -92,7 +92,7 @@ impl Engine {
     /// functioning.
     pub fn update(&mut self, dt: f32) {
         let client_size = self.context.window().inner_size();
-        let aspect_ratio = (client_size.width / client_size.height) as f32;
+        let aspect_ratio = client_size.width as f32 / client_size.height as f32;
 
         self.resource_manager.update();
 
