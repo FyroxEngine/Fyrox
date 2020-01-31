@@ -27,6 +27,7 @@ use crate::{
     },
     renderer::geometry_buffer::ElementKind,
 };
+use rg3d_core::math::aabb::AxisAlignedBoundingBox;
 
 #[repr(C)]
 struct Vertex {
@@ -109,6 +110,36 @@ impl DebugRenderer {
         let left_bottom_back = frustum.left_bottom_back_corner();
         let right_bottom_back = frustum.right_bottom_back_corner();
         let right_top_back = frustum.right_top_back_corner();
+
+        // Front face
+        self.add_line(Line { begin: left_top_front, end: right_top_front, color });
+        self.add_line(Line { begin: right_top_front, end: right_bottom_front, color });
+        self.add_line(Line { begin: right_bottom_front, end: left_bottom_front, color });
+        self.add_line(Line { begin: left_bottom_front, end: left_top_front, color });
+
+        // Back face
+        self.add_line(Line { begin: left_top_back, end: right_top_back, color });
+        self.add_line(Line { begin: right_top_back, end: right_bottom_back, color });
+        self.add_line(Line { begin: right_bottom_back, end: left_bottom_back, color });
+        self.add_line(Line { begin: left_bottom_back, end: left_top_back, color });
+
+        // Edges
+        self.add_line(Line { begin: left_top_front, end: left_top_back, color });
+        self.add_line(Line { begin: right_top_front, end: right_top_back, color });
+        self.add_line(Line { begin: right_bottom_front, end: right_bottom_back, color });
+        self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
+    }
+
+    pub fn draw_aabb(&mut self, aabb: &AxisAlignedBoundingBox, color: Color) {
+        let left_bottom_front = Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z);
+        let left_top_front = Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z);
+        let right_top_front = Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z);
+        let right_bottom_front = Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z);
+
+        let left_bottom_back = Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z);
+        let left_top_back = Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z);
+        let right_top_back = Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z);
+        let right_bottom_back = Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z);
 
         // Front face
         self.add_line(Line { begin: left_top_front, end: right_top_front, color });

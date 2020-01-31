@@ -15,6 +15,7 @@ use crate::{
         pool::{PoolIterator, PoolIteratorMut, PoolPairIterator},
     }
 };
+use rg3d_core::pool::PoolPairIteratorMut;
 
 pub struct Graph {
     root: Handle<Node>,
@@ -79,7 +80,7 @@ impl Graph {
 
     /// Tries to borrow mutable references to three nodes at the same time by given handles. Will
     /// return Err of handles overlaps (points to same node).
-    pub fn get_tree_mut(&mut self, nodes: (Handle<Node>, Handle<Node>, Handle<Node>))
+    pub fn get_three_mut(&mut self, nodes: (Handle<Node>, Handle<Node>, Handle<Node>))
                         -> Result<(&mut Node, &mut Node, &mut Node), ()> {
         self.pool.borrow_three_mut(nodes)
     }
@@ -398,6 +399,11 @@ impl Graph {
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     pub fn pair_iter(&self) -> PoolPairIterator<Node> {
         self.pool.pair_iter()
+    }
+
+    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<Node> {
+        self.pool.pair_iter_mut()
     }
 
     /// Create graph depth traversal iterator.

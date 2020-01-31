@@ -31,8 +31,14 @@ use crate::{
     utils::log::Log
 };
 use std::{
-    sync::{Mutex, Arc},
-    collections::HashMap,
+    sync::{
+        Mutex,
+        Arc
+    },
+    collections::{
+        HashMap,
+        VecDeque
+    }
 };
 
 #[derive(Copy, Clone)]
@@ -228,6 +234,58 @@ impl Track {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct AnimationEvent {
+    pub signal_id: u64
+}
+
+#[derive(Clone)]
+pub struct AnimationSignal {
+    id: u64,
+    time: f32,
+    enabled: bool,
+}
+
+impl AnimationSignal {
+    pub fn new(id: u64, time: f32) -> Self {
+        Self {
+            id,
+            time,
+            enabled: true
+        }
+    }
+
+    pub fn set_enabled(&mut self, value: bool) {
+        self.enabled = value;
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+}
+
+impl Default for AnimationSignal {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            time: 0.0,
+            enabled: true,
+        }
+    }
+}
+
+impl Visit for AnimationSignal {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.id.visit("Id", visitor)?;
+        self.time.visit("Time", visitor)?;
+        self.enabled.visit("Enabled", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 pub struct Animation {
     // TODO: Extract into separate struct AnimationTimeline
     tracks: Vec<Track>,
@@ -239,6 +297,8 @@ pub struct Animation {
     enabled: bool,
     pub(in crate) resource: Option<Arc<Mutex<Model>>>,
     pose: AnimationPose,
+    signals: Vec<AnimationSignal>,
+    events: VecDeque<AnimationEvent>
 }
 
 /// Snapshot of scene node local transform state.
@@ -336,6 +396,8 @@ impl Clone for Animation {
             enabled: self.enabled,
             resource: self.resource.clone(),
             pose: Default::default(),
+            signals: self.signals.clone(),
+            events: Default::default()
         }
     }
 }
@@ -366,6 +428,28 @@ impl Animation {
 
     pub fn rewind(&mut self) -> &mut Self {
         self.set_time_position(0.0)
+    }
+
+    fn tick(&mut self, dt: f32) {
+        self.update_pose();
+
+        let current_time_position = self.get_time_position();
+        let new_time_position = current_time_position + dt * self.get_speed();
+
+        for signal in self.signals.iter_mut() {
+            if current_time_position < signal.time && new_time_position >= signal.time {
+                // TODO: Make this configurable.
+                if self.events.len() < 32 {
+                    self.events.push_back(AnimationEvent { signal_id: signal.id });
+                }
+            }
+        }
+
+        self.set_time_position(new_time_position);
+    }
+
+    pub fn pop_event(&mut self) -> Option<AnimationEvent> {
+        self.events.pop_front()
     }
 
     pub fn get_time_position(&self) -> f32 {
@@ -409,6 +493,11 @@ impl Animation {
 
     pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
         self.resource.clone()
+    }
+
+    pub fn add_signal(&mut self, signal: AnimationSignal) -> &mut Self {
+        self.signals.push(signal);
+        self
     }
 
     /// Enables or disables animation tracks for nodes in hierarchy starting from given root.
@@ -511,6 +600,8 @@ impl Default for Animation {
             looped: true,
             resource: Default::default(),
             pose: Default::default(),
+            signals: Default::default(),
+            events: Default::default()
         }
     }
 }
@@ -526,6 +617,7 @@ impl Visit for Animation {
         self.resource.visit("Resource", visitor)?;
         self.looped.visit("Looped", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+        self.signals.visit("Signals", visitor)?;
 
         visitor.leave_region()
     }
@@ -610,8 +702,7 @@ impl AnimationContainer {
 
     pub fn update_animations(&mut self, dt: f32) {
         for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
-            animation.update_pose();
-            animation.set_time_position(animation.get_time_position() + dt * animation.get_speed());
+            animation.tick(dt);
         }
     }
 }

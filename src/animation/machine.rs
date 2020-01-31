@@ -482,6 +482,26 @@ impl Transition {
         }
     }
 
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub fn transition_time(&self) -> f32 {
+        self.transition_time
+    }
+
+    pub fn source(&self) -> Handle<State> {
+        self.source
+    }
+
+    pub fn dest(&self) -> Handle<State> {
+        self.dest
+    }
+
+    pub fn rule(&self) -> &str {
+        self.rule.as_str()
+    }
+
     fn reset(&mut self) {
         self.elapsed_time = 0.0;
         self.blend_factor = 0.0;
@@ -495,7 +515,7 @@ impl Transition {
         self.blend_factor = self.elapsed_time / self.transition_time;
     }
 
-    fn is_done(&self) -> bool {
+    pub fn is_done(&self) -> bool {
         self.transition_time == self.elapsed_time
     }
 }
@@ -618,6 +638,14 @@ impl Machine {
 
     pub fn active_state(&self) -> Handle<State> {
         self.active_state
+    }
+
+    pub fn active_transition(&self) -> Handle<Transition> {
+        self.active_transition
+    }
+
+    pub fn transitions(&self) -> &Pool<Transition> {
+        &self.transitions
     }
 
     pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
