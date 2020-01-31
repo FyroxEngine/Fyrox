@@ -56,6 +56,24 @@ impl AxisAlignedBoundingBox {
         }
     }
 
+    pub fn corners(&self) -> [Vec3; 8] {
+        [
+            Vec3::new(self.min.x, self.min.y, self.min.z),
+            Vec3::new(self.min.x, self.min.y, self.max.z),
+            Vec3::new(self.max.x, self.min.y, self.max.z),
+            Vec3::new(self.max.x, self.min.y, self.min.z),
+            Vec3::new(self.min.x, self.max.y, self.min.z),
+            Vec3::new(self.min.x, self.max.y, self.max.z),
+            Vec3::new(self.max.x, self.max.y, self.max.z),
+            Vec3::new(self.max.x, self.max.y, self.min.z),
+        ]
+    }
+
+    pub fn offset(&mut self, v: Vec3) {
+        self.min += v;
+        self.max += v;
+    }
+
     pub fn center(&self) -> Vec3 {
         (self.max + self.min).scale(0.5)
     }
@@ -69,8 +87,9 @@ impl AxisAlignedBoundingBox {
     }
 
     pub fn is_contains_point(&self, point: Vec3) -> bool {
-        point.x >= self.min.x && point.x <= self.max.x && point.y >= self.min.y &&
-            point.y <= self.max.y && point.z >= self.min.z && point.z <= self.max.z
+        point.x >= self.min.x && point.x <= self.max.x &&
+            point.y >= self.min.y && point.y <= self.max.y &&
+            point.z >= self.min.z && point.z <= self.max.z
     }
 
     pub fn is_intersects_sphere(&self, position: Vec3, radius: f32) -> bool {
