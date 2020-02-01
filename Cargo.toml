@@ -6,6 +6,7 @@ edition = "2018"
 license = "MIT"
 description = "Extendable UI library"
 keywords = ["ui", "game", "gui"]
+repository = "https://github.com/mrDIMAS/rg3d-ui"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
