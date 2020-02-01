@@ -1,7 +1,7 @@
 [package]
 name = "rg3d-physics"
-version = "0.2.1"
-authors = ["Dmitry <d1maxa@yandex.ru>"]
+version = "0.3.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
 description = "Physics library for rg3d-engine."
@@ -9,5 +9,5 @@ keywords = ["physics", "game"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.4.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.5.0" }
 bitflags = "1.2.1"
