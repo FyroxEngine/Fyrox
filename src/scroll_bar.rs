@@ -1,33 +1,16 @@
-use crate::{
-        border::BorderBuilder,
-        canvas::CanvasBuilder,
-        event::UIEventKind,
-        button::ButtonBuilder,
-        UserInterface,
-        maxf,
-        Thickness,
-        grid::{
-            GridBuilder,
-            Column,
-            Row,
-        },
-        event::UIEvent,
-        widget::{
-            Widget,
-            WidgetBuilder,
-        },
-        Control,
-        UINode,
-        ControlTemplate,
-        UINodeContainer,
-        Builder,
-
-    core::{
-        color::Color, math,
-        pool::Handle, math::vec2::Vec2,
-    },
-};
+use crate::{border::BorderBuilder, canvas::CanvasBuilder, event::UIEventKind, button::ButtonBuilder, UserInterface, maxf, Thickness, grid::{
+    GridBuilder,
+    Column,
+    Row,
+}, event::UIEvent, widget::{
+    Widget,
+    WidgetBuilder,
+}, Control, UINode, ControlTemplate, UINodeContainer, Builder, core::{
+    color::Color, math,
+    pool::Handle, math::vec2::Vec2,
+}, HorizontalAlignment, VerticalAlignment, bool_to_visibility};
 use std::collections::HashMap;
+use crate::text::{Text, TextBuilder};
 
 /// Scroll bar
 ///
@@ -47,6 +30,7 @@ pub struct ScrollBar {
     decrease: Handle<UINode>,
     indicator: Handle<UINode>,
     field: Handle<UINode>,
+    value_text: Handle<UINode>,
 }
 
 impl Control for ScrollBar {
@@ -72,6 +56,7 @@ impl Control for ScrollBar {
             decrease: self.decrease,
             indicator: self.indicator,
             field: self.field,
+            value_text: self.value_text,
         })
     }
 
@@ -79,6 +64,7 @@ impl Control for ScrollBar {
         self.increase = *node_map.get(&self.increase).unwrap();
         self.decrease = *node_map.get(&self.decrease).unwrap();
         self.indicator = *node_map.get(&self.indicator).unwrap();
+        self.value_text = *node_map.get(&self.value_text).unwrap();
         self.field = *node_map.get(&self.field).unwrap();
     }
 
@@ -110,12 +96,24 @@ impl Control for ScrollBar {
         size
     }
 
-    fn handle_event(&mut self, _self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
+    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
         if let UIEventKind::Click = evt.kind {
             if evt.source == self.increase {
                 self.set_value(self.value + self.step);
             } else if evt.source == self.decrease {
                 self.set_value(self.value - self.step);
+            }
+        }
+
+        if evt.source == self_handle {
+            match evt.kind {
+                UIEventKind::NumericValueChanged { new_value, .. } => {
+                    ui.node_mut(self.value_text)
+                        .downcast_mut::<Text>()
+                        .unwrap()
+                        .set_text(format!("{}", new_value));
+                }
+                _ => ()
             }
         }
 
@@ -178,7 +176,14 @@ impl Control for ScrollBar {
 impl ScrollBar {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
-    pub fn new(widget: Widget, increase: Handle<UINode>, decrease: Handle<UINode>, indicator: Handle<UINode>, field: Handle<UINode>) -> Self {
+    pub fn new(
+        widget: Widget,
+        increase: Handle<UINode>,
+        decrease: Handle<UINode>,
+        indicator: Handle<UINode>,
+        field: Handle<UINode>,
+        value_text: Handle<UINode>,
+    ) -> Self {
         Self {
             widget,
             min: 0.0,
@@ -192,6 +197,7 @@ impl ScrollBar {
             decrease,
             indicator,
             field,
+            value_text,
         }
     }
 
@@ -280,6 +286,7 @@ pub struct ScrollBarBuilder {
     decrease: Option<Handle<UINode>>,
     indicator: Option<Handle<UINode>>,
     body: Option<Handle<UINode>>,
+    show_value: bool
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -301,6 +308,7 @@ impl ScrollBarBuilder {
             decrease: None,
             indicator: None,
             body: None,
+            show_value: false
         }
     }
 
@@ -346,6 +354,11 @@ impl ScrollBarBuilder {
 
     pub fn with_body(mut self, body: Handle<UINode>) -> Self {
         self.body = Some(body);
+        self
+    }
+
+    pub fn show_value(mut self, state: bool) -> Self {
+        self.show_value = state;
         self
     }
 }
@@ -433,9 +446,24 @@ impl Builder for ScrollBarBuilder {
             .with_child(indicator)
         ).build(ui);
 
+        let value_text = TextBuilder::new(WidgetBuilder::new()
+            .with_visibility(bool_to_visibility(self.show_value))
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .on_column(match orientation {
+                Orientation::Horizontal => 1,
+                Orientation::Vertical => 0
+            })
+            .on_row(match orientation {
+                Orientation::Horizontal => 0,
+                Orientation::Vertical => 1
+            }))
+            .build(ui);
+
         let grid = GridBuilder::new(WidgetBuilder::new()
             .with_child(decrease)
             .with_child(field)
+            .with_child(value_text)
             .with_child(increase))
             .add_rows(match orientation {
                 Orientation::Horizontal => vec![Row::stretch()],
@@ -476,6 +504,7 @@ impl Builder for ScrollBarBuilder {
             decrease,
             indicator,
             field,
+            value_text
         };
         ui.add_node(Box::new(scroll_bar))
     }

@@ -1,3 +1,7 @@
+//! Extendable UI library.
+//!
+//! See examples here - https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs
+
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]
