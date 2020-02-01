@@ -23,6 +23,7 @@ use std::{
 };
 
 pub struct Model {
+    // enable_shared_from_this trick from C++
     pub(in crate) self_weak_ref: Option<Weak<Mutex<Model>>>,
     pub(in crate) path: PathBuf,
     scene: Scene,
@@ -172,13 +173,5 @@ impl Model {
 
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
         self.scene.graph.find_by_name_from_root(name)
-    }
-}
-
-impl Drop for Model {
-    fn drop(&mut self) {
-        if self.path.exists() {
-            Log::writeln(format!("Model resource {:?} destroyed!", self.path));
-        }
     }
 }

@@ -4,15 +4,27 @@ pub mod error;
 use crate::{
     core::{
         math::vec2::Vec2,
-        visitor::{Visitor, VisitResult, Visit},
+        visitor::{
+            Visitor,
+            VisitResult,
+            Visit,
+        },
     },
     sound::context::Context,
-    engine::{resource_manager::ResourceManager, error::EngineError},
-    gui::{
-        UserInterface,
+    engine::{
+        resource_manager::ResourceManager,
+        error::EngineError,
     },
-    renderer::{Renderer, error::RendererError, gl},
-    window::{WindowBuilder, Window},
+    gui::UserInterface,
+    renderer::{
+        Renderer,
+        error::RendererError,
+        gl,
+    },
+    window::{
+        WindowBuilder,
+        Window,
+    },
     scene::SceneContainer,
     PossiblyCurrent,
     GlRequest,
@@ -94,7 +106,7 @@ impl Engine {
         let client_size = self.context.window().inner_size();
         let aspect_ratio = client_size.width as f32 / client_size.height as f32;
 
-        self.resource_manager.update();
+        self.resource_manager.update(dt);
 
         for scene in self.scenes.iter_mut() {
             scene.update(aspect_ratio, dt);
@@ -120,7 +132,7 @@ impl Visit for Engine {
         visitor.enter_region(name)?;
 
         if visitor.is_reading() {
-            self.resource_manager.update();
+            self.resource_manager.update(0.0);
             self.scenes.clear();
         }
 

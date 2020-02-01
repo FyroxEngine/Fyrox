@@ -5,8 +5,7 @@ use crate::{
         Visit,
         VisitResult,
         Visitor
-    },
-    utils::log::Log
+    }
 };
 use image::GenericImageView;
 
@@ -105,10 +104,3 @@ impl Texture {
     }
 }
 
-impl Drop for Texture {
-    fn drop(&mut self) {
-        if self.path.exists() {
-            Log::writeln(format!("Texture resource {:?} destroyed!", self.path));
-        }
-    }
-}

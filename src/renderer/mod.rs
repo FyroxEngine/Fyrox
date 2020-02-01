@@ -254,7 +254,7 @@ impl Renderer {
     }
 
     pub fn upload_resources(&mut self, resource_manager: &mut ResourceManager) {
-        for texture_rc in resource_manager.get_textures() {
+        for texture_rc in resource_manager.textures() {
             let mut texture = texture_rc.lock().unwrap();
             if texture.loaded && texture.gpu_tex.is_none() {
                 let gpu_texture = GpuTexture::new(

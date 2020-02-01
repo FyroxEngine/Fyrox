@@ -1209,7 +1209,7 @@ pub fn load_to_scene<P: AsRef<Path>>(scene: &mut Scene, resource_manager: &mut R
 
     let mut file = File::open(path.as_ref())?;
 
-    Log::writeln(format!("FBX: Trying to load {:?}", path.as_ref()));
+    Log::writeln(format!("Trying to load {:?}", path.as_ref()));
 
     let now = Instant::now();
     let is_bin = fbx_binary::is_binary(path.as_ref())?;
@@ -1224,17 +1224,17 @@ pub fn load_to_scene<P: AsRef<Path>>(scene: &mut Scene, resource_manager: &mut R
     } else {
         fbx_ascii::read_ascii(&mut reader, buf_len as u64)?
     };
-    Log::writeln(format!("\tFBX: Parsing - {} ms", now.elapsed().as_millis()));
+    Log::writeln(format!("\t- Parsing - {} ms", now.elapsed().as_millis()));
 
     let now = Instant::now();
     fbx.prepare()?;
-    Log::writeln(format!("\tFBX: DOM Prepare - {} ms", now.elapsed().as_millis()));
+    Log::writeln(format!("\t- DOM Prepare - {} ms", now.elapsed().as_millis()));
 
     let now = Instant::now();
     let result = fbx.convert(resource_manager, scene);
-    Log::writeln(format!("\tFBX: Conversion - {} ms", now.elapsed().as_millis()));
+    Log::writeln(format!("\t- Conversion - {} ms", now.elapsed().as_millis()));
 
-    Log::writeln(format!("\tFBX: {:?} loaded in {} ms", path.as_ref(), start_time.elapsed().as_millis()));
+    Log::writeln(format!("\t- {:?} loaded in {} ms", path.as_ref(), start_time.elapsed().as_millis()));
 
     result
 }
