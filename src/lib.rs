@@ -729,7 +729,8 @@ impl UserInterface {
     /// it by just sending an appropriate event - something like this:
     ///
     /// ```no_run
-    /// use rg3d::gui::event::{UIEvent, UIEventKind};
+    ///
+    /// use rg3d_ui::event::{UIEvent, UIEventKind};
     ///
     /// ui.send_event(UIEvent::targeted(options_window, UIEventKind::Opened));
     /// ```
@@ -754,10 +755,15 @@ impl UserInterface {
 
         if let Some(ref mut event) = event {
             for i in 0..self.nodes.get_capacity() {
-                if let Some(mut node) = self.nodes.take_at(i) {
-                    node.handle_event(self.nodes.handle_from_index(i), self, event);
+                let handle = self.nodes.handle_from_index(i);
 
-                    let old = self.nodes.replace_at(i, node);
+                if self.nodes.is_valid_handle(handle) {
+                    let mut node = self.nodes.free(handle);
+
+                    node.handle_event(handle, self, event);
+
+                    let old = self.nodes.replace(handle, node);
+
                     assert!(old.is_none());
                 }
             }
@@ -961,6 +967,32 @@ impl UINodeContainer for UserInterface {
         }
         node_handle
     }
+
+    fn remove_node(&mut self, node: Handle<UINode>) {
+        self.unlink_node(node);
+
+        let mut stack = vec![node];
+        while let Some(handle) = stack.pop() {
+            if self.prev_picked_node == handle {
+                self.prev_picked_node = Handle::NONE;
+            }
+            if self.picked_node == handle {
+                self.picked_node = Handle::NONE;
+            }
+            if self.captured_node == handle {
+                self.captured_node = Handle::NONE;
+            }
+            if self.keyboard_focus_node == handle {
+                self.keyboard_focus_node = Handle::NONE;
+            }
+
+            let widget = self.nodes().borrow(handle).widget();
+            for child in widget.children().iter() {
+                stack.push(*child);
+            }
+            self.nodes_mut().free(handle);
+        }
+    }
 }
 
 pub struct ControlTemplate {
@@ -1048,6 +1080,19 @@ pub trait UINodeContainer {
     fn root(&self) -> Handle<UINode>;
 
     fn add_node(&mut self, node: UINode) -> Handle<UINode>;
+
+    fn remove_node(&mut self, node: Handle<UINode>) {
+        self.unlink_node(node);
+
+        let mut stack = vec![node];
+        while let Some(handle) = stack.pop() {
+            let widget = self.nodes().borrow(handle).widget();
+            for child in widget.children().iter() {
+                stack.push(*child);
+            }
+            self.nodes_mut().free(handle);
+        }
+    }
 
     #[inline]
     fn node(&self, node_handle: Handle<UINode>) -> &UINode {

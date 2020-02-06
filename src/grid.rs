@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::HashMap
+    collections::HashMap,
 };
 use crate::{
     core::{
@@ -10,19 +10,19 @@ use crate::{
             Rect,
         },
     },
-        Visibility,
-        UserInterface,
-        widget::{
-            WidgetBuilder,
-            Widget
-        },
-        Control,
-        UINode,
-        ControlTemplate,
-        UINodeContainer,
-        Builder
-
+    Visibility,
+    UserInterface,
+    widget::{
+        WidgetBuilder,
+        Widget,
+    },
+    Control,
+    UINode,
+    ControlTemplate,
+    UINodeContainer,
+    Builder,
 };
+use crate::draw::{DrawingContext, CommandKind, CommandTexture};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
@@ -128,6 +128,8 @@ pub struct Grid {
     widget: Widget,
     rows: RefCell<Vec<Row>>,
     columns: RefCell<Vec<Column>>,
+    draw_border: bool,
+    border_thickness: f32
 }
 
 impl Control for Grid {
@@ -144,12 +146,12 @@ impl Control for Grid {
             widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
             rows: self.rows.clone(),
             columns: self.columns.clone(),
+            draw_border: self.draw_border,
+            border_thickness: self.border_thickness
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
-
-    }
+    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
 
     fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
@@ -227,12 +229,43 @@ impl Control for Grid {
 
         final_size
     }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        if self.draw_border {
+            let bounds = self.widget.get_screen_bounds();
+
+            let left_top = Vec2::new(bounds.x, bounds.y);
+            let right_top = Vec2::new(bounds.x + bounds.w, bounds.y);
+            let right_bottom = Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h);
+            let left_bottom = Vec2::new(bounds.x, bounds.y + bounds.h);
+
+            drawing_context.push_line(left_top, right_top, self.border_thickness, self.widget.foreground());
+            drawing_context.push_line(right_top, right_bottom, self.border_thickness, self.widget.foreground());
+            drawing_context.push_line(right_bottom, left_bottom, self.border_thickness, self.widget.foreground());
+            drawing_context.push_line(left_bottom, left_top, self.border_thickness, self.widget.foreground());
+
+            for column in self.columns.borrow().iter() {
+                let a = Vec2::new(bounds.x + column.x, bounds.y);
+                let b = Vec2::new(bounds.x + column.x, bounds.y + bounds.h);
+                drawing_context.push_line(a, b, self.border_thickness, self.widget.foreground());
+            }
+            for row in self.rows.borrow().iter() {
+                let a = Vec2::new(bounds.x, bounds.y + row.y);
+                let b = Vec2::new(bounds.x + bounds.w, bounds.y + row.y);
+                drawing_context.push_line(a, b, self.border_thickness, self.widget.foreground());
+            }
+
+            drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+        }
+    }
 }
 
 pub struct GridBuilder {
     widget_builder: WidgetBuilder,
     rows: Vec<Row>,
     columns: Vec<Column>,
+    draw_border: bool,
+    border_thickness: f32
 }
 
 impl GridBuilder {
@@ -241,6 +274,8 @@ impl GridBuilder {
             widget_builder,
             rows: Vec::new(),
             columns: Vec::new(),
+            draw_border: false,
+            border_thickness: 1.0
         }
     }
 
@@ -263,6 +298,16 @@ impl GridBuilder {
         self.columns.append(&mut columns);
         self
     }
+
+    pub fn draw_border(mut self, value: bool) -> Self {
+        self.draw_border = value;
+        self
+    }
+
+    pub fn with_border_thickness(mut self, value: f32) -> Self {
+        self.border_thickness = value;
+        self
+    }
 }
 
 impl Builder for GridBuilder {
@@ -271,6 +316,8 @@ impl Builder for GridBuilder {
             widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
+            draw_border: self.draw_border,
+            border_thickness: self.border_thickness,
         }))
     }
 }
@@ -280,7 +327,9 @@ impl Grid {
         Self {
             widget,
             rows: Default::default(),
-            columns: Default::default()
+            columns: Default::default(),
+            draw_border: false,
+            border_thickness: 1.0
         }
     }
 
@@ -433,5 +482,23 @@ impl Grid {
             column.x = x;
             x += column.actual_width;
         }
+    }
+
+    pub fn set_draw_border(&mut self, value: bool) -> &mut Self {
+        self.draw_border = value;
+        self
+    }
+
+    pub fn is_draw_border(&self) -> bool {
+        self.draw_border
+    }
+
+    pub fn set_border_thickness(&mut self, value: f32) -> &mut Self {
+        self.border_thickness = value;
+        self
+    }
+
+    pub fn border_thickness(&self) -> f32 {
+        self.border_thickness
     }
 }

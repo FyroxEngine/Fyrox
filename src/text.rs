@@ -162,8 +162,8 @@ impl TextBuilder {
         }
     }
 
-    pub fn with_text(mut self, text: &str) -> Self {
-        self.text = Some(text.to_owned());
+    pub fn with_text<P: AsRef<str>>(mut self, text: P) -> Self {
+        self.text = Some(text.as_ref().to_owned());
         self
     }
 
