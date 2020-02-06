@@ -3,7 +3,11 @@ use std::{
     hash::{Hash, Hasher},
     fmt::{Debug, Formatter},
 };
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::visitor::{
+    Visit,
+    VisitResult,
+    Visitor,
+};
 
 const INVALID_GENERATION: u32 = 0;
 
@@ -86,7 +90,7 @@ impl<T> Default for Handle<T> {
 
 impl<T> Debug for Handle<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{} {}]", self.index, self.generation)
+        write!(f, "[Idx: {}; Gen: {}]", self.index, self.generation)
     }
 }
 
@@ -211,6 +215,11 @@ impl<T> Pool<T> {
     pub fn spawn(&mut self, payload: T) -> Handle<T> {
         if let Some(free_index) = self.free_stack.pop() {
             let record = &mut self.records[free_index as usize];
+
+            if record.payload.is_some() {
+                panic!("Attempt to spawn an object at pool record with payload! Record index is {}", free_index);
+            }
+
             record.generation += 1;
             record.payload.replace(payload);
             Handle {
@@ -252,13 +261,49 @@ impl<T> Pool<T> {
                 if let Some(ref payload) = record.payload {
                     payload
                 } else {
-                    panic!("Trying to access destroyed object at index {} in a pool!", handle.index);
+                    panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
                 }
             } else {
-                panic!("Trying to access pool record with generation {} by a handle with {} generation!", record.generation, handle.generation);
+                panic!("Attempt to use dangling handle {:?}. Record has {} generation!", handle, record.generation);
             }
         } else {
-            panic!("Handle index {} out of [0; {}] bounds!", handle.index, self.records.len());
+            panic!("Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
+        }
+    }
+
+    /// Borrows mutable reference to an object by its handle.
+    ///
+    /// # Panics
+    ///
+    /// Panics if handle is out of bounds or generation of handle does not match with
+    /// generation of pool record at handle index (in other words it means that object
+    /// at handle's index is different than the object was there before).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rg3d_core::pool::Pool;
+    /// let mut pool = Pool::<u32>::new();
+    /// let a = pool.spawn(1);
+    /// let a = pool.borrow_mut(a);
+    /// *a = 11;
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
+        let record_count = self.records.len();
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            if record.generation == handle.generation {
+                if let Some(ref mut payload) = record.payload {
+                    payload
+                } else {
+                    panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
+                }
+            } else {
+                panic!("Attempt to borrow object using dangling handle {:?}. Record has {} generation!", handle, record.generation);
+            }
+        } else {
+            panic!("Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}", handle, record_count);
         }
     }
 
@@ -292,42 +337,6 @@ impl<T> Pool<T> {
             } else {
                 None
             })
-    }
-
-    /// Borrows mutable reference to an object by its handle.
-    ///
-    /// # Panics
-    ///
-    /// Panics if handle is out of bounds or generation of handle does not match with
-    /// generation of pool record at handle index (in other words it means that object
-    /// at handle's index is different than the object was there before).
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rg3d_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let a = pool.spawn(1);
-    /// let a = pool.borrow_mut(a);
-    /// *a = 11;
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn borrow_mut(&mut self, handle: Handle<T>) -> &mut T {
-        let record_count = self.records.len();
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
-            if record.generation == handle.generation {
-                if let Some(ref mut payload) = record.payload {
-                    payload
-                } else {
-                    panic!("Trying to access destroyed object at index {} in pool.", handle.index);
-                }
-            } else {
-                panic!("Trying to access pool record with generation {} by a handle with {} generation!", record.generation, handle.generation);
-            }
-        } else {
-            panic!("Handle index {} out of [0; {}] bounds!", handle.index, record_count);
-        }
     }
 
     /// Borrows mutable references of objects at the same time. This method will succeed only
@@ -459,14 +468,22 @@ impl<T> Pool<T> {
     /// Panics if given handle is invalid.
     ///
     #[inline]
-    pub fn free(&mut self, handle: Handle<T>) {
+    pub fn free(&mut self, handle: Handle<T>) -> T {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
-            // Remember this index as free
-            self.free_stack.push(handle.index);
-            // Move out payload and drop it so it will be destroyed
-            record.payload.take();
+            if record.generation == handle.generation {
+                // Remember this index as free
+                self.free_stack.push(handle.index);
+                // Move out payload and drop it so it will be destroyed
+                if let Some(payload) = record.payload.take() {
+                    payload
+                } else {
+                    panic!("Attempt to double free object at handle {:?}!", handle);
+                }
+            } else {
+                panic!("Attempt to free object using dangling handle {:?}! Record generation is {}", handle, record.generation);
+            }
         } else {
-            panic!("Trying to free destroyed object at index {} in a pool!", handle.index);
+            panic!("Attempt to free destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
         }
     }
 
@@ -494,13 +511,17 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn at_mut(&mut self, n: usize) -> Option<&mut T> {
-        self.records.get_mut(n).and_then(|rec| rec.payload.as_mut())
+        self.records
+            .get_mut(n)
+            .and_then(|rec| rec.payload.as_mut())
     }
 
     #[inline]
     #[must_use]
     pub fn at(&self, n: usize) -> Option<&T> {
-        self.records.get(n).and_then(|rec| rec.payload.as_ref())
+        self.records
+            .get(n)
+            .and_then(|rec| rec.payload.as_ref())
     }
 
     #[inline]
@@ -531,71 +552,16 @@ impl<T> Pool<T> {
         self.records.iter().count()
     }
 
-    /// Moves object by specified handle out of the pool. All handles to the object will become
-    /// invalid.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rg3d_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let handle = pool.spawn(123);
-    /// assert_eq!(pool.is_valid_handle(handle), true);
-    /// let value = pool.take(handle);
-    /// assert_eq!(value, Some(123));
-    /// assert_eq!(pool.is_valid_handle(handle), false);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn take(&mut self, handle: Handle<T>) -> Option<T> {
-        if let Some(record) = self.records.get_mut(handle.index as usize) {
-            if record.generation == handle.generation {
-                self.free_stack.push(handle.index);
-                return record.payload.take();
-            }
-        }
-        None
-    }
-
-    /// Moves object by specified index out of the pool. All handles to the object will become
-    /// invalid.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use rg3d_core::pool::Pool;
-    /// let mut pool = Pool::<u32>::new();
-    /// let handle = pool.spawn(123);
-    /// assert_eq!(pool.is_valid_handle(handle), true);
-    /// let value = pool.take_at(0);
-    /// assert_eq!(value, Some(123));
-    /// assert_eq!(pool.is_valid_handle(handle), false);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn take_at(&mut self, index: usize) -> Option<T> {
-        if let Some(record) = self.records.get_mut(index) {
-            self.free_stack.push(index as u32);
-            record.payload.take()
-        } else {
-            None
-        }
-    }
-
     #[inline]
     pub fn replace(&mut self, handle: Handle<T>, payload: T) -> Option<T> {
         if let Some(record) = self.records.get_mut(handle.index as usize) {
             if record.generation == handle.generation {
-                return record.payload.replace(payload);
-            }
-        }
-        None
-    }
+                self.free_stack.retain(|i| *i != handle.index);
 
-    #[inline]
-    pub fn replace_at(&mut self, index: usize, payload: T) -> Option<T> {
-        if let Some(record) = self.records.get_mut(index) {
-            record.payload.replace(payload)
+                record.payload.replace(payload)
+            } else {
+                panic!("Attempt to replace object in pool using dangling handle! Handle is {:?}, but pool record has {} generation", handle, record.generation);
+            }
         } else {
             None
         }
