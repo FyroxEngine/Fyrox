@@ -669,7 +669,7 @@ impl AnimationContainer {
 
     #[inline]
     pub fn remove(&mut self, handle: Handle<Animation>) {
-        self.pool.free(handle)
+        self.pool.free(handle);
     }
 
     #[inline]

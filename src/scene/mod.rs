@@ -195,7 +195,7 @@ impl SceneContainer {
 
     #[inline]
     pub fn remove(&mut self, handle: Handle<Scene>) {
-        self.pool.free(handle)
+        self.pool.free(handle);
     }
 
     #[inline]
