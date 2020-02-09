@@ -144,7 +144,7 @@ impl Context {
 
     /// Removes effect by given handle.
     pub fn remove_effect(&mut self, effect: Handle<Effect>) {
-        self.effects.free(effect)
+        self.effects.free(effect);
     }
 
     /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
