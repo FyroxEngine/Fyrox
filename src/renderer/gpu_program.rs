@@ -127,6 +127,12 @@ impl GpuProgram {
         }
     }
 
+    pub fn set_vec4_array(&self, location: UniformLocation, v: &[Vec4]) {
+        unsafe {
+            gl::Uniform4fv(location.id, v.len() as i32, v.as_ptr() as *const GLfloat);
+        }
+    }
+
     pub fn set_vec4(&self, location: UniformLocation, value: &Vec4) {
         unsafe {
             gl::Uniform4f(location.id, value.x, value.y, value.z, value.w);
@@ -140,6 +146,12 @@ impl GpuProgram {
     pub fn set_float(&self, location: UniformLocation, value: f32) {
         unsafe {
             gl::Uniform1f(location.id, value)
+        }
+    }
+
+    pub fn set_float_array(&self, location: UniformLocation, v: &[f32]) {
+        unsafe {
+            gl::Uniform1fv(location.id, v.len() as i32, v.as_ptr() as *const GLfloat);
         }
     }
 

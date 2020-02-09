@@ -1,8 +1,6 @@
-use std::ffi::CString;
-
-use crate::core::math::mat4::Mat4;
 use crate::{
     renderer::{
+        RenderPassStatistics,
         gpu_program::{GpuProgram, UniformLocation},
         gl,
         error::RendererError,
@@ -13,24 +11,43 @@ use crate::{
             GeometryBufferKind,
         },
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
+        geometry_buffer::ElementKind
     },
     gui::{
+        brush::Brush,
         draw::{DrawingContext, CommandKind},
         self,
+        draw::CommandTexture
     },
-    gui::draw::CommandTexture,
+    core::math::mat4::Mat4,
+    resource::texture::Texture,
 };
-use crate::renderer::RenderPassStatistics;
-use std::sync::{Mutex};
-use crate::resource::texture::Texture;
-use std::any::Any;
-use crate::renderer::geometry_buffer::ElementKind;
+use std::{
+    sync::{Mutex},
+    ffi::CString,
+    any::Any
+};
+use rg3d_core::math::{
+    vec4::Vec4,
+    vec2::Vec2
+};
+use rg3d_ui::brush::GradientPoint;
 
 struct UIShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
     is_font: UniformLocation,
+    solid_color: UniformLocation,
+    brush_type: UniformLocation,
+    gradient_point_count: UniformLocation,
+    gradient_colors: UniformLocation,
+    gradient_stops: UniformLocation,
+    gradient_origin: UniformLocation,
+    gradient_end: UniformLocation,
+    resolution: UniformLocation,
+    bounds_min: UniformLocation,
+    bounds_max: UniformLocation,
 }
 
 impl UIShader {
@@ -42,6 +59,16 @@ impl UIShader {
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
             diffuse_texture: program.get_uniform_location("diffuseTexture")?,
             is_font: program.get_uniform_location("isFont")?,
+            solid_color: program.get_uniform_location("solidColor")?,
+            brush_type: program.get_uniform_location("brushType")?,
+            gradient_point_count: program.get_uniform_location("gradientPointCount")?,
+            gradient_colors: program.get_uniform_location("gradientColors")?,
+            gradient_stops: program.get_uniform_location("gradientStops")?,
+            gradient_origin: program.get_uniform_location("gradientOrigin")?,
+            gradient_end: program.get_uniform_location("gradientEnd")?,
+            bounds_min: program.get_uniform_location("boundsMin")?,
+            bounds_max: program.get_uniform_location("boundsMax")?,
+            resolution: program.get_uniform_location("resolution")?,
             program,
         })
     }
@@ -61,6 +88,51 @@ impl UIShader {
     pub fn set_diffuse_texture_sampler_id(&self, id: i32) {
         self.program.set_int(self.diffuse_texture, id)
     }
+
+    pub fn set_bounds_min(&self, v: Vec2) {
+        self.program.set_vec2(self.bounds_min, v);
+    }
+
+    pub fn set_bounds_max(&self, v: Vec2) {
+        self.program.set_vec2(self.bounds_max, v);
+    }
+
+    pub fn set_resolution(&self, v: Vec2) {
+        self.program.set_vec2(self.resolution, v);
+    }
+
+    fn set_gradient_stops(&self, stops: &[GradientPoint]) {
+        let mut raw_stops = [0.0; 16];
+        let mut raw_colors = [Vec4::default(); 16];
+        for (i, point) in stops.iter().enumerate() {
+            raw_stops[i] = point.stop;
+            raw_colors[i] = point.color.as_frgba();
+        }
+
+        self.program.set_int(self.gradient_point_count, stops.len() as i32);
+        self.program.set_float_array(self.gradient_stops, &raw_stops);
+        self.program.set_vec4_array(self.gradient_colors, &raw_colors);
+    }
+
+    pub fn set_brush(&self, brush: &Brush) {
+        match brush {
+            Brush::Solid(color) => {
+                self.program.set_int(self.brush_type, 0);
+                self.program.set_vec4(self.solid_color, &color.as_frgba());
+            },
+            Brush::LinearGradient { from, to, stops } => {
+                self.program.set_int(self.brush_type, 1);
+                self.program.set_vec2(self.gradient_origin, *from);
+                self.program.set_vec2(self.gradient_end, *to);
+                self.set_gradient_stops(stops);
+            },
+            Brush::RadialGradient { center, stops } => {
+                self.program.set_int(self.brush_type, 2);
+                self.program.set_vec2(self.gradient_origin, *center);
+                self.set_gradient_stops(stops);
+            },
+        }
+    }
 }
 
 pub struct UIRenderer {
@@ -75,7 +147,6 @@ impl UIRenderer {
         geometry_buffer.describe_attributes(vec![
             AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
             AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
         ])?;
 
         Ok(Self {
@@ -107,8 +178,12 @@ impl UIRenderer {
             let ortho = Mat4::ortho(0.0, frame_width, frame_height,
                                     0.0, -1.0, 1.0);
             self.shader.set_wvp_matrix(&ortho);
+            self.shader.set_resolution(Vec2::new(frame_width, frame_height));
 
             for cmd in drawing_context.get_commands() {
+                self.shader.set_bounds_min(cmd.min());
+                self.shader.set_bounds_max(cmd.max());
+
                 if cmd.get_nesting() != 0 {
                     gl::Enable(gl::STENCIL_TEST);
                 } else {
@@ -132,7 +207,8 @@ impl UIRenderer {
                         gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting()), 0xFF);
 
                         self.shader.set_diffuse_texture_sampler_id(0);
-                        match cmd.get_texture() {
+
+                        match cmd.texture() {
                             CommandTexture::None => white_dummy.bind(0),
                             CommandTexture::Font(font) => {
                                 let mut font = font.lock().unwrap();
@@ -161,6 +237,8 @@ impl UIRenderer {
                                 self.shader.set_is_font(false);
                             }
                         }
+
+                        self.shader.set_brush(cmd.brush());
 
                         gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
                         // Do not draw geometry to stencil buffer
