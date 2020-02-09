@@ -58,7 +58,7 @@ impl Control for Text {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
-            .set_color(self.widget.foreground())
+            .set_brush(self.widget.foreground())
             .build()
     }
 

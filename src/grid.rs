@@ -239,23 +239,23 @@ impl Control for Grid {
             let right_bottom = Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h);
             let left_bottom = Vec2::new(bounds.x, bounds.y + bounds.h);
 
-            drawing_context.push_line(left_top, right_top, self.border_thickness, self.widget.foreground());
-            drawing_context.push_line(right_top, right_bottom, self.border_thickness, self.widget.foreground());
-            drawing_context.push_line(right_bottom, left_bottom, self.border_thickness, self.widget.foreground());
-            drawing_context.push_line(left_bottom, left_top, self.border_thickness, self.widget.foreground());
+            drawing_context.push_line(left_top, right_top, self.border_thickness);
+            drawing_context.push_line(right_top, right_bottom, self.border_thickness);
+            drawing_context.push_line(right_bottom, left_bottom, self.border_thickness);
+            drawing_context.push_line(left_bottom, left_top, self.border_thickness);
 
             for column in self.columns.borrow().iter() {
                 let a = Vec2::new(bounds.x + column.x, bounds.y);
                 let b = Vec2::new(bounds.x + column.x, bounds.y + bounds.h);
-                drawing_context.push_line(a, b, self.border_thickness, self.widget.foreground());
+                drawing_context.push_line(a, b, self.border_thickness);
             }
             for row in self.rows.borrow().iter() {
                 let a = Vec2::new(bounds.x, bounds.y + row.y);
                 let b = Vec2::new(bounds.x + bounds.w, bounds.y + row.y);
-                drawing_context.push_line(a, b, self.border_thickness, self.widget.foreground());
+                drawing_context.push_line(a, b, self.border_thickness);
             }
 
-            drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+            drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
         }
     }
 }

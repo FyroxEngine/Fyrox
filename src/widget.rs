@@ -30,6 +30,7 @@ use std::{
     any::Any,
     rc::Rc,
 };
+use crate::brush::Brush;
 
 pub struct Widget {
     pub(in crate) name: String,
@@ -51,8 +52,8 @@ pub struct Widget {
     pub(in crate) min_size: Vec2,
     /// Maximum width and height
     pub(in crate) max_size: Vec2,
-    background: Color,
-    foreground: Color,
+    background: Brush,
+    foreground: Brush,
     /// Index of row to which this node belongs
     row: usize,
     /// Index of column to which this node belongs
@@ -105,8 +106,8 @@ impl Control for Widget {
             actual_size: self.actual_size.clone(),
             min_size: self.min_size,
             max_size: self.max_size,
-            background: self.background,
-            foreground: self.foreground,
+            background: self.background.clone(),
+            foreground: self.foreground.clone(),
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,
@@ -157,11 +158,11 @@ impl Control for Widget {
             Self::COLUMN => if let Some(value) = value.downcast_ref() {
                 self.column = *value
             },
-            Self::BACKGROUND => if let Some(value) = value.downcast_ref() {
-                self.background = *value
+            Self::BACKGROUND => if let Some(value) = value.downcast_ref::<Brush>() {
+                self.background = value.clone()
             },
-            Self::FOREGROUND => if let Some(value) = value.downcast_ref() {
-                self.foreground = *value;
+            Self::FOREGROUND => if let Some(value) = value.downcast_ref::<Brush>() {
+                self.foreground = value.clone()
             }
             Self::VISIBILITY => if let Some(value) = value.downcast_ref() {
                 self.visibility = *value
@@ -248,25 +249,25 @@ impl Widget {
     }
 
     #[inline]
-    pub fn set_background(&mut self, color: Color) -> &mut Self {
+    pub fn set_background(&mut self, color: Brush) -> &mut Self {
         self.background = color;
         self
     }
 
     #[inline]
-    pub fn background(&self) -> Color {
-        self.background
+    pub fn background(&self) -> Brush {
+        self.background.clone()
     }
 
     #[inline]
-    pub fn set_foreground(&mut self, color: Color) -> &mut Self {
+    pub fn set_foreground(&mut self, color: Brush) -> &mut Self {
         self.foreground = color;
         self
     }
 
     #[inline]
-    pub fn foreground(&self) -> Color {
-        self.foreground
+    pub fn foreground(&self) -> Brush {
+        self.foreground.clone()
     }
 
     #[inline]
@@ -427,8 +428,8 @@ pub struct WidgetBuilder {
     horizontal_alignment: Option<HorizontalAlignment>,
     max_size: Option<Vec2>,
     min_size: Option<Vec2>,
-    background: Option<Color>,
-    foreground: Option<Color>,
+    background: Brush,
+    foreground: Brush,
     row: Option<usize>,
     column: Option<usize>,
     margin: Option<Thickness>,
@@ -454,8 +455,8 @@ impl WidgetBuilder {
             horizontal_alignment: None,
             max_size: None,
             min_size: None,
-            background: None,
-            foreground: None,
+            background: Brush::Solid(Color::WHITE),
+            foreground: Brush::Solid(Color::WHITE),
             row: None,
             column: None,
             margin: None,
@@ -497,13 +498,13 @@ impl WidgetBuilder {
         self
     }
 
-    pub fn with_background(mut self, color: Color) -> Self {
-        self.background = Some(color);
+    pub fn with_background(mut self, brush: Brush) -> Self {
+        self.background = brush;
         self
     }
 
-    pub fn with_foreground(mut self, color: Color) -> Self {
-        self.foreground = Some(color);
+    pub fn with_foreground(mut self, brush: Brush) -> Self {
+        self.foreground = brush;
         self
     }
 
@@ -573,8 +574,8 @@ impl WidgetBuilder {
             actual_size: Cell::new(Vec2::ZERO),
             min_size: self.min_size.unwrap_or(Vec2::ZERO),
             max_size: self.max_size.unwrap_or_else(|| Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
-            background: self.background.unwrap_or(Color::WHITE),
-            foreground: self.foreground.unwrap_or(Color::WHITE),
+            background: self.background,
+            foreground: self.foreground,
             row: self.row.unwrap_or(0),
             column: self.column.unwrap_or(0),
             vertical_alignment: self.vertical_alignment.unwrap_or(VerticalAlignment::Stretch),

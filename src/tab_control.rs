@@ -27,6 +27,7 @@ use crate::{
     },
     Visibility,
 };
+use crate::brush::Brush;
 
 pub struct Tab {
     header_button: Handle<UINode>,
@@ -156,7 +157,7 @@ impl Builder for TabControlBuilder {
         let tab_control = TabControl {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Color::from_rgba(0,0,0,0))
+                    .with_background(Brush::Solid(Color::from_rgba(0,0,0,0)))
                     .with_child(grid))
                     .build(container))
                 .build(),

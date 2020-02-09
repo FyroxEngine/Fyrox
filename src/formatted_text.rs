@@ -17,12 +17,12 @@ use std::{
         Mutex,
     },
 };
+use crate::brush::Brush;
 
 #[derive(Debug, Clone)]
 pub struct TextGlyph {
     bounds: Rect<f32>,
-    tex_coords: [Vec2; 4],
-    color: Color,
+    tex_coords: [Vec2; 4]
 }
 
 impl TextGlyph {
@@ -32,10 +32,6 @@ impl TextGlyph {
 
     pub fn get_tex_coords(&self) -> &[Vec2; 4] {
         &self.tex_coords
-    }
-
-    pub fn get_color(&self) -> Color {
-        self.color
     }
 }
 
@@ -89,7 +85,7 @@ pub struct FormattedText {
     glyphs: Vec<TextGlyph>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
-    color: Color,
+    brush: Brush,
     constraint: Vec2,
     wrap: bool,
 }
@@ -130,9 +126,13 @@ impl FormattedText {
         self.horizontal_alignment
     }
 
-    pub fn set_color(&mut self, color: Color) -> &mut Self {
-        self.color = color;
+    pub fn set_brush(&mut self, brush: Brush) -> &mut Self {
+        self.brush = brush;
         self
+    }
+
+    pub fn brush(&self) -> Brush {
+        self.brush.clone()
     }
 
     pub fn set_constraint(&mut self, constraint: Vec2) -> &mut Self {
@@ -302,7 +302,6 @@ impl FormattedText {
                             let text_glyph = TextGlyph {
                                 bounds: rect,
                                 tex_coords: *glyph.get_tex_coords(),
-                                color: self.color,
                             };
                             self.glyphs.push(text_glyph);
                         }
@@ -318,8 +317,7 @@ impl FormattedText {
                         };
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
-                            tex_coords: [Vec2::ZERO; 4],
-                            color: self.color,
+                            tex_coords: [Vec2::ZERO; 4]
                         });
                         cursor.x += rect.w;
                     }
@@ -340,7 +338,7 @@ impl FormattedText {
 
 pub struct FormattedTextBuilder {
     font: Option<Arc<Mutex<Font>>>,
-    color: Color,
+    brush: Brush,
     constraint: Vec2,
     text: String,
     vertical_alignment: VerticalAlignment,
@@ -362,7 +360,7 @@ impl FormattedTextBuilder {
             text: "".to_owned(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
-            color: Color::WHITE,
+            brush: Brush::Solid(Color::WHITE),
             constraint: Vec2::new(128.0, 128.0),
             wrap: false,
         }
@@ -398,8 +396,8 @@ impl FormattedTextBuilder {
         self
     }
 
-    pub fn with_color(mut self, color: Color) -> Self {
-        self.color = color;
+    pub fn with_brush(mut self, brush: Brush) -> Self {
+        self.brush = brush;
         self
     }
 
@@ -411,7 +409,7 @@ impl FormattedTextBuilder {
             glyphs: Vec::new(),
             vertical_alignment: self.vertical_alignment,
             horizontal_alignment: self.horizontal_alignment,
-            color: self.color,
+            brush: self.brush,
             constraint: self.constraint,
             wrap: self.wrap,
         }

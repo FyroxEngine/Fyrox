@@ -15,7 +15,6 @@ use crate::{
     draw::{
         DrawingContext,
         CommandKind,
-        CommandTexture,
     },
     formatted_text::{
         FormattedText,
@@ -41,6 +40,8 @@ use std::{
     sync::{Mutex, Arc},
     cell::RefCell,
 };
+use crate::brush::{Brush};
+use crate::draw::CommandTexture;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -76,6 +77,8 @@ pub struct TextBox {
     formatted_text: RefCell<FormattedText>,
     selection_range: Option<SelectionRange>,
     selecting: bool,
+    caret_brush: Brush,
+    selection_brush: Brush,
 }
 
 impl TextBox {
@@ -92,6 +95,8 @@ impl TextBox {
                 .build()),
             selection_range: None,
             selecting: false,
+            caret_brush: Brush::Solid(Color::WHITE),
+            selection_brush: Brush::Solid(Color::opaque(65, 65, 90))
         }
     }
 
@@ -332,14 +337,6 @@ impl Control for TextBox {
         &mut self.widget
     }
 
-    fn measure_override(&self, _: &UserInterface, available_size: Vec2) -> Vec2 {
-        self.formatted_text
-            .borrow_mut()
-            .set_constraint(available_size)
-            .set_color(self.widget.foreground())
-            .build()
-    }
-
     fn raw_copy(&self) -> Box<dyn Control> {
         Box::new(Self {
             widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
@@ -352,22 +349,32 @@ impl Control for TextBox {
                 .with_font(self.formatted_text.borrow().get_font().unwrap()).build()),
             selection_range: self.selection_range,
             selecting: self.selecting,
+            selection_brush: self.selection_brush.clone(),
+            caret_brush: self.caret_brush.clone()
         })
     }
 
     fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
 
+    fn measure_override(&self, _: &UserInterface, available_size: Vec2) -> Vec2 {
+        self.formatted_text
+            .borrow_mut()
+            .set_constraint(available_size)
+            .set_brush(self.widget.foreground())
+            .build()
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         self.widget.draw(drawing_context);
 
         let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, Color::opaque(80, 80, 80));
-        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
 
         self.formatted_text
             .borrow_mut()
             .set_constraint(Vec2::new(bounds.w, bounds.h))
-            .set_color(self.widget.background())
+            .set_brush(self.widget.background())
             .build();
 
         if let Some(ref selection_range) = self.selection_range {
@@ -384,7 +391,7 @@ impl Control for TextBox {
                                        bounds.y + line.y_offset,
                                        width,
                                        line.height);
-                drawing_context.push_rect_filled(&bounds, None, Color::opaque(65, 65, 90));
+                drawing_context.push_rect_filled(&bounds, None);
             } else {
                 for (i, line) in text.get_lines().iter().enumerate() {
                     if i >= selection_range.begin.line && i <= selection_range.end.line {
@@ -410,12 +417,12 @@ impl Control for TextBox {
                                       line.width,
                                       line.height)
                         };
-                        drawing_context.push_rect_filled(&bounds, None, Color::opaque(90, 90, 120));
+                        drawing_context.push_rect_filled(&bounds, None);
                     }
                 }
             }
         }
-        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+        drawing_context.commit(CommandKind::Geometry, self.selection_brush.clone(), CommandTexture::None);
 
         let screen_position = Vec2::new(bounds.x, bounds.y);
         drawing_context.draw_text(screen_position, &self.formatted_text.borrow());
@@ -442,8 +449,8 @@ impl Control for TextBox {
                     }
 
                     let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.get_height());
-                    drawing_context.push_rect_filled(&caret_bounds, None, Color::WHITE);
-                    drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+                    drawing_context.push_rect_filled(&caret_bounds, None);
+                    drawing_context.commit(CommandKind::Geometry, self.caret_brush.clone(), CommandTexture::None);
                 }
             }
         }
@@ -529,6 +536,8 @@ pub struct TextBoxBuilder {
     widget_builder: WidgetBuilder,
     font: Option<Arc<Mutex<Font>>>,
     text: String,
+    caret_brush: Brush,
+    selection_brush: Brush,
 }
 
 impl TextBoxBuilder {
@@ -537,6 +546,8 @@ impl TextBoxBuilder {
             widget_builder,
             font: None,
             text: "".to_owned(),
+            caret_brush: Brush::Solid(Color::WHITE),
+            selection_brush: Brush::Solid(Color::opaque(65, 65, 90))
         }
     }
 
@@ -547,6 +558,16 @@ impl TextBoxBuilder {
 
     pub fn with_text(mut self, text: String) -> Self {
         self.text = text;
+        self
+    }
+
+    pub fn with_caret_brush(mut self, brush: Brush) -> Self {
+        self.caret_brush = brush;
+        self
+    }
+
+    pub fn with_selection_brush(mut self, brush: Brush) -> Self {
+        self.selection_brush = brush;
         self
     }
 }
@@ -566,6 +587,8 @@ impl Builder for TextBoxBuilder {
                 .build()),
             selection_range: None,
             selecting: false,
+            selection_brush: self.selection_brush,
+            caret_brush: self.caret_brush
         };
 
         ui.add_node(Box::new(text_box))

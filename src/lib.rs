@@ -30,6 +30,8 @@ pub mod check_box;
 pub mod style;
 pub mod tab_control;
 pub mod ttf;
+pub mod brush;
+pub mod templates;
 
 use std::{
     collections::{
@@ -58,7 +60,6 @@ use crate::{
     draw::{
         DrawingContext,
         CommandKind,
-        CommandTexture,
     },
     canvas::Canvas,
     event::{
@@ -70,6 +71,8 @@ use crate::{
     ttf::Font,
 };
 use crate::event::{OsEvent, ButtonState};
+use crate::brush::Brush;
+use crate::draw::CommandTexture;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -534,8 +537,8 @@ impl UserInterface {
                 };
 
             if let Some(picked_bounds) = picked_bounds {
-                self.drawing_context.push_rect(&picked_bounds, 1.0, Color::WHITE);
-                self.drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+                self.drawing_context.push_rect(&picked_bounds, 1.0);
+                self.drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::WHITE), CommandTexture::None);
             }
         }
 

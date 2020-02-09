@@ -24,6 +24,7 @@ use crate::{
     },
 };
 use std::collections::HashMap;
+use crate::brush::Brush;
 
 pub struct ListBox {
     widget: Widget,
@@ -97,10 +98,10 @@ impl Control for ListBoxItem {
             let body = ui.node_mut(self.body).widget_mut();
             match evt.kind {
                 UIEventKind::MouseLeave => {
-                    body.widget_mut().set_background(Color::opaque(100, 100, 100));
+                    body.widget_mut().set_background(Brush::Solid(Color::opaque(100, 100, 100)));
                 }
                 UIEventKind::MouseEnter => {
-                    body.widget_mut().set_background(Color::opaque(130, 130, 130));
+                    body.widget_mut().set_background(Brush::Solid(Color::opaque(130, 130, 130)));
                 }
                 UIEventKind::MouseDown { .. } => {
                     // Explicitly set selection on parent list box. This will send
@@ -119,12 +120,12 @@ impl Control for ListBoxItem {
                     // check at which index and keep visual state according to it.
                     if let Some(new_value) = new_value {
                         if new_value == self.index {
-                            border.widget_mut().set_foreground(Color::opaque(0, 0, 0));
+                            border.widget_mut().set_foreground(Brush::Solid(Color::opaque(0, 0, 0)));
                             border.set_stroke_thickness(Thickness::uniform(2.0));
                             return;
                         }
                     }
-                    border.widget_mut().set_foreground(Color::opaque(80, 80, 80));
+                    border.widget_mut().set_foreground(Brush::Solid(Color::opaque(80, 80, 80)));
                     border.set_stroke_thickness(Thickness::uniform(1.0));
                 }
             }
@@ -180,8 +181,8 @@ impl Builder for ListBoxBuilder {
         // Wrap each item into container which will have selection behaviour
         let items: Vec<Handle<UINode>> = self.items.iter().enumerate().map(|(index, item)| {
             let body = BorderBuilder::new(WidgetBuilder::new()
-                .with_foreground(Color::opaque(60, 60, 60))
-                .with_background(Color::opaque(80, 80, 80))
+                .with_foreground(Brush::Solid(Color::opaque(60, 60, 60)))
+                .with_background(Brush::Solid(Color::opaque(80, 80, 80)))
                 .with_child(*item))
                 .with_stroke_thickness(Thickness::uniform(1.0))
                 .build(ui);
@@ -209,7 +210,7 @@ impl Builder for ListBoxBuilder {
         let list_box = ListBox {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Color::opaque(100, 100, 100))
+                    .with_background(Brush::Solid(Color::opaque(100, 100, 100)))
                     .with_child(scroll_viewer))
                     .build(ui))
                 .build(),

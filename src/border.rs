@@ -17,7 +17,6 @@ use crate::{
         Widget,
         WidgetBuilder,
     },
-    draw::CommandTexture,
     Control,
     ControlTemplate,
     UINodeContainer,
@@ -27,6 +26,7 @@ use std::{
     any::Any,
     collections::HashMap,
 };
+use crate::draw::CommandTexture;
 
 pub struct Border {
     widget: Widget,
@@ -131,9 +131,11 @@ impl Control for Border {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, self.widget.background());
-        drawing_context.push_rect_vary(&bounds, self.stroke_thickness, self.widget.foreground());
-        drawing_context.commit(CommandKind::Geometry, CommandTexture::None);
+        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
+
+        drawing_context.push_rect_vary(&bounds, self.stroke_thickness);
+        drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
     }
 
     fn set_property(&mut self, name: &str, value: &dyn Any) {

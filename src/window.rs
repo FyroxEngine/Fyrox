@@ -36,6 +36,7 @@ use crate::{
     },
 };
 use std::collections::HashMap;
+use crate::brush::Brush;
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
@@ -280,7 +281,7 @@ impl Builder for WindowBuilder<'_> {
         let close_button;
 
         let header = BorderBuilder::new(WidgetBuilder::new()
-            .with_background(Color::opaque(120, 120, 120))
+            .with_background(Brush::Solid(Color::opaque(120, 120, 120)))
             .with_horizontal_alignment(HorizontalAlignment::Stretch)
             .with_height(30.0)
             .with_child(GridBuilder::new(WidgetBuilder::new()
@@ -347,7 +348,7 @@ impl Builder for WindowBuilder<'_> {
                         .add_row(Row::auto())
                         .add_row(Row::stretch())
                         .build(ui))
-                    .with_background(Color::opaque(100, 100, 100)))
+                    .with_background(Brush::Solid(Color::opaque(100, 100, 100))))
                     .build(ui))
                 .build(),
             mouse_click_pos: Vec2::ZERO,

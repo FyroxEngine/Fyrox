@@ -11,6 +11,7 @@ use crate::{border::BorderBuilder, canvas::CanvasBuilder, event::UIEventKind, bu
 }, HorizontalAlignment, VerticalAlignment, bool_to_visibility};
 use std::collections::HashMap;
 use crate::text::{Text, TextBuilder};
+use crate::brush::Brush;
 
 /// Scroll bar
 ///
@@ -418,7 +419,9 @@ impl Builder for ScrollBarBuilder {
             });
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new())
+            BorderBuilder::new(WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::opaque(255, 255, 255)))
+                .with_foreground(Brush::Solid(Color::opaque(50, 50, 50))))
                 .with_stroke_thickness(match orientation {
                     Orientation::Horizontal => Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 },
                     Orientation::Vertical => Thickness { left: 0.0, top: 1.0, right: 0.0, bottom: 1.0 }
@@ -428,8 +431,6 @@ impl Builder for ScrollBarBuilder {
 
         ui.node_mut(indicator)
             .widget_mut()
-            .set_background(Color::opaque(255, 255, 255))
-            .set_foreground(Color::opaque(50, 50, 50))
             .set_width(30.0)
             .set_height(30.0);
 
@@ -450,6 +451,7 @@ impl Builder for ScrollBarBuilder {
             .with_visibility(bool_to_visibility(self.show_value))
             .with_horizontal_alignment(HorizontalAlignment::Center)
             .with_vertical_alignment(VerticalAlignment::Center)
+            .with_hit_test_visibility(false)
             .on_column(match orientation {
                 Orientation::Horizontal => 1,
                 Orientation::Vertical => 0
@@ -481,8 +483,8 @@ impl Builder for ScrollBarBuilder {
 
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Color::opaque(120, 120, 120))
-                .with_foreground(Color::opaque(200, 200, 200)))
+                .with_background(Brush::Solid( Color::opaque(120, 120, 120)))
+                .with_foreground(Brush::Solid(Color::opaque(200, 200, 200))))
                 .with_stroke_thickness(Thickness::uniform(1.0))
                 .build(ui)
         });

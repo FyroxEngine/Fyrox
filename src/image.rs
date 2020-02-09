@@ -10,7 +10,6 @@ use crate::{
     draw::{
         DrawingContext,
         CommandKind,
-        CommandTexture,
     },
     widget::Widget,
     widget::WidgetBuilder,
@@ -19,7 +18,7 @@ use crate::{
     UINodeContainer,
     Builder,
 };
-use crate::draw::Texture;
+use crate::draw::{Texture, CommandTexture};
 
 pub struct Image {
     widget: Widget,
@@ -59,10 +58,11 @@ impl Control for Image {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None, self.widget.background());
-        let texture = self.texture.as_ref().map_or(CommandTexture::None,
-                                                   |t| { CommandTexture::Texture(t.clone()) });
-        drawing_context.commit(CommandKind::Geometry, texture);
+        drawing_context.push_rect_filled(&bounds, None);
+        let texture = self.texture
+            .as_ref()
+            .map_or(CommandTexture::None,|t| CommandTexture::Texture(t.clone()));
+        drawing_context.commit(CommandKind::Geometry, self.widget.background(), texture);
     }
 }
 

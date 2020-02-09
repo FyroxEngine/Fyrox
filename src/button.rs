@@ -31,24 +31,37 @@ use std::{
         Mutex,
     },
 };
+use crate::brush::{Brush, GradientPoint};
+use rg3d_core::math::vec2::Vec2;
 
-/// Button
-///
-/// # Events
-///
-/// [`Click`] - spawned when user click button.
 pub struct Button {
     widget: Widget,
     body: Handle<UINode>,
     content: Handle<UINode>,
+    hover_brush: Brush,
+    pressed_brush: Brush,
 }
 
 impl Button {
-    pub fn new(widget: Widget, body: Handle<UINode>, content: Handle<UINode>) -> Self {
+    pub fn template() -> ControlTemplate {
+        let mut template = ControlTemplate::new();
+        ButtonBuilder::new(WidgetBuilder::new()).build(&mut template);
+        template
+    }
+
+    pub fn new(
+        widget: Widget,
+        body: Handle<UINode>,
+        content: Handle<UINode>,
+        hover_brush: Brush,
+        pressed_brush: Brush,
+    ) -> Self {
         Self {
             widget,
             body,
             content,
+            hover_brush,
+            pressed_brush,
         }
     }
 
@@ -71,6 +84,8 @@ impl Control for Button {
             widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
             body: self.body,
             content: self.content,
+            hover_brush: self.hover_brush.clone(),
+            pressed_brush: self.pressed_brush.clone(),
         })
     }
 
@@ -80,10 +95,6 @@ impl Control for Button {
     }
 
     fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        let normal_color = Color::opaque(120, 120, 120);
-        let pressed_color = Color::opaque(100, 100, 100);
-        let hover_color = Color::opaque(160, 160, 160);
-
         if evt.source == self_handle || self.widget().has_descendant(evt.source, ui) {
             match evt.kind {
                 UIEventKind::MouseUp { .. } => {
@@ -105,20 +116,20 @@ impl Control for Button {
             let back = ui.nodes.borrow_mut(self.body).widget_mut();
             match evt.kind {
                 UIEventKind::MouseDown { .. } => {
-                    back.set_background(pressed_color);
+                    back.set_background(self.pressed_brush.clone());
                 }
                 UIEventKind::MouseUp { .. } => {
                     if back.is_mouse_over {
-                        back.set_background(hover_color);
+                        back.set_background(self.hover_brush.clone());
                     } else {
-                        back.set_background(normal_color);
+                        back.set_background(self.widget.background());
                     }
                 }
                 UIEventKind::MouseLeave => {
-                    back.set_background(normal_color);
+                    back.set_background(self.widget.background());
                 }
                 UIEventKind::MouseEnter => {
-                    back.set_background(hover_color);
+                    back.set_background(self.hover_brush.clone());
                 }
                 _ => ()
             }
@@ -135,6 +146,9 @@ pub struct ButtonBuilder {
     widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
     font: Option<Arc<Mutex<Font>>>,
+    hover_brush: Option<Brush>,
+    pressed_brush: Option<Brush>,
+    body: Option<Handle<UINode>>,
 }
 
 impl ButtonBuilder {
@@ -143,6 +157,9 @@ impl ButtonBuilder {
             widget_builder,
             content: None,
             font: None,
+            pressed_brush: None,
+            hover_brush: None,
+            body: Default::default()
         }
     }
 
@@ -161,9 +178,22 @@ impl ButtonBuilder {
         self
     }
 
-    pub fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
-        let normal_color = Color::opaque(120, 120, 120);
+    pub fn with_body(mut self, body: Handle<UINode>) -> Self {
+        self.body = Some(body);
+        self
+    }
 
+    pub fn with_hover_brush(mut self, brush: Brush) -> Self {
+        self.hover_brush = Some(brush);
+        self
+    }
+
+    pub fn with_pressed_brush(mut self, brush: Brush) -> Self {
+        self.pressed_brush = Some(brush);
+        self
+    }
+
+    pub fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
         let content = if let Some(content) = self.content {
             match content {
                 ButtonContent::Text(txt) => {
@@ -180,20 +210,63 @@ impl ButtonBuilder {
             Handle::NONE
         };
 
-        let body = BorderBuilder::new(WidgetBuilder::new()
-            .with_background(normal_color)
-            .with_foreground(Color::opaque(200, 200, 200))
-            .with_child(content))
-            .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
-            .build(ui);
+        let body = self.body.unwrap_or_else(|| {
+            let brush = Brush::LinearGradient {
+                from: Vec2::new(0.5, 0.0),
+                to: Vec2::new(0.5, 1.0),
+                stops: vec![
+                    GradientPoint { stop: 0.0, color: Color::opaque(85, 85, 85) },
+                    GradientPoint { stop: 0.46, color: Color::opaque(85, 85, 85) },
+                    GradientPoint { stop: 0.5, color: Color::opaque(65, 65, 65) },
+                    GradientPoint { stop: 0.54, color: Color::opaque(75, 75, 75) },
+                    GradientPoint { stop: 1.0, color: Color::opaque(75, 75, 75) },
+                ],
+            };
+
+            BorderBuilder::new(WidgetBuilder::new()
+                .with_background(brush.clone())
+                .with_foreground(Brush::Solid(Color::opaque(65, 65, 65))))
+                .with_stroke_thickness(Thickness { left: 1.0, right: 1.0, top: 1.0, bottom: 1.0 })
+                .build(ui)
+        });
+
+        ui.link_nodes(content, body);
 
         let button = Button {
             widget: self.widget_builder
+                .with_background(ui.node(body).widget().background())
                 .with_child(body)
                 .build(),
             body,
             content,
+            hover_brush: self.hover_brush.unwrap_or_else(|| {
+                Brush::LinearGradient {
+                    from: Vec2::new(0.5, 0.0),
+                    to: Vec2::new(0.5, 1.0),
+                    stops: vec![
+                        GradientPoint { stop: 0.0, color: Color::opaque(105, 95, 85) },
+                        GradientPoint { stop: 0.46, color: Color::opaque(105, 95, 85) },
+                        GradientPoint { stop: 0.5, color: Color::opaque(85, 75, 65) },
+                        GradientPoint { stop: 0.54, color: Color::opaque(95, 85, 75) },
+                        GradientPoint { stop: 1.0, color: Color::opaque(95, 85, 75) },
+                    ],
+                }
+            }),
+            pressed_brush: self.pressed_brush.unwrap_or_else(|| {
+                Brush::LinearGradient {
+                    from: Vec2::new(0.5, 0.0),
+                    to: Vec2::new(0.5, 1.0),
+                    stops: vec![
+                        GradientPoint { stop: 0.0, color: Color::opaque(65, 65, 65) },
+                        GradientPoint { stop: 0.46, color: Color::opaque(65, 65, 65) },
+                        GradientPoint { stop: 0.5, color: Color::opaque(45, 45, 45) },
+                        GradientPoint { stop: 0.54, color: Color::opaque(55, 55, 55) },
+                        GradientPoint { stop: 1.0, color: Color::opaque(55, 55, 55) },
+                    ],
+                }
+            }),
         };
+
         ui.add_node(Box::new(button))
     }
 }

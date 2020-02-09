@@ -1,27 +1,27 @@
 use crate::{
-        widget::{
-            Widget,
-            WidgetBuilder,
-        },
-        UserInterface,
-        UINode,
-        event::{
-            UIEvent,
-            UIEventKind,
-        },
-        Thickness,
-        Visibility,
-        bool_to_visibility,
-        border::BorderBuilder,
-        Control,
-        ControlTemplate,
-        UINodeContainer,
-        Builder,
-
+    widget::{
+        Widget,
+        WidgetBuilder,
+    },
+    UserInterface,
+    UINode,
+    event::{
+        UIEvent,
+        UIEventKind,
+    },
+    Thickness,
+    Visibility,
+    bool_to_visibility,
+    border::BorderBuilder,
+    Control,
+    ControlTemplate,
+    UINodeContainer,
+    Builder,
     core::{
         pool::Handle,
         color::Color,
     },
+    brush::Brush
 };
 use std::collections::HashMap;
 
@@ -53,8 +53,6 @@ impl Control for CheckBox {
     }
 
     fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        let check_mark_color = Color::opaque(200, 200, 200);
-
         match evt.kind {
             UIEventKind::MouseDown { .. } => {
                 if evt.source == self_handle || self.widget.has_descendant(evt.source, ui) {
@@ -78,10 +76,10 @@ impl Control for CheckBox {
                 let check_mark = ui.node_mut(self.check_mark).widget_mut();
                 match value {
                     None => {
-                        check_mark.set_background(Color::opaque(30, 30, 80));
+                        check_mark.set_background(Brush::Solid(Color::opaque(30, 30, 80)));
                     }
                     Some(value) => {
-                        check_mark.set_background(check_mark_color);
+                        check_mark.set_background(Brush::Solid(Color::opaque(200, 200, 200)));
                         check_mark.set_visibility(
                             if value {
                                 Visibility::Visible
@@ -144,11 +142,9 @@ impl CheckBoxBuilder {
 
 impl Builder for CheckBoxBuilder {
     fn build(self, container: &mut dyn UINodeContainer) -> Handle<UINode> {
-        let check_mark_color = Color::opaque(200, 200, 200);
-
         let check_mark = self.check_mark.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
-                .with_background(check_mark_color)
+                .with_background(Brush::Solid(Color::opaque(200, 200, 200)))
                 .with_margin(Thickness::uniform(1.0)))
                 .with_stroke_thickness(Thickness::uniform(0.0))
                 .build(container)
@@ -166,8 +162,8 @@ impl Builder for CheckBoxBuilder {
         let check_box = CheckBox {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Color::opaque(60, 60, 60))
-                    .with_foreground(Color::WHITE)
+                    .with_background(Brush::Solid(Color::opaque(60, 60, 60)))
+                    .with_foreground(Brush::Solid(Color::WHITE))
                     .with_child(check_mark))
                     .with_stroke_thickness(Thickness::uniform(1.0))
                     .build(container))

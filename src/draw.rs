@@ -1,7 +1,6 @@
 use crate::{
     Thickness,
     formatted_text::FormattedText,
-    ttf::Font,
     core::{
         color::Color,
         math::{
@@ -10,26 +9,23 @@ use crate::{
         },
     },
 };
-use std::{
-    sync::{Arc, Mutex},
-};
 use std::any::Any;
 use crate::core::math::TriangleDefinition;
-
+use crate::brush::Brush;
+use std::sync::{Arc, Mutex};
+use crate::ttf::Font;
 
 #[repr(C)]
 pub struct Vertex {
     pos: Vec2,
     tex_coord: Vec2,
-    color: Color,
 }
 
 impl Vertex {
-    fn new(pos: Vec2, tex_coord: Vec2, color: Color) -> Vertex {
+    fn new(pos: Vec2, tex_coord: Vec2) -> Vertex {
         Vertex {
             pos,
             tex_coord,
-            color,
         }
     }
 }
@@ -51,7 +47,10 @@ pub enum CommandTexture {
 
 #[derive(Clone)]
 pub struct Command {
+    min: Vec2,
+    max: Vec2,
     kind: CommandKind,
+    brush: Brush,
     texture: CommandTexture,
     start_triangle: usize,
     triangle_count: usize,
@@ -65,8 +64,23 @@ impl Command {
     }
 
     #[inline]
-    pub fn get_texture(&self) -> &CommandTexture {
+    pub fn brush(&self) -> &Brush {
+        &self.brush
+    }
+
+    #[inline]
+    pub fn texture(&self) -> &CommandTexture {
         &self.texture
+    }
+
+    #[inline]
+    pub fn min(&self) -> Vec2 {
+        self.min
+    }
+
+    #[inline]
+    pub fn max(&self) -> Vec2 {
+        self.max
     }
 
     #[inline]
@@ -95,7 +109,6 @@ pub struct DrawingContext {
     current_nesting: u8,
 }
 
-
 fn get_line_thickness_vector(a: Vec2, b: Vec2, thickness: f32) -> Vec2 {
     if let Some(dir) = (b - a).normalized() {
         dir.perpendicular().scale(thickness * 0.5)
@@ -109,7 +122,6 @@ impl Default for DrawingContext {
         Self::new()
     }
 }
-
 
 impl DrawingContext {
     pub fn new() -> DrawingContext {
@@ -146,8 +158,8 @@ impl DrawingContext {
     }
 
     #[inline]
-    fn push_vertex(&mut self, pos: Vec2, tex_coord: Vec2, color: Color) {
-        self.vertex_buffer.push(Vertex::new(pos, tex_coord, color));
+    fn push_vertex(&mut self, pos: Vec2, tex_coord: Vec2) {
+        self.vertex_buffer.push(Vertex::new(pos, tex_coord));
     }
 
     #[inline]
@@ -228,19 +240,19 @@ impl DrawingContext {
         false
     }
 
-    pub fn push_line(&mut self, a: Vec2, b: Vec2, thickness: f32, color: Color) {
+    pub fn push_line(&mut self, a: Vec2, b: Vec2, thickness: f32) {
         let perp = get_line_thickness_vector(a, b, thickness);
-        self.push_vertex(a - perp, Vec2::new(0.0, 0.0), color);
-        self.push_vertex(b - perp, Vec2::new(1.0, 0.0), color);
-        self.push_vertex(a + perp, Vec2::new(1.0, 1.0), color);
-        self.push_vertex(b + perp, Vec2::new(0.0, 1.0), color);
+        self.push_vertex(a - perp, Vec2::new(0.0, 0.0));
+        self.push_vertex(b - perp, Vec2::new(1.0, 0.0));
+        self.push_vertex(a + perp, Vec2::new(1.0, 1.0));
+        self.push_vertex(b + perp, Vec2::new(0.0, 1.0));
 
         let index = self.get_index_origin();
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index + 2, index + 1, index + 3);
     }
 
-    pub fn push_rect(&mut self, rect: &Rect<f32>, thickness: f32, color: Color) {
+    pub fn push_rect(&mut self, rect: &Rect<f32>, thickness: f32) {
         let offset = thickness * 0.5;
 
         let left_top = Vec2::new(rect.x + offset, rect.y + thickness);
@@ -253,15 +265,15 @@ impl DrawingContext {
         let left_bottom_off = Vec2::new(rect.x, rect.y + rect.h - offset);
 
         // Horizontal lines
-        self.push_line(left_top_off, right_top_off, thickness, color);
-        self.push_line(right_bottom_off, left_bottom_off, thickness, color);
+        self.push_line(left_top_off, right_top_off, thickness);
+        self.push_line(right_bottom_off, left_bottom_off, thickness);
 
         // Vertical line
-        self.push_line(right_top, right_bottom, thickness, color);
-        self.push_line(left_bottom, left_top, thickness, color);
+        self.push_line(right_top, right_bottom, thickness);
+        self.push_line(left_bottom, left_top, thickness);
     }
 
-    pub fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness, color: Color) {
+    pub fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness) {
         let left_top = Vec2::new(rect.x + thickness.left * 0.5, rect.y + thickness.top);
         let right_top = Vec2::new(rect.x + rect.w - thickness.right * 0.5, rect.y + thickness.top);
         let right_bottom = Vec2::new(rect.x + rect.w - thickness.right * 0.5, rect.y + rect.h - thickness.bottom);
@@ -272,38 +284,60 @@ impl DrawingContext {
         let left_bottom_off = Vec2::new(rect.x, rect.y + rect.h - thickness.bottom * 0.5);
 
         // Horizontal lines
-        self.push_line(left_top_off, right_top_off, thickness.top, color);
-        self.push_line(right_bottom_off, left_bottom_off, thickness.bottom, color);
+        self.push_line(left_top_off, right_top_off, thickness.top);
+        self.push_line(right_bottom_off, left_bottom_off, thickness.bottom);
 
         // Vertical lines
-        self.push_line(right_top, right_bottom, thickness.right, color);
-        self.push_line(left_bottom, left_top, thickness.left, color);
+        self.push_line(right_top, right_bottom, thickness.right);
+        self.push_line(left_bottom, left_top, thickness.left);
     }
 
-    pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>, color: Color) {
-        self.push_vertex(Vec2::new(rect.x, rect.y), tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]), color);
-        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y), tex_coords.map_or(Vec2::new(1.0, 0.0), |t| t[1]), color);
-        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y + rect.h), tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]), color);
-        self.push_vertex(Vec2::new(rect.x, rect.y + rect.h), tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]), color);
+    pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>) {
+        self.push_vertex(Vec2::new(rect.x, rect.y), tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]));
+        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y), tex_coords.map_or(Vec2::new(1.0, 0.0), |t| t[1]));
+        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y + rect.h), tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]));
+        self.push_vertex(Vec2::new(rect.x, rect.y + rect.h), tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]));
 
         let index = self.get_index_origin();
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    pub fn commit(&mut self, kind: CommandKind, texture: CommandTexture) {
+    pub fn commit(&mut self, kind: CommandKind, brush: Brush, texture: CommandTexture) {
         if self.triangles_to_commit > 0 {
+            let start_triangle = if !self.triangle_buffer.is_empty() {
+                self.triangle_buffer.len() - self.triangles_to_commit
+            } else {
+                0
+            };
+
+            // Calculate bounds
+            let mut min = Vec2::new(std::f32::MAX, std::f32::MAX);
+            let mut max = Vec2::new(-std::f32::MAX, -std::f32::MAX);
+            for i in start_triangle..(start_triangle + self.triangles_to_commit) {
+                let triangle = &self.triangle_buffer[i];
+                for k in triangle.indices.iter() {
+                    let vertex = &self.vertex_buffer[*k as usize];
+
+                    min.x = min.x.min(vertex.pos.x);
+                    min.y = min.y.min(vertex.pos.y);
+
+                    max.x = max.x.max(vertex.pos.x);
+                    max.y = max.y.max(vertex.pos.y);
+                }
+            }
+
             let command = Command {
+                min,
+                max,
                 kind,
+                brush,
                 texture,
                 nesting: self.current_nesting,
-                start_triangle: if !self.triangle_buffer.is_empty() {
-                    self.triangle_buffer.len() - self.triangles_to_commit
-                } else {
-                    0
-                },
+                start_triangle,
                 triangle_count: self.triangles_to_commit,
             };
+
             self.command_buffer.push(command);
             self.triangles_to_commit = 0;
         }
@@ -324,15 +358,16 @@ impl DrawingContext {
                 position.x + bounds.x, position.y + bounds.y,
                 bounds.w, bounds.h);
 
-            self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()), element.get_color());
+            self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()));
         }
-        self.commit(CommandKind::Geometry, CommandTexture::Font(font))
+
+        self.commit(CommandKind::Geometry, formatted_text.brush(), CommandTexture::Font(font))
     }
 
     pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) {
-        self.push_rect_filled(clip_rect, None, Color::BLACK);
+        self.push_rect_filled(clip_rect, None);
         let index = self.command_buffer.len();
-        self.commit(CommandKind::Clip, CommandTexture::None);
+        self.commit(CommandKind::Clip, Brush::Solid(Color::WHITE), CommandTexture::None);
         self.clip_cmd_stack.push(index);
     }
 
