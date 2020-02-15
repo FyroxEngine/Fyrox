@@ -6,7 +6,7 @@ use crate::{
     scene::{mesh::Mesh, base::AsBase},
     physics::static_geometry::{StaticGeometry, StaticTriangle},
     event::{ElementState, VirtualKeyCode, WindowEvent, MouseScrollDelta},
-    gui::event::{KeyCode, OsEvent, ButtonState},
+    gui::message::{KeyCode, OsEvent, ButtonState},
     core::{
         math::vec2::Vec2,
         math::TriangleDefinition
@@ -283,12 +283,12 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
     }
 }
 
-pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::event::MouseButton {
+pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::message::MouseButton {
     match button {
-        crate::event::MouseButton::Left => crate::gui::event::MouseButton::Left,
-        crate::event::MouseButton::Right => crate::gui::event::MouseButton::Right,
-        crate::event::MouseButton::Middle => crate::gui::event::MouseButton::Middle,
-        crate::event::MouseButton::Other(i) => crate::gui::event::MouseButton::Other(i),
+        crate::event::MouseButton::Left => crate::gui::message::MouseButton::Left,
+        crate::event::MouseButton::Right => crate::gui::message::MouseButton::Right,
+        crate::event::MouseButton::Middle => crate::gui::message::MouseButton::Middle,
+        crate::event::MouseButton::Other(i) => crate::gui::message::MouseButton::Other(i),
     }
 }
 

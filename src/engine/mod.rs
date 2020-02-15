@@ -33,19 +33,23 @@ use crate::{
     NotCurrent,
     Api,
     event_loop::EventLoop,
+    gui::Control
 };
 use std::sync::{Arc, Mutex};
+use std::time;
+use std::time::Duration;
 
-pub struct Engine {
+pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
     context: glutin::WindowedContext<PossiblyCurrent>,
     pub renderer: Renderer,
-    pub user_interface: UserInterface,
+    pub user_interface: UserInterface<M, C>,
     pub sound_context: Arc<Mutex<Context>>,
     pub resource_manager: ResourceManager,
     pub scenes: SceneContainer,
+    pub ui_time: Duration
 }
 
-impl Engine {
+impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     /// Creates new instance of engine from given window builder and events loop.
     ///
     /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
@@ -64,7 +68,7 @@ impl Engine {
     /// let mut engine = Engine::new(window_builder, &evt).unwrap();
     /// ```
     #[inline]
-    pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine, EngineError> {
+    pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine<M, C> , EngineError> {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
@@ -89,6 +93,7 @@ impl Engine {
             scenes: SceneContainer::new(),
             renderer: Renderer::new(client_size.into())?,
             user_interface: UserInterface::new(),
+            ui_time: Default::default()
         })
     }
 
@@ -112,10 +117,12 @@ impl Engine {
             scene.update(aspect_ratio, dt);
         }
 
+        let time = time::Instant::now();
         self.user_interface.update(Vec2::new(client_size.width as f32, client_size.height as f32), dt);
+        self.ui_time = time::Instant::now() - time;
     }
 
-    pub fn get_ui_mut(&mut self) -> &mut UserInterface {
+    pub fn get_ui_mut(&mut self) -> &mut UserInterface<M, C>  {
         &mut self.user_interface
     }
 
@@ -127,7 +134,7 @@ impl Engine {
     }
 }
 
-impl Visit for Engine {
+impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C>  {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
