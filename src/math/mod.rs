@@ -18,12 +18,23 @@ use vec3::*;
 use std::ops::{Add, Sub, Mul};
 use crate::visitor::{Visit, VisitResult, Visitor};
 
-#[derive(Copy, Clone, Debug)]
-pub struct Rect<T> {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Rect<T: Copy + Clone + PartialEq> {
     pub x: T,
     pub y: T,
     pub w: T,
     pub h: T,
+}
+
+impl<T: Default + Copy + Clone + PartialEq> Default for Rect<T> {
+    fn default() -> Self {
+        Self {
+            x: Default::default(),
+            y: Default::default(),
+            w: Default::default(),
+            h: Default::default()
+        }
+    }
 }
 
 impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + Mul<Output=T> + Copy {
@@ -63,7 +74,7 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
     }
 }
 
-impl<T> Visit for Rect<T> where T: Default + Visit + 'static {
+impl<T> Visit for Rect<T> where T: PartialEq + Copy + Clone + Default + Visit + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 

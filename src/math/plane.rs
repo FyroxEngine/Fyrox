@@ -68,7 +68,7 @@ impl Plane {
         let v2 = c.normal.cross(&self.normal).scale(b.d);
         let v3 = self.normal.cross(&b.normal).scale(c.d);
 
-        return (v1 + v2 + v3).scale(f);
+        (v1 + v2 + v3).scale(f)
     }
 }
 

@@ -101,12 +101,12 @@ impl Octree {
     fn ray_recursive_query(&self, node: Handle<OctreeNode>, ray: &Ray, buffer: &mut Vec<u32>) {
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { indices, bounds } => {
-                if let Some(_) = ray.box_intersection(&bounds.min, &bounds.max) {
+                if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
                     buffer.extend_from_slice(indices)
                 }
             }
             OctreeNode::Branch { bounds, leaves } => {
-                if let Some(_) = ray.box_intersection(&bounds.min, &bounds.max) {
+                if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
                     for leaf in leaves {
                         self.ray_recursive_query(*leaf, ray, buffer)
                     }
