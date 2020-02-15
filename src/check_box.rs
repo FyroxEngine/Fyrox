@@ -5,13 +5,13 @@ use crate::{
     },
     UserInterface,
     UINode,
-    event::{
-        UIEvent,
-        UIEventKind,
+    message::{
+        UiMessage,
+        UiMessageData,
+        CheckBoxMessage,
+        WidgetMessage
     },
     Thickness,
-    Visibility,
-    bool_to_visibility,
     border::BorderBuilder,
     Control,
     ControlTemplate,
@@ -21,81 +21,93 @@ use crate::{
         pool::Handle,
         color::Color,
     },
-    brush::Brush
+    brush::Brush,
 };
 use std::collections::HashMap;
 
-pub struct CheckBox {
-    widget: Widget,
+pub struct CheckBox<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     checked: Option<bool>,
-    check_mark: Handle<UINode>,
+    check_mark: Handle<UINode<M, C>>,
 }
 
-impl Control for CheckBox {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::CheckBox(Self {
+            widget: self.widget.raw_copy(),
             checked: self.checked,
             check_mark: self.check_mark,
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
         self.check_mark = *node_map.get(&self.check_mark).unwrap();
     }
 
-    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        match evt.kind {
-            UIEventKind::MouseDown { .. } => {
-                if evt.source == self_handle || self.widget.has_descendant(evt.source, ui) {
-                    ui.capture_mouse(self_handle);
-                }
-            }
-            UIEventKind::MouseUp { .. } => {
-                if evt.source == self_handle || self.widget.has_descendant(evt.source, ui) {
-                    ui.release_mouse_capture();
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
 
-                    if let Some(value) = self.checked {
-                        // Invert state if it is defined.
-                        self.set_checked(Some(!value));
-                    } else {
-                        // Switch from undefined state to checked.
-                        self.set_checked(Some(true));
+        match message.data {
+            UiMessageData::Widget(ref msg) => {
+                match msg {
+                    WidgetMessage::MouseDown { .. } => {
+                        if message.source == self_handle || self.widget.has_descendant(message.source, ui) {
+                            ui.capture_mouse(self_handle);
+                        }
                     }
+                    WidgetMessage::MouseUp { .. } => {
+                        if message.source == self_handle || self.widget.has_descendant(message.source, ui) {
+                            ui.release_mouse_capture();
+
+                            if let Some(value) = self.checked {
+                                // Invert state if it is defined.
+                                self.set_checked(Some(!value));
+                            } else {
+                                // Switch from undefined state to checked.
+                                self.set_checked(Some(true));
+                            }
+                        }
+                    }
+                    _ => ()
                 }
             }
-            UIEventKind::Checked(value) if evt.source == self_handle => {
-                let check_mark = ui.node_mut(self.check_mark).widget_mut();
-                match value {
-                    None => {
-                        check_mark.set_background(Brush::Solid(Color::opaque(30, 30, 80)));
-                    }
-                    Some(value) => {
-                        check_mark.set_background(Brush::Solid(Color::opaque(200, 200, 200)));
-                        check_mark.set_visibility(
-                            if value {
-                                Visibility::Visible
-                            } else {
-                                Visibility::Collapsed
-                            });
+            UiMessageData::CheckBox(ref msg) => {
+                if let CheckBoxMessage::Checked(value) = msg {
+                    if message.source == self_handle && self.check_mark.is_some() {
+                        let check_mark = ui.node_mut(self.check_mark).widget_mut();
+                        match value {
+                            None => {
+                                check_mark.set_background(Brush::Solid(Color::opaque(30, 30, 80)));
+                            }
+                            Some(value) => {
+                                check_mark.set_background(Brush::Solid(Color::opaque(200, 200, 200)));
+                                check_mark.set_visibility(*value);
+                            }
+                        }
                     }
                 }
             }
             _ => {}
         }
     }
+
+    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+        if self.check_mark == handle {
+            self.check_mark = Handle::NONE;
+        }
+    }
 }
 
-impl CheckBox {
-    pub fn new(widget: Widget, check_mark: Handle<UINode>) -> Self {
+impl<M, C: 'static + Control<M, C>> CheckBox<M, C> {
+    pub fn new(widget: Widget<M, C>, check_mark: Handle<UINode<M, C>>) -> Self {
         Self {
             widget,
             check_mark,
@@ -109,19 +121,22 @@ impl CheckBox {
     /// 3) Some(false) - unchecked
     pub fn set_checked(&mut self, value: Option<bool>) -> &mut Self {
         self.checked = value;
-        self.widget.events.borrow_mut().push_back(UIEvent::new(UIEventKind::Checked(value)));
+        self.widget
+            .outgoing_messages
+            .borrow_mut()
+            .push_back(UiMessage::new(UiMessageData::CheckBox(CheckBoxMessage::Checked(value))));
         self
     }
 }
 
-pub struct CheckBoxBuilder {
-    widget_builder: WidgetBuilder,
+pub struct CheckBoxBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     checked: Option<bool>,
-    check_mark: Option<Handle<UINode>>,
+    check_mark: Option<Handle<UINode<M, C>>>,
 }
 
-impl CheckBoxBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             checked: Some(false),
@@ -134,14 +149,14 @@ impl CheckBoxBuilder {
         self
     }
 
-    pub fn with_check_mark(mut self, check_mark: Handle<UINode>) -> Self {
+    pub fn with_check_mark(mut self, check_mark: Handle<UINode<M, C>>) -> Self {
         self.check_mark = Some(check_mark);
         self
     }
 }
 
-impl Builder for CheckBoxBuilder {
-    fn build(self, container: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for CheckBoxBuilder<M, C> {
+    fn build(self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(200, 200, 200)))
@@ -151,9 +166,9 @@ impl Builder for CheckBoxBuilder {
         });
 
         let visibility = if let Some(value) = self.checked {
-            bool_to_visibility(value)
+            value
         } else {
-            Visibility::Visible
+            true
         };
         container.node_mut(check_mark)
             .widget_mut()
@@ -172,6 +187,6 @@ impl Builder for CheckBoxBuilder {
             check_mark,
         };
 
-        container.add_node(Box::new(check_box))
+        container.add_node(UINode::CheckBox(check_box))
     }
 }

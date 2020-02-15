@@ -16,14 +16,12 @@ use crate::{
     },
     UINode,
     Control,
-    ControlTemplate,
     UINodeContainer,
     Builder,
     ttf::Font,
     UserInterface,
 };
 use std::{
-    collections::HashMap,
     sync::{
         Mutex,
         Arc,
@@ -31,30 +29,28 @@ use std::{
     cell::RefCell,
 };
 
-pub struct Text {
-    widget: Widget,
+pub struct Text<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     formatted_text: RefCell<FormattedText>,
 }
 
-impl Control for Text {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Text(Self {
+            widget: self.widget.raw_copy(),
             formatted_text: self.formatted_text.clone(),
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
-
-    fn measure_override(&self, _: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
@@ -68,8 +64,8 @@ impl Control for Text {
     }
 }
 
-impl Text {
-    pub fn new(widget: Widget) -> Self {
+impl<M, C: 'static + Control<M, C>> Text<M, C> {
+    pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             formatted_text: RefCell::new(FormattedTextBuilder::new()
@@ -80,6 +76,7 @@ impl Text {
 
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         self.formatted_text.borrow_mut().set_text(text);
+        self.widget.invalidate_layout();
         self
     }
 
@@ -87,6 +84,7 @@ impl Text {
         self.formatted_text
             .borrow_mut()
             .set_wrap(wrap);
+        self.widget.invalidate_layout();
         self
     }
 
@@ -105,7 +103,8 @@ impl Text {
     pub fn set_font(&mut self, font: Arc<Mutex<Font>>) -> &mut Self {
         self.formatted_text
             .borrow_mut()
-            .set_font( font);
+            .set_font(font);
+        self.widget.invalidate_layout();
         self
     }
 
@@ -120,6 +119,7 @@ impl Text {
         self.formatted_text
             .borrow_mut()
             .set_vertical_alignment(valign);
+        self.widget.invalidate_layout();
         self
     }
 
@@ -133,6 +133,7 @@ impl Text {
         self.formatted_text
             .borrow_mut()
             .set_horizontal_alignment(halign);
+        self.widget.invalidate_layout();
         self
     }
 
@@ -143,16 +144,16 @@ impl Text {
     }
 }
 
-pub struct TextBuilder {
-    widget_builder: WidgetBuilder,
+pub struct TextBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     text: Option<String>,
     font: Option<Arc<Mutex<Font>>>,
     vertical_text_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
 }
 
-impl TextBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             text: None,
@@ -188,15 +189,15 @@ impl TextBuilder {
     }
 }
 
-impl Builder for TextBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for TextBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         let font = if let Some(font) = self.font {
             font
         } else {
             crate::DEFAULT_FONT.clone()
         };
 
-        ui.add_node(Box::new(Text {
+        ui.add_node(UINode::Text(Text {
             widget: self.widget_builder.build(),
             formatted_text: RefCell::new(FormattedTextBuilder::new()
                 .with_text(self.text.unwrap_or_default())

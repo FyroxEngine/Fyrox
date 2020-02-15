@@ -9,6 +9,7 @@ use crate::{
     ttf::Font,
     HorizontalAlignment,
     VerticalAlignment,
+    brush::Brush
 };
 use std::{
     ops::Range,
@@ -17,7 +18,6 @@ use std::{
         Mutex,
     },
 };
-use crate::brush::Brush;
 
 #[derive(Debug, Clone)]
 pub struct TextGlyph {

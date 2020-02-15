@@ -6,103 +6,87 @@ use crate::{
             Rect,
         },
     },
-        UINode,
-        widget::{
-            Widget,
-            WidgetBuilder,
-        },
-        UserInterface,
-        draw::DrawingContext,
-        Control,
-        ControlTemplate,
-        UINodeContainer,
-        Builder
-
+    UINode,
+    widget::{
+        Widget,
+        WidgetBuilder,
+    },
+    UserInterface,
+    Control,
+    UINodeContainer,
+    Builder,
 };
-use std::collections::HashMap;
 
 /// Allows user to directly set position and size of a node
-pub struct Canvas {
-    widget: Widget,
+pub struct Canvas<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
 }
 
-impl Control for Canvas {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Canvas(Self {
+            widget: self.widget.raw_copy()
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
-
-    }
-
-    fn measure_override(&self, ui: &UserInterface, _available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::new(
             std::f32::INFINITY,
             std::f32::INFINITY,
         );
 
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
         }
 
         Vec2::ZERO
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
-        for child_handle in self.widget.children.iter() {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        for child_handle in self.widget.children() {
             let child = ui.nodes.borrow(*child_handle);
             child.arrange(ui, &Rect::new(
-                child.widget().desired_local_position.get().x,
-                child.widget().desired_local_position.get().y,
-                child.widget().desired_size.get().x,
-                child.widget().desired_size.get().y));
+                child.widget().desired_local_position().x,
+                child.widget().desired_local_position().y,
+                child.widget().desired_size().x,
+                child.widget().desired_size().y));
         }
 
         final_size
     }
-
-    fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context)
-    }
-
-    fn update(&mut self, dt: f32) {
-        self.widget.update(dt)
-    }
 }
 
-impl Canvas {
-    pub fn new(widget: Widget) -> Self {
+impl<M, C: 'static + Control<M, C>> Canvas<M, C> {
+    pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget
         }
     }
 }
 
-pub struct CanvasBuilder {
-    widget_builder: WidgetBuilder,
+pub struct CanvasBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
 }
 
-impl CanvasBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> CanvasBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
         }
     }
 }
 
-impl Builder for CanvasBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
-        ui.add_node(Box::new(Canvas {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for CanvasBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+        ui.add_node(UINode::Canvas(Canvas {
             widget: self.widget_builder.build()
         }))
     }

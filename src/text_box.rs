@@ -1,4 +1,11 @@
+use std::{
+    collections::HashMap,
+    cmp,
+    sync::{Mutex, Arc},
+    cell::RefCell,
+};
 use crate::{
+    brush::Brush,
     core::{
         math::{
             vec2::Vec2,
@@ -20,10 +27,11 @@ use crate::{
         FormattedText,
         FormattedTextBuilder,
     },
-    UINode, Control,
-    event::{
-        UIEvent,
-        UIEventKind,
+    UINode,
+    Control,
+    message::{
+        UiMessage,
+        UiMessageData,
         MouseButton,
         KeyCode,
     },
@@ -33,15 +41,9 @@ use crate::{
     ttf::Font,
     VerticalAlignment,
     HorizontalAlignment,
+    draw::CommandTexture,
+    message::WidgetMessage
 };
-use std::{
-    collections::HashMap,
-    cmp,
-    sync::{Mutex, Arc},
-    cell::RefCell,
-};
-use crate::brush::{Brush};
-use crate::draw::CommandTexture;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -67,8 +69,8 @@ pub struct SelectionRange {
     end: Position,
 }
 
-pub struct TextBox {
-    widget: Widget,
+pub struct TextBox<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     caret_line: usize,
     caret_offset: usize,
     caret_visible: bool,
@@ -81,8 +83,8 @@ pub struct TextBox {
     selection_brush: Brush,
 }
 
-impl TextBox {
-    pub fn new(widget: Widget) -> Self {
+impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
+    pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             caret_line: 0,
@@ -96,7 +98,7 @@ impl TextBox {
             selection_range: None,
             selecting: false,
             caret_brush: Brush::Solid(Color::WHITE),
-            selection_brush: Brush::Solid(Color::opaque(65, 65, 90))
+            selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
         }
     }
 
@@ -261,7 +263,7 @@ impl TextBox {
         None
     }
 
-    pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self  {
+    pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         self.formatted_text
             .borrow_mut()
             .set_text(text);
@@ -328,18 +330,18 @@ impl TextBox {
     }
 }
 
-impl Control for TextBox {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::TextBox(Self {
+            widget: self.widget.raw_copy(),
             caret_line: self.caret_line,
             caret_offset: self.caret_offset,
             caret_visible: self.caret_visible,
@@ -350,23 +352,20 @@ impl Control for TextBox {
             selection_range: self.selection_range,
             selecting: self.selecting,
             selection_brush: self.selection_brush.clone(),
-            caret_brush: self.caret_brush.clone()
+            caret_brush: self.caret_brush.clone(),
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
 
-    fn measure_override(&self, _: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
-            .set_brush(self.widget.foreground())
             .build()
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        self.widget.draw(drawing_context);
-
         let bounds = self.widget.get_screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
@@ -374,7 +373,7 @@ impl Control for TextBox {
         self.formatted_text
             .borrow_mut()
             .set_constraint(Vec2::new(bounds.w, bounds.h))
-            .set_brush(self.widget.background())
+            .set_brush(self.widget.foreground())
             .build();
 
         if let Some(ref selection_range) = self.selection_range {
@@ -457,7 +456,6 @@ impl Control for TextBox {
     }
 
     fn update(&mut self, dt: f32) {
-        self.widget.update(dt);
         self.blink_timer += dt;
         if self.blink_timer >= self.blink_interval {
             self.blink_timer = 0.0;
@@ -465,89 +463,95 @@ impl Control for TextBox {
         }
     }
 
-    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        if evt.source == self_handle || self.widget().has_descendant(evt.source, ui) {
-            match evt.kind {
-                UIEventKind::Text { symbol } => {
-                    self.insert_char(symbol);
-                }
-                UIEventKind::KeyDown { code } => {
-                    match code {
-                        KeyCode::Up => {
-                            self.move_caret_y(1, VerticalDirection::Up);
-                        }
-                        KeyCode::Down => {
-                            self.move_caret_y(1, VerticalDirection::Down);
-                        }
-                        KeyCode::Right => {
-                            self.move_caret_x(1, HorizontalDirection::Right);
-                        }
-                        KeyCode::Left => {
-                            self.move_caret_x(1, HorizontalDirection::Left);
-                        }
-                        KeyCode::Delete => {
-                            self.remove_char(HorizontalDirection::Right);
-                        }
-                        KeyCode::Backspace => {
-                            self.remove_char(HorizontalDirection::Left);
-                        }
-                        _ => ()
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
+
+        if let UiMessageData::Widget(msg) = &message.data {
+            if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
+                match msg {
+                    WidgetMessage::Text(symbol) => {
+                        self.insert_char(*symbol);
                     }
-                }
-                UIEventKind::MouseDown { pos, button } => {
-                    if button == MouseButton::Left {
-                        self.selection_range = None;
-                        self.selecting = true;
-
-                        if let Some(position) = self.screen_pos_to_text_pos(pos) {
-                            self.caret_line = position.line;
-                            self.caret_offset = position.offset;
-
-                            self.selection_range = Some(SelectionRange {
-                                begin: position,
-                                end: position,
-                            })
+                    WidgetMessage::KeyDown(code) => {
+                        match code {
+                            KeyCode::Up => {
+                                self.move_caret_y(1, VerticalDirection::Up);
+                            }
+                            KeyCode::Down => {
+                                self.move_caret_y(1, VerticalDirection::Down);
+                            }
+                            KeyCode::Right => {
+                                self.move_caret_x(1, HorizontalDirection::Right);
+                            }
+                            KeyCode::Left => {
+                                self.move_caret_x(1, HorizontalDirection::Left);
+                            }
+                            KeyCode::Delete => {
+                                self.remove_char(HorizontalDirection::Right);
+                            }
+                            KeyCode::Backspace => {
+                                self.remove_char(HorizontalDirection::Left);
+                            }
+                            _ => ()
                         }
-
-                        ui.capture_mouse(self_handle);
                     }
-                }
-                UIEventKind::MouseMove { pos } => {
-                    if self.selecting {
-                        if let Some(position) = self.screen_pos_to_text_pos(pos) {
-                            if let Some(ref mut sel_range) = self.selection_range {
-                                sel_range.end = position;
+                    WidgetMessage::MouseDown { pos, button } => {
+                        if *button == MouseButton::Left {
+                            self.selection_range = None;
+                            self.selecting = true;
+
+                            if let Some(position) = self.screen_pos_to_text_pos(*pos) {
+                                self.caret_line = position.line;
+                                self.caret_offset = position.offset;
+
+                                self.selection_range = Some(SelectionRange {
+                                    begin: position,
+                                    end: position,
+                                })
+                            }
+
+                            ui.capture_mouse(self_handle);
+                        }
+                    }
+                    WidgetMessage::MouseMove(pos) => {
+                        if self.selecting {
+                            if let Some(position) = self.screen_pos_to_text_pos(*pos) {
+                                if let Some(ref mut sel_range) = self.selection_range {
+                                    sel_range.end = position;
+                                }
                             }
                         }
                     }
-                }
-                UIEventKind::MouseUp { .. } => {
-                    self.selecting = false;
+                    WidgetMessage::MouseUp { .. } => {
+                        self.selecting = false;
 
-                    ui.release_mouse_capture();
+                        ui.release_mouse_capture();
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
         }
     }
+
+    fn remove_ref(&mut self, _: Handle<UINode<M, C>>) {}
 }
 
-pub struct TextBoxBuilder {
-    widget_builder: WidgetBuilder,
+pub struct TextBoxBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     font: Option<Arc<Mutex<Font>>>,
     text: String,
     caret_brush: Brush,
     selection_brush: Brush,
 }
 
-impl TextBoxBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             font: None,
             text: "".to_owned(),
             caret_brush: Brush::Solid(Color::WHITE),
-            selection_brush: Brush::Solid(Color::opaque(65, 65, 90))
+            selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
         }
     }
 
@@ -572,8 +576,8 @@ impl TextBoxBuilder {
     }
 }
 
-impl Builder for TextBoxBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for TextBoxBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         let text_box = TextBox {
             widget: self.widget_builder.build(),
             caret_line: 0,
@@ -583,14 +587,14 @@ impl Builder for TextBoxBuilder {
             blink_interval: 0.5,
             formatted_text: RefCell::new(FormattedTextBuilder::new()
                 .with_text(self.text)
-                .with_font(self.font.unwrap_or(crate::DEFAULT_FONT.clone()))
+                .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
                 .build()),
             selection_range: None,
             selecting: false,
             selection_brush: self.selection_brush,
-            caret_brush: self.caret_brush
+            caret_brush: self.caret_brush,
         };
 
-        ui.add_node(Box::new(text_box))
+        ui.add_node(UINode::TextBox(text_box))
     }
 }

@@ -1,25 +1,48 @@
-use crate::{border::BorderBuilder, canvas::CanvasBuilder, event::UIEventKind, button::ButtonBuilder, UserInterface, maxf, Thickness, grid::{
-    GridBuilder,
-    Column,
-    Row,
-}, event::UIEvent, widget::{
-    Widget,
-    WidgetBuilder,
-}, Control, UINode, ControlTemplate, UINodeContainer, Builder, core::{
-    color::Color, math,
-    pool::Handle, math::vec2::Vec2,
-}, HorizontalAlignment, VerticalAlignment, bool_to_visibility};
 use std::collections::HashMap;
-use crate::text::{Text, TextBuilder};
-use crate::brush::Brush;
+use crate::{
+    border::BorderBuilder,
+    canvas::CanvasBuilder,
+    button::ButtonBuilder,
+    UserInterface,
+    maxf,
+    Thickness,
+    grid::{
+        GridBuilder,
+        Column,
+        Row,
+    },
+    widget::{
+        Widget,
+        WidgetBuilder,
+    },
+    Control,
+    UINode,
+    ControlTemplate,
+    UINodeContainer,
+    Builder,
+    core::{
+        color::Color,
+        math::{
+            self,
+            vec2::Vec2,
+        },
+        pool::Handle,
+    },
+    HorizontalAlignment,
+    VerticalAlignment,
+    text::TextBuilder,
+    brush::Brush,
+    message::{
+        ButtonMessage,
+        UiMessageData,
+        UiMessage,
+        ScrollBarMessage,
+        WidgetMessage,
+    },
+};
 
-/// Scroll bar
-///
-/// # Events
-///
-/// [`NumericValueChanged`] - spawned when value changes by any method.
-pub struct ScrollBar {
-    widget: Widget,
+pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     min: f32,
     max: f32,
     value: f32,
@@ -27,25 +50,25 @@ pub struct ScrollBar {
     orientation: Orientation,
     is_dragging: bool,
     offset: Vec2,
-    increase: Handle<UINode>,
-    decrease: Handle<UINode>,
-    indicator: Handle<UINode>,
-    field: Handle<UINode>,
-    value_text: Handle<UINode>,
+    increase: Handle<UINode<M, C>>,
+    decrease: Handle<UINode<M, C>>,
+    indicator: Handle<UINode<M, C>>,
+    field: Handle<UINode<M, C>>,
+    value_text: Handle<UINode<M, C>>,
 }
 
-impl Control for ScrollBar {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ScrollBar(Self {
+            widget: self.widget.raw_copy(),
             min: self.min,
             max: self.max,
             value: self.value,
@@ -61,7 +84,7 @@ impl Control for ScrollBar {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
         self.increase = *node_map.get(&self.increase).unwrap();
         self.decrease = *node_map.get(&self.decrease).unwrap();
         self.indicator = *node_map.get(&self.indicator).unwrap();
@@ -69,121 +92,150 @@ impl Control for ScrollBar {
         self.field = *node_map.get(&self.field).unwrap();
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 
         // Adjust indicator position according to current value
         let percent = (self.value - self.min) / (self.max - self.min);
 
-        let field_size = ui.node(self.field).widget().actual_size.get();
+        let field_size = ui.node(self.field).widget().actual_size();
 
         let indicator = ui.node(self.indicator).widget();
         match self.orientation {
             Orientation::Horizontal => {
-                indicator.desired_local_position.set(Vec2::new(
-                    percent * maxf(0.0, field_size.x - indicator.actual_size.get().x),
+                indicator.set_desired_local_position(Vec2::new(
+                    percent * maxf(0.0, field_size.x - indicator.actual_size().x),
                     0.0));
-                indicator.height.set(field_size.y);
+                indicator.set_height(field_size.y);
             }
             Orientation::Vertical => {
-                indicator.desired_local_position.set(Vec2::new(
+                indicator.set_desired_local_position(Vec2::new(
                     0.0,
-                    percent * maxf(0.0, field_size.y - indicator.actual_size.get().y))
+                    percent * maxf(0.0, field_size.y - indicator.actual_size().y))
                 );
-                indicator.width.set(field_size.x);
+                indicator.set_width(field_size.x);
             }
         }
 
         size
     }
 
-    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        if let UIEventKind::Click = evt.kind {
-            if evt.source == self.increase {
-                self.set_value(self.value + self.step);
-            } else if evt.source == self.decrease {
-                self.set_value(self.value - self.step);
-            }
-        }
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
 
-        if evt.source == self_handle {
-            match evt.kind {
-                UIEventKind::NumericValueChanged { new_value, .. } => {
-                    ui.node_mut(self.value_text)
-                        .downcast_mut::<Text>()
-                        .unwrap()
-                        .set_text(format!("{}", new_value));
-                }
-                _ => ()
-            }
-        }
-
-        if evt.source == self.indicator {
-            match evt.kind {
-                UIEventKind::MouseDown { pos, .. } => {
-                    let indicator_pos = ui.nodes
-                        .borrow(self.indicator)
-                        .widget()
-                        .screen_position;
-                    self.is_dragging = true;
-                    self.offset = indicator_pos - pos;
-                    ui.capture_mouse(self.indicator);
-                    evt.handled = true;
-                }
-                UIEventKind::MouseUp { .. } => {
-                    self.is_dragging = false;
-                    ui.release_mouse_capture();
-                    evt.handled = true;
-                }
-                UIEventKind::MouseMove { pos, .. } => {
-                    let (field_pos, field_size) = {
-                        let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS).widget();
-                        (canvas.screen_position, canvas.actual_size.get())
-                    };
-
-                    let bar_size = ui.nodes.borrow(self.indicator).widget().actual_size.get();
-                    let orientation = self.orientation;
-                    if self.is_dragging {
-                        let percent = match orientation {
-                            Orientation::Horizontal => {
-                                let span = field_size.x - bar_size.x;
-                                let offset = pos.x - field_pos.x + self.offset.x;
-                                if span > 0.0 {
-                                    math::clampf(offset / span, 0.0, 1.0)
-                                } else {
-                                    0.0
-                                }
-                            }
-                            Orientation::Vertical => {
-                                let span = field_size.y - bar_size.y;
-                                let offset = pos.y - field_pos.y + self.offset.y;
-                                if span > 0.0 {
-                                    math::clampf(offset / span, 0.0, 1.0)
-                                } else {
-                                    0.0
-                                }
-                            }
-                        };
-                        self.set_value(percent * (self.max - self.min));
-                        evt.handled = true;
+        match &message.data {
+            UiMessageData::Button(msg) => {
+                if let ButtonMessage::Click = msg {
+                    if message.source == self.increase {
+                        self.set_value(self.value + self.step);
+                    } else if message.source == self.decrease {
+                        self.set_value(self.value - self.step);
                     }
                 }
-                _ => ()
             }
+            UiMessageData::ScrollBar(ref prop) => {
+                if message.source == self_handle || message.target == self_handle {
+                    if let ScrollBarMessage::Value(value) = prop {
+                        if self.value_text.is_some() {
+                            if let UINode::Text(text) = ui.node_mut(self.value_text) {
+                                text.set_text(format!("{}", value));
+                            }
+                        }
+                    }
+                }
+            }
+            UiMessageData::Widget(msg) => {
+                if message.source == self.indicator {
+                    match msg {
+                        WidgetMessage::MouseDown { pos, .. } => {
+                            if self.indicator.is_some() {
+                                let indicator_pos = ui.nodes
+                                    .borrow(self.indicator)
+                                    .widget()
+                                    .screen_position;
+                                self.is_dragging = true;
+                                self.offset = indicator_pos - *pos;
+                                ui.capture_mouse(self.indicator);
+                                message.handled = true;
+                            }
+                        }
+                        WidgetMessage::MouseUp { .. } => {
+                            self.is_dragging = false;
+                            ui.release_mouse_capture();
+                            message.handled = true;
+                        }
+                        WidgetMessage::MouseMove(pos) => {
+                            if self.indicator.is_some() {
+                                let (field_pos, field_size) = {
+                                    let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::<M, C>::PART_CANVAS).widget();
+                                    (canvas.screen_position, canvas.actual_size())
+                                };
+
+                                let bar_size = ui.nodes.borrow(self.indicator).widget().actual_size();
+                                let orientation = self.orientation;
+                                if self.is_dragging {
+                                    let percent = match orientation {
+                                        Orientation::Horizontal => {
+                                            let span = field_size.x - bar_size.x;
+                                            let offset = pos.x - field_pos.x + self.offset.x;
+                                            if span > 0.0 {
+                                                math::clampf(offset / span, 0.0, 1.0)
+                                            } else {
+                                                0.0
+                                            }
+                                        }
+                                        Orientation::Vertical => {
+                                            let span = field_size.y - bar_size.y;
+                                            let offset = pos.y - field_pos.y + self.offset.y;
+                                            if span > 0.0 {
+                                                math::clampf(offset / span, 0.0, 1.0)
+                                            } else {
+                                                0.0
+                                            }
+                                        }
+                                    };
+                                    self.set_value(percent * (self.max - self.min));
+                                    message.handled = true;
+                                }
+                            }
+                        }
+                        _ => ()
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+        if self.indicator == handle {
+            self.indicator = Handle::NONE;
+        }
+        if self.decrease == handle {
+            self.decrease = Handle::NONE;
+        }
+        if self.increase == handle {
+            self.increase = Handle::NONE;
+        }
+        if self.value_text == handle {
+            self.value_text = Handle::NONE;
+        }
+        if self.field == handle {
+            self.field = Handle::NONE;
         }
     }
 }
 
-impl ScrollBar {
+impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
     pub fn new(
-        widget: Widget,
-        increase: Handle<UINode>,
-        decrease: Handle<UINode>,
-        indicator: Handle<UINode>,
-        field: Handle<UINode>,
-        value_text: Handle<UINode>,
+        widget: Widget<M, C>,
+        increase: Handle<UINode<M, C>>,
+        decrease: Handle<UINode<M, C>>,
+        indicator: Handle<UINode<M, C>>,
+        field: Handle<UINode<M, C>>,
+        value_text: Handle<UINode<M, C>>,
     ) -> Self {
         Self {
             widget,
@@ -207,11 +259,9 @@ impl ScrollBar {
         let new_value = math::clampf(value, self.min, self.max);
         if (new_value - old_value).abs() > std::f32::EPSILON {
             self.value = new_value;
-            self.widget.events.borrow_mut().push_back(
-                UIEvent::new(UIEventKind::NumericValueChanged {
-                    old_value,
-                    new_value,
-                }));
+            self.widget.outgoing_messages.borrow_mut().push_back(
+                UiMessage::new(UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value))));
+            self.widget.invalidate_layout();
         }
         self
     }
@@ -229,6 +279,7 @@ impl ScrollBar {
         let clamped_new_value = math::clampf(self.value, self.min, self.max);
         if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
             self.set_value(clamped_new_value);
+            self.widget.invalidate_layout();
         }
         self
     }
@@ -246,6 +297,7 @@ impl ScrollBar {
         let clamped_new_value = math::clampf(self.value, self.min, self.max);
         if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
             self.set_value(clamped_new_value);
+            self.widget.invalidate_layout();
         }
         self
     }
@@ -264,40 +316,32 @@ impl ScrollBar {
     }
 
     pub fn scroll(&mut self, amount: f32) {
-        let old_value = self.value;
-
-        self.value += amount;
-
-        self.widget.events.borrow_mut().push_back(
-            UIEvent::new(UIEventKind::NumericValueChanged {
-                old_value,
-                new_value: self.value,
-            }));
+        self.set_value(self.value + amount);
     }
 }
 
-pub struct ScrollBarBuilder {
-    widget_builder: WidgetBuilder,
+pub struct ScrollBarBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     min: Option<f32>,
     max: Option<f32>,
     value: Option<f32>,
     step: Option<f32>,
     orientation: Option<Orientation>,
-    increase: Option<Handle<UINode>>,
-    decrease: Option<Handle<UINode>>,
-    indicator: Option<Handle<UINode>>,
-    body: Option<Handle<UINode>>,
-    show_value: bool
+    increase: Option<Handle<UINode<M, C>>>,
+    decrease: Option<Handle<UINode<M, C>>>,
+    indicator: Option<Handle<UINode<M, C>>>,
+    body: Option<Handle<UINode<M, C>>>,
+    show_value: bool,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Orientation {
     Vertical,
     Horizontal,
 }
 
-impl ScrollBarBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             min: None,
@@ -309,7 +353,7 @@ impl ScrollBarBuilder {
             decrease: None,
             indicator: None,
             body: None,
-            show_value: false
+            show_value: false,
         }
     }
 
@@ -338,22 +382,22 @@ impl ScrollBarBuilder {
         self
     }
 
-    pub fn with_increase(mut self, increase: Handle<UINode>) -> Self {
+    pub fn with_increase(mut self, increase: Handle<UINode<M, C>>) -> Self {
         self.increase = Some(increase);
         self
     }
 
-    pub fn with_decrease(mut self, decrease: Handle<UINode>) -> Self {
+    pub fn with_decrease(mut self, decrease: Handle<UINode<M, C>>) -> Self {
         self.decrease = Some(decrease);
         self
     }
 
-    pub fn with_indicator(mut self, indicator: Handle<UINode>) -> Self {
+    pub fn with_indicator(mut self, indicator: Handle<UINode<M, C>>) -> Self {
         self.indicator = Some(indicator);
         self
     }
 
-    pub fn with_body(mut self, body: Handle<UINode>) -> Self {
+    pub fn with_body(mut self, body: Handle<UINode<M, C>>) -> Self {
         self.body = Some(body);
         self
     }
@@ -364,8 +408,8 @@ impl ScrollBarBuilder {
     }
 }
 
-impl Builder for ScrollBarBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollBarBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
         let increase = self.increase.unwrap_or_else(|| {
@@ -379,11 +423,11 @@ impl Builder for ScrollBarBuilder {
 
         ui.node_mut(increase)
             .widget_mut()
-            .set_width(match orientation {
+            .set_width_mut(match orientation {
                 Orientation::Horizontal => 30.0,
                 Orientation::Vertical => std::f32::NAN
             })
-            .set_height(match orientation {
+            .set_height_mut(match orientation {
                 Orientation::Horizontal => std::f32::NAN,
                 Orientation::Vertical => 30.0
             })
@@ -409,11 +453,11 @@ impl Builder for ScrollBarBuilder {
             .widget_mut()
             .set_column(0)
             .set_row(0)
-            .set_width(match orientation {
+            .set_width_mut(match orientation {
                 Orientation::Horizontal => 30.0,
                 Orientation::Vertical => std::f32::NAN
             })
-            .set_height(match orientation {
+            .set_height_mut(match orientation {
                 Orientation::Horizontal => std::f32::NAN,
                 Orientation::Vertical => 30.0
             });
@@ -431,11 +475,11 @@ impl Builder for ScrollBarBuilder {
 
         ui.node_mut(indicator)
             .widget_mut()
-            .set_width(30.0)
-            .set_height(30.0);
+            .set_width_mut(30.0)
+            .set_height_mut(30.0);
 
         let field = CanvasBuilder::new(WidgetBuilder::new()
-            .with_name(ScrollBar::PART_CANVAS)
+            .with_name(ScrollBar::<M, C>::PART_CANVAS)
             .on_column(match orientation {
                 Orientation::Horizontal => 1,
                 Orientation::Vertical => 0
@@ -448,7 +492,7 @@ impl Builder for ScrollBarBuilder {
         ).build(ui);
 
         let value_text = TextBuilder::new(WidgetBuilder::new()
-            .with_visibility(bool_to_visibility(self.show_value))
+            .with_visibility(self.show_value)
             .with_horizontal_alignment(HorizontalAlignment::Center)
             .with_vertical_alignment(VerticalAlignment::Center)
             .with_hit_test_visibility(false)
@@ -483,7 +527,7 @@ impl Builder for ScrollBarBuilder {
 
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Brush::Solid( Color::opaque(120, 120, 120)))
+                .with_background(Brush::Solid(Color::opaque(120, 120, 120)))
                 .with_foreground(Brush::Solid(Color::opaque(200, 200, 200))))
                 .with_stroke_thickness(Thickness::uniform(1.0))
                 .build(ui)
@@ -506,8 +550,8 @@ impl Builder for ScrollBarBuilder {
             decrease,
             indicator,
             field,
-            value_text
+            value_text,
         };
-        ui.add_node(Box::new(scroll_bar))
+        ui.add_node(UINode::ScrollBar(scroll_bar))
     }
 }

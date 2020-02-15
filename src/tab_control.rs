@@ -21,57 +21,59 @@ use crate::{
         Column,
         Row,
     },
-    event::{
-        UIEvent,
-        UIEventKind,
+    message::{
+        UiMessage,
+        UiMessageData,
     },
-    Visibility,
+    brush::Brush,
+    message::ButtonMessage
 };
-use crate::brush::Brush;
 
-pub struct Tab {
-    header_button: Handle<UINode>,
-    content: Handle<UINode>,
+pub struct Tab<M: 'static, C: 'static + Control<M, C>> {
+    header_button: Handle<UINode<M, C>>,
+    content: Handle<UINode<M, C>>,
 }
 
-pub struct TabControl {
-    widget: Widget,
-    tabs: Vec<Tab>,
+pub struct TabControl<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
+    tabs: Vec<Tab<M, C>>,
 }
 
-impl Control for TabControl {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::TabControl(Self {
+            widget: self.widget.raw_copy(),
             tabs: Default::default(),
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
         for tab in self.tabs.iter_mut() {
             tab.header_button = *node_map.get(&tab.header_button).unwrap();
             tab.content = *node_map.get(&tab.content).unwrap();
         }
     }
 
-    fn handle_event(&mut self, _: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        match evt.kind {
-            UIEventKind::Click => {
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
+
+        if let UiMessageData::Button(msg) = &message.data {
+            if let ButtonMessage::Click = msg {
                 for (i, tab) in self.tabs.iter().enumerate() {
-                    if evt.source == tab.header_button {
+                    if message.source == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
                             let visibility = if j == i {
-                                Visibility::Visible
+                                true
                             } else {
-                                Visibility::Collapsed
+                                false
                             };
                             ui.node_mut(other_tab.content)
                                 .widget_mut()
@@ -81,37 +83,47 @@ impl Control for TabControl {
                     }
                 }
             }
-            _ => ()
+        }
+    }
+
+    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+        for tab in self.tabs.iter_mut() {
+            if tab.content == handle {
+                tab.content = Handle::NONE;
+            }
+            if tab.header_button == handle {
+                tab.header_button = Handle::NONE;
+            }
         }
     }
 }
 
-pub struct TabControlBuilder {
-    widget_builder: WidgetBuilder,
-    tabs: Vec<TabDefinition>,
+pub struct TabControlBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
+    tabs: Vec<TabDefinition<M, C>>,
 }
 
-pub struct TabDefinition {
-    pub header: Handle<UINode>,
-    pub content: Handle<UINode>,
+pub struct TabDefinition<M: 'static, C: 'static + Control<M, C>> {
+    pub header: Handle<UINode<M, C>>,
+    pub content: Handle<UINode<M, C>>,
 }
 
-impl TabControlBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             tabs: Default::default(),
         }
     }
 
-    pub fn with_tab(mut self, tab: TabDefinition) -> Self {
+    pub fn with_tab(mut self, tab: TabDefinition<M, C>) -> Self {
         self.tabs.push(tab);
         self
     }
 }
 
-impl Builder for TabControlBuilder {
-    fn build(self, container: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
+    fn build(self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         let tab_buttons = self.tabs
             .iter()
             .enumerate()
@@ -120,13 +132,13 @@ impl Builder for TabControlBuilder {
                     .on_column(i))
                     .with_content(tab.header)
                     .build(container)
-            }).collect::<Vec<Handle<UINode>>>();
+            }).collect::<Vec<Handle<UINode<M, C>>>>();
 
         // Hide everything but first tab content.
         for tab_def in self.tabs.iter().skip(1) {
             container.node_mut(tab_def.content)
                 .widget_mut()
-                .set_visibility(Visibility::Collapsed);
+                .set_visibility(false);
         }
 
         let headers_grid = GridBuilder::new(WidgetBuilder::new()
@@ -142,7 +154,7 @@ impl Builder for TabControlBuilder {
             .with_children(&self.tabs
                 .iter()
                 .map(|tab| tab.content)
-                .collect::<Vec<Handle<UINode>>>())
+                .collect::<Vec<Handle<UINode<M, C>>>>())
             .on_row(1))
             .build(container);
 
@@ -172,6 +184,6 @@ impl Builder for TabControlBuilder {
                 .collect(),
         };
 
-        container.add_node(Box::new(tab_control))
+        container.add_node(UINode::TabControl(tab_control))
     }
 }

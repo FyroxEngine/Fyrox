@@ -10,7 +10,6 @@ use crate::{
             Rect,
         },
     },
-    Visibility,
     UserInterface,
     widget::{
         WidgetBuilder,
@@ -21,8 +20,12 @@ use crate::{
     ControlTemplate,
     UINodeContainer,
     Builder,
+    draw::{
+        DrawingContext,
+        CommandKind,
+        CommandTexture
+    },
 };
-use crate::draw::{DrawingContext, CommandKind, CommandTexture};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
@@ -124,36 +127,36 @@ impl Row {
 }
 
 /// Automatically arranges children by rows and columns
-pub struct Grid {
-    widget: Widget,
+pub struct Grid<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     rows: RefCell<Vec<Row>>,
     columns: RefCell<Vec<Column>>,
     draw_border: bool,
-    border_thickness: f32
+    border_thickness: f32,
 }
 
-impl Control for Grid {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Grid(Self {
+            widget: self.widget.raw_copy(),
             rows: self.rows.clone(),
             columns: self.columns.clone(),
             draw_border: self.draw_border,
-            border_thickness: self.border_thickness
+            border_thickness: self.border_thickness,
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
 
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             return self.widget.measure_override(ui, available_size);
@@ -161,7 +164,7 @@ impl Control for Grid {
 
         let mut desired_size = Vec2::ZERO;
         // Step 1. Measure every children with relaxed constraints (size of grid).
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, available_size);
         }
 
@@ -176,7 +179,7 @@ impl Control for Grid {
         self.arrange_columns();
 
         // Step 3. Re-measure children with new constraints.
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             let size_for_child = {
                 let child = ui.nodes.borrow(*child_handle).widget();
                 Vec2 {
@@ -198,16 +201,16 @@ impl Control for Grid {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
-            for child_handle in self.widget.children.iter() {
+            for child_handle in self.widget.children() {
                 ui.node(*child_handle).arrange(ui, &rect);
             }
             return final_size;
         }
 
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             let mut final_rect = None;
 
             let child = ui.nodes.borrow(*child_handle).widget();
@@ -258,24 +261,26 @@ impl Control for Grid {
             drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
         }
     }
+
+    fn remove_ref(&mut self, _: Handle<UINode<M, C>>) {}
 }
 
-pub struct GridBuilder {
-    widget_builder: WidgetBuilder,
+pub struct GridBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     rows: Vec<Row>,
     columns: Vec<Column>,
     draw_border: bool,
-    border_thickness: f32
+    border_thickness: f32,
 }
 
-impl GridBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> GridBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         GridBuilder {
             widget_builder,
             rows: Vec::new(),
             columns: Vec::new(),
             draw_border: false,
-            border_thickness: 1.0
+            border_thickness: 1.0,
         }
     }
 
@@ -310,9 +315,9 @@ impl GridBuilder {
     }
 }
 
-impl Builder for GridBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
-        ui.add_node(Box::new(Grid {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for GridBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+        ui.add_node(UINode::Grid(Grid {
             widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
@@ -322,14 +327,14 @@ impl Builder for GridBuilder {
     }
 }
 
-impl Grid {
-    pub fn new(widget: Widget) -> Self {
+impl<M, C: 'static + Control<M, C>> Grid<M, C> {
+    pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             rows: Default::default(),
             columns: Default::default(),
             draw_border: false,
-            border_thickness: 1.0
+            border_thickness: 1.0,
         }
     }
 
@@ -359,7 +364,7 @@ impl Grid {
         self.rows = RefCell::new(rows);
     }
 
-    fn calculate_preset_width(&self, ui: &UserInterface) -> f32 {
+    fn calculate_preset_width(&self, ui: &UserInterface<M, C>) -> f32 {
         let mut preset_width = 0.0;
 
         // Calculate size of strict-sized and auto-sized columns.
@@ -369,10 +374,10 @@ impl Grid {
                 preset_width += col.actual_width;
             } else if col.size_mode == SizeMode::Auto {
                 col.actual_width = col.desired_width;
-                for child_handle in self.widget.children.iter() {
+                for child_handle in self.widget.children() {
                     let child = ui.nodes.borrow(*child_handle).widget();
-                    if child.column() == i && child.visibility == Visibility::Visible && child.desired_size.get().x > col.actual_width {
-                        col.actual_width = child.desired_size.get().x;
+                    if child.column() == i && child.visibility() == true && child.desired_size().x > col.actual_width {
+                        col.actual_width = child.desired_size().x;
                     }
                 }
                 preset_width += col.actual_width;
@@ -382,7 +387,7 @@ impl Grid {
         preset_width
     }
 
-    fn calculate_preset_height(&self, ui: &UserInterface) -> f32 {
+    fn calculate_preset_height(&self, ui: &UserInterface<M, C>) -> f32 {
         let mut preset_height = 0.0;
 
         // Calculate size of strict-sized and auto-sized rows.
@@ -392,10 +397,10 @@ impl Grid {
                 preset_height += row.actual_height;
             } else if row.size_mode == SizeMode::Auto {
                 row.actual_height = row.desired_height;
-                for child_handle in self.widget.children.iter() {
+                for child_handle in self.widget.children() {
                     let child = ui.nodes.borrow(*child_handle).widget();
-                    if child.row() == i && child.visibility == Visibility::Visible && child.desired_size.get().y > row.actual_height {
-                        row.actual_height = child.desired_size.get().y;
+                    if child.row() == i && child.visibility() == true && child.desired_size().y > row.actual_height {
+                        row.actual_height = child.desired_size().y;
                     }
                 }
                 preset_height += row.actual_height;
@@ -405,14 +410,14 @@ impl Grid {
         preset_height
     }
 
-    fn fit_stretch_sized_columns(&self, ui: &UserInterface, available_size: Vec2, preset_width: f32) {
+    fn fit_stretch_sized_columns(&self, ui: &UserInterface<M, C>, available_size: Vec2, preset_width: f32) {
         let mut rest_width = 0.0;
         if available_size.x.is_infinite() {
-            for child_handle in self.widget.children.iter() {
+            for child_handle in self.widget.children() {
                 let child = ui.nodes.borrow(*child_handle).widget();
                 if let Some(column) = self.columns.borrow().get(child.column()) {
                     if column.size_mode == SizeMode::Stretch {
-                        rest_width += child.desired_size.get().x;
+                        rest_width += child.desired_size().x;
                     }
                 }
             }
@@ -437,15 +442,15 @@ impl Grid {
         }
     }
 
-    fn fit_stretch_sized_rows(&self, ui: &UserInterface, available_size: Vec2, preset_height: f32) {
+    fn fit_stretch_sized_rows(&self, ui: &UserInterface<M, C>, available_size: Vec2, preset_height: f32) {
         let mut stretch_sized_rows = 0;
         let mut rest_height = 0.0;
         if available_size.y.is_infinite() {
-            for child_handle in self.widget.children.iter() {
+            for child_handle in self.widget.children() {
                 let child = ui.nodes.borrow(*child_handle).widget();
                 if let Some(row) = self.rows.borrow().get(child.row()) {
                     if row.size_mode == SizeMode::Stretch {
-                        rest_height += child.desired_size.get().y;
+                        rest_height += child.desired_size().y;
                     }
                 }
             }

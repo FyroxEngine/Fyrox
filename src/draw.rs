@@ -8,12 +8,14 @@ use crate::{
             Rect,
         },
     },
+    core::math::TriangleDefinition,
+    brush::Brush,
+    ttf::Font
 };
-use std::any::Any;
-use crate::core::math::TriangleDefinition;
-use crate::brush::Brush;
-use std::sync::{Arc, Mutex};
-use crate::ttf::Font;
+use std::{
+    any::Any,
+    sync::{Arc, Mutex}
+};
 
 #[repr(C)]
 pub struct Vertex {

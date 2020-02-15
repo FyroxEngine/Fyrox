@@ -6,51 +6,43 @@ use crate::{
             Rect,
         },
     },
-        widget::{
-            Widget,
-            WidgetBuilder,
-        },
-        UserInterface, Control,
-        UINode    ,
-
-        ControlTemplate,
-        UINodeContainer,
-        Builder
-
+    widget::{
+        Widget,
+        WidgetBuilder,
+    },
+    UserInterface, Control,
+    UINode,
+    UINodeContainer,
+    Builder,
 };
-use std::collections::HashMap;
 
 /// Allows user to scroll content
-pub struct ScrollContentPresenter {
-    widget: Widget,
+pub struct ScrollContentPresenter<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     scroll: Vec2,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
 
-impl Control for ScrollContentPresenter {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ScrollContentPresenter(Self {
+            widget: self.widget.raw_copy(),
             scroll: self.scroll,
             vertical_scroll_allowed: self.vertical_scroll_allowed,
-            horizontal_scroll_allowed: self.horizontal_scroll_allowed
+            horizontal_scroll_allowed: self.horizontal_scroll_allowed,
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {
-
-    }
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::new(
             if self.horizontal_scroll_allowed {
                 std::f32::INFINITY
@@ -66,11 +58,11 @@ impl Control for ScrollContentPresenter {
 
         let mut desired_size = Vec2::ZERO;
 
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
 
             let child = ui.nodes.borrow(*child_handle).widget();
-            let child_desired_size = child.desired_size.get();
+            let child_desired_size = child.desired_size();
             if child_desired_size.x > desired_size.x {
                 desired_size.x = child_desired_size.x;
             }
@@ -82,7 +74,7 @@ impl Control for ScrollContentPresenter {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let child_rect = Rect::new(
             -self.scroll.x,
             -self.scroll.y,
@@ -90,7 +82,7 @@ impl Control for ScrollContentPresenter {
             final_size.y + self.scroll.y,
         );
 
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             ui.node(*child_handle).arrange(ui, &child_rect);
         }
 
@@ -98,45 +90,60 @@ impl Control for ScrollContentPresenter {
     }
 }
 
-impl ScrollContentPresenter {
-    pub fn new(widget: Widget) -> Self {
+impl<M, C: 'static + Control<M, C>> ScrollContentPresenter<M, C> {
+    pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             scroll: Default::default(),
             vertical_scroll_allowed: true,
-            horizontal_scroll_allowed: false
+            horizontal_scroll_allowed: false,
         }
     }
 
     pub fn set_scroll(&mut self, scroll: Vec2) {
-        self.scroll = scroll;
+        if self.scroll != scroll {
+            self.scroll = scroll;
+            self.widget.invalidate_layout();
+        }
     }
 
     pub fn set_vertical_scroll(&mut self, scroll: f32) {
-        self.scroll.y = scroll;
+        if self.scroll.y != scroll {
+            self.scroll.y = scroll;
+            self.widget.invalidate_layout();
+        }
     }
 
     pub fn set_horizontal_scroll(&mut self, scroll: f32) {
-        self.scroll.x = scroll;
+        if self.scroll.x != scroll {
+            self.scroll.x = scroll;
+            self.widget.invalidate_layout();
+        }
     }
 
     pub fn set_vertical_scroll_allowed(&mut self, state: bool) {
-        self.vertical_scroll_allowed = state;
+        if self.vertical_scroll_allowed != state {
+            self.vertical_scroll_allowed = state;
+            self.widget.invalidate_layout();
+        }
     }
 
     pub fn set_horizontal_scroll_allowed(&mut self, state: bool) {
-        self.horizontal_scroll_allowed = state;
+        if self.horizontal_scroll_allowed != state {
+            self.horizontal_scroll_allowed = state;
+            self.widget.invalidate_layout();
+        }
     }
 }
 
-pub struct ScrollContentPresenterBuilder {
-    widget_builder: WidgetBuilder,
+pub struct ScrollContentPresenterBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     vertical_scroll_allowed: Option<bool>,
     horizontal_scroll_allowed: Option<bool>,
 }
 
-impl ScrollContentPresenterBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> ScrollContentPresenterBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             vertical_scroll_allowed: None,
@@ -155,9 +162,9 @@ impl ScrollContentPresenterBuilder {
     }
 }
 
-impl Builder for ScrollContentPresenterBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
-        ui.add_node(Box::new(ScrollContentPresenter {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollContentPresenterBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+        ui.add_node(UINode::ScrollContentPresenter(ScrollContentPresenter {
             widget: self.widget_builder.build(),
             scroll: Vec2::ZERO,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),

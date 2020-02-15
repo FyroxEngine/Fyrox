@@ -21,25 +21,25 @@ use crate::{
     ControlTemplate,
     UINodeContainer,
     Builder,
+    draw::CommandTexture
 };
 use std::{
     any::Any,
     collections::HashMap,
 };
-use crate::draw::CommandTexture;
 
-pub struct Border {
-    widget: Widget,
+pub struct Border<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     stroke_thickness: Thickness,
 }
 
-pub struct BorderBuilder {
-    widget_builder: WidgetBuilder,
+pub struct BorderBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
     stroke_thickness: Option<Thickness>,
 }
 
-impl BorderBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             stroke_thickness: None,
@@ -52,8 +52,8 @@ impl BorderBuilder {
     }
 }
 
-impl Builder for BorderBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for BorderBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         let style = self.widget_builder.style.clone();
 
         let mut border = Border {
@@ -65,29 +65,27 @@ impl Builder for BorderBuilder {
             border.apply_style(style);
         }
 
-        ui.add_node(Box::new(border))
+        ui.add_node(UINode::Border(border))
     }
 }
 
-impl Control for Border {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Border(Self {
+            widget: self.widget.raw_copy(),
             stroke_thickness: self.stroke_thickness,
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, _: &HashMap<Handle<UINode>, Handle<UINode>>) {}
-
-    fn measure_override(&self, ui: &UserInterface, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
@@ -97,10 +95,10 @@ impl Control for Border {
         );
         let mut desired_size = Vec2::ZERO;
 
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
             let child = ui.nodes.borrow(*child_handle).widget();
-            let child_desired_size = child.desired_size.get();
+            let child_desired_size = child.desired_size();
             if child_desired_size.x > desired_size.x {
                 desired_size.x = child_desired_size.x;
             }
@@ -115,14 +113,14 @@ impl Control for Border {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let rect_for_child = Rect::new(
             self.stroke_thickness.left, self.stroke_thickness.top,
             final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
             final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
         );
 
-        for child_handle in self.widget.children.iter() {
+        for child_handle in self.widget.children() {
             ui.node(*child_handle).arrange(ui, &rect_for_child);
         }
 
@@ -139,11 +137,10 @@ impl Control for Border {
     }
 
     fn set_property(&mut self, name: &str, value: &dyn Any) {
-        match name {
-            Self::STROKE_THICKNESS => if let Some(value) = value.downcast_ref() {
+        if Self::STROKE_THICKNESS == name {
+            if let Some(value) = value.downcast_ref() {
                 self.stroke_thickness = *value;
-            },
-            _ => ()
+            }
         }
     }
 
@@ -155,10 +152,10 @@ impl Control for Border {
     }
 }
 
-impl Border {
+impl<M, C: 'static + Control<M, C>> Border<M, C> {
     pub const STROKE_THICKNESS: &'static str = "StrokeThickness";
 
-    pub fn new(widget: Widget) -> Self {
+    pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             stroke_thickness: Thickness::uniform(1.0),
@@ -166,7 +163,10 @@ impl Border {
     }
 
     pub fn set_stroke_thickness(&mut self, thickness: Thickness) -> &mut Self {
-        self.stroke_thickness = thickness;
+        if self.stroke_thickness != thickness {
+            self.stroke_thickness = thickness;
+            self.widget.invalidate_layout();
+        }
         self
     }
 }

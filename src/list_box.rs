@@ -1,43 +1,44 @@
 use crate::{
-        scroll_viewer::ScrollViewerBuilder,
-        Thickness,
-        border::BorderBuilder,
-        widget::{
-            Widget,
-            WidgetBuilder
-        },
-        UINode,
-        UserInterface,
-        stack_panel::StackPanelBuilder,
-        event::{
-            UIEventKind,
-            UIEvent,
-        },
-        Control,
-        border::Border,
-        ControlTemplate,
-        UINodeContainer,
-        Builder    ,
+    scroll_viewer::ScrollViewerBuilder,
+    Thickness,
+    border::BorderBuilder,
+    widget::{
+        Widget,
+        WidgetBuilder,
+    },
+    UINode,
+    UserInterface,
+    stack_panel::StackPanelBuilder,
+    message::{
+        UiMessageData,
+        UiMessage,
+        ItemsControlMessage,
+        WidgetMessage
+    },
+    Control,
+    ControlTemplate,
+    UINodeContainer,
+    Builder,
     core::{
         pool::Handle,
         color::Color,
     },
+    brush::Brush,
 };
 use std::collections::HashMap;
-use crate::brush::Brush;
 
-pub struct ListBox {
-    widget: Widget,
+pub struct ListBox<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
     selected_index: Option<usize>,
-    items: Vec<Handle<UINode>>,
+    items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl ListBox {
-    pub fn new(widget: Widget, items: Vec<Handle<UINode>>) -> Self {
+impl<M, C: 'static + Control<M, C>> ListBox<M, C> {
+    pub fn new(widget: Widget<M, C>, items: Vec<Handle<UINode<M, C>>>) -> Self {
         Self {
             widget,
             selected_index: None,
-            items
+            items,
         }
     }
 
@@ -50,9 +51,9 @@ impl ListBox {
             old_value.is_some() && new_index.is_none() ||
             old_value.unwrap() != new_index.unwrap() {
             self.widget
-                .events
+                .outgoing_messages
                 .borrow_mut()
-                .push_back(UIEvent::new(UIEventKind::SelectionChanged(self.selected_index)))
+                .push_back(UiMessage::new(UiMessageData::ItemsControl(ItemsControlMessage::SelectionChanged(self.selected_index))))
         }
     }
 
@@ -60,126 +61,148 @@ impl ListBox {
         self.selected_index
     }
 
-    pub fn get_items(&self) -> &[Handle<UINode>] {
+    pub fn get_items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
 }
 
-pub struct ListBoxItem {
-    widget: Widget,
-    body: Handle<UINode>,
+pub struct ListBoxItem<M: 'static, C: 'static + Control<M, C>> {
+    widget: Widget<M, C>,
+    body: Handle<UINode<M, C>>,
     index: usize,
 }
 
-impl Control for ListBoxItem {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ListBoxItem(Self {
+            widget: self.widget.raw_copy(),
             body: self.body,
-            index: self.index
+            index: self.index,
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
         self.body = *node_map.get(&self.body).unwrap();
     }
 
-    fn handle_event(&mut self, self_handle: Handle<UINode>, ui: &mut UserInterface, evt: &mut UIEvent) {
-        let list_box = self.widget().find_by_criteria_up(ui, |node| node.is::<ListBox>());
-        if evt.source == self_handle || self.widget().has_descendant(evt.source, ui) {
-            let body = ui.node_mut(self.body).widget_mut();
-            match evt.kind {
-                UIEventKind::MouseLeave => {
-                    body.widget_mut().set_background(Brush::Solid(Color::opaque(100, 100, 100)));
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
+
+        let list_box = self.widget().find_by_criteria_up(ui, |node| {
+            if let UINode::ListBox(_) = node { true } else { false }
+        });
+
+        match &message.data {
+            UiMessageData::Widget(msg) => {
+                if self.body.is_some() && (message.source == self_handle || self.widget().has_descendant(message.source, ui)) {
+                    let body = ui.node_mut(self.body).widget_mut();
+                    match msg {
+                        WidgetMessage::MouseLeave => {
+                            body.set_background(Brush::Solid(Color::opaque(100, 100, 100)));
+                        }
+                        WidgetMessage::MouseEnter => {
+                            body.set_background(Brush::Solid(Color::opaque(130, 130, 130)));
+                        }
+                        WidgetMessage::MouseDown { .. } => {
+                            // Explicitly set selection on parent list box. This will send
+                            // SelectionChanged event and all items will react.
+                            if let UINode::ListBox(list_box) = ui.node_mut(list_box) {
+                                list_box.set_selected(Some(self.index));
+                            }
+                        }
+                        _ => ()
+                    }
                 }
-                UIEventKind::MouseEnter => {
-                    body.widget_mut().set_background(Brush::Solid(Color::opaque(130, 130, 130)));
-                }
-                UIEventKind::MouseDown { .. } => {
-                    // Explicitly set selection on parent list box. This will send
-                    // SelectionChanged event and all items will react.
-                    ui.node_mut(list_box)
-                        .downcast_mut::<ListBox>()
-                        .unwrap()
-                        .set_selected(Some(self.index))
-                }
-                _ => ()
             }
-        } else if evt.source == list_box {
-            if let Some(border) = ui.node_mut(self.body).downcast_mut::<Border>() {
-                if let UIEventKind::SelectionChanged(new_value) = evt.kind {
-                    // We know now that selection has changed in parent list box,
-                    // check at which index and keep visual state according to it.
-                    if let Some(new_value) = new_value {
-                        if new_value == self.index {
-                            border.widget_mut().set_foreground(Brush::Solid(Color::opaque(0, 0, 0)));
-                            border.set_stroke_thickness(Thickness::uniform(2.0));
-                            return;
+            UiMessageData::ItemsControl(msg) => {
+                if let UINode::Border(border) = ui.node_mut(self.body) {
+                    if message.source == list_box && self.body.is_some() {
+                        if let ItemsControlMessage::SelectionChanged(new_value) = msg {
+                            // We know now that selection has changed in parent list box,
+                            // check at which index and keep visual state according to it.
+                            if let Some(new_value) = *new_value {
+                                if new_value == self.index {
+                                    border.widget_mut().set_foreground(Brush::Solid(Color::opaque(0, 0, 0)));
+                                    border.set_stroke_thickness(Thickness::uniform(2.0));
+                                    return;
+                                }
+                            }
+                            border.widget_mut().set_foreground(Brush::Solid(Color::opaque(80, 80, 80)));
+                            border.set_stroke_thickness(Thickness::uniform(1.0));
                         }
                     }
-                    border.widget_mut().set_foreground(Brush::Solid(Color::opaque(80, 80, 80)));
-                    border.set_stroke_thickness(Thickness::uniform(1.0));
                 }
             }
+            _ => ()
+        }
+    }
+
+    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+        if self.body == handle {
+            self.body = Handle::NONE;
         }
     }
 }
 
-impl Control for ListBox {
-    fn widget(&self) -> &Widget {
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBox<M, C> {
+    fn widget(&self) -> &Widget<M, C> {
         &self.widget
     }
 
-    fn widget_mut(&mut self) -> &mut Widget {
+    fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> Box<dyn Control> {
-        Box::new(Self {
-            widget: *self.widget.raw_copy().downcast::<Widget>().unwrap_or_else(|_| panic!()),
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ListBox(Self {
+            widget: self.widget.raw_copy(),
             selected_index: self.selected_index,
             items: self.items.clone(),
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate, node_map: &HashMap<Handle<UINode>, Handle<UINode>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
         for item in self.items.iter_mut() {
             *item = *node_map.get(item).unwrap();
         }
     }
+
+    fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
+        self.items.retain(|i| *i != handle);
+    }
 }
 
-pub struct ListBoxBuilder {
-    widget_builder: WidgetBuilder,
-    items: Vec<Handle<UINode>>,
+pub struct ListBoxBuilder<M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
+    items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl ListBoxBuilder {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+impl<M, C: 'static + Control<M, C>> ListBoxBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             items: Vec::new(),
         }
     }
 
-    pub fn with_items(mut self, items: Vec<Handle<UINode>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
         self.items = items;
         self
     }
 }
 
-impl Builder for ListBoxBuilder {
-    fn build(self, ui: &mut dyn UINodeContainer) -> Handle<UINode> {
+impl<M, C: 'static + Control<M, C>> Builder<M, C> for ListBoxBuilder<M, C> {
+    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
         // Wrap each item into container which will have selection behaviour
-        let items: Vec<Handle<UINode>> = self.items.iter().enumerate().map(|(index, item)| {
+        let items: Vec<Handle<UINode<M, C>>> = self.items.iter().enumerate().map(|(index, item)| {
             let body = BorderBuilder::new(WidgetBuilder::new()
                 .with_foreground(Brush::Solid(Color::opaque(60, 60, 60)))
                 .with_background(Brush::Solid(Color::opaque(80, 80, 80)))
@@ -192,10 +215,10 @@ impl Builder for ListBoxBuilder {
                     .with_child(body)
                     .build(),
                 body,
-                index
+                index,
             };
 
-            ui.add_node(Box::new(item))
+            ui.add_node(UINode::ListBoxItem(item))
         }).collect();
 
         let panel = StackPanelBuilder::new(WidgetBuilder::new()
@@ -218,6 +241,6 @@ impl Builder for ListBoxBuilder {
             items,
         };
 
-        ui.add_node(Box::new(list_box))
+        ui.add_node(UINode::ListBox(list_box))
     }
 }
