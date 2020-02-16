@@ -18,14 +18,12 @@ use crate::{
         WidgetBuilder,
     },
     Control,
-    ControlTemplate,
     UINodeContainer,
     Builder,
     draw::CommandTexture
 };
 use std::{
     any::Any,
-    collections::HashMap,
 };
 
 pub struct Border<M: 'static, C: 'static + Control<M, C>> {

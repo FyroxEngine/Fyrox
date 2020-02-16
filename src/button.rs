@@ -1,9 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{
-        Arc,
-        Mutex,
-    },
+use std::sync::{
+    Arc,
+    Mutex,
 };
 use crate::{
     brush::{Brush, GradientPoint},
@@ -34,6 +31,7 @@ use crate::{
         UiMessageData,
         ButtonMessage,
     },
+    NodeHandleMapping,
 };
 
 pub struct Button<M: 'static, C: 'static + Control<M, C>> {
@@ -96,7 +94,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         self.body = *node_map.get(&self.body).unwrap();
         if let Some(content) = node_map.get(&self.content) {
             self.content = *content;

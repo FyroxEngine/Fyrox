@@ -22,8 +22,8 @@ use crate::{
         color::Color,
     },
     brush::Brush,
+    NodeHandleMapping
 };
-use std::collections::HashMap;
 
 pub struct CheckBox<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -48,7 +48,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         self.check_mark = *node_map.get(&self.check_mark).unwrap();
     }
 

@@ -1,6 +1,5 @@
 use std::{
     sync::Arc,
-    collections::HashMap,
 };
 use crate::{
     core::{
@@ -14,7 +13,6 @@ use crate::{
     widget::Widget,
     widget::WidgetBuilder,
     Control,
-    ControlTemplate,
     UINodeContainer,
     Builder,
     draw::{Texture, CommandTexture}
@@ -54,8 +52,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.get_screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
@@ -64,8 +60,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
             .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), texture);
     }
-
-    fn remove_ref(&mut self, _: Handle<UINode<M, C>>) {}
 }
 
 pub struct ImageBuilder<M: 'static, C: 'static + Control<M, C>> {

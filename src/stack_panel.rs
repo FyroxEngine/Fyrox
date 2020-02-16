@@ -1,6 +1,5 @@
 use crate::{
     UserInterface,
-    maxf,
     widget::{
         Widget,
         WidgetBuilder,
@@ -18,8 +17,9 @@ use crate::{
     ControlTemplate,
     UINodeContainer,
     Builder,
+    NodeHandleMapping
 };
-use std::collections::HashMap;
+
 
 pub struct StackPanel<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -62,7 +62,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &NodeHandleMapping<M, C>) {}
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let mut child_constraint = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
@@ -140,11 +140,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
                     let child_bounds = Rect::new(
                         0.0,
                         height,
-                        maxf(width, child.desired_size().x),
+                        width.max(child.desired_size().x),
                         child.desired_size().y,
                     );
                     ui.node(*child_handle).arrange(ui, &child_bounds);
-                    width = maxf(width, child.desired_size().x);
+                    width = width.max(child.desired_size().x);
                     height += child.desired_size().y;
                 }
                 Orientation::Horizontal => {
@@ -152,21 +152,21 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
                         width,
                         0.0,
                         child.desired_size().x,
-                        maxf(height, child.desired_size().y),
+                        height.max(child.desired_size().y),
                     );
                     ui.node(*child_handle).arrange(ui, &child_bounds);
                     width += child.desired_size().x;
-                    height = maxf(height, child.desired_size().y);
+                    height = height.max(child.desired_size().y);
                 }
             }
         }
 
         match self.orientation {
             Orientation::Vertical => {
-                height = maxf(height, final_size.y);
+                height = height.max(final_size.y);
             }
             Orientation::Horizontal => {
-                width = maxf(width, final_size.x);
+                width = width.max(final_size.x);
             }
         }
 

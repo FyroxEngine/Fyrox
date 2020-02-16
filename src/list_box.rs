@@ -24,8 +24,8 @@ use crate::{
         color::Color,
     },
     brush::Brush,
+    NodeHandleMapping
 };
-use std::collections::HashMap;
 
 pub struct ListBox<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -89,7 +89,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         self.body = *node_map.get(&self.body).unwrap();
     }
 
@@ -169,7 +169,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBox<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         for item in self.items.iter_mut() {
             *item = *node_map.get(item).unwrap();
         }

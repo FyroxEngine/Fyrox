@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use crate::{
     border::BorderBuilder,
     canvas::CanvasBuilder,
     button::ButtonBuilder,
     UserInterface,
-    maxf,
     Thickness,
     grid::{
         GridBuilder,
@@ -39,6 +37,7 @@ use crate::{
         ScrollBarMessage,
         WidgetMessage,
     },
+    NodeHandleMapping
 };
 
 pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
@@ -84,7 +83,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         self.increase = *node_map.get(&self.increase).unwrap();
         self.decrease = *node_map.get(&self.decrease).unwrap();
         self.indicator = *node_map.get(&self.indicator).unwrap();
@@ -104,14 +103,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         match self.orientation {
             Orientation::Horizontal => {
                 indicator.set_desired_local_position(Vec2::new(
-                    percent * maxf(0.0, field_size.x - indicator.actual_size().x),
+                    percent * (field_size.x - indicator.actual_size().x).max(0.0),
                     0.0));
                 indicator.set_height(field_size.y);
             }
             Orientation::Vertical => {
                 indicator.set_desired_local_position(Vec2::new(
                     0.0,
-                    percent * maxf(0.0, field_size.y - indicator.actual_size().y))
+                    percent * (field_size.y - indicator.actual_size().y).max(0.0))
                 );
                 indicator.set_width(field_size.x);
             }

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     any::Any,
     rc::Rc,
 };
@@ -36,6 +35,7 @@ use crate::{
         },
         pool::Handle,
     },
+    NodeHandleMapping
 };
 
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -95,7 +95,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, raw_copy,)
     }
 
-    fn resolve(&mut self, template: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, template: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         static_dispatch!(self, resolve, template, node_map)
     }
 

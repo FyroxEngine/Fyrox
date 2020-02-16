@@ -1,6 +1,5 @@
 use std::{
     cell::RefCell,
-    collections::HashMap,
 };
 use crate::{
     core::{
@@ -17,7 +16,6 @@ use crate::{
     },
     Control,
     UINode,
-    ControlTemplate,
     UINodeContainer,
     Builder,
     draw::{
@@ -154,8 +152,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
-
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
@@ -261,8 +257,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
             drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
         }
     }
-
-    fn remove_ref(&mut self, _: Handle<UINode<M, C>>) {}
 }
 
 pub struct GridBuilder<M: 'static, C: 'static + Control<M, C>> {
@@ -376,7 +370,7 @@ impl<M, C: 'static + Control<M, C>> Grid<M, C> {
                 col.actual_width = col.desired_width;
                 for child_handle in self.widget.children() {
                     let child = ui.nodes.borrow(*child_handle).widget();
-                    if child.column() == i && child.visibility() == true && child.desired_size().x > col.actual_width {
+                    if child.column() == i && child.visibility() && child.desired_size().x > col.actual_width {
                         col.actual_width = child.desired_size().x;
                     }
                 }
@@ -399,7 +393,7 @@ impl<M, C: 'static + Control<M, C>> Grid<M, C> {
                 row.actual_height = row.desired_height;
                 for child_handle in self.widget.children() {
                     let child = ui.nodes.borrow(*child_handle).widget();
-                    if child.row() == i && child.visibility() == true && child.desired_size().y > row.actual_height {
+                    if child.row() == i && child.visibility() && child.desired_size().y > row.actual_height {
                         row.actual_height = child.desired_size().y;
                     }
                 }

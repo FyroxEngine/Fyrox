@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     cmp,
     sync::{Mutex, Arc},
     cell::RefCell,
@@ -35,7 +34,6 @@ use crate::{
         MouseButton,
         KeyCode,
     },
-    ControlTemplate,
     UINodeContainer,
     Builder,
     ttf::Font,
@@ -356,8 +354,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
-
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
@@ -532,8 +528,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
             }
         }
     }
-
-    fn remove_ref(&mut self, _: Handle<UINode<M, C>>) {}
 }
 
 pub struct TextBoxBuilder<M: 'static, C: 'static + Control<M, C>> {

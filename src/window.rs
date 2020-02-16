@@ -1,6 +1,4 @@
-use std::collections::HashMap;
 use crate::{
-    brush::Brush,
     message::{
         UiMessageData,
         UiMessage,
@@ -29,7 +27,6 @@ use crate::{
     UINodeContainer,
     Builder,
     core::{
-        color::Color,
         pool::Handle,
         math::vec2::Vec2,
     },
@@ -38,6 +35,7 @@ use crate::{
         ButtonMessage,
         WindowMessage
     },
+    NodeHandleMapping
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -82,7 +80,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         self.header = *node_map.get(&self.header).unwrap();
         self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
         self.close_button = *node_map.get(&self.close_button).unwrap();
@@ -348,7 +346,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
                     minimize_button = ButtonBuilder::new(WidgetBuilder::new()
                         .on_row(0)
                         .on_column(1)
-                        .with_visibility(if self.can_minimize { true } else { false })
+                        .with_visibility(self.can_minimize)
                         .with_margin(Thickness::uniform(2.0)))
                         .with_text("_")
                         .build(ui);
@@ -358,7 +356,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
                     close_button = ButtonBuilder::new(WidgetBuilder::new()
                         .on_row(0)
                         .on_column(2)
-                        .with_visibility(if self.can_close { true } else { false })
+                        .with_visibility(self.can_close)
                         .with_margin(Thickness::uniform(2.0)))
                         .with_text("X")
                         .build(ui);
@@ -380,7 +378,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
 
         let window = Window {
             widget: self.widget_builder
-                .with_visibility(if self.open { true } else { false })
+                .with_visibility(self.open)
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_child(GridBuilder::new(WidgetBuilder::new()
                         .with_child(scroll_viewer)

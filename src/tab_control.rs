@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::{
     core::{
         pool::Handle,
@@ -26,7 +25,8 @@ use crate::{
         UiMessageData,
     },
     brush::Brush,
-    message::ButtonMessage
+    message::ButtonMessage,
+    NodeHandleMapping
 };
 
 pub struct Tab<M: 'static, C: 'static + Control<M, C>> {
@@ -55,7 +55,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         for tab in self.tabs.iter_mut() {
             tab.header_button = *node_map.get(&tab.header_button).unwrap();
             tab.content = *node_map.get(&tab.content).unwrap();
@@ -70,14 +70,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
                 for (i, tab) in self.tabs.iter().enumerate() {
                     if message.source == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
-                            let visibility = if j == i {
-                                true
-                            } else {
-                                false
-                            };
                             ui.node_mut(other_tab.content)
                                 .widget_mut()
-                                .set_visibility(visibility);
+                                .set_visibility(j == i);
                         }
                         break;
                     }

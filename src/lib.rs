@@ -3,6 +3,7 @@
 //! See examples here - https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs
 
 #![allow(irrefutable_let_patterns)]
+#![allow(clippy::float_cmp)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -43,7 +44,7 @@ use std::{
         Arc,
         Mutex,
     },
-    rc::Rc, time
+    rc::Rc,
 };
 use crate::{
     core::{
@@ -139,7 +140,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     /// Creates raw copy of control
     fn raw_copy(&self) -> UINode<M, C>;
 
-    fn resolve(&mut self, _template: &ControlTemplate<M, C>, _node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {}
+    fn resolve(&mut self, _template: &ControlTemplate<M, C>, _node_map: &NodeHandleMapping<M, C>) {}
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.widget().measure_override(ui, available_size)
@@ -151,10 +152,6 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
 
     fn arrange(&self, ui: &UserInterface<M, C>, final_rect: &Rect<f32>) {
         let widget = self.widget();
-
-        if !widget.visibility() {
-            widget.arrange(Default::default(), Default::default());
-        }
 
         if self.is_arrange_valid(ui) && widget.prev_arrange.get() == *final_rect {
             return;
@@ -170,17 +167,17 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
             let mut origin_y = final_rect.y + widget.margin().top;
 
             let mut size = Vec2 {
-                x: maxf(0.0, final_rect.w - margin_x),
-                y: maxf(0.0, final_rect.h - margin_y),
+                x: (final_rect.w - margin_x).max(0.0),
+                y: (final_rect.h - margin_y).max(0.0),
             };
 
             let size_without_margin = size;
 
             if widget.horizontal_alignment() != HorizontalAlignment::Stretch {
-                size.x = minf(size.x, widget.desired_size().x - margin_x);
+                size.x = size.x.min(widget.desired_size().x - margin_x);
             }
             if widget.vertical_alignment() != VerticalAlignment::Stretch {
-                size.y = minf(size.y, widget.desired_size().y - margin_y);
+                size.y = size.y.min(widget.desired_size().y - margin_y);
             }
 
             if widget.width() > 0.0 {
@@ -219,12 +216,12 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
                 _ => ()
             }
 
-            widget.arrange(Vec2::new(origin_x, origin_y), size);
+            widget.commit_arrange(Vec2::new(origin_x, origin_y), size);
         }
     }
 
     fn is_measure_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut valid = !self.widget().is_globally_visible() || self.widget().is_measure_valid();
+        let mut valid = self.widget().is_measure_valid() && self.widget().prev_global_visibility == self.widget().is_globally_visible();
         if valid {
             for child in self.widget().children() {
                 valid &= ui.node(*child).is_measure_valid(ui);
@@ -237,7 +234,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     }
 
     fn is_arrange_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut valid = !self.widget().is_globally_visible() || self.widget().is_arrange_valid();
+        let mut valid = self.widget().is_arrange_valid() && self.widget().prev_global_visibility == self.widget().is_globally_visible();
         if valid {
             for child in self.widget().children() {
                 valid &= ui.node(*child).is_arrange_valid(ui);
@@ -251,10 +248,6 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
 
     fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
         let widget = self.widget();
-
-        if !widget.visibility() {
-            widget.measure( Default::default());
-        }
 
         if self.is_measure_valid(ui) && widget.prev_measure.get() == available_size {
             return;
@@ -273,7 +266,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
                     let w = if widget.width() > 0.0 {
                         widget.width()
                     } else {
-                        maxf(0.0, available_size.x - margin.x)
+                        (available_size.x - margin.x).max(0.0)
                     };
 
                     if w > widget.max_size().x {
@@ -288,7 +281,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
                     let h = if widget.height() > 0.0 {
                         widget.height()
                     } else {
-                        maxf(0.0, available_size.y - margin.y)
+                        (available_size.y - margin.y).max(0.0)
                     };
 
                     if h > widget.max_size().y {
@@ -333,9 +326,9 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
                 desired_size.y = available_size.y;
             }
 
-            widget.measure(desired_size);
+            widget.commit_measure(desired_size);
         } else {
-            widget.measure(Vec2::new(0.0, 0.0));
+            widget.commit_measure(Vec2::new(0.0, 0.0));
         }
     }
 
@@ -390,25 +383,7 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     keyboard_focus_node: Handle<UINode<M, C>>,
     mouse_position: Vec2,
     messages: VecDeque<UiMessage<M, C>>,
-    stack: Vec<Handle<UINode<M, C>>>
-}
-
-#[inline]
-fn maxf(a: f32, b: f32) -> f32 {
-    if a > b {
-        a
-    } else {
-        b
-    }
-}
-
-#[inline]
-fn minf(a: f32, b: f32) -> f32 {
-    if a < b {
-        a
-    } else {
-        b
-    }
+    stack: Vec<Handle<UINode<M, C>>>,
 }
 
 lazy_static! {
@@ -438,7 +413,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
             keyboard_focus_node: Handle::NONE,
-            stack: Default::default()
+            stack: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(Widget::default())));
         ui
@@ -479,15 +454,14 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             }
             let parent_visibility =
                 if widget.parent().is_some() {
-                    self.nodes
-                        .borrow(widget.parent())
+                    self.node(widget.parent())
                         .widget()
                         .is_globally_visible()
                 } else {
                     true
                 };
             let widget = self.nodes.borrow_mut(node_handle).widget_mut();
-            widget.global_visibility = widget.visibility() == true && parent_visibility;
+            widget.set_global_visibility(widget.visibility() && parent_visibility);
         }
     }
 
@@ -512,6 +486,13 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn update(&mut self, screen_size: Vec2, dt: f32) {
         self.update_visibility();
 
+        for n in self.nodes.iter() {
+            if !n.widget().is_globally_visible() && n.widget().prev_global_visibility == n.widget().is_globally_visible() {
+                n.widget().commit_measure(Vec2::ZERO);
+                n.widget().commit_arrange(Vec2::ZERO, Vec2::ZERO);
+            }
+        }
+
         self.node(self.root_canvas)
             .measure(self, screen_size);
         self.node(self.root_canvas)
@@ -526,7 +507,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     fn draw_node(&mut self, node_handle: Handle<UINode<M, C>>, nesting: u8) {
         let node = self.nodes.borrow(node_handle);
         let bounds = node.widget().get_screen_bounds();
-        if !node.widget().global_visibility {
+        if !node.widget().is_globally_visible() {
             return;
         }
 
@@ -591,7 +572,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle).widget();
-        if !widget.global_visibility {
+        if !widget.is_globally_visible() {
             return clipped;
         }
 
@@ -615,7 +596,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     fn is_node_contains_point(&self, node_handle: Handle<UINode<M, C>>, pt: Vec2) -> bool {
         let widget = self.nodes.borrow(node_handle).widget();
 
-        if !widget.global_visibility {
+        if !widget.is_globally_visible() {
             return false;
         }
 
@@ -978,7 +959,7 @@ impl<M, C: 'static + Control<M, C>> UINodeContainer<M, C> for UserInterface<M, C
     }
 
     fn add_node(&mut self, mut node: UINode<M, C>) -> Handle<UINode<M, C>> {
-        let children = node.widget().children().iter().cloned().collect::<Vec<_>>();
+        let children = node.widget().children().to_vec();
         node.widget_mut().clear_children();
         let node_handle = self.nodes_mut().spawn(node);
         if self.root_canvas.is_some() {
@@ -1048,7 +1029,7 @@ impl<M, C: 'static + Control<M, C>> UINodeContainer<M, C> for ControlTemplate<M,
     }
 
     fn add_node(&mut self, mut node: UINode<M, C>) -> Handle<UINode<M, C>> {
-        let children = node.widget().children().iter().cloned().collect::<Vec<_>>();
+        let children = node.widget().children().to_vec();
         node.widget_mut().clear_children();
         let node_handle = self.nodes_mut().spawn(node);
         for child in children {
@@ -1064,6 +1045,8 @@ impl<M, C: 'static + Control<M, C>> Default for ControlTemplate<M, C> {
     }
 }
 
+pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
+
 impl<M, C: 'static + Control<M, C>> ControlTemplate<M, C> {
     pub fn new() -> Self {
         Self {
@@ -1072,7 +1055,7 @@ impl<M, C: 'static + Control<M, C>> ControlTemplate<M, C> {
     }
 
     pub fn instantiate(&self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
-        let mut map = HashMap::new();
+        let mut map = NodeHandleMapping::new();
 
         let root = self.instantiate_internal(self.root(), container, &mut map);
 
@@ -1089,7 +1072,7 @@ impl<M, C: 'static + Control<M, C>> ControlTemplate<M, C> {
         root
     }
 
-    fn instantiate_internal(&self, node_handle: Handle<UINode<M, C>>, container: &mut dyn UINodeContainer<M, C>, map: &mut HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) -> Handle<UINode<M, C>> {
+    fn instantiate_internal(&self, node_handle: Handle<UINode<M, C>>, container: &mut dyn UINodeContainer<M, C>, map: &mut NodeHandleMapping<M, C>) -> Handle<UINode<M, C>> {
         let node = self.nodes.borrow(node_handle);
 
         // Instantiate children first.
@@ -1181,19 +1164,22 @@ pub trait Builder<M: 'static, C: 'static + Control<M, C>> {
 
 #[cfg(test)]
 mod test {
-    use crate::grid::{GridBuilder, Row, Column};
-    use crate::widget::{WidgetBuilder, Widget};
-    use crate::window::{WindowBuilder, WindowTitle};
-    use crate::{Thickness, Builder, UserInterface, Control};
-    use crate::button::ButtonBuilder;
-    use crate::node::UINode;
-    use rg3d_core::math::vec2::Vec2;
+    use crate::{
+        widget::{WidgetBuilder, Widget},
+        grid::{GridBuilder, Row, Column},
+        window::{WindowBuilder, WindowTitle},
+        Thickness,
+        Builder,
+        UserInterface,
+        Control,
+        button::ButtonBuilder,
+        node::UINode,
+        core::math::vec2::Vec2,
+    };
 
     pub struct StubUiMessage {}
 
-    pub struct StubUiNode {
-        widget: Widget<StubUiMessage, StubUiNode>
-    }
+    pub struct StubUiNode {}
 
     impl Control<StubUiMessage, StubUiNode> for StubUiNode {
         fn widget(&self) -> &Widget<StubUiMessage, StubUiNode> {
@@ -1213,7 +1199,6 @@ mod test {
     fn perf_test() {
         let mut ui = UserInterface::<StubUiMessage, StubUiNode>::new();
 
-        /*
         GridBuilder::new(WidgetBuilder::new()
             .with_width(1000.0)
             .with_height(1000.0)
@@ -1222,7 +1207,7 @@ mod test {
                 .on_column(1))
                 .can_minimize(false)
                 .can_close(false)
-                .with_title(WindowTitle::Text("Rusty Shooter"))
+                .with_title(WindowTitle::Text("Test"))
                 .with_content(GridBuilder::new(WidgetBuilder::new()
                     .with_margin(Thickness::uniform(20.0))
                     .with_child({
@@ -1279,8 +1264,7 @@ mod test {
             .add_column(Column::stretch())
             .add_column(Column::strict(400.0))
             .add_column(Column::stretch())
-            .build(&mut ui);*/
-        WindowBuilder::new(WidgetBuilder::new()).build(&mut ui);
+            .build(&mut ui);
 
         ui.update(Vec2::new(1000.0, 1000.0), 0.016);
     }

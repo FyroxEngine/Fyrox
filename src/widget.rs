@@ -66,7 +66,8 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     margin: Thickness,
     /// Current visibility state
     visibility: bool,
-    pub(in crate) global_visibility: bool,
+    global_visibility: bool,
+    pub(in crate) prev_global_visibility: bool,
     children: Vec<Handle<UINode<M, C>>>,
     parent: Handle<UINode<M, C>>,
     /// Indices of commands in command buffer emitted by the node.
@@ -474,6 +475,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             margin: self.margin,
             visibility: self.visibility,
             global_visibility: self.global_visibility,
+            prev_global_visibility: false,
             children: self.children.clone(),
             parent: self.parent,
             command_indices: Default::default(),
@@ -561,76 +563,76 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
                 match msg {
                     WidgetMessage::Background(background) => {
                         self.background = background.clone()
-                    },
+                    }
                     WidgetMessage::Foreground(foreground) => {
                         self.foreground = foreground.clone()
-                    },
+                    }
                     WidgetMessage::Name(name) => {
                         self.name = name.clone()
-                    },
+                    }
                     WidgetMessage::Width(width) => {
                         if self.width.get() != *width {
                             self.width.set(*width);
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::Height(height) => {
                         if self.height.get() != *height {
                             self.height.set(*height);
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::VerticalAlignment(vertical_alignment) => {
                         if self.vertical_alignment != *vertical_alignment {
                             self.vertical_alignment = *vertical_alignment;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
                         if self.horizontal_alignment != *horizontal_alignment {
                             self.horizontal_alignment = *horizontal_alignment;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::MaxSize(max_size) => {
                         if self.max_size != *max_size {
                             self.max_size = *max_size;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::MinSize(min_size) => {
                         if self.min_size != *min_size {
                             self.min_size = *min_size;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::Row(row) => {
                         if self.row != *row {
                             self.row = *row;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::Column(column) => {
                         if self.column != *column {
                             self.column = *column;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::Margin(margin) => {
                         if self.margin != *margin {
                             self.margin = *margin;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::HitTestVisibility(hit_test_visibility) => {
                         self.hit_test_visibility = *hit_test_visibility
-                    },
+                    }
                     WidgetMessage::Visibility(visibility) => {
                         if self.visibility != *visibility {
                             self.visibility = *visibility;
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     WidgetMessage::Style(style) => {
                         self.style = Some(style.clone());
                         //self.apply_style(style.clone())
@@ -673,7 +675,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn arrange(&self, position: Vec2, size: Vec2) {
+    pub(in crate) fn commit_arrange(&self, position: Vec2, size: Vec2) {
         self.actual_size.set(size);
         self.actual_local_position.set(position);
         self.arrange_valid.set(true);
@@ -685,7 +687,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn measure(&self, desired_size: Vec2) {
+    pub(in crate) fn commit_measure(&self, desired_size: Vec2) {
         self.desired_size.set(desired_size);
         self.measure_valid.set(true);
     }
@@ -708,6 +710,12 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn is_globally_visible(&self) -> bool {
         self.global_visibility
+    }
+
+    #[inline]
+    pub(in crate) fn set_global_visibility(&mut self, value: bool) {
+        self.prev_global_visibility = self.global_visibility;
+        self.global_visibility = value;
     }
 }
 
@@ -875,6 +883,7 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             margin: self.margin,
             visibility: self.visibility,
             global_visibility: true,
+            prev_global_visibility: false,
             children: self.children,
             parent: Handle::NONE,
             command_indices: Default::default(),

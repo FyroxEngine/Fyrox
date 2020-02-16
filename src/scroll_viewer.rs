@@ -1,6 +1,5 @@
 use crate::{
     UserInterface,
-    maxf,
     scroll_content_presenter::{
         ScrollContentPresenterBuilder,
     },
@@ -32,8 +31,8 @@ use crate::{
         pool::Handle,
         math::vec2::Vec2,
     },
+    NodeHandleMapping
 };
-use std::collections::HashMap;
 
 pub struct ScrollViewer<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -80,7 +79,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
         })
     }
 
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>) {
+    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
         self.content = *node_map.get(&self.content).unwrap();
         self.content_presenter = *node_map.get(&self.content_presenter).unwrap();
         self.v_scroll_bar = *node_map.get(&self.v_scroll_bar).unwrap();
@@ -94,12 +93,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
             let content_size = ui.node(self.content).widget().desired_size();
             let available_size_for_content = ui.node(self.content_presenter).widget().desired_size();
 
-            let x_max = maxf(0.0, content_size.x - available_size_for_content.x);
+            let x_max = (content_size.x - available_size_for_content.x).max(0.0);
             self.widget.outgoing_messages.borrow_mut()
                 .push_back(UiMessage::targeted(self.h_scroll_bar, UiMessageData::ScrollBar(
                     ScrollBarMessage::Value(x_max))));
 
-            let y_max = maxf(0.0, content_size.y - available_size_for_content.y);
+            let y_max = (content_size.y - available_size_for_content.y).max(0.0);
             self.widget.outgoing_messages.borrow_mut()
                 .push_back(UiMessage::targeted(self.v_scroll_bar, UiMessageData::ScrollBar(
                     ScrollBarMessage::Value(y_max))));
