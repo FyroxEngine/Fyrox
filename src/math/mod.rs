@@ -32,7 +32,7 @@ impl<T: Default + Copy + Clone + PartialEq> Default for Rect<T> {
             x: Default::default(),
             y: Default::default(),
             w: Default::default(),
-            h: Default::default()
+            h: Default::default(),
         }
     }
 }
@@ -71,6 +71,14 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
 
     pub fn contains(&self, x: T, y: T) -> bool {
         x >= self.x && x <= self.x + self.w && y >= self.y && y <= self.y + self.h
+    }
+
+    pub fn intersects(&self, other: Rect<T>) -> bool {
+        if other.x < self.x + self.w && self.x < other.x + other.w && other.y < self.y + self.h {
+            self.y < other.y + other.h
+        } else {
+            false
+        }
     }
 }
 
