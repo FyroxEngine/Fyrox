@@ -12,3 +12,4 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 base64 = "0.10.1"
 byteorder = "1.3.2"
 rand = "0.7.0"
+memoffset = "0.5.3"

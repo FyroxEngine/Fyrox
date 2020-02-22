@@ -201,6 +201,11 @@ impl<T> Default for Pool<T> {
     }
 }
 
+pub struct Ticket<T> {
+    index: u32,
+    marker: PhantomData<T>,
+}
+
 impl<T> Pool<T> {
     #[inline]
     pub fn new() -> Self {
@@ -461,7 +466,7 @@ impl<T> Pool<T> {
         }
     }
 
-    /// Destroys object by given handle. All handles to the object will become invalid.
+    /// Moves object out of pool using given handle. All handles to the object will become invalid.
     ///
     /// # Panics
     ///
@@ -473,7 +478,7 @@ impl<T> Pool<T> {
             if record.generation == handle.generation {
                 // Remember this index as free
                 self.free_stack.push(handle.index);
-                // Move out payload and drop it so it will be destroyed
+                // Return current payload.
                 if let Some(payload) = record.payload.take() {
                     payload
                 } else {
@@ -485,6 +490,56 @@ impl<T> Pool<T> {
         } else {
             panic!("Attempt to free destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
         }
+    }
+
+    /// Moves object out of pool using given handle with a promise that object will be returned back.
+    /// Returns pair (ticket, value). Ticket must be used to put value back!
+    ///
+    /// # Motivation
+    ///
+    /// This method is useful when you need to take temporary ownership of an object, do something
+    /// with it and then put it back while keep all handles valid and be able to put new objects into
+    /// pool without overriding a payload at its handle.
+    ///
+    /// # Notes
+    ///
+    /// All handles to the object will be invalid until object is returned in pool! Pool record will
+    /// be reserved for further put_back call, which means if you lose ticket you will have empty
+    /// "unusable" pool record forever.
+    ///
+    /// # Panics
+    ///
+    /// Panics if given handle is invalid.
+    ///
+    #[inline]
+    pub fn take_reserve(&mut self, handle: Handle<T>) -> (Ticket<T>, T) {
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            if record.generation == handle.generation {
+                if let Some(payload) = record.payload.take() {
+                    let ticket = Ticket {
+                        index: handle.index,
+                        marker: PhantomData,
+                    };
+                    (ticket, payload)
+                } else {
+                    panic!("Attempt to double free object at handle {:?}!", handle);
+                }
+            } else {
+                panic!("Attempt to free object using dangling handle {:?}! Record generation is {}", handle, record.generation);
+            }
+        } else {
+            panic!("Attempt to free destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
+        }
+    }
+
+    /// Returns value back into pool using given ticket.
+    ///
+    /// # Panics
+    ///
+    /// In normal conditions it must never panic.
+    pub fn put_back(&mut self, ticket: Ticket<T>, value: T) {
+        let old = self.records[ticket.index as usize].payload.replace(value);
+        assert!(old.is_none());
     }
 
     /// Returns total capacity of pool. Capacity has nothing about real amount of objects in pool!
@@ -676,6 +731,30 @@ impl<T> Pool<T> {
             }
         }
     }
+
+    fn end(&self) -> *const PoolRecord<T> {
+        unsafe {
+            self.records.as_ptr().add(self.records.len())
+        }
+    }
+
+    fn begin(&self) -> *const PoolRecord<T> {
+        self.records.as_ptr()
+    }
+
+    pub fn handle_of(&self, ptr: &T) -> Handle<T> {
+        let begin = self.begin() as usize;
+        let end = self.end() as usize;
+        let val = ptr as *const T as usize;
+        if val >= begin && val < end {
+            let record_size = std::mem::size_of::<PoolRecord<T>>();
+            let record_location = (val - offset_of!(PoolRecord<T>, payload)) - begin;
+            if record_location % record_size == 0 {
+                return self.handle_from_index(record_location / record_size);
+            }
+        }
+        Handle::NONE
+    }
 }
 
 pub struct PoolIterator<'a, T> {
@@ -821,5 +900,20 @@ mod test {
         }
         pool.free(foobar);
         pool.free(baz);
+    }
+
+    #[test]
+    fn handle_of() {
+        struct Value {
+            data: String
+        }
+
+        let mut pool = Pool::new();
+        let foobar = pool.spawn(Value { data: format!("Foobar") });
+        let bar = pool.spawn(Value { data: format!("Bar") });
+        let baz = pool.spawn(Value { data: format!("Baz") });
+        assert_eq!(pool.handle_of(pool.borrow(foobar)), foobar);
+        assert_eq!(pool.handle_of(pool.borrow(bar)), bar);
+        assert_eq!(pool.handle_of(pool.borrow(baz)), baz);
     }
 }
