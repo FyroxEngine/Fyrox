@@ -13,8 +13,6 @@ use crate::{
     },
     UserInterface,
     Control,
-    UINodeContainer,
-    Builder,
 };
 
 /// Allows user to directly set position and size of a node
@@ -29,12 +27,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Canvas(Self {
-            widget: self.widget.raw_copy()
-        })
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
@@ -82,12 +74,14 @@ impl<M, C: 'static + Control<M, C>> CanvasBuilder<M, C> {
             widget_builder,
         }
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for CanvasBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
-        ui.add_node(UINode::Canvas(Canvas {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        let handle = ui.add_node(UINode::Canvas(Canvas {
             widget: self.widget_builder.build()
-        }))
+        }));
+
+        ui.flush_messages();
+
+        handle
     }
 }

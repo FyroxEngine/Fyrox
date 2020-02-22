@@ -33,12 +33,13 @@ pub mod tab_control;
 pub mod ttf;
 pub mod brush;
 pub mod node;
+pub mod popup;
+pub mod combobox;
+pub mod items_control;
+pub mod decorator;
 
 use std::{
-    collections::{
-        VecDeque,
-        HashMap,
-    },
+    collections::VecDeque,
     any::Any,
     sync::{
         Arc,
@@ -136,11 +137,6 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     fn widget(&self) -> &Widget<M, C>;
 
     fn widget_mut(&mut self) -> &mut Widget<M, C>;
-
-    /// Creates raw copy of control
-    fn raw_copy(&self) -> UINode<M, C>;
-
-    fn resolve(&mut self, _template: &ControlTemplate<M, C>, _node_map: &NodeHandleMapping<M, C>) {}
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.widget().measure_override(ui, available_size)
@@ -349,7 +345,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
     /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
     /// to check if event came from/for this node or to capture input on node.
-    fn handle_message(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _evt: &mut UiMessage<M, C>) {}
+    fn handle_message(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _message: &mut UiMessage<M, C>) {}
 
     fn apply_style(&mut self, style: Rc<Style>) {
         // Apply base style first.
@@ -372,6 +368,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
 }
 
 pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
+    screen_size: Vec2,
     nodes: Pool<UINode<M, C>>,
     drawing_context: DrawingContext,
     visual_debug: bool,
@@ -381,7 +378,7 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     prev_picked_node: Handle<UINode<M, C>>,
     captured_node: Handle<UINode<M, C>>,
     keyboard_focus_node: Handle<UINode<M, C>>,
-    mouse_position: Vec2,
+    cursor_position: Vec2,
     messages: VecDeque<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
 }
@@ -403,12 +400,13 @@ impl<M, C: 'static + Control<M, C>> Default for UserInterface<M, C> {
 impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn new() -> UserInterface<M, C> {
         let mut ui = UserInterface {
+            screen_size: Vec2::new(1000.0, 1000.0),
             messages: VecDeque::new(),
             visual_debug: false,
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
-            mouse_position: Vec2::ZERO,
+            cursor_position: Vec2::ZERO,
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
@@ -483,7 +481,12 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         }
     }
 
+    pub fn screen_size(&self) -> Vec2 {
+        self.screen_size
+    }
+
     pub fn update(&mut self, screen_size: Vec2, dt: f32) {
+        self.screen_size = screen_size;
         self.update_visibility();
 
         for n in self.nodes.iter() {
@@ -506,7 +509,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     fn draw_node(&mut self, node_handle: Handle<UINode<M, C>>, nesting: u8) {
         let node = self.nodes.borrow(node_handle);
-        let bounds = node.widget().get_screen_bounds();
+        let bounds = node.widget().screen_bounds();
         if !node.widget().is_globally_visible() {
             return;
         }
@@ -554,7 +557,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
             let picked_bounds =
                 if self.picked_node.is_some() {
-                    Some(self.nodes.borrow(self.picked_node).widget().get_screen_bounds())
+                    Some(self.nodes.borrow(self.picked_node).widget().screen_bounds())
                 } else {
                     None
                 };
@@ -637,6 +640,10 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         }
 
         picked
+    }
+
+    pub fn cursor_position(&self) -> Vec2 {
+        self.cursor_position
     }
 
     pub fn hit_test(&self, pt: Vec2) -> Handle<UINode<M, C>> {
@@ -750,11 +757,26 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         self.nodes.borrow_mut(self.find_by_criteria_up(start_node_handle, func))
     }
 
-    /// Pushes new UI event to the common queue. Could be useful to send an event
-    /// to some specific node. Lets take a window for example, we can close or open
-    /// it by just sending an appropriate event - something like this:
-    pub fn post_message(&mut self, event: UiMessage<M, C>) {
-        self.messages.push_back(event);
+    /// Pushes new UI event to the common queue. Could be useful to send a message
+    /// to some specific node in deferred manner.
+    pub fn post_message(&mut self, message: UiMessage<M, C>) {
+        self.messages.push_back(message);
+    }
+
+    /// Puts node at the end of children list of a parent node.
+    ///
+    /// # Notes
+    ///
+    /// Node will be topmost *only* on same hierarchy level! So if you have a floating
+    /// window (for example) and a window embedded into some other control (yes this is
+    /// possible) then floating window won't be the topmost.
+    pub fn make_topmost(&mut self, node: Handle<UINode<M, C>>) {
+        let parent = self.node(node).widget().parent();
+        if parent.is_some() {
+            let parent = self.node_mut(parent).widget_mut();
+            parent.remove_child(node);
+            parent.add_child(node);
+        }
     }
 
     /// Extracts UI event one-by-one from common queue. Each extracted event will go to *all*
@@ -764,31 +786,74 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn poll_ui_event(&mut self) -> Option<UiMessage<M, C>> {
         // Gather events from nodes.
         for (handle, node) in self.nodes.pair_iter_mut() {
-            while let Some(mut response_event) = node.widget_mut().outgoing_messages.borrow_mut().pop_front() {
-                response_event.source = handle;
-                self.messages.push_back(response_event)
+            while let Some(mut outgoing_message) = node.widget_mut().outgoing_messages.borrow_mut().pop_front() {
+                outgoing_message.source = handle;
+                self.messages.push_back(outgoing_message)
             }
         }
 
         let mut event = self.messages.pop_front();
 
-        if let Some(ref mut event) = event {
+        if let Some(ref mut message) = event {
             for i in 0..self.nodes.get_capacity() {
                 let handle = self.nodes.handle_from_index(i);
 
                 if self.nodes.is_valid_handle(handle) {
-                    let mut node = self.nodes.free(handle);
+                    let (ticket, mut node) = self.nodes.take_reserve(handle);
 
-                    node.handle_message(handle, self, event);
+                    node.handle_message(handle, self, message);
 
-                    let old = self.nodes.replace(handle, node);
+                    self.nodes.put_back(ticket, node);
+                }
+            }
 
-                    assert!(old.is_none());
+            if let UiMessageData::Widget(msg) = &message.data {
+                match msg {
+                    // Keep order of children of a parent node of a node that changed z-index
+                    // the same as z-index of children.
+                    WidgetMessage::ZIndex(_) => {
+                        let parent = self.node(message.source).widget().parent();
+                        if parent.is_some() {
+                            self.stack.clear();
+                            for child in self.nodes.borrow(parent).widget().children() {
+                                self.stack.push(*child);
+                            }
+
+                            let nodes = &mut self.nodes;
+                            self.stack.sort_by(|a, b| {
+                                let z_a = nodes.borrow(*a).widget().z_index();
+                                let z_b = nodes.borrow(*b).widget().z_index();
+                                z_a.cmp(&z_b)
+                            });
+
+                            let parent = self.nodes.borrow_mut(parent).widget_mut();
+                            parent.clear_children();
+                            for child in self.stack.iter() {
+                                parent.add_child(*child);
+                            }
+                        }
+                    }
+                    WidgetMessage::TopMost => {
+                        if message.target.is_some() {
+                            self.make_topmost(message.target);
+                        } else if message.source.is_some() {
+                            self.make_topmost(message.source);
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
 
         event
+    }
+
+    pub fn captured_node(&self) -> Handle<UINode<M, C>> {
+        self.captured_node
+    }
+
+    pub fn flush_messages(&mut self) {
+        while let Some(_) = self.poll_ui_event() {}
     }
 
     /// Translates raw window event into some specific UI event. This is one of the
@@ -801,7 +866,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             OsEvent::MouseInput { button, state, .. } => {
                 match state {
                     ButtonState::Pressed => {
-                        self.picked_node = self.hit_test(self.mouse_position);
+                        self.picked_node = self.hit_test(self.cursor_position);
 
                         self.keyboard_focus_node = self.picked_node;
 
@@ -809,7 +874,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                             self.messages.push_back(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Widget(WidgetMessage::MouseDown {
-                                    pos: self.mouse_position,
+                                    pos: self.cursor_position,
                                     button: *button,
                                 }),
                                 target: Handle::NONE,
@@ -823,7 +888,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                             self.messages.push_back(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Widget(WidgetMessage::MouseUp {
-                                    pos: self.mouse_position,
+                                    pos: self.cursor_position,
                                     button: *button,
                                 }),
                                 target: Handle::NONE,
@@ -835,21 +900,14 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                 }
             }
             OsEvent::CursorMoved { position } => {
-                self.mouse_position = *position;
-                self.picked_node = self.hit_test(self.mouse_position);
+                self.cursor_position = *position;
+                self.picked_node = self.hit_test(self.cursor_position);
 
                 // Fire mouse leave for previously picked node
-                if self.picked_node != self.prev_picked_node {
-                    let mut fire_mouse_leave = false;
-                    if self.prev_picked_node.is_some() {
-                        let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node).widget_mut();
-                        if prev_picked_node.is_mouse_over {
-                            prev_picked_node.is_mouse_over = false;
-                            fire_mouse_leave = true;
-                        }
-                    }
-
-                    if fire_mouse_leave {
+                if self.picked_node != self.prev_picked_node && self.prev_picked_node.is_some() {
+                    let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node).widget_mut();
+                    if prev_picked_node.is_mouse_directly_over {
+                        prev_picked_node.is_mouse_directly_over = false;
                         self.messages.push_back(UiMessage {
                             handled: false,
                             data: UiMessageData::Widget(WidgetMessage::MouseLeave),
@@ -860,14 +918,9 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                 }
 
                 if !self.picked_node.is_none() {
-                    let mut fire_mouse_enter = false;
                     let picked_node = self.nodes.borrow_mut(self.picked_node).widget_mut();
-                    if !picked_node.is_mouse_over {
-                        picked_node.is_mouse_over = true;
-                        fire_mouse_enter = true;
-                    }
-
-                    if fire_mouse_enter {
+                    if !picked_node.is_mouse_directly_over {
+                        picked_node.is_mouse_directly_over = true;
                         self.messages.push_back(UiMessage {
                             handled: false,
                             data: UiMessageData::Widget(WidgetMessage::MouseEnter),
@@ -879,7 +932,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     // Fire mouse move
                     self.messages.push_back(UiMessage {
                         handled: false,
-                        data: UiMessageData::Widget(WidgetMessage::MouseMove(self.mouse_position)),
+                        data: UiMessageData::Widget(WidgetMessage::MouseMove(self.cursor_position)),
                         target: Handle::NONE,
                         source: self.picked_node,
                     });
@@ -892,7 +945,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     self.messages.push_back(UiMessage {
                         handled: false,
                         data: UiMessageData::Widget(WidgetMessage::MouseWheel {
-                            pos: self.mouse_position,
+                            pos: self.cursor_position,
                             amount: *y,
                         }),
                         target: Handle::NONE,
@@ -943,22 +996,20 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
         event_processed
     }
-}
 
-impl<M, C: 'static + Control<M, C>> UINodeContainer<M, C> for UserInterface<M, C> {
-    fn nodes(&self) -> &Pool<UINode<M, C>> {
+    pub fn nodes(&self) -> &Pool<UINode<M, C>> {
         &self.nodes
     }
 
-    fn nodes_mut(&mut self) -> &mut Pool<UINode<M, C>> {
+    pub fn nodes_mut(&mut self) -> &mut Pool<UINode<M, C>> {
         &mut self.nodes
     }
 
-    fn root(&self) -> Handle<UINode<M, C>> {
+    pub fn root(&self) -> Handle<UINode<M, C>> {
         self.root_canvas
     }
 
-    fn add_node(&mut self, mut node: UINode<M, C>) -> Handle<UINode<M, C>> {
+    pub fn add_node(&mut self, mut node: UINode<M, C>) -> Handle<UINode<M, C>> {
         let children = node.widget().children().to_vec();
         node.widget_mut().clear_children();
         let node_handle = self.nodes_mut().spawn(node);
@@ -971,7 +1022,7 @@ impl<M, C: 'static + Control<M, C>> UINodeContainer<M, C> for UserInterface<M, C
         node_handle
     }
 
-    fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
+    pub fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
         self.unlink_node(node);
 
         let mut removed_nodes = Vec::new();
@@ -1004,130 +1055,10 @@ impl<M, C: 'static + Control<M, C>> UINodeContainer<M, C> for UserInterface<M, C
             }
         }
     }
-}
-
-pub struct ControlTemplate<M: 'static, C: 'static + Control<M, C>> {
-    nodes: Pool<UINode<M, C>>
-}
-
-impl<M, C: 'static + Control<M, C>> UINodeContainer<M, C> for ControlTemplate<M, C> {
-    fn nodes(&self) -> &Pool<UINode<M, C>> {
-        &self.nodes
-    }
-
-    fn nodes_mut(&mut self) -> &mut Pool<UINode<M, C>> {
-        &mut self.nodes
-    }
-
-    fn root(&self) -> Handle<UINode<M, C>> {
-        for (handle, node) in self.nodes.pair_iter() {
-            if node.widget().parent().is_none() {
-                return handle;
-            }
-        }
-        Handle::NONE
-    }
-
-    fn add_node(&mut self, mut node: UINode<M, C>) -> Handle<UINode<M, C>> {
-        let children = node.widget().children().to_vec();
-        node.widget_mut().clear_children();
-        let node_handle = self.nodes_mut().spawn(node);
-        for child in children {
-            self.link_nodes(child, node_handle)
-        }
-        node_handle
-    }
-}
-
-impl<M, C: 'static + Control<M, C>> Default for ControlTemplate<M, C> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
-
-impl<M, C: 'static + Control<M, C>> ControlTemplate<M, C> {
-    pub fn new() -> Self {
-        Self {
-            nodes: Default::default()
-        }
-    }
-
-    pub fn instantiate(&self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
-        let mut map = NodeHandleMapping::new();
-
-        let root = self.instantiate_internal(self.root(), container, &mut map);
-
-        // Resolve all instantiated nodes using template-to-ui node mapping.
-        // This stage is required because some ui nodes may contain handles
-        // to *template* nodes because of `raw_copy` method which does not
-        // perform remapping.
-        for node_handle in map.values() {
-            container.nodes_mut()
-                .borrow_mut(*node_handle)
-                .resolve(self, &map);
-        }
-
-        root
-    }
-
-    fn instantiate_internal(&self, node_handle: Handle<UINode<M, C>>, container: &mut dyn UINodeContainer<M, C>, map: &mut NodeHandleMapping<M, C>) -> Handle<UINode<M, C>> {
-        let node = self.nodes.borrow(node_handle);
-
-        // Instantiate children first.
-        let resolved_children = node.widget()
-            .children()
-            .iter()
-            .map(|c| self.instantiate_internal(*c, container, map))
-            .collect();
-
-        // Instantiate node.
-        let mut copy = node.raw_copy();
-        copy.widget_mut().set_children(resolved_children);
-        let copy_handle = container.add_node(copy);
-        map.insert(node_handle, copy_handle);
-        copy_handle
-    }
-}
-
-pub trait UINodeContainer<M: 'static, C: 'static + Control<M, C>> {
-    fn nodes(&self) -> &Pool<UINode<M, C>>;
-
-    fn nodes_mut(&mut self) -> &mut Pool<UINode<M, C>>;
-
-    fn root(&self) -> Handle<UINode<M, C>>;
-
-    fn add_node(&mut self, node: UINode<M, C>) -> Handle<UINode<M, C>>;
-
-    fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
-        self.unlink_node(node);
-
-        let mut stack = vec![node];
-        while let Some(handle) = stack.pop() {
-            let widget = self.nodes().borrow(handle).widget();
-            for child in widget.children().iter() {
-                stack.push(*child);
-            }
-            self.nodes_mut().free(handle);
-        }
-    }
-
-    #[inline]
-    fn node(&self, node_handle: Handle<UINode<M, C>>) -> &UINode<M, C> {
-        self.nodes()
-            .borrow(node_handle)
-    }
-
-    #[inline]
-    fn node_mut(&mut self, node_handle: Handle<UINode<M, C>>) -> &mut UINode<M, C> {
-        self.nodes_mut()
-            .borrow_mut(node_handle)
-    }
 
     /// Links specified child with specified parent.
     #[inline]
-    fn link_nodes(&mut self, child_handle: Handle<UINode<M, C>>, parent_handle: Handle<UINode<M, C>>) {
+    pub fn link_nodes(&mut self, child_handle: Handle<UINode<M, C>>, parent_handle: Handle<UINode<M, C>>) {
         assert_ne!(child_handle, parent_handle);
         self.unlink_node(child_handle);
         let child = self.nodes_mut()
@@ -1142,7 +1073,7 @@ pub trait UINodeContainer<M: 'static, C: 'static + Control<M, C>> {
 
     /// Unlinks specified node from its parent, so node will become root.
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
+    pub fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
         let parent_handle;
         // Replace parent handle of child
         let node = self.nodes_mut().borrow_mut(node_handle);
@@ -1156,10 +1087,18 @@ pub trait UINodeContainer<M: 'static, C: 'static + Control<M, C>> {
                 .remove_child(node_handle);
         }
     }
-}
 
-pub trait Builder<M: 'static, C: 'static + Control<M, C>> {
-    fn build(self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> where Self: Sized;
+    #[inline]
+    pub fn node(&self, node_handle: Handle<UINode<M, C>>) -> &UINode<M, C> {
+        self.nodes()
+            .borrow(node_handle)
+    }
+
+    #[inline]
+    pub fn node_mut(&mut self, node_handle: Handle<UINode<M, C>>) -> &mut UINode<M, C> {
+        self.nodes_mut()
+            .borrow_mut(node_handle)
+    }
 }
 
 #[cfg(test)]
@@ -1187,10 +1126,6 @@ mod test {
         }
 
         fn widget_mut(&mut self) -> &mut Widget<StubUiMessage, StubUiNode> {
-            unimplemented!()
-        }
-
-        fn raw_copy(&self) -> UINode<StubUiMessage, StubUiNode> {
             unimplemented!()
         }
     }

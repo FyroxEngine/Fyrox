@@ -16,8 +16,6 @@ use crate::{
     },
     UINode,
     Control,
-    UINodeContainer,
-    Builder,
     ttf::Font,
     UserInterface,
 };
@@ -28,6 +26,8 @@ use std::{
     },
     cell::RefCell,
 };
+use crate::brush::Brush;
+use rg3d_core::color::Color;
 
 pub struct Text<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -43,13 +43,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Text(Self {
-            widget: self.widget.raw_copy(),
-            formatted_text: self.formatted_text.clone(),
-        })
-    }
-
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
@@ -59,7 +52,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.get_screen_bounds();
+        let bounds = self.widget.screen_bounds();
         drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), &self.formatted_text.borrow());
     }
 }
@@ -187,17 +180,19 @@ impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
         self.horizontal_text_alignment = halign;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for TextBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let font = if let Some(font) = self.font {
             font
         } else {
             crate::DEFAULT_FONT.clone()
         };
 
-        ui.add_node(UINode::Text(Text {
+        if self.widget_builder.foreground.is_none() {
+            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
+        }
+
+        let handle = ui.add_node(UINode::Text(Text {
             widget: self.widget_builder.build(),
             formatted_text: RefCell::new(FormattedTextBuilder::new()
                 .with_text(self.text.unwrap_or_default())
@@ -205,6 +200,10 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TextBuilder<M, C> {
                 .with_horizontal_alignment(self.horizontal_text_alignment)
                 .with_font(font)
                 .build()),
-        }))
+        }));
+
+        ui.flush_messages();
+
+        handle
     }
 }

@@ -34,8 +34,6 @@ use crate::{
         MouseButton,
         KeyCode,
     },
-    UINodeContainer,
-    Builder,
     ttf::Font,
     VerticalAlignment,
     HorizontalAlignment,
@@ -337,23 +335,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::TextBox(Self {
-            widget: self.widget.raw_copy(),
-            caret_line: self.caret_line,
-            caret_offset: self.caret_offset,
-            caret_visible: self.caret_visible,
-            blink_timer: self.blink_timer,
-            blink_interval: self.blink_interval,
-            formatted_text: RefCell::new(FormattedTextBuilder::new()
-                .with_font(self.formatted_text.borrow().get_font().unwrap()).build()),
-            selection_range: self.selection_range,
-            selecting: self.selecting,
-            selection_brush: self.selection_brush.clone(),
-            caret_brush: self.caret_brush.clone(),
-        })
-    }
-
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
@@ -362,7 +343,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.get_screen_bounds();
+        let bounds = self.widget.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
 
@@ -568,10 +549,12 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         self.selection_brush = brush;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for TextBoxBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        if self.widget_builder.foreground.is_none() {
+            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
+        }
+
         let text_box = TextBox {
             widget: self.widget_builder.build(),
             caret_line: 0,
@@ -589,6 +572,10 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TextBoxBuilder<M, C> {
             caret_brush: self.caret_brush,
         };
 
-        ui.add_node(UINode::TextBox(text_box))
+        let handle = ui.add_node(UINode::TextBox(text_box));
+
+        ui.flush_messages();
+
+        handle
     }
 }

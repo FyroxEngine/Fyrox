@@ -20,7 +20,6 @@ use crate::{
         UiMessageData,
         WidgetMessage,
     },
-    UINodeContainer,
 };
 use std::{
     cell::{
@@ -72,7 +71,7 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     parent: Handle<UINode<M, C>>,
     /// Indices of commands in command buffer emitted by the node.
     pub(in crate) command_indices: RefCell<Vec<usize>>,
-    pub(in crate) is_mouse_over: bool,
+    pub(in crate) is_mouse_directly_over: bool,
     measure_valid: Cell<bool>,
     arrange_valid: Cell<bool>,
     pub(in crate) outgoing_messages: RefCell<VecDeque<UiMessage<M, C>>>,
@@ -80,6 +79,7 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) style: Option<Rc<Style>>,
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
+    z_index: usize,
 }
 
 impl<M, C: 'static + Control<M, C>> Default for Widget<M, C> {
@@ -160,6 +160,21 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn max_size(&self) -> Vec2 {
         self.max_size
+    }
+
+    #[inline]
+    pub fn set_z_index(&mut self, z_index: usize) -> &mut Self {
+        if self.z_index != z_index {
+            self.z_index = z_index;
+            self.invalidate_layout();
+            self.post_property_changed_message(WidgetMessage::ZIndex(z_index));
+        }
+        self
+    }
+
+    #[inline]
+    pub fn z_index(&self) -> usize {
+        self.z_index
     }
 
     #[inline]
@@ -327,11 +342,6 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub(in crate) fn set_children(&mut self, children: Vec<Handle<UINode<M, C>>>) {
-        self.invalidate_layout();
-        self.children = children;
-    }
-
     pub(in crate) fn remove_child(&mut self, child: Handle<UINode<M, C>>) {
         if let Some(i) = self.children.iter().position(|h| *h == child) {
             self.children.remove(i);
@@ -375,7 +385,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn get_screen_bounds(&self) -> Rect<f32> {
+    pub fn screen_bounds(&self) -> Rect<f32> {
         Rect::new(
             self.screen_position.x,
             self.screen_position.y,
@@ -451,43 +461,6 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             parent_handle = parent_node.widget().parent;
         }
         Handle::NONE
-    }
-
-    #[inline]
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            desired_local_position: self.desired_local_position.clone(),
-            width: self.width.clone(),
-            height: self.height.clone(),
-            screen_position: self.screen_position,
-            desired_size: self.desired_size.clone(),
-            actual_local_position: self.actual_local_position.clone(),
-            actual_size: self.actual_size.clone(),
-            min_size: self.min_size,
-            max_size: self.max_size,
-            background: self.background.clone(),
-            foreground: self.foreground.clone(),
-            row: self.row,
-            column: self.column,
-            vertical_alignment: self.vertical_alignment,
-            horizontal_alignment: self.horizontal_alignment,
-            margin: self.margin,
-            visibility: self.visibility,
-            global_visibility: self.global_visibility,
-            prev_global_visibility: false,
-            children: self.children.clone(),
-            parent: self.parent,
-            command_indices: Default::default(),
-            is_mouse_over: self.is_mouse_over,
-            measure_valid: Cell::new(false),
-            arrange_valid: Cell::new(false),
-            outgoing_messages: Default::default(),
-            hit_test_visibility: self.hit_test_visibility,
-            style: self.style.clone(),
-            prev_measure: Default::default(),
-            prev_arrange: Default::default(),
-        }
     }
 
     pub fn set_property(&mut self, name: &str, value: &dyn Any) {
@@ -720,23 +693,24 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 }
 
 pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
-    name: String,
-    width: f32,
-    height: f32,
-    desired_position: Vec2,
-    vertical_alignment: VerticalAlignment,
-    horizontal_alignment: HorizontalAlignment,
-    max_size: Vec2,
-    min_size: Vec2,
-    background: Brush,
-    foreground: Brush,
-    row: usize,
-    column: usize,
-    margin: Thickness,
-    children: Vec<Handle<UINode<M, C>>>,
-    is_hit_test_visible: bool,
-    visibility: bool,
-    pub(in crate) style: Option<Rc<Style>>,
+    pub name: String,
+    pub width: f32,
+    pub height: f32,
+    pub desired_position: Vec2,
+    pub vertical_alignment: VerticalAlignment,
+    pub horizontal_alignment: HorizontalAlignment,
+    pub max_size: Option<Vec2>,
+    pub min_size: Option<Vec2>,
+    pub background: Option<Brush>,
+    pub foreground: Option<Brush>,
+    pub row: usize,
+    pub column: usize,
+    pub margin: Thickness,
+    pub children: Vec<Handle<UINode<M, C>>>,
+    pub is_hit_test_visible: bool,
+    pub visibility: bool,
+    pub z_index: usize,
+    pub style: Option<Rc<Style>>,
 }
 
 impl<M, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -753,10 +727,10 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             height: std::f32::NAN,
             vertical_alignment: VerticalAlignment::Stretch,
             horizontal_alignment: HorizontalAlignment::Stretch,
-            max_size: Vec2::new(std::f32::INFINITY, std::f32::INFINITY),
-            min_size: Vec2::ZERO,
-            background: Brush::Solid(Color::opaque(50, 50, 50)),
-            foreground: Brush::Solid(Color::WHITE),
+            max_size: None,
+            min_size: None,
+            background: None,
+            foreground: None,
             row: 0,
             column: 0,
             margin: Thickness::zero(),
@@ -765,6 +739,7 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             is_hit_test_visible: true,
             visibility: true,
             style: None,
+            z_index: 0,
         }
     }
 
@@ -789,22 +764,22 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
     }
 
     pub fn with_max_size(mut self, max_size: Vec2) -> Self {
-        self.max_size = max_size;
+        self.max_size = Some(max_size);
         self
     }
 
     pub fn with_min_size(mut self, min_size: Vec2) -> Self {
-        self.min_size = min_size;
+        self.min_size = Some(min_size);
         self
     }
 
     pub fn with_background(mut self, brush: Brush) -> Self {
-        self.background = brush;
+        self.background = Some(brush);
         self
     }
 
     pub fn with_foreground(mut self, brush: Brush) -> Self {
-        self.foreground = brush;
+        self.foreground = Some(brush);
         self
     }
 
@@ -830,6 +805,11 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
 
     pub fn with_style(mut self, style: Rc<Style>) -> Self {
         self.style = Some(style);
+        self
+    }
+
+    pub fn with_z_index(mut self, z_index: usize) -> Self {
+        self.z_index = z_index;
         self
     }
 
@@ -872,10 +852,10 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             desired_size: Cell::new(Vec2::ZERO),
             actual_local_position: Cell::new(Vec2::ZERO),
             actual_size: Cell::new(Vec2::ZERO),
-            min_size: self.min_size,
-            max_size: self.max_size,
-            background: self.background,
-            foreground: self.foreground,
+            min_size: self.min_size.unwrap_or(Vec2::ZERO),
+            max_size: self.max_size.unwrap_or_else(||Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
+            background: self.background.unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
+            foreground: self.foreground.unwrap_or_else(|| Brush::Solid(Color::WHITE)),
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,
@@ -887,7 +867,7 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             children: self.children,
             parent: Handle::NONE,
             command_indices: Default::default(),
-            is_mouse_over: false,
+            is_mouse_directly_over: false,
             measure_valid: Cell::new(false),
             arrange_valid: Cell::new(false),
             outgoing_messages: Default::default(),
@@ -895,6 +875,7 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             style: None,
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
+            z_index: self.z_index,
         };
 
         if let Some(style) = self.style {

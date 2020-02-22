@@ -3,6 +3,7 @@ use std::{
     rc::Rc,
 };
 use crate::{
+    popup::Popup,
     message::UiMessage,
     draw::DrawingContext,
     list_box::{
@@ -25,7 +26,6 @@ use crate::{
     window::Window,
     Control,
     UserInterface,
-    ControlTemplate,
     widget::Widget,
     style::Style,
     core::{
@@ -35,7 +35,9 @@ use crate::{
         },
         pool::Handle,
     },
-    NodeHandleMapping
+    combobox::ComboBox,
+    items_control::{ItemsControl, ItemContainer},
+    decorator::Decorator
 };
 
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -45,6 +47,8 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     CheckBox(CheckBox<M, C>),
     Grid(Grid<M, C>),
     Image(Image<M, C>),
+    ItemsControl(ItemsControl<M, C>),
+    ItemContainer(ItemContainer<M, C>),
     ListBox(ListBox<M, C>),
     ListBoxItem(ListBoxItem<M, C>),
     ScrollBar(ScrollBar<M, C>),
@@ -55,6 +59,9 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Text(Text<M, C>),
     TextBox(TextBox<M, C>),
     Window(Window<M, C>),
+    Popup(Popup<M, C>),
+    ComboBox(ComboBox<M, C>),
+    Decorator(Decorator<M, C>),
     User(C)
 }
 
@@ -78,6 +85,11 @@ macro_rules! static_dispatch {
             UINode::TextBox(v) => v.$func($($args),*),
             UINode::Window(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
+            UINode::Popup(v) => v.$func($($args),*),
+            UINode::ComboBox(v) => v.$func($($args),*),
+            UINode::ItemsControl(v) => v.$func($($args),*),
+            UINode::ItemContainer(v) => v.$func($($args),*),
+            UINode::Decorator(v) => v.$func($($args),*),
         }
     };
 }
@@ -89,14 +101,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         static_dispatch!(self, widget_mut,)
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        static_dispatch!(self, raw_copy,)
-    }
-
-    fn resolve(&mut self, template: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
-        static_dispatch!(self, resolve, template, node_map)
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

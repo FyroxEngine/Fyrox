@@ -14,7 +14,9 @@ use crate::{
 use std::{
     rc::Rc
 };
+use crate::popup::Placement;
 
+#[derive(Debug)]
 pub enum WidgetMessage {
     MouseDown {
         pos: Vec2,
@@ -36,6 +38,7 @@ pub enum WidgetMessage {
     LostFocus,
     MouseLeave,
     MouseEnter,
+    TopMost,
     Background(Brush),
     Foreground(Brush),
     Name(String),
@@ -51,25 +54,28 @@ pub enum WidgetMessage {
     Style(Rc<Style>),
     HitTestVisibility(bool),
     Visibility(bool),
+    ZIndex(usize),
 }
 
+#[derive(Debug)]
 pub enum ButtonMessage<M: 'static, C: 'static + Control<M, C>> {
     Click,
     Content(Handle<UINode<M, C>>),
-    BorderThickness(Thickness),
-    BorderBrush(Brush),
 }
 
+#[derive(Debug)]
 pub enum ScrollBarMessage {
     Value(f32),
     MinValue(f32),
     MaxValue(f32),
 }
 
+#[derive(Debug)]
 pub enum CheckBoxMessage {
     Checked(Option<bool>),
 }
 
+#[derive(Debug)]
 pub enum WindowMessage {
     Opened,
     Closed,
@@ -78,40 +84,58 @@ pub enum WindowMessage {
     CanClose(bool),
 }
 
-pub enum ItemsControlMessage {
-    SelectionChanged(Option<usize>),
+#[derive(Debug)]
+pub enum ScrollViewerMessage<M: 'static, C: 'static + Control<M, C>> {
+    Content(Handle<UINode<M, C>>)
 }
 
+#[derive(Debug)]
+pub enum ItemsControlMessage<M: 'static, C: 'static + Control<M, C>> {
+    SelectionChanged(Option<usize>),
+    Items(Vec<Handle<UINode<M, C>>>)
+}
+
+#[derive(Debug)]
+pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
+    Open,
+    Close,
+    Content(Handle<UINode<M, C>>),
+    Placement(Placement)
+}
+
+#[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Widget(WidgetMessage),
     Button(ButtonMessage<M, C>),
     ScrollBar(ScrollBarMessage),
     CheckBox(CheckBoxMessage),
     Window(WindowMessage),
-    ItemsControl(ItemsControlMessage),
+    ItemsControl(ItemsControlMessage<M, C>),
+    Popup(PopupMessage<M, C>),
+    ScrollViewer(ScrollViewerMessage<M, C>),
     User(M),
 }
 
 /// Event is basic communication element that is used to deliver information to UI nodes
 /// or some other places.
+#[derive(Debug)]
 pub struct UiMessage<M: 'static, C: 'static + Control<M, C>> {
-    /// Flag
+    /// Useful flag to check if a message was already handled, this flag does *not* affects
+    /// dispatcher.
     pub handled: bool,
 
+    /// Actual message data. Use pattern matching to get node-specific data.
     pub data: UiMessageData<M, C>,
 
     /// Handle of node for which this event was produced. Can be NONE if target is undefined,
     /// this is the case when user click a button, button produces Click event but it does
-    /// not case who will handle it. Targeted events are useful to send some data to specific
-    /// nodes.
-    ///
-    /// # Notes
-    ///
-    /// Even if event has `target` it still will be available to all other event handlers and
-    /// listeners.
+    /// not know who will handle it. Targeted events are useful to send some data to specific
+    /// nodes. Even if message has `target` it still will be available to all other message
+    /// handlers.
     pub(in crate) target: Handle<UINode<M, C>>,
 
-    /// Source of event.
+    /// Source of event. Can be NONE if event is targeted, however if there is source and target
+    /// both present, then it means node-to-node communication.
     pub(in crate) source: Handle<UINode<M, C>>,
 }
 

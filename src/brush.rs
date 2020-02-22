@@ -3,13 +3,13 @@ use crate::core::{
     math::vec2::Vec2,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GradientPoint {
     pub stop: f32,
     pub color: Color,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Brush {
     Solid(Color),
     LinearGradient {

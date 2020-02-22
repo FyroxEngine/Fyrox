@@ -9,10 +9,7 @@ use crate::{
         WidgetBuilder
     },
     Control,
-    ControlTemplate,
     UINode,
-    Builder,
-    UINodeContainer,
     border::BorderBuilder,
     button::ButtonBuilder,
     grid::{
@@ -26,7 +23,6 @@ use crate::{
     },
     brush::Brush,
     message::ButtonMessage,
-    NodeHandleMapping
 };
 
 pub struct Tab<M: 'static, C: 'static + Control<M, C>> {
@@ -46,20 +42,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::TabControl(Self {
-            widget: self.widget.raw_copy(),
-            tabs: Default::default(),
-        })
-    }
-
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
-        for tab in self.tabs.iter_mut() {
-            tab.header_button = *node_map.get(&tab.header_button).unwrap();
-            tab.content = *node_map.get(&tab.content).unwrap();
-        }
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
@@ -115,10 +97,8 @@ impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
         self.tabs.push(tab);
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
-    fn build(self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let tab_buttons = self.tabs
             .iter()
             .enumerate()
@@ -126,12 +106,12 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
                 ButtonBuilder::new(WidgetBuilder::new()
                     .on_column(i))
                     .with_content(tab.header)
-                    .build(container)
+                    .build(ui)
             }).collect::<Vec<Handle<UINode<M, C>>>>();
 
         // Hide everything but first tab content.
         for tab_def in self.tabs.iter().skip(1) {
-            container.node_mut(tab_def.content)
+            ui.node_mut(tab_def.content)
                 .widget_mut()
                 .set_visibility(false);
         }
@@ -143,7 +123,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
             .add_columns((0..self.tabs.len())
                 .map(|_| Column::auto())
                 .collect())
-            .build(container);
+            .build(ui);
 
         let content_grid = GridBuilder::new(WidgetBuilder::new()
             .with_children(&self.tabs
@@ -151,7 +131,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
                 .map(|tab| tab.content)
                 .collect::<Vec<Handle<UINode<M, C>>>>())
             .on_row(1))
-            .build(container);
+            .build(ui);
 
         let grid = GridBuilder::new(WidgetBuilder::new()
             .with_child(headers_grid)
@@ -159,14 +139,14 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
             .add_column(Column::auto())
             .add_row(Row::strict(30.0))
             .add_row(Row::auto())
-            .build(container);
+            .build(ui);
 
         let tab_control = TabControl {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_background(Brush::Solid(Color::from_rgba(0,0,0,0)))
                     .with_child(grid))
-                    .build(container))
+                    .build(ui))
                 .build(),
             tabs: tab_buttons.iter()
                 .zip(self.tabs.iter())
@@ -179,6 +159,10 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for TabControlBuilder<M, C> {
                 .collect(),
         };
 
-        container.add_node(UINode::TabControl(tab_control))
+        let handle = ui.add_node(UINode::TabControl(tab_control));
+
+        ui.flush_messages();
+
+        handle
     }
 }

@@ -1,22 +1,12 @@
 use std::{
     sync::Arc,
 };
-use crate::{
-    core::{
-        pool::Handle
-    },
-    UINode,
-    draw::{
-        DrawingContext,
-        CommandKind,
-    },
-    widget::Widget,
-    widget::WidgetBuilder,
-    Control,
-    UINodeContainer,
-    Builder,
-    draw::{Texture, CommandTexture}
-};
+use crate::{core::{
+    pool::Handle
+}, UINode, draw::{
+    DrawingContext,
+    CommandKind,
+}, widget::Widget, widget::WidgetBuilder, Control, draw::{Texture, CommandTexture}, UserInterface};
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -45,15 +35,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Image(Self {
-            widget: self.widget.raw_copy(),
-            texture: self.texture.clone(),
-        })
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.get_screen_bounds();
+        let bounds = self.widget.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
         let texture = self.texture
             .as_ref()
@@ -84,15 +67,17 @@ impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         self.texture = texture;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for ImageBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let image = Image {
             widget: self.widget_builder.build(),
             texture: self.texture,
         };
 
-        ui.add_node(UINode::Image(image))
+        let handle = ui.add_node(UINode::Image(image));
+
+        ui.flush_messages();
+
+        handle
     }
 }

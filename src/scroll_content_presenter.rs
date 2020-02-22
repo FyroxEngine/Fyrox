@@ -12,8 +12,6 @@ use crate::{
     },
     UserInterface, Control,
     UINode,
-    UINodeContainer,
-    Builder,
 };
 
 /// Allows user to scroll content
@@ -31,15 +29,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, 
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::ScrollContentPresenter(Self {
-            widget: self.widget.raw_copy(),
-            scroll: self.scroll,
-            vertical_scroll_allowed: self.vertical_scroll_allowed,
-            horizontal_scroll_allowed: self.horizontal_scroll_allowed,
-        })
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -160,15 +149,17 @@ impl<M, C: 'static + Control<M, C>> ScrollContentPresenterBuilder<M, C> {
         self.horizontal_scroll_allowed = Some(value);
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollContentPresenterBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
-        ui.add_node(UINode::ScrollContentPresenter(ScrollContentPresenter {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        let handle = ui.add_node(UINode::ScrollContentPresenter(ScrollContentPresenter {
             widget: self.widget_builder.build(),
             scroll: Vec2::ZERO,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),
-        }))
+        }));
+
+        ui.flush_messages();
+
+        handle
     }
 }

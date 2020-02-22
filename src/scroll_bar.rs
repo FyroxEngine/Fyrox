@@ -15,9 +15,6 @@ use crate::{
     },
     Control,
     UINode,
-    ControlTemplate,
-    UINodeContainer,
-    Builder,
     core::{
         color::Color,
         math::{
@@ -30,6 +27,7 @@ use crate::{
     VerticalAlignment,
     text::TextBuilder,
     brush::Brush,
+    decorator::DecoratorBuilder,
     message::{
         ButtonMessage,
         UiMessageData,
@@ -37,7 +35,6 @@ use crate::{
         ScrollBarMessage,
         WidgetMessage,
     },
-    NodeHandleMapping
 };
 
 pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
@@ -63,32 +60,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::ScrollBar(Self {
-            widget: self.widget.raw_copy(),
-            min: self.min,
-            max: self.max,
-            value: self.value,
-            step: self.step,
-            orientation: self.orientation,
-            is_dragging: self.is_dragging,
-            offset: self.offset,
-            increase: self.increase,
-            decrease: self.decrease,
-            indicator: self.indicator,
-            field: self.field,
-            value_text: self.value_text,
-        })
-    }
-
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
-        self.increase = *node_map.get(&self.increase).unwrap();
-        self.decrease = *node_map.get(&self.decrease).unwrap();
-        self.indicator = *node_map.get(&self.indicator).unwrap();
-        self.value_text = *node_map.get(&self.value_text).unwrap();
-        self.field = *node_map.get(&self.field).unwrap();
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
@@ -258,8 +229,10 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
         let new_value = math::clampf(value, self.min, self.max);
         if (new_value - old_value).abs() > std::f32::EPSILON {
             self.value = new_value;
-            self.widget.outgoing_messages.borrow_mut().push_back(
-                UiMessage::new(UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value))));
+            self.widget
+                .outgoing_messages
+                .borrow_mut()
+                .push_back(UiMessage::new(UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value))));
             self.widget.invalidate_layout();
         }
         self
@@ -405,10 +378,8 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         self.show_value = state;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollBarBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
         let increase = self.increase.unwrap_or_else(|| {
@@ -462,13 +433,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollBarBuilder<M, C> {
             });
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(255, 255, 255)))
-                .with_foreground(Brush::Solid(Color::opaque(50, 50, 50))))
-                .with_stroke_thickness(match orientation {
-                    Orientation::Horizontal => Thickness { left: 1.0, top: 0.0, right: 1.0, bottom: 0.0 },
-                    Orientation::Vertical => Thickness { left: 0.0, top: 1.0, right: 0.0, bottom: 1.0 }
-                })
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
                 .build(ui)
         });
 
@@ -526,8 +491,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollBarBuilder<M, C> {
 
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(120, 120, 120)))
-                .with_foreground(Brush::Solid(Color::opaque(200, 200, 200))))
+                .with_background(Brush::Solid(Color::opaque(120, 120, 120))))
                 .with_stroke_thickness(Thickness::uniform(1.0))
                 .build(ui)
         });
@@ -551,6 +515,11 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollBarBuilder<M, C> {
             field,
             value_text,
         };
-        ui.add_node(UINode::ScrollBar(scroll_bar))
+
+        let handle = ui.add_node(UINode::ScrollBar(scroll_bar));
+
+        ui.flush_messages();
+
+        handle
     }
 }

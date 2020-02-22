@@ -3,6 +3,7 @@ use std::{
     rc::Rc
 };
 
+#[derive(Debug)]
 pub struct PropertySetter {
     name: String,
     value: Box<dyn Any>,
@@ -18,7 +19,7 @@ impl PropertySetter {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Style {
     base_style: Option<Rc<Style>>,
     setters: Vec<PropertySetter>,

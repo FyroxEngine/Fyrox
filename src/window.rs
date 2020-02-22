@@ -15,27 +15,26 @@ use crate::{
     text::TextBuilder,
     Thickness,
     button::ButtonBuilder,
-    scroll_viewer::{
-        ScrollViewerBuilder,
-    },
+    scroll_viewer::ScrollViewerBuilder,
     widget::{
         Widget,
         WidgetBuilder,
     },
     Control,
-    ControlTemplate,
-    UINodeContainer,
-    Builder,
     core::{
         pool::Handle,
         math::vec2::Vec2,
+        color::Color
     },
     message::{
         WidgetMessage,
         ButtonMessage,
-        WindowMessage
+        WindowMessage,
     },
-    NodeHandleMapping
+    brush::{
+        Brush,
+        GradientPoint
+    },
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -64,37 +63,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Window(Self {
-            widget: self.widget.raw_copy(),
-            mouse_click_pos: self.mouse_click_pos,
-            initial_position: self.initial_position,
-            is_dragged: self.is_dragged,
-            minimized: self.minimized,
-            can_minimize: self.can_minimize,
-            can_close: self.can_close,
-            header: self.header,
-            minimize_button: self.minimize_button,
-            close_button: self.close_button,
-            scroll_viewer: self.scroll_viewer,
-        })
-    }
-
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
-        self.header = *node_map.get(&self.header).unwrap();
-        self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
-        self.close_button = *node_map.get(&self.close_button).unwrap();
-        self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
-    }
-
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_message(self_handle, ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.source == self.header {
+                if (message.source == self.header || ui.node(self.header).widget().has_descendant(message.source, ui))
+                    && message.source != self.close_button && message.source != self.minimize_button {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
+                            self.widget.outgoing_messages.borrow_mut().push_back(
+                                UiMessage::new(
+                                    UiMessageData::Widget(
+                                        WidgetMessage::TopMost)));
                             ui.capture_mouse(self.header);
                             let initial_position = self.widget().actual_local_position();
                             self.mouse_click_pos = *pos;
@@ -263,6 +244,9 @@ pub struct WindowBuilder<'a, M: 'static, C: 'static + Control<M, C>> {
     can_close: bool,
     can_minimize: bool,
     open: bool,
+    scroll_viewer: Option<Handle<UINode<M, C>>>,
+    close_button: Option<Handle<UINode<M, C>>>,
+    minimize_button: Option<Handle<UINode<M, C>>>
 }
 
 /// Window title can be either text or node.
@@ -286,6 +270,9 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             can_close: true,
             can_minimize: true,
             open: true,
+            scroll_viewer: None,
+            close_button: None,
+            minimize_button: None
         }
     }
 
@@ -296,6 +283,21 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
 
     pub fn with_title(mut self, title: WindowTitle<'a, M, C>) -> Self {
         self.title = Some(title);
+        self
+    }
+
+    pub fn with_scroll_scroll_viewer(mut self, sv: Handle<UINode<M, C>>) -> Self {
+        self.scroll_viewer = Some(sv);
+        self
+    }
+
+    pub fn with_minimize_button(mut self, button: Handle<UINode<M, C>>) -> Self {
+        self.minimize_button = Some(button);
+        self
+    }
+
+    pub fn with_close_button(mut self, button: Handle<UINode<M, C>>) -> Self {
+        self.close_button = Some(button);
         self
     }
 
@@ -313,16 +315,23 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
         self.open = open;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let minimize_button;
         let close_button;
 
         let header = BorderBuilder::new(WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Stretch)
             .with_height(30.0)
+            .with_background( Brush::LinearGradient {
+                from: Vec2::new(0.5, 0.0),
+                to: Vec2::new(0.5, 1.0),
+                stops: vec![
+                    GradientPoint { stop: 0.0, color: Color::opaque(85, 85, 85) },
+                    GradientPoint { stop: 0.5, color: Color::opaque(65, 65, 65) },
+                    GradientPoint { stop: 1.0, color: Color::opaque(75, 75, 75) },
+                ],
+            })
             .with_child(GridBuilder::new(WidgetBuilder::new()
                 .with_child({
                     match self.title {
@@ -343,23 +352,31 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
                     }
                 })
                 .with_child({
-                    minimize_button = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(0)
-                        .on_column(1)
-                        .with_visibility(self.can_minimize)
-                        .with_margin(Thickness::uniform(2.0)))
-                        .with_text("_")
-                        .build(ui);
+                    minimize_button = self.minimize_button.unwrap_or_else(|| {
+                        ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0)))
+                            .with_text("_")
+                            .build(ui)
+                    });
+                    ui.node_mut(minimize_button)
+                        .widget_mut()
+                        .set_visibility(self.can_minimize)
+                        .set_row(0)
+                        .set_column(1);
                     minimize_button
                 })
                 .with_child({
-                    close_button = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(0)
-                        .on_column(2)
-                        .with_visibility(self.can_close)
-                        .with_margin(Thickness::uniform(2.0)))
-                        .with_text("X")
-                        .build(ui);
+                    close_button = self.close_button.unwrap_or_else(|| {
+                        ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0)))
+                            .with_text("X")
+                            .build(ui)
+                    });
+                    ui.node_mut(close_button)
+                        .widget_mut()
+                        .set_visibility(self.can_close)
+                        .set_row(0)
+                        .set_column(2);
                     close_button
                 }))
                 .add_column(Column::stretch())
@@ -370,11 +387,17 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
             .on_row(0)
         ).build(ui);
 
-        let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new()
-            .on_row(1)
-            .with_margin(Thickness::uniform(1.0)))
-            .with_content(self.content)
-            .build(ui);
+        let scroll_viewer = self.scroll_viewer.unwrap_or_else(|| {
+            ScrollViewerBuilder::new(WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0)))
+                .build(ui)
+        });
+
+        if let UINode::ScrollViewer(sv) = ui.node_mut(scroll_viewer) {
+            sv.set_content(self.content)
+                .widget_mut()
+                .set_row(1);
+        }
 
         let window = Window {
             widget: self.widget_builder
@@ -400,6 +423,11 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for WindowBuilder<'_, M, C> {
             close_button,
             scroll_viewer,
         };
-        ui.add_node(UINode::Window(window))
+
+        let handle = ui.add_node(UINode::Window(window));
+
+        ui.flush_messages();
+
+        handle
     }
 }

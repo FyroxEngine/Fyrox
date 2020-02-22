@@ -176,7 +176,7 @@ impl DrawingContext {
     }
 
     #[inline]
-    fn get_index_origin(&self) -> u32 {
+    fn index_origin(&self) -> u32 {
         match self.triangle_buffer.last() {
             Some(last) => last.indices.last().unwrap() + 1,
             None => 0
@@ -249,7 +249,7 @@ impl DrawingContext {
         self.push_vertex(a + perp, Vec2::new(1.0, 1.0));
         self.push_vertex(b + perp, Vec2::new(0.0, 1.0));
 
-        let index = self.get_index_origin();
+        let index = self.index_origin();
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index + 2, index + 1, index + 3);
     }
@@ -300,9 +300,30 @@ impl DrawingContext {
         self.push_vertex(Vec2::new(rect.x + rect.w, rect.y + rect.h), tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]));
         self.push_vertex(Vec2::new(rect.x, rect.y + rect.h), tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]));
 
-        let index = self.get_index_origin();
+        let index = self.index_origin();
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index, index + 2, index + 3);
+    }
+
+    pub fn push_circle(&mut self, origin: Vec2, radius: f32, segments: usize) {
+        if segments >= 3 {
+            self.push_vertex(origin, Vec2::ZERO);
+
+            let two_pi = 2.0 * std::f32::consts::PI;
+            let delta_angle = two_pi / (segments as f32);
+            let mut angle = 0.0;
+            while angle < two_pi {
+                let x = origin.x + radius * angle.cos();
+                let y = origin.y + radius * angle.sin();
+                self.push_vertex(Vec2::new(x, y), Vec2::ZERO);
+                angle += delta_angle;
+            }
+
+            let index = self.index_origin();
+            for segment in 0..(segments - 1) {
+                self.push_triangle(index, (segment - 1) as u32, segment as u32);
+            }
+        }
     }
 
     pub fn commit(&mut self, kind: CommandKind, brush: Brush, texture: CommandTexture) {

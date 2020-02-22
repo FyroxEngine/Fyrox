@@ -14,15 +14,11 @@ use crate::{
     Thickness,
     border::BorderBuilder,
     Control,
-    ControlTemplate,
-    UINodeContainer,
-    Builder,
     core::{
         pool::Handle,
         color::Color,
     },
     brush::Brush,
-    NodeHandleMapping
 };
 
 pub struct CheckBox<M: 'static, C: 'static + Control<M, C>> {
@@ -40,17 +36,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::CheckBox(Self {
-            widget: self.widget.raw_copy(),
-            checked: self.checked,
-            check_mark: self.check_mark,
-        })
-    }
-
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
-        self.check_mark = *node_map.get(&self.check_mark).unwrap();
-    }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_message(self_handle, ui, message);
@@ -120,11 +105,15 @@ impl<M, C: 'static + Control<M, C>> CheckBox<M, C> {
     /// 2) Some(true) - checked
     /// 3) Some(false) - unchecked
     pub fn set_checked(&mut self, value: Option<bool>) -> &mut Self {
-        self.checked = value;
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::CheckBox(CheckBoxMessage::Checked(value))));
+        if self.checked != value {
+            self.checked = value;
+            self.widget
+                .outgoing_messages
+                .borrow_mut()
+                .push_back(UiMessage::new(
+                    UiMessageData::CheckBox(
+                        CheckBoxMessage::Checked(value))));
+        }
         self
     }
 }
@@ -153,16 +142,14 @@ impl<M, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
         self.check_mark = Some(check_mark);
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for CheckBoxBuilder<M, C> {
-    fn build(self, container: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(200, 200, 200)))
                 .with_margin(Thickness::uniform(1.0)))
                 .with_stroke_thickness(Thickness::uniform(0.0))
-                .build(container)
+                .build(ui)
         });
 
         let visibility = if let Some(value) = self.checked {
@@ -170,7 +157,7 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for CheckBoxBuilder<M, C> {
         } else {
             true
         };
-        container.node_mut(check_mark)
+        ui.node_mut(check_mark)
             .widget_mut()
             .set_visibility(visibility);
 
@@ -178,15 +165,18 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for CheckBoxBuilder<M, C> {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_background(Brush::Solid(Color::opaque(60, 60, 60)))
-                    .with_foreground(Brush::Solid(Color::WHITE))
                     .with_child(check_mark))
                     .with_stroke_thickness(Thickness::uniform(1.0))
-                    .build(container))
+                    .build(ui))
                 .build(),
             checked: self.checked,
             check_mark,
         };
 
-        container.add_node(UINode::CheckBox(check_box))
+        let handle = ui.add_node(UINode::CheckBox(check_box));
+
+        ui.flush_messages();
+
+        handle
     }
 }

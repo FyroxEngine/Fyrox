@@ -14,12 +14,7 @@ use crate::{
         },
         pool::Handle,
     },
-    ControlTemplate,
-    UINodeContainer,
-    Builder,
-    NodeHandleMapping
 };
-
 
 pub struct StackPanel<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -54,15 +49,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
     }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::StackPanel(Self {
-            widget: self.widget.raw_copy(),
-            orientation: self.orientation,
-        })
-    }
-
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, _: &NodeHandleMapping<M, C>) {}
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let mut child_constraint = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
@@ -193,15 +179,17 @@ impl<M, C: 'static + Control<M, C>> StackPanelBuilder<M, C> {
         self.orientation = Some(orientation);
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for StackPanelBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let stack_panel = StackPanel {
             widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
         };
 
-        ui.add_node(UINode::StackPanel(stack_panel))
+        let handle = ui.add_node(UINode::StackPanel(stack_panel));
+
+        ui.flush_messages();
+
+        handle
     }
 }

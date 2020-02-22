@@ -1,8 +1,6 @@
 use crate::{
     UserInterface,
-    scroll_content_presenter::{
-        ScrollContentPresenterBuilder,
-    },
+    scroll_content_presenter::ScrollContentPresenterBuilder,
     scroll_bar::{
         ScrollBarBuilder,
         Orientation,
@@ -16,7 +14,7 @@ use crate::{
         UiMessageData,
         UiMessage,
         ScrollBarMessage,
-        WidgetMessage
+        WidgetMessage,
     },
     widget::{
         Widget,
@@ -24,15 +22,12 @@ use crate::{
     },
     Control,
     UINode,
-    ControlTemplate,
-    UINodeContainer,
-    Builder,
     core::{
         pool::Handle,
         math::vec2::Vec2,
     },
-    NodeHandleMapping
 };
+use crate::message::{ScrollViewerMessage};
 
 pub struct ScrollViewer<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -58,6 +53,27 @@ impl<M, C: 'static + Control<M, C>> ScrollViewer<M, C> {
             h_scroll_bar,
         }
     }
+
+    pub fn content_presenter(&self) -> Handle<UINode<M, C>> {
+        self.content_presenter
+    }
+
+    pub fn content(&self) -> Handle<UINode<M, C>> {
+        self.content
+    }
+
+    pub fn set_content(&mut self, content: Handle<UINode<M, C>>) -> &mut Self {
+        if self.content != content {
+            self.content = content;
+            self.widget
+                .outgoing_messages
+                .borrow_mut()
+                .push_back(UiMessage::new(
+                    UiMessageData::ScrollViewer(
+                        ScrollViewerMessage::Content(content))));
+        }
+        self
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
@@ -67,23 +83,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::ScrollViewer(Self {
-            widget: self.widget.raw_copy(),
-            content: self.content,
-            content_presenter: self.content_presenter,
-            v_scroll_bar: self.v_scroll_bar,
-            h_scroll_bar: self.h_scroll_bar,
-        })
-    }
-
-    fn resolve(&mut self, _: &ControlTemplate<M, C>, node_map: &NodeHandleMapping<M, C>) {
-        self.content = *node_map.get(&self.content).unwrap();
-        self.content_presenter = *node_map.get(&self.content_presenter).unwrap();
-        self.v_scroll_bar = *node_map.get(&self.v_scroll_bar).unwrap();
-        self.h_scroll_bar = *node_map.get(&self.h_scroll_bar).unwrap();
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
@@ -152,6 +151,16 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                     }
                 }
             }
+            UiMessageData::ScrollViewer(msg) => {
+                if message.source == self_handle || message.target == self_handle {
+                    if let ScrollViewerMessage::Content(content) = msg {
+                        for child in ui.node(self.content_presenter).widget().children().to_vec() {
+                            ui.remove_node(child);
+                        }
+                        ui.link_nodes(*content, self.content_presenter);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -175,6 +184,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
 pub struct ScrollViewerBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: Handle<UINode<M, C>>,
+    h_scroll_bar: Option<Handle<UINode<M, C>>>,
+    v_scroll_bar: Option<Handle<UINode<M, C>>>,
 }
 
 impl<M, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
@@ -182,6 +193,8 @@ impl<M, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
         Self {
             widget_builder,
             content: Handle::NONE,
+            h_scroll_bar: None,
+            v_scroll_bar: None,
         }
     }
 
@@ -189,29 +202,43 @@ impl<M, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
         self.content = content;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollViewerBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
+    pub fn with_vertical_scroll_bar(mut self, v_scroll_bar: Handle<UINode<M, C>>) -> Self {
+        self.v_scroll_bar = Some(v_scroll_bar);
+        self
+    }
+
+    pub fn with_horizontal_scroll_bar(mut self, h_scroll_bar: Handle<UINode<M, C>>) -> Self {
+        self.h_scroll_bar = Some(h_scroll_bar);
+        self
+    }
+
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let content_presenter = ScrollContentPresenterBuilder::new(WidgetBuilder::new()
             .with_child(self.content)
             .on_row(0)
             .on_column(0))
             .build(ui);
 
-        let v_scroll_bar = ScrollBarBuilder::new(WidgetBuilder::new()
-            .on_row(0)
-            .on_column(1)
-            .with_width(20.0))
-            .with_orientation(Orientation::Vertical)
-            .build(ui);
+        let v_scroll_bar = self.v_scroll_bar.unwrap_or_else(|| {
+            ScrollBarBuilder::new(WidgetBuilder::new())
+                .with_orientation(Orientation::Vertical)
+                .build(ui)
+        });
+        ui.node_mut(v_scroll_bar)
+            .widget_mut()
+            .set_row(0)
+            .set_column(1);
 
-        let h_scroll_bar = ScrollBarBuilder::new(WidgetBuilder::new()
-            .on_row(1)
-            .on_column(0)
-            .with_height(20.0))
-            .with_orientation(Orientation::Horizontal)
-            .build(ui);
+        let h_scroll_bar = self.h_scroll_bar.unwrap_or_else(|| {
+            ScrollBarBuilder::new(WidgetBuilder::new())
+                .with_orientation(Orientation::Horizontal)
+                .build(ui)
+        });
+        ui.node_mut(h_scroll_bar)
+            .widget_mut()
+            .set_row(1)
+            .set_column(0);
 
         let scroll_viewer = ScrollViewer {
             widget: self.widget_builder
@@ -230,6 +257,11 @@ impl<M, C: 'static + Control<M, C>> Builder<M, C> for ScrollViewerBuilder<M, C> 
             h_scroll_bar,
             content_presenter,
         };
-        ui.add_node(UINode::ScrollViewer(scroll_viewer))
+
+        let handle = ui.add_node(UINode::ScrollViewer(scroll_viewer));
+
+        ui.flush_messages();
+
+        handle
     }
 }

@@ -18,53 +18,17 @@ use crate::{
         WidgetBuilder,
     },
     Control,
-    UINodeContainer,
-    Builder,
-    draw::CommandTexture
+    draw::CommandTexture,
 };
 use std::{
     any::Any,
 };
+use rg3d_core::color::Color;
+use crate::brush::Brush;
 
 pub struct Border<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     stroke_thickness: Thickness,
-}
-
-pub struct BorderBuilder<M: 'static, C: 'static + Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    stroke_thickness: Option<Thickness>,
-}
-
-impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
-    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
-        Self {
-            widget_builder,
-            stroke_thickness: None,
-        }
-    }
-
-    pub fn with_stroke_thickness(mut self, stroke_thickness: Thickness) -> Self {
-        self.stroke_thickness = Some(stroke_thickness);
-        self
-    }
-}
-
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for BorderBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
-        let style = self.widget_builder.style.clone();
-
-        let mut border = Border {
-            widget: self.widget_builder.build(),
-            stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
-        };
-
-        if let Some(style) = style {
-            border.apply_style(style);
-        }
-
-        ui.add_node(UINode::Border(border))
-    }
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
@@ -74,13 +38,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
-    }
-
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Border(Self {
-            widget: self.widget.raw_copy(),
-            stroke_thickness: self.stroke_thickness,
-        })
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -126,7 +83,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let bounds = self.widget.get_screen_bounds();
+        let bounds = self.widget.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
 
@@ -166,5 +123,51 @@ impl<M, C: 'static + Control<M, C>> Border<M, C> {
             self.widget.invalidate_layout();
         }
         self
+    }
+}
+
+pub struct BorderBuilder<M: 'static, C: 'static + Control<M, C>> {
+    pub widget_builder: WidgetBuilder<M, C>,
+    pub stroke_thickness: Option<Thickness>,
+}
+
+impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+        Self {
+            widget_builder,
+            stroke_thickness: None,
+        }
+    }
+
+    pub fn with_stroke_thickness(mut self, stroke_thickness: Thickness) -> Self {
+        self.stroke_thickness = Some(stroke_thickness);
+        self
+    }
+
+    pub fn build_node(mut self) -> Border<M, C> {
+        let style = self.widget_builder.style.clone();
+
+        if self.widget_builder.foreground.is_none() {
+            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(100, 100, 100)));
+        }
+
+        let mut border = Border {
+            widget: self.widget_builder.build(),
+            stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
+        };
+
+        if let Some(style) = style {
+            border.apply_style(style);
+        }
+
+        border
+    }
+
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        let handle = ui.add_node(UINode::Border(self.build_node()));
+
+        ui.flush_messages();
+
+        handle
     }
 }

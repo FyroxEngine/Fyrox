@@ -16,8 +16,6 @@ use crate::{
     },
     Control,
     UINode,
-    UINodeContainer,
-    Builder,
     draw::{
         DrawingContext,
         CommandKind,
@@ -142,16 +140,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         &mut self.widget
     }
 
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Grid(Self {
-            widget: self.widget.raw_copy(),
-            rows: self.rows.clone(),
-            columns: self.columns.clone(),
-            draw_border: self.draw_border,
-            border_thickness: self.border_thickness,
-        })
-    }
-
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
@@ -231,7 +219,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         if self.draw_border {
-            let bounds = self.widget.get_screen_bounds();
+            let bounds = self.widget.screen_bounds();
 
             let left_top = Vec2::new(bounds.x, bounds.y);
             let right_top = Vec2::new(bounds.x + bounds.w, bounds.y);
@@ -307,17 +295,19 @@ impl<M, C: 'static + Control<M, C>> GridBuilder<M, C> {
         self.border_thickness = value;
         self
     }
-}
 
-impl<M, C: 'static + Control<M, C>> Builder<M, C> for GridBuilder<M, C> {
-    fn build(self, ui: &mut dyn UINodeContainer<M, C>) -> Handle<UINode<M, C>> {
-        ui.add_node(UINode::Grid(Grid {
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        let handle = ui.add_node(UINode::Grid(Grid {
             widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
             draw_border: self.draw_border,
             border_thickness: self.border_thickness,
-        }))
+        }));
+
+        ui.flush_messages();
+
+        handle
     }
 }
 
