@@ -510,6 +510,12 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     fn draw_node(&mut self, node_handle: Handle<UINode<M, C>>, nesting: u8) {
         let node = self.nodes.borrow(node_handle);
         let bounds = node.widget().screen_bounds();
+        let parent = node.widget().parent();
+        if parent.is_some() {
+            if !self.nodes.borrow(parent).widget().screen_bounds().intersects(bounds) {
+                return;
+            }
+        }
         if !node.widget().is_globally_visible() {
             return;
         }
