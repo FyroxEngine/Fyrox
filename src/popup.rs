@@ -1,5 +1,4 @@
 use crate::{
-    message::WidgetMessage,
     node::UINode,
     Control,
     UserInterface,
@@ -11,6 +10,9 @@ use crate::{
         UiMessage,
         UiMessageData,
         PopupMessage,
+        WidgetMessage,
+        OsEvent,
+        ButtonState
     },
     core::{
         pool::Handle,
@@ -19,7 +21,6 @@ use crate::{
     border::BorderBuilder,
     NodeHandleMapping,
 };
-use crate::message::{OsEvent, ButtonState};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Placement {
@@ -75,7 +76,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                     PopupMessage::Open => {
                         self.is_open = true;
                         self.widget.set_visibility(true);
-                        ui.restrict_picking_to(self_handle);
+                        if !self.stays_open {
+                            ui.restrict_picking_to(self_handle);
+                        }
                         self.widget
                             .outgoing_messages
                             .borrow_mut()
@@ -131,7 +134,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                     PopupMessage::Close => {
                         self.is_open = false;
                         self.widget.set_visibility(false);
-                        ui.clear_picking_restriction();
+                        if !self.stays_open {
+                            ui.clear_picking_restriction();
+                        }
                         if ui.captured_node() == self_handle {
                             ui.release_mouse_capture();
                         }

@@ -357,7 +357,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     /// Provides a way to respond to OS specific events. Can be useful to detect if a key or mouse
     /// button was pressed. This method significantly differs from `handle_message` because os events
     /// are not dispatched - they'll be passed to this method in any case.
-    fn handle_os_event(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _event: &OsEvent) { }
+    fn handle_os_event(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _event: &OsEvent) {}
 
     fn apply_style(&mut self, style: Rc<Style>) {
         // Apply base style first.
@@ -574,16 +574,16 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         if self.visual_debug {
             self.drawing_context.set_nesting(0);
 
-            let picked_bounds =
-                if self.picked_node.is_some() {
-                    Some(self.nodes.borrow(self.picked_node).widget().screen_bounds())
-                } else {
-                    None
-                };
-
-            if let Some(picked_bounds) = picked_bounds {
-                self.drawing_context.push_rect(&picked_bounds, 1.0);
+            if self.picked_node.is_some() {
+                let bounds = self.nodes.borrow(self.picked_node).widget().screen_bounds();
+                self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::WHITE), CommandTexture::None);
+            }
+
+            if self.keyboard_focus_node.is_some() {
+                let bounds = self.nodes.borrow(self.keyboard_focus_node).widget().screen_bounds();
+                self.drawing_context.push_rect(&bounds, 1.0);
+                self.drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::GREEN), CommandTexture::None);
             }
         }
 
@@ -893,7 +893,27 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     ButtonState::Pressed => {
                         self.picked_node = self.hit_test(self.cursor_position);
 
-                        self.keyboard_focus_node = self.picked_node;
+                        if self.keyboard_focus_node != self.picked_node {
+                            if self.keyboard_focus_node.is_some() {
+                                self.messages.push_back(UiMessage {
+                                    handled: false,
+                                    data: UiMessageData::Widget(WidgetMessage::LostFocus),
+                                    target: Handle::NONE,
+                                    source: self.keyboard_focus_node,
+                                });
+                            }
+
+                            self.keyboard_focus_node = self.picked_node;
+
+                            if self.keyboard_focus_node.is_some() {
+                                self.messages.push_back(UiMessage {
+                                    handled: false,
+                                    data: UiMessageData::Widget(WidgetMessage::GotFocus),
+                                    target: Handle::NONE,
+                                    source: self.keyboard_focus_node,
+                                });
+                            }
+                        }
 
                         if self.picked_node.is_some() {
                             self.messages.push_back(UiMessage {

@@ -38,7 +38,7 @@ use crate::{
     VerticalAlignment,
     HorizontalAlignment,
     draw::CommandTexture,
-    message::WidgetMessage
+    message::WidgetMessage,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -75,6 +75,7 @@ pub struct TextBox<M: 'static, C: 'static + Control<M, C>> {
     formatted_text: RefCell<FormattedText>,
     selection_range: Option<SelectionRange>,
     selecting: bool,
+    has_focus: bool,
     caret_brush: Brush,
     selection_brush: Brush,
 }
@@ -93,6 +94,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
                 .build()),
             selection_range: None,
             selecting: false,
+            has_focus: false,
             caret_brush: Brush::Solid(Color::WHITE),
             selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
         }
@@ -349,6 +351,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
             selecting: self.selecting,
             selection_brush: self.selection_brush.clone(),
             caret_brush: self.caret_brush.clone(),
+            has_focus: false,
         })
     }
 
@@ -450,10 +453,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
     }
 
     fn update(&mut self, dt: f32) {
-        self.blink_timer += dt;
-        if self.blink_timer >= self.blink_interval {
-            self.blink_timer = 0.0;
-            self.caret_visible = !self.caret_visible;
+        if self.has_focus {
+            self.blink_timer += dt;
+            if self.blink_timer >= self.blink_interval {
+                self.blink_timer = 0.0;
+                self.caret_visible = !self.caret_visible;
+            }
+        } else {
+            self.caret_visible = false;
         }
     }
 
@@ -488,6 +495,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                             }
                             _ => ()
                         }
+                    }
+                    WidgetMessage::GotFocus => {
+                        self.reset_blink();
+                        self.has_focus = true;
+                    }
+                    WidgetMessage::LostFocus => {
+                        self.has_focus = false;
                     }
                     WidgetMessage::MouseDown { pos, button } => {
                         if *button == MouseButton::Left {
@@ -576,7 +590,7 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             widget: self.widget_builder.build(),
             caret_line: 0,
             caret_offset: 0,
-            caret_visible: true,
+            caret_visible: false,
             blink_timer: 0.0,
             blink_interval: 0.5,
             formatted_text: RefCell::new(FormattedTextBuilder::new()
@@ -587,6 +601,7 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             selecting: false,
             selection_brush: self.selection_brush,
             caret_brush: self.caret_brush,
+            has_focus: false,
         };
 
         let handle = ui.add_node(UINode::TextBox(text_box));

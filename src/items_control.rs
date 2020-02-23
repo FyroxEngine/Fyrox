@@ -76,6 +76,16 @@ pub struct ItemContainer<M: 'static, C: 'static + Control<M, C>> {
     is_selected: bool,
 }
 
+impl<M, C: 'static + Control<M, C>> ItemContainer<M, C> {
+    pub fn is_selected(&self) -> bool {
+        self.is_selected
+    }
+
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
 impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
     fn widget(&self) -> &Widget<M, C> {
         &self.widget

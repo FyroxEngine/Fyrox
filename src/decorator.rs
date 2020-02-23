@@ -1,6 +1,6 @@
 use std::{
     rc::Rc,
-    any::Any
+    any::Any,
 };
 use crate::{
     core::{
@@ -8,8 +8,8 @@ use crate::{
         pool::Handle,
         math::{
             vec2::Vec2,
-            Rect
-        }
+            Rect,
+        },
     },
     style::Style,
     border::Border,
@@ -17,6 +17,7 @@ use crate::{
         UiMessage,
         UiMessageData,
         WidgetMessage,
+        ItemsControlMessage,
     },
     node::UINode,
     Control,
@@ -25,10 +26,10 @@ use crate::{
     draw::DrawingContext,
     brush::{
         Brush,
-        GradientPoint
+        GradientPoint,
     },
     border::BorderBuilder,
-    NodeHandleMapping
+    NodeHandleMapping,
 };
 
 pub struct Decorator<M: 'static, C: 'static + Control<M, C>> {
@@ -36,6 +37,8 @@ pub struct Decorator<M: 'static, C: 'static + Control<M, C>> {
     normal_brush: Brush,
     hover_brush: Brush,
     pressed_brush: Brush,
+    selected_brush: Brush,
+    is_selected: bool,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
@@ -52,7 +55,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
             border: self.border.clone(),
             normal_brush: self.normal_brush.clone(),
             hover_brush: self.hover_brush.clone(),
-            pressed_brush: self.pressed_brush.clone()
+            pressed_brush: self.pressed_brush.clone(),
+            selected_brush: self.selected_brush.clone(),
+            is_selected: self.is_selected,
         })
     }
 
@@ -81,7 +86,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
     }
 
     fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
-       self.border.measure(ui, available_size);
+        self.border.measure(ui, available_size);
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -108,26 +113,72 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
                 if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
                     match msg {
                         WidgetMessage::MouseLeave => {
-                            self.border
-                                .widget_mut()
-                                .set_background(self.normal_brush.clone());
-                        },
+                            if self.is_selected {
+                                self.border
+                                    .widget_mut()
+                                    .set_background(self.selected_brush.clone());
+                            } else {
+                                self.border
+                                    .widget_mut()
+                                    .set_background(self.normal_brush.clone());
+                            }
+                        }
                         WidgetMessage::MouseEnter => {
                             self.border
                                 .widget_mut()
                                 .set_background(self.hover_brush.clone());
-                        },
+                        }
                         WidgetMessage::MouseDown { .. } => {
                             self.border
                                 .widget_mut()
                                 .set_background(self.pressed_brush.clone());
-                        },
+                        }
                         WidgetMessage::MouseUp { .. } => {
-                            self.border
-                                .widget_mut()
-                                .set_background(self.normal_brush.clone());
+                            if self.is_selected {
+                                self.border
+                                    .widget_mut()
+                                    .set_background(self.selected_brush.clone());
+                            } else {
+                                self.border
+                                    .widget_mut()
+                                    .set_background(self.normal_brush.clone());
+                            }
                         }
                         _ => {}
+                    }
+                }
+            }
+            UiMessageData::ItemsControl(msg) => {
+                // Reflect changes of selection in parent item container (if has any).
+                if let ItemsControlMessage::SelectionChanged(selection) = msg {
+                    let items_control = self.widget().find_by_criteria_up(ui, |n| {
+                        if let UINode::ItemsControl(_) = n { true } else { false }
+                    });
+
+                    if message.source == items_control {
+                        let container = self.widget().find_by_criteria_up(ui, |n| {
+                            if let UINode::ItemContainer(_) = n { true } else { false }
+                        });
+
+                        if container.is_some() {
+                            if let UINode::ItemContainer(container) = ui.node(container) {
+                                if let Some(selection) = selection {
+                                    self.is_selected = container.index() == *selection;
+                                } else {
+                                    self.is_selected = false;
+                                }
+
+                                if self.is_selected {
+                                    self.border
+                                        .widget_mut()
+                                        .set_background(self.selected_brush.clone());
+                                } else {
+                                    self.border
+                                        .widget_mut()
+                                        .set_background(self.normal_brush.clone());
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -149,6 +200,7 @@ pub struct DecoratorBuilder<M: 'static, C: 'static + Control<M, C>> {
     normal_brush: Option<Brush>,
     hover_brush: Option<Brush>,
     pressed_brush: Option<Brush>,
+    selected_brush: Option<Brush>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
@@ -157,7 +209,8 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
             border_builder,
             normal_brush: None,
             hover_brush: None,
-            pressed_brush: None
+            pressed_brush: None,
+            selected_brush: None,
         }
     }
 
@@ -176,8 +229,13 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
         self
     }
 
+    pub fn with_selected_brush(mut self, brush: Brush) -> Self {
+        self.selected_brush = Some(brush);
+        self
+    }
+
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let normal_brush =  self.normal_brush.unwrap_or_else(|| {
+        let normal_brush = self.normal_brush.unwrap_or_else(|| {
             Brush::LinearGradient {
                 from: Vec2::new(0.5, 0.0),
                 to: Vec2::new(0.5, 1.0),
@@ -223,7 +281,21 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
                         GradientPoint { stop: 1.0, color: Color::opaque(55, 55, 55) },
                     ],
                 }
-            })
+            }),
+            selected_brush: self.selected_brush.unwrap_or_else(|| {
+                Brush::LinearGradient {
+                    from: Vec2::new(0.5, 0.0),
+                    to: Vec2::new(0.5, 1.0),
+                    stops: vec![
+                        GradientPoint { stop: 0.0, color: Color::opaque(170, 108, 57) },
+                        GradientPoint { stop: 0.46, color: Color::opaque(170, 108, 57) },
+                        GradientPoint { stop: 0.5, color: Color::opaque(150, 88, 37) },
+                        GradientPoint { stop: 0.54, color: Color::opaque(160, 98, 47) },
+                        GradientPoint { stop: 1.0, color: Color::opaque(160, 98, 47) },
+                    ],
+                }
+            }),
+            is_selected: false,
         });
 
         let handle = ui.add_node(decorator);
