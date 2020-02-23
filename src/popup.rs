@@ -17,7 +17,9 @@ use crate::{
         math::vec2::Vec2,
     },
     border::BorderBuilder,
+    NodeHandleMapping,
 };
+use crate::message::{OsEvent, ButtonState};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Placement {
@@ -34,6 +36,7 @@ pub struct Popup<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     placement: Placement,
     stays_open: bool,
+    is_open: bool,
     content: Handle<UINode<M, C>>,
     body: Handle<UINode<M, C>>,
 }
@@ -47,13 +50,32 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Popup(Self {
+            widget: self.widget.raw_copy(),
+            placement: self.placement,
+            stays_open: false,
+            is_open: false,
+            content: self.content,
+            body: self.body,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        if let Some(content) = node_map.get(&self.content) {
+            self.content = *content;
+        }
+        self.body = *node_map.get(&self.body).unwrap();
+    }
+
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         match &message.data {
             UiMessageData::Popup(msg) if message.target == self_handle || message.source == self_handle => {
                 match msg {
                     PopupMessage::Open => {
+                        self.is_open = true;
                         self.widget.set_visibility(true);
-                        ui.capture_mouse(self_handle);
+                        ui.restrict_picking_to(self_handle);
                         self.widget
                             .outgoing_messages
                             .borrow_mut()
@@ -61,7 +83,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                                 UiMessage::new(
                                     UiMessageData::Widget(
                                         WidgetMessage::TopMost)));
-                        dbg!(self.widget.children().len());
                         match self.placement {
                             Placement::LeftTop => {
                                 self.widget
@@ -108,7 +129,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                         }
                     }
                     PopupMessage::Close => {
+                        self.is_open = false;
                         self.widget.set_visibility(false);
+                        ui.clear_picking_restriction();
                         if ui.captured_node() == self_handle {
                             ui.release_mouse_capture();
                         }
@@ -123,37 +146,45 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                     _ => {}
                 }
             }
-            UiMessageData::Widget(msg) => {
-                if let WidgetMessage::MouseDown { pos, .. } = msg {
-                    if message.source == self_handle || self.widget.has_descendant(message.source, ui) {
-                        if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
-                            self.close();
-                        }
+            _ => {}
+        }
+    }
+
+    fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
+        if let OsEvent::MouseInput { state, .. } = event {
+            if *state == ButtonState::Pressed {
+                if ui.picking_restricted_node() == self_handle && self.is_open {
+                    let pos = ui.cursor_position();
+                    if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
+                        self.close();
                     }
                 }
             }
-            _ => {}
         }
     }
 }
 
 impl<M, C: 'static + Control<M, C>> Popup<M, C> {
-    pub fn open(&self) {
-        self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(
-                UiMessageData::Popup(PopupMessage::Open)));
+    pub fn open(&mut self) {
+        if !self.is_open {
+            self.widget.invalidate_layout();
+            self.widget
+                .outgoing_messages
+                .borrow_mut()
+                .push_back(UiMessage::new(
+                    UiMessageData::Popup(PopupMessage::Open)));
+        }
     }
 
-    pub fn close(&self) {
-        self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(
-                UiMessageData::Popup(PopupMessage::Close)));
+    pub fn close(&mut self) {
+        if self.is_open {
+            self.widget.invalidate_layout();
+            self.widget
+                .outgoing_messages
+                .borrow_mut()
+                .push_back(UiMessage::new(
+                    UiMessageData::Popup(PopupMessage::Close)));
+        }
     }
 
     pub fn set_placement(&mut self, placement: Placement) {
@@ -214,6 +245,7 @@ impl<M, C: 'static + Control<M, C>> PopupBuilder<M, C> {
                 .build(),
             placement: self.placement,
             stays_open: self.stays_open,
+            is_open: false,
             content: self.content,
             body,
         };

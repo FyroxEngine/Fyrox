@@ -19,6 +19,7 @@ use crate::{
         color::Color,
     },
     brush::Brush,
+    NodeHandleMapping
 };
 
 pub struct CheckBox<M: 'static, C: 'static + Control<M, C>> {
@@ -36,6 +37,17 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::CheckBox(Self {
+            widget: self.widget.raw_copy(),
+            checked: self.checked,
+            check_mark: self.check_mark,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.check_mark = *node_map.get(&self.check_mark).unwrap();
+    }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_message(self_handle, ui, message);

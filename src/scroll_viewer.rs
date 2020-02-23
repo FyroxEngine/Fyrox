@@ -15,6 +15,7 @@ use crate::{
         UiMessage,
         ScrollBarMessage,
         WidgetMessage,
+        ScrollViewerMessage
     },
     widget::{
         Widget,
@@ -26,8 +27,8 @@ use crate::{
         pool::Handle,
         math::vec2::Vec2,
     },
+    NodeHandleMapping,
 };
-use crate::message::{ScrollViewerMessage};
 
 pub struct ScrollViewer<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -83,6 +84,23 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ScrollViewer(Self {
+            widget: self.widget.raw_copy(),
+            content: self.content,
+            content_presenter: self.content_presenter,
+            v_scroll_bar: self.v_scroll_bar,
+            h_scroll_bar: self.h_scroll_bar,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.content = *node_map.get(&self.content).unwrap();
+        self.content_presenter = *node_map.get(&self.content_presenter).unwrap();
+        self.v_scroll_bar = *node_map.get(&self.v_scroll_bar).unwrap();
+        self.h_scroll_bar = *node_map.get(&self.h_scroll_bar).unwrap();
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {

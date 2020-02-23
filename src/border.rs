@@ -31,6 +31,15 @@ pub struct Border<M: 'static, C: 'static + Control<M, C>> {
     stroke_thickness: Thickness,
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> Clone for Border<M, C> {
+    fn clone(&self) -> Self {
+        Self {
+            widget: self.widget.raw_copy(),
+            stroke_thickness: self.stroke_thickness,
+        }
+    }
+}
+
 impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     fn widget(&self) -> &Widget<M, C> {
         &self.widget
@@ -38,6 +47,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Border(self.clone())
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

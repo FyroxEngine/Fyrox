@@ -29,6 +29,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Canvas(Self {
+            widget: self.widget.raw_copy()
+        })
+    }
+
     fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::new(
             std::f32::INFINITY,

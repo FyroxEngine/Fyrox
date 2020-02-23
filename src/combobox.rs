@@ -22,6 +22,7 @@ use crate::{
         Placement,
     },
     border::BorderBuilder,
+    NodeHandleMapping,
 };
 
 pub struct ComboBox<M: 'static, C: 'static + Control<M, C>> {
@@ -29,6 +30,7 @@ pub struct ComboBox<M: 'static, C: 'static + Control<M, C>> {
     popup: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
     items_control: Handle<UINode<M, C>>,
+    current: Handle<UINode<M, C>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
@@ -38,6 +40,25 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ComboBox(Self {
+            widget: self.widget.raw_copy(),
+            popup: self.popup,
+            items: self.items.clone(),
+            items_control: self.items_control,
+            current: self.current,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.popup = *node_map.get(&self.popup).unwrap();
+        self.items_control = *node_map.get(&self.items_control).unwrap();
+
+        for item in self.items.iter_mut() {
+            *item = *node_map.get(item).unwrap();
+        }
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
@@ -56,13 +77,33 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
                 }
             }
             UiMessageData::ItemsControl(msg) => {
-                if let ItemsControlMessage::Items(items) = msg {
-                    if message.target == self_handle {
-                        ui.post_message(UiMessage::targeted(
-                            self.items_control,
-                            UiMessageData::ItemsControl(
-                                ItemsControlMessage::Items(items.clone()))));
-                        self.items = items.clone();
+                match msg {
+                    ItemsControlMessage::Items(items) => {
+                        if message.target == self_handle {
+                            ui.post_message(UiMessage::targeted(
+                                self.items_control,
+                                UiMessageData::ItemsControl(
+                                    ItemsControlMessage::Items(items.clone()))));
+                            self.items = items.clone();
+                        }
+                    }
+                    ItemsControlMessage::SelectionChanged(selection) => {
+                        if message.source == self.items_control {
+                            if self.current.is_some() {
+                                ui.remove_node(self.current)
+                            }
+                            if let Some(index) = selection {
+                                if let Some(item) = self.items.get(*index) {
+                                    self.current = ui.copy_node(*item);
+                                    let body = self.widget.children()[0];
+                                    ui.link_nodes(self.current, body);
+                                } else {
+                                    self.current = Handle::NONE;
+                                }
+                            } else {
+                                self.current = Handle::NONE;
+                            }
+                        }
                     }
                 }
             }
@@ -85,7 +126,6 @@ impl<M: 'static, C: 'static + Control<M, C>> ComboBox<M, C> {
 
 pub struct ComboBoxBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
-    panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
 }
 
@@ -93,7 +133,6 @@ impl<M: 'static, C: 'static + Control<M, C>> ComboBoxBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
-            panel: Default::default(),
             items: Default::default(),
         }
     }
@@ -112,14 +151,23 @@ impl<M: 'static, C: 'static + Control<M, C>> ComboBoxBuilder<M, C> {
             .with_content(items_control)
             .build(ui);
 
+        let current =
+            if let Some(first) = self.items.get(0) {
+                ui.copy_node(*first)
+            } else {
+                Handle::NONE
+            };
+
         let combobox = UINode::ComboBox(ComboBox {
             widget: self.widget_builder
-                .with_child(BorderBuilder::new(WidgetBuilder::new())
+                .with_child(BorderBuilder::new(WidgetBuilder::new()
+                    .with_child(current))
                     .build(ui))
                 .build(),
             popup,
             items: self.items,
             items_control,
+            current,
         });
 
         let handle = ui.add_node(combobox);

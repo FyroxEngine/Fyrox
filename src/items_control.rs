@@ -21,7 +21,9 @@ use crate::{
         color::Color,
     },
     brush::Brush,
+    NodeHandleMapping
 };
+use crate::draw::{DrawingContext, CommandTexture, CommandKind};
 
 pub struct ItemsControl<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -83,6 +85,20 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ItemContainer(Self {
+            widget: self.widget.raw_copy(),
+            index: self.index,
+            is_selected: self.is_selected
+        })
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        // Emit transparent geometry so item container can be picked by hit test.
+        drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
+        drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::TRANSPARENT), CommandTexture::None);
+    }
+
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_message(self_handle, ui, message);
 
@@ -129,6 +145,26 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemsControl<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ItemsControl(Self {
+            widget: self.widget.raw_copy(),
+            selected_index: self.selected_index,
+            item_containers: self.item_containers.clone(),
+            panel: self.panel,
+            items: self.items.clone()
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.panel = *node_map.get(&self.panel).unwrap();
+        for item_container in self.item_containers.iter_mut() {
+            *item_container = *node_map.get(item_container).unwrap();
+        }
+        for item in self.items.iter_mut() {
+            *item = *node_map.get(item).unwrap();
+        }
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {

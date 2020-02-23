@@ -35,6 +35,7 @@ use crate::{
         Brush,
         GradientPoint
     },
+    NodeHandleMapping
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -61,6 +62,29 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Window(Self {
+            widget: self.widget.raw_copy(),
+            mouse_click_pos: self.mouse_click_pos,
+            initial_position: self.initial_position,
+            is_dragged: self.is_dragged,
+            minimized: self.minimized,
+            can_minimize: self.can_minimize,
+            can_close: self.can_close,
+            header: self.header,
+            minimize_button: self.minimize_button,
+            close_button: self.close_button,
+            scroll_viewer: self.scroll_viewer,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.header = *node_map.get(&self.header).unwrap();
+        self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
+        self.close_button = *node_map.get(&self.close_button).unwrap();
+        self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {

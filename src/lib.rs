@@ -77,6 +77,7 @@ use crate::{
     message::WidgetMessage,
     node::UINode,
 };
+use std::collections::HashMap;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -128,6 +129,8 @@ impl Thickness {
     }
 }
 
+pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
+
 /// Trait for all UI controls in engine.
 ///
 /// Control must provide at least references (shared and mutable) to inner widget,
@@ -137,6 +140,10 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     fn widget(&self) -> &Widget<M, C>;
 
     fn widget_mut(&mut self) -> &mut Widget<M, C>;
+
+    fn raw_copy(&self) -> UINode<M, C>;
+
+    fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.widget().measure_override(ui, available_size)
@@ -347,6 +354,11 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
     /// to check if event came from/for this node or to capture input on node.
     fn handle_message(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _message: &mut UiMessage<M, C>) {}
 
+    /// Provides a way to respond to OS specific events. Can be useful to detect if a key or mouse
+    /// button was pressed. This method significantly differs from `handle_message` because os events
+    /// are not dispatched - they'll be passed to this method in any case.
+    fn handle_os_event(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _event: &OsEvent) { }
+
     fn apply_style(&mut self, style: Rc<Style>) {
         // Apply base style first.
         if let Some(base_style) = style.base_style() {
@@ -372,7 +384,6 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     nodes: Pool<UINode<M, C>>,
     drawing_context: DrawingContext,
     visual_debug: bool,
-    /// Every UI node will live on the window-sized canvas.
     root_canvas: Handle<UINode<M, C>>,
     picked_node: Handle<UINode<M, C>>,
     prev_picked_node: Handle<UINode<M, C>>,
@@ -381,6 +392,7 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     cursor_position: Vec2,
     messages: VecDeque<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
+    root_picking_node: Handle<UINode<M, C>>,
 }
 
 lazy_static! {
@@ -412,6 +424,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             prev_picked_node: Handle::NONE,
             keyboard_focus_node: Handle::NONE,
             stack: Default::default(),
+            root_picking_node: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(Widget::default())));
         ui
@@ -511,11 +524,11 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         let node = self.nodes.borrow(node_handle);
         let bounds = node.widget().screen_bounds();
         let parent = node.widget().parent();
-        if parent.is_some() {
-            if !self.nodes.borrow(parent).widget().screen_bounds().intersects(bounds) {
-                return;
-            }
+
+        if parent.is_some() && !self.nodes.borrow(parent).widget().screen_bounds().intersects(bounds) {
+            return;
         }
+
         if !node.widget().is_globally_visible() {
             return;
         }
@@ -639,7 +652,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         for child_handle in widget.children() {
             *level += 1;
             let picked_child = self.pick_node(*child_handle, pt, level);
-            if !picked_child.is_none() && *level > topmost_picked_level {
+            if picked_child.is_some() && *level > topmost_picked_level {
                 topmost_picked_level = *level;
                 picked = picked_child;
             }
@@ -657,7 +670,13 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             self.captured_node
         } else {
             let mut level = 0;
-            self.pick_node(self.root_canvas, pt, &mut level)
+            let root =
+                if self.nodes.is_valid_handle(self.root_picking_node) {
+                    self.root_picking_node
+                } else {
+                    self.root_canvas
+                };
+            self.pick_node(root, pt, &mut level)
         }
     }
 
@@ -789,7 +808,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     /// available nodes first and only then will be moved outside of this method. This is one
     /// of most important methods which must be called each frame of your game loop, otherwise
     /// UI will not respond to any kind of events and simply speaking will just not work.
-    pub fn poll_ui_event(&mut self) -> Option<UiMessage<M, C>> {
+    pub fn poll_message(&mut self) -> Option<UiMessage<M, C>> {
         // Gather events from nodes.
         for (handle, node) in self.nodes.pair_iter_mut() {
             while let Some(mut outgoing_message) = node.widget_mut().outgoing_messages.borrow_mut().pop_front() {
@@ -859,13 +878,13 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     }
 
     pub fn flush_messages(&mut self) {
-        while let Some(_) = self.poll_ui_event() {}
+        while let Some(_) = self.poll_message() {}
     }
 
-    /// Translates raw window event into some specific UI event. This is one of the
+    /// Translates raw window event into some specific UI message. This is one of the
     /// most important methods of UI. You must call it each time you received a message
     /// from a window.
-    pub fn process_input_event(&mut self, event: &OsEvent) -> bool {
+    pub fn process_os_event(&mut self, event: &OsEvent) -> bool {
         let mut event_processed = false;
 
         match event {
@@ -876,7 +895,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
                         self.keyboard_focus_node = self.picked_node;
 
-                        if !self.picked_node.is_none() {
+                        if self.picked_node.is_some() {
                             self.messages.push_back(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Widget(WidgetMessage::MouseDown {
@@ -890,7 +909,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         }
                     }
                     ButtonState::Released => {
-                        if !self.picked_node.is_none() {
+                        if self.picked_node.is_some() {
                             self.messages.push_back(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Widget(WidgetMessage::MouseUp {
@@ -947,7 +966,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                 }
             }
             OsEvent::MouseWheel(_, y) => {
-                if !self.picked_node.is_none() {
+                if self.picked_node.is_some() {
                     self.messages.push_back(UiMessage {
                         handled: false,
                         data: UiMessageData::Widget(WidgetMessage::MouseWheel {
@@ -963,7 +982,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             }
             OsEvent::KeyboardInput { button, state } => {
                 if self.keyboard_focus_node.is_some() {
-                    let event = UiMessage {
+                    let message = UiMessage {
                         handled: false,
                         data: match state {
                             ButtonState::Pressed => {
@@ -977,21 +996,21 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         source: self.keyboard_focus_node,
                     };
 
-                    self.messages.push_back(event);
+                    self.messages.push_back(message);
 
                     event_processed = true;
                 }
             }
             OsEvent::Character(unicode) => {
                 if self.keyboard_focus_node.is_some() {
-                    let event = UiMessage {
+                    let message = UiMessage {
                         handled: false,
                         data: UiMessageData::Widget(WidgetMessage::Text(*unicode)),
                         target: Handle::NONE,
                         source: self.keyboard_focus_node,
                     };
 
-                    self.messages.push_back(event);
+                    self.messages.push_back(message);
 
                     event_processed = true;
                 }
@@ -999,6 +1018,18 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         }
 
         self.prev_picked_node = self.picked_node;
+
+        for i in 0..self.nodes.get_capacity() {
+            let handle = self.nodes.handle_from_index(i);
+
+            if self.nodes.is_valid_handle(handle) {
+                let (ticket, mut node) = self.nodes.take_reserve(handle);
+
+                node.handle_os_event(handle, self, event);
+
+                self.nodes.put_back(ticket, node);
+            }
+        }
 
         event_processed
     }
@@ -1028,6 +1059,18 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         node_handle
     }
 
+    pub fn restrict_picking_to(&mut self, node: Handle<UINode<M, C>>) {
+        self.root_picking_node = node;
+    }
+
+    pub fn clear_picking_restriction(&mut self) {
+        self.root_picking_node = Handle::NONE;
+    }
+
+    pub fn picking_restricted_node(&self) -> Handle<UINode<M, C>> {
+        self.root_picking_node
+    }
+
     pub fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
         self.unlink_node(node);
 
@@ -1047,6 +1090,9 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             }
             if self.keyboard_focus_node == handle {
                 self.keyboard_focus_node = Handle::NONE;
+            }
+            if self.root_picking_node == handle {
+                self.root_picking_node = Handle::NONE;
             }
 
             for child in self.nodes().borrow(handle).widget().children().iter() {
@@ -1105,6 +1151,33 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         self.nodes_mut()
             .borrow_mut(node_handle)
     }
+
+    pub fn copy_node(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
+        let mut map = NodeHandleMapping::new();
+
+        let root = self.copy_node_recursive(node, &mut map);
+
+        for node_handle in map.values() {
+            self.node_mut(*node_handle).resolve(&map);
+        }
+
+        root
+    }
+
+    fn copy_node_recursive(&mut self, node_handle: Handle<UINode<M, C>>, map: &mut NodeHandleMapping<M, C>) -> Handle<UINode<M, C>> {
+        let node = self.nodes.borrow(node_handle);
+        let mut cloned = node.raw_copy();
+
+        let mut cloned_children = Vec::new();
+        for child in node.widget().children().to_vec() {
+            cloned_children.push(self.copy_node_recursive(child, map));
+        }
+
+        cloned.widget_mut().set_children(cloned_children);
+        let copy_handle = self.add_node(cloned);
+        map.insert(node_handle, copy_handle);
+        copy_handle
+    }
 }
 
 #[cfg(test)]
@@ -1132,6 +1205,10 @@ mod test {
         }
 
         fn widget_mut(&mut self) -> &mut Widget<StubUiMessage, StubUiNode> {
+            unimplemented!()
+        }
+
+        fn raw_copy(&self) -> UINode<StubUiMessage, StubUiNode> {
             unimplemented!()
         }
     }

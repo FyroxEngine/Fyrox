@@ -23,6 +23,7 @@ use crate::{
     },
     brush::Brush,
     message::ButtonMessage,
+    NodeHandleMapping
 };
 
 pub struct Tab<M: 'static, C: 'static + Control<M, C>> {
@@ -42,6 +43,20 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::TabControl(Self {
+            widget: self.widget.raw_copy(),
+            tabs: Default::default(),
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        for tab in self.tabs.iter_mut() {
+            tab.header_button = *node_map.get(&tab.header_button).unwrap();
+            tab.content = *node_map.get(&tab.content).unwrap();
+        }
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {

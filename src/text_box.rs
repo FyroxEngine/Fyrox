@@ -335,6 +335,23 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::TextBox(Self {
+            widget: self.widget.raw_copy(),
+            caret_line: self.caret_line,
+            caret_offset: self.caret_offset,
+            caret_visible: self.caret_visible,
+            blink_timer: self.blink_timer,
+            blink_interval: self.blink_interval,
+            formatted_text: RefCell::new(FormattedTextBuilder::new()
+                .with_font(self.formatted_text.borrow().get_font().unwrap()).build()),
+            selection_range: self.selection_range,
+            selecting: self.selecting,
+            selection_brush: self.selection_brush.clone(),
+            caret_brush: self.caret_brush.clone(),
+        })
+    }
+
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()

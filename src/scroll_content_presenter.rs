@@ -31,6 +31,15 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, 
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ScrollContentPresenter(Self {
+            widget: self.widget.raw_copy(),
+            scroll: self.scroll,
+            vertical_scroll_allowed: self.vertical_scroll_allowed,
+            horizontal_scroll_allowed: self.horizontal_scroll_allowed,
+        })
+    }
+
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let size_for_child = Vec2::new(
             if self.horizontal_scroll_allowed {

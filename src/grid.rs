@@ -140,6 +140,16 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Grid(Self {
+            widget: self.widget.raw_copy(),
+            rows: self.rows.clone(),
+            columns: self.columns.clone(),
+            draw_border: self.draw_border,
+            border_thickness: self.border_thickness,
+        })
+    }
+
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {

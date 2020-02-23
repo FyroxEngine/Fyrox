@@ -50,6 +50,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::StackPanel(Self {
+            widget: self.widget.raw_copy(),
+            orientation: self.orientation,
+        })
+    }
+
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let mut child_constraint = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
 

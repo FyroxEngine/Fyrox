@@ -28,6 +28,7 @@ use crate::{
         GradientPoint
     },
     border::BorderBuilder,
+    NodeHandleMapping
 };
 
 pub struct Decorator<M: 'static, C: 'static + Control<M, C>> {
@@ -44,6 +45,19 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         self.border.widget_mut()
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Decorator(Self {
+            border: self.border.clone(),
+            normal_brush: self.normal_brush.clone(),
+            hover_brush: self.hover_brush.clone(),
+            pressed_brush: self.pressed_brush.clone()
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.border.resolve(node_map)
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

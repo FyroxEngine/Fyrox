@@ -37,8 +37,10 @@ use crate::{
     },
     combobox::ComboBox,
     items_control::{ItemsControl, ItemContainer},
-    decorator::Decorator
+    decorator::Decorator,
+    NodeHandleMapping
 };
+use crate::message::OsEvent;
 
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Border(Border<M, C>),
@@ -103,6 +105,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, widget_mut,)
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        static_dispatch!(self, raw_copy,)
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        static_dispatch!(self, resolve, node_map);
+    }
+
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         static_dispatch!(self, measure_override, ui, available_size)
     }
@@ -137,6 +147,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         static_dispatch!(self, handle_message, self_handle, ui, message)
+    }
+
+    fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
+        static_dispatch!(self, handle_os_event, self_handle, ui, event)
     }
 
     fn apply_style(&mut self, style: Rc<Style>) {

@@ -1,12 +1,21 @@
 use std::{
     sync::Arc,
 };
-use crate::{core::{
-    pool::Handle
-}, UINode, draw::{
-    DrawingContext,
-    CommandKind,
-}, widget::Widget, widget::WidgetBuilder, Control, draw::{Texture, CommandTexture}, UserInterface};
+use crate::{
+    core::{
+        pool::Handle
+    },
+    UINode,
+    draw::{
+        DrawingContext,
+        CommandKind,
+    },
+    widget::WidgetBuilder,
+    Control,
+    draw::{Texture, CommandTexture},
+    UserInterface,
+    widget::Widget
+};
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -26,6 +35,15 @@ impl<M, C: 'static + Control<M, C>> Image<M, C> {
     }
 }
 
+impl<M, C: 'static + Control<M, C>> Clone for Image<M, C> {
+    fn clone(&self) -> Self {
+        Self {
+            widget: self.widget.raw_copy(),
+            texture: self.texture.clone(),
+        }
+    }
+}
+
 impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
     fn widget(&self) -> &Widget<M, C> {
         &self.widget
@@ -33,6 +51,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Image(self.clone())
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {

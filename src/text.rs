@@ -2,6 +2,7 @@ use crate::{
     core::{
         pool::Handle,
         math::vec2::Vec2,
+        color::Color
     },
     VerticalAlignment,
     HorizontalAlignment,
@@ -18,6 +19,7 @@ use crate::{
     Control,
     ttf::Font,
     UserInterface,
+    brush::Brush,
 };
 use std::{
     sync::{
@@ -26,8 +28,6 @@ use std::{
     },
     cell::RefCell,
 };
-use crate::brush::Brush;
-use rg3d_core::color::Color;
 
 pub struct Text<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -41,6 +41,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Text(Self {
+            widget: self.widget.raw_copy(),
+            formatted_text: self.formatted_text.clone(),
+        })
     }
 
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

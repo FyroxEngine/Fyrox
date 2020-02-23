@@ -266,6 +266,43 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         }
     }
 
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            desired_local_position: self.desired_local_position.clone(),
+            width: self.width.clone(),
+            height: self.height.clone(),
+            screen_position: self.screen_position,
+            desired_size: self.desired_size.clone(),
+            actual_local_position: self.actual_local_position.clone(),
+            actual_size: self.actual_size.clone(),
+            min_size: self.min_size,
+            max_size: self.max_size,
+            background: self.background.clone(),
+            foreground: self.foreground.clone(),
+            row: self.row,
+            column: self.column,
+            vertical_alignment: self.vertical_alignment,
+            horizontal_alignment: self.horizontal_alignment,
+            margin: self.margin,
+            visibility: self.visibility,
+            global_visibility: self.global_visibility,
+            prev_global_visibility: false,
+            children: self.children.clone(),
+            parent: self.parent,
+            command_indices: Default::default(),
+            is_mouse_directly_over: self.is_mouse_directly_over,
+            measure_valid: Cell::new(false),
+            arrange_valid: Cell::new(false),
+            outgoing_messages: Default::default(),
+            hit_test_visibility: self.hit_test_visibility,
+            style: self.style.clone(),
+            prev_measure: Default::default(),
+            prev_arrange: Default::default(),
+            z_index: self.z_index
+        }
+    }
+
     #[inline]
     pub fn desired_local_position(&self) -> Vec2 {
         self.desired_local_position.get()
@@ -652,6 +689,12 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         self.actual_size.set(size);
         self.actual_local_position.set(position);
         self.arrange_valid.set(true);
+    }
+
+    #[inline]
+    pub(in crate) fn set_children(&mut self, children: Vec<Handle<UINode<M, C>>>) {
+        self.invalidate_layout();
+        self.children = children;
     }
 
     #[inline]

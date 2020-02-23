@@ -35,6 +35,7 @@ use crate::{
         ScrollBarMessage,
         WidgetMessage,
     },
+    NodeHandleMapping
 };
 
 pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
@@ -60,6 +61,32 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ScrollBar(Self {
+            widget: self.widget.raw_copy(),
+            min: self.min,
+            max: self.max,
+            value: self.value,
+            step: self.step,
+            orientation: self.orientation,
+            is_dragging: self.is_dragging,
+            offset: self.offset,
+            increase: self.increase,
+            decrease: self.decrease,
+            indicator: self.indicator,
+            field: self.field,
+            value_text: self.value_text,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.increase = *node_map.get(&self.increase).unwrap();
+        self.decrease = *node_map.get(&self.decrease).unwrap();
+        self.indicator = *node_map.get(&self.indicator).unwrap();
+        self.value_text = *node_map.get(&self.value_text).unwrap();
+        self.field = *node_map.get(&self.field).unwrap();
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {

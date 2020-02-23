@@ -21,6 +21,7 @@ use crate::{
         color::Color,
     },
     brush::Brush,
+    NodeHandleMapping
 };
 
 pub struct ListBox<M: 'static, C: 'static + Control<M, C>> {
@@ -75,6 +76,18 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ListBoxItem(Self {
+            widget: self.widget.raw_copy(),
+            body: self.body,
+            index: self.index,
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        self.body = *node_map.get(&self.body).unwrap();
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
@@ -145,6 +158,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBox<M, C> {
         &mut self.widget
     }
 
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::ListBox(Self {
+            widget: self.widget.raw_copy(),
+            selected_index: self.selected_index,
+            items: self.items.clone(),
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        for item in self.items.iter_mut() {
+            *item = *node_map.get(item).unwrap();
+        }
+    }
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
         self.items.retain(|i| *i != handle);

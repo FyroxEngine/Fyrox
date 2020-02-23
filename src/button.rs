@@ -25,13 +25,24 @@ use crate::{
         UiMessageData,
         ButtonMessage,
     },
+    NodeHandleMapping,
+    decorator::DecoratorBuilder
 };
-use crate::decorator::DecoratorBuilder;
 
 pub struct Button<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     decorator: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Clone for Button<M, C> {
+    fn clone(&self) -> Self {
+        Self {
+            widget: self.widget.raw_copy(),
+            decorator: self.decorator,
+            content: self.content,
+        }
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> Button<M, C> {
@@ -64,6 +75,17 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
 
     fn widget_mut(&mut self) -> &mut Widget<M, C> {
         &mut self.widget
+    }
+
+    fn raw_copy(&self) -> UINode<M, C> {
+        UINode::Button(self.clone())
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        if let Some(content) = node_map.get(&self.content) {
+            self.content = *content;
+        }
+        self.decorator = *node_map.get(&self.decorator).unwrap();
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
