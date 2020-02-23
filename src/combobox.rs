@@ -1,5 +1,3 @@
-// SEMI-COMPLETE DO NOT USE
-
 use crate::{
     items_control::ItemsControlBuilder,
     node::UINode,
