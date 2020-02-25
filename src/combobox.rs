@@ -60,6 +60,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
+
         match &message.data {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::MouseDown { .. } = msg {
@@ -87,6 +89,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
                     }
                     ItemsControlMessage::SelectionChanged(selection) => {
                         if message.source == self.items_control {
+                            // Copy node from current selection in items controls. This is not
+                            // always suitable because if an item has some visual behaviour
+                            // (change color on mouse hover, change something on click, etc)
+                            // it will be also reflected in selected item.
                             if self.current.is_some() {
                                 ui.remove_node(self.current)
                             }
@@ -101,6 +107,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
                             } else {
                                 self.current = Handle::NONE;
                             }
+                            // Post message again but from name of this combo box so user can catch
+                            // message and respond properly.
+                            self.widget.post_message(UiMessage::new(
+                                    UiMessageData::ItemsControl(
+                                        ItemsControlMessage::SelectionChanged(selection.clone()))))
                         }
                     }
                 }
@@ -112,10 +123,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
 
 impl<M: 'static, C: 'static + Control<M, C>> ComboBox<M, C> {
     pub fn set_items(&mut self, items: Vec<Handle<UINode<M, C>>>) {
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::targeted(
+        self.widget.post_message(UiMessage::targeted(
                 self.items_control,
                 UiMessageData::ItemsControl(
                     ItemsControlMessage::Items(items))))

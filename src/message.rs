@@ -1,3 +1,11 @@
+//! Message and events module contains all possible widget messages and OS events.
+//!
+//! This UI library uses message passing mechanism to communicate with widgets.
+//! This is very simple and more or less reliable mechanism that effectively
+//! decouples widgets from each other. However message passing is very restrictive
+//! by itself and it is mixed together with a bit of imperative style where you
+//! modify widgets directly by calling appropriate method.
+
 use crate::{
     core::{
         math::vec2::Vec2,
@@ -8,13 +16,28 @@ use crate::{
     HorizontalAlignment,
     Thickness,
     brush::Brush,
-    style::Style,
     Control,
+    popup::Placement
 };
-use std::{
-    rc::Rc
-};
-use crate::popup::Placement;
+
+#[derive(Debug)]
+pub enum WidgetProperty {
+    Background(Brush),
+    Foreground(Brush),
+    Name(String),
+    Width(f32),
+    Height(f32),
+    VerticalAlignment(VerticalAlignment),
+    HorizontalAlignment(HorizontalAlignment),
+    MaxSize(Vec2),
+    MinSize(Vec2),
+    Row(usize),
+    Column(usize),
+    Margin(Thickness),
+    HitTestVisibility(bool),
+    Visibility(bool),
+    ZIndex(usize),
+}
 
 #[derive(Debug)]
 pub enum WidgetMessage {
@@ -39,22 +62,7 @@ pub enum WidgetMessage {
     MouseLeave,
     MouseEnter,
     TopMost,
-    Background(Brush),
-    Foreground(Brush),
-    Name(String),
-    Width(f32),
-    Height(f32),
-    VerticalAlignment(VerticalAlignment),
-    HorizontalAlignment(HorizontalAlignment),
-    MaxSize(Vec2),
-    MinSize(Vec2),
-    Row(usize),
-    Column(usize),
-    Margin(Thickness),
-    Style(Rc<Style>),
-    HitTestVisibility(bool),
-    Visibility(bool),
-    ZIndex(usize),
+    Property(WidgetProperty)
 }
 
 #[derive(Debug)]
@@ -117,7 +125,7 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
 }
 
 /// Event is basic communication element that is used to deliver information to UI nodes
-/// or some other places.
+/// or to user code.
 #[derive(Debug)]
 pub struct UiMessage<M: 'static, C: 'static + Control<M, C>> {
     /// Useful flag to check if a message was already handled, this flag does *not* affects

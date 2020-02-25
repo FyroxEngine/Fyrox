@@ -1,7 +1,3 @@
-use std::{
-    rc::Rc,
-    any::Any,
-};
 use crate::{
     core::{
         color::Color,
@@ -11,7 +7,6 @@ use crate::{
             Rect,
         },
     },
-    style::Style,
     border::Border,
     message::{
         UiMessage,
@@ -32,6 +27,19 @@ use crate::{
     NodeHandleMapping,
 };
 
+/// A visual element that changes its appearance by listening specific events.
+/// It can has "pressed", "hover", "selected" or normal appearance:
+///
+/// `Pressed` - enables on mouse down message.
+/// `Selected` - decorator listens for messages from parent ItemContainer and if
+/// its ItemsControl has changed selection, then if current decorator is in subtree
+/// of ItemContainer it will be either selected or not (determined by selection of
+/// parent ItemContainer)
+/// `Hovered` - used when mouse is over decorator.
+/// `Normal` - used when not selected, pressed, hovered.
+///
+/// This element is widely used to provide some generic visual behaviour for various
+/// widgets. For example it used to decorate button, items in items control.
 pub struct Decorator<M: 'static, C: 'static + Control<M, C>> {
     border: Border<M, C>,
     normal_brush: Brush,
@@ -95,14 +103,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
 
     fn update(&mut self, dt: f32) {
         self.border.update(dt)
-    }
-
-    fn set_property(&mut self, name: &str, value: &dyn Any) {
-        self.border.set_property(name, value);
-    }
-
-    fn get_property(&self, name: &str) -> Option<&'_ dyn Any> {
-        self.border.get_property(name)
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
@@ -184,10 +184,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
             }
             _ => {}
         }
-    }
-
-    fn apply_style(&mut self, style: Rc<Style>) {
-        self.border.apply_style(style)
     }
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {

@@ -13,6 +13,7 @@ use crate::{
     },
     UserInterface,
     Control,
+    message::UiMessage
 };
 
 /// Allows user to directly set position and size of a node
@@ -59,6 +60,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
         }
 
         final_size
+    }
+
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
     }
 }
 

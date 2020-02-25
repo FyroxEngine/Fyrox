@@ -79,13 +79,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                         if !self.stays_open {
                             ui.restrict_picking_to(self_handle);
                         }
-                        self.widget
-                            .outgoing_messages
-                            .borrow_mut()
-                            .push_back(
-                                UiMessage::new(
-                                    UiMessageData::Widget(
-                                        WidgetMessage::TopMost)));
+                        self.widget.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::TopMost)));
                         match self.placement {
                             Placement::LeftTop => {
                                 self.widget
@@ -173,22 +167,14 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
     pub fn open(&mut self) {
         if !self.is_open {
             self.widget.invalidate_layout();
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(
-                    UiMessageData::Popup(PopupMessage::Open)));
+            self.widget.post_message(UiMessage::new(UiMessageData::Popup(PopupMessage::Open)));
         }
     }
 
     pub fn close(&mut self) {
         if self.is_open {
             self.widget.invalidate_layout();
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(
-                    UiMessageData::Popup(PopupMessage::Close)));
+            self.widget.post_message(UiMessage::new(UiMessageData::Popup(PopupMessage::Close)));
         }
     }
 
@@ -196,12 +182,7 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
         if self.placement != placement {
             self.placement = placement;
             self.widget.invalidate_layout();
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(
-                    UiMessageData::Popup(
-                        PopupMessage::Placement(placement))));
+            self.widget.post_message(UiMessage::new(UiMessageData::Popup(PopupMessage::Placement(placement))));
         }
     }
 }

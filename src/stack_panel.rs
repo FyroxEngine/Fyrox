@@ -14,6 +14,7 @@ use crate::{
         },
         pool::Handle,
     },
+    message::UiMessage
 };
 
 pub struct StackPanel<M: 'static, C: 'static + Control<M, C>> {
@@ -166,7 +167,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
         Vec2::new(width, height)
     }
 
-    fn remove_ref(&mut self, _: Handle<UINode<M, C>>) {}
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
+    }
 }
 
 pub struct StackPanelBuilder<M: 'static, C: 'static + Control<M, C>> {

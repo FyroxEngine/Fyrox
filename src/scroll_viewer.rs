@@ -15,7 +15,7 @@ use crate::{
         UiMessage,
         ScrollBarMessage,
         WidgetMessage,
-        ScrollViewerMessage
+        ScrollViewerMessage,
     },
     widget::{
         Widget,
@@ -66,10 +66,8 @@ impl<M, C: 'static + Control<M, C>> ScrollViewer<M, C> {
     pub fn set_content(&mut self, content: Handle<UINode<M, C>>) -> &mut Self {
         if self.content != content {
             self.content = content;
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(
+            self.widget.post_message(
+                UiMessage::new(
                     UiMessageData::ScrollViewer(
                         ScrollViewerMessage::Content(content))));
         }
@@ -111,14 +109,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
             let available_size_for_content = ui.node(self.content_presenter).widget().desired_size();
 
             let x_max = (content_size.x - available_size_for_content.x).max(0.0);
-            self.widget.outgoing_messages.borrow_mut()
-                .push_back(UiMessage::targeted(self.h_scroll_bar, UiMessageData::ScrollBar(
-                    ScrollBarMessage::Value(x_max))));
+            self.widget.post_message(
+                UiMessage::targeted(self.h_scroll_bar,
+                                    UiMessageData::ScrollBar(ScrollBarMessage::Value(x_max))));
 
             let y_max = (content_size.y - available_size_for_content.y).max(0.0);
-            self.widget.outgoing_messages.borrow_mut()
-                .push_back(UiMessage::targeted(self.v_scroll_bar, UiMessageData::ScrollBar(
-                    ScrollBarMessage::Value(y_max))));
+            self.widget.post_message(
+                UiMessage::targeted(self.v_scroll_bar,
+                                    UiMessageData::ScrollBar(ScrollBarMessage::Value(y_max))));
         }
 
         size

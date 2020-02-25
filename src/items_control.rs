@@ -21,9 +21,9 @@ use crate::{
         color::Color,
     },
     brush::Brush,
-    NodeHandleMapping
+    NodeHandleMapping,
+    draw::{DrawingContext, CommandTexture, CommandKind}
 };
-use crate::draw::{DrawingContext, CommandTexture, CommandKind};
 
 pub struct ItemsControl<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -52,10 +52,7 @@ impl<M, C: 'static + Control<M, C>> ItemsControl<M, C> {
         if old_value.is_none() && new_index.is_some() ||
             old_value.is_some() && new_index.is_none() ||
             old_value.unwrap() != new_index.unwrap() {
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(
+            self.widget.post_message(UiMessage::new(
                     UiMessageData::ItemsControl(
                         ItemsControlMessage::SelectionChanged(self.selected_index))))
         }
@@ -73,14 +70,9 @@ impl<M, C: 'static + Control<M, C>> ItemsControl<M, C> {
 pub struct ItemContainer<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     index: usize,
-    is_selected: bool,
 }
 
 impl<M, C: 'static + Control<M, C>> ItemContainer<M, C> {
-    pub fn is_selected(&self) -> bool {
-        self.is_selected
-    }
-
     pub fn index(&self) -> usize {
         self.index
     }
@@ -99,7 +91,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
         UINode::ItemContainer(Self {
             widget: self.widget.raw_copy(),
             index: self.index,
-            is_selected: self.is_selected
         })
     }
 
@@ -119,27 +110,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
         match &message.data {
             UiMessageData::Widget(msg) => {
                 if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
-                    if let WidgetMessage::MouseDown { .. } = msg {
+                    if let WidgetMessage::MouseUp { .. } = msg {
                         // Explicitly set selection on parent items control. This will send
                         // SelectionChanged message and all items will react.
                         if let UINode::ItemsControl(items_control) = ui.node_mut(items_control) {
                             items_control.set_selected(Some(self.index));
                         }
-                    }
-                }
-            }
-            UiMessageData::ItemsControl(msg) => {
-                if let ItemsControlMessage::SelectionChanged(new_value) = msg {
-                    if message.source == items_control {
-                        // We know now that selection has changed in parent items control,
-                        // check at which index and keep visual state according to it.
-                        if let Some(new_value) = *new_value {
-                            if new_value == self.index {
-                                self.is_selected = true;
-                                return;
-                            }
-                        }
-                        self.is_selected = false;
                     }
                 }
             }
@@ -178,6 +154,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemsControl<M, C> {
     }
 
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
+
         if let UiMessageData::ItemsControl(msg) = &message.data {
             if let ItemsControlMessage::Items(items) = msg {
                 if message.target == self_handle {
@@ -286,7 +264,6 @@ fn generate_item_containers<M: 'static, C: 'static + Control<M, C>>(ui: &mut Use
                 .with_child(*item)
                 .build(),
             index,
-            is_selected: false
         };
 
         ui.add_node(UINode::ItemContainer(item))

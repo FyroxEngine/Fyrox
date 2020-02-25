@@ -119,12 +119,7 @@ impl<M, C: 'static + Control<M, C>> CheckBox<M, C> {
     pub fn set_checked(&mut self, value: Option<bool>) -> &mut Self {
         if self.checked != value {
             self.checked = value;
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(
-                    UiMessageData::CheckBox(
-                        CheckBoxMessage::Checked(value))));
+            self.widget.post_message(UiMessage::new(UiMessageData::CheckBox(CheckBoxMessage::Checked(value))));
         }
         self
     }

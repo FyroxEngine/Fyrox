@@ -47,10 +47,7 @@ impl<M, C: 'static + Control<M, C>> ListBox<M, C> {
         if old_value.is_none() && new_index.is_some() ||
             old_value.is_some() && new_index.is_none() ||
             old_value.unwrap() != new_index.unwrap() {
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(UiMessageData::ItemsControl(ItemsControlMessage::SelectionChanged(self.selected_index))))
+            self.widget.post_message(UiMessage::new(UiMessageData::ItemsControl(ItemsControlMessage::SelectionChanged(self.selected_index))))
         }
     }
 
@@ -170,6 +167,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBox<M, C> {
         for item in self.items.iter_mut() {
             *item = *node_map.get(item).unwrap();
         }
+    }
+
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
     }
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {

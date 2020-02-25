@@ -1,10 +1,9 @@
-use std::{
-    any::Any,
-    rc::Rc,
-};
 use crate::{
     popup::Popup,
-    message::UiMessage,
+    message::{
+        UiMessage,
+        OsEvent
+    },
     draw::DrawingContext,
     list_box::{
         ListBox,
@@ -27,7 +26,6 @@ use crate::{
     Control,
     UserInterface,
     widget::Widget,
-    style::Style,
     core::{
         math::{
             Rect,
@@ -38,9 +36,8 @@ use crate::{
     combobox::ComboBox,
     items_control::{ItemsControl, ItemContainer},
     decorator::Decorator,
-    NodeHandleMapping
+    NodeHandleMapping,
 };
-use crate::message::OsEvent;
 
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Border(Border<M, C>),
@@ -137,24 +134,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, update, dt)
     }
 
-    fn set_property(&mut self, name: &str, value: &dyn Any) {
-        static_dispatch!(self, set_property, name, value)
-    }
-
-    fn get_property(&self, name: &str) -> Option<&dyn Any> {
-        static_dispatch!(self, get_property, name)
-    }
-
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         static_dispatch!(self, handle_message, self_handle, ui, message)
     }
 
     fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
         static_dispatch!(self, handle_os_event, self_handle, ui, event)
-    }
-
-    fn apply_style(&mut self, style: Rc<Style>) {
-        static_dispatch!(self, apply_style, style)
     }
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {

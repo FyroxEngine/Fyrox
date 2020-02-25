@@ -10,8 +10,10 @@ use crate::{
         Widget,
         WidgetBuilder,
     },
-    UserInterface, Control,
+    UserInterface,
+    Control,
     UINode,
+    message::UiMessage
 };
 
 /// Allows user to scroll content
@@ -85,6 +87,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, 
         }
 
         final_size
+    }
+
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
     }
 }
 

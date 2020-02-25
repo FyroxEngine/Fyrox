@@ -20,6 +20,7 @@ use crate::{
     ttf::Font,
     UserInterface,
     brush::Brush,
+    message::UiMessage
 };
 use std::{
     sync::{
@@ -61,6 +62,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), &self.formatted_text.borrow());
+    }
+
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
     }
 }
 

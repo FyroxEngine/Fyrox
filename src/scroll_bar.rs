@@ -256,10 +256,7 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
         let new_value = math::clampf(value, self.min, self.max);
         if (new_value - old_value).abs() > std::f32::EPSILON {
             self.value = new_value;
-            self.widget
-                .outgoing_messages
-                .borrow_mut()
-                .push_back(UiMessage::new(UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value))));
+            self.widget.post_message(UiMessage::new(UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value))));
             self.widget.invalidate_layout();
         }
         self

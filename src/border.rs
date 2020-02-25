@@ -5,6 +5,7 @@ use crate::{
             vec2::Vec2,
             Rect,
         },
+        color::Color
     },
     UINode,
     draw::{
@@ -19,12 +20,9 @@ use crate::{
     },
     Control,
     draw::CommandTexture,
+    brush::Brush,
+    message::UiMessage,
 };
-use std::{
-    any::Any,
-};
-use rg3d_core::color::Color;
-use crate::brush::Brush;
 
 pub struct Border<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -104,25 +102,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
         drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
     }
 
-    fn set_property(&mut self, name: &str, value: &dyn Any) {
-        if Self::STROKE_THICKNESS == name {
-            if let Some(value) = value.downcast_ref() {
-                self.stroke_thickness = *value;
-            }
-        }
-    }
-
-    fn get_property(&self, name: &str) -> Option<&dyn Any> {
-        match name {
-            Self::STROKE_THICKNESS => Some(&self.stroke_thickness),
-            _ => None
-        }
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
     }
 }
 
 impl<M, C: 'static + Control<M, C>> Border<M, C> {
-    pub const STROKE_THICKNESS: &'static str = "StrokeThickness";
-
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -158,22 +143,14 @@ impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
     }
 
     pub fn build_node(mut self) -> Border<M, C> {
-        let style = self.widget_builder.style.clone();
-
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(100, 100, 100)));
         }
 
-        let mut border = Border {
+        Border {
             widget: self.widget_builder.build(),
             stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
-        };
-
-        if let Some(style) = style {
-            border.apply_style(style);
         }
-
-        border
     }
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {

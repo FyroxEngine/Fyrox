@@ -12,14 +12,14 @@ use crate::{
     Thickness,
     UserInterface,
     UINode,
-    message::UiMessage,
-    style::Style,
     Control,
     brush::Brush,
     message::{
         UiMessageData,
         WidgetMessage,
-    },
+        UiMessage,
+        WidgetProperty
+    }
 };
 use std::{
     cell::{
@@ -27,8 +27,6 @@ use std::{
         Cell,
     },
     collections::VecDeque,
-    any::Any,
-    rc::Rc,
 };
 
 pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
@@ -74,9 +72,8 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) is_mouse_directly_over: bool,
     measure_valid: Cell<bool>,
     arrange_valid: Cell<bool>,
-    pub(in crate) outgoing_messages: RefCell<VecDeque<UiMessage<M, C>>>,
+    outgoing_messages: RefCell<VecDeque<UiMessage<M, C>>>,
     hit_test_visibility: bool,
-    pub(in crate) style: Option<Rc<Style>>,
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
     z_index: usize,
@@ -89,30 +86,26 @@ impl<M, C: 'static + Control<M, C>> Default for Widget<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Widget<M, C> {
-    pub const WIDTH: &'static str = "Width";
-    pub const HEIGHT: &'static str = "Height";
-    pub const VERTICAL_ALIGNMENT: &'static str = "VerticalAlignment";
-    pub const HORIZONTAL_ALIGNMENT: &'static str = "HorizontalAlignment";
-    pub const MARGIN: &'static str = "Margin";
-    pub const ROW: &'static str = "Row";
-    pub const COLUMN: &'static str = "Column";
-    pub const BACKGROUND: &'static str = "Background";
-    pub const FOREGROUND: &'static str = "Foreground";
-    pub const VISIBILITY: &'static str = "Visibility";
-    pub const MIN_SIZE: &'static str = "MinSize";
-    pub const MAX_SIZE: &'static str = "MaxSize";
-
     #[inline]
-    fn post_property_changed_message(&self, msg: WidgetMessage) {
+    pub fn post_message(&self, message: UiMessage<M, C>) {
         self.outgoing_messages
             .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::Widget(msg)));
+            .push_back(message)
+    }
+
+    pub(in crate) fn pop_message(&self) -> Option<UiMessage<M, C>> {
+        self.outgoing_messages.borrow_mut().pop_front()
+    }
+
+    #[inline]
+    fn post_property_changed_message(&self, property: WidgetProperty) {
+        self.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::Property(property))));
     }
 
     #[inline]
     pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
         self.name = name.as_ref().to_owned();
-        self.post_property_changed_message(WidgetMessage::Name(self.name.clone()));
+        self.post_property_changed_message(WidgetProperty::Name(self.name.clone()));
         self
     }
 
@@ -131,7 +124,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.min_size != value {
             self.min_size = value;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::MinSize(value));
+            self.post_property_changed_message(WidgetProperty::MinSize(value));
         }
         self
     }
@@ -152,7 +145,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.max_size != value {
             self.max_size = value;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::MaxSize(value));
+            self.post_property_changed_message(WidgetProperty::MaxSize(value));
         }
         self
     }
@@ -167,7 +160,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.z_index != z_index {
             self.z_index = z_index;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::ZIndex(z_index));
+            self.post_property_changed_message(WidgetProperty::ZIndex(z_index));
         }
         self
     }
@@ -180,7 +173,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn set_background(&mut self, brush: Brush) -> &mut Self {
         self.background = brush.clone();
-        self.post_property_changed_message(WidgetMessage::Background(brush));
+        self.post_property_changed_message(WidgetProperty::Background(brush));
         self
     }
 
@@ -192,7 +185,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn set_foreground(&mut self, brush: Brush) -> &mut Self {
         self.foreground = brush.clone();
-        self.post_property_changed_message(WidgetMessage::Foreground(brush));
+        self.post_property_changed_message(WidgetProperty::Foreground(brush));
         self
     }
 
@@ -206,7 +199,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.width.get() != width {
             self.width.set(width);
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Width(width));
+            self.post_property_changed_message(WidgetProperty::Width(width));
         }
         self
     }
@@ -216,7 +209,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.width.get() != width {
             self.width.set(width);
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Width(width));
+            self.post_property_changed_message(WidgetProperty::Width(width));
         }
     }
 
@@ -230,7 +223,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.height.get() != height {
             self.height.set(height);
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Height(height));
+            self.post_property_changed_message(WidgetProperty::Height(height));
         }
         self
     }
@@ -240,7 +233,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.height.get() != height {
             self.height.set(height);
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Height(height));
+            self.post_property_changed_message(WidgetProperty::Height(height));
         }
     }
 
@@ -296,10 +289,9 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             arrange_valid: Cell::new(false),
             outgoing_messages: Default::default(),
             hit_test_visibility: self.hit_test_visibility,
-            style: self.style.clone(),
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
-            z_index: self.z_index
+            z_index: self.z_index,
         }
     }
 
@@ -313,7 +305,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.vertical_alignment != vertical_alignment {
             self.vertical_alignment = vertical_alignment;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::VerticalAlignment(vertical_alignment));
+            self.post_property_changed_message(WidgetProperty::VerticalAlignment(vertical_alignment));
         }
         self
     }
@@ -327,7 +319,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     pub fn set_horizontal_alignment(&mut self, horizontal_alignment: HorizontalAlignment) -> &mut Self {
         self.horizontal_alignment = horizontal_alignment;
         self.invalidate_layout();
-        self.post_property_changed_message(WidgetMessage::HorizontalAlignment(horizontal_alignment));
+        self.post_property_changed_message(WidgetProperty::HorizontalAlignment(horizontal_alignment));
         self
     }
 
@@ -341,7 +333,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.column != column {
             self.column = column;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Column(column));
+            self.post_property_changed_message(WidgetProperty::Column(column));
         }
         self
     }
@@ -351,7 +343,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.margin != margin {
             self.margin = margin;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Margin(margin));
+            self.post_property_changed_message(WidgetProperty::Margin(margin));
         }
         self
     }
@@ -406,7 +398,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.row != row {
             self.row = row;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Row(row));
+            self.post_property_changed_message(WidgetProperty::Row(row));
         }
         self
     }
@@ -436,7 +428,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         if self.visibility != visibility {
             self.visibility = visibility;
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetMessage::Visibility(visibility));
+            self.post_property_changed_message(WidgetProperty::Visibility(visibility));
         }
         self
     }
@@ -444,32 +436,6 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn visibility(&self) -> bool {
         self.visibility
-    }
-
-    #[inline]
-    pub fn set_style(&mut self, style: Rc<Style>) -> &mut Self {
-        self.style = Some(style.clone());
-        self.invalidate_layout();
-        self.post_property_changed_message(WidgetMessage::Style(style));
-        self
-    }
-
-    #[inline]
-    pub fn apply_style(&mut self, style: Rc<Style>) {
-        // Apply base style first.
-        if let Some(base_style) = style.base_style() {
-            self.apply_style(base_style);
-        }
-
-        // Then apply current.
-        for setter in style.setters() {
-            self.set_property(setter.name(), setter.value());
-        }
-    }
-
-    #[inline]
-    pub fn style(&self) -> Option<Rc<Style>> {
-        self.style.clone()
     }
 
     pub fn has_descendant(&self, node_handle: Handle<UINode<M, C>>, ui: &UserInterface<M, C>) -> bool {
@@ -500,154 +466,85 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         Handle::NONE
     }
 
-    pub fn set_property(&mut self, name: &str, value: &dyn Any) {
-        match name {
-            Self::HORIZONTAL_ALIGNMENT => if let Some(value) = value.downcast_ref() {
-                self.horizontal_alignment = *value
-            },
-            Self::VERTICAL_ALIGNMENT => if let Some(value) = value.downcast_ref() {
-                self.vertical_alignment = *value
-            },
-            Self::WIDTH =>
-                if let Some(value) = value.downcast_ref() {
-                    self.width.set(*value)
-                } else if let Some(value) = value.downcast_ref::<f64>() {
-                    self.width.set(*value as f32)
-                },
-            Self::HEIGHT =>
-                if let Some(value) = value.downcast_ref() {
-                    self.height.set(*value)
-                } else if let Some(value) = value.downcast_ref::<f64>() {
-                    self.height.set(*value as f32)
-                },
-            Self::MARGIN => if let Some(value) = value.downcast_ref() {
-                self.margin = *value
-            },
-            Self::ROW => if let Some(value) = value.downcast_ref() {
-                self.row = *value
-            },
-            Self::COLUMN => if let Some(value) = value.downcast_ref() {
-                self.column = *value
-            },
-            Self::BACKGROUND => if let Some(value) = value.downcast_ref::<Brush>() {
-                self.background = value.clone()
-            },
-            Self::FOREGROUND => if let Some(value) = value.downcast_ref::<Brush>() {
-                self.foreground = value.clone()
-            }
-            Self::VISIBILITY => if let Some(value) = value.downcast_ref() {
-                self.visibility = *value
-            },
-            Self::MIN_SIZE => if let Some(value) = value.downcast_ref() {
-                self.min_size = *value
-            },
-            Self::MAX_SIZE => if let Some(value) = value.downcast_ref() {
-                self.max_size = *value
-            },
-            _ => ()
-        }
-        self.invalidate_layout();
-    }
-
-    pub fn get_property(&self, name: &str) -> Option<&'_ dyn Any> {
-        match name {
-            Self::HORIZONTAL_ALIGNMENT => Some(&self.horizontal_alignment),
-            Self::VERTICAL_ALIGNMENT => Some(&self.vertical_alignment),
-            Self::WIDTH => Some(&self.width),
-            Self::HEIGHT => Some(&self.height),
-            Self::MARGIN => Some(&self.margin),
-            Self::ROW => Some(&self.row),
-            Self::COLUMN => Some(&self.column),
-            Self::VISIBILITY => Some(&self.visibility),
-            Self::BACKGROUND => Some(&self.background),
-            Self::FOREGROUND => Some(&self.foreground),
-            Self::MIN_SIZE => Some(&self.min_size),
-            Self::MAX_SIZE => Some(&self.max_size),
-            _ => None,
-        }
-    }
-
     pub fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
         if msg.target == self_handle {
             if let UiMessageData::Widget(msg) = &msg.data {
-                match msg {
-                    WidgetMessage::Background(background) => {
-                        self.background = background.clone()
-                    }
-                    WidgetMessage::Foreground(foreground) => {
-                        self.foreground = foreground.clone()
-                    }
-                    WidgetMessage::Name(name) => {
-                        self.name = name.clone()
-                    }
-                    WidgetMessage::Width(width) => {
-                        if self.width.get() != *width {
-                            self.width.set(*width);
-                            self.invalidate_layout();
+                if let WidgetMessage::Property(property) = msg {
+                    match property {
+                        WidgetProperty::Background(background) => {
+                            self.background = background.clone()
                         }
-                    }
-                    WidgetMessage::Height(height) => {
-                        if self.height.get() != *height {
-                            self.height.set(*height);
-                            self.invalidate_layout();
+                        WidgetProperty::Foreground(foreground) => {
+                            self.foreground = foreground.clone()
                         }
-                    }
-                    WidgetMessage::VerticalAlignment(vertical_alignment) => {
-                        if self.vertical_alignment != *vertical_alignment {
-                            self.vertical_alignment = *vertical_alignment;
-                            self.invalidate_layout();
+                        WidgetProperty::Name(name) => {
+                            self.name = name.clone()
                         }
-                    }
-                    WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
-                        if self.horizontal_alignment != *horizontal_alignment {
-                            self.horizontal_alignment = *horizontal_alignment;
-                            self.invalidate_layout();
+                        WidgetProperty::Width(width) => {
+                            if self.width.get() != *width {
+                                self.width.set(*width);
+                                self.invalidate_layout();
+                            }
                         }
-                    }
-                    WidgetMessage::MaxSize(max_size) => {
-                        if self.max_size != *max_size {
-                            self.max_size = *max_size;
-                            self.invalidate_layout();
+                        WidgetProperty::Height(height) => {
+                            if self.height.get() != *height {
+                                self.height.set(*height);
+                                self.invalidate_layout();
+                            }
                         }
-                    }
-                    WidgetMessage::MinSize(min_size) => {
-                        if self.min_size != *min_size {
-                            self.min_size = *min_size;
-                            self.invalidate_layout();
+                        WidgetProperty::VerticalAlignment(vertical_alignment) => {
+                            if self.vertical_alignment != *vertical_alignment {
+                                self.vertical_alignment = *vertical_alignment;
+                                self.invalidate_layout();
+                            }
                         }
-                    }
-                    WidgetMessage::Row(row) => {
-                        if self.row != *row {
-                            self.row = *row;
-                            self.invalidate_layout();
+                        WidgetProperty::HorizontalAlignment(horizontal_alignment) => {
+                            if self.horizontal_alignment != *horizontal_alignment {
+                                self.horizontal_alignment = *horizontal_alignment;
+                                self.invalidate_layout();
+                            }
                         }
-                    }
-                    WidgetMessage::Column(column) => {
-                        if self.column != *column {
-                            self.column = *column;
-                            self.invalidate_layout();
+                        WidgetProperty::MaxSize(max_size) => {
+                            if self.max_size != *max_size {
+                                self.max_size = *max_size;
+                                self.invalidate_layout();
+                            }
                         }
-                    }
-                    WidgetMessage::Margin(margin) => {
-                        if self.margin != *margin {
-                            self.margin = *margin;
-                            self.invalidate_layout();
+                        WidgetProperty::MinSize(min_size) => {
+                            if self.min_size != *min_size {
+                                self.min_size = *min_size;
+                                self.invalidate_layout();
+                            }
                         }
-                    }
-                    WidgetMessage::HitTestVisibility(hit_test_visibility) => {
-                        self.hit_test_visibility = *hit_test_visibility
-                    }
-                    WidgetMessage::Visibility(visibility) => {
-                        if self.visibility != *visibility {
-                            self.visibility = *visibility;
-                            self.invalidate_layout();
+                        WidgetProperty::Row(row) => {
+                            if self.row != *row {
+                                self.row = *row;
+                                self.invalidate_layout();
+                            }
                         }
+                        WidgetProperty::Column(column) => {
+                            if self.column != *column {
+                                self.column = *column;
+                                self.invalidate_layout();
+                            }
+                        }
+                        WidgetProperty::Margin(margin) => {
+                            if self.margin != *margin {
+                                self.margin = *margin;
+                                self.invalidate_layout();
+                            }
+                        }
+                        WidgetProperty::HitTestVisibility(hit_test_visibility) => {
+                            self.hit_test_visibility = *hit_test_visibility
+                        }
+                        WidgetProperty::Visibility(visibility) => {
+                            if self.visibility != *visibility {
+                                self.visibility = *visibility;
+                                self.invalidate_layout();
+                            }
+                        }
+                        _ => ()
                     }
-                    WidgetMessage::Style(style) => {
-                        self.style = Some(style.clone());
-                        //self.apply_style(style.clone())
-                    }
-                    _ => ()
                 }
             }
         }
@@ -753,7 +650,6 @@ pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub is_hit_test_visible: bool,
     pub visibility: bool,
     pub z_index: usize,
-    pub style: Option<Rc<Style>>,
 }
 
 impl<M, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -781,7 +677,6 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             children: Vec::new(),
             is_hit_test_visible: true,
             visibility: true,
-            style: None,
             z_index: 0,
         }
     }
@@ -846,11 +741,6 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_style(mut self, style: Rc<Style>) -> Self {
-        self.style = Some(style);
-        self
-    }
-
     pub fn with_z_index(mut self, z_index: usize) -> Self {
         self.z_index = z_index;
         self
@@ -886,7 +776,7 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
     }
 
     pub fn build(self) -> Widget<M, C> {
-        let mut widget = Widget {
+        Widget {
             name: self.name,
             desired_local_position: Cell::new(self.desired_position),
             width: Cell::new(self.width),
@@ -896,7 +786,7 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             actual_local_position: Cell::new(Vec2::ZERO),
             actual_size: Cell::new(Vec2::ZERO),
             min_size: self.min_size.unwrap_or(Vec2::ZERO),
-            max_size: self.max_size.unwrap_or_else(||Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
+            max_size: self.max_size.unwrap_or_else(|| Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
             background: self.background.unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
             foreground: self.foreground.unwrap_or_else(|| Brush::Solid(Color::WHITE)),
             row: self.row,
@@ -915,16 +805,9 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             arrange_valid: Cell::new(false),
             outgoing_messages: Default::default(),
             hit_test_visibility: self.is_hit_test_visible,
-            style: None,
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
-        };
-
-        if let Some(style) = self.style {
-            widget.apply_style(style);
         }
-
-        widget
     }
 }

@@ -10,11 +10,14 @@ use crate::{
         DrawingContext,
         CommandKind,
     },
-    widget::WidgetBuilder,
+    widget::{
+        WidgetBuilder,
+        Widget
+    },
     Control,
     draw::{Texture, CommandTexture},
     UserInterface,
-    widget::Widget
+    message::UiMessage
 };
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
@@ -64,6 +67,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
             .as_ref()
             .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), texture);
+    }
+
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_message(self_handle, ui, message);
     }
 }
 

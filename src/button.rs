@@ -98,9 +98,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
                         WidgetMessage::MouseUp { .. } => {
                             let widget = self.widget_mut();
 
-                            widget.outgoing_messages
-                                .borrow_mut()
-                                .push_back(UiMessage::new(UiMessageData::Button(ButtonMessage::Click)));
+                            widget.post_message(UiMessage::new(UiMessageData::Button(ButtonMessage::Click)));
 
                             ui.release_mouse_capture();
                         }

@@ -1,4 +1,4 @@
-//! Extendable UI library.
+//! Extendable, retained mode, graphics API agnostic UI library.
 //!
 //! See examples here - https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs
 
@@ -28,7 +28,6 @@ pub mod list_box;
 pub mod stack_panel;
 pub mod text_box;
 pub mod check_box;
-pub mod style;
 pub mod tab_control;
 pub mod ttf;
 pub mod brush;
@@ -40,12 +39,11 @@ pub mod decorator;
 
 use std::{
     collections::VecDeque,
-    any::Any,
     sync::{
         Arc,
         Mutex,
     },
-    rc::Rc,
+    collections::HashMap,
 };
 use crate::{
     core::{
@@ -64,20 +62,20 @@ use crate::{
         CommandKind,
     },
     canvas::Canvas,
-    message::{
-        UiMessage,
-        UiMessageData,
-    },
-    style::Style,
     widget::Widget,
     ttf::Font,
-    message::{OsEvent, ButtonState},
+    message::{
+        OsEvent,
+        ButtonState,
+        UiMessage,
+        UiMessageData,
+        WidgetMessage,
+        WidgetProperty
+    },
     brush::Brush,
     draw::CommandTexture,
-    message::WidgetMessage,
     node::UINode,
 };
-use std::collections::HashMap;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -339,40 +337,19 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>> {
 
     fn update(&mut self, _dt: f32) {}
 
-    fn set_property(&mut self, _name: &str, _value: &dyn Any) {}
-
-    fn get_property(&self, _name: &str) -> Option<&'_ dyn Any> {
-        None
-    }
-
-    /// Performs event-specific actions.
+    /// Performs event-specific actions. Must call widget_mut().handle_message()!
     ///
     /// # Notes
     ///
     /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
     /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
     /// to check if event came from/for this node or to capture input on node.
-    fn handle_message(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _message: &mut UiMessage<M, C>) {}
+    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>);
 
     /// Provides a way to respond to OS specific events. Can be useful to detect if a key or mouse
     /// button was pressed. This method significantly differs from `handle_message` because os events
     /// are not dispatched - they'll be passed to this method in any case.
     fn handle_os_event(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _event: &OsEvent) {}
-
-    fn apply_style(&mut self, style: Rc<Style>) {
-        // Apply base style first.
-        if let Some(base_style) = style.base_style() {
-            self.apply_style(base_style);
-        }
-
-        // Remember last applied style.
-        self.widget_mut().set_style(style.clone());
-
-        // Then apply current.
-        for setter in style.setters() {
-            self.set_property(setter.name(), setter.value());
-        }
-    }
 
     /// Called when a node is deleted from container thus giving a chance to remove dangling
     /// handles which may cause panic.
@@ -811,7 +788,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn poll_message(&mut self) -> Option<UiMessage<M, C>> {
         // Gather events from nodes.
         for (handle, node) in self.nodes.pair_iter_mut() {
-            while let Some(mut outgoing_message) = node.widget_mut().outgoing_messages.borrow_mut().pop_front() {
+            while let Some(mut outgoing_message) = node.widget_mut().pop_message() {
                 outgoing_message.source = handle;
                 self.messages.push_back(outgoing_message)
             }
@@ -834,27 +811,29 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
             if let UiMessageData::Widget(msg) = &message.data {
                 match msg {
-                    // Keep order of children of a parent node of a node that changed z-index
-                    // the same as z-index of children.
-                    WidgetMessage::ZIndex(_) => {
-                        let parent = self.node(message.source).widget().parent();
-                        if parent.is_some() {
-                            self.stack.clear();
-                            for child in self.nodes.borrow(parent).widget().children() {
-                                self.stack.push(*child);
-                            }
+                    WidgetMessage::Property(property) => {
+                        // Keep order of children of a parent node of a node that changed z-index
+                        // the same as z-index of children.
+                        if let WidgetProperty::ZIndex(_) = property {
+                            let parent = self.node(message.source).widget().parent();
+                            if parent.is_some() {
+                                self.stack.clear();
+                                for child in self.nodes.borrow(parent).widget().children() {
+                                    self.stack.push(*child);
+                                }
 
-                            let nodes = &mut self.nodes;
-                            self.stack.sort_by(|a, b| {
-                                let z_a = nodes.borrow(*a).widget().z_index();
-                                let z_b = nodes.borrow(*b).widget().z_index();
-                                z_a.cmp(&z_b)
-                            });
+                                let nodes = &mut self.nodes;
+                                self.stack.sort_by(|a, b| {
+                                    let z_a = nodes.borrow(*a).widget().z_index();
+                                    let z_b = nodes.borrow(*b).widget().z_index();
+                                    z_a.cmp(&z_b)
+                                });
 
-                            let parent = self.nodes.borrow_mut(parent).widget_mut();
-                            parent.clear_children();
-                            for child in self.stack.iter() {
-                                parent.add_child(*child);
+                                let parent = self.nodes.borrow_mut(parent).widget_mut();
+                                parent.clear_children();
+                                for child in self.stack.iter() {
+                                    parent.add_child(*child);
+                                }
                             }
                         }
                     }

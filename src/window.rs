@@ -24,7 +24,7 @@ use crate::{
     core::{
         pool::Handle,
         math::vec2::Vec2,
-        color::Color
+        color::Color,
     },
     message::{
         WidgetMessage,
@@ -33,9 +33,9 @@ use crate::{
     },
     brush::{
         Brush,
-        GradientPoint
+        GradientPoint,
     },
-    NodeHandleMapping
+    NodeHandleMapping,
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -96,10 +96,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                     && message.source != self.close_button && message.source != self.minimize_button {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
-                            self.widget.outgoing_messages.borrow_mut().push_back(
-                                UiMessage::new(
-                                    UiMessageData::Widget(
-                                        WidgetMessage::TopMost)));
+                            self.widget.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::TopMost)));
                             ui.capture_mouse(self.header);
                             let initial_position = self.widget().actual_local_position();
                             self.mouse_click_pos = *pos;
@@ -222,42 +219,27 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
 
     pub fn close(&mut self) {
         self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::Window(WindowMessage::Closed)));
+        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::Closed)));
     }
 
     pub fn open(&mut self) {
         self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::Window(WindowMessage::Opened)));
+        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::Opened)));
     }
 
     pub fn minimize(&mut self, state: bool) {
         self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::Window(WindowMessage::Minimized(state))));
+        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::Minimized(state))));
     }
 
     pub fn set_can_close(&mut self, state: bool) {
         self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::Window(WindowMessage::CanClose(state))));
+        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::CanClose(state))));
     }
 
     pub fn set_can_minimize(&mut self, state: bool) {
         self.widget.invalidate_layout();
-        self.widget
-            .outgoing_messages
-            .borrow_mut()
-            .push_back(UiMessage::new(UiMessageData::Window(WindowMessage::CanMinimize(state))));
+        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::CanMinimize(state))));
     }
 }
 
@@ -270,7 +252,7 @@ pub struct WindowBuilder<'a, M: 'static, C: 'static + Control<M, C>> {
     open: bool,
     scroll_viewer: Option<Handle<UINode<M, C>>>,
     close_button: Option<Handle<UINode<M, C>>>,
-    minimize_button: Option<Handle<UINode<M, C>>>
+    minimize_button: Option<Handle<UINode<M, C>>>,
 }
 
 /// Window title can be either text or node.
@@ -296,7 +278,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             open: true,
             scroll_viewer: None,
             close_button: None,
-            minimize_button: None
+            minimize_button: None,
         }
     }
 
@@ -347,7 +329,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
         let header = BorderBuilder::new(WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Stretch)
             .with_height(30.0)
-            .with_background( Brush::LinearGradient {
+            .with_background(Brush::LinearGradient {
                 from: Vec2::new(0.5, 0.0),
                 to: Vec2::new(0.5, 1.0),
                 stops: vec![
