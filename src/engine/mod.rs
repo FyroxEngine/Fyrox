@@ -35,9 +35,11 @@ use crate::{
     event_loop::EventLoop,
     gui::Control
 };
-use std::sync::{Arc, Mutex};
-use std::time;
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time,
+    time::Duration
+};
 
 pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
     context: glutin::WindowedContext<PossiblyCurrent>,
