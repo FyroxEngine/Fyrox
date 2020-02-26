@@ -2,8 +2,10 @@ use std::{
     sync::Arc,
 };
 use crate::{
+    brush::Brush,
     core::{
-        pool::Handle
+        pool::Handle,
+        color::Color
     },
     UINode,
     draw::{
@@ -17,7 +19,7 @@ use crate::{
     Control,
     draw::{Texture, CommandTexture},
     UserInterface,
-    message::UiMessage
+    message::UiMessage,
 };
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
@@ -97,7 +99,11 @@ impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        if self.widget_builder.background.is_none() {
+            self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
+        }
+
         let image = Image {
             widget: self.widget_builder.build(),
             texture: self.texture,

@@ -37,6 +37,7 @@ pub enum WidgetProperty {
     HitTestVisibility(bool),
     Visibility(bool),
     ZIndex(usize),
+    DesiredPosition(Vec2)
 }
 
 #[derive(Debug)]

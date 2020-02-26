@@ -543,6 +543,12 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
                                 self.invalidate_layout();
                             }
                         }
+                        WidgetProperty::DesiredPosition(pos) => {
+                            if self.desired_local_position.get() != *pos {
+                                self.desired_local_position.set(*pos);
+                                self.invalidate_layout();
+                            }
+                        }
                         _ => ()
                     }
                 }
