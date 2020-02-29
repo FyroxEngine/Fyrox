@@ -533,6 +533,14 @@ impl Animation {
         }
     }
 
+    pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
+        for track in self.tracks.iter_mut() {
+            if track.node == handle {
+                track.enabled = enabled;
+            }
+        }
+    }
+
     pub(in crate) fn resolve(&mut self, graph: &Graph) {
         // Copy key frames from resource for each animation. This is needed because we
         // do not store key frames in save file, but just keep reference to resource
