@@ -111,7 +111,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
                             // message and respond properly.
                             self.widget.post_message(UiMessage::new(
                                     UiMessageData::ItemsControl(
-                                        ItemsControlMessage::SelectionChanged(selection.clone()))))
+                                        ItemsControlMessage::SelectionChanged(*selection))))
                         }
                     }
                 }

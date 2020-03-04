@@ -12,7 +12,7 @@ use crate::{
         PopupMessage,
         WidgetMessage,
         OsEvent,
-        ButtonState
+        ButtonState,
     },
     core::{
         pool::Handle,
@@ -151,12 +151,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
 
     fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
         if let OsEvent::MouseInput { state, .. } = event {
-            if *state == ButtonState::Pressed {
-                if ui.picking_restricted_node() == self_handle && self.is_open {
-                    let pos = ui.cursor_position();
-                    if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
-                        self.close();
-                    }
+            if *state == ButtonState::Pressed && ui.picking_restricted_node() == self_handle && self.is_open {
+                let pos = ui.cursor_position();
+                if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
+                    self.close();
                 }
             }
         }
