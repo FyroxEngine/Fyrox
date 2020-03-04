@@ -58,6 +58,9 @@ use crate::{
     },
     utils::log::Log,
 };
+use rg3d_core::math::Rect;
+use std::collections::HashMap;
+use rg3d_core::pool::Handle;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -192,7 +195,6 @@ impl Default for Statistics {
 
 pub struct Renderer {
     deferred_light_renderer: DeferredLightRenderer,
-    gbuffer: GBuffer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
     particle_system_renderer: ParticleSystemRenderer,
@@ -209,6 +211,45 @@ pub struct Renderer {
     ambient_color: Color,
     quality_settings: QualitySettings,
     pub debug_renderer: DebugRenderer,
+    gl_state: GlState,
+    gbuffers: HashMap<Handle<Node>, GBuffer>,
+}
+
+pub struct GlState {
+    viewports: Vec<Rect<i32>>
+}
+
+impl GlState {
+    pub fn new() -> Self {
+        let mut viewports = Vec::new();
+        unsafe {
+            let mut viewport = [0; 4];
+            gl::GetIntegerv(gl::VIEWPORT, viewport.as_mut_ptr());
+            viewports.push(Rect::new(viewport[0], viewport[1], viewport[2], viewport[3]));
+        }
+        Self {
+            viewports
+        }
+    }
+
+    pub fn push_viewport(&mut self, viewport: Rect<i32>) {
+        self.viewports.push(viewport);
+        unsafe {
+            gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
+        }
+    }
+
+    pub fn pop_viewport(&mut self) {
+        self.viewports.pop();
+        unsafe {
+            let viewport = self.viewports.last().expect("Viewport stack underflow!");
+            gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
+        }
+    }
+
+    pub fn validate(&self) {
+        assert_eq!(self.viewports.len(), 1);
+    }
 }
 
 impl Renderer {
@@ -223,7 +264,6 @@ impl Renderer {
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&settings)?,
             flat_shader: FlatShader::new()?,
-            gbuffer: GBuffer::new(frame_size)?,
             statistics: Statistics::default(),
             sprite_renderer: SpriteRenderer::new()?,
             white_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
@@ -238,6 +278,8 @@ impl Renderer {
             ambient_color: Color::opaque(100, 100, 100),
             quality_settings: settings,
             debug_renderer: DebugRenderer::new()?,
+            gl_state: GlState::new(),
+            gbuffers: Default::default(),
         })
     }
 
@@ -269,7 +311,8 @@ impl Renderer {
     /// Sets new frame size, should be called when received a Resize event.
     pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), RendererError> {
         self.frame_size = new_size;
-        self.gbuffer = GBuffer::new(new_size)?;
+        // Invalidate all g-buffers.
+        self.gbuffers.clear();
         Ok(())
     }
 
@@ -293,78 +336,104 @@ impl Renderer {
     ) -> Result<(), RendererError> {
         self.statistics.begin_frame();
 
-        let frame_width = self.frame_size.0 as f32;
-        let frame_height = self.frame_size.1 as f32;
-        let frame_matrix =
-            Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0) *
-                Mat4::scale(Vec3::new(frame_width, frame_height, 0.0));
-
-        // Render scenes into g-buffer.
-        for scene in scenes.iter() {
-            let graph = &scene.graph;
-
-            // Prepare for render - fill lists of nodes participating in rendering.
-            let camera = match graph.linear_iter().find(|node| node.is_camera()) {
-                Some(camera) => camera,
-                None => continue
-            };
-
-            let camera = match camera {
-                Node::Camera(camera) => camera,
-                _ => continue
-            };
-
-            self.statistics += self.gbuffer.fill(
-                frame_width,
-                frame_height,
-                graph,
-                camera,
-                &self.white_dummy,
-                &self.normal_dummy,
-            );
-
-            self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
-                frame_size: Vec2::new(frame_width, frame_height),
-                scene,
-                camera,
-                gbuffer: &self.gbuffer,
-                white_dummy: &self.white_dummy,
-                ambient_color: self.ambient_color,
-                settings: &self.quality_settings,
-            });
-        }
-
-        self.statistics += self.particle_system_renderer.render(
-            scenes,
-            &self.white_dummy,
-            frame_width,
-            frame_height,
-            &self.gbuffer,
-        );
-
-        self.statistics += self.sprite_renderer.render(scenes, &self.white_dummy);
-
-        self.statistics += self.debug_renderer.render(scenes);
-
+        let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
+        self.gl_state.push_viewport(window_viewport);
         unsafe {
-            // Finally render everything into back buffer.
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-            gl::Viewport(0, 0, frame_width as i32, frame_height as i32);
             gl::StencilMask(0xFF);
             gl::DepthMask(gl::TRUE);
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }
-        self.flat_shader.bind();
-        self.flat_shader.set_wvp_matrix(&frame_matrix);
-        self.flat_shader.set_diffuse_texture(0);
 
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.gbuffer.frame_texture);
+        let frame_width = self.frame_size.0 as f32;
+        let frame_height = self.frame_size.1 as f32;
+
+        for scene in scenes.iter() {
+            let graph = &scene.graph;
+
+            for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
+                if let Node::Camera(camera) = node { Some((handle, camera)) } else { None }
+            }) {
+                if !camera.is_enabled() {
+                    continue;
+                }
+
+                let viewport = camera.viewport_pixels(Vec2::new(frame_width, frame_height));
+
+                self.gl_state.push_viewport(viewport);
+
+                let gbuffer = self.gbuffers
+                    .entry(camera_handle)
+                    .or_insert_with(|| GBuffer::new(viewport.w, viewport.h).unwrap());
+
+                if gbuffer.width != viewport.w || gbuffer.height != viewport.h {
+                    *gbuffer = GBuffer::new(viewport.w, viewport.h)?;
+                }
+
+                self.statistics += gbuffer.fill(
+                    graph,
+                    camera,
+                    &self.white_dummy,
+                    &self.normal_dummy,
+                    &mut self.gl_state,
+                );
+
+                self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
+                    scene,
+                    camera,
+                    gbuffer,
+                    white_dummy: &self.white_dummy,
+                    ambient_color: self.ambient_color,
+                    settings: &self.quality_settings,
+                    gl_state: &mut self.gl_state,
+                });
+
+                self.statistics += self.particle_system_renderer.render(
+                    graph,
+                    camera,
+                    &self.white_dummy,
+                    frame_width,
+                    frame_height,
+                    gbuffer,
+                    &mut self.gl_state,
+                );
+
+                self.statistics += self.sprite_renderer.render(
+                    graph,
+                    camera,
+                    &self.white_dummy,
+                    gbuffer,
+                    &mut self.gl_state,
+                );
+
+                self.statistics += self.debug_renderer.render(camera);
+
+                // Finally render everything into back buffer.
+                let frame_matrix =
+                    Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
+                        Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
+                unsafe {
+                    gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+                    gl::StencilMask(0xFF);
+                    gl::DepthMask(gl::TRUE);
+                    gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+                }
+                self.flat_shader.bind();
+                self.flat_shader.set_wvp_matrix(&frame_matrix);
+                self.flat_shader.set_diffuse_texture(0);
+
+                unsafe {
+                    gl::ActiveTexture(gl::TEXTURE0);
+                    gl::BindTexture(gl::TEXTURE_2D, gbuffer.frame_texture);
+                }
+                self.statistics.geometry.add_draw_call(self.quad.draw());
+
+                self.gl_state.pop_viewport();
+            }
         }
-        self.statistics.geometry.add_draw_call(self.quad.draw());
 
+        // Render UI on top of everything.
         self.statistics += self.ui_renderer.render(
             frame_width,
             frame_height,
@@ -381,6 +450,9 @@ impl Renderer {
         check_gl_error!();
 
         self.statistics.finalize();
+
+        self.gl_state.pop_viewport();
+        self.gl_state.validate();
 
         Ok(())
     }

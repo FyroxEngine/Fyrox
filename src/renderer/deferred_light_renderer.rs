@@ -18,17 +18,18 @@ use crate::{
         gpu_texture::GpuTexture,
         shadow_map_renderer::PointShadowMapRenderer,
         QualitySettings,
-        RenderPassStatistics
+        RenderPassStatistics,
+        GlState
     },
     core::{
         math::{
-            vec2::Vec2,
             vec3::Vec3,
             mat4::Mat4,
             frustum::Frustum,
         },
         color::Color,
-    }
+        math::Rect
+    },
 };
 
 struct AmbientLightShader {
@@ -200,13 +201,13 @@ pub struct DeferredLightRenderer {
 }
 
 pub struct DeferredRendererContext<'a> {
-    pub frame_size: Vec2,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a GBuffer,
     pub white_dummy: &'a GpuTexture,
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
+    pub gl_state: &'a mut GlState
 }
 
 impl DeferredLightRenderer {
@@ -236,15 +237,17 @@ impl DeferredLightRenderer {
     pub fn render(&mut self, context: DeferredRendererContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
-        let frustum = Frustum::from(context.camera.get_view_projection_matrix()).unwrap();
+        let viewport = Rect::new(0, 0, context.gbuffer.width, context.gbuffer.height);
+        let frustum = Frustum::from(context.camera.view_projection_matrix()).unwrap();
 
         let frame_matrix =
-            Mat4::ortho(0.0, context.frame_size.x, context.frame_size.y, 0.0, -1.0, 1.0) *
-                Mat4::scale(Vec3::new(context.frame_size.x, context.frame_size.y, 0.0));
+            Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
+                Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
+
+        context.gl_state.push_viewport(viewport);
 
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, context.gbuffer.opt_fbo);
-            gl::Viewport(0, 0, context.frame_size.x as i32, context.frame_size.y as i32);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 
             gl::Disable(gl::BLEND);
@@ -272,30 +275,27 @@ impl DeferredLightRenderer {
             gl::ActiveTexture(gl::TEXTURE2);
             gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.normal_texture);
 
-            let view_projection = context.camera.get_view_projection_matrix();
+            let view_projection = context.camera.view_projection_matrix();
             let inv_view_projection = view_projection.inverse().unwrap();
 
-            for light_node in context.scene.graph.linear_iter() {
-                if !light_node.base().get_global_visibility() {
+            for light in context.scene.graph.linear_iter().filter_map(|node| {
+                if let Node::Light(light) = node { Some(light) } else { None }
+            }) {
+                if !light.base().get_global_visibility() {
                     continue;
                 }
-
-                let light = match light_node {
-                    Node::Light(light) => light,
-                    _ => continue
-                };
 
                 let raw_radius = match light.get_kind() {
                     LightKind::Spot(spot_light) => spot_light.get_distance(),
                     LightKind::Point(point_light) => point_light.get_radius(),
                 };
 
-                let light_position = light_node.base().get_global_position();
-                let light_radius_scale = light_node.base().get_local_transform().get_scale().max_value();
+                let light_position = light.base().get_global_position();
+                let light_radius_scale = light.base().get_local_transform().get_scale().max_value();
                 let light_radius = light_radius_scale * raw_radius;
                 let light_r_inflate = 1.05 * light_radius;
                 let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
-                let light_emit_direction = light_node.base().get_up_vector().normalized().unwrap_or(Vec3::UP);
+                let light_emit_direction = light.base().get_up_vector().normalized().unwrap_or(Vec3::UP);
 
                 if !frustum.is_intersects_sphere(light_position, light_radius) {
                     continue;
@@ -328,6 +328,7 @@ impl DeferredLightRenderer {
                             &context.scene.graph,
                             &light_view_projection,
                             context.white_dummy,
+                            context.gl_state
                         );
 
                         true
@@ -338,6 +339,7 @@ impl DeferredLightRenderer {
                             context.white_dummy,
                             light_position,
                             light_radius,
+                            context.gl_state
                         );
 
                         true
@@ -439,6 +441,8 @@ impl DeferredLightRenderer {
             gl::BindTexture(gl::TEXTURE_2D, 0);
             gl::ActiveTexture(gl::TEXTURE2);
             gl::BindTexture(gl::TEXTURE_2D, 0);
+
+            context.gl_state.pop_viewport();
         }
 
         statistics

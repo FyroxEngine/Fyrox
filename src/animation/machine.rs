@@ -66,10 +66,10 @@
 ///
 /// // Blend two animations together
 /// let blend_aim_walk = machine.add_node(PoseNode::BlendAnimations(
-/// 	BlendAnimation::new(vec![
-/// 		BlendPose::new(PoseWeight::Constant(0.75), aim),
-/// 		BlendPose::new(PoseWeight::Constant(0.25), walk)
-/// 	])
+///     BlendAnimation::new(vec![
+///         BlendPose::new(PoseWeight::Constant(0.75), aim),
+///         BlendPose::new(PoseWeight::Constant(0.25), walk)
+///     ])
 /// ));
 ///
 /// let walk_state = machine.add_state(State::new("Walk", blend_aim_walk));

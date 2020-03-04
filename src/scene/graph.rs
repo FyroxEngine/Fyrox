@@ -6,16 +6,22 @@ use crate::{
         base::AsBase,
     },
     core::{
-        pool::{Handle, Pool},
+        pool::{
+            Handle,
+            Pool,
+            PoolIterator,
+            PoolIteratorMut,
+            PoolPairIterator,
+            PoolPairIteratorMut
+        },
         math::{
             mat4::Mat4,
             vec3::Vec3
         },
         visitor::{Visit, Visitor, VisitResult},
-        pool::{PoolIterator, PoolIteratorMut, PoolPairIterator},
     }
 };
-use rg3d_core::pool::PoolPairIteratorMut;
+use rg3d_core::math::vec2::Vec2;
 
 pub struct Graph {
     root: Handle<Node>,
@@ -352,7 +358,7 @@ impl Graph {
         self.pool.is_valid_handle(node_handle)
     }
 
-    pub fn update_nodes(&mut self, aspect_ratio: f32, dt: f32) {
+    pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
         self.update_transforms();
 
         for node in self.pool.iter_mut() {
@@ -361,7 +367,7 @@ impl Graph {
             }
 
             match node {
-                Node::Camera(camera) => camera.calculate_matrices(aspect_ratio),
+                Node::Camera(camera) => camera.calculate_matrices(frame_size),
                 Node::ParticleSystem(particle_system) => particle_system.update(dt),
                 _ => ()
             }

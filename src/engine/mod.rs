@@ -110,17 +110,17 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     /// of all scenes, sub-systems, user interface, etc. Must be called in order to get engine
     /// functioning.
     pub fn update(&mut self, dt: f32) {
-        let client_size = self.context.window().inner_size();
-        let aspect_ratio = client_size.width as f32 / client_size.height as f32;
+        let inner_size = self.context.window().inner_size();
+        let frame_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
 
         self.resource_manager.update(dt);
 
         for scene in self.scenes.iter_mut() {
-            scene.update(aspect_ratio, dt);
+            scene.update(frame_size, dt);
         }
 
         let time = time::Instant::now();
-        self.user_interface.update(Vec2::new(client_size.width as f32, client_size.height as f32), dt);
+        self.user_interface.update(frame_size, dt);
         self.ui_time = time::Instant::now() - time;
     }
 

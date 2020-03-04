@@ -5,7 +5,7 @@ use crate::{
             GeometryBuffer,
             GeometryBufferKind,
             AttributeDefinition,
-            AttributeKind
+            AttributeKind,
         },
         gl,
         gpu_program::{GpuProgram, UniformLocation},
@@ -13,13 +13,14 @@ use crate::{
         error::RendererError,
         gpu_texture::GpuTexture,
         RenderPassStatistics,
-        geometry_buffer::ElementKind
+        geometry_buffer::ElementKind,
     },
     scene::{
         node::Node,
         particle_system,
-        SceneContainer,
         base::AsBase,
+        graph::Graph,
+        camera::Camera,
     },
     core::math::{
         mat4::Mat4,
@@ -27,6 +28,8 @@ use crate::{
         vec2::Vec2,
     },
 };
+use crate::renderer::GlState;
+use rg3d_core::math::Rect;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -125,13 +128,17 @@ impl ParticleSystemRenderer {
 
     #[must_use]
     pub fn render(&mut self,
-                  scenes: &SceneContainer,
+                  graph: &Graph,
+                  camera: &Camera,
                   white_dummy: &GpuTexture,
                   frame_width: f32,
                   frame_height: f32,
                   gbuffer: &GBuffer,
+                  gl_state: &mut GlState,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        gl_state.push_viewport(Rect::new(0, 0, gbuffer.width, gbuffer.height));
 
         unsafe {
             gl::Disable(gl::CULL_FACE);
@@ -142,64 +149,58 @@ impl ParticleSystemRenderer {
 
         self.shader.bind();
 
-        for scene in scenes.iter() {
-            // Prepare for render - fill lists of nodes participating in rendering.
-            let camera = match scene.graph.linear_iter().find(|node| node.is_camera()) {
-                Some(camera) => camera.as_camera(),
-                None => continue
+        let inv_view = camera.inv_view_matrix().unwrap();
+
+        let camera_up = inv_view.up();
+        let camera_side = inv_view.side();
+
+        for node in graph.linear_iter() {
+            let particle_system = if let Node::ParticleSystem(particle_system) = node {
+                particle_system
+            } else {
+                continue;
             };
 
-            let inv_view = camera.get_inv_view_matrix().unwrap();
+            particle_system.generate_draw_data(&mut self.sorted_particles,
+                                               &mut self.draw_data,
+                                               &camera.base().get_global_position());
 
-            let camera_up = inv_view.up();
-            let camera_side = inv_view.side();
+            self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
+            self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
-            for node in scene.graph.linear_iter() {
-                let particle_system = if let Node::ParticleSystem(particle_system) = node {
-                    particle_system
-                } else {
-                    continue;
-                };
-
-                particle_system.generate_draw_data(&mut self.sorted_particles,
-                                                   &mut self.draw_data,
-                                                   &camera.base().get_global_position());
-
-                self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
-                self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
-
-                if let Some(texture) = particle_system.get_texture() {
-                    if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
-                        texture.bind(0);
-                    } else {
-                        white_dummy.bind(0)
-                    }
+            if let Some(texture) = particle_system.get_texture() {
+                if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                    texture.bind(0);
                 } else {
                     white_dummy.bind(0)
                 }
-
-                unsafe {
-                    gl::ActiveTexture(gl::TEXTURE1);
-                    gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
-                }
-
-                self.shader.set_diffuse_texture(0);
-                self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                self.shader.set_world_matrix(&node.base().get_global_transform());
-                self.shader.set_camera_up_vector(&camera_up);
-                self.shader.set_camera_side_vector(&camera_side);
-                self.shader.set_depth_buffer_texture(1);
-                self.shader.set_inv_screen_size(Vec2::new(1.0 / frame_width, 1.0 / frame_height));
-                self.shader.set_proj_params(camera.get_z_far(), camera.get_z_near());
-
-                statistics.add_draw_call(self.geometry_buffer.draw());
+            } else {
+                white_dummy.bind(0)
             }
+
+            unsafe {
+                gl::ActiveTexture(gl::TEXTURE1);
+                gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
+            }
+
+            self.shader.set_diffuse_texture(0);
+            self.shader.set_view_projection_matrix(&camera.view_projection_matrix());
+            self.shader.set_world_matrix(&node.base().get_global_transform());
+            self.shader.set_camera_up_vector(&camera_up);
+            self.shader.set_camera_side_vector(&camera_side);
+            self.shader.set_depth_buffer_texture(1);
+            self.shader.set_inv_screen_size(Vec2::new(1.0 / frame_width, 1.0 / frame_height));
+            self.shader.set_proj_params(camera.z_far(), camera.z_near());
+
+            statistics.add_draw_call(self.geometry_buffer.draw());
         }
 
         unsafe {
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
         }
+
+        gl_state.pop_viewport();
 
         statistics
     }

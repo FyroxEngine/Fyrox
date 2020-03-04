@@ -32,6 +32,7 @@ use crate::{
     utils::log::Log
 };
 use std::collections::HashMap;
+use rg3d_core::math::vec2::Vec2;
 
 pub struct PhysicsBinder {
     node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
@@ -137,10 +138,10 @@ impl Scene {
         Log::writeln("Resolve succeeded!".to_owned());
     }
 
-    pub fn update(&mut self, aspect_ratio: f32, dt: f32) {
+    pub fn update(&mut self, frame_size: Vec2, dt: f32) {
         self.update_physics(dt);
         self.animations.update_animations(dt);
-        self.graph.update_nodes(aspect_ratio, dt);
+        self.graph.update_nodes(frame_size, dt);
 
         // Keep pair when node and body are both alive.
         let graph = &self.graph;

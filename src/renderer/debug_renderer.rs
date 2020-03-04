@@ -1,15 +1,17 @@
 use std::ffi::CString;
 use crate::{
-    renderer::RenderPassStatistics,
     core::{
         color::Color,
         math::{
             vec3::Vec3,
             mat4::Mat4,
+            aabb::AxisAlignedBoundingBox,
+            frustum::Frustum,
         },
-        math::frustum::Frustum,
     },
+    scene::camera::Camera,
     renderer::{
+        RenderPassStatistics,
         gpu_program::UniformLocation,
         gl,
         geometry_buffer::{
@@ -20,14 +22,9 @@ use crate::{
         },
         error::RendererError,
         gpu_program::GpuProgram,
+        geometry_buffer::ElementKind,
     },
-    scene::{
-        SceneContainer,
-        node::Node,
-    },
-    renderer::geometry_buffer::ElementKind,
 };
-use rg3d_core::math::aabb::AxisAlignedBoundingBox;
 
 #[repr(C)]
 struct Vertex {
@@ -160,7 +157,7 @@ impl DebugRenderer {
         self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
     }
 
-    pub(in crate) fn render(&mut self, scenes: &SceneContainer) -> RenderPassStatistics {
+    pub(in crate) fn render(&mut self, camera: &Camera) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
         self.shader.bind();
@@ -190,25 +187,9 @@ impl DebugRenderer {
             gl::Disable(gl::CULL_FACE);
         }
 
-        for scene in scenes.iter() {
-            // Prepare for render - fill lists of nodes participating in rendering.
-            let camera_node = match scene.graph.linear_iter().find(|node| node.is_camera()) {
-                Some(camera_node) => camera_node,
-                None => continue
-            };
-
-            let camera =
-                if let Node::Camera(camera) = camera_node {
-                    camera
-                } else {
-                    continue;
-                };
-
-            self.shader.set_wvp_matrix(&camera.get_view_projection_matrix());
-            self.geometry.draw();
-            statistics.draw_calls += 1;
-        }
-
+        self.shader.set_wvp_matrix(&camera.view_projection_matrix());
+        self.geometry.draw();
+        statistics.draw_calls += 1;
 
         unsafe {
             gl::DepthMask(gl::TRUE);

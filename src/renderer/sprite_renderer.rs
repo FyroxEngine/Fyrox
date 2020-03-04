@@ -1,9 +1,10 @@
 use std::ffi::CString;
 use crate::{
     scene::{
-        SceneContainer,
         node::Node,
-        base::AsBase
+        base::AsBase,
+        graph::Graph,
+        camera::Camera
     },
     renderer::{
         surface::SurfaceSharedData,
@@ -11,16 +12,19 @@ use crate::{
         error::RendererError,
         gl,
         gpu_texture::GpuTexture,
-        RenderPassStatistics
+        RenderPassStatistics,
     },
     core::{
         color::Color,
         math::{
             mat4::Mat4,
-            vec3::Vec3
-        }
-    }
+            vec3::Vec3,
+        },
+    },
 };
+use crate::renderer::gbuffer::GBuffer;
+use crate::renderer::GlState;
+use rg3d_core::math::Rect;
 
 pub struct SpriteShader {
     program: GpuProgram,
@@ -105,8 +109,16 @@ impl SpriteRenderer {
     }
 
     #[must_use]
-    pub fn render(&mut self, scenes: &SceneContainer, white_dummy: &GpuTexture) -> RenderPassStatistics {
+    pub fn render(&mut self,
+                  graph: &Graph,
+                  camera: &Camera,
+                  white_dummy: &GpuTexture,
+                  gbuffer: &GBuffer,
+                  gl_state: &mut GlState
+    ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        gl_state.push_viewport(Rect::new(0, 0, gbuffer.width, gbuffer.height));
 
         unsafe {
             gl::Disable(gl::CULL_FACE);
@@ -116,59 +128,46 @@ impl SpriteRenderer {
         }
         self.shader.bind();
 
-        for scene in scenes.iter() {
-            // Prepare for render - fill lists of nodes participating in rendering.
-            let camera_node = match scene.graph.linear_iter().find(|node| node.is_camera()) {
-                Some(camera_node) => camera_node,
-                None => continue
+        let inv_view = camera.inv_view_matrix().unwrap();
+
+        let camera_up = inv_view.up();
+        let camera_side = inv_view.side();
+
+        for node in graph.linear_iter() {
+            let sprite = if let Node::Sprite(sprite) = node {
+                sprite
+            } else {
+                continue;
             };
 
-            let camera =
-                if let Node::Camera(camera) = camera_node {
-                    camera
-                } else {
-                    continue;
-                };
-
-            let inv_view = camera.get_inv_view_matrix().unwrap();
-
-            let camera_up = inv_view.up();
-            let camera_side = inv_view.side();
-
-            for node in scene.graph.linear_iter() {
-                let sprite = if let Node::Sprite(sprite) = node {
-                    sprite
-                } else {
-                    continue;
-                };
-
-                if let Some(texture) = sprite.get_texture() {
-                    if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
-                        texture.bind(0);
-                    } else {
-                        white_dummy.bind(0)
-                    }
+            if let Some(texture) = sprite.get_texture() {
+                if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                    texture.bind(0);
                 } else {
                     white_dummy.bind(0)
                 }
-
-                self.shader.set_diffuse_texture(0);
-                self.shader.set_view_projection_matrix(&camera.get_view_projection_matrix());
-                self.shader.set_world_matrix(&node.base().get_global_transform());
-                self.shader.set_camera_up_vector(&camera_up);
-                self.shader.set_camera_side_vector(&camera_side);
-                self.shader.set_size(sprite.get_size());
-                self.shader.set_color(sprite.get_color());
-                self.shader.set_rotation(sprite.get_rotation());
-
-                statistics.add_draw_call(self.surface.draw());
+            } else {
+                white_dummy.bind(0)
             }
+
+            self.shader.set_diffuse_texture(0);
+            self.shader.set_view_projection_matrix(&camera.view_projection_matrix());
+            self.shader.set_world_matrix(&node.base().get_global_transform());
+            self.shader.set_camera_up_vector(&camera_up);
+            self.shader.set_camera_side_vector(&camera_side);
+            self.shader.set_size(sprite.get_size());
+            self.shader.set_color(sprite.get_color());
+            self.shader.set_rotation(sprite.get_rotation());
+
+            statistics.add_draw_call(self.surface.draw());
         }
 
         unsafe {
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
         }
+
+        gl_state.pop_viewport();
 
         statistics
     }

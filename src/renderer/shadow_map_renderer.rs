@@ -18,7 +18,8 @@ use crate::{
         gl,
     },
 };
-use crate::renderer::RenderPassStatistics;
+use crate::renderer::{RenderPassStatistics, GlState};
+use rg3d_core::math::Rect;
 
 pub struct SpotShadowMapShader {
     program: GpuProgram,
@@ -120,11 +121,13 @@ impl SpotShadowMapRenderer {
                   graph: &Graph,
                   light_view_projection: &Mat4,
                   white_dummy: &GpuTexture,
+                  gl_state: &mut GlState,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
         let mut old_fbo = 0;
-        let mut old_viewport = [0; 4];
+
+        gl_state.push_viewport(Rect::new(0, 0, self.size as i32, self.size as i32));
 
         unsafe {
             gl::DepthMask(gl::TRUE);
@@ -133,9 +136,7 @@ impl SpotShadowMapRenderer {
             gl::Enable(gl::CULL_FACE);
 
             gl::GetIntegerv(gl::DRAW_FRAMEBUFFER_BINDING, &mut old_fbo);
-            gl::GetIntegerv(gl::VIEWPORT, old_viewport.as_mut_ptr());
 
-            gl::Viewport(0, 0, self.size as i32, self.size as i32);
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
             gl::Clear(gl::DEPTH_BUFFER_BIT);
         }
@@ -201,8 +202,9 @@ impl SpotShadowMapRenderer {
         unsafe {
             // Set previous state
             gl::BindFramebuffer(gl::FRAMEBUFFER, old_fbo as u32);
-            gl::Viewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
         }
+
+        gl_state.pop_viewport();
 
         statistics
     }
@@ -396,8 +398,11 @@ impl PointShadowMapRenderer {
                   white_dummy: &GpuTexture,
                   light_pos: Vec3,
                   light_radius: f32,
+                  gl_state: &mut GlState,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        gl_state.push_viewport(Rect::new(0, 0, self.size as i32, self.size as i32));
 
         unsafe {
             gl::DepthMask(gl::TRUE);
@@ -409,10 +414,6 @@ impl PointShadowMapRenderer {
             let mut old_fbo = 0;
             gl::GetIntegerv(gl::DRAW_FRAMEBUFFER_BINDING, &mut old_fbo);
 
-            let mut old_viewport = [0; 4];
-            gl::GetIntegerv(gl::VIEWPORT, old_viewport.as_mut_ptr());
-
-            gl::Viewport(0, 0, self.size as i32, self.size as i32);
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
 
             let light_projection_matrix = Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
@@ -493,8 +494,9 @@ impl PointShadowMapRenderer {
 
             // Set previous state
             gl::BindFramebuffer(gl::FRAMEBUFFER, old_fbo as u32);
-            gl::Viewport(old_viewport[0], old_viewport[1], old_viewport[2], old_viewport[3]);
         }
+
+        gl_state.pop_viewport();
 
         statistics
     }
