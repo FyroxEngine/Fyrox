@@ -49,8 +49,8 @@ fn render_with_params(
 
                 // Interpolation of gain is very important to remove clicks which appears
                 // when gain changes by significant value between frames.
-                *left += math::lerpf(source.last_left_gain, left_gain, t) * raw_left;
-                *right += math::lerpf(source.last_right_gain, right_gain, t) * raw_right;
+                *left += math::lerpf(*source.last_left_gain.get_or_insert(left_gain), left_gain, t) * raw_left;
+                *right += math::lerpf(*source.last_right_gain.get_or_insert(right_gain), right_gain, t) * raw_right;
 
                 t += step;
             }
@@ -71,8 +71,8 @@ pub(in crate) fn render_source_default(
             let left_gain = gain * (1.0 + panning);
             let right_gain = gain * (1.0 - panning);
             render_with_params(generic, left_gain, right_gain, mix_buffer);
-            generic.last_left_gain = left_gain;
-            generic.last_right_gain = right_gain;
+            generic.last_left_gain = Some(left_gain);
+            generic.last_right_gain = Some(right_gain);
         }
         SoundSource::Spatial(spatial) => {
             let distance_gain = spatial.get_distance_gain(listener, distance_model);
@@ -81,8 +81,8 @@ pub(in crate) fn render_source_default(
             let left_gain = gain * (1.0 + panning);
             let right_gain = gain * (1.0 - panning);
             render_with_params(spatial.generic_mut(), left_gain, right_gain, mix_buffer);
-            spatial.generic_mut().last_left_gain = left_gain;
-            spatial.generic_mut().last_right_gain = right_gain;
+            spatial.generic_mut().last_left_gain = Some(left_gain);
+            spatial.generic_mut().last_right_gain = Some(right_gain);
         }
     }
 }

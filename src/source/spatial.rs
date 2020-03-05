@@ -52,7 +52,7 @@ pub struct SpatialSource {
     pub(in crate) prev_left_samples: Vec<f32>,
     pub(in crate) prev_right_samples: Vec<f32>,
     pub(in crate) prev_sampling_vector: Vec3,
-    pub(in crate) prev_distance_gain: f32,
+    pub(in crate) prev_distance_gain: Option<f32>,
 }
 
 impl SpatialSource {
@@ -178,7 +178,7 @@ impl Default for SpatialSource {
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
             prev_sampling_vector: Vec3::new(0.0, 0.0, 1.0),
-            prev_distance_gain: 1.0
+            prev_distance_gain: None
         }
     }
 }

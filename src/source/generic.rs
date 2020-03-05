@@ -75,8 +75,14 @@ pub struct GenericSource {
     resampling_multiplier: f64,
     status: Status,
     play_once: bool,
-    pub(in crate) last_left_gain: f32,
-    pub(in crate) last_right_gain: f32
+    // Here we use Option because when source is just created it has no info about it
+    // previous left and right channel gains. We can't set it to 1.0 for example
+    // because it would give incorrect results: a sound would just start as loud as it
+    // can be with no respect to real distance attenuation (or what else affects channel
+    // gain). So if these are None engine will set correct values first and only then it
+    // will start interpolation of gain.
+    pub(in crate) last_left_gain: Option<f32>,
+    pub(in crate) last_right_gain: Option<f32>
 }
 
 impl Default for GenericSource {
@@ -92,8 +98,8 @@ impl Default for GenericSource {
             resampling_multiplier: 1.0,
             status: Status::Stopped,
             play_once: false,
-            last_left_gain: 1.0,
-            last_right_gain: 1.0
+            last_left_gain: None,
+            last_right_gain: None,
         }
     }
 }

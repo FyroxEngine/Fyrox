@@ -500,7 +500,7 @@ impl HrtfRenderer {
                                           &mut self.fft, &mut self.ifft);
 
                     // Mix samples into output buffer with rescaling and apply distance gain.
-                    let distance_gain = math::lerpf(spatial.prev_distance_gain, new_distance_gain, t);
+                    let distance_gain = math::lerpf(spatial.prev_distance_gain.unwrap_or(new_distance_gain), new_distance_gain, t);
                     let k = distance_gain / (pad_length as f32);
 
                     let left_payload = &self.left_in_buffer[hrtf_len..];
@@ -512,7 +512,7 @@ impl HrtfRenderer {
                     }
                 }
                 spatial.prev_sampling_vector = new_sampling_vector;
-                spatial.prev_distance_gain = new_distance_gain;
+                spatial.prev_distance_gain = Some(new_distance_gain);
             }
         }
     }
