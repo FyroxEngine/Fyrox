@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-sound"
-version = "0.11.1"
+version = "0.11.2"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -11,7 +11,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
 documentation = "https://docs.rs/rg3d-sound"
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.5.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.6.0" }
 byteorder = "1.3.2"
 rustfft = "3.0.0"
 lewton = "0.9.4"
