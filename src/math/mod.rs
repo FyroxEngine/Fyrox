@@ -193,6 +193,15 @@ pub fn is_point_inside_2d_triangle(point: Vec2, pt_a: Vec2, pt_b: Vec2, pt_c: Ve
     (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
 }
 
+pub fn wrap_angle(angle: f32) -> f32 {
+    let two_pi = 2.0 * std::f32::consts::PI;
+
+    if angle > 0.0 {
+        angle % two_pi
+    } else {
+        (angle + two_pi) % two_pi
+    }
+}
 
 pub fn clampf(v: f32, min: f32, max: f32) -> f32 {
     if v < min {
@@ -381,4 +390,116 @@ pub fn get_closest_point_triangles<P: PositionProvider>(points: &[P], triangles:
         }
     }
     closest_index
+}
+
+pub struct SmoothAngle {
+    /// Current angle in radians.
+    pub angle: f32,
+
+    /// Target angle in radians.
+    pub target: f32,
+
+    /// Turn speed in radians per second (rad/s)
+    pub speed: f32,
+}
+
+impl SmoothAngle {
+    pub fn set_target(&mut self, angle: f32) -> &mut Self {
+        self.target = angle;
+        self
+    }
+
+    pub fn update(&mut self, dt: f32) -> &mut Self {
+        self.target = wrap_angle(self.target);
+        self.angle = wrap_angle(self.angle);
+        if !self.at_target() {
+            let delta = self.speed * dt;
+            if self.distance().abs() > delta {
+                self.angle += self.turn_direction() * delta;
+            } else {
+                self.angle = self.target;
+            }
+        }
+        self
+    }
+
+    pub fn set_speed(&mut self, speed: f32) -> &mut Self {
+        self.speed = speed;
+        self
+    }
+
+    pub fn set_angle(&mut self, angle: f32) -> &mut Self {
+        self.angle = angle;
+        self
+    }
+
+    pub fn angle(&self) -> f32 {
+        self.angle
+    }
+
+    pub fn at_target(&self) -> bool {
+        (self.target - self.angle).abs() <= std::f32::EPSILON
+    }
+
+    pub fn distance(&self) -> f32 {
+        self.target - self.angle
+    }
+
+    fn turn_direction(&self) -> f32 {
+        let distance = self.distance();
+
+        if distance < 0.0 {
+            if distance < -std::f32::consts::PI {
+                1.0
+            } else {
+                -1.0
+            }
+        } else {
+            if distance > std::f32::consts::PI {
+                -1.0
+            } else {
+                1.0
+            }
+        }
+    }
+}
+
+impl Default for SmoothAngle {
+    fn default() -> Self {
+        Self {
+            angle: 0.0,
+            target: 0.0,
+            speed: 1.0,
+        }
+    }
+}
+
+impl Visit for SmoothAngle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.angle.visit("Angle", visitor)?;
+        self.target.visit("Target", visitor)?;
+        self.speed.visit("Speed", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::math::SmoothAngle;
+
+    #[test]
+    fn smooth_angle() {
+        let mut angle = SmoothAngle {
+            angle: 290.0f32.to_radians(),
+            target: 90.0f32.to_radians(),
+            speed: 100.0f32.to_radians()
+        };
+
+        while !angle.at_target() {
+            println!("{}", angle.update(1.0).angle().to_degrees());
+        }
+    }
 }

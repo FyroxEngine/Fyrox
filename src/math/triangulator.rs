@@ -140,9 +140,6 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<[usize; 3]>) {
             let mut ear_index = polygon.head;
             let mut vertices_left = polygon.vertices.len();
             while vertices_left >= 3 {
-                if cfg!(test) {
-                    println!("{:?}", polygon);
-                }
                 let ear = &polygon.vertices[ear_index];
                 let prev = &polygon.vertices[ear.prev];
                 let next = &polygon.vertices[ear.next];
@@ -171,7 +168,6 @@ fn quadrilaterals_triangulation_non_concave() {
 
     let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
-    println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
 }
 
@@ -186,7 +182,6 @@ fn quadrilaterals_triangulation_concave() {
 
     let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
-    println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
 }
 
@@ -205,7 +200,6 @@ fn ear_clip_test() {
     // First test flat case
     let mut ref_indices = Vec::new();
     triangulate(polygon.as_slice(), &mut ref_indices);
-    println!("{:?}", ref_indices);
     assert_ne!(ref_indices.len(), 0);
 
     use crate::math::{mat4::Mat4, quat::Quat};
@@ -227,7 +221,6 @@ fn ear_clip_test() {
             let rotated: Vec<Vec3> = polygon.iter().map(|v| mrot.transform_vector(*v)).collect();
             let mut new_indices = Vec::new();
             triangulate(rotated.as_slice(), &mut new_indices);
-            println!("angle: {} {:?}", angle, new_indices);
             assert_eq!(new_indices, ref_indices);
             angle += 36.0;
         }
