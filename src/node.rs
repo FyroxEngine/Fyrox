@@ -147,3 +147,24 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
     }
 }
 
+
+#[derive(Debug)]
+pub enum StubNode {}
+
+impl Control<(), StubNode> for StubNode {
+    fn widget(&self) -> &Widget<(), StubNode> {
+        unimplemented!()
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget<(), StubNode> {
+        unimplemented!()
+    }
+
+    fn raw_copy(&self) -> UINode<(), StubNode> {
+        unimplemented!()
+    }
+
+    fn handle_message(&mut self, _: Handle<UINode<(), StubNode>>, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
+        unimplemented!()
+    }
+}
