@@ -244,8 +244,13 @@ impl ResourceManager {
     }
 
     #[inline]
-    pub fn get_textures_path(&self) -> &Path {
+    pub fn textures_path(&self) -> &Path {
         self.textures_path.as_path()
+    }
+
+    #[inline]
+    pub fn set_textures_path<P: AsRef<Path>>(&mut self, path: P) {
+        self.textures_path = path.as_ref().to_owned();
     }
 
     fn update_textures(&mut self, dt: f32) {

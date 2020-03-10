@@ -74,9 +74,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_position(&mut self, pos: Vec3) {
+    pub fn set_position(&mut self, pos: Vec3) -> &mut Self {
         self.local_position = pos;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -85,9 +86,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_rotation(&mut self, rot: Quat) {
+    pub fn set_rotation(&mut self, rot: Quat) -> &mut Self {
         self.local_rotation = rot;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -96,15 +98,17 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_scale(&mut self, scl: Vec3) {
+    pub fn set_scale(&mut self, scl: Vec3) -> &mut Self {
         self.local_scale = scl;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
-    pub fn set_pre_rotation(&mut self, pre_rotation: Quat) {
+    pub fn set_pre_rotation(&mut self, pre_rotation: Quat) -> &mut Self {
         self.pre_rotation = pre_rotation;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -113,9 +117,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_post_rotation(&mut self, post_rotation: Quat) {
+    pub fn set_post_rotation(&mut self, post_rotation: Quat) -> &mut Self {
         self.post_rotation = post_rotation;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -124,9 +129,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) {
+    pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) -> &mut Self {
         self.rotation_offset = rotation_offset;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -135,9 +141,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) {
+    pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) -> &mut Self {
         self.rotation_pivot = rotation_pivot;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -146,9 +153,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) {
+    pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) -> &mut Self {
         self.scaling_offset = scaling_offset;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -157,9 +165,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) {
+    pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) -> &mut Self {
         self.scaling_pivot = scaling_pivot;
         self.dirty.set(true);
+        self
     }
 
     #[inline]
@@ -168,9 +177,10 @@ impl Transform {
     }
 
     #[inline]
-    pub fn offset(&mut self, vec: Vec3) {
+    pub fn offset(&mut self, vec: Vec3) -> &mut Self {
         self.local_position += vec;
         self.dirty.set(true);
+        self
     }
 
     fn calculate_local_transform(&self) -> Mat4 {

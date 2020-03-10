@@ -365,11 +365,12 @@ impl Renderer {
 
                 let gbuffer = self.gbuffers
                     .entry(camera_handle)
+                    .and_modify(|buf| {
+                        if buf.width != viewport.w || buf.height != viewport.h {
+                            *buf = GBuffer::new(viewport.w, viewport.h).unwrap();
+                        }
+                    })
                     .or_insert_with(|| GBuffer::new(viewport.w, viewport.h).unwrap());
-
-                if gbuffer.width != viewport.w || gbuffer.height != viewport.h {
-                    *gbuffer = GBuffer::new(viewport.w, viewport.h)?;
-                }
 
                 self.statistics += gbuffer.fill(
                     graph,

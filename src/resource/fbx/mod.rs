@@ -926,7 +926,7 @@ impl Fbx {
                         let file_stem = path.file_stem().ok_or(FbxError::InvalidPath)?;
                         let extension = path.extension().ok_or(FbxError::InvalidPath)?;
 
-                        let diffuse_path = resource_manager.get_textures_path().join(&filename);
+                        let diffuse_path = resource_manager.textures_path().join(&filename);
                         // Here we will load *every* texture as RGBA8, this probably is overkill,
                         // that will lead to higher memory consumption, but this will remove
                         // problems with transparent textures (like mesh texture, etc.)
@@ -935,7 +935,7 @@ impl Fbx {
                         let mut normal_map_name = file_stem.to_os_string();
                         normal_map_name.push("_normal.");
                         normal_map_name.push(extension);
-                        let normal_path = resource_manager.get_textures_path().join(normal_map_name);
+                        let normal_path = resource_manager.textures_path().join(normal_map_name);
                         if normal_path.exists() {
                             // Not sure if alpha channel is useful on normal maps, so will use RGB8 here.
                             // Potentially it can be used to store some per-pixel material data like
