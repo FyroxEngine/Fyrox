@@ -13,28 +13,28 @@ use crate::core::{
 };
 
 pub struct Base {
-    pub name: String,
-    pub local_transform: Transform,
-    pub visibility: bool,
-    pub global_visibility: bool,
-    pub parent: Handle<Node>,
-    pub children: Vec<Handle<Node>>,
-    pub global_transform: Mat4,
+    name: String,
+    local_transform: Transform,
+    visibility: bool,
+    pub(in crate) global_visibility: bool,
+    pub(in crate) parent: Handle<Node>,
+    pub(in crate) children: Vec<Handle<Node>>,
+    pub(in crate) global_transform: Mat4,
     /// Bone-specific matrix. Non-serializable.
-    pub inv_bind_pose_transform: Mat4,
+    pub(in crate) inv_bind_pose_transform: Mat4,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
-    pub resource: Option<Arc<Mutex<Model>>>,
+    pub(in crate) resource: Option<Arc<Mutex<Model>>>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
-    pub original: Handle<Node>,
+    pub(in crate) original: Handle<Node>,
     /// When `true` it means that this node is instance of `resource`.
     /// More precisely - this node is root of whole descendant nodes
     /// hierarchy which was instantiated from resource.
-    pub is_resource_instance: bool,
+    pub(in crate) is_resource_instance: bool,
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
-    pub lifetime: Option<f32>,
+    lifetime: Option<f32>,
 }
 
 pub trait AsBase {

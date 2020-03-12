@@ -45,8 +45,6 @@
 //!  https://github.com/mrDIMAS/rusty-shooter
 //!
 
-//#![warn(missing_docs)]
-
 extern crate image;
 extern crate glutin;
 extern crate lexical;

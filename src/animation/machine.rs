@@ -1,104 +1,91 @@
-/// Animation blending state machine.
-///
-/// Machine is used to blend multiple animation as well as perform automatic "smooth transition
-/// between states. Let have a quick look at simple machine graph:
-///
-///                                                  +-------------+
-///                                                  |  Idle Anim  |
-///                                                  +------+------+
-///                                                         |
-///           Walk Weight                                   |
-/// +-----------+      +-------+           Walk->Idle Rule  |
-/// | Walk Anim +------+       |                            |
-/// +-----------+      |       |      +-------+         +---+---+
-///                    | Blend |      |       +-------->+       |
-///                    |       +------+ Walk  |         |  Idle |
-/// +-----------+      |       |      |       +<--------+       |
-/// | Aim Anim  +------+       |      +--+----+         +---+---+
-/// +-----------+      +-------+         |                  ^
-///           Aim Weight                 | Idle->Walk Rule  |
-///                                      |                  |
-///                       Walk->Run Rule |    +---------+   | Run->Idle Rule
-///                                      |    |         |   |
-///                                      +--->+   Run   +---+
-///                                           |         |
-///                                           +----+----+
-///                                                |
-///                                                |
-///                                         +------+------+
-///                                         |  Run Anim   |
-///                                         +-------------+
-///
-/// Here we have Walk, Idle, Run states which uses different sources of poses:
-/// - Walk - is most complicated here - it uses result of blending between
-///   Aim and Walk animations with different weights. This is useful if your
-///   character can only walk or can walk *and* aim at the same time. Desired pose
-///   determined by Walk Weight and Aim Weight parameters combination.
-/// - Run and idle both directly uses animation as pose source.
-///
-/// There are four transitions between three states each with its own rule. Rule
-/// is just Rule parameter which can have boolean value that indicates that transition
-/// should be activated.
-///
-/// Example
-///
-/// ```no_run
-/// use rg3d::{
-///     animation::machine::{
-///         Machine, State, Transition, PoseNode, BlendPose,
-///         Parameter, PlayAnimation, PoseWeight, BlendAnimation
-///     },
-///     core::pool::Handle
-/// };
-///
-/// // Assume that these are correct handles.
-/// let idle_animation = Handle::default();
-/// let walk_animation = Handle::default();
-/// let aim_animation = Handle::default();
-///
-/// let mut machine = Machine::new();
-///
-/// machine.add_parameter("WalkToIdle", Parameter::Rule(false));
-/// machine.add_parameter("IdleToWalk", Parameter::Rule(false));
-///
-/// let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
-/// let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
-///
-/// // Blend two animations together
-/// let blend_aim_walk = machine.add_node(PoseNode::BlendAnimations(
-///     BlendAnimation::new(vec![
-///         BlendPose::new(PoseWeight::Constant(0.75), aim),
-///         BlendPose::new(PoseWeight::Constant(0.25), walk)
-///     ])
-/// ));
-///
-/// let walk_state = machine.add_state(State::new("Walk", blend_aim_walk));
-///
-/// let idle = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
-/// let idle_state = machine.add_state(State::new("Idle", idle));
-///
-/// machine.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
-/// machine.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
-///
-/// ```
+//! Animation blending state machine.
+//!
+//! Machine is used to blend multiple animation as well as perform automatic "smooth transition
+//! between states. Let have a quick look at simple machine graph:
+//!
+//!                                                  +-------------+
+//!                                                  |  Idle Anim  |
+//!                                                  +------+------+
+//!                                                         |
+//!           Walk Weight                                   |
+//! +-----------+      +-------+           Walk->Idle Rule  |
+//! | Walk Anim +------+       |                            |
+//! +-----------+      |       |      +-------+         +---+---+
+//!                    | Blend |      |       +-------->+       |
+//!                    |       +------+ Walk  |         |  Idle |
+//! +-----------+      |       |      |       +<--------+       |
+//! | Aim Anim  +------+       |      +--+----+         +---+---+
+//! +-----------+      +-------+         |                  ^
+//!           Aim Weight                 | Idle->Walk Rule  |
+//!                                      |                  |
+//!                       Walk->Run Rule |    +---------+   | Run->Idle Rule
+//!                                      |    |         |   |
+//!                                      +--->+   Run   +---+
+//!                                           |         |
+//!                                           +----+----+
+//!                                                |
+//!                                                |
+//!                                         +------+------+
+//!                                         |  Run Anim   |
+//!                                         +-------------+
+//!
+//! Here we have Walk, Idle, Run states which uses different sources of poses:
+//! - Walk - is most complicated here - it uses result of blending between
+//!   Aim and Walk animations with different weights. This is useful if your
+//!   character can only walk or can walk *and* aim at the same time. Desired pose
+//!   determined by Walk Weight and Aim Weight parameters combination.
+//! - Run and idle both directly uses animation as pose source.
+//!
+//! There are four transitions between three states each with its own rule. Rule
+//! is just Rule parameter which can have boolean value that indicates that transition
+//! should be activated.
+//!
+//! Example:
+//!
+//! ```no_run
+//! use rg3d::{
+//!     animation::machine::{
+//!         Machine, State, Transition, PoseNode, BlendPose,
+//!         Parameter, PlayAnimation, PoseWeight, BlendAnimation
+//!     },
+//!     core::pool::Handle
+//! };
+//!
+//! // Assume that these are correct handles.
+//! let idle_animation = Handle::default();
+//! let walk_animation = Handle::default();
+//! let aim_animation = Handle::default();
+//!
+//! let mut machine = Machine::new();
+//!
+//! machine.add_parameter("WalkToIdle", Parameter::Rule(false));
+//! machine.add_parameter("IdleToWalk", Parameter::Rule(false));
+//!
+//! let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
+//! let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
+//!
+//! // Blend two animations together
+//! let blend_aim_walk = machine.add_node(PoseNode::BlendAnimations(
+//!     BlendAnimation::new(vec![
+//!         BlendPose::new(PoseWeight::Constant(0.75), aim),
+//!         BlendPose::new(PoseWeight::Constant(0.25), walk)
+//!     ])
+//! ));
+//!
+//! let walk_state = machine.add_state(State::new("Walk", blend_aim_walk));
+//!
+//! let idle = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(idle_animation)));
+//! let idle_state = machine.add_state(State::new("Idle", idle));
+//!
+//! machine.add_transition(Transition::new("Walk->Idle", walk_state, idle_state, 1.0, "WalkToIdle"));
+//! machine.add_transition(Transition::new("Idle->Walk", idle_state, walk_state, 1.0, "IdleToWalk"));
+//!
+//! ```
+//!
+//! You can use multiple machines to animation single model - for example one machine can be for
+//! locomotion and other is for combat. This means that locomotion machine will take control over
+//! lower body and combat machine will control upper body.
 
-use crate::{
-    animation::{
-        Animation,
-        AnimationContainer,
-        AnimationPose,
-    },
-    core::{
-        pool::Pool,
-        pool::Handle,
-        visitor::{
-            Visit,
-            Visitor,
-            VisitError,
-            VisitResult,
-        },
-    },
-};
 use std::{
     cell::{RefCell, Ref},
     collections::{
@@ -106,15 +93,41 @@ use std::{
         VecDeque,
     },
 };
-use crate::utils::log::Log;
-use rg3d_core::pool::PoolIterator;
+use crate::{
+    utils::log::Log,
+    animation::{
+        Animation,
+        AnimationContainer,
+        AnimationPose,
+    },
+    core::{
+        pool::{
+            Pool,
+            Handle,
+            PoolIterator
+        },
+        visitor::{
+            Visit,
+            Visitor,
+            VisitError,
+            VisitResult,
+        },
+    }
+};
 
+/// Specific machine event.
 pub enum Event {
+    /// Occurs when enter some state. See module docs for example.
     StateEnter(Handle<State>),
+
+    /// Occurs when leaving some state. See module docs for example.
     StateLeave(Handle<State>),
+
+    /// Occurs when transition is done and new active state was set.
     ActiveStateChanged(Handle<State>),
 }
 
+/// Machine node that plays specified animation.
 #[derive(Default)]
 pub struct PlayAnimation {
     pub animation: Handle<Animation>,
@@ -122,6 +135,8 @@ pub struct PlayAnimation {
 }
 
 impl PlayAnimation {
+    /// Creates new PlayAnimation node with given animation handle.
+
     pub fn new(animation: Handle<Animation>) -> Self {
         Self {
             animation,
@@ -140,9 +155,15 @@ impl Visit for PlayAnimation {
     }
 }
 
+/// Machine parameter.  Machine uses various parameters for specific actions. For example
+/// Rule parameter is used to check where transition from a state to state is possible.
+/// See module docs for example.
 #[derive(Copy, Clone)]
 pub enum Parameter {
+    /// Weight parameter is used to control blend weight in BlendAnimation node.
     Weight(f32),
+
+    /// Rule parameter is used to check where transition from a state to state is possible.
     Rule(bool),
 }
 
@@ -188,8 +209,13 @@ impl Visit for Parameter {
     }
 }
 
+/// Specific animation pose weight.
 pub enum PoseWeight {
+    /// Fixed scalar value. Should not be negative (can't even realize what will happen
+    /// with negative weight here)
     Constant(f32),
+
+    /// Reference to Weight parameter with given name.
     Parameter(String),
 }
 
@@ -235,6 +261,7 @@ impl Visit for PoseWeight {
     }
 }
 
+/// Weighted proxy for animation pose.
 #[derive(Default)]
 pub struct BlendPose {
     weight: PoseWeight,
@@ -242,6 +269,7 @@ pub struct BlendPose {
 }
 
 impl BlendPose {
+    /// Creates new instance of blend pose with given weight and animation pose.
     pub fn new(weight: PoseWeight, pose_source: Handle<PoseNode>) -> Self {
         Self {
             weight,
@@ -249,6 +277,8 @@ impl BlendPose {
         }
     }
 
+    /// Specialized constructor that creates blend pose with constant weight.
+    /// `weight` should be positive.
     pub fn with_constant_weight(weight: f32, pose_source: Handle<PoseNode>) -> Self {
         Self {
             weight: PoseWeight::Constant(weight),
@@ -256,6 +286,8 @@ impl BlendPose {
         }
     }
 
+    /// Specialized constructor that creates blend pose with parametrized weight.
+    /// `param_id` must be name of Weight parameter in machine.
     pub fn with_param_weight(param_id: &str, pose_source: Handle<PoseNode>) -> Self {
         Self {
             weight: PoseWeight::Parameter(param_id.to_owned()),
@@ -275,6 +307,15 @@ impl Visit for BlendPose {
     }
 }
 
+/// Animation blend node. It takes multiple input poses and mixes them together into
+/// single pose with specified weights. Could be used to mix hit and run animations
+/// for example - once your character got hit, you set some significant weight for
+/// hit animation (0.8 for example) and lower weight for run animation (0.2) and it
+/// will look like your character got wounded while it still running (probably you
+/// should decrease speed here too). Weights can be parametrized, which means that
+/// you can dynamically change them in runtime. In our example we can decrease weight
+/// of hit animation over time and increase weight of run animation, so character will
+/// recover from his wounds.
 #[derive(Default)]
 pub struct BlendAnimation {
     pose_sources: RefCell<Vec<BlendPose>>,
@@ -282,6 +323,7 @@ pub struct BlendAnimation {
 }
 
 impl BlendAnimation {
+    /// Creates new animation blend node with given poses.
     pub fn new(poses: Vec<BlendPose>) -> Self {
         Self {
             pose_sources: RefCell::new(poses),
@@ -300,8 +342,12 @@ impl Visit for BlendAnimation {
     }
 }
 
+/// Specialized node that provides animation pose. See documentation for each variant.
 pub enum PoseNode {
+    /// See docs for `PlayAnimation`.
     PlayAnimation(PlayAnimation),
+
+    /// See docs for `BlendAnimation`.
     BlendAnimations(BlendAnimation),
 }
 
@@ -312,10 +358,12 @@ impl Default for PoseNode {
 }
 
 impl PoseNode {
+    /// Creates new node that plays animation.
     pub fn make_play_animation(animation: Handle<Animation>) -> Self {
         PoseNode::PlayAnimation(PlayAnimation::new(animation))
     }
 
+    /// Creates new node that blends multiple poses.
     pub fn make_blend_animations(poses: Vec<BlendPose>) -> Self {
         PoseNode::BlendAnimations(BlendAnimation::new(poses))
     }
@@ -336,7 +384,7 @@ impl PoseNode {
     }
 }
 
-macro_rules! dispatch {
+macro_rules! static_dispatch {
     ($self:ident, $func:ident, $($args:expr),*) => {
         match $self {
             PoseNode::PlayAnimation(v) => v.$func($($args),*),
@@ -353,10 +401,11 @@ impl Visit for PoseNode {
             *self = PoseNode::from_id(kind_id)?;
         }
 
-        dispatch!(self, visit, name, visitor)
+        static_dispatch!(self, visit, name, visitor)
     }
 }
 
+/// State is a
 #[derive(Default)]
 pub struct State {
     name: String,
@@ -364,7 +413,7 @@ pub struct State {
     pose: AnimationPose,
 }
 
-pub type ParameterContainer = HashMap<String, Parameter>;
+type ParameterContainer = HashMap<String, Parameter>;
 
 trait EvaluatePose {
     fn eval_pose(&self, nodes: &Pool<PoseNode>, params: &ParameterContainer, animations: &AnimationContainer) -> Ref<AnimationPose>;
@@ -407,11 +456,12 @@ impl EvaluatePose for BlendAnimation {
 
 impl EvaluatePose for PoseNode {
     fn eval_pose(&self, nodes: &Pool<PoseNode>, params: &ParameterContainer, animations: &AnimationContainer) -> Ref<AnimationPose> {
-        dispatch!(self, eval_pose, nodes, params, animations)
+        static_dispatch!(self, eval_pose, nodes, params, animations)
     }
 }
 
 impl State {
+    /// Creates new instance of state with a given pose.
     pub fn new(name: &str, root: Handle<PoseNode>) -> Self {
         Self {
             name: name.to_owned(),
@@ -439,6 +489,8 @@ impl Visit for State {
     }
 }
 
+/// Transition is a connection between two states with a rule that defines possibility
+/// of actual transition with blending.
 #[derive(Default)]
 pub struct Transition {
     name: String,

@@ -1,4 +1,5 @@
-#[macro_use]
+//! Scene is container for
+
 pub mod node;
 pub mod mesh;
 pub mod camera;
@@ -18,10 +19,11 @@ use crate::{
             PoolIterator,
             PoolIteratorMut,
         },
+        math::vec2::Vec2,
     },
     physics::{
         Physics,
-        rigid_body::RigidBody
+        rigid_body::RigidBody,
     },
     scene::{
         graph::Graph,
@@ -29,10 +31,9 @@ use crate::{
         base::AsBase,
     },
     animation::AnimationContainer,
-    utils::log::Log
+    utils::log::Log,
 };
 use std::collections::HashMap;
-use rg3d_core::math::vec2::Vec2;
 
 pub struct PhysicsBinder {
     node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
@@ -67,9 +68,21 @@ impl Visit for PhysicsBinder {
 }
 
 pub struct Scene {
+    /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
+    /// updates them and performs all other important work. See `graph` module docs for more
+    /// info.
     pub graph: Graph,
+
+    /// Animations container controls all animation on scene. Each animation can have tracks which
+    /// has handles to graph nodes. See `animation` module docs for more info.
     pub animations: AnimationContainer,
+
+    /// Physics world. Allows you create various physics objects such as static geometries and
+    /// rigid bodies. Rigid bodies then should be linked with graph nodes using binder.
     pub physics: Physics,
+
+    /// Physics binder is a bridge between physics world and scene graph. If a rigid body is linked
+    /// to a graph node, then rigid body will control local transform of node.
     pub physics_binder: PhysicsBinder,
 }
 
@@ -88,9 +101,10 @@ impl Scene {
     #[inline]
     pub fn new() -> Self {
         Self {
+            // Graph must be created with `new` method because it differs from `default`
             graph: Graph::new(),
-            physics: Physics::new(),
-            animations: AnimationContainer::new(),
+            physics: Default::default(),
+            animations: Default::default(),
             physics_binder: Default::default(),
         }
     }
@@ -98,15 +112,18 @@ impl Scene {
     fn update_physics(&mut self, dt: f32) {
         self.physics.step(dt);
 
+        // Keep pair when node and body are both alive.
+        let graph = &self.graph;
+        let physics = &self.physics;
+        self.physics_binder.node_rigid_body_map.retain(|node, body| {
+            graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
+        });
+
         // Sync node positions with assigned physics bodies
         for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
-            if self.graph.is_valid_handle(*node) {
-                let node = self.graph.get_mut(*node).base_mut();
-                if self.physics.is_valid_body_handle(*body) {
-                    let body = self.physics.borrow_body(*body);
-                    node.get_local_transform_mut().set_position(body.get_position());
-                }
-            }
+            let node = self.graph.get_mut(*node).base_mut();
+            let body = physics.borrow_body(*body);
+            node.get_local_transform_mut().set_position(body.get_position());
         }
     }
 
@@ -142,13 +159,6 @@ impl Scene {
         self.update_physics(dt);
         self.animations.update_animations(dt);
         self.graph.update_nodes(frame_size, dt);
-
-        // Keep pair when node and body are both alive.
-        let graph = &self.graph;
-        let physics = &self.physics;
-        self.physics_binder.node_rigid_body_map.retain(|node, body| {
-            graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
-        });
     }
 }
 

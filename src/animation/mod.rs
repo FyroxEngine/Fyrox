@@ -637,9 +637,7 @@ pub struct AnimationContainer {
 
 impl Default for AnimationContainer {
     fn default() -> Self {
-        Self {
-            pool: Pool::new()
-        }
+        Self::new()
     }
 }
 

@@ -1,18 +1,20 @@
-use crate::core::{
-    visitor::{Visit, VisitResult, Visitor},
-};
-use crate::scene::{
-    light::Light,
-    camera::Camera,
-    base::{Base, AsBase},
-    mesh::Mesh,
-    sprite::Sprite,
-    particle_system::ParticleSystem,
+use crate::{
+    core::{
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    scene::{
+        light::Light,
+        camera::Camera,
+        base::{Base, AsBase},
+        mesh::Mesh,
+        sprite::Sprite,
+        particle_system::ParticleSystem,
+    }
 };
 
 /// Helper macros to reduce code bloat - its purpose it to dispatch
 /// specified call by actual enum variant.
-macro_rules! dispatch {
+macro_rules! static_dispatch {
     ($self:ident, $func:ident, $($args:expr),*) => {
         match $self {
             Node::Base(v) => v.$func($($args),*),
@@ -33,7 +35,7 @@ impl Visit for Node {
             *self = Node::from_id(kind_id)?;
         }
 
-        dispatch!(self, visit, name, visitor)
+        static_dispatch!(self, visit, name, visitor)
     }
 }
 
@@ -49,11 +51,11 @@ pub enum Node {
 
 impl AsBase for Node {
     fn base(&self) -> &Base {
-        dispatch!(self, base, )
+        static_dispatch!(self, base, )
     }
 
     fn base_mut(&mut self) -> &mut Base {
-        dispatch!(self, base_mut, )
+        static_dispatch!(self, base_mut, )
     }
 }
 
