@@ -1,15 +1,20 @@
+// Keep this for now, some texture kind might be used in future.
+#![allow(dead_code)]
+
+use std::{
+    ffi::c_void,
+    mem::size_of,
+    marker::PhantomData
+};
 use crate::{
+    resource::texture::TextureKind,
     renderer::{
         gl::types::GLuint,
         gl,
         error::RendererError,
-    }
+    },
+    utils::log::Log
 };
-use std::{
-    ffi::c_void,
-    mem::size_of
-};
-use crate::resource::texture::TextureKind;
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -62,7 +67,9 @@ impl From<TextureKind> for PixelKind {
 
 pub struct GpuTexture {
     texture: GLuint,
-    kind: GpuTextureKind
+    kind: GpuTextureKind,
+    // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
+    thread_mark: PhantomData<*const u8>
 }
 
 impl PixelKind {
@@ -170,9 +177,12 @@ impl GpuTexture {
 
             gl::BindTexture(target, 0);
 
+            Log::writeln(format!("GL texture {} was created!", texture));
+
             Ok(Self {
                 texture,
-                kind
+                kind,
+                thread_mark: PhantomData
             })
         }
     }
@@ -196,6 +206,8 @@ impl GpuTexture {
 impl Drop for GpuTexture {
     fn drop(&mut self) {
         unsafe {
+            Log::writeln(format!("GL texture {} was destroyed!", self.texture));
+
             gl::DeleteTextures(1, &self.texture);
         }
     }

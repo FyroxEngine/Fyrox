@@ -30,6 +30,7 @@ use crate::{
         math::Rect,
     },
 };
+use crate::renderer::{GeometryCache, TextureCache};
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -229,6 +230,8 @@ pub struct DeferredRendererContext<'a> {
     pub ambient_color: Color,
     pub settings: &'a QualitySettings,
     pub gl_state: &'a mut GlState,
+    pub textures: &'a mut TextureCache,
+    pub geometry_cache: &'a mut GeometryCache,
 }
 
 impl DeferredLightRenderer {
@@ -285,7 +288,7 @@ impl DeferredLightRenderer {
                 .set_diffuse_texture(0);
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.color_texture);
-            self.quad.draw();
+            context.geometry_cache.draw(&self.quad);
 
             // Lighting
             gl::Enable(gl::BLEND);
@@ -351,6 +354,8 @@ impl DeferredLightRenderer {
                             &light_view_projection,
                             context.white_dummy,
                             context.gl_state,
+                            context.textures,
+                            context.geometry_cache,
                         );
 
                         true
@@ -362,6 +367,8 @@ impl DeferredLightRenderer {
                             light_position,
                             light_radius,
                             context.gl_state,
+                            context.textures,
+                            context.geometry_cache
                         );
 
                         true
@@ -383,12 +390,12 @@ impl DeferredLightRenderer {
                 gl::CullFace(gl::FRONT);
                 gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
                 gl::StencilOp(gl::KEEP, gl::INCR, gl::KEEP);
-                statistics.add_draw_call(self.sphere.draw());
+                statistics.add_draw_call(context.geometry_cache.draw(&self.sphere));
 
                 gl::CullFace(gl::BACK);
                 gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
                 gl::StencilOp(gl::KEEP, gl::DECR, gl::KEEP);
-                statistics.add_draw_call(self.sphere.draw());
+                statistics.add_draw_call(context.geometry_cache.draw(&self.sphere));
 
                 gl::StencilFunc(gl::NOTEQUAL, 0, 0xFF);
                 gl::StencilOp(gl::KEEP, gl::KEEP, gl::ZERO);
@@ -444,7 +451,7 @@ impl DeferredLightRenderer {
                 gl::ActiveTexture(gl::TEXTURE0);
                 gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.depth_texture);
 
-                statistics.add_draw_call(self.quad.draw());
+                statistics.add_draw_call(context.geometry_cache.draw(&self.quad));
 
                 gl::ActiveTexture(gl::TEXTURE3);
                 gl::BindTexture(gl::TEXTURE_2D, 0);

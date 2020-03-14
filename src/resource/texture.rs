@@ -1,6 +1,5 @@
 use std::path::*;
 use crate::{
-    renderer::gpu_texture::GpuTexture,
     core::visitor::{
         Visit,
         VisitResult,
@@ -13,7 +12,6 @@ pub struct Texture {
     pub(in crate) path: PathBuf,
     pub(in crate) width: u32,
     pub(in crate) height: u32,
-    pub(in crate) gpu_tex: Option<GpuTexture>,
     pub(in crate) bytes: Vec<u8>,
     pub(in crate) kind: TextureKind,
     pub(in crate) loaded: bool
@@ -25,7 +23,6 @@ impl Default for Texture {
             path: PathBuf::new(),
             width: 0,
             height: 0,
-            gpu_tex: None,
             bytes: Vec::new(),
             kind: TextureKind::RGBA8,
             loaded: false
@@ -76,7 +73,7 @@ impl TextureKind {
 }
 
 impl Texture {
-    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P, kind: TextureKind) -> Result<Texture, image::ImageError> {
+    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P, kind: TextureKind) -> Result<Self, image::ImageError> {
         let dyn_img = image::open(path.as_ref())?;
 
         let width = dyn_img.width();
@@ -94,9 +91,19 @@ impl Texture {
             height,
             bytes,
             path: path.as_ref().to_path_buf(),
-            gpu_tex: None,
             loaded: true,
         })
+    }
+
+    pub(in crate) fn from_bytes(width: u32, height: u32, kind: TextureKind, bytes: Vec<u8>) -> Self {
+        Self {
+            path: Default::default(),
+            width,
+            height,
+            bytes,
+            kind,
+            loaded: true
+        }
     }
 
     pub fn is_loaded(&self) -> bool {

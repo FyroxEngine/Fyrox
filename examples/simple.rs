@@ -1,7 +1,13 @@
+//! Simple scene example.
+//!
+//! This example shows how to create simple scene with animated model.
+
 extern crate rg3d;
 
-use std::time::Instant;
-
+use std::{
+    time::Instant,
+    sync::{Arc, Mutex}
+};
 use rg3d::{
     scene::{
         base::{
@@ -24,7 +30,7 @@ use rg3d::{
         WindowEvent,
         DeviceEvent,
         VirtualKeyCode,
-        ElementState
+        ElementState,
     },
     event_loop::{
         EventLoop,
@@ -38,7 +44,8 @@ use rg3d::{
             quat::Quat,
         },
     },
-    animation::Animation
+    animation::Animation,
+    utils::translate_event
 };
 
 // Create our own engine type aliases. These specializations are needed
@@ -58,8 +65,10 @@ struct GameScene {
     walk_animation: Handle<Animation>,
 }
 
-fn create_scene(resource_manager: &mut ResourceManager) -> GameScene {
+fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     let mut scene = Scene::new();
+
+    let mut resource_manager = resource_manager.lock().unwrap();
 
     // Camera is our eyes in the world - you won't see anything without it.
     let camera = CameraBuilder::new(BaseBuilder::new()
@@ -133,13 +142,13 @@ fn main() {
     // loads model resource it automatically tries to load textures it uses. But since most
     // model formats store absolute paths, we can't use them as direct path to load texture
     // instead we telling engine to search textures in given folder.
-    engine.resource_manager.set_textures_path("examples/data");
+    engine.resource_manager.lock().unwrap().set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface);
 
     // Create test scene.
-    let GameScene { scene, model_handle, walk_animation } = create_scene(&mut engine.resource_manager);
+    let GameScene { scene, model_handle, walk_animation } = create_scene(engine.resource_manager.clone());
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -168,10 +177,10 @@ fn main() {
                 // This main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
-                let mut dt = clock.elapsed().as_secs_f64() - elapsed_time;
-                while dt >= fixed_timestep as f64 {
-                    dt -= fixed_timestep as f64;
-                    elapsed_time += fixed_timestep as f64;
+                let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
+                while dt >= fixed_timestep {
+                    dt -= fixed_timestep;
+                    elapsed_time += fixed_timestep;
 
                     // ************************
                     // Put your game logic here.
@@ -209,6 +218,17 @@ fn main() {
                     engine.update(fixed_timestep);
                 }
 
+                // It is very important to "pump" messages from UI. Even if don't need to
+                // respond to such message, you should call this method, otherwise UI
+                // might behave very weird.
+                while let Some(_ui_event) = engine.user_interface.poll_message() {
+                    // ************************
+                    // Put your data model synchronization code here. It should
+                    // take message and update data in your game according to
+                    // changes in UI.
+                    // ************************
+                }
+
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
                 engine.get_window().request_redraw();
             }
@@ -228,6 +248,13 @@ fn main() {
                         engine.renderer.set_frame_size(size.into()).unwrap();
                     }
                     _ => ()
+                }
+
+                // It is very important to "feed" user interface (UI) with events coming
+                // from main window, otherwise UI won't respond to mouse, keyboard, or any
+                // other event.
+                if let Some(os_event) = translate_event(&event) {
+                    engine.user_interface.process_os_event(&os_event);
                 }
             }
             Event::DeviceEvent { event, .. } => {

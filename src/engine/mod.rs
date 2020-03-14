@@ -46,7 +46,7 @@ pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
     pub renderer: Renderer,
     pub user_interface: UserInterface<M, C>,
     pub sound_context: Arc<Mutex<Context>>,
-    pub resource_manager: ResourceManager,
+    pub resource_manager: Arc<Mutex<ResourceManager>>,
     pub scenes: SceneContainer,
     pub ui_time: Duration
 }
@@ -90,7 +90,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
 
         Ok(Engine {
             context,
-            resource_manager: ResourceManager::new(),
+            resource_manager: Arc::new(Mutex::new(ResourceManager::new())),
             sound_context: Context::new()?,
             scenes: SceneContainer::new(),
             renderer: Renderer::new(client_size.into())?,
@@ -113,7 +113,12 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
         let inner_size = self.context.window().inner_size();
         let frame_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
 
-        self.resource_manager.update(dt);
+        // Resource manager might be locked by some other worker thread and it cannot be updated,
+        // engine will try to update it in next frame. Resource update is just controls TTLs of
+        // resource so it is not problem to defer update call.
+        if let Ok(mut resource_manager) = self.resource_manager.try_lock() {
+            resource_manager.update(dt);
+        }
 
         for scene in self.scenes.iter_mut() {
             scene.update(frame_size, dt);
@@ -129,10 +134,9 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     }
 
     #[inline]
-    pub fn render(&mut self) -> Result<(), RendererError> {
-        self.renderer.upload_resources(&mut self.resource_manager);
+    pub fn render(&mut self, dt: f32) -> Result<(), RendererError> {
         self.user_interface.draw();
-        self.renderer.render(&self.scenes, &self.user_interface.get_drawing_context(), &self.context)
+        self.renderer.render(&self.scenes, &self.user_interface.get_drawing_context(), &self.context, dt)
     }
 }
 
@@ -141,16 +145,16 @@ impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C>  {
         visitor.enter_region(name)?;
 
         if visitor.is_reading() {
-            self.resource_manager.update(0.0);
+            self.resource_manager.lock().unwrap().update(0.0);
             self.scenes.clear();
         }
 
-        self.resource_manager.visit("ResourceManager", visitor)?;
+        self.resource_manager.lock()?.visit("ResourceManager", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
         self.sound_context.lock()?.visit("SoundContext", visitor)?;
 
         if visitor.is_reading() {
-            self.resource_manager.reload_resources();
+            self.resource_manager.lock()?.reload_resources();
             for scene in self.scenes.iter_mut() {
                 scene.resolve();
             }

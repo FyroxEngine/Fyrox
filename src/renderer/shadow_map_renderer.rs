@@ -22,6 +22,7 @@ use crate::{
         }
     },
 };
+use crate::renderer::{TextureCache, GeometryCache};
 
 pub struct SpotShadowMapShader {
     program: GpuProgram,
@@ -129,6 +130,8 @@ impl SpotShadowMapRenderer {
                   light_view_projection: &Mat4,
                   white_dummy: &GpuTexture,
                   gl_state: &mut GlState,
+                  textures: &mut TextureCache,
+                  geom_map: &mut GeometryCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -192,7 +195,7 @@ impl SpotShadowMapRenderer {
                     // Bind diffuse texture.
                     self.shader.set_diffuse_texture(0);
                     if let Some(texture) = surface.get_diffuse_texture() {
-                        if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                        if let Some(texture) = textures.get(texture) {
                             texture.bind(0);
                         } else {
                             white_dummy.bind(0);
@@ -201,7 +204,7 @@ impl SpotShadowMapRenderer {
                         white_dummy.bind(0);
                     }
 
-                    statistics.add_draw_call(surface.get_data().lock().unwrap().draw());
+                    statistics.add_draw_call(geom_map.draw(&surface.get_data().lock().unwrap()));
                 }
             }
         }
@@ -413,6 +416,8 @@ impl PointShadowMapRenderer {
                   light_pos: Vec3,
                   light_radius: f32,
                   gl_state: &mut GlState,
+                  texture_cache: &mut TextureCache,
+                  geom_cache: &mut GeometryCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -488,7 +493,7 @@ impl PointShadowMapRenderer {
                             // Bind diffuse texture.
                             self.shader.set_diffuse_texture(0);
                             if let Some(texture) = surface.get_diffuse_texture() {
-                                if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                                if let Some(texture) = texture_cache.get(texture) {
                                     texture.bind(0);
                                 } else {
                                     white_dummy.bind(0);
@@ -497,7 +502,7 @@ impl PointShadowMapRenderer {
                                 white_dummy.bind(0);
                             }
 
-                            statistics.add_draw_call(surface.get_data().lock().unwrap().draw());
+                            statistics.add_draw_call(geom_cache.draw(&surface.get_data().lock().unwrap()));
                         }
                     }
                 }

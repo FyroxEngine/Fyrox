@@ -22,7 +22,7 @@ use std::ops::Deref;
 /// span.
 pub struct TimedEntry<T> {
     pub value: T,
-    time_to_live: f32,
+    pub time_to_live: f32,
 }
 
 impl<T> Deref for TimedEntry<T> {

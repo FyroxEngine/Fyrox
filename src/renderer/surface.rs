@@ -5,24 +5,17 @@ use crate::{
             vec3::Vec3,
             vec4::Vec4,
         },
-        pool::{Handle, ErasedHandle},
-    },
-    renderer::{
-        geometry_buffer::{
-            GeometryBuffer,
-            GeometryBufferKind,
-            AttributeDefinition,
-            AttributeKind,
-            ElementKind
+        pool::{
+            Handle,
+            ErasedHandle
         },
-        TriangleDefinition,
     },
     scene::node::Node,
     resource::texture::Texture,
 };
-use std::{
-    sync::{Mutex, Arc},
-    cell::Cell,
+use std::sync::{
+    Mutex,
+    Arc
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -37,10 +30,8 @@ pub struct Vertex {
 }
 
 pub struct SurfaceSharedData {
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
-    need_upload: Cell<bool>,
-    geometry_buffer: GeometryBuffer<Vertex>,
+    pub(in crate) vertices: Vec<Vertex>,
+    pub(in crate) indices: Vec<u32>,
 }
 
 impl Default for SurfaceSharedData {
@@ -51,45 +42,15 @@ impl Default for SurfaceSharedData {
 
 impl SurfaceSharedData {
     pub fn new() -> Self {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
-
-        geometry_buffer.describe_attributes(vec![
-            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
-            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false },
-        ]).unwrap();
-
         Self {
             vertices: Vec::new(),
             indices: Vec::new(),
-            need_upload: Cell::new(true),
-            geometry_buffer,
         }
     }
 
     #[inline]
     pub fn add_vertex(&mut self, vertex: Vertex) {
         self.vertices.push(vertex);
-    }
-
-    /// Draws surface, returns amount of triangles were rendered.
-    pub fn draw(&self) -> usize {
-        if self.need_upload.get() {
-            self.geometry_buffer.set_vertices(self.vertices.as_slice());
-
-            let mut triangles = Vec::with_capacity(self.indices.len() / 3);
-            for i in (0..self.indices.len()).step_by(3) {
-                triangles.push(TriangleDefinition { indices: [self.indices[i], self.indices[i + 1], self.indices[i + 2]] });
-            }
-
-            self.geometry_buffer.set_triangles(&triangles);
-            self.need_upload.set(false);
-        }
-
-        self.geometry_buffer.draw()
     }
 
     /// Inserts vertex or its index. Performs optimizing insertion with checking if such
@@ -111,7 +72,6 @@ impl SurfaceSharedData {
                 index
             }
         });
-        self.need_upload.set(true);
         is_unique
     }
 

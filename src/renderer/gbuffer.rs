@@ -13,6 +13,8 @@ use crate::{
         gpu_texture::GpuTexture,
         RenderPassStatistics,
         GlState,
+        TextureCache,
+        GeometryCache
     },
     core::math::{
         Rect,
@@ -223,6 +225,8 @@ impl GBuffer {
                 white_dummy: &GpuTexture,
                 normal_dummy: &GpuTexture,
                 gl_state: &mut GlState,
+                texture_cache: &mut TextureCache,
+                geom_cache: &mut GeometryCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -290,10 +294,8 @@ impl GBuffer {
 
                 // Bind diffuse texture.
                 if let Some(texture) = surface.get_diffuse_texture() {
-                    if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                    if let Some(texture) = texture_cache.get(texture) {
                         texture.bind(0);
-                    } else {
-                        white_dummy.bind(0);
                     }
                 } else {
                     white_dummy.bind(0);
@@ -301,16 +303,14 @@ impl GBuffer {
 
                 // Bind normal texture.
                 if let Some(texture) = surface.get_normal_texture() {
-                    if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                    if let Some(texture) = texture_cache.get(texture) {
                         texture.bind(1);
-                    } else {
-                        normal_dummy.bind(1);
                     }
                 } else {
                     normal_dummy.bind(1);
                 }
 
-                statistics.add_draw_call(surface.get_data().lock().unwrap().draw());
+                statistics.add_draw_call( geom_cache.draw(&surface.get_data().lock().unwrap()));
             }
         }
 

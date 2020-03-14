@@ -29,6 +29,7 @@ use crate::{
         Rect,
     },
 };
+use crate::renderer::TextureCache;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -142,6 +143,7 @@ impl ParticleSystemRenderer {
                   frame_height: f32,
                   gbuffer: &GBuffer,
                   gl_state: &mut GlState,
+                  texture_cache: &mut TextureCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -176,10 +178,8 @@ impl ParticleSystemRenderer {
             self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
             if let Some(texture) = particle_system.texture() {
-                if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                if let Some(texture) = texture_cache.get(texture) {
                     texture.bind(0);
-                } else {
-                    white_dummy.bind(0)
                 }
             } else {
                 white_dummy.bind(0)

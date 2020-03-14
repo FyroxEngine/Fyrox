@@ -1,18 +1,8 @@
+use std::sync::{
+    Mutex,
+    Arc,
+};
 use crate::{
-    renderer::{
-        RenderPassStatistics,
-        gpu_program::{GpuProgram, UniformLocation},
-        gl,
-        error::RendererError,
-        geometry_buffer::{
-            GeometryBuffer,
-            AttributeDefinition,
-            AttributeKind,
-            GeometryBufferKind,
-        },
-        gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
-        geometry_buffer::ElementKind,
-    },
     gui::{
         brush::{
             Brush,
@@ -25,18 +15,30 @@ use crate::{
         },
         self,
     },
-    core::{
-        math::mat4::Mat4,
-        math::{
-            vec4::Vec4,
-            vec2::Vec2,
-        },
+    core::math::{
+        mat4::Mat4,
+        vec4::Vec4,
+        vec2::Vec2,
     },
-    resource::texture::Texture,
-};
-use std::{
-    sync::Mutex,
-    any::Any,
+    resource::texture::{
+        Texture,
+        TextureKind,
+    },
+    renderer::{
+        RenderPassStatistics,
+        gpu_program::{GpuProgram, UniformLocation},
+        gl,
+        error::RendererError,
+        geometry_buffer::{
+            GeometryBuffer,
+            AttributeDefinition,
+            AttributeKind,
+            GeometryBufferKind,
+        },
+        gpu_texture::GpuTexture,
+        geometry_buffer::ElementKind,
+        TextureCache,
+    },
 };
 
 struct UIShader {
@@ -174,7 +176,9 @@ impl UIRenderer {
                                       frame_width: f32,
                                       frame_height: f32,
                                       drawing_context: &DrawingContext,
-                                      white_dummy: &GpuTexture) -> Result<RenderPassStatistics, RendererError> {
+                                      white_dummy: &GpuTexture,
+                                      texture_cache: &mut TextureCache,
+    ) -> Result<RenderPassStatistics, RendererError> {
         let mut statistics = RenderPassStatistics::default();
 
         unsafe {
@@ -227,30 +231,28 @@ impl UIRenderer {
 
                         match cmd.texture() {
                             CommandTexture::None => white_dummy.bind(0),
-                            CommandTexture::Font(font) => {
-                                let mut font = font.lock().unwrap();
+                            CommandTexture::Font(font_arc) => {
+                                let mut font = font_arc.lock().unwrap();
                                 if font.texture.is_none() {
-                                    font.texture = Some(Box::new(GpuTexture::new(
-                                        GpuTextureKind::Rectangle {
-                                            width: font.get_atlas_size() as usize,
-                                            height: font.get_atlas_size() as usize,
-                                        }, PixelKind::R8, font.get_atlas_pixels(),
-                                        false).unwrap()
-                                    ));
+                                    let tex = Texture::from_bytes(
+                                        font.get_atlas_size() as u32,
+                                        font.get_atlas_size() as u32,
+                                        TextureKind::R8,
+                                        font.get_atlas_pixels().to_vec(),
+                                    );
+                                    font.texture = Some(Arc::new(Mutex::new(tex)));
                                 }
-                                (font.texture.as_ref().unwrap().as_ref() as &dyn Any)
-                                    .downcast_ref::<GpuTexture>().unwrap().bind(0);
+                                if let Some(texture) = texture_cache.get(font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
+                                    texture.bind(0);
+                                }
                                 self.shader.set_is_font(true);
                             }
                             CommandTexture::Texture(texture) => {
-                                let texture = texture.clone().downcast::<Mutex<Texture>>();
-                                if let Ok(texture) = texture {
-                                    let texture = texture.lock().unwrap();
-                                    if let Some(texture) = &texture.gpu_tex {
-                                        texture.bind(0)
+                                if let Ok(texture) = texture.clone().downcast::<Mutex<Texture>>() {
+                                    if let Some(texture) = texture_cache.get(texture) {
+                                        texture.bind(0);
                                     }
                                 }
-
                                 self.shader.set_is_font(false);
                             }
                         }

@@ -16,17 +16,12 @@ mod gbuffer;
 mod deferred_light_renderer;
 mod shadow_map_renderer;
 mod flat_shader;
-pub mod gpu_texture;
+mod gpu_texture;
 mod sprite_renderer;
 
 use glutin::PossiblyCurrent;
-use std::{
-    time,
-    ffi::CStr,
-};
 use crate::{
-    engine::resource_manager::ResourceManager,
-    gui::draw::DrawingContext,
+    resource::texture::Texture,
     renderer::{
         ui_renderer::UIRenderer,
         surface::SurfaceSharedData,
@@ -42,6 +37,13 @@ use crate::{
         sprite_renderer::SpriteRenderer,
         gl::types::{GLsizei, GLenum, GLuint, GLchar},
         debug_renderer::DebugRenderer,
+        geometry_buffer::{
+            GeometryBuffer,
+            GeometryBufferKind,
+            ElementKind,
+            AttributeKind,
+            AttributeDefinition,
+        },
     },
     scene::{
         SceneContainer,
@@ -56,11 +58,21 @@ use crate::{
         },
         color::Color,
         math::Rect,
-        pool::Handle
+        pool::Handle,
     },
     utils::log::Log,
+    gui::draw::DrawingContext,
+    engine::resource_manager::TimedEntry
 };
-use std::collections::HashMap;
+use std::{
+    sync::{
+        Arc,
+        Mutex
+    },
+    time,
+    ffi::CStr,
+    collections::HashMap,
+};
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -213,6 +225,94 @@ pub struct Renderer {
     pub debug_renderer: DebugRenderer,
     gl_state: GlState,
     gbuffers: HashMap<Handle<Node>, GBuffer>,
+    backbuffer_clear_color: Color,
+    texture_cache: TextureCache,
+    geometry_cache: GeometryCache,
+}
+
+#[derive(Default)]
+pub struct GeometryCache {
+    map: HashMap<usize, TimedEntry<GeometryBuffer<surface::Vertex>>>
+}
+
+impl GeometryCache {
+    /// Draws surface, returns amount of triangles were rendered.
+    fn draw(&mut self, data: &SurfaceSharedData) -> usize {
+        let key = (data as *const _) as usize;
+
+        let geometry_buffer = self.map.entry(key).or_insert_with(|| {
+            let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
+
+            geometry_buffer.describe_attributes(vec![
+                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
+                AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false },
+            ]).unwrap();
+
+            geometry_buffer.set_vertices(data.vertices.as_slice());
+
+            let mut triangles = Vec::with_capacity(data.indices.len() / 3);
+            for i in (0..data.indices.len()).step_by(3) {
+                triangles.push(TriangleDefinition { indices: [data.indices[i], data.indices[i + 1], data.indices[i + 2]] });
+            }
+            geometry_buffer.set_triangles(&triangles);
+
+            TimedEntry { value: geometry_buffer, time_to_live: 20.0 }
+        });
+
+        geometry_buffer.time_to_live = 20.0;
+        geometry_buffer.draw()
+    }
+
+    fn update(&mut self, dt: f32) {
+        for entry in self.map.values_mut() {
+            entry.time_to_live -= dt;
+        }
+        self.map.retain(|_, v| {
+            v.time_to_live > 0.0
+        });
+    }
+}
+
+#[derive(Default)]
+pub struct TextureCache {
+    map: HashMap<usize, TimedEntry<GpuTexture>>
+}
+
+impl TextureCache {
+    fn get(&mut self, texture: Arc<Mutex<Texture>>) -> Option<&GpuTexture> {
+        if texture.lock().unwrap().loaded {
+            let key = (&*texture as *const _) as usize;
+            let gpu_texture = self.map.entry(key).or_insert_with(move || {
+                let texture = texture.lock().unwrap();
+                let gpu_texture = GpuTexture::new(
+                    GpuTextureKind::Rectangle { width: texture.width as usize, height: texture.height as usize },
+                    PixelKind::from(texture.kind),
+                    texture.bytes.as_slice(),
+                    true)
+                    .unwrap();
+                gpu_texture.set_max_anisotropy();
+                TimedEntry { value: gpu_texture, time_to_live: 20.0 }
+            });
+            // Texture won't be destroyed while it used.
+            gpu_texture.time_to_live = 20.0;
+            Some(&gpu_texture.value)
+        } else {
+            None
+        }
+    }
+
+    fn update(&mut self, dt: f32) {
+        for entry in self.map.values_mut() {
+            entry.time_to_live -= dt;
+        }
+        self.map.retain(|_, v| {
+            v.time_to_live > 0.0
+        });
+    }
 }
 
 pub struct GlState {
@@ -280,6 +380,9 @@ impl Renderer {
             debug_renderer: DebugRenderer::new()?,
             gl_state: GlState::new(),
             gbuffers: Default::default(),
+            backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
+            texture_cache: Default::default(),
+            geometry_cache: Default::default(),
         })
     }
 
@@ -295,17 +398,8 @@ impl Renderer {
         self.statistics
     }
 
-    pub fn upload_resources(&mut self, resource_manager: &mut ResourceManager) {
-        for texture_rc in resource_manager.textures() {
-            let mut texture = texture_rc.lock().unwrap();
-            if texture.loaded && texture.gpu_tex.is_none() {
-                let gpu_texture = GpuTexture::new(
-                    GpuTextureKind::Rectangle { width: texture.width as usize, height: texture.height as usize },
-                    PixelKind::from(texture.kind), texture.bytes.as_slice(), true).unwrap();
-                gpu_texture.set_max_anisotropy();
-                texture.gpu_tex = Some(gpu_texture);
-            }
-        }
+    pub fn set_backbuffer_clear_color(&mut self, color: Color) {
+        self.backbuffer_clear_color = color;
     }
 
     /// Sets new frame size, should be called when received a Resize event.
@@ -333,7 +427,11 @@ impl Renderer {
                             scenes: &SceneContainer,
                             drawing_context: &DrawingContext,
                             context: &glutin::WindowedContext<PossiblyCurrent>,
+                            dt: f32,
     ) -> Result<(), RendererError> {
+        self.geometry_cache.update(dt);
+        self.texture_cache.update(dt);
+
         self.statistics.begin_frame();
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
@@ -343,6 +441,8 @@ impl Renderer {
             gl::StencilMask(0xFF);
             gl::DepthMask(gl::TRUE);
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
+            let clear_color = self.backbuffer_clear_color.as_frgba();
+            gl::ClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
         }
 
@@ -378,6 +478,8 @@ impl Renderer {
                     &self.white_dummy,
                     &self.normal_dummy,
                     &mut self.gl_state,
+                    &mut self.texture_cache,
+                    &mut self.geometry_cache,
                 );
 
                 self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
@@ -388,6 +490,8 @@ impl Renderer {
                     ambient_color: self.ambient_color,
                     settings: &self.quality_settings,
                     gl_state: &mut self.gl_state,
+                    textures: &mut self.texture_cache,
+                    geometry_cache: &mut self.geometry_cache,
                 });
 
                 self.statistics += self.particle_system_renderer.render(
@@ -398,6 +502,7 @@ impl Renderer {
                     frame_height,
                     gbuffer,
                     &mut self.gl_state,
+                    &mut self.texture_cache,
                 );
 
                 self.statistics += self.sprite_renderer.render(
@@ -406,6 +511,8 @@ impl Renderer {
                     &self.white_dummy,
                     gbuffer,
                     &mut self.gl_state,
+                    &mut self.texture_cache,
+                    &mut self.geometry_cache,
                 );
 
                 self.statistics += self.debug_renderer.render(camera);
@@ -428,7 +535,7 @@ impl Renderer {
                     gl::ActiveTexture(gl::TEXTURE0);
                     gl::BindTexture(gl::TEXTURE_2D, gbuffer.frame_texture);
                 }
-                self.statistics.geometry.add_draw_call(self.quad.draw());
+                self.statistics.geometry.add_draw_call(self.geometry_cache.draw(&self.quad));
 
                 self.gl_state.pop_viewport();
             }
@@ -440,6 +547,7 @@ impl Renderer {
             frame_height,
             drawing_context,
             &self.white_dummy,
+            &mut self.texture_cache,
         )?;
 
         self.statistics.end_frame();

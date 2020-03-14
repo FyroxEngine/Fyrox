@@ -24,6 +24,7 @@ use crate::{
         },
     },
 };
+use crate::renderer::{TextureCache, GeometryCache};
 
 pub struct SpriteShader {
     program: GpuProgram,
@@ -123,6 +124,8 @@ impl SpriteRenderer {
                   white_dummy: &GpuTexture,
                   gbuffer: &GBuffer,
                   gl_state: &mut GlState,
+                  textures: &mut TextureCache,
+                  geom_map: &mut GeometryCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
@@ -149,7 +152,7 @@ impl SpriteRenderer {
             };
 
             if let Some(texture) = sprite.texture() {
-                if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
+                if let Some(texture) = textures.get(texture) {
                     texture.bind(0);
                 } else {
                     white_dummy.bind(0)
@@ -167,7 +170,7 @@ impl SpriteRenderer {
                 .set_color(sprite.color())
                 .set_rotation(sprite.rotation());
 
-            statistics.add_draw_call(self.surface.draw());
+            statistics.add_draw_call(geom_map.draw(&self.surface));
         }
 
         unsafe {

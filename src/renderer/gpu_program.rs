@@ -1,5 +1,7 @@
-use std::ffi::{CString};
-
+use std::{
+    ffi::{CString},
+    marker::PhantomData
+};
 use crate::{
     core::{
         math::{
@@ -22,11 +24,15 @@ use crate::{
 pub struct GpuProgram {
     id: GLuint,
     name_buf: Vec<u8>,
+    // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
+    thread_mark: PhantomData<*const u8>,
 }
 
 #[derive(Copy, Clone)]
 pub struct UniformLocation {
-    id: GLint
+    id: GLint,
+    // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
+    thread_mark: PhantomData<*const u8>
 }
 
 impl GpuProgram {
@@ -84,6 +90,7 @@ impl GpuProgram {
                 Ok(Self {
                     id: program,
                     name_buf: Vec::new(),
+                    thread_mark: PhantomData
                 })
             }
         }
@@ -100,7 +107,7 @@ impl GpuProgram {
             if id < 0 {
                 Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
             } else {
-                Ok(UniformLocation { id })
+                Ok(UniformLocation { id, thread_mark: PhantomData })
             }
         }
     }

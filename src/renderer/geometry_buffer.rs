@@ -9,6 +9,7 @@ use crate::renderer::{
     gl, gl::types::{GLuint, GLint},
     TriangleDefinition,
 };
+use crate::utils::log::Log;
 
 /// Safe wrapper over OpenGL's Vertex Array Objects for interleaved vertices (where
 /// position, normal, etc. stored together, not in separate arrays)
@@ -20,7 +21,9 @@ pub struct GeometryBuffer<T> {
     meta: PhantomData<T>,
     kind: GeometryBufferKind,
     element_count: Cell<usize>,
-    element_kind: ElementKind
+    element_kind: ElementKind,
+    // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
+    thread_mark: PhantomData<*const u8>,
 }
 
 #[derive(Copy, Clone)]
@@ -134,7 +137,7 @@ pub enum GeometryBufferKind {
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum ElementKind {
     Triangle,
-    Line
+    Line,
 }
 
 impl ElementKind {
@@ -158,6 +161,8 @@ impl<T> GeometryBuffer<T> where T: Sized {
             let mut ebo = 0;
             gl::GenBuffers(1, &mut ebo);
 
+            Log::writeln(format!("GL geometry buffer was created - VBO: {}, EBO: {}, VAO: {}!", vbo, ebo, vao));
+
             Self {
                 vertex_array_object: vao,
                 vertex_buffer_object: vbo,
@@ -165,7 +170,8 @@ impl<T> GeometryBuffer<T> where T: Sized {
                 meta: PhantomData,
                 kind,
                 element_count: Cell::new(0),
-                element_kind
+                element_kind,
+                thread_mark: PhantomData,
             }
         }
     }
@@ -268,7 +274,7 @@ impl<T> GeometryBuffer<T> where T: Sized {
             Err(RendererError::InvalidElementRange {
                 start: offset,
                 end: last_triangle_index,
-                total: self.element_count.get()
+                total: self.element_count.get(),
             })
         } else {
             let index_per_element = self.element_kind.index_per_element();
@@ -312,6 +318,9 @@ impl<T> GeometryBuffer<T> where T: Sized {
 impl<T> Drop for GeometryBuffer<T> {
     fn drop(&mut self) {
         unsafe {
+            Log::writeln(format!("GL geometry buffer was destroyed - VBO: {}, EBO: {}, VAO: {}!",
+                                 self.vertex_buffer_object, self.element_buffer_object, self.vertex_array_object));
+
             gl::DeleteBuffers(1, &self.vertex_buffer_object);
             gl::DeleteBuffers(1, &self.element_buffer_object);
             gl::DeleteVertexArrays(1, &self.vertex_array_object);
