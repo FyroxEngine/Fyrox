@@ -22,6 +22,7 @@ use std::{
     io::Read,
     ops::Range
 };
+use std::sync::Arc;
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -98,7 +99,7 @@ pub struct Font {
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
     atlas_size: i32,
-    pub texture: Option<Box<Texture>>
+    pub texture: Option<Arc<Texture>>
 }
 
 struct RectPackNode {

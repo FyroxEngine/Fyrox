@@ -37,6 +37,7 @@ use crate::{
     items_control::{ItemsControl, ItemContainer},
     decorator::Decorator,
     NodeHandleMapping,
+    progress_bar::ProgressBar
 };
 
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -61,6 +62,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Popup(Popup<M, C>),
     ComboBox(ComboBox<M, C>),
     Decorator(Decorator<M, C>),
+    ProgressBar(ProgressBar<M, C>),
     User(C)
 }
 
@@ -88,6 +90,7 @@ macro_rules! static_dispatch {
             UINode::ComboBox(v) => v.$func($($args),*),
             UINode::ItemsControl(v) => v.$func($($args),*),
             UINode::ItemContainer(v) => v.$func($($args),*),
+            UINode::ProgressBar(v) => v.$func($($args),*),
             UINode::Decorator(v) => v.$func($($args),*),
         }
     };
@@ -147,3 +150,24 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
     }
 }
 
+
+#[derive(Debug)]
+pub enum StubNode {}
+
+impl Control<(), StubNode> for StubNode {
+    fn widget(&self) -> &Widget<(), StubNode> {
+        unimplemented!()
+    }
+
+    fn widget_mut(&mut self) -> &mut Widget<(), StubNode> {
+        unimplemented!()
+    }
+
+    fn raw_copy(&self) -> UINode<(), StubNode> {
+        unimplemented!()
+    }
+
+    fn handle_message(&mut self, _: Handle<UINode<(), StubNode>>, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
+        unimplemented!()
+    }
+}

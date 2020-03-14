@@ -36,13 +36,12 @@ pub mod popup;
 pub mod combobox;
 pub mod items_control;
 pub mod decorator;
+pub mod progress_bar;
 
 use std::{
     collections::VecDeque,
-    sync::{
-        Arc,
-        Mutex,
-    },
+    sync::Arc,
+    sync::Mutex,
     collections::HashMap,
 };
 use crate::{
