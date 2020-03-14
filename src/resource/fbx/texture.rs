@@ -1,12 +1,14 @@
 use std::path::PathBuf;
-use crate::resource::fbx::{
-    FbxNode,
-    find_and_borrow_node,
-};
-use crate::core::{
-    pool::{
-        Handle,
-        Pool,
+use crate::{
+    resource::fbx::{
+        FbxNode,
+        find_and_borrow_node,
+    },
+    core::{
+        pool::{
+            Handle,
+            Pool,
+        }
     }
 };
 

@@ -376,10 +376,12 @@ impl AnimationPose {
             if node.is_none() {
                 Log::writeln("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
             } else {
-                let local_transform = graph.get_mut(*node).base_mut().get_local_transform_mut();
-                local_transform.set_position(local_pose.position);
-                local_transform.set_rotation(local_pose.rotation);
-                local_transform.set_scale(local_pose.scale);
+                graph.get_mut(*node)
+                    .base_mut()
+                    .local_transform_mut()
+                    .set_position(local_pose.position)
+                    .set_rotation(local_pose.rotation)
+                    .set_scale(local_pose.scale);
             }
         }
     }
@@ -527,7 +529,7 @@ impl Animation {
                     break;
                 }
             }
-            for child in graph.get(node).base().get_children() {
+            for child in graph.get(node).base().children() {
                 stack.push(*child);
             }
         }
@@ -567,14 +569,14 @@ impl Animation {
                     // animation targetted to character instance.
                     let mut found = false;
                     for ref_track in ref_animation.get_tracks().iter() {
-                        if track_node.get_name() == resource.get_scene().graph.get(ref_track.get_node()).base().get_name() {
+                        if track_node.name() == resource.get_scene().graph.get(ref_track.get_node()).base().name() {
                             track.set_key_frames(ref_track.get_key_frames());
                             found = true;
                             break;
                         }
                     }
                     if !found {
-                        Log::write(format!("Failed to copy key frames for node {}!", track_node.get_name()));
+                        Log::write(format!("Failed to copy key frames for node {}!", track_node.name()));
                     }
                 }
             }

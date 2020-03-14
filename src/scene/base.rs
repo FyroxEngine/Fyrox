@@ -4,12 +4,12 @@ use crate::{
     scene::{
         node::Node,
         transform::Transform
+    },
+    core::{
+        math::{vec3::Vec3, mat4::Mat4},
+        visitor::{Visit, VisitResult, Visitor},
+        pool::Handle,
     }
-};
-use crate::core::{
-    math::{vec3::Vec3, mat4::Mat4},
-    visitor::{Visit, VisitResult, Visitor},
-    pool::Handle,
 };
 
 pub struct Base {
@@ -44,30 +44,32 @@ pub trait AsBase {
 
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
-    pub fn set_name(&mut self, name: &str) {
+    pub fn set_name(&mut self, name: &str) -> &mut Self {
         self.name = name.to_owned();
+        self
     }
 
     /// Returns name of node.
-    pub fn get_name(&self) -> &str {
+    pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
     /// some local spatial properties, such as position, rotation, scale, etc.
-    pub fn get_local_transform(&self) -> &Transform {
+    pub fn local_transform(&self) -> &Transform {
         &self.local_transform
     }
 
     /// Returns mutable reference to local transform of a node, can be used to set
     /// some local spatial properties, such as position, rotation, scale, etc.
-    pub fn get_local_transform_mut(&mut self) -> &mut Transform {
+    pub fn local_transform_mut(&mut self) -> &mut Transform {
         &mut self.local_transform
     }
 
     /// Sets new local transform of a node.
-    pub fn set_local_transform(&mut self, transform: Transform) {
+    pub fn set_local_transform(&mut self, transform: Transform) -> &mut Self {
         self.local_transform = transform;
+        self
     }
 
     /// Sets lifetime of node in seconds, lifetime is useful for temporary objects.
@@ -79,57 +81,60 @@ impl Base {
     /// system node and it will be removed from scene when time will end. This is
     /// efficient algorithm because scene holds every object in pool and allocation
     /// or deallocation of node takes very little amount of time.
-    pub fn set_lifetime(&mut self, time_seconds: f32) {
+    pub fn set_lifetime(&mut self, time_seconds: f32) -> &mut Self {
         self.lifetime = Some(time_seconds);
+        self
     }
 
     /// Returns current lifetime of a node. Will be None if node has undefined lifetime.
     /// For more info about lifetimes see [`set_lifetime`].
-    pub fn get_lifetime(&self) -> Option<f32> {
+    pub fn lifetime(&self) -> Option<f32> {
         self.lifetime
     }
 
     /// Returns handle of parent node.
-    pub fn get_parent(&self) -> crate::core::pool::Handle<Node> {
+    pub fn parent(&self) -> crate::core::pool::Handle<Node> {
         self.parent
     }
 
     /// Returns slice of handles to children nodes. This can be used, for example, to
     /// traverse tree starting from some node.
-    pub fn get_children(&self) -> &[Handle<Node>] {
+    pub fn children(&self) -> &[Handle<Node>] {
         self.children.as_slice()
     }
 
     /// Returns global transform matrix, such matrix contains combined transformation
     /// of transforms of parent nodes. This is the final matrix that describes real
     /// location of object in the world.
-    pub fn get_global_transform(&self) -> Mat4 {
+    pub fn global_transform(&self) -> Mat4 {
         self.global_transform
     }
 
     /// Returns inverse of bind pose matrix. Bind pose matrix - is special matrix
     /// for bone nodes, it stores initial transform of bone node at the moment
     /// of "binding" vertices to bones.
-    pub fn get_inv_bind_pose_transform(&self) -> Mat4 {
+    pub fn inv_bind_pose_transform(&self) -> Mat4 {
         self.inv_bind_pose_transform
     }
 
+    /// Returns true if this node is model resource instance root node.
     pub fn is_resource_instance(&self) -> bool {
         self.is_resource_instance
     }
 
     /// Returns resource from which this node was instantiated from.
-    pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
+    pub fn resource(&self) -> Option<Arc<Mutex<Model>>> {
         self.resource.clone()
     }
 
     /// Sets local visibility of a node.
-    pub fn set_visibility(&mut self, visibility: bool) {
+    pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
         self.visibility = visibility;
+        self
     }
 
     /// Returns local visibility of a node.
-    pub fn get_visibility(&self) -> bool {
+    pub fn visibility(&self) -> bool {
         self.visibility
     }
 
@@ -139,36 +144,36 @@ impl Base {
     /// invisible. It defines if object will be rendered. It is *not* the same as real
     /// visibility point of view of some camera. To check if object is visible from some
     /// camera, use appropriate method (TODO: which one?)
-    pub fn get_global_visibility(&self) -> bool {
+    pub fn global_visibility(&self) -> bool {
         self.global_visibility
     }
 
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
-    pub fn get_original_handle(&self) -> Handle<Node> {
+    pub fn original_handle(&self) -> Handle<Node> {
         self.original
     }
 
     /// Returns position of the node in absolute coordinates.
-    pub fn get_global_position(&self) -> Vec3 {
+    pub fn global_position(&self) -> Vec3 {
         self.global_transform.position()
     }
 
     /// Returns "look" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn get_look_vector(&self) -> Vec3 {
+    pub fn look_vector(&self) -> Vec3 {
         self.global_transform.look()
     }
 
     /// Returns "side" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn get_side_vector(&self) -> Vec3 {
+    pub fn side_vector(&self) -> Vec3 {
         self.global_transform.side()
     }
 
     /// Returns "up" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn get_up_vector(&self) -> Vec3 {
+    pub fn up_vector(&self) -> Vec3 {
         self.global_transform.up()
     }
 }

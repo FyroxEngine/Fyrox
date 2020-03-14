@@ -1,4 +1,3 @@
-use std::ffi::CString;
 use crate::{
     core::{
         color::Color,
@@ -47,8 +46,8 @@ pub struct DebugShader {
 
 impl DebugShader {
     fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(include_str!("shaders/debug_fs.glsl"))?;
-        let vertex_source = CString::new(include_str!("shaders/debug_vs.glsl"))?;
+        let fragment_source = include_str!("shaders/debug_fs.glsl");
+        let vertex_source = include_str!("shaders/debug_vs.glsl");
         let mut program = GpuProgram::from_source("DebugShader", &vertex_source, &fragment_source)?;
         Ok(Self {
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
@@ -56,11 +55,11 @@ impl DebugShader {
         })
     }
 
-    fn bind(&self) {
+    fn bind(&mut self) {
         self.program.bind()
     }
 
-    pub fn set_wvp_matrix(&self, mat: &Mat4) {
+    pub fn set_wvp_matrix(&mut self, mat: &Mat4) {
         self.program.set_mat4(self.wvp_matrix, mat)
     }
 }

@@ -22,7 +22,6 @@ impl std::fmt::Display for FbxAttribute {
     }
 }
 
-
 impl FbxAttribute {
     pub fn as_i32(&self) -> Result<i32, String> {
         match self {

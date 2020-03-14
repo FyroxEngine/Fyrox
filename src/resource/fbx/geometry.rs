@@ -1,4 +1,11 @@
 use crate::{
+    core::{
+        math::{
+            vec3::Vec3,
+            vec2::Vec2
+        },
+        pool::{Pool, Handle},
+    },
     resource::fbx::{
         find_and_borrow_node,
         find_node,
@@ -11,15 +18,8 @@ use crate::{
         error::FbxError,
     },
     renderer::surface::{VertexWeightSet, VertexWeight},
+    utils::log::Log
 };
-use crate::core::{
-    math::{
-        vec3::Vec3,
-        vec2::Vec2
-    },
-    pool::{Pool, Handle},
-};
-use crate::utils::log::Log;
 
 pub struct FbxGeometry {
     pub vertices: Vec<Vec3>,

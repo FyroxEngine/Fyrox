@@ -1,5 +1,7 @@
-use crate::renderer::error::RendererError;
-use crate::sound::error::SoundError;
+use crate::{
+    renderer::error::RendererError,
+    sound::error::SoundError
+};
 use glutin::{CreationError, ContextError};
 
 #[derive(Debug)]

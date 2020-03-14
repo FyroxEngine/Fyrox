@@ -89,7 +89,7 @@ fn create_scene(resource_manager: &mut ResourceManager) -> GameScene {
     scene.graph
         .get_mut(model_handle)
         .base_mut()
-        .get_local_transform_mut()
+        .local_transform_mut()
         // Our model is too big, fix it by scale.
         .set_scale(Vec3::new(0.05, 0.05, 0.05));
 
@@ -198,7 +198,7 @@ fn main() {
                     scene.graph
                         .get_mut(model_handle)
                         .base_mut()
-                        .get_local_transform_mut()
+                        .local_transform_mut()
                         .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
 
                     if let UiNode::Text(text) = engine.user_interface.node_mut(debug_text) {

@@ -10,25 +10,29 @@ use std::{
     },
 };
 use rand::Rng;
-use crate::core::{
-    math::{
-        vec3::Vec3,
-        vec2::Vec2,
-    },
-    visitor::{
-        Visit,
-        Visitor,
-        VisitResult,
-    },
-    color_gradient::ColorGradient,
-    numeric_range::NumericRange,
-    color::Color,
-};
 use crate::{
     resource::texture::Texture,
-    scene::base::{BaseBuilder, Base, AsBase}
+    scene::base::{
+        BaseBuilder,
+        Base,
+        AsBase,
+    },
+    core::{
+        math::{
+            vec3::Vec3,
+            vec2::Vec2,
+            TriangleDefinition,
+        },
+        visitor::{
+            Visit,
+            Visitor,
+            VisitResult,
+        },
+        color_gradient::ColorGradient,
+        numeric_range::NumericRange,
+        color::Color,
+    },
 };
-use crate::core::math::TriangleDefinition;
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
@@ -537,7 +541,7 @@ impl EmitterBuilder {
             time: 0.0,
             particles_to_spawn: 0,
             resurrect_particles: self.resurrect_particles,
-            spawned_particles: 0
+            spawned_particles: 0,
         }
     }
 }
@@ -576,6 +580,118 @@ impl Emitter {
         particle.rotation = self.rotation.random();
         particle.rotation_speed = self.rotation_speed.random();
         self.kind.emit(self, particle_system, particle);
+    }
+
+    pub fn set_position(&mut self, position: Vec3) -> &mut Self {
+        self.position = position;
+        self
+    }
+
+    pub fn position(&self) -> Vec3 {
+        self.position
+    }
+
+    pub fn set_spawn_rate(&mut self, rate: u32) -> &mut Self {
+        self.particle_spawn_rate = rate;
+        self
+    }
+
+    pub fn spawn_rate(&self) -> u32 {
+        self.particle_spawn_rate
+    }
+
+    pub fn set_max_particles(&mut self, max: ParticleLimit) -> &mut Self {
+        self.max_particles = max;
+        self
+    }
+
+    pub fn max_particles(&self) -> ParticleLimit {
+        self.max_particles
+    }
+
+    pub fn set_life_time_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.lifetime = range;
+        self
+    }
+
+    pub fn life_time_range(&self) -> NumericRange<f32> {
+        self.lifetime
+    }
+
+    pub fn set_size_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.size = range;
+        self
+    }
+
+    pub fn size_range(&self) -> NumericRange<f32> {
+        self.size
+    }
+
+    pub fn set_size_modifier_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.size_modifier = range;
+        self
+    }
+
+    pub fn size_modifier_range(&self) -> NumericRange<f32> {
+        self.size_modifier
+    }
+
+    pub fn set_x_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.x_velocity = range;
+        self
+    }
+
+    pub fn x_velocity_range(&self) -> NumericRange<f32> {
+        self.x_velocity
+    }
+
+    pub fn set_y_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.y_velocity = range;
+        self
+    }
+
+    pub fn y_velocity_range(&self) -> NumericRange<f32> {
+        self.y_velocity
+    }
+
+    pub fn set_z_velocity_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.z_velocity = range;
+        self
+    }
+
+    pub fn z_velocity_range(&self) -> NumericRange<f32> {
+        self.z_velocity
+    }
+
+    pub fn set_rotation_speed_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.rotation_speed = range;
+        self
+    }
+
+    pub fn rotation_speed_range(&self) -> NumericRange<f32> {
+        self.rotation_speed
+    }
+
+    pub fn set_rotation_range(&mut self, range: NumericRange<f32>) -> &mut Self {
+        self.rotation = range;
+        self
+    }
+
+    pub fn rotation_range(&self) -> NumericRange<f32> {
+        self.rotation
+    }
+
+    pub fn enable_particle_resurrection(&mut self, state: bool) -> &mut Self {
+        self.resurrect_particles = state;
+        self
+    }
+
+    pub fn is_particles_resurrects(&self) -> bool {
+        self.resurrect_particles
+    }
+
+    pub fn spawned_particles(&self) -> u64 {
+        self.spawned_particles
     }
 }
 
@@ -653,7 +769,7 @@ impl Default for Emitter {
             time: 0.0,
             particles_to_spawn: 0,
             resurrect_particles: true,
-            spawned_particles: 0
+            spawned_particles: 0,
         }
     }
 }
@@ -684,11 +800,11 @@ impl ParticleSystem {
         self.emitters.push(emitter)
     }
 
-    pub fn set_acceleration(&mut self, accel: Vec3) {
+    pub fn acceleration(&mut self, accel: Vec3) {
         self.acceleration = accel;
     }
 
-    pub fn set_color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
+    pub fn color_over_lifetime_gradient(&mut self, gradient: ColorGradient) {
         self.color_over_lifetime = Some(gradient)
     }
 
@@ -746,7 +862,7 @@ impl ParticleSystem {
         sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
             if particle.alive {
-                let actual_position = particle.position + self.base.get_global_position();
+                let actual_position = particle.position + self.base.global_position();
                 particle.sqr_distance_to_camera.set(camera_pos.sqr_distance(&actual_position));
                 sorted_particles.push(i as u32);
             }
@@ -820,11 +936,8 @@ impl ParticleSystem {
         self.texture = Some(texture)
     }
 
-    pub fn get_texture(&self) -> Option<Arc<Mutex<Texture>>> {
-        match &self.texture {
-            Some(texture) => Some(texture.clone()),
-            None => None
-        }
+    pub fn texture(&self) -> Option<Arc<Mutex<Texture>>> {
+        self.texture.clone()
     }
 }
 
@@ -902,7 +1015,7 @@ impl ParticleSystemBuilder {
             free_particles: Vec::new(),
             emitters: self.emitters.unwrap_or_default(),
             texture: self.texture.clone(),
-            acceleration: self.acceleration.unwrap_or_else(||Vec3::new(0.0, -9.81, 0.0)),
+            acceleration: self.acceleration.unwrap_or_else(|| Vec3::new(0.0, -9.81, 0.0)),
             color_over_lifetime: self.color_over_lifetime,
         }
     }

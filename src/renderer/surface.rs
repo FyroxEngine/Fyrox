@@ -1,25 +1,29 @@
 use crate::{
+    core::{
+        math::{
+            vec2::Vec2,
+            vec3::Vec3,
+            vec4::Vec4,
+        },
+        pool::{Handle, ErasedHandle},
+    },
     renderer::{
-        geometry_buffer::{GeometryBuffer, GeometryBufferKind, AttributeDefinition, AttributeKind},
+        geometry_buffer::{
+            GeometryBuffer,
+            GeometryBufferKind,
+            AttributeDefinition,
+            AttributeKind,
+            ElementKind
+        },
         TriangleDefinition,
     },
     scene::node::Node,
     resource::texture::Texture,
 };
-
-use crate::core::{
-    math::{
-        vec2::Vec2,
-        vec3::Vec3,
-        vec4::Vec4,
-    },
-    pool::{Handle, ErasedHandle},
-};
 use std::{
     sync::{Mutex, Arc},
     cell::Cell,
 };
-use crate::renderer::geometry_buffer::ElementKind;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C

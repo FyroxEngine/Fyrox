@@ -22,6 +22,16 @@ use std::{
     }
 };
 
+/// Model is an isolated scene that is used to create copies of its data - this
+/// process is known as `instantiation`. Isolation in this context means that
+/// such scene cannot be modified, rendered, etc. It just a data source.
+///
+/// All instances will have references to resource they were created from - this
+/// will help to get correct vertex and indices buffers when loading a save file,
+/// loader will just take all needed data from resource so we don't need to store
+/// such data in save file. Also this mechanism works perfectly when you changing
+/// resource in external editor (3Ds max, Maya, Blender, etc.) engine will assign
+/// correct visual data when loading a saved game.
 pub struct Model {
     // enable_shared_from_this trick from C++
     pub(in crate) self_weak_ref: Option<Weak<Mutex<Model>>>,
@@ -97,7 +107,7 @@ impl Model {
             node.base_mut().resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
             // Continue on children.
-            for child_handle in node.base().get_children() {
+            for child_handle in node.base().children() {
                 stack.push(child_handle.clone());
             }
         }
@@ -152,9 +162,9 @@ impl Model {
             for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
                 let ref_node = self.scene.graph.get(ref_track.get_node());
                 // Find instantiated node that corresponds to node in resource
-                let instance_node = dest_scene.graph.find_by_name(root, ref_node.base().get_name());
+                let instance_node = dest_scene.graph.find_by_name(root, ref_node.base().name());
                 if instance_node.is_none() {
-                    Log::writeln(format!("Failed to retarget animation for node {}", ref_node.base().get_name()));
+                    Log::writeln(format!("Failed to retarget animation for node {}", ref_node.base().name()));
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

@@ -1,0 +1,232 @@
+Shader DeferredLightShader_VertexShader compiled!
+Shader DeferredLightShader_FragmentShader compiled!
+Shader AmbientLightShader_VertexShader compiled!
+Shader AmbientLightShader_FragmentShader compiled!
+Shader FlatShader_VertexShader compiled!
+Shader FlatShader_FragmentShader compiled!
+Shader SpotShadowMapShader_VertexShader compiled!
+Shader SpotShadowMapShader_FragmentShader compiled!
+Shader PointShadowMapShader_VertexShader compiled!
+Shader PointShadowMapShader_FragmentShader compiled!
+Shader FlatShader_VertexShader compiled!
+Shader FlatShader_FragmentShader compiled!
+Shader FlatShader_VertexShader compiled!
+Shader FlatShader_FragmentShader compiled!
+Shader UIShader_VertexShader compiled!
+Shader UIShader_FragmentShader compiled!
+Shader ParticleSystemShader_VertexShader compiled!
+Shader ParticleSystemShader_FragmentShader compiled!
+Shader DebugShader_VertexShader compiled!
+Shader DebugShader_FragmentShader compiled!
+Trying to load "examples/data/mutant.FBX"
+	- Parsing - 38 ms
+	- DOM Prepare - 5 ms
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+FBX: More than 4 bones per vertex?! Excess will be discarded
+	- Conversion - 28 ms
+	- "examples/data/mutant.FBX" loaded in 72 ms
+Model examples/data/mutant.FBX is loaded!
+Trying to load "examples/data/walk.fbx"
+	- Parsing - 1 ms
+	- DOM Prepare - 5 ms
+	- Conversion - 0 ms
+	- "examples/data/walk.fbx" loaded in 7 ms
+Model examples/data/walk.fbx is loaded!
+Texture "examples/data\\Mutant.png" is loaded in 266.179245ms!
+Texture "examples/data\\Mutant_normal.png" is loaded in 323.364017ms!
+Shader GBufferShader_VertexShader compiled!
+Shader GBufferShader_FragmentShader compiled!

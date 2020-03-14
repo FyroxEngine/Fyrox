@@ -1,25 +1,27 @@
-use std::ffi::CString;
-use crate::core::math::{
-    mat4::Mat4,
-    vec3::Vec3,
-    frustum::Frustum,
-};
 use crate::{
-    scene::{
-        node::Node,
-        graph::Graph,
-        base::AsBase,
-    },
     renderer::{
+        RenderPassStatistics,
+        GlState,
         gpu_texture::GpuTexture,
         gl::types::GLuint,
         gpu_program::{GpuProgram, UniformLocation},
         error::RendererError,
         gl,
     },
+    scene::{
+        node::Node,
+        graph::Graph,
+        base::AsBase,
+    },
+    core::{
+        math::{
+            mat4::Mat4,
+            vec3::Vec3,
+            frustum::Frustum,
+            Rect,
+        }
+    },
 };
-use crate::renderer::{RenderPassStatistics, GlState};
-use rg3d_core::math::Rect;
 
 pub struct SpotShadowMapShader {
     program: GpuProgram,
@@ -31,9 +33,9 @@ pub struct SpotShadowMapShader {
 
 impl SpotShadowMapShader {
     pub fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(include_str!("shaders/spot_shadow_map_fs.glsl"))?;
-        let vertex_source = CString::new(include_str!("shaders/spot_shadow_map_vs.glsl"))?;
-        let mut program = GpuProgram::from_source("SpotShadowMapShader", &vertex_source, &fragment_source)?;
+        let fragment_source = include_str!("shaders/spot_shadow_map_fs.glsl");
+        let vertex_source = include_str!("shaders/spot_shadow_map_vs.glsl");
+        let mut program = GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
             bone_matrices: program.get_uniform_location("boneMatrices")?,
             world_view_projection_matrix: program.get_uniform_location("worldViewProjection")?,
@@ -43,24 +45,29 @@ impl SpotShadowMapShader {
         })
     }
 
-    fn bind(&self) {
-        self.program.bind()
+    fn bind(&mut self) -> &mut Self {
+        self.program.bind();
+        self
     }
 
-    fn set_wvp_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_view_projection_matrix, mat)
+    fn set_wvp_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.world_view_projection_matrix, mat);
+        self
     }
 
-    fn set_use_skeletal_animation(&self, value: bool) {
-        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 })
+    fn set_use_skeletal_animation(&mut self, value: bool) -> &mut Self {
+        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 });
+        self
     }
 
-    fn set_bone_matrices(&self, matrices: &[Mat4]) {
+    fn set_bone_matrices(&mut self, matrices: &[Mat4]) -> &mut Self {
         self.program.set_mat4_array(self.bone_matrices, matrices);
+        self
     }
 
-    fn set_diffuse_texture(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
+    fn set_diffuse_texture(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.diffuse_texture, id);
+        self
     }
 }
 
@@ -147,17 +154,17 @@ impl SpotShadowMapRenderer {
 
         for node in graph.linear_iter() {
             if let Node::Mesh(mesh) = node {
-                if !node.base().get_global_visibility() {
+                if !node.base().global_visibility() {
                     continue;
                 }
 
-                let global_transform = node.base().get_global_transform();
+                let global_transform = node.base().global_transform();
 
-                if !frustum.is_intersects_aabb_transform(&mesh.get_bounding_box(), &global_transform) {
+                if !frustum.is_intersects_aabb_transform(&mesh.bounding_box(), &global_transform) {
                     continue;
                 }
 
-                for surface in mesh.get_surfaces().iter() {
+                for surface in mesh.surfaces().iter() {
                     let is_skinned = !surface.bones.is_empty();
 
                     let world = if is_skinned {
@@ -167,16 +174,16 @@ impl SpotShadowMapRenderer {
                     };
                     let mvp = *light_view_projection * world;
 
-                    self.shader.set_wvp_matrix(&mvp);
-                    self.shader.set_use_skeletal_animation(is_skinned);
+                    self.shader.set_wvp_matrix(&mvp)
+                        .set_use_skeletal_animation(is_skinned);
 
                     if is_skinned {
                         self.bone_matrices.clear();
                         for bone_handle in surface.bones.iter() {
                             let bone_node = graph.get(*bone_handle);
                             self.bone_matrices.push(
-                                bone_node.base().get_global_transform() *
-                                    bone_node.base().get_inv_bind_pose_transform());
+                                bone_node.base().global_transform() *
+                                    bone_node.base().inv_bind_pose_transform());
                         }
 
                         self.shader.set_bone_matrices(&self.bone_matrices);
@@ -232,9 +239,9 @@ pub struct PointShadowMapShader {
 impl PointShadowMapShader
 {
     pub fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(include_str!("shaders/point_shadow_map_fs.glsl"))?;
-        let vertex_source = CString::new(include_str!("shaders/point_shadow_map_vs.glsl"))?;
-        let mut program = GpuProgram::from_source("PointShadowMapShader", &vertex_source, &fragment_source)?;
+        let fragment_source = include_str!("shaders/point_shadow_map_fs.glsl");
+        let vertex_source = include_str!("shaders/point_shadow_map_vs.glsl");
+        let mut program = GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_matrix: program.get_uniform_location("worldMatrix")?,
             bone_matrices: program.get_uniform_location("boneMatrices")?,
@@ -246,32 +253,39 @@ impl PointShadowMapShader
         })
     }
 
-    pub fn bind(&self) {
+    pub fn bind(&mut self) -> &mut Self {
         self.program.bind();
+        self
     }
 
-    fn set_wvp_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_view_projection_matrix, mat)
+    fn set_wvp_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.world_view_projection_matrix, mat);
+        self
     }
 
-    fn set_world_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_matrix, mat)
+    fn set_world_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.world_matrix, mat);
+        self
     }
 
-    fn set_use_skeletal_animation(&self, value: bool) {
-        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 })
+    fn set_use_skeletal_animation(&mut self, value: bool) -> &mut Self {
+        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 });
+        self
     }
 
-    fn set_bone_matrices(&self, matrices: &[Mat4]) {
+    fn set_bone_matrices(&mut self, matrices: &[Mat4]) -> &mut Self {
         self.program.set_mat4_array(self.bone_matrices, matrices);
+        self
     }
 
-    fn set_diffuse_texture(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
+    fn set_diffuse_texture(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.diffuse_texture, id);
+        self
     }
 
-    fn set_light_position(&self, pos: Vec3) {
+    fn set_light_position(&mut self, pos: Vec3) -> &mut Self {
         self.program.set_vec3(self.light_position, &pos);
+        self
     }
 }
 
@@ -418,8 +432,8 @@ impl PointShadowMapRenderer {
 
             let light_projection_matrix = Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
 
-            self.shader.bind();
-            self.shader.set_light_position(light_pos);
+            self.shader.bind()
+                .set_light_position(light_pos);
 
             for face in Self::FACES.iter() {
                 gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, face.id, self.texture, 0);
@@ -435,17 +449,17 @@ impl PointShadowMapRenderer {
 
                 for node in graph.linear_iter() {
                     if let Node::Mesh(mesh) = node {
-                        if !node.base().get_global_visibility() {
+                        if !node.base().global_visibility() {
                             continue;
                         }
 
-                        let global_transform = node.base().get_global_transform();
+                        let global_transform = node.base().global_transform();
 
-                        if !frustum.is_intersects_aabb_transform(&mesh.get_bounding_box(), &global_transform) {
+                        if !frustum.is_intersects_aabb_transform(&mesh.bounding_box(), &global_transform) {
                             continue;
                         }
 
-                        for surface in mesh.get_surfaces().iter() {
+                        for surface in mesh.surfaces().iter() {
                             let is_skinned = !surface.bones.is_empty();
 
                             let world = if is_skinned {
@@ -455,17 +469,17 @@ impl PointShadowMapRenderer {
                             };
                             let mvp = light_view_projection_matrix * world;
 
-                            self.shader.set_world_matrix(&world);
-                            self.shader.set_wvp_matrix(&mvp);
-                            self.shader.set_use_skeletal_animation(is_skinned);
+                            self.shader.set_world_matrix(&world)
+                                .set_wvp_matrix(&mvp)
+                                .set_use_skeletal_animation(is_skinned);
 
                             if is_skinned {
                                 self.bone_matrices.clear();
                                 for bone_handle in surface.bones.iter() {
                                     let bone_node = graph.get(*bone_handle);
                                     self.bone_matrices.push(
-                                        bone_node.base().get_global_transform() *
-                                            bone_node.base().get_inv_bind_pose_transform());
+                                        bone_node.base().global_transform() *
+                                            bone_node.base().inv_bind_pose_transform());
                                 }
 
                                 self.shader.set_bone_matrices(&self.bone_matrices);

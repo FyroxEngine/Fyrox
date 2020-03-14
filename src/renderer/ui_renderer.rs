@@ -11,27 +11,33 @@ use crate::{
             GeometryBufferKind,
         },
         gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
-        geometry_buffer::ElementKind
+        geometry_buffer::ElementKind,
     },
     gui::{
-        brush::Brush,
-        draw::{DrawingContext, CommandKind},
+        brush::{
+            Brush,
+            GradientPoint,
+        },
+        draw::{
+            DrawingContext,
+            CommandKind,
+            CommandTexture,
+        },
         self,
-        draw::CommandTexture
     },
-    core::math::mat4::Mat4,
+    core::{
+        math::mat4::Mat4,
+        math::{
+            vec4::Vec4,
+            vec2::Vec2,
+        },
+    },
     resource::texture::Texture,
 };
 use std::{
-    sync::{Mutex},
-    ffi::CString,
-    any::Any
+    sync::Mutex,
+    any::Any,
 };
-use rg3d_core::math::{
-    vec4::Vec4,
-    vec2::Vec2
-};
-use rg3d_ui::brush::GradientPoint;
 
 struct UIShader {
     program: GpuProgram,
@@ -52,9 +58,9 @@ struct UIShader {
 
 impl UIShader {
     pub fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(include_str!("shaders/ui_fs.glsl"))?;
-        let vertex_source = CString::new(include_str!("shaders/ui_vs.glsl"))?;
-        let mut program = GpuProgram::from_source("UIShader", &vertex_source, &fragment_source)?;
+        let fragment_source = include_str!("shaders/ui_fs.glsl");
+        let vertex_source = include_str!("shaders/ui_vs.glsl");
+        let mut program = GpuProgram::from_source("UIShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
             diffuse_texture: program.get_uniform_location("diffuseTexture")?,
@@ -73,35 +79,42 @@ impl UIShader {
         })
     }
 
-    pub fn bind(&self) {
-        self.program.bind()
+    pub fn bind(&mut self) -> &mut Self {
+        self.program.bind();
+        self
     }
 
-    pub fn set_wvp_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.wvp_matrix, mat)
+    pub fn set_wvp_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.wvp_matrix, mat);
+        self
     }
 
-    pub fn set_is_font(&self, value: bool) {
-        self.program.set_bool(self.is_font, value)
+    pub fn set_is_font(&mut self, value: bool) -> &mut Self {
+        self.program.set_bool(self.is_font, value);
+        self
     }
 
-    pub fn set_diffuse_texture_sampler_id(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
+    pub fn set_diffuse_texture_sampler_id(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.diffuse_texture, id);
+        self
     }
 
-    pub fn set_bounds_min(&self, v: Vec2) {
+    pub fn set_bounds_min(&mut self, v: Vec2) -> &mut Self {
         self.program.set_vec2(self.bounds_min, v);
+        self
     }
 
-    pub fn set_bounds_max(&self, v: Vec2) {
+    pub fn set_bounds_max(&mut self, v: Vec2) -> &mut Self {
         self.program.set_vec2(self.bounds_max, v);
+        self
     }
 
-    pub fn set_resolution(&self, v: Vec2) {
+    pub fn set_resolution(&mut self, v: Vec2) -> &mut Self {
         self.program.set_vec2(self.resolution, v);
+        self
     }
 
-    fn set_gradient_stops(&self, stops: &[GradientPoint]) {
+    fn set_gradient_stops(&mut self, stops: &[GradientPoint]) -> &mut Self {
         let mut raw_stops = [0.0; 16];
         let mut raw_colors = [Vec4::default(); 16];
         for (i, point) in stops.iter().enumerate() {
@@ -112,26 +125,28 @@ impl UIShader {
         self.program.set_int(self.gradient_point_count, stops.len() as i32);
         self.program.set_float_array(self.gradient_stops, &raw_stops);
         self.program.set_vec4_array(self.gradient_colors, &raw_colors);
+        self
     }
 
-    pub fn set_brush(&self, brush: &Brush) {
+    pub fn set_brush(&mut self, brush: &Brush) -> &mut Self {
         match brush {
             Brush::Solid(color) => {
                 self.program.set_int(self.brush_type, 0);
                 self.program.set_vec4(self.solid_color, &color.as_frgba());
-            },
+            }
             Brush::LinearGradient { from, to, stops } => {
                 self.program.set_int(self.brush_type, 1);
                 self.program.set_vec2(self.gradient_origin, *from);
                 self.program.set_vec2(self.gradient_end, *to);
                 self.set_gradient_stops(stops);
-            },
+            }
             Brush::RadialGradient { center, stops } => {
                 self.program.set_int(self.brush_type, 2);
                 self.program.set_vec2(self.gradient_origin, *center);
                 self.set_gradient_stops(stops);
-            },
+            }
         }
+        self
     }
 }
 
@@ -169,7 +184,7 @@ impl UIRenderer {
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             gl::Disable(gl::CULL_FACE);
 
-            self.shader.bind();
+
             gl::ActiveTexture(gl::TEXTURE0);
 
             self.geometry_buffer.set_triangles(drawing_context.get_triangles());
@@ -177,12 +192,14 @@ impl UIRenderer {
 
             let ortho = Mat4::ortho(0.0, frame_width, frame_height,
                                     0.0, -1.0, 1.0);
-            self.shader.set_wvp_matrix(&ortho);
-            self.shader.set_resolution(Vec2::new(frame_width, frame_height));
+
+            self.shader.bind()
+                .set_wvp_matrix(&ortho)
+                .set_resolution(Vec2::new(frame_width, frame_height));
 
             for cmd in drawing_context.get_commands() {
-                self.shader.set_bounds_min(cmd.min());
-                self.shader.set_bounds_max(cmd.max());
+                self.shader.set_bounds_min(cmd.min())
+                    .set_bounds_max(cmd.max());
 
                 if cmd.get_nesting() != 0 {
                     gl::Enable(gl::STENCIL_TEST);

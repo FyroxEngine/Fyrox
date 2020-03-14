@@ -11,7 +11,7 @@ use std::{
     io::{Read, Cursor},
     collections::{HashMap, HashSet},
     time::Instant,
-    sync::{Arc, Mutex}
+    sync::{Arc, Mutex},
 };
 use crate::{
     resource::{
@@ -21,7 +21,7 @@ use crate::{
             attribute::FbxAttribute,
             error::FbxError,
         },
-        fbx::geometry::FbxGeometry
+        fbx::geometry::FbxGeometry,
     },
     animation::{
         AnimationContainer,
@@ -61,7 +61,7 @@ use crate::{
             triangulator::triangulate,
         },
     },
-    utils::log::Log
+    utils::log::Log,
 };
 
 // https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
@@ -779,7 +779,7 @@ fn convert_vertex(geom: &FbxGeometry,
         _ => 0
     };
 
-    let surface = mesh.get_surfaces_mut()
+    let surface = mesh.surfaces_mut()
         .get_mut(material)
         .unwrap();
 
@@ -880,9 +880,7 @@ impl Fbx {
             let parent_index = connection.get_attrib(2)?.as_i64()?;
             if let Some(parent_handle) = self.index_to_component.get(&parent_index) {
                 if let Some(child_handle) = self.index_to_component.get(&child_index) {
-                    let pair = self.component_pool.borrow_two_mut((*child_handle, *parent_handle)).unwrap();
-                    let child = pair.0;
-                    let parent = pair.1;
+                    let (child, parent) = self.component_pool.borrow_two_mut((*child_handle, *parent_handle));
                     link_child_with_parent_component(parent, child, *child_handle);
                 }
             }
@@ -989,8 +987,11 @@ impl Fbx {
             }
 
             if geom.tangents.mapping == FbxMapping::Unknown {
-                for surface in mesh.get_surfaces_mut() {
-                    surface.get_data().lock().unwrap().calculate_tangents();
+                for surface in mesh.surfaces_mut() {
+                    surface.get_data()
+                        .lock()
+                        .unwrap()
+                        .calculate_tangents();
                 }
             }
         }
@@ -1016,18 +1017,19 @@ impl Fbx {
                 Node::Base(Base::default())
             };
 
-        node.base_mut().set_name(model.name.as_str());
         let node_local_rotation = quat_from_euler(model.rotation);
-        let transform = node.base_mut().get_local_transform_mut();
-        transform.set_rotation(node_local_rotation);
-        transform.set_scale(model.scale);
-        transform.set_position(model.translation);
-        transform.set_post_rotation(quat_from_euler(model.post_rotation));
-        transform.set_pre_rotation(quat_from_euler(model.pre_rotation));
-        transform.set_rotation_offset(model.rotation_offset);
-        transform.set_rotation_pivot(model.rotation_pivot);
-        transform.set_scaling_offset(model.scaling_offset);
-        transform.set_scaling_pivot(model.scaling_pivot);
+        node.base_mut()
+            .set_name(model.name.as_str())
+            .local_transform_mut()
+            .set_rotation(node_local_rotation)
+            .set_scale(model.scale)
+            .set_position(model.translation)
+            .set_post_rotation(quat_from_euler(model.post_rotation))
+            .set_pre_rotation(quat_from_euler(model.pre_rotation))
+            .set_rotation_offset(model.rotation_offset)
+            .set_rotation_pivot(model.rotation_pivot)
+            .set_scaling_offset(model.scaling_offset)
+            .set_scaling_pivot(model.scaling_pivot);
         node.base_mut().inv_bind_pose_transform = model.inv_bind_transform;
 
         let node_handle = graph.add_node(node);
@@ -1146,7 +1148,7 @@ impl Fbx {
             let node = scene.graph.get_mut(*handle);
             if let Node::Mesh(mesh) = node {
                 let mut surface_bones = HashSet::new();
-                for surface in mesh.get_surfaces_mut() {
+                for surface in mesh.surfaces_mut() {
                     for weight_set in surface.vertex_weights.iter_mut() {
                         for weight in weight_set.iter_mut() {
                             let fbx_model: Handle<FbxComponent> = weight.effector.into();

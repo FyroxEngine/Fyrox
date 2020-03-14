@@ -38,7 +38,7 @@ impl Sprite {
         self.size = size;
     }
 
-    pub fn get_size(&self) -> f32 {
+    pub fn size(&self) -> f32 {
         self.size
     }
 
@@ -46,7 +46,7 @@ impl Sprite {
         self.color = color;
     }
 
-    pub fn get_color(&self) -> Color {
+    pub fn color(&self) -> Color {
         self.color
     }
 
@@ -55,7 +55,7 @@ impl Sprite {
         self.rotation = rotation;
     }
 
-    pub fn get_rotation(&self) -> f32 {
+    pub fn rotation(&self) -> f32 {
         self.rotation
     }
 
@@ -63,7 +63,7 @@ impl Sprite {
         self.texture = Some(texture);
     }
 
-    pub fn get_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+    pub fn texture(&self) -> Option<Arc<Mutex<Texture>>> {
         self.texture.clone()
     }
 }

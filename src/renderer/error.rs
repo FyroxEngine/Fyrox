@@ -32,6 +32,8 @@ pub enum RendererError {
     InvalidAttributeDescriptor,
 
     InvalidFrameBuffer,
+
+    FailedToConstructFBO
 }
 
 impl From<NulError> for RendererError {

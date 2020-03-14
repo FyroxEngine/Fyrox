@@ -54,12 +54,12 @@ impl Visit for Mesh {
 
 impl Mesh {
     #[inline]
-    pub fn get_surfaces(&self) -> &Vec<Surface> {
+    pub fn surfaces(&self) -> &Vec<Surface> {
         &self.surfaces
     }
 
     #[inline]
-    pub fn get_surfaces_mut(&mut self) -> &mut [Surface] {
+    pub fn surfaces_mut(&mut self) -> &mut [Surface] {
         &mut self.surfaces
     }
 
@@ -75,7 +75,7 @@ impl Mesh {
 
     /// Performs lazy bounding box evaluation.
     /// Bounding box presented in *local coordinates*
-    pub fn get_bounding_box(&self) -> AxisAlignedBoundingBox {
+    pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.dirty.get() {
             let mut bounding_box = AxisAlignedBoundingBox::default();
             for surface in self.surfaces.iter() {
@@ -92,13 +92,13 @@ impl Mesh {
 
     /// Calculate bounding box in *world coordinates*.
     /// This method is very heavy and not intended to use every frame!
-    pub fn calculate_world_bounding_box(&self) -> AxisAlignedBoundingBox {
+    pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
             let data = surface.get_data();
             let data = data.lock().unwrap();
             for vertex in data.get_vertices() {
-                bounding_box.add_point(self.base.get_global_transform().transform_vector(vertex.position));
+                bounding_box.add_point(self.base.global_transform().transform_vector(vertex.position));
             }
         }
         bounding_box

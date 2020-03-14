@@ -62,9 +62,9 @@ impl Visit for Camera {
 impl Camera {
     #[inline]
     pub fn calculate_matrices(&mut self, frame_size: Vec2) {
-        let pos = self.base.get_global_position();
-        let look = self.base.get_look_vector();
-        let up = self.base.get_up_vector();
+        let pos = self.base.global_position();
+        let look = self.base.look_vector();
+        let up = self.base.up_vector();
 
         if let Some(view_matrix) = Mat4::look_at(pos, pos + look, up) {
             self.view_matrix = view_matrix;

@@ -17,12 +17,15 @@ use crate::{
 };
 use std::ops::Deref;
 
-pub struct Entry<T> {
+/// Resource container with fixed TTL (time-to-live). Resource will be removed
+/// (and unloaded) if there were no other strong references to it in given time
+/// span.
+pub struct TimedEntry<T> {
     pub value: T,
     time_to_live: f32,
 }
 
-impl<T> Deref for Entry<T> {
+impl<T> Deref for TimedEntry<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -30,7 +33,7 @@ impl<T> Deref for Entry<T> {
     }
 }
 
-impl<T> Default for Entry<T> where T: Default {
+impl<T> Default for TimedEntry<T> where T: Default {
     fn default() -> Self {
         Self {
             value: Default::default(),
@@ -39,16 +42,16 @@ impl<T> Default for Entry<T> where T: Default {
     }
 }
 
-impl<T> Clone for Entry<T> where T: Clone {
+impl<T> Clone for TimedEntry<T> where T: Clone {
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
-            time_to_live: self.time_to_live
+            time_to_live: self.time_to_live,
         }
     }
 }
 
-impl<T> Visit for Entry<T> where T: Default + Visit {
+impl<T> Visit for TimedEntry<T> where T: Default + Visit {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -64,9 +67,9 @@ pub type SharedModel = Arc<Mutex<Model>>;
 pub type SharedSoundBuffer = Arc<Mutex<SoundBuffer>>;
 
 pub struct ResourceManager {
-    textures: Vec<Entry<SharedTexture>>,
-    models: Vec<Entry<SharedModel>>,
-    sound_buffers: Vec<Entry<SharedSoundBuffer>>,
+    textures: Vec<TimedEntry<SharedTexture>>,
+    models: Vec<TimedEntry<SharedModel>>,
+    sound_buffers: Vec<TimedEntry<SharedSoundBuffer>>,
     /// Path to textures, extensively used for resource files which stores path in weird
     /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
@@ -95,7 +98,7 @@ impl ResourceManager {
         }
 
         let texture = Arc::new(Mutex::new(Texture::default()));
-        self.textures.push(Entry {
+        self.textures.push(TimedEntry {
             value: texture.clone(),
             time_to_live: Self::MAX_RESOURCE_TTL,
         });
@@ -128,7 +131,7 @@ impl ResourceManager {
         match Texture::load_from_file(path.as_ref(), kind) {
             Ok(texture) => {
                 let shared_texture = Arc::new(Mutex::new(texture));
-                self.textures.push(Entry {
+                self.textures.push(TimedEntry {
                     value: shared_texture.clone(),
                     time_to_live: Self::MAX_RESOURCE_TTL,
                 });
@@ -151,9 +154,9 @@ impl ResourceManager {
             Ok(model) => {
                 let model = Arc::new(Mutex::new(model));
                 model.lock().unwrap().self_weak_ref = Some(Arc::downgrade(&model));
-                self.models.push(Entry {
+                self.models.push(TimedEntry {
                     value: model.clone(),
-                    time_to_live: Self::MAX_RESOURCE_TTL
+                    time_to_live: Self::MAX_RESOURCE_TTL,
                 });
                 Log::writeln(format!("Model {} is loaded!", path.as_ref().display()));
                 Some(model)
@@ -170,37 +173,37 @@ impl ResourceManager {
             return Some(sound_buffer);
         }
 
-        let source = match DataSource::from_file(path.as_ref()) {
-            Ok(source) => source,
+        match DataSource::from_file(path.as_ref()) {
+            Ok(source) => {
+                let buffer = if stream {
+                    SoundBuffer::new_streaming(source)
+                } else {
+                    SoundBuffer::new_generic(source)
+                };
+                match buffer {
+                    Ok(sound_buffer) => {
+                        self.sound_buffers.push(TimedEntry {
+                            value: sound_buffer.clone(),
+                            time_to_live: Self::MAX_RESOURCE_TTL,
+                        });
+                        Log::writeln(format!("Sound buffer {} is loaded!", path.as_ref().display()));
+                        Some(sound_buffer)
+                    }
+                    Err(_) => {
+                        Log::writeln(format!("Unable to load sound buffer from {}!", path.as_ref().display()));
+                        None
+                    }
+                }
+            }
             Err(e) => {
                 Log::writeln(format!("Invalid data source: {:?}", e));
-                return None;
-            }
-        };
-
-        let buffer = if stream {
-            SoundBuffer::new_streaming(source)
-        } else {
-            SoundBuffer::new_generic(source)
-        };
-        match buffer {
-            Ok(sound_buffer) => {
-                self.sound_buffers.push(Entry {
-                    value: sound_buffer.clone(),
-                    time_to_live: Self::MAX_RESOURCE_TTL
-                });
-                Log::writeln(format!("Sound buffer {} is loaded!", path.as_ref().display()));
-                Some(sound_buffer)
-            }
-            Err(_) => {
-                Log::writeln(format!("Unable to load sound buffer from {}!", path.as_ref().display()));
                 None
             }
         }
     }
 
     #[inline]
-    pub fn textures(&self) -> &[Entry<SharedTexture>] {
+    pub fn textures(&self) -> &[TimedEntry<SharedTexture>] {
         &self.textures
     }
 
@@ -214,7 +217,7 @@ impl ResourceManager {
     }
 
     #[inline]
-    pub fn models(&self) -> &[Entry<SharedModel>] {
+    pub fn models(&self) -> &[TimedEntry<SharedModel>] {
         &self.models
     }
 
@@ -228,7 +231,7 @@ impl ResourceManager {
     }
 
     #[inline]
-    pub fn sound_buffers(&self) -> &[Entry<SharedSoundBuffer>] {
+    pub fn sound_buffers(&self) -> &[TimedEntry<SharedSoundBuffer>] {
         &self.sound_buffers
     }
 
@@ -309,7 +312,7 @@ impl ResourceManager {
         self.update_sound_buffers(dt);
     }
 
-    pub fn reload_resources(&mut self) {
+    fn reload_textures(&mut self) {
         for old_texture in self.textures.iter() {
             let mut old_texture = old_texture.lock().unwrap();
             let new_texture = match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
@@ -322,7 +325,9 @@ impl ResourceManager {
             old_texture.path = Default::default();
             *old_texture = new_texture;
         }
+    }
 
+    fn reload_models(&mut self) {
         for old_model in self.models().to_vec() {
             let old_model_arc = old_model.clone();
             let mut old_model = old_model.lock().unwrap();
@@ -337,7 +342,9 @@ impl ResourceManager {
             old_model.path = Default::default();
             *old_model = new_model;
         }
+    }
 
+    fn reload_sound_buffers(&mut self) {
         for old_sound_buffer in self.sound_buffers() {
             let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
             if let Some(ext_path) = old_sound_buffer.generic().external_data_path() {
@@ -357,6 +364,12 @@ impl ResourceManager {
                 }
             }
         }
+    }
+
+    pub fn reload_resources(&mut self) {
+        self.reload_textures();
+        self.reload_models();
+        self.reload_sound_buffers();
     }
 }
 

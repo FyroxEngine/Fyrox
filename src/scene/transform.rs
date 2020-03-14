@@ -69,7 +69,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_position(&self) -> Vec3 {
+    pub fn position(&self) -> Vec3 {
         self.local_position
     }
 
@@ -81,7 +81,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_rotation(&self) -> Quat {
+    pub fn rotation(&self) -> Quat {
         self.local_rotation
     }
 
@@ -93,7 +93,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_scale(&self) -> Vec3 {
+    pub fn scale(&self) -> Vec3 {
         self.local_scale
     }
 
@@ -112,7 +112,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_pre_rotation(&self) -> Quat {
+    pub fn pre_rotation(&self) -> Quat {
         self.pre_rotation
     }
 
@@ -124,7 +124,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_post_rotation(&self) -> Quat {
+    pub fn post_rotation(&self) -> Quat {
         self.post_rotation
     }
 
@@ -136,7 +136,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_rotation_offset(&self) -> Vec3 {
+    pub fn rotation_offset(&self) -> Vec3 {
         self.rotation_offset
     }
 
@@ -148,7 +148,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_rotation_pivot(&self) -> Vec3 {
+    pub fn rotation_pivot(&self) -> Vec3 {
         self.rotation_pivot
     }
 
@@ -160,7 +160,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_scaling_offset(&self) -> Vec3 {
+    pub fn scaling_offset(&self) -> Vec3 {
         self.scaling_offset
     }
 
@@ -172,7 +172,7 @@ impl Transform {
     }
 
     #[inline]
-    pub fn get_scaling_pivot(&self) -> Vec3 {
+    pub fn scaling_pivot(&self) -> Vec3 {
         self.scaling_pivot
     }
 
@@ -209,7 +209,7 @@ impl Transform {
             rotation_pivot_inv * scale_offset * scale_pivot * scale * scale_pivot_inv
     }
 
-    pub fn get_matrix(&self) -> Mat4 {
+    pub fn matrix(&self) -> Mat4 {
         if self.dirty.get() {
             self.matrix.set(self.calculate_local_transform());
             self.dirty.set(false)

@@ -28,8 +28,8 @@ use std::{
 /// mesh.
 pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
     let mut triangles = Vec::new();
-    let global_transform = mesh.base().get_global_transform();
-    for surface in mesh.get_surfaces() {
+    let global_transform = mesh.base().global_transform();
+    for surface in mesh.surfaces() {
         let shared_data = surface.get_data();
         let shared_data = shared_data.lock().unwrap();
 
@@ -91,8 +91,8 @@ impl<T: PartialEq> SimpleMesh<T> {
 pub fn mesh_to_navmesh(mesh: &Mesh) -> Navmesh {
     // Join surfaces into one simple mesh.
     let mut simple_mesh = SimpleMesh::default();
-    let global_transform = mesh.base().get_global_transform();
-    for surface in mesh.get_surfaces() {
+    let global_transform = mesh.base().global_transform();
+    for surface in mesh.surfaces() {
         let shared_data = surface.get_data();
         let shared_data = shared_data.lock().unwrap();
 

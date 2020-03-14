@@ -55,12 +55,12 @@ use crate::{
             TriangleDefinition,
         },
         color::Color,
+        math::Rect,
+        pool::Handle
     },
     utils::log::Log,
 };
-use rg3d_core::math::Rect;
 use std::collections::HashMap;
-use rg3d_core::pool::Handle;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {

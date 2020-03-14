@@ -33,12 +33,6 @@
 //! - Sounds
 //! - Physics
 //!
-//! # Getting started
-//!
-//! ```
-//!
-//! ```
-//!
 //! # Demos
 //!
 //! For now there is one big project written using rg3d engine:

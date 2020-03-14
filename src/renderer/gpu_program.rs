@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::ffi::{CString};
 
 use crate::{
     core::{
@@ -30,10 +30,12 @@ pub struct UniformLocation {
 }
 
 impl GpuProgram {
-    fn create_shader(name: String, actual_type: GLuint, source: &CStr) -> Result<GLuint, RendererError> {
+    fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLuint, RendererError> {
         unsafe {
+            let csource = CString::new(source)?;
+
             let shader = gl::CreateShader(actual_type);
-            gl::ShaderSource(shader, 1, &source.as_ptr(), std::ptr::null());
+            gl::ShaderSource(shader, 1, &csource.as_ptr(), std::ptr::null());
             gl::CompileShader(shader);
 
             let mut status = 1;
@@ -57,7 +59,7 @@ impl GpuProgram {
         }
     }
 
-    pub fn from_source(name: &str, vertex_source: &CStr, fragment_source: &CStr) -> Result<GpuProgram, RendererError> {
+    pub fn from_source(name: &str, vertex_source: &str, fragment_source: &str) -> Result<GpuProgram, RendererError> {
         unsafe {
             let vertex_shader = Self::create_shader(format!("{}_VertexShader", name), gl::VERTEX_SHADER, vertex_source)?;
             let fragment_shader = Self::create_shader(format!("{}_FragmentShader", name), gl::FRAGMENT_SHADER, fragment_source)?;
@@ -103,65 +105,65 @@ impl GpuProgram {
         }
     }
 
-    pub fn bind(&self) {
+    pub fn bind(&mut self) {
         unsafe {
             gl::UseProgram(self.id);
         }
     }
 
-    pub fn set_mat4(&self, location: UniformLocation, mat: &Mat4) {
+    pub fn set_mat4(&mut self, location: UniformLocation, mat: &Mat4) {
         unsafe {
             gl::UniformMatrix4fv(location.id, 1, gl::FALSE, &mat.f as *const GLfloat);
         }
     }
 
-    pub fn set_mat4_array(&self, location: UniformLocation, mat: &[Mat4]) {
+    pub fn set_mat4_array(&mut self, location: UniformLocation, mat: &[Mat4]) {
         unsafe {
             gl::UniformMatrix4fv(location.id, mat.len() as i32, gl::FALSE, mat[0].f.as_ptr() as *const GLfloat);
         }
     }
 
-    pub fn set_int(&self, location: UniformLocation, value: i32) {
+    pub fn set_int(&mut self, location: UniformLocation, value: i32) {
         unsafe {
             gl::Uniform1i(location.id, value);
         }
     }
 
-    pub fn set_vec4_array(&self, location: UniformLocation, v: &[Vec4]) {
+    pub fn set_vec4_array(&mut self, location: UniformLocation, v: &[Vec4]) {
         unsafe {
             gl::Uniform4fv(location.id, v.len() as i32, v.as_ptr() as *const GLfloat);
         }
     }
 
-    pub fn set_vec4(&self, location: UniformLocation, value: &Vec4) {
+    pub fn set_vec4(&mut self, location: UniformLocation, value: &Vec4) {
         unsafe {
             gl::Uniform4f(location.id, value.x, value.y, value.z, value.w);
         }
     }
 
-    pub fn set_bool(&self, location: UniformLocation, value: bool) {
+    pub fn set_bool(&mut self, location: UniformLocation, value: bool) {
         self.set_int(location,  i32::from(if value { gl::TRUE } else { gl::FALSE }))
     }
 
-    pub fn set_float(&self, location: UniformLocation, value: f32) {
+    pub fn set_float(&mut self, location: UniformLocation, value: f32) {
         unsafe {
             gl::Uniform1f(location.id, value)
         }
     }
 
-    pub fn set_float_array(&self, location: UniformLocation, v: &[f32]) {
+    pub fn set_float_array(&mut self, location: UniformLocation, v: &[f32]) {
         unsafe {
             gl::Uniform1fv(location.id, v.len() as i32, v.as_ptr() as *const GLfloat);
         }
     }
 
-    pub fn set_vec3(&self, location: UniformLocation, value: &Vec3) {
+    pub fn set_vec3(&mut self, location: UniformLocation, value: &Vec3) {
         unsafe {
             gl::Uniform3f(location.id, value.x, value.y, value.z)
         }
     }
 
-    pub fn set_vec2(&self, location: UniformLocation, value: Vec2) {
+    pub fn set_vec2(&mut self, location: UniformLocation, value: Vec2) {
         unsafe {
             gl::Uniform2f(location.id, value.x, value.y)
         }

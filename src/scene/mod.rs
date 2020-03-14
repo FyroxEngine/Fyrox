@@ -123,7 +123,7 @@ impl Scene {
         for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
             let node = self.graph.get_mut(*node).base_mut();
             let body = physics.borrow_body(*body);
-            node.get_local_transform_mut().set_position(body.get_position());
+            node.local_transform_mut().set_position(body.get_position());
         }
     }
 

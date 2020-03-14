@@ -1,11 +1,12 @@
-use std::ffi::CString;
 use crate::{
     renderer::{
+        GlState,
         geometry_buffer::{
             GeometryBuffer,
             GeometryBufferKind,
             AttributeDefinition,
             AttributeKind,
+            ElementKind,
         },
         gl,
         gpu_program::{GpuProgram, UniformLocation},
@@ -13,7 +14,6 @@ use crate::{
         error::RendererError,
         gpu_texture::GpuTexture,
         RenderPassStatistics,
-        geometry_buffer::ElementKind,
     },
     scene::{
         node::Node,
@@ -26,10 +26,9 @@ use crate::{
         mat4::Mat4,
         vec3::Vec3,
         vec2::Vec2,
+        Rect,
     },
 };
-use crate::renderer::GlState;
-use rg3d_core::math::Rect;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -45,9 +44,9 @@ struct ParticleSystemShader {
 
 impl ParticleSystemShader {
     fn new() -> Result<Self, RendererError> {
-        let vertex_source = CString::new(include_str!("shaders/particle_system_vs.glsl"))?;
-        let fragment_source = CString::new(include_str!("shaders/particle_system_fs.glsl"))?;
-        let mut program = GpuProgram::from_source("ParticleSystemShader", &vertex_source, &fragment_source)?;
+        let vertex_source = include_str!("shaders/particle_system_vs.glsl");
+        let fragment_source = include_str!("shaders/particle_system_fs.glsl");
+        let mut program = GpuProgram::from_source("ParticleSystemShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program.get_uniform_location("viewProjectionMatrix")?,
             world_matrix: program.get_uniform_location("worldMatrix")?,
@@ -61,41 +60,49 @@ impl ParticleSystemShader {
         })
     }
 
-    pub fn bind(&self) {
+    pub fn bind(&mut self) {
         self.program.bind();
     }
 
-    pub fn set_view_projection_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.view_projection_matrix, mat)
+    pub fn set_view_projection_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.view_projection_matrix, mat);
+        self
     }
 
-    pub fn set_world_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_matrix, mat)
+    pub fn set_world_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.world_matrix, mat);
+        self
     }
 
-    pub fn set_camera_side_vector(&self, vec: &Vec3) {
-        self.program.set_vec3(self.camera_side_vector, vec)
+    pub fn set_camera_side_vector(&mut self, vec: &Vec3) -> &mut Self {
+        self.program.set_vec3(self.camera_side_vector, vec);
+        self
     }
 
-    pub fn set_camera_up_vector(&self, vec: &Vec3) {
-        self.program.set_vec3(self.camera_up_vector, vec)
+    pub fn set_camera_up_vector(&mut self, vec: &Vec3) -> &mut Self {
+        self.program.set_vec3(self.camera_up_vector, vec);
+        self
     }
 
-    pub fn set_diffuse_texture(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
+    pub fn set_diffuse_texture(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.diffuse_texture, id);
+        self
     }
 
-    pub fn set_depth_buffer_texture(&self, id: i32) {
-        self.program.set_int(self.depth_buffer_texture, id)
+    pub fn set_depth_buffer_texture(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.depth_buffer_texture, id);
+        self
     }
 
-    pub fn set_inv_screen_size(&self, size: Vec2) {
-        self.program.set_vec2(self.inv_screen_size, size)
+    pub fn set_inv_screen_size(&mut self, size: Vec2) -> &mut Self {
+        self.program.set_vec2(self.inv_screen_size, size);
+        self
     }
 
-    pub fn set_proj_params(&self, far: f32, near: f32) {
+    pub fn set_proj_params(&mut self, far: f32, near: f32) -> &mut Self {
         let params = Vec2::new(far, near);
         self.program.set_vec2(self.proj_params, params);
+        self
     }
 }
 
@@ -163,12 +170,12 @@ impl ParticleSystemRenderer {
 
             particle_system.generate_draw_data(&mut self.sorted_particles,
                                                &mut self.draw_data,
-                                               &camera.base().get_global_position());
+                                               &camera.base().global_position());
 
             self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
             self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
 
-            if let Some(texture) = particle_system.get_texture() {
+            if let Some(texture) = particle_system.texture() {
                 if let Some(texture) = texture.lock().unwrap().gpu_tex.as_ref() {
                     texture.bind(0);
                 } else {
@@ -185,7 +192,7 @@ impl ParticleSystemRenderer {
 
             self.shader.set_diffuse_texture(0);
             self.shader.set_view_projection_matrix(&camera.view_projection_matrix());
-            self.shader.set_world_matrix(&node.base().get_global_transform());
+            self.shader.set_world_matrix(&node.base().global_transform());
             self.shader.set_camera_up_vector(&camera_up);
             self.shader.set_camera_side_vector(&camera_side);
             self.shader.set_depth_buffer_texture(1);

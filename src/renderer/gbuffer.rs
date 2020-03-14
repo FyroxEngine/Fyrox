@@ -1,4 +1,3 @@
-use std::ffi::CString;
 use crate::{
     scene::{
         node::Node,
@@ -13,7 +12,7 @@ use crate::{
         error::RendererError,
         gpu_texture::GpuTexture,
         RenderPassStatistics,
-        GlState
+        GlState,
     },
     core::math::{
         Rect,
@@ -34,9 +33,9 @@ struct GBufferShader {
 
 impl GBufferShader {
     fn new() -> Result<Self, RendererError> {
-        let fragment_source = CString::new(include_str!("shaders/gbuffer_fs.glsl"))?;
-        let vertex_source = CString::new(include_str!("shaders/gbuffer_vs.glsl"))?;
-        let mut program = GpuProgram::from_source("GBufferShader", &vertex_source, &fragment_source)?;
+        let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
+        let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
+        let mut program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_matrix: program.get_uniform_location("worldMatrix")?,
             wvp_matrix: program.get_uniform_location("worldViewProjection")?,
@@ -48,32 +47,39 @@ impl GBufferShader {
         })
     }
 
-    fn bind(&self) {
-        self.program.bind()
+    fn bind(&mut self) -> &mut Self {
+        self.program.bind();
+        self
     }
 
-    fn set_world_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.world_matrix, mat)
+    fn set_world_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.world_matrix, mat);
+        self
     }
 
-    fn set_wvp_matrix(&self, mat: &Mat4) {
-        self.program.set_mat4(self.wvp_matrix, mat)
+    fn set_wvp_matrix(&mut self, mat: &Mat4) -> &mut Self {
+        self.program.set_mat4(self.wvp_matrix, mat);
+        self
     }
 
-    fn set_use_skeletal_animation(&self, value: bool) {
-        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 })
+    fn set_use_skeletal_animation(&mut self, value: bool) -> &mut Self {
+        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 });
+        self
     }
 
-    fn set_bone_matrices(&self, matrices: &[Mat4]) {
+    fn set_bone_matrices(&mut self, matrices: &[Mat4]) -> &mut Self {
         self.program.set_mat4_array(self.bone_matrices, matrices);
+        self
     }
 
-    fn set_diffuse_texture(&self, id: i32) {
-        self.program.set_int(self.diffuse_texture, id)
+    fn set_diffuse_texture(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.diffuse_texture, id);
+        self
     }
 
-    fn set_normal_texture(&self, id: i32) {
-        self.program.set_int(self.normal_texture, id)
+    fn set_normal_texture(&mut self, id: i32) -> &mut Self {
+        self.program.set_int(self.normal_texture, id);
+        self
     }
 }
 
@@ -91,7 +97,7 @@ pub struct GBuffer {
     pub frame_texture: GLuint,
     bone_matrices: Vec<Mat4>,
     pub width: i32,
-    pub height: i32
+    pub height: i32,
 }
 
 impl GBuffer {
@@ -161,7 +167,7 @@ impl GBuffer {
             gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::TEXTURE_2D, normal_texture, 0);
 
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Unable to construct G-Buffer FBO.");
+                return Err(RendererError::FailedToConstructFBO);
             }
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
@@ -186,7 +192,7 @@ impl GBuffer {
             gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
 
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                panic!("Unable to initialize Stencil FBO.");
+                return Err(RendererError::FailedToConstructFBO);
             }
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
@@ -205,7 +211,7 @@ impl GBuffer {
                 shader: GBufferShader::new()?,
                 bone_matrices: Vec::new(),
                 width,
-                height
+                height,
             })
         }
     }
@@ -245,23 +251,23 @@ impl GBuffer {
         for mesh in graph.linear_iter().filter_map(|node| {
             if let Node::Mesh(mesh) = node { Some(mesh) } else { None }
         }) {
-            let global_transform = mesh.base().get_global_transform();
+            let global_transform = mesh.base().global_transform();
 
-            if !frustum.is_intersects_aabb_transform(&mesh.get_bounding_box(), &global_transform) {
+            if !frustum.is_intersects_aabb_transform(&mesh.bounding_box(), &global_transform) {
                 continue;
             }
 
-            if !mesh.base().get_global_visibility() {
+            if !mesh.base().global_visibility() {
                 continue;
             }
 
-            for surface in mesh.get_surfaces().iter() {
+            for surface in mesh.surfaces().iter() {
                 let is_skinned = !surface.bones.is_empty();
 
                 let world = if is_skinned {
                     Mat4::IDENTITY
                 } else {
-                    mesh.base().get_global_transform()
+                    mesh.base().global_transform()
                 };
                 let mvp = view_projection * world;
 
@@ -275,8 +281,8 @@ impl GBuffer {
                     for bone_handle in surface.bones.iter() {
                         let bone_node = graph.get(*bone_handle);
                         self.bone_matrices.push(
-                            bone_node.base().get_global_transform() *
-                                bone_node.base().get_inv_bind_pose_transform());
+                            bone_node.base().global_transform() *
+                                bone_node.base().inv_bind_pose_transform());
                     }
 
                     self.shader.set_bone_matrices(&self.bone_matrices);
