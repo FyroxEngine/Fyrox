@@ -1,3 +1,21 @@
+//! Pool is contiguous block of memory with fixed-size entries, each entry can be
+//! either vacant or occupied. When you put an object into pool you get handle to
+//! that object. You can use that handle later on to borrow a reference to an object.
+//! Handle can point to some object or be invalid, this may look similar to raw
+//! pointers, but there is two major differences:
+//!
+//! 1) We can check if handle is valid before accessing object it might point to.
+//! 2) We can ensure that handle we using still valid for an object it points to.
+//! Each handle store special field that is shared across entry and handle, so
+//! handle is valid if these field in both handle and entry are same. This protects
+//! from situations where you have a handle that has valid index of a record, but
+//! payload in this record was replaced.
+//!
+//! Contiguous memory block increases efficiency of memory operations - CPU will
+//! load portions of data into its cache piece by piece, it will be free from any
+//! indirections that might cause cache invalidation. This is so called cache
+//! friendliness.
+
 use std::{
     marker::PhantomData,
     hash::{Hash, Hasher},
@@ -14,7 +32,7 @@ const INVALID_GENERATION: u32 = 0;
 /// Pool allows to create as many objects as you want in contiguous memory
 /// block. It allows to create and delete objects much faster than if they'll
 /// be allocated on heap. Also since objects stored in contiguous memory block
-/// they can be effectively accessed because such memory layout if cache-friendly.
+/// they can be effectively accessed because such memory layout is cache-friendly.
 pub struct Pool<T: Sized> {
     records: Vec<PoolRecord<T>>,
     free_stack: Vec<u32>,
@@ -359,23 +377,19 @@ impl<T> Pool<T> {
     /// let mut pool = Pool::<u32>::new();
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
-    /// let (a, b) = pool.borrow_two_mut((a, b)).unwrap();
+    /// let (a, b) = pool.borrow_two_mut((a, b));
     /// *a = 11;
     /// *b = 22;
     /// ```
     #[inline]
     #[must_use = "Handle set must not be ignored"]
     pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>))
-                          -> Result<(&mut T, &mut T), ()> {
+                              -> (&mut T, &mut T) {
         // Prevent giving two mutable references to same record.
-        if handles.0.index != handles.1.index {
-            unsafe {
-                let this = self as *mut Self;
-                Ok(((*this).borrow_mut(handles.0),
-                    (*this).borrow_mut(handles.1)))
-            }
-        } else {
-            Err(())
+        assert_ne!(handles.0.index, handles.1.index);
+        unsafe {
+            let this = self as *mut Self;
+            ((*this).borrow_mut(handles.0), (*this).borrow_mut(handles.1))
         }
     }
 
@@ -395,7 +409,7 @@ impl<T> Pool<T> {
     /// let a = pool.spawn(1);
     /// let b = pool.spawn(2);
     /// let c = pool.spawn(3);
-    /// let (a, b, c) = pool.borrow_three_mut((a, b, c)).unwrap();
+    /// let (a, b, c) = pool.borrow_three_mut((a, b, c));
     /// *a = 11;
     /// *b = 22;
     /// *c = 33;
@@ -403,19 +417,16 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use = "Handle set must not be ignored"]
     pub fn borrow_three_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>))
-                            -> Result<(&mut T, &mut T, &mut T), ()> {
+                            -> (&mut T, &mut T, &mut T) {
         // Prevent giving mutable references to same record.
-        if handles.0.index != handles.1.index &&
-            handles.0.index != handles.2.index &&
-            handles.1.index != handles.2.index {
-            unsafe {
-                let this = self as *mut Self;
-                Ok(((*this).borrow_mut(handles.0),
-                    (*this).borrow_mut(handles.1),
-                    (*this).borrow_mut(handles.2)))
-            }
-        } else {
-            Err(())
+        assert_ne!(handles.0.index, handles.1.index);
+        assert_ne!(handles.0.index, handles.2.index);
+        assert_ne!(handles.1.index, handles.2.index);
+        unsafe {
+            let this = self as *mut Self;
+            ((*this).borrow_mut(handles.0),
+             (*this).borrow_mut(handles.1),
+             (*this).borrow_mut(handles.2))
         }
     }
 
@@ -436,7 +447,7 @@ impl<T> Pool<T> {
     /// let b = pool.spawn(2);
     /// let c = pool.spawn(3);
     /// let d = pool.spawn(4);
-    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d)).unwrap();
+    /// let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d));
     /// *a = 11;
     /// *b = 22;
     /// *c = 33;
@@ -445,24 +456,21 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use = "Handle set must not be ignored"]
     pub fn borrow_four_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>))
-                           -> Result<(&mut T, &mut T, &mut T, &mut T), ()> {
+                           -> (&mut T, &mut T, &mut T, &mut T) {
         // Prevent giving mutable references to same record.
         // This is kinda clunky since const generics are not stabilized yet.
-        if handles.0.index != handles.1.index &&
-            handles.0.index != handles.2.index &&
-            handles.0.index != handles.3.index &&
-            handles.1.index != handles.2.index &&
-            handles.1.index != handles.3.index &&
-            handles.2.index != handles.3.index {
-            unsafe {
-                let this = self as *mut Self;
-                Ok(((*this).borrow_mut(handles.0),
-                    (*this).borrow_mut(handles.1),
-                    (*this).borrow_mut(handles.2),
-                    (*this).borrow_mut(handles.3)))
-            }
-        } else {
-            Err(())
+        assert_ne!(handles.0.index, handles.1.index);
+        assert_ne!(handles.0.index, handles.2.index);
+        assert_ne!(handles.0.index, handles.3.index);
+        assert_ne!(handles.1.index, handles.2.index);
+        assert_ne!(handles.1.index, handles.3.index);
+        assert_ne!(handles.2.index, handles.3.index);
+        unsafe {
+            let this = self as *mut Self;
+            ((*this).borrow_mut(handles.0),
+             (*this).borrow_mut(handles.1),
+             (*this).borrow_mut(handles.2),
+             (*this).borrow_mut(handles.3))
         }
     }
 

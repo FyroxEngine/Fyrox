@@ -9,7 +9,7 @@ repository = "https://github.com/mrDIMAS/rg3d-core"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-base64 = "0.10.1"
-byteorder = "1.3.2"
-rand = "0.7.0"
+base64 = "0.12.0"
+byteorder = "1.3.4"
+rand = "0.7.3"
 memoffset = "0.5.3"
