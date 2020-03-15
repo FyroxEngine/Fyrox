@@ -234,7 +234,7 @@ fn main() {
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.
-                engine.render().unwrap();
+                engine.render(fixed_timestep).unwrap();
             }
             Event::WindowEvent { event, .. } => {
                 match event {
