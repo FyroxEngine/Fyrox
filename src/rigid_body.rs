@@ -120,24 +120,28 @@ impl RigidBody {
     }
 
     #[inline]
-    pub fn set_position(&mut self, p: Vec3) {
+    pub fn set_position(&mut self, p: Vec3) -> &mut Self {
         self.position = p;
         self.last_position = p;
+        self
     }
 
     #[inline]
-    pub fn move_by(&mut self, v: Vec3) {
+    pub fn move_by(&mut self, v: Vec3) -> &mut Self {
         self.position += v;
+        self
     }
 
-    pub fn offset_by(&mut self, v: Vec3) {
+    pub fn offset_by(&mut self, v: Vec3) -> &mut Self {
         self.position += v;
         self.last_position = self.position;
+        self
     }
 
     #[inline]
-    pub fn set_shape(&mut self, shape: ConvexShape) {
+    pub fn set_shape(&mut self, shape: ConvexShape) -> &mut Self {
         self.shape = shape;
+        self
     }
 
     #[inline]
@@ -151,10 +155,11 @@ impl RigidBody {
     }
 
     #[inline]
-    pub fn set_friction(&mut self, friction: Vec3) {
+    pub fn set_friction(&mut self, friction: Vec3) -> &mut Self {
         self.friction.x = friction.x.max(0.0).min(1.0);
         self.friction.y = friction.y.max(0.0).min(1.0);
         self.friction.z = friction.z.max(0.0).min(1.0);
+        self
     }
 
     #[inline]
@@ -163,23 +168,27 @@ impl RigidBody {
     }
 
     #[inline]
-    pub fn set_x_velocity(&mut self, x: f32) {
+    pub fn set_x_velocity(&mut self, x: f32) -> &mut Self {
         self.last_position.x = self.position.x - x;
+        self
     }
 
     #[inline]
-    pub fn set_y_velocity(&mut self, y: f32) {
+    pub fn set_y_velocity(&mut self, y: f32) -> &mut Self {
         self.last_position.y = self.position.y - y;
+        self
     }
 
     #[inline]
-    pub fn set_z_velocity(&mut self, z: f32) {
+    pub fn set_z_velocity(&mut self, z: f32) -> &mut Self {
         self.last_position.z = self.position.z - z;
+        self
     }
 
     #[inline]
-    pub fn set_velocity(&mut self, v: Vec3) {
+    pub fn set_velocity(&mut self, v: Vec3)  -> &mut Self {
         self.last_position = self.position - v;
+        self
     }
 
     #[inline]
@@ -193,8 +202,9 @@ impl RigidBody {
     }
 
     #[inline]
-    pub fn set_gravity(&mut self, gravity: Vec3)  {
+    pub fn set_gravity(&mut self, gravity: Vec3) -> &mut Self {
         self.gravity = gravity;
+        self
     }
 
     #[inline]
@@ -203,8 +213,9 @@ impl RigidBody {
     }
 
     #[inline]
-    pub fn set_lifetime(&mut self, time_seconds: f32) {
-        self.lifetime = Some(time_seconds)
+    pub fn set_lifetime(&mut self, time_seconds: f32) -> &mut Self {
+        self.lifetime = Some(time_seconds);
+        self
     }
 
     #[inline]
