@@ -1,4 +1,6 @@
-//! Simple scene example.
+//! Example 01. Simple scene.
+//!
+//! Difficulty: Easy.
 //!
 //! This example shows how to create simple scene with animated model.
 

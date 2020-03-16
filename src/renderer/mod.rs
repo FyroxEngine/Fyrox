@@ -316,7 +316,8 @@ impl TextureCache {
 }
 
 pub struct GlState {
-    viewports: Vec<Rect<i32>>
+    viewports: Vec<Rect<i32>>,
+    fbos: Vec<GLuint>
 }
 
 impl GlState {
@@ -328,7 +329,8 @@ impl GlState {
             viewports.push(Rect::new(viewport[0], viewport[1], viewport[2], viewport[3]));
         }
         Self {
-            viewports
+            viewports,
+            fbos: vec![0]
         }
     }
 
@@ -347,8 +349,23 @@ impl GlState {
         }
     }
 
+    pub fn push_fbo(&mut self, fbo: GLuint) {
+        self.fbos.push(fbo);
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+        }
+    }
+
+    pub fn pop_fbo(&mut self) {
+        self.fbos.pop();
+        unsafe {
+            gl::BindFramebuffer(gl::FRAMEBUFFER, *self.fbos.last().expect("FBO stack underflow!"));
+        }
+    }
+
     pub fn validate(&self) {
         assert_eq!(self.viewports.len(), 1);
+        assert_eq!(self.fbos.len(), 1);
     }
 }
 
@@ -436,6 +453,7 @@ impl Renderer {
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
         self.gl_state.push_viewport(window_viewport);
+
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
             gl::StencilMask(0xFF);
@@ -472,6 +490,8 @@ impl Renderer {
                     })
                     .or_insert_with(|| GBuffer::new(viewport.w, viewport.h).unwrap());
 
+                self.gl_state.push_fbo(gbuffer.fbo);
+
                 self.statistics += gbuffer.fill(
                     graph,
                     camera,
@@ -493,6 +513,11 @@ impl Renderer {
                     textures: &mut self.texture_cache,
                     geometry_cache: &mut self.geometry_cache,
                 });
+
+
+                unsafe {
+                    gl::DepthMask(gl::TRUE);
+                }
 
                 self.statistics += self.particle_system_renderer.render(
                     graph,
@@ -516,6 +541,8 @@ impl Renderer {
                 );
 
                 self.statistics += self.debug_renderer.render(camera);
+
+                self.gl_state.pop_fbo();
 
                 // Finally render everything into back buffer.
                 let frame_matrix =

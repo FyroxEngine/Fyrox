@@ -232,8 +232,9 @@ impl GBuffer {
 
         let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 
+        gl_state.push_viewport(Rect::new(0, 0, self.width, self.height));
+
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 
@@ -247,8 +248,6 @@ impl GBuffer {
             gl::DepthMask(gl::TRUE);
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
         }
-
-        gl_state.push_viewport(Rect::new(0, 0, self.width, self.height));
 
         let view_projection = camera.view_projection_matrix();
 

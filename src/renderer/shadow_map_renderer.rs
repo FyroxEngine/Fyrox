@@ -135,19 +135,15 @@ impl SpotShadowMapRenderer {
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
-        let mut old_fbo = 0;
-
         gl_state.push_viewport(Rect::new(0, 0, self.size as i32, self.size as i32));
+        gl_state.push_fbo(self.fbo);
 
         unsafe {
             gl::DepthMask(gl::TRUE);
             gl::Disable(gl::BLEND);
             gl::Disable(gl::STENCIL_TEST);
             gl::Enable(gl::CULL_FACE);
-
-            gl::GetIntegerv(gl::DRAW_FRAMEBUFFER_BINDING, &mut old_fbo);
-
-            gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
+            gl::CullFace(gl::BACK);
             gl::Clear(gl::DEPTH_BUFFER_BIT);
         }
 
@@ -210,10 +206,11 @@ impl SpotShadowMapRenderer {
         }
 
         unsafe {
-            // Set previous state
-            gl::BindFramebuffer(gl::FRAMEBUFFER, old_fbo as u32);
+            gl::DepthMask(gl::FALSE);
+            gl::Enable(gl::BLEND);
         }
 
+        gl_state.pop_fbo();
         gl_state.pop_viewport();
 
         statistics
@@ -430,10 +427,7 @@ impl PointShadowMapRenderer {
             gl::Enable(gl::CULL_FACE);
             gl::CullFace(gl::BACK);
 
-            let mut old_fbo = 0;
-            gl::GetIntegerv(gl::DRAW_FRAMEBUFFER_BINDING, &mut old_fbo);
-
-            gl::BindFramebuffer(gl::FRAMEBUFFER, self.fbo);
+            gl_state.push_fbo(self.fbo);
 
             let light_projection_matrix = Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
 
@@ -510,11 +504,9 @@ impl PointShadowMapRenderer {
 
             gl::DepthMask(gl::FALSE);
             gl::Enable(gl::BLEND);
-
-            // Set previous state
-            gl::BindFramebuffer(gl::FRAMEBUFFER, old_fbo as u32);
         }
 
+        gl_state.pop_fbo();
         gl_state.pop_viewport();
 
         statistics

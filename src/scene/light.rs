@@ -1,62 +1,80 @@
-use crate::core::{
-    color::Color,
-    visitor::{
-        Visit,
-        Visitor,
-        VisitResult
+use crate::{
+    core::{
+        color::Color,
+        visitor::{
+            Visit,
+            Visitor,
+            VisitResult
+        }
+    },
+    scene::base::{
+        BaseBuilder,
+        Base,
+        AsBase
     }
 };
-use crate::scene::base::{BaseBuilder, Base, AsBase};
 
 #[derive(Clone)]
 pub struct SpotLight {
-    cone_angle: f32,
-    cone_angle_cos: f32,
+    hotspot_cone_angle: f32,
+    falloff_angle_delta: f32,
     distance: f32,
 }
 
 impl Default for SpotLight {
     fn default() -> Self {
         Self {
-            cone_angle: std::f32::consts::FRAC_PI_4,
-            cone_angle_cos: std::f32::consts::FRAC_PI_4.cos(),
+            hotspot_cone_angle: 90.0f32.to_radians(),
+            falloff_angle_delta: 5.0f32.to_radians(),
             distance: 10.0
         }
     }
 }
 
 impl SpotLight {
-    pub fn new(distance: f32, cone_angle: f32) -> Self {
+    pub fn new(distance: f32, hotspot_cone_angle: f32, falloff_angle_delta: f32) -> Self {
         Self {
-            cone_angle,
-            cone_angle_cos: cone_angle.cos(),
+            hotspot_cone_angle: hotspot_cone_angle.abs(),
+            falloff_angle_delta: falloff_angle_delta.abs(),
             distance
         }
     }
 
     #[inline]
-    pub fn get_cone_angle_cos(&self) -> f32 {
-        self.cone_angle_cos
+    pub fn hotspot_cone_angle(&self) -> f32 {
+        self.hotspot_cone_angle
     }
 
     #[inline]
-    pub fn get_cone_angle(&self) -> f32 {
-        self.cone_angle
+    pub fn set_hotspot_cone_angle(&mut self, cone_angle: f32) -> &mut Self {
+        self.hotspot_cone_angle = cone_angle.abs();
+        self
     }
 
     #[inline]
-    pub fn set_cone_angle(&mut self, cone_angle: f32) {
-        self.cone_angle = cone_angle;
-        self.cone_angle_cos = cone_angle.cos();
+    pub fn set_falloff_angle_delta(&mut self, delta: f32) -> &mut Self {
+        self.falloff_angle_delta = delta;
+        self
     }
 
     #[inline]
-    pub fn set_distance(&mut self, distance: f32) {
+    pub fn falloff_angle_delta(&self) -> f32 {
+        self.falloff_angle_delta
+    }
+
+    #[inline]
+    pub fn full_cone_angle(&self) -> f32 {
+        self.hotspot_cone_angle + self.falloff_angle_delta
+    }
+
+    #[inline]
+    pub fn set_distance(&mut self, distance: f32) -> &mut Self {
         self.distance = distance.abs();
+        self
     }
 
     #[inline]
-    pub fn get_distance(&self) -> f32 {
+    pub fn distance(&self) -> f32 {
         self.distance
     }
 }
@@ -65,12 +83,9 @@ impl Visit for SpotLight {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.cone_angle.visit("ConeAngle", visitor)?;
+        self.hotspot_cone_angle.visit("HotspotConeAngle", visitor)?;
+        self.falloff_angle_delta.visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
-
-        if visitor.is_reading() {
-            self.cone_angle_cos = self.cone_angle.cos();
-        }
 
         visitor.leave_region()
     }

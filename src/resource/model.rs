@@ -164,7 +164,7 @@ impl Model {
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = dest_scene.graph.find_by_name(root, ref_node.base().name());
                 if instance_node.is_none() {
-                    Log::writeln(format!("Failed to retarget animation for node {}", ref_node.base().name()));
+                    Log::writeln(format!("Failed to retarget animation {:?} for node {}", self.path, ref_node.base().name()));
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

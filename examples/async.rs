@@ -1,4 +1,6 @@
-//! Asynchronous scene loading example.
+//! Example 02. Asynchronous scene loading.
+//!
+//! Difficulty: Medium.
 //!
 //! This example shows how to load scene in separate thread and how create standard
 //! loading screen which will show progress.
@@ -228,7 +230,7 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example - Model")
+        .with_title("Example - Asynchronous Scene Loading")
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
@@ -346,7 +348,7 @@ fn main() {
                     // While scene is loading, we will update progress bar.
                     if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text) {
                         let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example - Model\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
+                        text.set_text(format!("Example - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
                     }
 
                     // It is very important to "pump" messages from UI. Even if don't need to

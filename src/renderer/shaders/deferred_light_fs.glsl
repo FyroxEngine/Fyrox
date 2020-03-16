@@ -11,7 +11,8 @@ uniform vec3 lightPos;
 uniform float lightRadius;
 uniform vec4 lightColor;
 uniform vec3 lightDirection;
-uniform float coneAngleCos;
+uniform float halfHotspotConeAngleCos;
+uniform float halfConeAngleCos;
 uniform mat4 invViewProj;
 uniform vec3 cameraPosition;
 uniform int lightType;
@@ -48,13 +49,13 @@ void main()
     vec3 normLightVector = lightVector / d;
     vec3 h = normalize(lightVector + (cameraPosition - worldPosition.xyz));
     vec3 specular = normalSpecular.w * vec3(0.4 * pow(clamp(dot(normal, h), 0.0, 1.0), 80));
-    float y = dot(lightDirection, normLightVector);
+
     float k = max(dot(normal, normLightVector), 0);
     float attenuation = 1.0 + cos((d / lightRadius) * 3.14159);
-    if (y < coneAngleCos)
-    {
-        attenuation *= smoothstep(coneAngleCos - 0.1, coneAngleCos, y);
-    }
+
+    float spotAngleCos = dot(lightDirection, normLightVector);
+
+    attenuation *= smoothstep(halfConeAngleCos, halfHotspotConeAngleCos, spotAngleCos);
 
     float shadow = 1.0;
     if (lightType == 2) /* Spot light shadows */

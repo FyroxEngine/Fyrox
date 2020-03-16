@@ -89,7 +89,8 @@ struct DeferredLightingShader {
     light_radius: UniformLocation,
     light_color: UniformLocation,
     light_direction: UniformLocation,
-    light_cone_angle_cos: UniformLocation,
+    half_hotspot_cone_angle_cos: UniformLocation,
+    half_cone_angle_cos: UniformLocation,
     inv_view_proj_matrix: UniformLocation,
     camera_position: UniformLocation,
 }
@@ -114,7 +115,8 @@ impl DeferredLightingShader {
             light_radius: program.get_uniform_location("lightRadius")?,
             light_color: program.get_uniform_location("lightColor")?,
             light_direction: program.get_uniform_location("lightDirection")?,
-            light_cone_angle_cos: program.get_uniform_location("coneAngleCos")?,
+            half_hotspot_cone_angle_cos: program.get_uniform_location("halfHotspotConeAngleCos")?,
+            half_cone_angle_cos: program.get_uniform_location("halfConeAngleCos")?,
             inv_view_proj_matrix: program.get_uniform_location("invViewProj")?,
             camera_position: program.get_uniform_location("cameraPosition")?,
             program,
@@ -196,8 +198,13 @@ impl DeferredLightingShader {
         self
     }
 
-    fn set_light_cone_angle_cos(&mut self, cone_angle_cos: f32) -> &mut Self {
-        self.program.set_float(self.light_cone_angle_cos, cone_angle_cos);
+    fn set_half_hotspot_cone_angle_cos(&mut self, half_hotspot_cone_angle_cos: f32) -> &mut Self {
+        self.program.set_float(self.half_hotspot_cone_angle_cos, half_hotspot_cone_angle_cos);
+        self
+    }
+
+    fn set_half_cone_angle_cos(&mut self, half_cone_angle_cos: f32) -> &mut Self {
+        self.program.set_float(self.half_cone_angle_cos, half_cone_angle_cos);
         self
     }
 
@@ -269,9 +276,9 @@ impl DeferredLightRenderer {
                 Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
 
         context.gl_state.push_viewport(viewport);
+        context.gl_state.push_fbo(context.gbuffer.opt_fbo);
 
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, context.gbuffer.opt_fbo);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
 
             gl::Disable(gl::BLEND);
@@ -311,7 +318,7 @@ impl DeferredLightRenderer {
                 }
 
                 let raw_radius = match light.get_kind() {
-                    LightKind::Spot(spot_light) => spot_light.get_distance(),
+                    LightKind::Spot(spot_light) => spot_light.distance(),
                     LightKind::Point(point_light) => point_light.get_radius(),
                 };
 
@@ -320,7 +327,7 @@ impl DeferredLightRenderer {
                 let light_radius = light_radius_scale * raw_radius;
                 let light_r_inflate = 1.05 * light_radius;
                 let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
-                let light_emit_direction = light.base().up_vector().normalized().unwrap_or(Vec3::UP);
+                let emit_direction = light.base().up_vector().normalized().unwrap_or(Vec3::LOOK);
 
                 if !frustum.is_intersects_sphere(light_position, light_radius) {
                     continue;
@@ -332,13 +339,11 @@ impl DeferredLightRenderer {
                 let apply_shadows = match light.get_kind() {
                     LightKind::Spot(spot) if distance_to_camera <= context.settings.spot_shadows_distance && context.settings.spot_shadows_enabled => {
                         let light_projection_matrix = Mat4::perspective(
-                            spot.get_cone_angle(),
+                            spot.full_cone_angle(),
                             1.0,
                             0.01,
                             light_radius,
                         );
-
-                        let emit_direction = light.base().up_vector().normalized().unwrap_or(Vec3::LOOK);
 
                         let light_look_at = light_position - emit_direction;
 
@@ -361,6 +366,7 @@ impl DeferredLightRenderer {
                         true
                     }
                     LightKind::Point(_) if distance_to_camera <= context.settings.point_shadows_distance && context.settings.point_shadows_enabled => {
+
                         statistics += self.point_shadow_map_renderer.render(
                             &context.scene.graph,
                             context.white_dummy,
@@ -404,9 +410,9 @@ impl DeferredLightRenderer {
 
                 gl::Disable(gl::CULL_FACE);
 
-                let cone_angle_cos = match light.get_kind() {
-                    LightKind::Spot(spot_light) => spot_light.get_cone_angle_cos(),
-                    LightKind::Point(_) => -1.0, // cos(π)
+                let (hotspot_cone_angle, cone_angle) = match light.get_kind() {
+                    LightKind::Spot(spot_light) => (spot_light.hotspot_cone_angle(), spot_light.full_cone_angle()),
+                    LightKind::Point(_) => (std::f32::consts::PI, 0.0),
                 };
 
                 // Finally render light.
@@ -435,12 +441,13 @@ impl DeferredLightRenderer {
                 };
 
                 self.shader.set_light_position(&light_position)
-                    .set_light_direction(&light_emit_direction)
+                    .set_light_direction(&emit_direction)
                     .set_light_type(light_type)
                     .set_light_radius(light_radius)
                     .set_inv_view_proj_matrix(&inv_view_projection)
                     .set_light_color(light.get_color())
-                    .set_light_cone_angle_cos(cone_angle_cos)
+                    .set_half_hotspot_cone_angle_cos((hotspot_cone_angle * 0.5).cos())
+                    .set_half_cone_angle_cos((cone_angle * 0.5).cos())
                     .set_wvp_matrix(&frame_matrix)
                     .set_shadow_map_inv_size(1.0 / (self.spot_shadow_map_renderer.size as f32))
                     .set_camera_position(&context.camera.base().global_position())
@@ -471,6 +478,7 @@ impl DeferredLightRenderer {
             gl::ActiveTexture(gl::TEXTURE2);
             gl::BindTexture(gl::TEXTURE_2D, 0);
 
+            context.gl_state.pop_fbo();
             context.gl_state.pop_viewport();
         }
 

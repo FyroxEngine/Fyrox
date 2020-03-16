@@ -7,7 +7,7 @@ use crate::{
         },
         pool::{
             Handle,
-            ErasedHandle
+            ErasedHandle,
         },
     },
     scene::node::Node,
@@ -15,7 +15,7 @@ use crate::{
 };
 use std::sync::{
     Mutex,
-    Arc
+    Arc,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -319,6 +319,43 @@ impl SurfaceSharedData {
                 }
             }
         }
+
+        data.calculate_normals();
+        data.calculate_tangents();
+
+        data
+    }
+
+    pub fn make_cone(sides: usize, r: f32, h: f32) -> Self {
+        let mut data = Self::new();
+
+        let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
+        let d_theta = 1.0 / sides as f32;
+
+        for i in 0..sides {
+            let nx0 = (d_phi * i as f32).cos();
+            let ny0 = (d_phi * i as f32).sin();
+            let nx1 = (d_phi * (i + 1) as f32).cos();
+            let ny1 = (d_phi * (i + 1) as f32).sin();
+
+            let x0 = r * nx0;
+            let y0 = r * ny0;
+            let x1 = r * nx1;
+            let y1 = r * ny1;
+            let tx0 = d_theta * i as f32;
+            let tx1 = d_theta * (i + 1) as f32;
+
+            // back cap
+            data.insert_vertex_pos_tex(&Vec3::new(0.0, 0.0, h), Vec2::new(0.0, 0.0));
+            data.insert_vertex_pos_tex(&Vec3::new(x0, y0, h), Vec2::new(tx0, 1.0));
+            data.insert_vertex_pos_tex(&Vec3::new(x1, y1, h), Vec2::new(tx1, 0.0));
+
+            // sides
+            data.insert_vertex_pos_tex(&Vec3::new(0.0, 0.0, 0.0), Vec2::new(tx1, 0.0));
+            data.insert_vertex_pos_tex(&Vec3::new(x1, y1, h), Vec2::new(tx0, 1.0));
+            data.insert_vertex_pos_tex(&Vec3::new(x0, y0, h), Vec2::new(tx0, 0.0));
+        }
+
 
         data.calculate_normals();
         data.calculate_tangents();
