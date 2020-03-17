@@ -233,6 +233,7 @@ impl GBuffer {
         let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 
         gl_state.push_viewport(Rect::new(0, 0, self.width, self.height));
+        gl_state.push_fbo(self.fbo);
 
         unsafe {
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
@@ -313,6 +314,7 @@ impl GBuffer {
             }
         }
 
+        gl_state.pop_fbo();
         gl_state.pop_viewport();
 
         statistics

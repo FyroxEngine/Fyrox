@@ -148,12 +148,12 @@ impl DeferredLightingShader {
         self
     }
 
-    fn set_spot_shadow_texture(&mut self, id: i32) -> &mut Self {
+    fn set_spot_shadow_sampler_id(&mut self, id: i32) -> &mut Self {
         self.program.set_int(self.spot_shadow_texture, id);
         self
     }
 
-    fn set_point_shadow_texture(&mut self, id: i32) -> &mut Self {
+    fn set_point_shadow_sampler_id(&mut self, id: i32) -> &mut Self {
         self.program.set_int(self.point_shadow_texture, id);
         self
     }
@@ -276,7 +276,6 @@ impl DeferredLightRenderer {
                 Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
 
         context.gl_state.push_viewport(viewport);
-        context.gl_state.push_fbo(context.gbuffer.opt_fbo);
 
         unsafe {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
@@ -300,12 +299,6 @@ impl DeferredLightRenderer {
             // Lighting
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::ONE, gl::ONE);
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.depth_texture);
-            gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.color_texture);
-            gl::ActiveTexture(gl::TEXTURE2);
-            gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.normal_texture);
 
             let view_projection = context.camera.view_projection_matrix();
             let inv_view_projection = view_projection.inverse().unwrap();
@@ -366,7 +359,6 @@ impl DeferredLightRenderer {
                         true
                     }
                     LightKind::Point(_) if distance_to_camera <= context.settings.point_shadows_distance && context.settings.point_shadows_enabled => {
-
                         statistics += self.point_shadow_map_renderer.render(
                             &context.scene.graph,
                             context.white_dummy,
@@ -374,7 +366,7 @@ impl DeferredLightRenderer {
                             light_radius,
                             context.gl_state,
                             context.textures,
-                            context.geometry_cache
+                            context.geometry_cache,
                         );
 
                         true
@@ -418,27 +410,22 @@ impl DeferredLightRenderer {
                 // Finally render light.
                 self.shader.bind();
 
-                match light.get_kind() {
-                    LightKind::Spot(_) => {
-                        gl::ActiveTexture(gl::TEXTURE3);
-                        gl::BindTexture(gl::TEXTURE_2D, self.spot_shadow_map_renderer.texture);
-                        self.shader.set_spot_shadow_texture(3)
-                            .set_light_view_proj_matrix(&light_view_projection)
-                            .set_soft_shadows_enabled(context.settings.spot_soft_shadows);
-                    }
-                    LightKind::Point(_) => {
-                        gl::ActiveTexture(gl::TEXTURE3);
-                        gl::BindTexture(gl::TEXTURE_CUBE_MAP, self.point_shadow_map_renderer.texture);
-                        self.shader.set_point_shadow_texture(3)
-                            .set_soft_shadows_enabled(context.settings.point_soft_shadows);
-                    }
-                }
-
                 let light_type = match light.get_kind() {
                     LightKind::Spot(_) if apply_shadows => 2,
                     LightKind::Point(_) if apply_shadows => 0,
                     _ => -1
                 };
+
+                match light.get_kind() {
+                    LightKind::Spot(_) => {
+                        self.shader
+                            .set_light_view_proj_matrix(&light_view_projection)
+                            .set_soft_shadows_enabled(context.settings.spot_soft_shadows);
+                    }
+                    LightKind::Point(_) => {
+                        self.shader.set_soft_shadows_enabled(context.settings.point_soft_shadows);
+                    }
+                }
 
                 self.shader.set_light_position(&light_position)
                     .set_light_direction(&emit_direction)
@@ -453,15 +440,33 @@ impl DeferredLightRenderer {
                     .set_camera_position(&context.camera.base().global_position())
                     .set_depth_sampler_id(0)
                     .set_color_sampler_id(1)
-                    .set_normal_sampler_id(2);
+                    .set_normal_sampler_id(2)
+                    .set_spot_shadow_sampler_id(3)
+                    .set_point_shadow_sampler_id(4);
 
                 gl::ActiveTexture(gl::TEXTURE0);
                 gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.depth_texture);
+                gl::ActiveTexture(gl::TEXTURE1);
+                gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.color_texture);
+                gl::ActiveTexture(gl::TEXTURE2);
+                gl::BindTexture(gl::TEXTURE_2D, context.gbuffer.normal_texture);
+                gl::ActiveTexture(gl::TEXTURE3);
+                gl::BindTexture(gl::TEXTURE_2D, self.spot_shadow_map_renderer.texture);
+                gl::ActiveTexture(gl::TEXTURE4);
+                gl::BindTexture(gl::TEXTURE_CUBE_MAP, self.point_shadow_map_renderer.texture);
 
                 statistics.add_draw_call(context.geometry_cache.draw(&self.quad));
+                check_gl_error!();
 
+                gl::ActiveTexture(gl::TEXTURE0);
+                gl::BindTexture(gl::TEXTURE_2D, 0);
+                gl::ActiveTexture(gl::TEXTURE1);
+                gl::BindTexture(gl::TEXTURE_2D, 0);
+                gl::ActiveTexture(gl::TEXTURE2);
+                gl::BindTexture(gl::TEXTURE_2D, 0);
                 gl::ActiveTexture(gl::TEXTURE3);
                 gl::BindTexture(gl::TEXTURE_2D, 0);
+                gl::ActiveTexture(gl::TEXTURE4);
                 gl::BindTexture(gl::TEXTURE_CUBE_MAP, 0);
             }
 
@@ -478,7 +483,6 @@ impl DeferredLightRenderer {
             gl::ActiveTexture(gl::TEXTURE2);
             gl::BindTexture(gl::TEXTURE_2D, 0);
 
-            context.gl_state.pop_fbo();
             context.gl_state.pop_viewport();
         }
 

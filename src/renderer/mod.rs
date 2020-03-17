@@ -357,7 +357,8 @@ impl GlState {
     }
 
     pub fn pop_fbo(&mut self) {
-        self.fbos.pop();
+        let fbo = self.fbos.pop().unwrap();
+
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, *self.fbos.last().expect("FBO stack underflow!"));
         }
@@ -453,9 +454,9 @@ impl Renderer {
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
         self.gl_state.push_viewport(window_viewport);
+        self.gl_state.push_fbo(0);
 
         unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
             gl::StencilMask(0xFF);
             gl::DepthMask(gl::TRUE);
             gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
@@ -490,8 +491,6 @@ impl Renderer {
                     })
                     .or_insert_with(|| GBuffer::new(viewport.w, viewport.h).unwrap());
 
-                self.gl_state.push_fbo(gbuffer.fbo);
-
                 self.statistics += gbuffer.fill(
                     graph,
                     camera,
@@ -501,6 +500,8 @@ impl Renderer {
                     &mut self.texture_cache,
                     &mut self.geometry_cache,
                 );
+
+                self.gl_state.push_fbo(gbuffer.opt_fbo);
 
                 self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
                     scene,
@@ -513,11 +514,6 @@ impl Renderer {
                     textures: &mut self.texture_cache,
                     geometry_cache: &mut self.geometry_cache,
                 });
-
-
-                unsafe {
-                    gl::DepthMask(gl::TRUE);
-                }
 
                 self.statistics += self.particle_system_renderer.render(
                     graph,
@@ -549,7 +545,6 @@ impl Renderer {
                     Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
                         Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
                 unsafe {
-                    gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
                     gl::StencilMask(0xFF);
                     gl::DepthMask(gl::TRUE);
                     gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
@@ -587,6 +582,7 @@ impl Renderer {
 
         self.statistics.finalize();
 
+        self.gl_state.pop_fbo();
         self.gl_state.pop_viewport();
         self.gl_state.validate();
 
