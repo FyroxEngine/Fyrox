@@ -12,7 +12,6 @@ uniform mat4 worldViewProjection;
 uniform bool useSkeletalAnimation;
 uniform mat4 boneMatrices[60];
 
-out vec4 position;
 out vec3 normal;
 out vec2 texCoord;
 out vec3 tangent;
@@ -58,5 +57,4 @@ void main()
     tangent = normalize(mat3(worldMatrix) * localTangent);
     binormal = normalize(vertexTangent.w * cross(tangent, normal));
     texCoord = vertexTexCoord;
-    position = gl_Position;
 }

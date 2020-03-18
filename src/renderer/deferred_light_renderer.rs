@@ -301,7 +301,7 @@ impl DeferredLightRenderer {
             gl::BlendFunc(gl::ONE, gl::ONE);
 
             let view_projection = context.camera.view_projection_matrix();
-            let inv_view_projection = view_projection.inverse().unwrap();
+            let inv_view_projection = view_projection.inverse().unwrap_or_default();
 
             for light in context.scene.graph.linear_iter().filter_map(|node| {
                 if let Node::Light(light) = node { Some(light) } else { None }
@@ -474,14 +474,6 @@ impl DeferredLightRenderer {
             gl::Disable(gl::BLEND);
 
             gl::DepthMask(gl::TRUE);
-
-            // Unbind FBO textures.
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, 0);
-            gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D, 0);
-            gl::ActiveTexture(gl::TEXTURE2);
-            gl::BindTexture(gl::TEXTURE_2D, 0);
 
             context.gl_state.pop_viewport();
         }

@@ -88,12 +88,8 @@ impl GBufferShader {
 pub struct GBuffer {
     shader: GBufferShader,
     pub fbo: GLuint,
-    pub depth_rt: GLuint,
-    pub depth_buffer: GLuint,
     pub depth_texture: GLuint,
-    pub color_rt: GLuint,
     pub color_texture: GLuint,
-    pub normal_rt: GLuint,
     pub normal_texture: GLuint,
     pub opt_fbo: GLuint,
     pub frame_texture: GLuint,
@@ -117,38 +113,13 @@ impl GBuffer {
             ];
             gl::DrawBuffers(3, buffers.as_ptr());
 
-            let mut depth_rt = 0;
-            gl::GenRenderbuffers(1, &mut depth_rt);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, depth_rt);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::R32F, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::RENDERBUFFER, depth_rt);
-
-            let mut color_rt = 0;
-            gl::GenRenderbuffers(1, &mut color_rt);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, color_rt);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::RGBA8, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::RENDERBUFFER, color_rt);
-
-            let mut normal_rt = 0;
-            gl::GenRenderbuffers(1, &mut normal_rt);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, normal_rt);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::RGBA8, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::RENDERBUFFER, normal_rt);
-
-            let mut depth_buffer = 0;
-            gl::GenRenderbuffers(1, &mut depth_buffer);
-            gl::BindRenderbuffer(gl::RENDERBUFFER, depth_buffer);
-            gl::RenderbufferStorage(gl::RENDERBUFFER, gl::DEPTH24_STENCIL8, width, height);
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
-
             let mut depth_texture = 0;
             gl::GenTextures(1, &mut depth_texture);
             gl::BindTexture(gl::TEXTURE_2D, depth_texture);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::R32F as i32, width, height, 0, gl::BGRA, gl::FLOAT, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, depth_texture, 0);
+            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::DEPTH24_STENCIL8 as i32, width, height, 0, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, std::ptr::null());
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::TEXTURE_2D, depth_texture, 0);
 
             let mut color_texture = 0;
             gl::GenTextures(1, &mut color_texture);
@@ -156,8 +127,7 @@ impl GBuffer {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
             gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::TEXTURE_2D, color_texture, 0);
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, color_texture, 0);
 
             let mut normal_texture = 0;
             gl::GenTextures(1, &mut normal_texture);
@@ -165,8 +135,7 @@ impl GBuffer {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
             gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT2, gl::TEXTURE_2D, normal_texture, 0);
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::TEXTURE_2D, normal_texture, 0);
 
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
                 return Err(RendererError::FailedToConstructFBO);
@@ -190,8 +159,7 @@ impl GBuffer {
             gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
 
             gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, frame_texture, 0);
-
-            gl::FramebufferRenderbuffer(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::RENDERBUFFER, depth_buffer);
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::TEXTURE_2D, depth_texture, 0);
 
             if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
                 return Err(RendererError::FailedToConstructFBO);
@@ -201,12 +169,8 @@ impl GBuffer {
 
             Ok(GBuffer {
                 fbo,
-                depth_rt,
-                depth_buffer,
                 depth_texture,
-                color_rt,
                 color_texture,
-                normal_rt,
                 normal_texture,
                 opt_fbo,
                 frame_texture,
@@ -325,10 +289,6 @@ impl Drop for GBuffer {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteFramebuffers(1, &self.fbo);
-            gl::DeleteRenderbuffers(1, &self.depth_buffer);
-            gl::DeleteRenderbuffers(1, &self.depth_rt);
-            gl::DeleteRenderbuffers(1, &self.normal_rt);
-            gl::DeleteRenderbuffers(1, &self.color_rt);
             gl::DeleteTextures(1, &self.color_texture);
             gl::DeleteTextures(1, &self.depth_texture);
             gl::DeleteTextures(1, &self.normal_texture);

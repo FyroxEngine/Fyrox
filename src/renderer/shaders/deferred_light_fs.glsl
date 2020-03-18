@@ -37,7 +37,7 @@ void main()
     vec4 screenPosition;
     screenPosition.x = texCoord.x * 2.0 - 1.0;
     screenPosition.y = texCoord.y * 2.0 - 1.0;
-    screenPosition.z = texture2D(depthTexture, texCoord).r;
+    screenPosition.z = texture2D(depthTexture, texCoord).r * 2.0 - 1.0;
     screenPosition.w = 1.0;
 
     vec4 worldPosition = invViewProj * screenPosition;

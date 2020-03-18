@@ -357,8 +357,7 @@ impl GlState {
     }
 
     pub fn pop_fbo(&mut self) {
-        let fbo = self.fbos.pop().unwrap();
-
+        self.fbos.pop().unwrap();
         unsafe {
             gl::BindFramebuffer(gl::FRAMEBUFFER, *self.fbos.last().expect("FBO stack underflow!"));
         }
@@ -421,11 +420,16 @@ impl Renderer {
     }
 
     /// Sets new frame size, should be called when received a Resize event.
-    pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), RendererError> {
-        self.frame_size = new_size;
+    ///
+    /// # Notes
+    ///
+    /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
+    /// be performed into 0x0 texture.
+    pub fn set_frame_size(&mut self, new_size: (u32, u32)) {
+        self.frame_size.0 = new_size.0.max(1);
+        self.frame_size.1 = new_size.1.max(1);
         // Invalidate all g-buffers.
         self.gbuffers.clear();
-        Ok(())
     }
 
     pub fn get_frame_size(&self) -> (u32, u32) {
