@@ -3,7 +3,7 @@ use crate::{
     visitor::{Visitor, VisitResult, Visit}
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 #[repr(C)]
 pub struct Color {
     // Do not change order! OpenGL requires this order!
