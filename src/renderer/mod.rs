@@ -18,12 +18,25 @@ mod shadow_map_renderer;
 mod flat_shader;
 mod gpu_texture;
 mod sprite_renderer;
+mod framebuffer;
+mod state;
 
 use glutin::PossiblyCurrent;
+use std::{
+    rc::Rc,
+    sync::{
+        Arc,
+        Mutex,
+    },
+    time,
+    ffi::CStr,
+    collections::HashMap,
+    cell::RefCell,
+};
 use crate::{
     resource::texture::Texture,
     renderer::{
-        ui_renderer::UIRenderer,
+        ui_renderer::UiRenderer,
         surface::SurfaceSharedData,
         particle_system_renderer::ParticleSystemRenderer,
         gbuffer::GBuffer,
@@ -32,7 +45,13 @@ use crate::{
             DeferredRendererContext,
         },
         error::RendererError,
-        gpu_texture::{GpuTexture, GpuTextureKind, PixelKind},
+        gpu_texture::{
+            GpuTexture,
+            GpuTextureKind,
+            PixelKind,
+            MininificationFilter,
+            MagnificationFilter,
+        },
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer,
         gl::types::{GLsizei, GLenum, GLuint, GLchar},
@@ -44,6 +63,8 @@ use crate::{
             AttributeKind,
             AttributeDefinition,
         },
+        framebuffer::{BackBuffer, FrameBufferTrait, DrawParameters, CullFace},
+        gpu_program::UniformValue,
     },
     scene::{
         SceneContainer,
@@ -62,17 +83,9 @@ use crate::{
     },
     utils::log::Log,
     gui::draw::DrawingContext,
-    engine::resource_manager::TimedEntry
+    engine::resource_manager::TimedEntry,
 };
-use std::{
-    sync::{
-        Arc,
-        Mutex
-    },
-    time,
-    ffi::CStr,
-    collections::HashMap,
-};
+use crate::renderer::state::State;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -206,24 +219,25 @@ impl Default for Statistics {
 }
 
 pub struct Renderer {
+    state: State,
+    backbuffer: BackBuffer,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
     particle_system_renderer: ParticleSystemRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
-    white_dummy: GpuTexture,
+    white_dummy: Rc<RefCell<GpuTexture>>,
     /// Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
     /// something without normal map.
-    normal_dummy: GpuTexture,
-    ui_renderer: UIRenderer,
+    normal_dummy: Rc<RefCell<GpuTexture>>,
+    ui_renderer: UiRenderer,
     statistics: Statistics,
     quad: SurfaceSharedData,
     frame_size: (u32, u32),
     ambient_color: Color,
     quality_settings: QualitySettings,
     pub debug_renderer: DebugRenderer,
-    gl_state: GlState,
     gbuffers: HashMap<Handle<Node>, GBuffer>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
@@ -236,35 +250,34 @@ pub struct GeometryCache {
 }
 
 impl GeometryCache {
-    /// Draws surface, returns amount of triangles were rendered.
-    fn draw(&mut self, data: &SurfaceSharedData) -> usize {
+    fn get(&mut self, data: &SurfaceSharedData) -> &mut GeometryBuffer<surface::Vertex> {
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
-            let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
-
-            geometry_buffer.describe_attributes(vec![
-                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-                AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
-                AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
-                AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false },
-            ]).unwrap();
-
-            geometry_buffer.set_vertices(data.vertices.as_slice());
-
             let mut triangles = Vec::with_capacity(data.indices.len() / 3);
             for i in (0..data.indices.len()).step_by(3) {
                 triangles.push(TriangleDefinition { indices: [data.indices[i], data.indices[i + 1], data.indices[i + 2]] });
             }
-            geometry_buffer.set_triangles(&triangles);
+
+            let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
+
+            geometry_buffer.bind()
+                .describe_attributes(vec![
+                    AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+                    AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+                    AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+                    AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
+                    AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
+                    AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false }])
+                .unwrap()
+                .set_vertices(data.vertices.as_slice())
+                .set_triangles(&triangles);
 
             TimedEntry { value: geometry_buffer, time_to_live: 20.0 }
         });
 
         geometry_buffer.time_to_live = 20.0;
-        geometry_buffer.draw()
+        geometry_buffer
     }
 
     fn update(&mut self, dt: f32) {
@@ -279,27 +292,37 @@ impl GeometryCache {
 
 #[derive(Default)]
 pub struct TextureCache {
-    map: HashMap<usize, TimedEntry<GpuTexture>>
+    map: HashMap<usize, TimedEntry<Rc<RefCell<GpuTexture>>>>
 }
 
 impl TextureCache {
-    fn get(&mut self, texture: Arc<Mutex<Texture>>) -> Option<&GpuTexture> {
+    fn get(&mut self, texture: Arc<Mutex<Texture>>) -> Option<Rc<RefCell<GpuTexture>>> {
         if texture.lock().unwrap().loaded {
             let key = (&*texture as *const _) as usize;
             let gpu_texture = self.map.entry(key).or_insert_with(move || {
                 let texture = texture.lock().unwrap();
-                let gpu_texture = GpuTexture::new(
-                    GpuTextureKind::Rectangle { width: texture.width as usize, height: texture.height as usize },
+                let kind = GpuTextureKind::Rectangle {
+                    width: texture.width as usize,
+                    height: texture.height as usize,
+                };
+                let mut gpu_texture = GpuTexture::new(
+                    kind,
                     PixelKind::from(texture.kind),
-                    texture.bytes.as_slice(),
-                    true)
+                    Some(texture.bytes.as_slice()))
                     .unwrap();
-                gpu_texture.set_max_anisotropy();
-                TimedEntry { value: gpu_texture, time_to_live: 20.0 }
+                gpu_texture.bind_mut(0)
+                    .generate_mip_maps()
+                    .set_minification_filter(MininificationFilter::LinearMip)
+                    .set_magnification_filter(MagnificationFilter::Linear)
+                    .set_max_anisotropy();
+                TimedEntry {
+                    value: Rc::new(RefCell::new(gpu_texture)),
+                    time_to_live: 20.0,
+                }
             });
             // Texture won't be destroyed while it used.
             gpu_texture.time_to_live = 20.0;
-            Some(&gpu_texture.value)
+            Some(gpu_texture.value.clone())
         } else {
             None
         }
@@ -315,91 +338,33 @@ impl TextureCache {
     }
 }
 
-pub struct GlState {
-    viewports: Vec<Rect<i32>>,
-    fbos: Vec<GLuint>
-}
-
-impl GlState {
-    pub fn new() -> Self {
-        let mut viewports = Vec::new();
-        unsafe {
-            let mut viewport = [0; 4];
-            gl::GetIntegerv(gl::VIEWPORT, viewport.as_mut_ptr());
-            viewports.push(Rect::new(viewport[0], viewport[1], viewport[2], viewport[3]));
-        }
-        Self {
-            viewports,
-            fbos: vec![0]
-        }
-    }
-
-    pub fn push_viewport(&mut self, viewport: Rect<i32>) {
-        self.viewports.push(viewport);
-        unsafe {
-            gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
-        }
-    }
-
-    pub fn pop_viewport(&mut self) {
-        self.viewports.pop();
-        unsafe {
-            let viewport = self.viewports.last().expect("Viewport stack underflow!");
-            gl::Viewport(viewport.x, viewport.y, viewport.w, viewport.h);
-        }
-    }
-
-    pub fn push_fbo(&mut self, fbo: GLuint) {
-        self.fbos.push(fbo);
-        unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
-        }
-    }
-
-    pub fn pop_fbo(&mut self) {
-        self.fbos.pop().unwrap();
-        unsafe {
-            gl::BindFramebuffer(gl::FRAMEBUFFER, *self.fbos.last().expect("FBO stack underflow!"));
-        }
-    }
-
-    pub fn validate(&self) {
-        assert_eq!(self.viewports.len(), 1);
-        assert_eq!(self.fbos.len(), 1);
-    }
-}
-
 impl Renderer {
     pub(in crate) fn new(frame_size: (u32, u32)) -> Result<Self, RendererError> {
-        unsafe {
-            gl::Enable(gl::DEPTH_TEST);
-        }
-
         let settings = QualitySettings::default();
+        let mut state = State::new();
 
         Ok(Self {
+            backbuffer: BackBuffer {},
             frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new(&settings)?,
+            deferred_light_renderer: DeferredLightRenderer::new(&mut state, &settings)?,
             flat_shader: FlatShader::new()?,
             statistics: Statistics::default(),
             sprite_renderer: SpriteRenderer::new()?,
-            white_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                         PixelKind::RGBA8, &[255, 255, 255, 255],
-                                         false)?,
-            normal_dummy: GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                          PixelKind::RGBA8, &[128, 128, 255, 255],
-                                          false)?,
+            white_dummy: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+                                                              PixelKind::RGBA8, Some(&[255, 255, 255, 255]))?)),
+            normal_dummy: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+                                                               PixelKind::RGBA8, Some(&[128, 128, 255, 255]))?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
-            ui_renderer: UIRenderer::new()?,
+            ui_renderer: UiRenderer::new()?,
             particle_system_renderer: ParticleSystemRenderer::new()?,
             ambient_color: Color::opaque(100, 100, 100),
             quality_settings: settings,
             debug_renderer: DebugRenderer::new()?,
-            gl_state: GlState::new(),
             gbuffers: Default::default(),
             backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
+            state
         })
     }
 
@@ -438,7 +403,7 @@ impl Renderer {
 
     pub fn set_quality_settings(&mut self, settings: &QualitySettings) -> Result<(), RendererError> {
         self.quality_settings = *settings;
-        self.deferred_light_renderer.set_quality_settings(settings)
+        self.deferred_light_renderer.set_quality_settings(&mut self.state, settings)
     }
 
     pub fn get_quality_settings(&self) -> QualitySettings {
@@ -457,17 +422,7 @@ impl Renderer {
         self.statistics.begin_frame();
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
-        self.gl_state.push_viewport(window_viewport);
-        self.gl_state.push_fbo(0);
-
-        unsafe {
-            gl::StencilMask(0xFF);
-            gl::DepthMask(gl::TRUE);
-            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-            let clear_color = self.backbuffer_clear_color.as_frgba();
-            gl::ClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-        }
+        self.backbuffer.clear(&mut self.state, window_viewport, Some(self.backbuffer_clear_color), Some(1.0), Some(0));
 
         let frame_width = self.frame_size.0 as f32;
         let frame_height = self.frame_size.1 as f32;
@@ -484,95 +439,105 @@ impl Renderer {
 
                 let viewport = camera.viewport_pixels(Vec2::new(frame_width, frame_height));
 
-                self.gl_state.push_viewport(viewport);
-
+                let state = &mut self.state;
                 let gbuffer = self.gbuffers
                     .entry(camera_handle)
                     .and_modify(|buf| {
                         if buf.width != viewport.w || buf.height != viewport.h {
-                            *buf = GBuffer::new(viewport.w, viewport.h).unwrap();
+                            *buf = GBuffer::new(state,viewport.w as usize, viewport.h as usize).unwrap();
                         }
                     })
-                    .or_insert_with(|| GBuffer::new(viewport.w, viewport.h).unwrap());
+                    .or_insert_with(|| GBuffer::new(state,viewport.w as usize, viewport.h as usize).unwrap());
 
                 self.statistics += gbuffer.fill(
+                    state,
                     graph,
                     camera,
-                    &self.white_dummy,
-                    &self.normal_dummy,
-                    &mut self.gl_state,
+                    self.white_dummy.clone(),
+                    self.normal_dummy.clone(),
                     &mut self.texture_cache,
                     &mut self.geometry_cache,
                 );
 
-                self.gl_state.push_fbo(gbuffer.opt_fbo);
-
                 self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
+                    state,
                     scene,
                     camera,
                     gbuffer,
-                    white_dummy: &self.white_dummy,
+                    white_dummy: self.white_dummy.clone(),
                     ambient_color: self.ambient_color,
                     settings: &self.quality_settings,
-                    gl_state: &mut self.gl_state,
                     textures: &mut self.texture_cache,
                     geometry_cache: &mut self.geometry_cache,
                 });
 
+                let depth = gbuffer.depth();
+
                 self.statistics += self.particle_system_renderer.render(
+                    state,
+                    &mut gbuffer.opt_framebuffer,
                     graph,
                     camera,
-                    &self.white_dummy,
+                    self.white_dummy.clone(),
+                    depth,
                     frame_width,
                     frame_height,
-                    gbuffer,
-                    &mut self.gl_state,
+                    viewport,
                     &mut self.texture_cache,
                 );
 
                 self.statistics += self.sprite_renderer.render(
+                    state,
+                    &mut gbuffer.opt_framebuffer,
                     graph,
                     camera,
-                    &self.white_dummy,
-                    gbuffer,
-                    &mut self.gl_state,
+                    self.white_dummy.clone(),
+                    viewport,
                     &mut self.texture_cache,
                     &mut self.geometry_cache,
                 );
 
-                self.statistics += self.debug_renderer.render(camera);
-
-                self.gl_state.pop_fbo();
+                self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.opt_framebuffer, camera);
 
                 // Finally render everything into back buffer.
-                let frame_matrix =
-                    Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
-                        Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
-                unsafe {
-                    gl::StencilMask(0xFF);
-                    gl::DepthMask(gl::TRUE);
-                    gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-                }
-                self.flat_shader.bind();
-                self.flat_shader.set_wvp_matrix(&frame_matrix);
-                self.flat_shader.set_diffuse_texture(0);
-
-                unsafe {
-                    gl::ActiveTexture(gl::TEXTURE0);
-                    gl::BindTexture(gl::TEXTURE_2D, gbuffer.frame_texture);
-                }
-                self.statistics.geometry.add_draw_call(self.geometry_cache.draw(&self.quad));
-
-                self.gl_state.pop_viewport();
+                self.statistics.geometry.add_draw_call(
+                    self.backbuffer.draw(
+                        state,
+                        viewport,
+                        self.geometry_cache.get(&self.quad),
+                        &mut self.flat_shader.program,
+                        DrawParameters {
+                            cull_face: CullFace::Back,
+                            culling: false,
+                            color_write: (true, true, true, true),
+                            depth_write: true,
+                            stencil_test: false,
+                            depth_test: false,
+                            blend: false,
+                        },
+                        &[
+                            (self.flat_shader.wvp_matrix, UniformValue::Mat4({
+                                Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
+                                    Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
+                            })),
+                            (self.flat_shader.diffuse_texture, UniformValue::Sampler {
+                                index: 0,
+                                texture: gbuffer.frame_texture(),
+                            })
+                        ],
+                    ));
             }
         }
 
         // Render UI on top of everything.
         self.statistics += self.ui_renderer.render(
+            &mut self.state,
+            window_viewport,
+            &mut self.backbuffer,
             frame_width,
             frame_height,
             drawing_context,
-            &self.white_dummy,
+            self.white_dummy.clone(),
             &mut self.texture_cache,
         )?;
 
@@ -585,10 +550,6 @@ impl Renderer {
         check_gl_error!();
 
         self.statistics.finalize();
-
-        self.gl_state.pop_fbo();
-        self.gl_state.pop_viewport();
-        self.gl_state.validate();
 
         Ok(())
     }

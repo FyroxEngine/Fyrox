@@ -54,7 +54,6 @@ void main()
     float attenuation = 1.0 + cos((d / lightRadius) * 3.14159);
 
     float spotAngleCos = dot(lightDirection, normLightVector);
-
     attenuation *= smoothstep(halfConeAngleCos, halfHotspotConeAngleCos, spotAngleCos);
 
     float shadow = 1.0;

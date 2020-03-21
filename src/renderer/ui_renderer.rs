@@ -1,32 +1,26 @@
-use std::sync::{
-    Mutex,
-    Arc,
+use std::{
+    rc::Rc,
+    sync::{
+        Mutex,
+        Arc,
+    },
+    cell::RefCell,
 };
 use crate::{
-    gui::{
-        brush::{
-            Brush,
-            GradientPoint,
-        },
-        draw::{
-            DrawingContext,
-            CommandKind,
-            CommandTexture,
-        },
-        self,
-    },
-    core::math::{
-        mat4::Mat4,
-        vec4::Vec4,
-        vec2::Vec2,
-    },
-    resource::texture::{
-        Texture,
-        TextureKind,
-    },
     renderer::{
+        framebuffer::{
+            BackBuffer,
+            FrameBufferTrait,
+            DrawParameters,
+            CullFace,
+        },
+        state::State,
+        gpu_program::{
+            UniformValue,
+            GpuProgram,
+            UniformLocation,
+        },
         RenderPassStatistics,
-        gpu_program::{GpuProgram, UniformLocation},
         gl,
         error::RendererError,
         geometry_buffer::{
@@ -39,9 +33,31 @@ use crate::{
         geometry_buffer::ElementKind,
         TextureCache,
     },
+    gui::{
+        brush::Brush,
+        draw::{
+            DrawingContext,
+            CommandKind,
+            CommandTexture,
+        },
+        self,
+    },
+    resource::texture::{
+        Texture,
+        TextureKind,
+    },
+    core::{
+        math::{
+            Rect,
+            mat4::Mat4,
+            vec4::Vec4,
+            vec2::Vec2,
+        },
+        color::Color,
+    },
 };
 
-struct UIShader {
+struct UiShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
@@ -58,7 +74,7 @@ struct UIShader {
     bounds_max: UniformLocation,
 }
 
-impl UIShader {
+impl UiShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
@@ -80,194 +96,199 @@ impl UIShader {
             program,
         })
     }
-
-    pub fn bind(&mut self) -> &mut Self {
-        self.program.bind();
-        self
-    }
-
-    pub fn set_wvp_matrix(&mut self, mat: &Mat4) -> &mut Self {
-        self.program.set_mat4(self.wvp_matrix, mat);
-        self
-    }
-
-    pub fn set_is_font(&mut self, value: bool) -> &mut Self {
-        self.program.set_bool(self.is_font, value);
-        self
-    }
-
-    pub fn set_diffuse_texture_sampler_id(&mut self, id: i32) -> &mut Self {
-        self.program.set_int(self.diffuse_texture, id);
-        self
-    }
-
-    pub fn set_bounds_min(&mut self, v: Vec2) -> &mut Self {
-        self.program.set_vec2(self.bounds_min, v);
-        self
-    }
-
-    pub fn set_bounds_max(&mut self, v: Vec2) -> &mut Self {
-        self.program.set_vec2(self.bounds_max, v);
-        self
-    }
-
-    pub fn set_resolution(&mut self, v: Vec2) -> &mut Self {
-        self.program.set_vec2(self.resolution, v);
-        self
-    }
-
-    fn set_gradient_stops(&mut self, stops: &[GradientPoint]) -> &mut Self {
-        let mut raw_stops = [0.0; 16];
-        let mut raw_colors = [Vec4::default(); 16];
-        for (i, point) in stops.iter().enumerate() {
-            raw_stops[i] = point.stop;
-            raw_colors[i] = point.color.as_frgba();
-        }
-
-        self.program.set_int(self.gradient_point_count, stops.len() as i32);
-        self.program.set_float_array(self.gradient_stops, &raw_stops);
-        self.program.set_vec4_array(self.gradient_colors, &raw_colors);
-        self
-    }
-
-    pub fn set_brush(&mut self, brush: &Brush) -> &mut Self {
-        match brush {
-            Brush::Solid(color) => {
-                self.program.set_int(self.brush_type, 0);
-                self.program.set_vec4(self.solid_color, &color.as_frgba());
-            }
-            Brush::LinearGradient { from, to, stops } => {
-                self.program.set_int(self.brush_type, 1);
-                self.program.set_vec2(self.gradient_origin, *from);
-                self.program.set_vec2(self.gradient_end, *to);
-                self.set_gradient_stops(stops);
-            }
-            Brush::RadialGradient { center, stops } => {
-                self.program.set_int(self.brush_type, 2);
-                self.program.set_vec2(self.gradient_origin, *center);
-                self.set_gradient_stops(stops);
-            }
-        }
-        self
-    }
 }
 
-pub struct UIRenderer {
-    shader: UIShader,
+pub struct UiRenderer {
+    shader: UiShader,
     geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
 }
 
-impl UIRenderer {
+impl UiRenderer {
     pub(in crate::renderer) fn new() -> Result<Self, RendererError> {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
+        let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
-        geometry_buffer.describe_attributes(vec![
-            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-        ])?;
+        geometry_buffer.bind()
+            .describe_attributes(vec![
+                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+            ])?;
 
         Ok(Self {
             geometry_buffer,
-            shader: UIShader::new()?,
+            shader: UiShader::new()?,
         })
     }
 
     pub(in crate::renderer) fn render(&mut self,
+                                      state: &mut State,
+                                      viewport: Rect<i32>,
+                                      backbuffer: &mut BackBuffer,
                                       frame_width: f32,
                                       frame_height: f32,
                                       drawing_context: &DrawingContext,
-                                      white_dummy: &GpuTexture,
+                                      white_dummy: Rc<RefCell<GpuTexture>>,
                                       texture_cache: &mut TextureCache,
     ) -> Result<RenderPassStatistics, RendererError> {
         let mut statistics = RenderPassStatistics::default();
 
-        unsafe {
-            // Render UI on top of everything
-            gl::Disable(gl::DEPTH_TEST);
-            gl::Enable(gl::BLEND);
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            gl::Disable(gl::CULL_FACE);
 
+        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
-            gl::ActiveTexture(gl::TEXTURE0);
+        let mut geometry_buffer = self.geometry_buffer.bind();
 
-            self.geometry_buffer.set_triangles(drawing_context.get_triangles());
-            self.geometry_buffer.set_vertices(drawing_context.get_vertices());
+        geometry_buffer
+            .set_triangles(drawing_context.get_triangles())
+            .set_vertices(drawing_context.get_vertices());
 
-            let ortho = Mat4::ortho(0.0, frame_width, frame_height,
-                                    0.0, -1.0, 1.0);
+        let ortho = Mat4::ortho(0.0, frame_width, frame_height,
+                                0.0, -1.0, 1.0);
 
-            self.shader.bind()
-                .set_wvp_matrix(&ortho)
-                .set_resolution(Vec2::new(frame_width, frame_height));
+        for cmd in drawing_context.get_commands() {
+            let mut diffuse_texture = white_dummy.clone();
+            let mut is_font_texture = false;
+            let mut color_write = true;
 
-            for cmd in drawing_context.get_commands() {
-                self.shader.set_bounds_min(cmd.min())
-                    .set_bounds_max(cmd.max());
-
-                if cmd.get_nesting() != 0 {
-                    gl::Enable(gl::STENCIL_TEST);
-                } else {
-                    gl::Disable(gl::STENCIL_TEST);
-                }
-
-                match cmd.get_kind() {
-                    CommandKind::Clip => {
-                        if cmd.get_nesting() == 1 {
-                            gl::Clear(gl::STENCIL_BUFFER_BIT);
-                        }
+            match cmd.get_kind() {
+                CommandKind::Clip => {
+                    if cmd.get_nesting() == 1 {
+                        backbuffer.clear(state, viewport, None, None, Some(0));
+                    }
+                    unsafe {
                         gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
                         // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
                         gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting() - 1), 0xFF);
-                        // Draw clipping geometry to stencil buffer
-                        gl::StencilMask(0xFF);
-                        gl::ColorMask(gl::FALSE, gl::FALSE, gl::FALSE, gl::FALSE);
                     }
-                    CommandKind::Geometry => {
+                    // Draw clipping geometry to stencil buffer
+                    state.set_stencil_mask(0xFF);
+                    color_write = false;
+                }
+                CommandKind::Geometry => {
+                    unsafe {
                         // Make sure to draw geometry only on clipping geometry with current nesting level
                         gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting()), 0xFF);
+                    }
 
-                        self.shader.set_diffuse_texture_sampler_id(0);
-
-                        match cmd.texture() {
-                            CommandTexture::None => white_dummy.bind(0),
-                            CommandTexture::Font(font_arc) => {
-                                let mut font = font_arc.lock().unwrap();
-                                if font.texture.is_none() {
-                                    let tex = Texture::from_bytes(
-                                        font.get_atlas_size() as u32,
-                                        font.get_atlas_size() as u32,
-                                        TextureKind::R8,
-                                        font.get_atlas_pixels().to_vec(),
-                                    );
-                                    font.texture = Some(Arc::new(Mutex::new(tex)));
-                                }
-                                if let Some(texture) = texture_cache.get(font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
-                                    texture.bind(0);
-                                }
-                                self.shader.set_is_font(true);
+                    match cmd.texture() {
+                        CommandTexture::Font(font_arc) => {
+                            let mut font = font_arc.lock().unwrap();
+                            if font.texture.is_none() {
+                                let tex = Texture::from_bytes(
+                                    font.get_atlas_size() as u32,
+                                    font.get_atlas_size() as u32,
+                                    TextureKind::R8,
+                                    font.get_atlas_pixels().to_vec(),
+                                );
+                                font.texture = Some(Arc::new(Mutex::new(tex)));
                             }
-                            CommandTexture::Texture(texture) => {
-                                if let Ok(texture) = texture.clone().downcast::<Mutex<Texture>>() {
-                                    if let Some(texture) = texture_cache.get(texture) {
-                                        texture.bind(0);
-                                    }
+                            if let Some(texture) = texture_cache.get(font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
+                                diffuse_texture = texture;
+                            }
+                            is_font_texture = true;
+                        }
+                        CommandTexture::Texture(texture) => {
+                            if let Ok(texture) = texture.clone().downcast::<Mutex<Texture>>() {
+                                if let Some(texture) = texture_cache.get(texture) {
+                                    diffuse_texture = texture;
                                 }
-                                self.shader.set_is_font(false);
                             }
                         }
-
-                        self.shader.set_brush(cmd.brush());
-
-                        gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-                        // Do not draw geometry to stencil buffer
-                        gl::StencilMask(0x00);
+                        _ => ()
                     }
-                }
 
-                statistics.triangles_rendered += self.geometry_buffer.draw_part(cmd.get_start_triangle(), cmd.get_triangle_count())?;
-                statistics.draw_calls += 1;
+                    // Do not draw geometry to stencil buffer
+                    state.set_stencil_mask(0);
+                }
             }
+
+            let mut raw_stops = [0.0; 16];
+            let mut raw_colors = [Vec4::default(); 16];
+
+            let uniforms = [
+                (self.shader.diffuse_texture, UniformValue::Sampler { index: 0, texture: diffuse_texture }),
+                (self.shader.wvp_matrix, UniformValue::Mat4(ortho)),
+                (self.shader.resolution, UniformValue::Vec2(Vec2::new(frame_width, frame_height))),
+                (self.shader.bounds_min, UniformValue::Vec2(cmd.min())),
+                (self.shader.bounds_max, UniformValue::Vec2(cmd.max())),
+                (self.shader.is_font, UniformValue::Bool(is_font_texture)),
+                (self.shader.brush_type, UniformValue::Integer({
+                    match cmd.brush() {
+                        Brush::Solid(_) => 0,
+                        Brush::LinearGradient { .. } => 1,
+                        Brush::RadialGradient { .. } => 2,
+                    }
+                })),
+                (self.shader.solid_color, UniformValue::Color({
+                    match cmd.brush() {
+                        Brush::Solid(color) => *color,
+                        _ => Color::WHITE,
+                    }
+                })),
+                (self.shader.gradient_origin, UniformValue::Vec2({
+                    match cmd.brush() {
+                        Brush::Solid(_) => Vec2::ZERO,
+                        Brush::LinearGradient { from, .. } => *from,
+                        Brush::RadialGradient { center, .. } => *center,
+                    }
+                })),
+                (self.shader.gradient_end, UniformValue::Vec2({
+                    match cmd.brush() {
+                        Brush::Solid(_) => Vec2::ZERO,
+                        Brush::LinearGradient { to, .. } => *to,
+                        Brush::RadialGradient { .. } => Vec2::ZERO,
+                    }
+                })),
+                (self.shader.gradient_point_count, UniformValue::Integer({
+                    match cmd.brush() {
+                        Brush::Solid(_) => 0,
+                        Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => stops.len() as i32,
+                    }
+                })),
+                (self.shader.gradient_stops, UniformValue::FloatArray({
+                    match cmd.brush() {
+                        Brush::Solid(_) => &[],
+                        Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => {
+                            for (i, point) in stops.iter().enumerate() {
+                                raw_stops[i] = point.stop;
+                            }
+                            &raw_stops
+                        }
+                    }
+                })),
+                (self.shader.gradient_colors, UniformValue::Vec4Array({
+                    match cmd.brush() {
+                        Brush::Solid(_) => &[],
+                        Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => {
+                            for (i, point) in stops.iter().enumerate() {
+                                raw_colors[i] = point.color.as_frgba();
+                            }
+                            &raw_colors
+                        }
+                    }
+                }))
+            ];
+
+            let params = DrawParameters {
+                cull_face: CullFace::Back,
+                culling: false,
+                color_write: (color_write, color_write, color_write, color_write),
+                depth_write: false,
+                stencil_test: cmd.get_nesting() != 0,
+                depth_test: false,
+                blend: true,
+            };
+
+            statistics.add_draw_call(
+                backbuffer.draw_part(
+                    state,
+                    viewport,
+                    &mut self.geometry_buffer,
+                    &mut self.shader.program,
+                    params,
+                    &uniforms,
+                    cmd.get_start_triangle(),
+                    cmd.get_triangle_count(),
+                )?
+            );
         }
         Ok(statistics)
     }

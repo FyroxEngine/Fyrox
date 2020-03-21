@@ -1,0 +1,264 @@
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
+use crate::{
+    core::{
+        math::Rect,
+        color::Color,
+    },
+    renderer::{
+        gl::{
+            types::GLuint,
+            self,
+        },
+        error::RendererError,
+        gpu_texture::{
+            GpuTexture,
+            GpuTextureKind,
+            CubeMapFace,
+        },
+        geometry_buffer::GeometryBuffer,
+        gpu_program::{UniformLocation, GpuProgram, UniformValue},
+        state::State,
+    },
+};
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+pub enum AttachmentKind {
+    Color,
+    DepthStencil,
+    Depth,
+}
+
+pub struct Attachment {
+    pub kind: AttachmentKind,
+    pub texture: Rc<RefCell<GpuTexture>>,
+}
+
+pub struct FrameBuffer {
+    fbo: GLuint,
+    depth_attachment: Attachment,
+    color_attachments: Vec<Attachment>,
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+pub enum CullFace {
+    Back,
+    Front,
+}
+
+impl CullFace {
+    pub fn into_gl_value(self) -> u32 {
+        match self {
+            CullFace::Front => gl::FRONT,
+            CullFace::Back => gl::BACK,
+        }
+    }
+}
+
+pub struct DrawParameters {
+    pub cull_face: CullFace,
+    pub culling: bool,
+    pub color_write: (bool, bool, bool, bool),
+    pub depth_write: bool,
+    pub stencil_test: bool,
+    pub depth_test: bool,
+    pub blend: bool,
+}
+
+impl Default for DrawParameters {
+    fn default() -> Self {
+        Self {
+            cull_face: CullFace::Back,
+            culling: true,
+            color_write: (true, true, true, true),
+            depth_write: true,
+            stencil_test: false,
+            depth_test: true,
+            blend: false,
+        }
+    }
+}
+
+unsafe fn set_attachment(gl_attachment_kind: u32, texture: &GpuTexture) {
+    match texture.kind() {
+        GpuTextureKind::Line { .. } => {
+            gl::FramebufferTexture1D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_1D, texture.id(), 0);
+        }
+        GpuTextureKind::Rectangle { .. } => {
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_2D, texture.id(), 0);
+        }
+        GpuTextureKind::Cube { .. } => {
+            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_CUBE_MAP_POSITIVE_X, texture.id(), 0);
+        }
+        GpuTextureKind::Volume { .. } => {
+            gl::FramebufferTexture3D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_3D, texture.id(), 0, 0);
+        }
+    }
+}
+
+impl FrameBuffer {
+    pub fn new(state: &mut State, depth_attachment: Attachment, color_attachments: Vec<Attachment>) -> Result<Self, RendererError> {
+        unsafe {
+            let mut fbo = 0;
+
+            gl::GenFramebuffers(1, &mut fbo);
+
+            state.set_framebuffer(fbo);
+
+            let depth_attachment_kind = match depth_attachment.kind {
+                AttachmentKind::Color => panic!("Attempt to use color attachment as depth/stencil!"),
+                AttachmentKind::DepthStencil => gl::DEPTH_STENCIL_ATTACHMENT,
+                AttachmentKind::Depth => gl::DEPTH_ATTACHMENT
+            };
+            set_attachment(depth_attachment_kind, &depth_attachment.texture.borrow());
+
+            let mut color_buffers = Vec::new();
+            for (i, color_attachment) in color_attachments.iter().enumerate() {
+                assert_eq!(color_attachment.kind, AttachmentKind::Color);
+                let color_attachment_kind = gl::COLOR_ATTACHMENT0 + i as u32;
+                set_attachment(color_attachment_kind, &color_attachment.texture.borrow());
+                color_buffers.push(color_attachment_kind);
+            }
+
+            if color_buffers.is_empty() {
+                gl::DrawBuffer(gl::NONE)
+            } else {
+                gl::DrawBuffers(color_buffers.len() as i32, color_buffers.as_ptr());
+            }
+
+            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
+                return Err(RendererError::FailedToConstructFBO);
+            }
+
+            state.set_framebuffer(0);
+
+            Ok(Self {
+                fbo,
+                depth_attachment,
+                color_attachments,
+            })
+        }
+    }
+
+    pub fn color_attachments(&self) -> &[Attachment] {
+        &self.color_attachments
+    }
+
+    pub fn depth_attachment(&self) -> &Attachment {
+        &self.depth_attachment
+    }
+
+    pub fn set_cubemap_face(&mut self, state: &mut State, attachment_index: usize, face: CubeMapFace) -> &mut Self {
+        unsafe {
+            state.set_framebuffer(self.fbo);
+
+            let attachment = self.color_attachments.get(attachment_index).unwrap();
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl::COLOR_ATTACHMENT0 + attachment_index as u32,
+                face.into_gl_value(),
+                attachment.texture.borrow().id(),
+                0,
+            );
+        }
+
+        self
+    }
+}
+
+fn pre_draw(fbo: GLuint,
+            state: &mut State,
+            viewport: Rect<i32>,
+            program: &mut GpuProgram,
+            params: DrawParameters,
+            uniforms: &[(UniformLocation, UniformValue<'_>)]) {
+    state.set_framebuffer(fbo);
+    state.set_viewport(viewport);
+    state.apply_draw_parameters(&params);
+
+    program.bind();
+    for (location, value) in uniforms {
+        program.set_uniform(*location, value)
+    }
+}
+
+pub trait FrameBufferTrait {
+    fn id(&self) -> u32;
+
+    fn clear(&mut self, state: &mut State, viewport: Rect<i32>, color: Option<Color>, depth: Option<f32>, stencil: Option<i32>) {
+        let mut mask = 0;
+
+        state.set_viewport(viewport);
+        state.set_framebuffer(self.id());
+
+        if let Some(color) = color {
+            state.set_color_write((true, true, true, true));
+            state.set_clear_color(color);
+            mask |= gl::COLOR_BUFFER_BIT;
+        }
+        if let Some(depth) = depth {
+            state.set_depth_write(true);
+            state.set_clear_depth(depth);
+            mask |= gl::DEPTH_BUFFER_BIT;
+        }
+        if let Some(stencil) = stencil {
+            state.set_stencil_mask(0xFFFF_FFFF);
+            state.set_clear_stencil(stencil);
+            mask |= gl::STENCIL_BUFFER_BIT;
+        }
+
+        unsafe {
+            gl::Clear(mask);
+        }
+    }
+
+    fn draw<T>(&mut self,
+               state: &mut State,
+               viewport: Rect<i32>,
+               geometry: &mut GeometryBuffer<T>,
+               program: &mut GpuProgram,
+               params: DrawParameters,
+               uniforms: &[(UniformLocation, UniformValue<'_>)],
+    ) -> usize {
+        pre_draw(self.id(), state, viewport, program, params, uniforms);
+        geometry.bind().draw()
+    }
+
+    fn draw_part<T>(&mut self,
+                    state: &mut State,
+                    viewport: Rect<i32>,
+                    geometry: &mut GeometryBuffer<T>,
+                    program: &mut GpuProgram,
+                    params: DrawParameters,
+                    uniforms: &[(UniformLocation, UniformValue<'_>)],
+                    offset: usize,
+                    count: usize
+    ) -> Result<usize, RendererError> {
+        pre_draw(self.id(), state, viewport, program, params, uniforms);
+        geometry.bind().draw_part(offset, count)
+    }
+}
+
+impl FrameBufferTrait for FrameBuffer {
+    fn id(&self) -> u32 {
+        self.fbo
+    }
+}
+
+pub struct BackBuffer;
+
+impl FrameBufferTrait for BackBuffer {
+    fn id(&self) -> u32 {
+        0
+    }
+}
+
+impl Drop for FrameBuffer {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteFramebuffers(1, &self.fbo);
+        }
+    }
+}

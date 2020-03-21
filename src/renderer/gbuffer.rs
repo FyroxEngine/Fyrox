@@ -1,25 +1,46 @@
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
 use crate::{
+    renderer::{
+        gpu_texture::{
+            GpuTextureKind,
+            PixelKind,
+            GpuTexture,
+        },
+        framebuffer::{
+            FrameBuffer,
+            Attachment,
+            AttachmentKind,
+            CullFace,
+            DrawParameters,
+            FrameBufferTrait
+        },
+        gpu_program::{
+            GpuProgram,
+            UniformLocation,
+        },
+        error::RendererError,
+        RenderPassStatistics,
+        TextureCache,
+        GeometryCache,
+        gpu_program::UniformValue,
+        state::State
+    },
     scene::{
         node::Node,
         graph::Graph,
         camera::Camera,
         base::AsBase,
     },
-    renderer::{
-        gl::types::GLuint,
-        gl,
-        gpu_program::{GpuProgram, UniformLocation},
-        error::RendererError,
-        gpu_texture::GpuTexture,
-        RenderPassStatistics,
-        GlState,
-        TextureCache,
-        GeometryCache
-    },
-    core::math::{
-        Rect,
-        mat4::Mat4,
-        frustum::Frustum,
+    core::{
+        math::{
+            Rect,
+            mat4::Mat4,
+            frustum::Frustum,
+        },
+        color::Color,
     },
 };
 
@@ -48,147 +69,84 @@ impl GBufferShader {
             program,
         })
     }
-
-    fn bind(&mut self) -> &mut Self {
-        self.program.bind();
-        self
-    }
-
-    fn set_world_matrix(&mut self, mat: &Mat4) -> &mut Self {
-        self.program.set_mat4(self.world_matrix, mat);
-        self
-    }
-
-    fn set_wvp_matrix(&mut self, mat: &Mat4) -> &mut Self {
-        self.program.set_mat4(self.wvp_matrix, mat);
-        self
-    }
-
-    fn set_use_skeletal_animation(&mut self, value: bool) -> &mut Self {
-        self.program.set_int(self.use_skeletal_animation, if value { 1 } else { 0 });
-        self
-    }
-
-    fn set_bone_matrices(&mut self, matrices: &[Mat4]) -> &mut Self {
-        self.program.set_mat4_array(self.bone_matrices, matrices);
-        self
-    }
-
-    fn set_diffuse_texture(&mut self, id: i32) -> &mut Self {
-        self.program.set_int(self.diffuse_texture, id);
-        self
-    }
-
-    fn set_normal_texture(&mut self, id: i32) -> &mut Self {
-        self.program.set_int(self.normal_texture, id);
-        self
-    }
 }
 
 pub struct GBuffer {
+    framebuffer: FrameBuffer,
+    pub opt_framebuffer: FrameBuffer,
     shader: GBufferShader,
-    pub fbo: GLuint,
-    pub depth_texture: GLuint,
-    pub color_texture: GLuint,
-    pub normal_texture: GLuint,
-    pub opt_fbo: GLuint,
-    pub frame_texture: GLuint,
     bone_matrices: Vec<Mat4>,
     pub width: i32,
     pub height: i32,
 }
 
 impl GBuffer {
-    pub fn new(width: i32, height: i32) -> Result<Self, RendererError>
-    {
-        unsafe {
-            let mut fbo = 0;
-            gl::GenFramebuffers(1, &mut fbo);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, fbo);
+    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+        let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::D24S8, None)?));
 
-            let buffers = [
-                gl::COLOR_ATTACHMENT0,
-                gl::COLOR_ATTACHMENT1,
-                gl::COLOR_ATTACHMENT2
-            ];
-            gl::DrawBuffers(3, buffers.as_ptr());
+        let framebuffer = FrameBuffer::new(
+            state,
+            Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil.clone(),
+            },
+            vec![
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?)),
+                },
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?)),
+                },
+            ])?;
 
-            let mut depth_texture = 0;
-            gl::GenTextures(1, &mut depth_texture);
-            gl::BindTexture(gl::TEXTURE_2D, depth_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::DEPTH24_STENCIL8 as i32, width, height, 0, gl::DEPTH_STENCIL, gl::UNSIGNED_INT_24_8, std::ptr::null());
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::TEXTURE_2D, depth_texture, 0);
+        let opt_framebuffer = FrameBuffer::new(
+            state,
+            Attachment {
+                kind: AttachmentKind::DepthStencil,
+                texture: depth_stencil,
+            },
+            vec![
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?)),
+                }
+            ])?;
 
-            let mut color_texture = 0;
-            gl::GenTextures(1, &mut color_texture);
-            gl::BindTexture(gl::TEXTURE_2D, color_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, color_texture, 0);
+        Ok(GBuffer {
+            framebuffer,
+            shader: GBufferShader::new()?,
+            bone_matrices: Vec::new(),
+            width: width as i32,
+            height: height as i32,
+            opt_framebuffer,
+        })
+    }
 
-            let mut normal_texture = 0;
-            gl::GenTextures(1, &mut normal_texture);
-            gl::BindTexture(gl::TEXTURE_2D, normal_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT1, gl::TEXTURE_2D, normal_texture, 0);
+    pub fn frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.opt_framebuffer.color_attachments()[0].texture.clone()
+    }
 
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                return Err(RendererError::FailedToConstructFBO);
-            }
+    pub fn depth(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.depth_attachment().texture.clone()
+    }
 
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+    pub fn diffuse_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.color_attachments()[0].texture.clone()
+    }
 
-            // Create another framebuffer for stencil optimizations.
-            let mut opt_fbo = 0;
-            gl::GenFramebuffers(1, &mut opt_fbo);
-            gl::BindFramebuffer(gl::FRAMEBUFFER, opt_fbo);
-
-            let light_buffers = [gl::COLOR_ATTACHMENT0];
-            gl::DrawBuffers(1, light_buffers.as_ptr());
-
-            let mut frame_texture = 0;
-            gl::GenTextures(1, &mut frame_texture);
-            gl::BindTexture(gl::TEXTURE_2D, frame_texture);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA8 as i32, width, height, 0, gl::BGRA, gl::UNSIGNED_BYTE, std::ptr::null());
-
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::COLOR_ATTACHMENT0, gl::TEXTURE_2D, frame_texture, 0);
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl::DEPTH_STENCIL_ATTACHMENT, gl::TEXTURE_2D, depth_texture, 0);
-
-            if gl::CheckFramebufferStatus(gl::FRAMEBUFFER) != gl::FRAMEBUFFER_COMPLETE {
-                return Err(RendererError::FailedToConstructFBO);
-            }
-
-            gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-
-            Ok(GBuffer {
-                fbo,
-                depth_texture,
-                color_texture,
-                normal_texture,
-                opt_fbo,
-                frame_texture,
-                shader: GBufferShader::new()?,
-                bone_matrices: Vec::new(),
-                width,
-                height,
-            })
-        }
+    pub fn normal_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.color_attachments()[1].texture.clone()
     }
 
     #[must_use]
     pub fn fill(&mut self,
+                state: &mut State,
                 graph: &Graph,
                 camera: &Camera,
-                white_dummy: &GpuTexture,
-                normal_dummy: &GpuTexture,
-                gl_state: &mut GlState,
+                white_dummy: Rc<RefCell<GpuTexture>>,
+                normal_dummy: Rc<RefCell<GpuTexture>>,
                 texture_cache: &mut TextureCache,
                 geom_cache: &mut GeometryCache,
     ) -> RenderPassStatistics {
@@ -196,23 +154,8 @@ impl GBuffer {
 
         let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 
-        gl_state.push_viewport(Rect::new(0, 0, self.width, self.height));
-        gl_state.push_fbo(self.fbo);
-
-        unsafe {
-            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT | gl::STENCIL_BUFFER_BIT);
-
-            self.shader.bind();
-            self.shader.set_diffuse_texture(0);
-            self.shader.set_normal_texture(1);
-            gl::Enable(gl::CULL_FACE);
-            gl::Disable(gl::STENCIL_TEST);
-            gl::Disable(gl::BLEND);
-            gl::Enable(gl::DEPTH_TEST);
-            gl::DepthMask(gl::TRUE);
-            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-        }
+        let viewport = Rect::new(0, 0, self.width, self.height);
+        self.framebuffer.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), Some(1.0), Some(0));
 
         let view_projection = camera.view_projection_matrix();
 
@@ -239,61 +182,64 @@ impl GBuffer {
                 };
                 let mvp = view_projection * world;
 
-                self.shader.set_wvp_matrix(&mvp);
-                self.shader.set_world_matrix(&world);
-
-                self.shader.set_use_skeletal_animation(is_skinned);
-
-                if is_skinned {
-                    self.bone_matrices.clear();
-                    for bone_handle in surface.bones.iter() {
-                        let bone_node = graph.get(*bone_handle);
-                        self.bone_matrices.push(
-                            bone_node.base().global_transform() *
-                                bone_node.base().inv_bind_pose_transform());
-                    }
-
-                    self.shader.set_bone_matrices(&self.bone_matrices);
-                }
-
-                // Bind diffuse texture.
-                if let Some(texture) = surface.get_diffuse_texture() {
-                    if let Some(texture) = texture_cache.get(texture) {
-                        texture.bind(0);
-                    }
-                } else {
-                    white_dummy.bind(0);
-                }
-
-                // Bind normal texture.
-                if let Some(texture) = surface.get_normal_texture() {
-                    if let Some(texture) = texture_cache.get(texture) {
-                        texture.bind(1);
-                    }
-                } else {
-                    normal_dummy.bind(1);
-                }
-
-                statistics.add_draw_call( geom_cache.draw(&surface.get_data().lock().unwrap()));
+                statistics.add_draw_call(
+                    self.framebuffer.draw(
+                        state,
+                        viewport,
+                        geom_cache.get(&surface.get_data().lock().unwrap()),
+                        &mut self.shader.program,
+                        DrawParameters {
+                            cull_face: CullFace::Back,
+                            culling: true,
+                            color_write: (true, true, true, true),
+                            depth_write: true,
+                            stencil_test: false,
+                            depth_test: true,
+                            blend: false,
+                        },
+                        &[
+                            (self.shader.diffuse_texture, UniformValue::Sampler {
+                                index: 0,
+                                texture: if let Some(texture) = surface.get_diffuse_texture() {
+                                    if let Some(texture) = texture_cache.get(texture) {
+                                        texture
+                                    } else {
+                                        white_dummy.clone()
+                                    }
+                                } else {
+                                    white_dummy.clone()
+                                },
+                            }),
+                            (self.shader.normal_texture, UniformValue::Sampler {
+                                index: 1,
+                                texture: if let Some(texture) = surface.get_normal_texture() {
+                                    if let Some(texture) = texture_cache.get(texture) {
+                                        texture
+                                    } else {
+                                        normal_dummy.clone()
+                                    }
+                                } else {
+                                    normal_dummy.clone()
+                                },
+                            }),
+                            (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
+                            (self.shader.world_matrix, UniformValue::Mat4(world)),
+                            (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
+                            (self.shader.bone_matrices, UniformValue::Mat4Array({
+                                self.bone_matrices.clear();
+                                for bone_handle in surface.bones.iter() {
+                                    let bone_node = graph.get(*bone_handle);
+                                    self.bone_matrices.push(
+                                        bone_node.base().global_transform() *
+                                            bone_node.base().inv_bind_pose_transform());
+                                }
+                                &self.bone_matrices
+                            }))
+                        ],
+                    ));
             }
         }
 
-        gl_state.pop_fbo();
-        gl_state.pop_viewport();
-
         statistics
-    }
-}
-
-impl Drop for GBuffer {
-    fn drop(&mut self) {
-        unsafe {
-            gl::DeleteFramebuffers(1, &self.fbo);
-            gl::DeleteTextures(1, &self.color_texture);
-            gl::DeleteTextures(1, &self.depth_texture);
-            gl::DeleteTextures(1, &self.normal_texture);
-            gl::DeleteFramebuffers(1, &self.opt_fbo);
-            gl::DeleteTextures(1, &self.frame_texture);
-        }
     }
 }

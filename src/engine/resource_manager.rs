@@ -15,7 +15,7 @@ use crate::{
     },
     utils::log::Log,
 };
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 /// Resource container with fixed TTL (time-to-live). Resource will be removed
 /// (and unloaded) if there were no other strong references to it in given time
@@ -30,6 +30,12 @@ impl<T> Deref for TimedEntry<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T> DerefMut for TimedEntry<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.value
     }
 }
 

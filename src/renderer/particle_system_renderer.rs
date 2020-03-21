@@ -1,6 +1,5 @@
 use crate::{
     renderer::{
-        GlState,
         geometry_buffer::{
             GeometryBuffer,
             GeometryBufferKind,
@@ -10,7 +9,6 @@ use crate::{
         },
         gl,
         gpu_program::{GpuProgram, UniformLocation},
-        gbuffer::GBuffer,
         error::RendererError,
         gpu_texture::GpuTexture,
         RenderPassStatistics,
@@ -23,13 +21,16 @@ use crate::{
         camera::Camera,
     },
     core::math::{
-        mat4::Mat4,
-        vec3::Vec3,
         vec2::Vec2,
         Rect,
     },
 };
 use crate::renderer::TextureCache;
+use crate::renderer::gpu_program::UniformValue;
+use crate::renderer::framebuffer::{FrameBuffer, DrawParameters, CullFace, FrameBufferTrait};
+use std::cell::RefCell;
+use std::rc::Rc;
+use crate::renderer::state::State;
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -60,51 +61,6 @@ impl ParticleSystemShader {
             program,
         })
     }
-
-    pub fn bind(&mut self) {
-        self.program.bind();
-    }
-
-    pub fn set_view_projection_matrix(&mut self, mat: &Mat4) -> &mut Self {
-        self.program.set_mat4(self.view_projection_matrix, mat);
-        self
-    }
-
-    pub fn set_world_matrix(&mut self, mat: &Mat4) -> &mut Self {
-        self.program.set_mat4(self.world_matrix, mat);
-        self
-    }
-
-    pub fn set_camera_side_vector(&mut self, vec: &Vec3) -> &mut Self {
-        self.program.set_vec3(self.camera_side_vector, vec);
-        self
-    }
-
-    pub fn set_camera_up_vector(&mut self, vec: &Vec3) -> &mut Self {
-        self.program.set_vec3(self.camera_up_vector, vec);
-        self
-    }
-
-    pub fn set_diffuse_texture(&mut self, id: i32) -> &mut Self {
-        self.program.set_int(self.diffuse_texture, id);
-        self
-    }
-
-    pub fn set_depth_buffer_texture(&mut self, id: i32) -> &mut Self {
-        self.program.set_int(self.depth_buffer_texture, id);
-        self
-    }
-
-    pub fn set_inv_screen_size(&mut self, size: Vec2) -> &mut Self {
-        self.program.set_vec2(self.inv_screen_size, size);
-        self
-    }
-
-    pub fn set_proj_params(&mut self, far: f32, near: f32) -> &mut Self {
-        let params = Vec2::new(far, near);
-        self.program.set_vec2(self.proj_params, params);
-        self
-    }
 }
 
 pub struct ParticleSystemRenderer {
@@ -116,15 +72,16 @@ pub struct ParticleSystemRenderer {
 
 impl ParticleSystemRenderer {
     pub fn new() -> Result<Self, RendererError> {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
+        let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
-        geometry_buffer.describe_attributes(vec![
-            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float, normalized: false },
-            AttributeDefinition { kind: AttributeKind::Float, normalized: false },
-            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
-        ])?;
+        geometry_buffer.bind()
+            .describe_attributes(vec![
+                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float, normalized: false },
+                AttributeDefinition { kind: AttributeKind::Float, normalized: false },
+                AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
+            ])?;
 
         Ok(Self {
             shader: ParticleSystemShader::new()?,
@@ -136,27 +93,22 @@ impl ParticleSystemRenderer {
 
     #[must_use]
     pub fn render(&mut self,
+                  state: &mut State,
+                  framebuffer: &mut FrameBuffer,
                   graph: &Graph,
                   camera: &Camera,
-                  white_dummy: &GpuTexture,
+                  white_dummy: Rc<RefCell<GpuTexture>>,
+                  depth: Rc<RefCell<GpuTexture>>,
                   frame_width: f32,
                   frame_height: f32,
-                  gbuffer: &GBuffer,
-                  gl_state: &mut GlState,
+                  viewport: Rect<i32>,
                   texture_cache: &mut TextureCache,
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
-        gl_state.push_viewport(Rect::new(0, 0, gbuffer.width, gbuffer.height));
-
         unsafe {
-            gl::Disable(gl::CULL_FACE);
-            gl::Enable(gl::BLEND);
-            gl::DepthMask(gl::FALSE);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
         }
-
-        self.shader.bind();
 
         let inv_view = camera.inv_view_matrix().unwrap();
 
@@ -174,40 +126,53 @@ impl ParticleSystemRenderer {
                                                &mut self.draw_data,
                                                &camera.base().global_position());
 
-            self.geometry_buffer.set_triangles(self.draw_data.get_triangles());
-            self.geometry_buffer.set_vertices(self.draw_data.get_vertices());
+            self.geometry_buffer
+                .bind()
+                .set_triangles(self.draw_data.get_triangles())
+                .set_vertices(self.draw_data.get_vertices());
 
-            if let Some(texture) = particle_system.texture() {
-                if let Some(texture) = texture_cache.get(texture) {
-                    texture.bind(0);
-                }
-            } else {
-                white_dummy.bind(0)
-            }
-
-            unsafe {
-                gl::ActiveTexture(gl::TEXTURE1);
-                gl::BindTexture(gl::TEXTURE_2D, gbuffer.depth_texture);
-            }
-
-            self.shader.set_diffuse_texture(0);
-            self.shader.set_view_projection_matrix(&camera.view_projection_matrix());
-            self.shader.set_world_matrix(&node.base().global_transform());
-            self.shader.set_camera_up_vector(&camera_up);
-            self.shader.set_camera_side_vector(&camera_side);
-            self.shader.set_depth_buffer_texture(1);
-            self.shader.set_inv_screen_size(Vec2::new(1.0 / frame_width, 1.0 / frame_height));
-            self.shader.set_proj_params(camera.z_far(), camera.z_near());
-
-            statistics.add_draw_call(self.geometry_buffer.draw());
+            statistics.add_draw_call(
+                framebuffer.draw(
+                    state,
+                    viewport,
+                    &mut self.geometry_buffer,
+                    &mut self.shader.program,
+                    DrawParameters {
+                        cull_face: CullFace::Front,
+                        culling: false,
+                        color_write: (true, true, true, true),
+                        depth_write: false,
+                        stencil_test: false,
+                        depth_test: true,
+                        blend: true,
+                    },
+                    &[
+                        (self.shader.depth_buffer_texture, UniformValue::Sampler { index: 0, texture: depth.clone() }),
+                        (self.shader.diffuse_texture, UniformValue::Sampler {
+                            index: 1,
+                            texture: if let Some(texture) = particle_system.texture() {
+                                if let Some(texture) = texture_cache.get(texture) {
+                                    texture
+                                } else {
+                                    white_dummy.clone()
+                                }
+                            } else {
+                                white_dummy.clone()
+                            },
+                        }),
+                        (self.shader.camera_side_vector, UniformValue::Vec3(camera_side)),
+                        (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
+                        (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
+                        (self.shader.world_matrix, UniformValue::Mat4(node.base().global_transform())),
+                        (self.shader.inv_screen_size, UniformValue::Vec2(Vec2::new(1.0 / frame_width, 1.0 / frame_height))),
+                        (self.shader.proj_params, UniformValue::Vec2(Vec2::new(camera.z_far(), camera.z_near())))],
+                ));
         }
 
         unsafe {
             gl::Disable(gl::BLEND);
             gl::DepthMask(gl::TRUE);
         }
-
-        gl_state.pop_viewport();
 
         statistics
     }

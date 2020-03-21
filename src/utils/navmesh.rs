@@ -86,7 +86,7 @@ impl Navmesh {
         }
 
         Self {
-            triangles: triangles.iter().map(|t| t.clone()).collect(),
+            triangles: triangles.iter().cloned().collect(),
             octree: Octree::new(&raw_triangles, 32),
             pathfinder,
             query_buffer: Default::default(),

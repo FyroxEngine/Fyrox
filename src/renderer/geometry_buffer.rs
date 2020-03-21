@@ -4,12 +4,17 @@ use std::{
     ffi::c_void,
     cell::Cell,
 };
-use crate::renderer::{
-    error::RendererError,
-    gl, gl::types::{GLuint, GLint},
-    TriangleDefinition,
+use crate::{
+    renderer::{
+        error::RendererError,
+        gl::{
+            self,
+            types::{GLuint, GLint}
+        },
+        TriangleDefinition,
+    },
+    utils::log::Log
 };
-use crate::utils::log::Log;
 
 /// Safe wrapper over OpenGL's Vertex Array Objects for interleaved vertices (where
 /// position, normal, etc. stored together, not in separate arrays)
@@ -149,6 +154,132 @@ impl ElementKind {
     }
 }
 
+pub struct GeometryBufferBinding<'a, T> {
+    buffer: &'a mut GeometryBuffer<T>
+}
+
+impl<'a, T> GeometryBufferBinding<'a, T> {
+    fn get_usage(&self) -> GLuint {
+        match self.buffer.kind {
+            GeometryBufferKind::StaticDraw => gl::STATIC_DRAW,
+            GeometryBufferKind::DynamicDraw => gl::DYNAMIC_DRAW,
+        }
+    }
+
+    pub fn set_vertices(&mut self, vertices: &[T]) -> &mut Self {
+        let size = (vertices.len() * size_of::<T>()) as isize;
+        let data = vertices.as_ptr() as *const c_void;
+        let usage = self.get_usage();
+
+        unsafe {
+            gl::BufferData(gl::ARRAY_BUFFER, size, data, usage);
+        }
+
+        self
+    }
+
+    pub fn describe_attributes(&mut self, definitions: Vec<AttributeDefinition>) -> Result<&mut Self, RendererError> {
+        let vertex_size = size_of::<T>();
+        let mut offset = 0;
+        for (index, definition) in definitions.iter().enumerate() {
+            let index = index as u32;
+            let size = definition.kind.length();
+            let type_ = definition.kind.get_type();
+            let normalized = if definition.normalized { gl::TRUE } else { gl::FALSE };
+            let stride = vertex_size as i32;
+            let pointer = offset as *const c_void;
+
+            unsafe {
+                gl::VertexAttribPointer(index, size, type_, normalized, stride, pointer);
+                gl::EnableVertexAttribArray(index);
+            }
+
+            offset += definition.kind.size_bytes();
+
+            if offset > vertex_size {
+                return Err(RendererError::InvalidAttributeDescriptor);
+            }
+        }
+
+        Ok(self)
+    }
+
+    pub fn set_triangles(&mut self, triangles: &[TriangleDefinition]) -> &mut Self {
+        assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
+        self.buffer.element_count.set(triangles.len());
+
+        let index_count = triangles.len() * 3;
+        let size = (index_count * size_of::<u32>()) as isize;
+        let data = triangles.as_ptr() as *const c_void;
+
+        unsafe { self.set_elements(data, size) }
+
+        self
+    }
+
+    pub fn set_lines(&mut self, lines: &[[u32; 2]]) -> &mut Self {
+        assert_eq!(self.buffer.element_kind, ElementKind::Line);
+        self.buffer.element_count.set(lines.len());
+
+        let index_count = lines.len() * 2;
+        let size = (index_count * size_of::<u32>()) as isize;
+        let data = lines.as_ptr() as *const c_void;
+
+        unsafe { self.set_elements(data, size) }
+
+        self
+    }
+
+    unsafe fn set_elements(&self, elements: *const c_void, size: isize) {
+        let usage = self.get_usage();
+        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, usage);
+    }
+
+    pub fn draw_part(&self, offset: usize, count: usize) -> Result<usize, RendererError> {
+        let last_triangle_index = offset + count;
+
+        if last_triangle_index > self.buffer.element_count.get() {
+            Err(RendererError::InvalidElementRange {
+                start: offset,
+                end: last_triangle_index,
+                total: self.buffer.element_count.get(),
+            })
+        } else {
+            let index_per_element = self.buffer.element_kind.index_per_element();
+            let start_index = offset * index_per_element;
+            let index_count = count * index_per_element;
+
+            unsafe { self.draw_internal(start_index, index_count); }
+
+            Ok(count)
+        }
+    }
+
+    fn mode(&self) -> GLuint {
+        match self.buffer.element_kind {
+            ElementKind::Triangle => gl::TRIANGLES,
+            ElementKind::Line => gl::LINES,
+        }
+    }
+
+    pub fn draw(&self) -> usize {
+        let start_index = 0;
+        let index_per_element = self.buffer.element_kind.index_per_element();
+        let index_count = self.buffer.element_count.get() * index_per_element;
+
+        unsafe { self.draw_internal(start_index, index_count) }
+
+        self.buffer.element_count.get()
+    }
+
+    unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
+        if index_count > 0 {
+            let indices = (start_index * size_of::<u32>()) as *const c_void;
+            gl::DrawElements(self.mode(), index_count as i32, gl::UNSIGNED_INT, indices);
+        }
+    }
+}
+
 impl<T> GeometryBuffer<T> where T: Sized {
     pub fn new(kind: GeometryBufferKind, element_kind: ElementKind) -> Self {
         unsafe {
@@ -176,141 +307,14 @@ impl<T> GeometryBuffer<T> where T: Sized {
         }
     }
 
-    fn get_usage(&self) -> GLuint {
-        match self.kind {
-            GeometryBufferKind::StaticDraw => gl::STATIC_DRAW,
-            GeometryBufferKind::DynamicDraw => gl::DYNAMIC_DRAW,
-        }
-    }
-
-    pub fn set_vertices(&self, vertices: &[T]) {
-        let size = (vertices.len() * size_of::<T>()) as isize;
-        let data = vertices.as_ptr() as *const c_void;
-        let usage = self.get_usage();
-
+    pub fn bind(&mut self) -> GeometryBufferBinding<'_, T> {
         unsafe {
             gl::BindVertexArray(self.vertex_array_object);
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer_object);
-
-            gl::BufferData(gl::ARRAY_BUFFER, size, data, usage);
-
-            gl::BindVertexArray(0);
-        }
-    }
-
-    pub fn describe_attributes(&self, definitions: Vec<AttributeDefinition>) -> Result<(), RendererError> {
-        unsafe {
-            gl::BindVertexArray(self.vertex_array_object);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer_object);
-        }
-
-        let vertex_size = size_of::<T>();
-        let mut offset = 0;
-        for (index, definition) in definitions.iter().enumerate() {
-            let index = index as u32;
-            let size = definition.kind.length();
-            let type_ = definition.kind.get_type();
-            let normalized = if definition.normalized { gl::TRUE } else { gl::FALSE };
-            let stride = vertex_size as i32;
-            let pointer = offset as *const c_void;
-
-            unsafe {
-                gl::VertexAttribPointer(index, size, type_, normalized, stride, pointer);
-                gl::EnableVertexAttribArray(index);
-            }
-
-            offset += definition.kind.size_bytes();
-
-            if offset > vertex_size {
-                return Err(RendererError::InvalidAttributeDescriptor);
-            }
-        }
-
-        unsafe {
-            gl::BindVertexArray(0);
-            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-        }
-
-        Ok(())
-    }
-
-    pub fn set_triangles(&self, triangles: &[TriangleDefinition]) {
-        assert_eq!(self.element_kind, ElementKind::Triangle);
-        self.element_count.set(triangles.len());
-
-        let index_count = triangles.len() * 3;
-        let size = (index_count * size_of::<u32>()) as isize;
-        let data = triangles.as_ptr() as *const c_void;
-
-        unsafe { self.set_elements(data, size) }
-    }
-
-    pub fn set_lines(&self, lines: &[[u32; 2]]) {
-        assert_eq!(self.element_kind, ElementKind::Line);
-        self.element_count.set(lines.len());
-
-        let index_count = lines.len() * 2;
-        let size = (index_count * size_of::<u32>()) as isize;
-        let data = lines.as_ptr() as *const c_void;
-
-        unsafe { self.set_elements(data, size) }
-    }
-
-    unsafe fn set_elements(&self, elements: *const c_void, size: isize) {
-        let usage = self.get_usage();
-
-        gl::BindVertexArray(self.vertex_array_object);
-
-        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
-        gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, usage);
-
-        gl::BindVertexArray(0);
-    }
-
-    pub fn draw_part(&self, offset: usize, count: usize) -> Result<usize, RendererError> {
-        let last_triangle_index = offset + count;
-
-        if last_triangle_index > self.element_count.get() {
-            Err(RendererError::InvalidElementRange {
-                start: offset,
-                end: last_triangle_index,
-                total: self.element_count.get(),
-            })
-        } else {
-            let index_per_element = self.element_kind.index_per_element();
-            let start_index = offset * index_per_element;
-            let index_count = count * index_per_element;
-
-            unsafe { self.draw_internal(start_index, index_count); }
-
-            Ok(count)
-        }
-    }
-
-    fn mode(&self) -> GLuint {
-        match self.element_kind {
-            ElementKind::Triangle => gl::TRIANGLES,
-            ElementKind::Line => gl::LINES,
-        }
-    }
-
-    pub fn draw(&self) -> usize {
-        let start_index = 0;
-        let index_per_element = self.element_kind.index_per_element();
-        let index_count = self.element_count.get() * index_per_element;
-
-        unsafe { self.draw_internal(start_index, index_count) }
-
-        self.element_count.get()
-    }
-
-    unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
-        if index_count > 0 {
-            let indices = (start_index * size_of::<u32>()) as *const c_void;
-
-            gl::BindVertexArray(self.vertex_array_object);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
-            gl::DrawElements(self.mode(), index_count as i32, gl::UNSIGNED_INT, indices);
+        }
+        GeometryBufferBinding {
+            buffer: self
         }
     }
 }

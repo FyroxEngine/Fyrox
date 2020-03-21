@@ -3,8 +3,7 @@
 
 use std::{
     ffi::c_void,
-    mem::size_of,
-    marker::PhantomData
+    marker::PhantomData,
 };
 use crate::{
     resource::texture::TextureKind,
@@ -13,7 +12,8 @@ use crate::{
         gl,
         error::RendererError,
     },
-    utils::log::Log
+    utils::log::Log,
+    core::color::Color,
 };
 
 #[derive(Copy, Clone)]
@@ -49,6 +49,9 @@ impl GpuTextureKind {
 
 #[derive(Copy, Clone)]
 pub enum PixelKind {
+    F32,
+    D32,
+    D24S8,
     RGBA8,
     RGB8,
     RG8,
@@ -69,29 +72,180 @@ pub struct GpuTexture {
     texture: GLuint,
     kind: GpuTextureKind,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
-    thread_mark: PhantomData<*const u8>
+    thread_mark: PhantomData<*const u8>,
 }
 
 impl PixelKind {
     fn size_bytes(self) -> usize {
         match self {
-            PixelKind::RGBA8 => 4 * size_of::<u8>(),
-            PixelKind::RGB8 => 3 * size_of::<u8>(),
-            PixelKind::RG8 => 2 * size_of::<u8>(),
-            PixelKind::R8 => size_of::<u8>(),
+            PixelKind::RGBA8 | PixelKind::D24S8 | PixelKind::D32 | PixelKind::F32 => 4,
+            PixelKind::RGB8 => 3,
+            PixelKind::RG8 => 2,
+            PixelKind::R8 => 1,
         }
+    }
+
+    fn unpack_alignment(self) -> i32 {
+        match self {
+            PixelKind::RGBA8 | PixelKind::RGB8 | PixelKind::D24S8 | PixelKind::D32 | PixelKind::F32 => 4,
+            PixelKind::RG8 => 2,
+            PixelKind::R8 => 1
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum MagnificationFilter {
+    Nearest,
+    Linear,
+}
+
+impl MagnificationFilter {
+    pub fn into_gl_value(self) -> i32 {
+        (match self {
+            MagnificationFilter::Nearest => gl::NEAREST,
+            MagnificationFilter::Linear => gl::LINEAR,
+        }) as i32
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum MininificationFilter {
+    Nearest,
+    Linear,
+    LinearMip,
+}
+
+impl MininificationFilter {
+    pub fn into_gl_value(self) -> i32 {
+        (match self {
+            MininificationFilter::Nearest => gl::NEAREST,
+            MininificationFilter::Linear => gl::LINEAR,
+            MininificationFilter::LinearMip => gl::LINEAR_MIPMAP_LINEAR,
+        }) as i32
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum WrapMode {
+    Repeat,
+    ClampToEdge,
+    ClampToBorder,
+}
+
+impl WrapMode {
+    pub fn into_gl_value(self) -> i32 {
+        (match self {
+            WrapMode::Repeat => gl::REPEAT,
+            WrapMode::ClampToEdge => gl::CLAMP_TO_EDGE,
+            WrapMode::ClampToBorder => gl::CLAMP_TO_BORDER,
+        }) as i32
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum Coordinate {
+    S,
+    T,
+}
+
+impl Coordinate {
+    pub fn into_gl_value(self) -> u32 {
+        match self {
+            Coordinate::S => gl::TEXTURE_WRAP_S,
+            Coordinate::T => gl::TEXTURE_WRAP_T,
+        }
+    }
+}
+
+pub struct TextureBinding<'a> {
+    texture: &'a mut GpuTexture
+}
+
+#[derive(Copy, Clone)]
+pub enum CubeMapFace {
+    PositiveX,
+    NegativeX,
+    PositiveY,
+    NegativeY,
+    PositiveZ,
+    NegativeZ,
+}
+
+impl CubeMapFace {
+    pub fn into_gl_value(self) -> u32 {
+        match self {
+            CubeMapFace::PositiveX => gl::TEXTURE_CUBE_MAP_POSITIVE_X,
+            CubeMapFace::NegativeX => gl::TEXTURE_CUBE_MAP_NEGATIVE_X,
+            CubeMapFace::PositiveY => gl::TEXTURE_CUBE_MAP_POSITIVE_Y,
+            CubeMapFace::NegativeY => gl::TEXTURE_CUBE_MAP_NEGATIVE_Y,
+            CubeMapFace::PositiveZ => gl::TEXTURE_CUBE_MAP_POSITIVE_Z,
+            CubeMapFace::NegativeZ => gl::TEXTURE_CUBE_MAP_NEGATIVE_Z,
+        }
+    }
+}
+
+impl<'a> TextureBinding<'a> {
+    pub fn set_max_anisotropy(self) -> Self {
+        unsafe {
+            let mut aniso = 0.0;
+            gl::GetFloatv(gl::MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut aniso);
+            gl::TexParameterf(gl::TEXTURE_2D, gl::TEXTURE_MAX_ANISOTROPY_EXT, aniso);
+        }
+        self
+    }
+
+    pub fn set_minification_filter(self, min_filter: MininificationFilter) -> Self {
+        unsafe {
+            gl::TexParameteri(self.texture.kind.to_texture_target(), gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
+        }
+        self
+    }
+
+    pub fn set_magnification_filter(self, mag_filter: MagnificationFilter) -> Self {
+        unsafe {
+            gl::TexParameteri(self.texture.kind.to_texture_target(), gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
+        }
+        self
+    }
+
+    pub fn set_wrap(self, coordinate: Coordinate, wrap: WrapMode) -> Self {
+        unsafe {
+            gl::TexParameteri(self.texture.kind.to_texture_target(), coordinate.into_gl_value(), wrap.into_gl_value());
+        }
+        self
+    }
+
+    pub fn set_border_color(self, color: Color) -> Self {
+        unsafe {
+            let color = color.as_frgba();
+            let color = [color.x, color.y, color.z, color.w];
+            gl::TexParameterfv(self.texture.kind.to_texture_target(), gl::TEXTURE_BORDER_COLOR, color.as_ptr());
+        }
+        self
+    }
+
+    pub fn generate_mip_maps(self) -> Self {
+        unsafe {
+            gl::GenerateMipmap(self.texture.kind.to_texture_target());
+        }
+        self
     }
 }
 
 impl GpuTexture {
     /// Creates new GPU texture of specified kind
     ///
-    /// Notes: in case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
+    /// # Data layout
+    ///
+    /// In case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
     /// +X, -X, +Y, -Y, +Z, -Z
+    ///
+    /// Produced texture can be used as render target for framebuffer, in this case `data`
+    /// parameter can be None.
     pub fn new(kind: GpuTextureKind,
                pixel_kind: PixelKind,
-               bytes: &[u8],
-               generate_mipmaps: bool) -> Result<Self, RendererError> {
+               data: Option<&[u8]>) -> Result<Self, RendererError> {
         let bytes_per_pixel = pixel_kind.size_bytes();
 
         let desired_byte_count = match kind {
@@ -103,9 +257,11 @@ impl GpuTexture {
             }
         };
 
-        if bytes.len() != desired_byte_count {
-            return Err(RendererError::InvalidTextureData);
-        };
+        if let Some(data) = data {
+            if data.len() != desired_byte_count {
+                return Err(RendererError::InvalidTextureData);
+            }
+        }
 
         let target = kind.to_texture_target();
 
@@ -115,25 +271,21 @@ impl GpuTexture {
             gl::BindTexture(target, texture);
 
             let (type_, format, internal_format) = match pixel_kind {
+                PixelKind::F32 => (gl::FLOAT, gl::RED, gl::R32F),
+                PixelKind::D32 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT),
+                PixelKind::D24S8 => (gl::UNSIGNED_INT_24_8, gl::DEPTH_STENCIL, gl::DEPTH24_STENCIL8),
                 PixelKind::RGBA8 => (gl::UNSIGNED_BYTE, gl::RGBA, gl::RGBA8),
                 PixelKind::RGB8 => (gl::UNSIGNED_BYTE, gl::RGB, gl::RGB8),
                 PixelKind::RG8 => (gl::UNSIGNED_BYTE, gl::RG, gl::RG8),
                 PixelKind::R8 => (gl::UNSIGNED_BYTE, gl::RED, gl::R8),
             };
 
-            match pixel_kind {
-                PixelKind::RGBA8 | PixelKind::RGB8 => {
-                    gl::PixelStorei(gl::UNPACK_ALIGNMENT, 4)
-                },
-                PixelKind::RG8 => {
-                    gl::PixelStorei(gl::UNPACK_ALIGNMENT, 2)
-                },
-                PixelKind::R8 => {
-                    gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1)
-                },
-            }
+            gl::PixelStorei(gl::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
 
-            let pixels = bytes.as_ptr() as *const c_void;
+            let pixels = match data {
+                None => std::ptr::null(),
+                Some(data) => data.as_ptr() as *const c_void,
+            };
 
             match kind {
                 GpuTextureKind::Line { length } => {
@@ -152,7 +304,10 @@ impl GpuTexture {
                         let begin = face * bytes_per_face;
                         let end = (face + 1) * bytes_per_face;
 
-                        let face_pixels = bytes[begin..end].as_ptr() as *const c_void;
+                        let face_pixels = match data {
+                            None => std::ptr::null(),
+                            Some(data) => data[begin..end].as_ptr() as *const c_void,
+                        };
 
                         gl::TexImage2D(gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32, 0,
                                        internal_format as i32, width as i32,
@@ -166,14 +321,8 @@ impl GpuTexture {
                 }
             }
 
-            gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
-
-            if generate_mipmaps {
-                gl::GenerateMipmap(target);
-            }
-
-            let min_filter = if generate_mipmaps { gl::LINEAR_MIPMAP_LINEAR } else { gl::LINEAR };
-            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter as i32);
+            gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
 
             gl::BindTexture(target, 0);
 
@@ -182,9 +331,17 @@ impl GpuTexture {
             Ok(Self {
                 texture,
                 kind,
-                thread_mark: PhantomData
+                thread_mark: PhantomData,
             })
         }
+    }
+
+    pub fn bind_mut(&mut self, sampler_index: usize) -> TextureBinding<'_> {
+        unsafe {
+            gl::ActiveTexture(gl::TEXTURE0 + sampler_index as u32);
+            gl::BindTexture(self.kind.to_texture_target(), self.texture);
+        }
+        TextureBinding { texture: self }
     }
 
     pub fn bind(&self, sampler_index: usize) {
@@ -194,12 +351,12 @@ impl GpuTexture {
         }
     }
 
-    pub fn set_max_anisotropy(&self) {
-        unsafe {
-            let mut aniso = 0.0;
-            gl::GetFloatv(gl::MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut aniso);
-            gl::TexParameterf(gl::TEXTURE_2D, gl::TEXTURE_MAX_ANISOTROPY_EXT, aniso);
-        }
+    pub fn kind(&self) -> GpuTextureKind {
+        self.kind
+    }
+
+    pub fn id(&self) -> u32 {
+        self.texture
     }
 }
 
@@ -212,4 +369,3 @@ impl Drop for GpuTexture {
         }
     }
 }
-

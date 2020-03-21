@@ -3,26 +3,35 @@ use crate::{
         color::Color,
         math::{
             vec3::Vec3,
-            mat4::Mat4,
             aabb::AxisAlignedBoundingBox,
             frustum::Frustum,
-        },
+            Rect
+        }
     },
     scene::camera::Camera,
     renderer::{
         RenderPassStatistics,
-        gpu_program::UniformLocation,
-        gl,
+        gpu_program::{
+            UniformLocation,
+            GpuProgram,
+            UniformValue
+        },
         geometry_buffer::{
             GeometryBuffer,
             GeometryBufferKind,
             AttributeDefinition,
             AttributeKind,
+            ElementKind
         },
         error::RendererError,
-        gpu_program::GpuProgram,
-        geometry_buffer::ElementKind,
-    },
+        framebuffer::{
+            FrameBufferTrait,
+            DrawParameters,
+            CullFace,
+            FrameBuffer
+        },
+        state::State
+    }
 };
 
 #[repr(C)]
@@ -54,14 +63,6 @@ impl DebugShader {
             program,
         })
     }
-
-    fn bind(&mut self) {
-        self.program.bind()
-    }
-
-    pub fn set_wvp_matrix(&mut self, mat: &Mat4) {
-        self.program.set_mat4(self.wvp_matrix, mat)
-    }
 }
 
 pub struct Line {
@@ -72,12 +73,13 @@ pub struct Line {
 
 impl DebugRenderer {
     pub(in crate) fn new() -> Result<Self, RendererError> {
-        let geometry = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Line);
+        let mut geometry = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Line);
 
-        geometry.describe_attributes(vec![
-            AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-            AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
-        ])?;
+        geometry.bind()
+            .describe_attributes(vec![
+                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
+                AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
+            ])?;
 
         Ok(Self {
             geometry,
@@ -156,10 +158,8 @@ impl DebugRenderer {
         self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
     }
 
-    pub(in crate) fn render(&mut self, camera: &Camera) -> RenderPassStatistics {
+    pub(in crate) fn render(&mut self, state: &mut State, viewport: Rect<i32>, framebuffer: &mut FrameBuffer, camera: &Camera) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
-
-        self.shader.bind();
 
         self.vertices.clear();
         self.line_indices.clear();
@@ -172,28 +172,31 @@ impl DebugRenderer {
             self.line_indices.push([i, i + 1]);
             i += 2;
         }
+        self.geometry
+            .bind()
+            .set_vertices(&self.vertices)
+            .set_lines(&self.line_indices);
 
-        self.geometry.set_vertices(&self.vertices);
-        self.geometry.set_lines(&self.line_indices);
+        statistics.add_draw_call(framebuffer.draw(
+            state,
+            viewport,
+            &mut self.geometry,
+            &mut self.shader.program,
+            DrawParameters {
+                cull_face: CullFace::Back,
+                culling: false,
+                color_write: (true, true, true, true),
+                depth_write: false,
+                stencil_test: false,
+                depth_test: true,
+                blend: false
+            },
+            &[
+                (self.shader.wvp_matrix, UniformValue::Mat4(camera.view_projection_matrix()))
+            ]
+        ));
 
-        unsafe {
-            gl::LineWidth(2.0);
-            gl::Disable(gl::STENCIL_TEST);
-            gl::ColorMask(gl::TRUE, gl::TRUE, gl::TRUE, gl::TRUE);
-            gl::Enable(gl::DEPTH_TEST);
-            gl::DepthMask(gl::FALSE);
-            gl::Disable(gl::BLEND);
-            gl::Disable(gl::CULL_FACE);
-        }
-
-        self.shader.set_wvp_matrix(&camera.view_projection_matrix());
-        self.geometry.draw();
         statistics.draw_calls += 1;
-
-        unsafe {
-            gl::DepthMask(gl::TRUE);
-        }
-
 
         statistics
     }
