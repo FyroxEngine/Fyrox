@@ -4,31 +4,38 @@ use std::{
 };
 use crate::{
     renderer::{
-        framebuffer::{
-            DrawParameters,
-            CullFace,
-            FrameBufferTrait
-        },
         flat_shader::FlatShader,
         surface::SurfaceSharedData,
-        gpu_program::{
-            UniformLocation,
-            GpuProgram,
-            UniformValue,
+        framework::{
+            gl,
+            gpu_texture::GpuTexture,
+            gpu_program::{
+                UniformLocation,
+                GpuProgram,
+                UniformValue,
+            },
+            framebuffer::{
+                DrawParameters,
+                CullFace,
+                FrameBufferTrait,
+            },
+            state::{
+                State,
+                ColorMask,
+                StencilFunc,
+                StencilOp
+            }
         },
-        gl,
         gbuffer::GBuffer,
         error::RendererError,
         shadow_map_renderer::{
             SpotShadowMapRenderer,
             PointShadowMapRenderer,
         },
-        gpu_texture::GpuTexture,
         QualitySettings,
         RenderPassStatistics,
         GeometryCache,
         TextureCache,
-        state::State
     },
     scene::{
         camera::Camera,
@@ -61,9 +68,9 @@ impl AmbientLightShader {
         let vertex_source = include_str!("shaders/ambient_light_vs.glsl");
         let mut program = GpuProgram::from_source("AmbientLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
-            ambient_color: program.get_uniform_location("ambientColor")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            ambient_color: program.uniform_location("ambientColor")?,
             program,
         })
     }
@@ -97,24 +104,24 @@ impl DeferredLightingShader {
         let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
         let mut program = GpuProgram::from_source("DeferredLightShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
-            depth_sampler: program.get_uniform_location("depthTexture")?,
-            color_sampler: program.get_uniform_location("colorTexture")?,
-            normal_sampler: program.get_uniform_location("normalTexture")?,
-            spot_shadow_texture: program.get_uniform_location("spotShadowTexture")?,
-            point_shadow_texture: program.get_uniform_location("pointShadowTexture")?,
-            light_view_proj_matrix: program.get_uniform_location("lightViewProjMatrix")?,
-            light_type: program.get_uniform_location("lightType")?,
-            soft_shadows: program.get_uniform_location("softShadows")?,
-            shadow_map_inv_size: program.get_uniform_location("shadowMapInvSize")?,
-            light_position: program.get_uniform_location("lightPos")?,
-            light_radius: program.get_uniform_location("lightRadius")?,
-            light_color: program.get_uniform_location("lightColor")?,
-            light_direction: program.get_uniform_location("lightDirection")?,
-            half_hotspot_cone_angle_cos: program.get_uniform_location("halfHotspotConeAngleCos")?,
-            half_cone_angle_cos: program.get_uniform_location("halfConeAngleCos")?,
-            inv_view_proj_matrix: program.get_uniform_location("invViewProj")?,
-            camera_position: program.get_uniform_location("cameraPosition")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            depth_sampler: program.uniform_location("depthTexture")?,
+            color_sampler: program.uniform_location("colorTexture")?,
+            normal_sampler: program.uniform_location("normalTexture")?,
+            spot_shadow_texture: program.uniform_location("spotShadowTexture")?,
+            point_shadow_texture: program.uniform_location("pointShadowTexture")?,
+            light_view_proj_matrix: program.uniform_location("lightViewProjMatrix")?,
+            light_type: program.uniform_location("lightType")?,
+            soft_shadows: program.uniform_location("softShadows")?,
+            shadow_map_inv_size: program.uniform_location("shadowMapInvSize")?,
+            light_position: program.uniform_location("lightPos")?,
+            light_radius: program.uniform_location("lightRadius")?,
+            light_color: program.uniform_location("lightColor")?,
+            light_direction: program.uniform_location("lightDirection")?,
+            half_hotspot_cone_angle_cos: program.uniform_location("halfHotspotConeAngleCos")?,
+            half_cone_angle_cos: program.uniform_location("halfConeAngleCos")?,
+            inv_view_proj_matrix: program.uniform_location("invViewProj")?,
+            camera_position: program.uniform_location("cameraPosition")?,
 
             program,
         })
@@ -188,7 +195,7 @@ impl DeferredLightRenderer {
             DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
-                color_write: (true, true, true, true),
+                color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,
                 depth_test: false,
@@ -283,11 +290,8 @@ impl DeferredLightRenderer {
 
             // Mark lighted areas in stencil buffer to do light calculations only on them.
             context.state.set_stencil_mask(0xFFFF_FFFF);
-
-            unsafe {
-                gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
-                gl::StencilOp(gl::KEEP, gl::INCR, gl::KEEP);
-            }
+            context.state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
+            context.state.set_stencil_op(StencilOp { zfail: gl::INCR, ..Default::default() });
 
             statistics.add_draw_call(context.gbuffer.opt_framebuffer.draw(
                 context.state,
@@ -297,7 +301,7 @@ impl DeferredLightRenderer {
                 DrawParameters {
                     cull_face: CullFace::Front,
                     culling: true,
-                    color_write: (false, false, false, false),
+                    color_write: ColorMask::all(false),
                     depth_write: false,
                     stencil_test: true,
                     depth_test: true,
@@ -310,10 +314,8 @@ impl DeferredLightRenderer {
                 ],
             ));
 
-            unsafe {
-                gl::StencilFunc(gl::ALWAYS, 0, 0xFF);
-                gl::StencilOp(gl::KEEP, gl::DECR, gl::KEEP);
-            }
+            context.state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
+            context.state.set_stencil_op(StencilOp { zfail: gl::DECR, ..Default::default() });
 
             statistics.add_draw_call(context.gbuffer.opt_framebuffer.draw(
                 context.state,
@@ -323,7 +325,7 @@ impl DeferredLightRenderer {
                 DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
-                    color_write: (false, false, false, false),
+                    color_write: ColorMask::all(false),
                     depth_write: false,
                     stencil_test: true,
                     depth_test: true,
@@ -336,10 +338,8 @@ impl DeferredLightRenderer {
                 ],
             ));
 
-            unsafe {
-                gl::StencilFunc(gl::NOTEQUAL, 0, 0xFF);
-                gl::StencilOp(gl::KEEP, gl::KEEP, gl::ZERO);
-            }
+            context.state.set_stencil_func(StencilFunc { func: gl::NOTEQUAL, ..Default::default() });
+            context.state.set_stencil_op(StencilOp { zpass: gl::ZERO, ..Default::default() });
 
             let (hotspot_cone_angle, cone_angle) = match light.get_kind() {
                 LightKind::Spot(spot_light) => (spot_light.hotspot_cone_angle(), spot_light.full_cone_angle()),
@@ -355,7 +355,7 @@ impl DeferredLightRenderer {
                 DrawParameters {
                     cull_face: CullFace::Back,
                     culling: false,
-                    color_write: (true, true, true, true),
+                    color_write: Default::default(),
                     depth_write: false,
                     stencil_test: true,
                     depth_test: false,

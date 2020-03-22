@@ -7,7 +7,7 @@ use std::{
 use crate::{
     renderer::{
         error::RendererError,
-        gl::{
+        framework::gl::{
             self,
             types::{GLuint, GLint}
         },

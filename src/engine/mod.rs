@@ -19,7 +19,6 @@ use crate::{
     renderer::{
         Renderer,
         error::RendererError,
-        gl,
     },
     window::{
         WindowBuilder,
@@ -33,12 +32,12 @@ use crate::{
     NotCurrent,
     Api,
     event_loop::EventLoop,
-    gui::Control
+    gui::Control,
 };
 use std::{
     sync::{Arc, Mutex},
     time,
-    time::Duration
+    time::Duration,
 };
 
 pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
@@ -48,7 +47,7 @@ pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
     pub sound_context: Arc<Mutex<Context>>,
     pub resource_manager: Arc<Mutex<ResourceManager>>,
     pub scenes: SceneContainer,
-    pub ui_time: Duration
+    pub ui_time: Duration,
 }
 
 impl<M, C: 'static + Control<M, C>> Engine<M, C> {
@@ -70,32 +69,28 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     /// let mut engine = Engine::new(window_builder, &evt).unwrap();
     /// ```
     #[inline]
-    pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine<M, C> , EngineError> {
+    pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine<M, C>, EngineError> {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
             .build_windowed(window_builder, events_loop)?;
 
-        let context = unsafe {
-            let context = match context_wrapper.make_current() {
-                Ok(context) => context,
-                Err((_, e)) => return Err(EngineError::from(e)),
-            };
-            gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
-            context
+        let mut context = match unsafe { context_wrapper.make_current() } {
+            Ok(context) => context,
+            Err((_, e)) => return Err(EngineError::from(e)),
         };
 
         let client_size = context.window().inner_size();
 
         Ok(Engine {
-            context,
+            renderer: Renderer::new(&mut context, client_size.into())?,
             resource_manager: Arc::new(Mutex::new(ResourceManager::new())),
             sound_context: Context::new()?,
             scenes: SceneContainer::new(),
-            renderer: Renderer::new(client_size.into())?,
             user_interface: UserInterface::new(),
-            ui_time: Default::default()
+            ui_time: Default::default(),
+            context,
         })
     }
 
@@ -129,7 +124,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
         self.ui_time = time::Instant::now() - time;
     }
 
-    pub fn get_ui_mut(&mut self) -> &mut UserInterface<M, C>  {
+    pub fn get_ui_mut(&mut self) -> &mut UserInterface<M, C> {
         &mut self.user_interface
     }
 
@@ -140,7 +135,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C>  {
+impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 

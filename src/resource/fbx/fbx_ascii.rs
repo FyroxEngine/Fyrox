@@ -1,17 +1,23 @@
 use std::{
-    io::{Seek, Read, SeekFrom},
+    io::{
+        Seek,
+        Read,
+        SeekFrom,
+    },
     collections::HashMap,
 };
 use byteorder::ReadBytesExt;
 use crate::{
-    resource::{
-        fbx::{FbxNode, Fbx},
-        fbx::attribute::FbxAttribute,
-        fbx::error::FbxError,
+    resource::fbx::{
+        FbxNode,
+        Fbx,
+        attribute::FbxAttribute,
+        error::FbxError,
     },
-};
-use crate::core::{
-    pool::{Pool, Handle},
+    core::pool::{
+        Pool,
+        Handle,
+    },
 };
 
 pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
@@ -54,8 +60,8 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
         // Parse string
         let mut read_value = false;
         name.clear();
-        for i in 0..buffer.len() {
-            let symbol = unsafe { *buffer.get_unchecked(i as usize) };
+        for (i, symbol) in buffer.iter().enumerate() {
+            let symbol = *symbol;
             if i == 0 && (symbol == b'-' || symbol.is_ascii_digit()) {
                 read_value = true;
             }

@@ -1,5 +1,5 @@
 use crate::renderer::{
-    gpu_program::{
+    framework::gpu_program::{
         GpuProgram,
         UniformLocation,
     },
@@ -19,8 +19,8 @@ impl FlatShader {
 
         let mut program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
             program,
         })
     }

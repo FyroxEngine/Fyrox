@@ -3,31 +3,6 @@ use std::{
     rc::Rc,
 };
 use crate::{
-    renderer::{
-        gpu_texture::{
-            GpuTextureKind,
-            PixelKind,
-            MagnificationFilter,
-            MininificationFilter,
-            Coordinate,
-            WrapMode,
-            CubeMapFace,
-            GpuTexture,
-        },
-        framebuffer::{
-            FrameBuffer,
-            Attachment,
-            AttachmentKind,
-        },
-        gpu_program::{
-            GpuProgram,
-            UniformLocation,
-        },
-        TextureCache,
-        GeometryCache,
-        RenderPassStatistics,
-        error::RendererError,
-    },
     scene::{
         node::Node,
         graph::Graph,
@@ -42,10 +17,39 @@ use crate::{
         },
         color::Color,
     },
+    renderer::{
+        framework::{
+            framebuffer::{
+                DrawParameters,
+                CullFace,
+                FrameBufferTrait,
+                FrameBuffer,
+                Attachment,
+                AttachmentKind
+            },
+            gpu_program::{
+                UniformValue,
+                GpuProgram,
+                UniformLocation
+            },
+            gpu_texture::{
+                GpuTextureKind,
+                PixelKind,
+                MagnificationFilter,
+                MininificationFilter,
+                Coordinate,
+                WrapMode,
+                CubeMapFace,
+                GpuTexture,
+            },
+            state::{State, ColorMask}
+        },
+        TextureCache,
+        GeometryCache,
+        RenderPassStatistics,
+        error::RendererError,
+    }
 };
-use crate::renderer::framebuffer::{DrawParameters, CullFace, FrameBufferTrait};
-use crate::renderer::gpu_program::UniformValue;
-use crate::renderer::state::State;
 
 struct SpotShadowMapShader {
     program: GpuProgram,
@@ -61,10 +65,10 @@ impl SpotShadowMapShader {
         let vertex_source = include_str!("shaders/spot_shadow_map_vs.glsl");
         let mut program = GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
-            bone_matrices: program.get_uniform_location("boneMatrices")?,
-            world_view_projection_matrix: program.get_uniform_location("worldViewProjection")?,
-            use_skeletal_animation: program.get_uniform_location("useSkeletalAnimation")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
+            bone_matrices: program.uniform_location("boneMatrices")?,
+            world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
 
             program,
         })
@@ -80,21 +84,23 @@ pub struct SpotShadowMapRenderer {
 
 impl SpotShadowMapRenderer {
     pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
+        let depth = {
+            let kind = GpuTextureKind::Rectangle { width: size, height: size };
+            let mut texture = GpuTexture::new(state, kind, PixelKind::D32, None)?;
+            texture.bind_mut(state, 0)
+                .set_magnification_filter(MagnificationFilter::Linear)
+                .set_minification_filter(MininificationFilter::Linear)
+                .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
+                .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
+                .set_border_color(Color::WHITE);
+            texture
+        };
+
         let framebuffer = FrameBuffer::new(
             state,
             Attachment {
                 kind: AttachmentKind::Depth,
-                texture: Rc::new(RefCell::new({
-                    let kind = GpuTextureKind::Rectangle { width: size, height: size };
-                    let mut texture = GpuTexture::new(kind, PixelKind::D32, None)?;
-                    texture.bind_mut(0)
-                        .set_magnification_filter(MagnificationFilter::Linear)
-                        .set_minification_filter(MininificationFilter::Linear)
-                        .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                        .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                        .set_border_color(Color::WHITE);
-                    texture
-                })),
+                texture: Rc::new(RefCell::new(depth)),
             },
             vec![])?;
 
@@ -147,6 +153,16 @@ impl SpotShadowMapRenderer {
                     };
                     let mvp = *light_view_projection * world;
 
+                    let diffuse_texture = if let Some(texture) = surface.get_diffuse_texture() {
+                        if let Some(texture) = textures.get(state, texture) {
+                            texture
+                        } else {
+                            white_dummy.clone()
+                        }
+                    } else {
+                        white_dummy.clone()
+                    };
+
                     statistics.add_draw_call(self.framebuffer.draw(
                         state,
                         viewport,
@@ -155,7 +171,7 @@ impl SpotShadowMapRenderer {
                         DrawParameters {
                             cull_face: CullFace::Back,
                             culling: true,
-                            color_write: (false, false, false, false),
+                            color_write: ColorMask::all(false),
                             depth_write: true,
                             stencil_test: false,
                             depth_test: true,
@@ -178,15 +194,7 @@ impl SpotShadowMapRenderer {
                             })),
                             (self.shader.diffuse_texture, UniformValue::Sampler {
                                 index: 0,
-                                texture: if let Some(texture) = surface.get_diffuse_texture() {
-                                    if let Some(texture) = textures.get(texture) {
-                                        texture
-                                    } else {
-                                        white_dummy.clone()
-                                    }
-                                } else {
-                                    white_dummy.clone()
-                                },
+                                texture: diffuse_texture,
                             })
                         ],
                     ));
@@ -214,12 +222,12 @@ impl PointShadowMapShader {
         let vertex_source = include_str!("shaders/point_shadow_map_vs.glsl");
         let mut program = GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_matrix: program.get_uniform_location("worldMatrix")?,
-            bone_matrices: program.get_uniform_location("boneMatrices")?,
-            world_view_projection_matrix: program.get_uniform_location("worldViewProjection")?,
-            use_skeletal_animation: program.get_uniform_location("useSkeletalAnimation")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
-            light_position: program.get_uniform_location("lightPosition")?,
+            world_matrix: program.uniform_location("worldMatrix")?,
+            bone_matrices: program.uniform_location("boneMatrices")?,
+            world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            light_position: program.uniform_location("lightPosition")?,
             program,
         })
     }
@@ -273,35 +281,39 @@ impl PointShadowMapRenderer {
     ];
 
     pub fn new(state: &mut State, size: usize) -> Result<PointShadowMapRenderer, RendererError> {
+        let depth = {
+            let kind = GpuTextureKind::Rectangle { width: size, height: size };
+            let mut texture = GpuTexture::new(state, kind, PixelKind::D32, None)?;
+            texture.bind_mut(state, 0)
+                .set_minification_filter(MininificationFilter::Nearest)
+                .set_magnification_filter(MagnificationFilter::Nearest)
+                .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+            texture
+        };
+
+        let cube_map = {
+            let kind = GpuTextureKind::Cube { width: size, height: size };
+            let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
+            texture.bind_mut(state, 0)
+                .set_minification_filter(MininificationFilter::Linear)
+                .set_magnification_filter(MagnificationFilter::Linear)
+                .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
+                .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
+                .set_border_color(Color::WHITE);
+            texture
+        };
+
         let framebuffer = FrameBuffer::new(
             state,
             Attachment {
                 kind: AttachmentKind::Depth,
-                texture: Rc::new(RefCell::new({
-                    let kind = GpuTextureKind::Rectangle { width: size, height: size };
-                    let mut texture = GpuTexture::new(kind, PixelKind::D32, None)?;
-                    texture.bind_mut(0)
-                        .set_minification_filter(MininificationFilter::Nearest)
-                        .set_magnification_filter(MagnificationFilter::Nearest)
-                        .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-                        .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-                    texture
-                })),
+                texture: Rc::new(RefCell::new(depth)),
             },
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new({
-                        let kind = GpuTextureKind::Cube { width: size, height: size };
-                        let mut texture = GpuTexture::new(kind, PixelKind::F32, None)?;
-                        texture.bind_mut(0)
-                            .set_minification_filter(MininificationFilter::Linear)
-                            .set_magnification_filter(MagnificationFilter::Linear)
-                            .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                            .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                            .set_border_color(Color::WHITE);
-                        texture
-                    })),
+                    texture: Rc::new(RefCell::new(cube_map)),
                 }
             ])?;
 
@@ -365,6 +377,16 @@ impl PointShadowMapRenderer {
                         };
                         let mvp = light_view_projection_matrix * world;
 
+                        let diffuse_texture = if let Some(texture) = surface.get_diffuse_texture() {
+                            if let Some(texture) = texture_cache.get(state, texture) {
+                                texture
+                            } else {
+                                white_dummy.clone()
+                            }
+                        } else {
+                            white_dummy.clone()
+                        };
+
                         statistics.add_draw_call(self.framebuffer.draw(
                             state,
                             viewport,
@@ -373,7 +395,7 @@ impl PointShadowMapRenderer {
                             DrawParameters {
                                 cull_face: CullFace::Back,
                                 culling: true,
-                                color_write: (true, true, true, true),
+                                color_write: Default::default(),
                                 depth_write: true,
                                 stencil_test: false,
                                 depth_test: true,
@@ -398,15 +420,7 @@ impl PointShadowMapRenderer {
                                 })),
                                 (self.shader.diffuse_texture, UniformValue::Sampler {
                                     index: 0,
-                                    texture: if let Some(texture) = surface.get_diffuse_texture() {
-                                        if let Some(texture) = texture_cache.get(texture) {
-                                            texture
-                                        } else {
-                                            white_dummy.clone()
-                                        }
-                                    } else {
-                                        white_dummy.clone()
-                                    },
+                                    texture: diffuse_texture,
                                 })
                             ],
                         ));

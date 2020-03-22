@@ -8,20 +8,23 @@ use crate::{
         color::Color,
     },
     renderer::{
-        gl::{
-            types::GLuint,
-            self,
-        },
         error::RendererError,
-        gpu_texture::{
-            GpuTexture,
-            GpuTextureKind,
-            CubeMapFace,
-        },
-        geometry_buffer::GeometryBuffer,
-        gpu_program::{UniformLocation, GpuProgram, UniformValue},
-        state::State,
-    },
+        framework::{
+            geometry_buffer::GeometryBuffer,
+            gpu_texture::{
+                GpuTexture,
+                GpuTextureKind,
+                CubeMapFace,
+            },
+            gl::{
+                types::GLuint,
+                self,
+            },
+            gpu_program::{UniformLocation, GpuProgram, UniformValue},
+            state::State,
+            state::ColorMask
+        }
+    }
 };
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
@@ -60,7 +63,7 @@ impl CullFace {
 pub struct DrawParameters {
     pub cull_face: CullFace,
     pub culling: bool,
-    pub color_write: (bool, bool, bool, bool),
+    pub color_write: ColorMask,
     pub depth_write: bool,
     pub stencil_test: bool,
     pub depth_test: bool,
@@ -72,7 +75,7 @@ impl Default for DrawParameters {
         Self {
             cull_face: CullFace::Back,
             culling: true,
-            color_write: (true, true, true, true),
+            color_write: Default::default(),
             depth_write: true,
             stencil_test: false,
             depth_test: true,
@@ -178,9 +181,9 @@ fn pre_draw(fbo: GLuint,
     state.set_viewport(viewport);
     state.apply_draw_parameters(&params);
 
-    program.bind();
+    program.bind(state);
     for (location, value) in uniforms {
-        program.set_uniform(*location, value)
+        program.set_uniform(state, *location, value)
     }
 }
 
@@ -194,7 +197,7 @@ pub trait FrameBufferTrait {
         state.set_framebuffer(self.id());
 
         if let Some(color) = color {
-            state.set_color_write((true, true, true, true));
+            state.set_color_write(ColorMask::default());
             state.set_clear_color(color);
             mask |= gl::COLOR_BUFFER_BIT;
         }
@@ -234,7 +237,7 @@ pub trait FrameBufferTrait {
                     params: DrawParameters,
                     uniforms: &[(UniformLocation, UniformValue<'_>)],
                     offset: usize,
-                    count: usize
+                    count: usize,
     ) -> Result<usize, RendererError> {
         pre_draw(self.id(), state, viewport, program, params, uniforms);
         geometry.bind().draw_part(offset, count)

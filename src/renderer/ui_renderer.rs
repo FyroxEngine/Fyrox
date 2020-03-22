@@ -8,29 +8,36 @@ use std::{
 };
 use crate::{
     renderer::{
-        framebuffer::{
-            BackBuffer,
-            FrameBufferTrait,
-            DrawParameters,
-            CullFace,
-        },
-        state::State,
-        gpu_program::{
-            UniformValue,
-            GpuProgram,
-            UniformLocation,
-        },
         RenderPassStatistics,
-        gl,
-        error::RendererError,
-        geometry_buffer::{
-            GeometryBuffer,
-            AttributeDefinition,
-            AttributeKind,
-            GeometryBufferKind,
+        framework::{
+            gl,
+            geometry_buffer::{
+                ElementKind,
+                GeometryBuffer,
+                AttributeDefinition,
+                AttributeKind,
+                GeometryBufferKind
+            },
+            gpu_texture::GpuTexture,
+            gpu_program::{
+                UniformValue,
+                GpuProgram,
+                UniformLocation,
+            },
+            state::{
+                State,
+                ColorMask,
+                StencilFunc,
+                StencilOp
+            },
+            framebuffer::{
+                BackBuffer,
+                FrameBufferTrait,
+                DrawParameters,
+                CullFace,
+            }
         },
-        gpu_texture::GpuTexture,
-        geometry_buffer::ElementKind,
+        error::RendererError,
         TextureCache,
     },
     gui::{
@@ -80,19 +87,19 @@ impl UiShader {
         let vertex_source = include_str!("shaders/ui_vs.glsl");
         let mut program = GpuProgram::from_source("UIShader", vertex_source, fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
-            is_font: program.get_uniform_location("isFont")?,
-            solid_color: program.get_uniform_location("solidColor")?,
-            brush_type: program.get_uniform_location("brushType")?,
-            gradient_point_count: program.get_uniform_location("gradientPointCount")?,
-            gradient_colors: program.get_uniform_location("gradientColors")?,
-            gradient_stops: program.get_uniform_location("gradientStops")?,
-            gradient_origin: program.get_uniform_location("gradientOrigin")?,
-            gradient_end: program.get_uniform_location("gradientEnd")?,
-            bounds_min: program.get_uniform_location("boundsMin")?,
-            bounds_max: program.get_uniform_location("boundsMax")?,
-            resolution: program.get_uniform_location("resolution")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            is_font: program.uniform_location("isFont")?,
+            solid_color: program.uniform_location("solidColor")?,
+            brush_type: program.uniform_location("brushType")?,
+            gradient_point_count: program.uniform_location("gradientPointCount")?,
+            gradient_colors: program.uniform_location("gradientColors")?,
+            gradient_stops: program.uniform_location("gradientStops")?,
+            gradient_origin: program.uniform_location("gradientOrigin")?,
+            gradient_end: program.uniform_location("gradientEnd")?,
+            bounds_min: program.uniform_location("boundsMin")?,
+            bounds_max: program.uniform_location("boundsMax")?,
+            resolution: program.uniform_location("resolution")?,
             program,
         })
     }
@@ -153,20 +160,16 @@ impl UiRenderer {
                     if cmd.get_nesting() == 1 {
                         backbuffer.clear(state, viewport, None, None, Some(0));
                     }
-                    unsafe {
-                        gl::StencilOp(gl::KEEP, gl::KEEP, gl::INCR);
-                        // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
-                        gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting() - 1), 0xFF);
-                    }
-                    // Draw clipping geometry to stencil buffer
+                    state.set_stencil_op(StencilOp{ zpass: gl::INCR, .. Default::default() });
+                    // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
+                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.get_nesting() - 1), ..Default::default() });
+                    // Draw clipping geometry to stencil buffers
                     state.set_stencil_mask(0xFF);
                     color_write = false;
                 }
                 CommandKind::Geometry => {
-                    unsafe {
-                        // Make sure to draw geometry only on clipping geometry with current nesting level
-                        gl::StencilFunc(gl::EQUAL, i32::from(cmd.get_nesting()), 0xFF);
-                    }
+                    // Make sure to draw geometry only on clipping geometry with current nesting level
+                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.get_nesting()), ..Default::default() });
 
                     match cmd.texture() {
                         CommandTexture::Font(font_arc) => {
@@ -180,14 +183,14 @@ impl UiRenderer {
                                 );
                                 font.texture = Some(Arc::new(Mutex::new(tex)));
                             }
-                            if let Some(texture) = texture_cache.get(font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
+                            if let Some(texture) = texture_cache.get(state, font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
                                 diffuse_texture = texture;
                             }
                             is_font_texture = true;
                         }
                         CommandTexture::Texture(texture) => {
                             if let Ok(texture) = texture.clone().downcast::<Mutex<Texture>>() {
-                                if let Some(texture) = texture_cache.get(texture) {
+                                if let Some(texture) = texture_cache.get(state, texture) {
                                     diffuse_texture = texture;
                                 }
                             }
@@ -270,7 +273,7 @@ impl UiRenderer {
             let params = DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
-                color_write: (color_write, color_write, color_write, color_write),
+                color_write: ColorMask::all(color_write),
                 depth_write: false,
                 stencil_test: cmd.get_nesting() != 0,
                 depth_test: false,

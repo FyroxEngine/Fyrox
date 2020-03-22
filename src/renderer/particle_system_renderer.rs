@@ -1,18 +1,4 @@
 use crate::{
-    renderer::{
-        geometry_buffer::{
-            GeometryBuffer,
-            GeometryBufferKind,
-            AttributeDefinition,
-            AttributeKind,
-            ElementKind,
-        },
-        gl,
-        gpu_program::{GpuProgram, UniformLocation},
-        error::RendererError,
-        gpu_texture::GpuTexture,
-        RenderPassStatistics,
-    },
     scene::{
         node::Node,
         particle_system,
@@ -24,13 +10,39 @@ use crate::{
         vec2::Vec2,
         Rect,
     },
+    renderer::{
+        error::RendererError,
+        framework::{
+            gpu_texture::GpuTexture,
+            gpu_program::{
+                GpuProgram,
+                UniformLocation,
+                UniformValue,
+            },
+            gl,
+            geometry_buffer::{
+                GeometryBuffer,
+                GeometryBufferKind,
+                AttributeDefinition,
+                AttributeKind,
+                ElementKind,
+            },
+            framebuffer::{
+                FrameBuffer,
+                DrawParameters,
+                CullFace,
+                FrameBufferTrait,
+            },
+            state::State
+        },
+        RenderPassStatistics,
+        TextureCache,
+    },
 };
-use crate::renderer::TextureCache;
-use crate::renderer::gpu_program::UniformValue;
-use crate::renderer::framebuffer::{FrameBuffer, DrawParameters, CullFace, FrameBufferTrait};
-use std::cell::RefCell;
-use std::rc::Rc;
-use crate::renderer::state::State;
+use std::{
+    cell::RefCell,
+    rc::Rc,
+};
 
 struct ParticleSystemShader {
     program: GpuProgram,
@@ -50,14 +62,14 @@ impl ParticleSystemShader {
         let fragment_source = include_str!("shaders/particle_system_fs.glsl");
         let mut program = GpuProgram::from_source("ParticleSystemShader", vertex_source, fragment_source)?;
         Ok(Self {
-            view_projection_matrix: program.get_uniform_location("viewProjectionMatrix")?,
-            world_matrix: program.get_uniform_location("worldMatrix")?,
-            camera_side_vector: program.get_uniform_location("cameraSideVector")?,
-            camera_up_vector: program.get_uniform_location("cameraUpVector")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
-            depth_buffer_texture: program.get_uniform_location("depthBufferTexture")?,
-            inv_screen_size: program.get_uniform_location("invScreenSize")?,
-            proj_params: program.get_uniform_location("projParams")?,
+            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
+            world_matrix: program.uniform_location("worldMatrix")?,
+            camera_side_vector: program.uniform_location("cameraSideVector")?,
+            camera_up_vector: program.uniform_location("cameraUpVector")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            depth_buffer_texture: program.uniform_location("depthBufferTexture")?,
+            inv_screen_size: program.uniform_location("invScreenSize")?,
+            proj_params: program.uniform_location("projParams")?,
             program,
         })
     }
@@ -106,9 +118,7 @@ impl ParticleSystemRenderer {
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
-        unsafe {
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        }
+        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
         let inv_view = camera.inv_view_matrix().unwrap();
 
@@ -131,47 +141,47 @@ impl ParticleSystemRenderer {
                 .set_triangles(self.draw_data.get_triangles())
                 .set_vertices(self.draw_data.get_vertices());
 
+            let uniforms = [
+                (self.shader.depth_buffer_texture, UniformValue::Sampler { index: 0, texture: depth.clone() }),
+                (self.shader.diffuse_texture, UniformValue::Sampler {
+                    index: 1,
+                    texture: if let Some(texture) = particle_system.texture() {
+                        if let Some(texture) = texture_cache.get(state,texture) {
+                            texture
+                        } else {
+                            white_dummy.clone()
+                        }
+                    } else {
+                        white_dummy.clone()
+                    },
+                }),
+                (self.shader.camera_side_vector, UniformValue::Vec3(camera_side)),
+                (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
+                (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
+                (self.shader.world_matrix, UniformValue::Mat4(node.base().global_transform())),
+                (self.shader.inv_screen_size, UniformValue::Vec2(Vec2::new(1.0 / frame_width, 1.0 / frame_height))),
+                (self.shader.proj_params, UniformValue::Vec2(Vec2::new(camera.z_far(), camera.z_near())))
+            ];
+
+            let draw_params = DrawParameters {
+                cull_face: CullFace::Front,
+                culling: false,
+                color_write: Default::default(),
+                depth_write: false,
+                stencil_test: false,
+                depth_test: true,
+                blend: true,
+            };
+
             statistics.add_draw_call(
                 framebuffer.draw(
                     state,
                     viewport,
                     &mut self.geometry_buffer,
                     &mut self.shader.program,
-                    DrawParameters {
-                        cull_face: CullFace::Front,
-                        culling: false,
-                        color_write: (true, true, true, true),
-                        depth_write: false,
-                        stencil_test: false,
-                        depth_test: true,
-                        blend: true,
-                    },
-                    &[
-                        (self.shader.depth_buffer_texture, UniformValue::Sampler { index: 0, texture: depth.clone() }),
-                        (self.shader.diffuse_texture, UniformValue::Sampler {
-                            index: 1,
-                            texture: if let Some(texture) = particle_system.texture() {
-                                if let Some(texture) = texture_cache.get(texture) {
-                                    texture
-                                } else {
-                                    white_dummy.clone()
-                                }
-                            } else {
-                                white_dummy.clone()
-                            },
-                        }),
-                        (self.shader.camera_side_vector, UniformValue::Vec3(camera_side)),
-                        (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
-                        (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
-                        (self.shader.world_matrix, UniformValue::Mat4(node.base().global_transform())),
-                        (self.shader.inv_screen_size, UniformValue::Vec2(Vec2::new(1.0 / frame_width, 1.0 / frame_height))),
-                        (self.shader.proj_params, UniformValue::Vec2(Vec2::new(camera.z_far(), camera.z_near())))],
+                    draw_params,
+                    &uniforms,
                 ));
-        }
-
-        unsafe {
-            gl::Disable(gl::BLEND);
-            gl::DepthMask(gl::TRUE);
         }
 
         statistics

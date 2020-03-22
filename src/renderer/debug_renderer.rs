@@ -11,26 +11,28 @@ use crate::{
     scene::camera::Camera,
     renderer::{
         RenderPassStatistics,
-        gpu_program::{
-            UniformLocation,
-            GpuProgram,
-            UniformValue
-        },
-        geometry_buffer::{
-            GeometryBuffer,
-            GeometryBufferKind,
-            AttributeDefinition,
-            AttributeKind,
-            ElementKind
-        },
         error::RendererError,
-        framebuffer::{
-            FrameBufferTrait,
-            DrawParameters,
-            CullFace,
-            FrameBuffer
-        },
-        state::State
+        framework::{
+            framebuffer::{
+                FrameBufferTrait,
+                DrawParameters,
+                CullFace,
+                FrameBuffer
+            },
+            geometry_buffer::{
+                GeometryBuffer,
+                GeometryBufferKind,
+                AttributeDefinition,
+                AttributeKind,
+                ElementKind
+            },
+            gpu_program::{
+                UniformLocation,
+                GpuProgram,
+                UniformValue
+            },
+            state::State
+        }
     }
 };
 
@@ -59,7 +61,7 @@ impl DebugShader {
         let vertex_source = include_str!("shaders/debug_vs.glsl");
         let mut program = GpuProgram::from_source("DebugShader", &vertex_source, &fragment_source)?;
         Ok(Self {
-            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
             program,
         })
     }
@@ -185,7 +187,7 @@ impl DebugRenderer {
             DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
-                color_write: (true, true, true, true),
+                color_write: Default::default(),
                 depth_write: false,
                 stencil_test: false,
                 depth_test: true,

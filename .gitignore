@@ -3,3 +3,4 @@
 /cloc
 *.lock
 .*
+/*.log

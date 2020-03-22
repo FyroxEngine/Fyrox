@@ -4,29 +4,31 @@ use std::{
 };
 use crate::{
     renderer::{
-        gpu_texture::{
-            GpuTextureKind,
-            PixelKind,
-            GpuTexture,
-        },
-        framebuffer::{
-            FrameBuffer,
-            Attachment,
-            AttachmentKind,
-            CullFace,
-            DrawParameters,
-            FrameBufferTrait
-        },
-        gpu_program::{
-            GpuProgram,
-            UniformLocation,
+        framework::{
+            gpu_program::{
+                GpuProgram,
+                UniformLocation,
+                UniformValue
+            },
+            framebuffer::{
+                FrameBuffer,
+                Attachment,
+                AttachmentKind,
+                CullFace,
+                DrawParameters,
+                FrameBufferTrait,
+            },
+            gpu_texture::{
+                GpuTextureKind,
+                PixelKind,
+                GpuTexture,
+            },
+            state::State,
         },
         error::RendererError,
         RenderPassStatistics,
         TextureCache,
         GeometryCache,
-        gpu_program::UniformValue,
-        state::State
     },
     scene::{
         node::Node,
@@ -60,12 +62,12 @@ impl GBufferShader {
         let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
         let mut program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
         Ok(Self {
-            world_matrix: program.get_uniform_location("worldMatrix")?,
-            wvp_matrix: program.get_uniform_location("worldViewProjection")?,
-            use_skeletal_animation: program.get_uniform_location("useSkeletalAnimation")?,
-            bone_matrices: program.get_uniform_location("boneMatrices")?,
-            diffuse_texture: program.get_uniform_location("diffuseTexture")?,
-            normal_texture: program.get_uniform_location("normalTexture")?,
+            world_matrix: program.uniform_location("worldMatrix")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
+            bone_matrices: program.uniform_location("boneMatrices")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            normal_texture: program.uniform_location("normalTexture")?,
             program,
         })
     }
@@ -82,7 +84,10 @@ pub struct GBuffer {
 
 impl GBuffer {
     pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
-        let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::D24S8, None)?));
+        let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::D24S8, None)?));
+
+        let diffuse_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
+        let normal_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
 
         let framebuffer = FrameBuffer::new(
             state,
@@ -93,13 +98,15 @@ impl GBuffer {
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?)),
+                    texture: Rc::new(RefCell::new(diffuse_texture)),
                 },
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?)),
+                    texture: Rc::new(RefCell::new(normal_texture)),
                 },
             ])?;
+
+        let frame_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
 
         let opt_framebuffer = FrameBuffer::new(
             state,
@@ -110,7 +117,7 @@ impl GBuffer {
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?)),
+                    texture: Rc::new(RefCell::new(frame_texture)),
                 }
             ])?;
 
@@ -182,6 +189,26 @@ impl GBuffer {
                 };
                 let mvp = view_projection * world;
 
+                let diffuse_texture = if let Some(texture) = surface.get_diffuse_texture() {
+                    if let Some(texture) = texture_cache.get(state, texture) {
+                        texture
+                    } else {
+                        white_dummy.clone()
+                    }
+                } else {
+                    white_dummy.clone()
+                };
+
+                let normal_texture = if let Some(texture) = surface.get_normal_texture() {
+                    if let Some(texture) = texture_cache.get(state, texture) {
+                        texture
+                    } else {
+                        normal_dummy.clone()
+                    }
+                } else {
+                    normal_dummy.clone()
+                };
+
                 statistics.add_draw_call(
                     self.framebuffer.draw(
                         state,
@@ -191,7 +218,7 @@ impl GBuffer {
                         DrawParameters {
                             cull_face: CullFace::Back,
                             culling: true,
-                            color_write: (true, true, true, true),
+                            color_write: Default::default(),
                             depth_write: true,
                             stencil_test: false,
                             depth_test: true,
@@ -200,27 +227,11 @@ impl GBuffer {
                         &[
                             (self.shader.diffuse_texture, UniformValue::Sampler {
                                 index: 0,
-                                texture: if let Some(texture) = surface.get_diffuse_texture() {
-                                    if let Some(texture) = texture_cache.get(texture) {
-                                        texture
-                                    } else {
-                                        white_dummy.clone()
-                                    }
-                                } else {
-                                    white_dummy.clone()
-                                },
+                                texture: diffuse_texture,
                             }),
                             (self.shader.normal_texture, UniformValue::Sampler {
                                 index: 1,
-                                texture: if let Some(texture) = surface.get_normal_texture() {
-                                    if let Some(texture) = texture_cache.get(texture) {
-                                        texture
-                                    } else {
-                                        normal_dummy.clone()
-                                    }
-                                } else {
-                                    normal_dummy.clone()
-                                },
+                                texture: normal_texture,
                             }),
                             (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
                             (self.shader.world_matrix, UniformValue::Mat4(world)),

@@ -8,8 +8,11 @@ use std::{
 use crate::{
     resource::texture::TextureKind,
     renderer::{
-        gl::types::GLuint,
-        gl,
+        framework::{
+            gl::types::GLuint,
+            gl,
+            state::State
+        },
         error::RendererError,
     },
     utils::log::Log,
@@ -243,7 +246,8 @@ impl GpuTexture {
     ///
     /// Produced texture can be used as render target for framebuffer, in this case `data`
     /// parameter can be None.
-    pub fn new(kind: GpuTextureKind,
+    pub fn new(state: &mut State,
+               kind: GpuTextureKind,
                pixel_kind: PixelKind,
                data: Option<&[u8]>) -> Result<Self, RendererError> {
         let bytes_per_pixel = pixel_kind.size_bytes();
@@ -268,7 +272,8 @@ impl GpuTexture {
         unsafe {
             let mut texture = 0;
             gl::GenTextures(1, &mut texture);
-            gl::BindTexture(target, texture);
+
+            state.set_texture(0, target, texture);
 
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (gl::FLOAT, gl::RED, gl::R32F),
@@ -324,7 +329,7 @@ impl GpuTexture {
             gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
             gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
 
-            gl::BindTexture(target, 0);
+            state.set_texture(0, target, 0);
 
             Log::writeln(format!("GL texture {} was created!", texture));
 
@@ -336,19 +341,13 @@ impl GpuTexture {
         }
     }
 
-    pub fn bind_mut(&mut self, sampler_index: usize) -> TextureBinding<'_> {
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0 + sampler_index as u32);
-            gl::BindTexture(self.kind.to_texture_target(), self.texture);
-        }
+    pub fn bind_mut(&mut self, state: &mut State, sampler_index: usize) -> TextureBinding<'_> {
+        state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
         TextureBinding { texture: self }
     }
 
-    pub fn bind(&self, sampler_index: usize) {
-        unsafe {
-            gl::ActiveTexture(gl::TEXTURE0 + sampler_index as u32);
-            gl::BindTexture(self.kind.to_texture_target(), self.texture);
-        }
+    pub fn bind(&self, state: &mut State, sampler_index: usize) {
+        state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
     }
 
     pub fn kind(&self) -> GpuTextureKind {

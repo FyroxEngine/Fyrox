@@ -1,12 +1,4 @@
 use crate::{
-    renderer::{
-        surface::SurfaceSharedData,
-        gpu_program::{GpuProgram, UniformLocation},
-        error::RendererError,
-        gl,
-        gpu_texture::GpuTexture,
-        RenderPassStatistics,
-    },
     scene::{
         node::Node,
         base::AsBase,
@@ -14,17 +6,36 @@ use crate::{
         camera::Camera,
     },
     core::{
-        math::{
-            Rect,
+        math::Rect,
+    },
+    renderer::{
+        TextureCache,
+        GeometryCache,
+        surface::SurfaceSharedData,
+        error::RendererError,
+        framework::{
+            gpu_texture::GpuTexture,
+            gl,
+            gpu_program::{
+                UniformValue,
+                GpuProgram,
+                UniformLocation,
+            },
+            framebuffer::{
+                FrameBuffer,
+                DrawParameters,
+                CullFace,
+                FrameBufferTrait,
+            },
+            state::State
         },
+        RenderPassStatistics,
     },
 };
-use crate::renderer::{TextureCache, GeometryCache};
-use crate::renderer::gpu_program::{UniformValue};
-use crate::renderer::framebuffer::{FrameBuffer, DrawParameters, CullFace, FrameBufferTrait};
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::renderer::state::State;
+use std::{
+    rc::Rc,
+    cell::RefCell,
+};
 
 struct SpriteShader {
     program: GpuProgram,
@@ -44,14 +55,14 @@ impl SpriteShader {
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
         let mut program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
-                view_projection_matrix: program.get_uniform_location("viewProjectionMatrix")?,
-                world_matrix: program.get_uniform_location("worldMatrix")?,
-                camera_side_vector: program.get_uniform_location("cameraSideVector")?,
-                camera_up_vector: program.get_uniform_location("cameraUpVector")?,
-                size: program.get_uniform_location("size")?,
-                diffuse_texture: program.get_uniform_location("diffuseTexture")?,
-                color: program.get_uniform_location("color")?,
-                rotation: program.get_uniform_location("rotation")?,
+            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
+            world_matrix: program.uniform_location("worldMatrix")?,
+            camera_side_vector: program.uniform_location("cameraSideVector")?,
+            camera_up_vector: program.uniform_location("cameraUpVector")?,
+            size: program.uniform_location("size")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            color: program.uniform_location("color")?,
+            rotation: program.uniform_location("rotation")?,
 
             program,
         })
@@ -86,9 +97,7 @@ impl SpriteRenderer {
     ) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
-        unsafe {
-            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-        }
+        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
         let inv_view = camera.inv_view_matrix().unwrap();
 
@@ -102,6 +111,16 @@ impl SpriteRenderer {
                 continue;
             };
 
+            let diffuse_texture = if let Some(texture) = sprite.texture() {
+                if let Some(texture) = textures.get(state, texture) {
+                    texture
+                } else {
+                    white_dummy.clone()
+                }
+            } else {
+                white_dummy.clone()
+            };
+
             statistics.add_draw_call(framebuffer.draw(
                 state,
                 viewport,
@@ -110,7 +129,7 @@ impl SpriteRenderer {
                 DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
-                    color_write: (true, true, true, true),
+                    color_write: Default::default(),
                     depth_write: false,
                     stencil_test: false,
                     depth_test: true,
@@ -119,15 +138,7 @@ impl SpriteRenderer {
                 &[
                     (self.shader.diffuse_texture, UniformValue::Sampler {
                         index: 0,
-                        texture: if let Some(texture) = sprite.texture() {
-                            if let Some(texture) = textures.get(texture) {
-                                texture
-                            } else {
-                                white_dummy.clone()
-                            }
-                        } else {
-                            white_dummy.clone()
-                        }
+                        texture: diffuse_texture,
                     }),
                     (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
                     (self.shader.world_matrix, UniformValue::Mat4(node.base().global_transform())),
@@ -136,7 +147,7 @@ impl SpriteRenderer {
                     (self.shader.size, UniformValue::Float(sprite.size())),
                     (self.shader.color, UniformValue::Color(sprite.color())),
                     (self.shader.rotation, UniformValue::Float(sprite.rotation()))
-                ]
+                ],
             ));
         }
 

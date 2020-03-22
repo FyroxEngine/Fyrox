@@ -1,25 +1,22 @@
-#[allow(clippy::all)]
-pub(in crate) mod gl;
+#![deny(unsafe_code)]
+
 pub mod surface;
-pub mod gpu_program;
 pub mod error;
 pub mod debug_renderer;
 
-macro_rules! check_gl_error {
-    () => (crate::renderer::check_gl_error_internal(line!(), file!()))
-}
+// Framework wraps all OpenGL calls so it has to be unsafe. Rest of renderer
+// code must be safe.
+#[macro_use]
+#[allow(unsafe_code)]
+mod framework;
 
-mod geometry_buffer;
 mod ui_renderer;
 mod particle_system_renderer;
 mod gbuffer;
 mod deferred_light_renderer;
 mod shadow_map_renderer;
 mod flat_shader;
-mod gpu_texture;
 mod sprite_renderer;
-mod framebuffer;
-mod state;
 
 use glutin::PossiblyCurrent;
 use std::{
@@ -29,7 +26,6 @@ use std::{
         Mutex,
     },
     time,
-    ffi::CStr,
     collections::HashMap,
     cell::RefCell,
 };
@@ -45,26 +41,34 @@ use crate::{
             DeferredRendererContext,
         },
         error::RendererError,
-        gpu_texture::{
-            GpuTexture,
-            GpuTextureKind,
-            PixelKind,
-            MininificationFilter,
-            MagnificationFilter,
+        framework::{
+            gpu_texture::{
+                GpuTexture,
+                GpuTextureKind,
+                PixelKind,
+                MininificationFilter,
+                MagnificationFilter,
+            },
+            geometry_buffer::{
+                GeometryBuffer,
+                GeometryBufferKind,
+                ElementKind,
+                AttributeKind,
+                AttributeDefinition,
+            },
+            framebuffer::{
+                BackBuffer,
+                FrameBufferTrait,
+                DrawParameters,
+                CullFace,
+            },
+            gpu_program::UniformValue,
+            state::State,
+            gl
         },
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer,
-        gl::types::{GLsizei, GLenum, GLuint, GLchar},
         debug_renderer::DebugRenderer,
-        geometry_buffer::{
-            GeometryBuffer,
-            GeometryBufferKind,
-            ElementKind,
-            AttributeKind,
-            AttributeDefinition,
-        },
-        framebuffer::{BackBuffer, FrameBufferTrait, DrawParameters, CullFace},
-        gpu_program::UniformValue,
     },
     scene::{
         SceneContainer,
@@ -85,7 +89,6 @@ use crate::{
     gui::draw::DrawingContext,
     engine::resource_manager::TimedEntry,
 };
-use crate::renderer::state::State;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -296,7 +299,7 @@ pub struct TextureCache {
 }
 
 impl TextureCache {
-    fn get(&mut self, texture: Arc<Mutex<Texture>>) -> Option<Rc<RefCell<GpuTexture>>> {
+    fn get(&mut self, state: &mut State, texture: Arc<Mutex<Texture>>) -> Option<Rc<RefCell<GpuTexture>>> {
         if texture.lock().unwrap().loaded {
             let key = (&*texture as *const _) as usize;
             let gpu_texture = self.map.entry(key).or_insert_with(move || {
@@ -306,11 +309,12 @@ impl TextureCache {
                     height: texture.height as usize,
                 };
                 let mut gpu_texture = GpuTexture::new(
+                    state,
                     kind,
                     PixelKind::from(texture.kind),
                     Some(texture.bytes.as_slice()))
                     .unwrap();
-                gpu_texture.bind_mut(0)
+                gpu_texture.bind_mut(state, 0)
                     .generate_mip_maps()
                     .set_minification_filter(MininificationFilter::LinearMip)
                     .set_magnification_filter(MagnificationFilter::Linear)
@@ -339,7 +343,9 @@ impl TextureCache {
 }
 
 impl Renderer {
-    pub(in crate) fn new(frame_size: (u32, u32)) -> Result<Self, RendererError> {
+    pub(in crate) fn new(context: &mut glutin::WindowedContext<PossiblyCurrent>, frame_size: (u32, u32)) -> Result<Self, RendererError> {
+        gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
+
         let settings = QualitySettings::default();
         let mut state = State::new();
 
@@ -350,9 +356,9 @@ impl Renderer {
             flat_shader: FlatShader::new()?,
             statistics: Statistics::default(),
             sprite_renderer: SpriteRenderer::new()?,
-            white_dummy: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+            white_dummy: Rc::new(RefCell::new(GpuTexture::new(&mut state, GpuTextureKind::Rectangle { width: 1, height: 1 },
                                                               PixelKind::RGBA8, Some(&[255, 255, 255, 255]))?)),
-            normal_dummy: Rc::new(RefCell::new(GpuTexture::new(GpuTextureKind::Rectangle { width: 1, height: 1 },
+            normal_dummy: Rc::new(RefCell::new(GpuTexture::new(&mut state, GpuTextureKind::Rectangle { width: 1, height: 1 },
                                                                PixelKind::RGBA8, Some(&[128, 128, 255, 255]))?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new()?,
@@ -364,7 +370,7 @@ impl Renderer {
             backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
-            state
+            state,
         })
     }
 
@@ -416,6 +422,13 @@ impl Renderer {
                             context: &glutin::WindowedContext<PossiblyCurrent>,
                             dt: f32,
     ) -> Result<(), RendererError> {
+        // We have to invalidate resource bindings cache because some textures or programs,
+        // or other GL resources can be destroyed and then on their "names" some new resource
+        // are created, but cache still thinks that resource is correctly bound, but it is different
+        // object have same name.
+        self.state.invalidate_resource_bindings_cache();
+
+        // Update caches - this will remove timed out resources.
         self.geometry_cache.update(dt);
         self.texture_cache.update(dt);
 
@@ -444,10 +457,10 @@ impl Renderer {
                     .entry(camera_handle)
                     .and_modify(|buf| {
                         if buf.width != viewport.w || buf.height != viewport.h {
-                            *buf = GBuffer::new(state,viewport.w as usize, viewport.h as usize).unwrap();
+                            *buf = GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap();
                         }
                     })
-                    .or_insert_with(|| GBuffer::new(state,viewport.w as usize, viewport.h as usize).unwrap());
+                    .or_insert_with(|| GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap());
 
                 self.statistics += gbuffer.fill(
                     state,
@@ -509,7 +522,7 @@ impl Renderer {
                         DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
-                            color_write: (true, true, true, true),
+                            color_write: Default::default(),
                             depth_write: true,
                             stencil_test: false,
                             depth_test: false,
@@ -555,118 +568,3 @@ impl Renderer {
     }
 }
 
-fn check_gl_error_internal(line: u32, file: &str) {
-    unsafe {
-        let error_code = gl::GetError();
-        if error_code != gl::NO_ERROR {
-            let code = match error_code {
-                gl::INVALID_ENUM => "GL_INVALID_ENUM",
-                gl::INVALID_VALUE => "GL_INVALID_VALUE",
-                gl::INVALID_OPERATION => "GL_INVALID_OPERATION",
-                gl::STACK_OVERFLOW => "GL_STACK_OVERFLOW",
-                gl::STACK_UNDERFLOW => "GL_STACK_UNDERFLOW",
-                gl::OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
-                _ => "Unknown",
-            };
-
-            Log::writeln(format!("{} error has occurred! At line {} in file {}, stability is not guaranteed!", code, line, file));
-
-            if gl::GetDebugMessageLog::is_loaded() {
-                let mut max_message_length = 0;
-                gl::GetIntegerv(gl::MAX_DEBUG_MESSAGE_LENGTH, &mut max_message_length);
-
-                let mut max_logged_messages = 0;
-                gl::GetIntegerv(gl::MAX_DEBUG_LOGGED_MESSAGES, &mut max_logged_messages);
-
-                let buffer_size = max_message_length * max_logged_messages;
-
-                let mut message_buffer: Vec<GLchar> = Vec::with_capacity(buffer_size as usize);
-                message_buffer.set_len(buffer_size as usize);
-
-                let mut sources: Vec<GLenum> = Vec::with_capacity(max_logged_messages as usize);
-                sources.set_len(max_logged_messages as usize);
-
-                let mut types: Vec<GLenum> = Vec::with_capacity(max_logged_messages as usize);
-                types.set_len(max_logged_messages as usize);
-
-                let mut ids: Vec<GLuint> = Vec::with_capacity(max_logged_messages as usize);
-                ids.set_len(max_logged_messages as usize);
-
-                let mut severities: Vec<GLenum> = Vec::with_capacity(max_logged_messages as usize);
-                severities.set_len(max_logged_messages as usize);
-
-                let mut lengths: Vec<GLsizei> = Vec::with_capacity(max_logged_messages as usize);
-                lengths.set_len(max_logged_messages as usize);
-
-                let message_count = gl::GetDebugMessageLog(
-                    max_logged_messages as u32,
-                    buffer_size,
-                    sources.as_mut_ptr(),
-                    types.as_mut_ptr(),
-                    ids.as_mut_ptr(),
-                    severities.as_mut_ptr(),
-                    lengths.as_mut_ptr(),
-                    message_buffer.as_mut_ptr(),
-                );
-
-                if message_count == 0 {
-                    Log::writeln("Debug info is not available - run with OpenGL debug flag!".to_owned());
-                }
-
-                let mut message = message_buffer.as_ptr();
-
-                for i in 0..message_count as usize {
-                    let source = sources[i];
-                    let ty = types[i];
-                    let severity = severities[i];
-                    let id = ids[i];
-                    let len = lengths[i] as usize;
-
-                    let source_str =
-                        match source {
-                            gl::DEBUG_SOURCE_API => "API",
-                            gl::DEBUG_SOURCE_SHADER_COMPILER => "Shader Compiler",
-                            gl::DEBUG_SOURCE_WINDOW_SYSTEM => "Window System",
-                            gl::DEBUG_SOURCE_THIRD_PARTY => "Third Party",
-                            gl::DEBUG_SOURCE_APPLICATION => "Application",
-                            gl::DEBUG_SOURCE_OTHER => "Other",
-                            _ => "Unknown"
-                        };
-
-                    let type_str =
-                        match ty {
-                            gl::DEBUG_TYPE_ERROR => "Error",
-                            gl::DEBUG_TYPE_DEPRECATED_BEHAVIOR => "Deprecated Behavior",
-                            gl::DEBUG_TYPE_UNDEFINED_BEHAVIOR => "Undefined Behavior",
-                            gl::DEBUG_TYPE_PERFORMANCE => "Performance",
-                            gl::DEBUG_TYPE_PORTABILITY => "Portability",
-                            gl::DEBUG_TYPE_OTHER => "Other",
-                            _ => "Unknown",
-                        };
-
-                    let severity_str =
-                        match severity {
-                            gl::DEBUG_SEVERITY_HIGH => "High",
-                            gl::DEBUG_SEVERITY_MEDIUM => "Medium",
-                            gl::DEBUG_SEVERITY_LOW => "Low",
-                            gl::DEBUG_SEVERITY_NOTIFICATION => "Notification",
-                            _ => "Unknown"
-                        };
-
-                    let str_msg = CStr::from_ptr(message);
-
-                    Log::writeln(format!("OpenGL message\nSource: {}\nType: {}\nId: {}\nSeverity: {}\nMessage: {:?}\n",
-                                         source_str,
-                                         type_str,
-                                         id,
-                                         severity_str,
-                                         str_msg));
-
-                    message = message.add(len);
-                }
-            } else {
-                Log::writeln("Debug info is not available - glGetDebugMessageLog is not available!".to_owned());
-            }
-        }
-    }
-}
