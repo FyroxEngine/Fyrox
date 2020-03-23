@@ -60,7 +60,7 @@ impl ParticleSystemShader {
     fn new() -> Result<Self, RendererError> {
         let vertex_source = include_str!("shaders/particle_system_vs.glsl");
         let fragment_source = include_str!("shaders/particle_system_fs.glsl");
-        let mut program = GpuProgram::from_source("ParticleSystemShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("ParticleSystemShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
             world_matrix: program.uniform_location("worldMatrix")?,

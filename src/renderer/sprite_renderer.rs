@@ -53,7 +53,7 @@ impl SpriteShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/sprite_fs.glsl");
         let vertex_source = include_str!("shaders/sprite_vs.glsl");
-        let mut program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
             view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
             world_matrix: program.uniform_location("worldMatrix")?,
@@ -63,7 +63,6 @@ impl SpriteShader {
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             color: program.uniform_location("color")?,
             rotation: program.uniform_location("rotation")?,
-
             program,
         })
     }

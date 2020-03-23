@@ -17,6 +17,7 @@ mod deferred_light_renderer;
 mod shadow_map_renderer;
 mod flat_shader;
 mod sprite_renderer;
+mod ssao;
 
 use glutin::PossiblyCurrent;
 use std::{
@@ -68,7 +69,7 @@ use crate::{
         },
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer,
-        debug_renderer::DebugRenderer,
+        debug_renderer::DebugRenderer
     },
     scene::{
         SceneContainer,
@@ -162,6 +163,11 @@ pub struct QualitySettings {
     pub spot_shadows_enabled: bool,
     /// Maximum distance from camera to draw shadows.
     pub spot_shadows_distance: f32,
+
+    /// Whether to use screen space ambient occlusion or not.
+    /// TODO: It implemented partially, one more preprocessing step needed - blur
+    ///  AO map before pass to ambient light shader. Will be fixed ASAP.
+    pub use_ssao: bool,
 }
 
 impl Default for QualitySettings {
@@ -176,6 +182,9 @@ impl Default for QualitySettings {
             spot_shadows_distance: 5.0,
             spot_shadows_enabled: true,
             spot_soft_shadows: true,
+
+            // Temporarily disabled since SSAO is partially implemented
+            use_ssao: false
         }
     }
 }
@@ -350,9 +359,9 @@ impl Renderer {
         let mut state = State::new();
 
         Ok(Self {
-            backbuffer: BackBuffer {},
+            backbuffer: BackBuffer,
             frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new(&mut state, &settings)?,
+            deferred_light_renderer: DeferredLightRenderer::new(&mut state, frame_size, &settings)?,
             flat_shader: FlatShader::new()?,
             statistics: Statistics::default(),
             sprite_renderer: SpriteRenderer::new()?,
@@ -397,6 +406,7 @@ impl Renderer {
     /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
     /// be performed into 0x0 texture.
     pub fn set_frame_size(&mut self, new_size: (u32, u32)) {
+        self.deferred_light_renderer.set_frame_size(&mut self.state, new_size).unwrap();
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
         // Invalidate all g-buffers.

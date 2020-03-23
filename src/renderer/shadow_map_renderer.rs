@@ -63,7 +63,7 @@ impl SpotShadowMapShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/spot_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/spot_shadow_map_vs.glsl");
-        let mut program = GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
             bone_matrices: program.uniform_location("boneMatrices")?,
             world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
@@ -220,7 +220,7 @@ impl PointShadowMapShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/point_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/point_shadow_map_vs.glsl");
-        let mut program = GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_matrix: program.uniform_location("worldMatrix")?,
             bone_matrices: program.uniform_location("boneMatrices")?,

@@ -45,6 +45,7 @@ use crate::{
         color::Color,
     },
 };
+use crate::renderer::framework::gpu_texture::{Coordinate, WrapMode};
 
 struct GBufferShader {
     program: GpuProgram,
@@ -60,7 +61,7 @@ impl GBufferShader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
         let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
-        let mut program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_matrix: program.uniform_location("worldMatrix")?,
             wvp_matrix: program.uniform_location("worldViewProjection")?,
@@ -84,10 +85,22 @@ pub struct GBuffer {
 
 impl GBuffer {
     pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
-        let depth_stencil = Rc::new(RefCell::new(GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::D24S8, None)?));
+        let mut depth_stencil_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::D24S8, None)?;
+        depth_stencil_texture.bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let diffuse_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
-        let normal_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
+        let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
+
+        let mut diffuse_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
+        diffuse_texture.bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
+        let mut normal_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
+        normal_texture.bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let framebuffer = FrameBuffer::new(
             state,

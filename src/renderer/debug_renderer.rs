@@ -59,7 +59,7 @@ impl DebugShader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
-        let mut program = GpuProgram::from_source("DebugShader", &vertex_source, &fragment_source)?;
+        let program = GpuProgram::from_source("DebugShader", &vertex_source, &fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location("worldViewProjection")?,
             program,

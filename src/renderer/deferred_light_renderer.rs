@@ -36,6 +36,7 @@ use crate::{
         RenderPassStatistics,
         GeometryCache,
         TextureCache,
+        ssao::ScreenSpaceAmbientOcclusionRenderer
     },
     scene::{
         camera::Camera,
@@ -60,17 +61,19 @@ struct AmbientLightShader {
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
     ambient_color: UniformLocation,
+    ao_sampler: UniformLocation
 }
 
 impl AmbientLightShader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/ambient_light_fs.glsl");
         let vertex_source = include_str!("shaders/ambient_light_vs.glsl");
-        let mut program = GpuProgram::from_source("AmbientLightShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("AmbientLightShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location("worldViewProjection")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             ambient_color: program.uniform_location("ambientColor")?,
+            ao_sampler: program.uniform_location("aoSampler")?,
             program,
         })
     }
@@ -102,7 +105,7 @@ impl DeferredLightingShader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/deferred_light_fs.glsl");
         let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
-        let mut program = GpuProgram::from_source("DeferredLightShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("DeferredLightShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location("worldViewProjection")?,
             depth_sampler: program.uniform_location("depthTexture")?,
@@ -129,6 +132,7 @@ impl DeferredLightingShader {
 }
 
 pub struct DeferredLightRenderer {
+    pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
     shader: DeferredLightingShader,
     ambient_light_shader: AmbientLightShader,
     quad: SurfaceSharedData,
@@ -151,8 +155,9 @@ pub struct DeferredRendererContext<'a> {
 }
 
 impl DeferredLightRenderer {
-    pub fn new(state: &mut State, settings: &QualitySettings) -> Result<Self, RendererError> {
+    pub fn new(state: &mut State, frame_size: (u32, u32), settings: &QualitySettings) -> Result<Self, RendererError> {
         Ok(Self {
+            ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(state, frame_size.0 as usize, frame_size.1 as usize)?,
             shader: DeferredLightingShader::new()?,
             ambient_light_shader: AmbientLightShader::new()?,
             quad: SurfaceSharedData::make_unit_xy_quad(),
@@ -173,6 +178,11 @@ impl DeferredLightRenderer {
         Ok(())
     }
 
+    pub fn set_frame_size(&mut self, state: &mut State, frame_size: (u32, u32)) -> Result<(), RendererError>{
+        self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(state, frame_size.0 as usize, frame_size.1 as usize)?;
+        Ok(())
+    }
+
     #[must_use]
     pub fn render(&mut self, context: DeferredRendererContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
@@ -183,6 +193,21 @@ impl DeferredLightRenderer {
         let frame_matrix =
             Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
+
+        let projection_matrix = context.camera.projection_matrix();
+        let view_projection = context.camera.view_projection_matrix();
+        let inv_view_projection = view_projection.inverse().unwrap_or_default();
+
+        // Fill SSAO map.
+        if context.settings.use_ssao {
+            statistics += self.ssao_renderer.render(
+                context.state,
+                context.gbuffer,
+                context.geometry_cache,
+                projection_matrix,
+                context.camera.view_matrix().basis()
+            );
+        }
 
         context.gbuffer.opt_framebuffer.clear(context.state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), None, Some(0));
 
@@ -207,15 +232,20 @@ impl DeferredLightRenderer {
                 (self.ambient_light_shader.diffuse_texture, UniformValue::Sampler {
                     index: 0,
                     texture: context.gbuffer.diffuse_texture(),
+                }),
+                (self.ambient_light_shader.ao_sampler, UniformValue::Sampler {
+                    index: 1,
+                    texture: if context.settings.use_ssao {
+                        self.ssao_renderer.ao_map()
+                    } else {
+                        context.white_dummy.clone()
+                    }
                 })
             ],
         );
 
         context.state.set_blend(true);
         context.state.set_blend_func(gl::ONE, gl::ONE);
-
-        let view_projection = context.camera.view_projection_matrix();
-        let inv_view_projection = view_projection.inverse().unwrap_or_default();
 
         for light in context.scene.graph.linear_iter().filter_map(|node| {
             if let Node::Light(light) = node { Some(light) } else { None }

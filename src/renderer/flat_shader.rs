@@ -17,7 +17,7 @@ impl FlatShader {
         let fragment_source = include_str!("shaders/flat_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
 
-        let mut program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("FlatShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location("worldViewProjection")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,

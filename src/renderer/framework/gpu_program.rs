@@ -30,10 +30,11 @@ use crate::{
     },
     utils::log::Log,
 };
+use rg3d_core::math::mat3::Mat3;
 
 pub struct GpuProgram {
     id: GLuint,
-    name_buf: Vec<u8>,
+    name_buf: RefCell<Vec<u8>>,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -60,6 +61,7 @@ pub enum UniformValue<'a> {
     Vec4(Vec4),
     Color(Color),
     Mat4(Mat4),
+    Mat3(Mat3),
 
     IntegerArray(&'a [i32]),
     FloatArray(&'a [f32]),
@@ -123,26 +125,26 @@ impl GpuProgram {
             } else {
                 Ok(Self {
                     id: program,
-                    name_buf: Vec::new(),
+                    name_buf: Default::default(),
                     thread_mark: PhantomData,
                 })
             }
         }
     }
 
-    pub fn uniform_location(&mut self, name: &str) -> Result<UniformLocation, RendererError> {
+    pub fn uniform_location(&self, name: &str) -> Result<UniformLocation, RendererError> {
         // Form c string in special buffer to reduce memory allocations
-        let buf = &mut self.name_buf;
+        let buf = &mut self.name_buf.borrow_mut();
         buf.clear();
         buf.extend_from_slice(name.as_bytes());
         buf.push(0);
         unsafe {
             let id = gl::GetUniformLocation(self.id, buf.as_ptr() as *const i8);
-            if id < 0 {
-                Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
-            } else {
+           // if id < 0 {
+           //     Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
+           // } else {
                 Ok(UniformLocation { id, thread_mark: PhantomData })
-            }
+           // }
         }
     }
 
@@ -195,6 +197,9 @@ impl GpuProgram {
                 }
                 UniformValue::Mat4(value) => {
                     gl::UniformMatrix4fv(location, 1, gl::FALSE, &value.f as *const _);
+                }
+                UniformValue::Mat3(value) => {
+                    gl::UniformMatrix3fv(location, 1, gl::FALSE, &value.f as *const _);
                 }
                 UniformValue::Mat4Array(value) => {
                     gl::UniformMatrix4fv(location, value.len() as i32, gl::FALSE, value.as_ptr() as *const _);

@@ -85,7 +85,7 @@ impl UiShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
-        let mut program = GpuProgram::from_source("UIShader", vertex_source, fragment_source)?;
+        let program = GpuProgram::from_source("UIShader", vertex_source, fragment_source)?;
         Ok(Self {
             wvp_matrix: program.uniform_location("worldViewProjection")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
