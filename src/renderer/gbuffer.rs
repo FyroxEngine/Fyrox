@@ -22,6 +22,8 @@ use crate::{
                 GpuTextureKind,
                 PixelKind,
                 GpuTexture,
+                Coordinate,
+                WrapMode
             },
             state::State,
         },
@@ -45,7 +47,6 @@ use crate::{
         color::Color,
     },
 };
-use crate::renderer::framework::gpu_texture::{Coordinate, WrapMode};
 
 struct GBufferShader {
     program: GpuProgram,

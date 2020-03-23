@@ -140,11 +140,11 @@ impl GpuProgram {
         buf.push(0);
         unsafe {
             let id = gl::GetUniformLocation(self.id, buf.as_ptr() as *const i8);
-           // if id < 0 {
-           //     Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
-           // } else {
+            if id < 0 {
+                Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
+            } else {
                 Ok(UniformLocation { id, thread_mark: PhantomData })
-           // }
+            }
         }
     }
 
