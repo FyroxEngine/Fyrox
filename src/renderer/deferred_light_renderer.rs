@@ -175,6 +175,7 @@ impl DeferredLightRenderer {
         if settings.point_shadow_map_size != self.point_shadow_map_renderer.size {
             self.point_shadow_map_renderer = PointShadowMapRenderer::new(state, settings.point_shadow_map_size)?;
         }
+        self.ssao_renderer.set_radius(settings.ssao_radius);
         Ok(())
     }
 

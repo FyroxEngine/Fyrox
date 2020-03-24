@@ -18,6 +18,7 @@ mod shadow_map_renderer;
 mod flat_shader;
 mod sprite_renderer;
 mod ssao;
+mod blur;
 
 use glutin::PossiblyCurrent;
 use std::{
@@ -69,7 +70,7 @@ use crate::{
         },
         flat_shader::FlatShader,
         sprite_renderer::SpriteRenderer,
-        debug_renderer::DebugRenderer
+        debug_renderer::DebugRenderer,
     },
     scene::{
         SceneContainer,
@@ -165,9 +166,10 @@ pub struct QualitySettings {
     pub spot_shadows_distance: f32,
 
     /// Whether to use screen space ambient occlusion or not.
-    /// TODO: It implemented partially, one more preprocessing step needed - blur
-    ///  AO map before pass to ambient light shader. Will be fixed ASAP.
     pub use_ssao: bool,
+    /// Radius of sampling hemisphere used in SSAO, it defines much ambient
+    /// occlusion will be in your scene.
+    pub ssao_radius: f32
 }
 
 impl Default for QualitySettings {
@@ -183,8 +185,8 @@ impl Default for QualitySettings {
             spot_shadows_enabled: true,
             spot_soft_shadows: true,
 
-            // Temporarily disabled since SSAO is partially implemented
-            use_ssao: false
+            use_ssao: true,
+            ssao_radius: 0.5
         }
     }
 }

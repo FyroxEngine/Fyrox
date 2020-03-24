@@ -105,10 +105,10 @@ impl GBuffer {
 
         let framebuffer = FrameBuffer::new(
             state,
-            Attachment {
+            Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil.clone(),
-            },
+            }),
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
@@ -124,10 +124,10 @@ impl GBuffer {
 
         let opt_framebuffer = FrameBuffer::new(
             state,
-            Attachment {
+            Some(Attachment {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
-            },
+            }),
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
@@ -150,7 +150,7 @@ impl GBuffer {
     }
 
     pub fn depth(&self) -> Rc<RefCell<GpuTexture>> {
-        self.framebuffer.depth_attachment().texture.clone()
+        self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
     pub fn diffuse_texture(&self) -> Rc<RefCell<GpuTexture>> {

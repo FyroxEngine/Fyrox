@@ -41,7 +41,7 @@ pub struct Attachment {
 
 pub struct FrameBuffer {
     fbo: GLuint,
-    depth_attachment: Attachment,
+    depth_attachment: Option<Attachment>,
     color_attachments: Vec<Attachment>,
 }
 
@@ -102,7 +102,7 @@ unsafe fn set_attachment(gl_attachment_kind: u32, texture: &GpuTexture) {
 }
 
 impl FrameBuffer {
-    pub fn new(state: &mut State, depth_attachment: Attachment, color_attachments: Vec<Attachment>) -> Result<Self, RendererError> {
+    pub fn new(state: &mut State, depth_attachment: Option<Attachment>, color_attachments: Vec<Attachment>) -> Result<Self, RendererError> {
         unsafe {
             let mut fbo = 0;
 
@@ -110,12 +110,14 @@ impl FrameBuffer {
 
             state.set_framebuffer(fbo);
 
-            let depth_attachment_kind = match depth_attachment.kind {
-                AttachmentKind::Color => panic!("Attempt to use color attachment as depth/stencil!"),
-                AttachmentKind::DepthStencil => gl::DEPTH_STENCIL_ATTACHMENT,
-                AttachmentKind::Depth => gl::DEPTH_ATTACHMENT
-            };
-            set_attachment(depth_attachment_kind, &depth_attachment.texture.borrow());
+            if let Some(depth_attachment) = depth_attachment.as_ref() {
+                let depth_attachment_kind = match depth_attachment.kind {
+                    AttachmentKind::Color => panic!("Attempt to use color attachment as depth/stencil!"),
+                    AttachmentKind::DepthStencil => gl::DEPTH_STENCIL_ATTACHMENT,
+                    AttachmentKind::Depth => gl::DEPTH_ATTACHMENT
+                };
+                set_attachment(depth_attachment_kind, &depth_attachment.texture.borrow());
+            }
 
             let mut color_buffers = Vec::new();
             for (i, color_attachment) in color_attachments.iter().enumerate() {
@@ -149,8 +151,8 @@ impl FrameBuffer {
         &self.color_attachments
     }
 
-    pub fn depth_attachment(&self) -> &Attachment {
-        &self.depth_attachment
+    pub fn depth_attachment(&self) -> Option<&Attachment> {
+        self.depth_attachment.as_ref()
     }
 
     pub fn set_cubemap_face(&mut self, state: &mut State, attachment_index: usize, face: CubeMapFace) -> &mut Self {

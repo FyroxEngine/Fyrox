@@ -98,10 +98,10 @@ impl SpotShadowMapRenderer {
 
         let framebuffer = FrameBuffer::new(
             state,
-            Attachment {
+            Some(Attachment {
                 kind: AttachmentKind::Depth,
                 texture: Rc::new(RefCell::new(depth)),
-            },
+            }),
             vec![])?;
 
         Ok(Self {
@@ -113,7 +113,7 @@ impl SpotShadowMapRenderer {
     }
 
     pub fn texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.framebuffer.depth_attachment().texture.clone()
+        self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
     pub fn render(&mut self,
@@ -306,10 +306,10 @@ impl PointShadowMapRenderer {
 
         let framebuffer = FrameBuffer::new(
             state,
-            Attachment {
+            Some(Attachment {
                 kind: AttachmentKind::Depth,
                 texture: Rc::new(RefCell::new(depth)),
-            },
+            }),
             vec![
                 Attachment {
                     kind: AttachmentKind::Color,
