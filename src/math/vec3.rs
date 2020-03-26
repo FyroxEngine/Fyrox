@@ -1,13 +1,37 @@
 #![allow(clippy::len_without_is_empty)]
 
-use std::ops;
+use std::{
+    ops,
+    hash::{Hash, Hasher},
+};
 use crate::math::lerpf;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
     pub z: f32,
+}
+
+impl PartialEq for Vec3 {
+    fn eq(&self, other: &Self) -> bool {
+        self.validate();
+        self.x == other.x && self.y == other.y && self.z == other.z
+    }
+}
+
+impl Eq for Vec3 {}
+
+impl Hash for Vec3 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.validate();
+        unsafe {
+            state.write(std::slice::from_raw_parts(
+                self as *const Self as *const _,
+                std::mem::size_of::<Self>()))
+        }
+    }
 }
 
 impl Default for Vec3 {
@@ -22,6 +46,12 @@ impl Vec3 {
     pub const RIGHT: Self = Self { x: 1.0, y: 0.0, z: 0.0 };
     pub const UP: Self = Self { x: 0.0, y: 1.0, z: 0.0 };
     pub const LOOK: Self = Self { x: 0.0, y: 0.0, z: 1.0 };
+
+    fn validate(&self) {
+        debug_assert!(!self.x.is_nan());
+        debug_assert!(!self.y.is_nan());
+        debug_assert!(!self.z.is_nan());
+    }
 
     #[inline]
     pub fn new(x: f32, y: f32, z: f32) -> Self {
@@ -225,7 +255,7 @@ impl ops::Neg for Vec3 {
         Self {
             x: -self.x,
             y: -self.y,
-            z: -self.z
+            z: -self.z,
         }
     }
 }

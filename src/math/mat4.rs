@@ -8,6 +8,7 @@ use crate::{
 use crate::math::mat3::Mat3;
 
 #[derive(Copy, Clone, Debug)]
+#[repr(C)]
 pub struct Mat4 {
     pub f: [f32; 16]
 }

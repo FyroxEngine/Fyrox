@@ -1,11 +1,33 @@
 #![allow(clippy::len_without_is_empty)]
 
 use std::ops;
+use std::hash::{Hasher, Hash};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
+}
+
+impl PartialEq for Vec2 {
+    fn eq(&self, other: &Self) -> bool {
+        self.validate();
+        self.x == other.x && self.y == other.y
+    }
+}
+
+impl Eq for Vec2 {}
+
+impl Hash for Vec2 {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.validate();
+        unsafe {
+            state.write(std::slice::from_raw_parts(
+                self as *const Self as *const _,
+                std::mem::size_of::<Self>()))
+        }
+    }
 }
 
 impl Default for Vec2 {
@@ -17,6 +39,11 @@ impl Default for Vec2 {
 impl Vec2 {
     pub const ZERO: Self = Vec2 { x: 0.0, y: 0.0 };
     pub const UNIT: Self = Vec2 { x: 1.0, y: 1.0 };
+
+    fn validate(&self) {
+        debug_assert!(!self.x.is_nan());
+        debug_assert!(!self.y.is_nan());
+    }
 
     #[inline]
     pub fn new(x: f32, y: f32) -> Self {
@@ -40,12 +67,18 @@ impl Vec2 {
 
     #[inline]
     pub fn perpendicular(self) -> Vec2 {
-        Vec2 { x: self.y, y: -self.x }
+        Vec2 {
+            x: self.y,
+            y: -self.x
+        }
     }
 
     #[inline]
     pub fn scale(self, scalar: f32) -> Vec2 {
-        Vec2 { x: self.x * scalar, y: self.y * scalar }
+        Vec2 {
+            x: self.x * scalar,
+            y: self.y * scalar
+        }
     }
 
     #[inline]
