@@ -424,7 +424,6 @@ impl DeferredLightRenderer {
                     (self.shader.spot_shadow_texture, UniformValue::Sampler { index: 3, texture: self.spot_shadow_map_renderer.texture() }),
                     (self.shader.point_shadow_texture, UniformValue::Sampler { index: 4, texture: self.point_shadow_map_renderer.texture() })
                 ]));
-            check_gl_error!();
         }
 
         statistics

@@ -1,6 +1,7 @@
 pub mod astar;
 pub mod log;
 pub mod navmesh;
+pub mod raw_mesh;
 
 use crate::{
     scene::{mesh::Mesh, base::AsBase},
@@ -9,7 +10,6 @@ use crate::{
     gui::message::{KeyCode, OsEvent, ButtonState},
     core::{
         math::vec2::Vec2,
-        math::TriangleDefinition
     },
     utils::navmesh::Navmesh,
 };
@@ -17,6 +17,8 @@ use std::{
     any::Any,
     sync::Arc,
 };
+use crate::utils::raw_mesh::RawMeshBuilder;
+use rg3d_core::math::vec3::Vec3;
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
@@ -34,87 +36,38 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
         let shared_data = shared_data.lock().unwrap();
 
         let vertices = shared_data.get_vertices();
-        let indices = shared_data.get_indices();
-
-        let last = indices.len() - indices.len() % 3;
-        let mut i: usize = 0;
-        while i < last {
-            let a = global_transform.transform_vector(vertices[indices[i] as usize].position);
-            let b = global_transform.transform_vector(vertices[indices[i + 1] as usize].position);
-            let c = global_transform.transform_vector(vertices[indices[i + 2] as usize].position);
+        for triangle in shared_data.triangles() {
+            let a = global_transform.transform_vector(vertices[triangle.indices[0] as usize].position);
+            let b = global_transform.transform_vector(vertices[triangle.indices[1] as usize].position);
+            let c = global_transform.transform_vector(vertices[triangle.indices[2] as usize].position);
 
             // Silently ignore degenerated triangles.
             if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
                 triangles.push(triangle);
             }
-
-            i += 3;
         }
     }
     StaticGeometry::new(triangles)
 }
 
-pub struct SimpleMesh<T> {
-    pub vertices: Vec<T>,
-    pub indices: Vec<u32>,
-}
-
-impl<T> Default for SimpleMesh<T> {
-    fn default() -> Self {
-        Self {
-            vertices: Default::default(),
-            indices: Default::default(),
-        }
-    }
-}
-
-impl<T: PartialEq> SimpleMesh<T> {
-    /// Inserts vertex or its index. Performs optimizing insertion with checking if such
-    /// vertex already exists. Returns true if inserted vertex was unique.
-    pub fn insert_vertex(&mut self, vertex: T) -> bool {
-        // Reverse search is much faster because it is most likely that we'll find identic
-        // vertex at the end of the array.
-        let mut is_unique = false;
-        self.indices.push(match self.vertices.iter().rposition(|v| v.eq(&vertex)) {
-            Some(existing_index) => existing_index as u32, // Already have such vertex
-            None => { // No such vertex, add it
-                is_unique = true;
-                let index = self.vertices.len() as u32;
-                self.vertices.push(vertex);
-                index
-            }
-        });
-        is_unique
-    }
-}
-
 pub fn mesh_to_navmesh(mesh: &Mesh) -> Navmesh {
     // Join surfaces into one simple mesh.
-    let mut simple_mesh = SimpleMesh::default();
+    let mut builder = RawMeshBuilder::<Vec3>::default();
     let global_transform = mesh.base().global_transform();
     for surface in mesh.surfaces() {
         let shared_data = surface.get_data();
         let shared_data = shared_data.lock().unwrap();
 
         let vertices = shared_data.get_vertices();
-        let indices = shared_data.get_indices();
-
-        let last = indices.len() - indices.len() % 3;
-        let mut i: usize = 0;
-        while i < last {
-            simple_mesh.insert_vertex(global_transform.transform_vector(vertices[indices[i] as usize].position));
-            simple_mesh.insert_vertex(global_transform.transform_vector(vertices[indices[i + 1] as usize].position));
-            simple_mesh.insert_vertex(global_transform.transform_vector(vertices[indices[i + 2] as usize].position));
-            i += 3;
+        for triangle in shared_data.triangles() {
+            builder.insert(global_transform.transform_vector(vertices[triangle.indices[0] as usize].position));
+            builder.insert(global_transform.transform_vector(vertices[triangle.indices[1] as usize].position));
+            builder.insert(global_transform.transform_vector(vertices[triangle.indices[2] as usize].position));
         }
     }
 
-    // Then build navmesh.
-    let triangles = simple_mesh.indices
-        .chunks(3)
-        .map(|v| TriangleDefinition { indices: [v[0], v[1], v[2]] })
-        .collect::<Vec<_>>();
-    Navmesh::new(&triangles, &simple_mesh.vertices)
+    let mesh = builder.build();
+    Navmesh::new(&mesh.triangles, &mesh.vertices)
 }
 
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {

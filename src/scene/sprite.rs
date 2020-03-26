@@ -1,11 +1,22 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc,
+    Mutex,
+};
 use crate::{
     resource::texture::Texture,
-    scene::base::{BaseBuilder, Base, AsBase}
-};
-use crate::core::{
-    color::Color,
-    visitor::{Visit, VisitResult, Visitor}
+    scene::base::{
+        BaseBuilder,
+        Base,
+        AsBase,
+    },
+    core::{
+        visitor::{
+            VisitResult,
+            Visit,
+            Visitor,
+        },
+        color::Color,
+    },
 };
 
 #[derive(Clone)]
@@ -97,7 +108,7 @@ impl SpriteBuilder {
             texture: None,
             color: None,
             size: None,
-            rotation: None
+            rotation: None,
         }
     }
 

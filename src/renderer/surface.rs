@@ -4,6 +4,7 @@ use crate::{
             vec2::Vec2,
             vec3::Vec3,
             vec4::Vec4,
+            TriangleDefinition,
         },
         pool::{
             Handle,
@@ -12,13 +13,23 @@ use crate::{
     },
     scene::node::Node,
     resource::texture::Texture,
+    utils::raw_mesh::{
+        RawMesh,
+        RawMeshBuilder
+    }
 };
-use std::sync::{
-    Mutex,
-    Arc,
+use std::{
+    sync::{
+        Mutex,
+        Arc,
+    },
+    hash::{
+        Hash,
+        Hasher,
+    },
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct Vertex {
     pub position: Vec3,
@@ -29,50 +40,52 @@ pub struct Vertex {
     pub bone_indices: [u8; 4],
 }
 
+impl Vertex {
+    pub fn from_pos_uv(position: Vec3, tex_coord: Vec2) -> Self {
+        Self {
+            position,
+            tex_coord,
+            normal: Vec3::new(0.0, 1.0, 0.0),
+            tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+            bone_weights: [0.0, 0.0, 0.0, 0.0],
+            bone_indices: Default::default(),
+        }
+    }
+}
+
+// This is safe because Vertex is tightly packed struct with C representation
+// there is no padding bytes which may contain garbage data. This is strictly
+// required because vertices will be directly passed on GPU.
+impl Hash for Vertex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        #[allow(unsafe_code)]
+            unsafe {
+            let bytes = self as *const Self as *const u8;
+            state.write(std::slice::from_raw_parts(bytes, std::mem::size_of::<Self>()))
+        }
+    }
+}
+
 pub struct SurfaceSharedData {
     pub(in crate) vertices: Vec<Vertex>,
-    pub(in crate) indices: Vec<u32>,
+    pub(in crate) triangles: Vec<TriangleDefinition>,
 }
 
 impl Default for SurfaceSharedData {
     fn default() -> Self {
-        Self::new()
+        Self {
+            vertices: Default::default(),
+            triangles: Default::default(),
+        }
     }
 }
 
 impl SurfaceSharedData {
-    pub fn new() -> Self {
+    pub fn new(vertices: Vec<Vertex>, triangles: Vec<TriangleDefinition>) -> Self {
         Self {
-            vertices: Vec::new(),
-            indices: Vec::new(),
+            vertices,
+            triangles,
         }
-    }
-
-    #[inline]
-    pub fn add_vertex(&mut self, vertex: Vertex) {
-        self.vertices.push(vertex);
-    }
-
-    /// Inserts vertex or its index. Performs optimizing insertion with checking if such
-    /// vertex already exists.
-    /// Returns true if inserted vertex was unique.
-    #[inline]
-    pub fn insert_vertex(&mut self, vertex: Vertex) -> bool {
-        // Reverse search is much faster because it is most likely that we'll find identic
-        // vertex at the end of the array.
-        let mut is_unique = false;
-        self.indices.push(match self.vertices.iter().rposition(|v| {
-            v.position == vertex.position && v.normal == vertex.normal && v.tex_coord == vertex.tex_coord
-        }) {
-            Some(existing_index) => existing_index as u32, // Already have such vertex
-            None => { // No such vertex, add it
-                is_unique = true;
-                let index = self.vertices.len() as u32;
-                self.vertices.push(vertex);
-                index
-            }
-        });
-        is_unique
     }
 
     #[inline]
@@ -86,18 +99,18 @@ impl SurfaceSharedData {
     }
 
     #[inline]
-    pub fn get_indices(&self) -> &[u32] {
-        self.indices.as_slice()
+    pub fn triangles(&self) -> &[TriangleDefinition] {
+        self.triangles.as_slice()
     }
 
     pub fn calculate_tangents(&mut self) {
         let mut tan1 = vec![Vec3::ZERO; self.vertices.len()];
         let mut tan2 = vec![Vec3::ZERO; self.vertices.len()];
 
-        for i in (0..self.indices.len()).step_by(3) {
-            let i1 = self.indices[i] as usize;
-            let i2 = self.indices[i + 1] as usize;
-            let i3 = self.indices[i + 2] as usize;
+        for triangle in self.triangles.iter() {
+            let i1 = triangle.indices[0] as usize;
+            let i2 = triangle.indices[1] as usize;
+            let i3 = triangle.indices[2] as usize;
 
             let v1 = &self.vertices[i1].position;
             let v2 = &self.vertices[i2].position;
@@ -141,31 +154,18 @@ impl SurfaceSharedData {
             tan2[i3] += tdir;
         }
 
-        for i in 0..self.vertices.len() {
-            let n = &self.vertices[i].normal;
-            let t = tan1[i];
-
+        for (v, (t1, t2)) in self.vertices.iter_mut().zip(tan1.into_iter().zip(tan2)) {
             // Gram-Schmidt orthogonalize
-            let tangent = (t - n.scale(n.dot(&t))).normalized().unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
-
-            self.vertices[i].tangent = Vec4 {
-                x: tangent.x,
-                y: tangent.y,
-                z: tangent.z,
-                // Handedness
-                w: if n.cross(&t).dot(&tan2[i]) < 0.0 {
-                    -1.0
-                } else {
-                    1.0
-                },
-            };
+            let tangent = (t1 - v.normal.scale(v.normal.dot(&t1)))
+                .normalized()
+                .unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
+            let handedness = v.normal.cross(&t1).dot(&t2).signum();
+            v.tangent = Vec4::from_vec3(tangent, handedness);
         }
     }
 
     pub fn make_unit_xy_quad() -> Self {
-        let mut data = Self::new();
-
-        data.vertices = vec![
+        let vertices = vec![
             Vertex {
                 position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
@@ -200,18 +200,16 @@ impl SurfaceSharedData {
             }
         ];
 
-        data.indices = vec![
-            0, 1, 2,
-            0, 2, 3
+        let indices = vec![
+            TriangleDefinition { indices: [0, 1, 2] },
+            TriangleDefinition { indices: [0, 2, 3] }
         ];
 
-        data
+        Self::new(vertices, indices)
     }
 
     pub fn make_collapsed_xy_quad() -> Self {
-        let mut data = Self::new();
-
-        data.vertices = vec![
+        let vertices = vec![
             Vertex {
                 position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
                 normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
@@ -246,30 +244,19 @@ impl SurfaceSharedData {
             }
         ];
 
-        data.indices = vec![
-            0, 1, 2,
-            0, 2, 3
+        let indices = vec![
+            TriangleDefinition { indices: [0, 1, 2] },
+            TriangleDefinition { indices: [0, 2, 3] }
         ];
 
-        data
-    }
-
-    pub fn insert_vertex_pos_tex(&mut self, pos: &Vec3, tex: Vec2) {
-        self.insert_vertex(Vertex {
-            position: *pos,
-            tex_coord: tex,
-            normal: Vec3::new(0.0, 1.0, 0.0),
-            tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
-            bone_weights: [0.0, 0.0, 0.0, 0.0],
-            bone_indices: Default::default(),
-        });
+        Self::new(vertices, indices)
     }
 
     pub fn calculate_normals(&mut self) {
-        for m in (0..self.indices.len()).step_by(3) {
-            let ia = self.indices[m] as usize;
-            let ib = self.indices[m + 1] as usize;
-            let ic = self.indices[m + 2] as usize;
+        for triangle in self.triangles.iter() {
+            let ia = triangle.indices[0] as usize;
+            let ib = triangle.indices[1] as usize;
+            let ic = triangle.indices[2] as usize;
 
             let a = self.vertices[ia].position;
             let b = self.vertices[ib].position;
@@ -284,7 +271,7 @@ impl SurfaceSharedData {
     }
 
     pub fn make_sphere(slices: usize, stacks: usize, r: f32) -> Self {
-        let mut data = Self::new();
+        let mut builder = RawMeshBuilder::<Vertex>::new(stacks * slices, stacks * slices * 3);
 
         let d_theta = std::f32::consts::PI / slices as f32;
         let d_phi = 2.0 * std::f32::consts::PI / stacks as f32;
@@ -307,27 +294,27 @@ impl SurfaceSharedData {
                 let k7 = r * (d_theta * ni as f32).cos();
 
                 if i != (stacks - 1) {
-                    data.insert_vertex_pos_tex(&Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32));
-                    data.insert_vertex_pos_tex(&Vec3::new(k4 * k1, k4 * k2, k7), Vec2::new(d_tc_x * j as f32, d_tc_y * ni as f32));
-                    data.insert_vertex_pos_tex(&Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32));
+                    builder.insert(Vertex::from_pos_uv(Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32)));
+                    builder.insert(Vertex::from_pos_uv(Vec3::new(k4 * k1, k4 * k2, k7), Vec2::new(d_tc_x * j as f32, d_tc_y * ni as f32)));
+                    builder.insert(Vertex::from_pos_uv(Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32)));
                 }
 
                 if i != 0 {
-                    data.insert_vertex_pos_tex(&Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32));
-                    data.insert_vertex_pos_tex(&Vec3::new(k0 * k5, k0 * k6, k3), Vec2::new(d_tc_x * nj as f32, d_tc_y * i as f32));
-                    data.insert_vertex_pos_tex(&Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32));
+                    builder.insert(Vertex::from_pos_uv(Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32)));
+                    builder.insert(Vertex::from_pos_uv(Vec3::new(k0 * k5, k0 * k6, k3), Vec2::new(d_tc_x * nj as f32, d_tc_y * i as f32)));
+                    builder.insert(Vertex::from_pos_uv(Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32)));
                 }
             }
         }
 
+        let mut data = Self::from(builder.build());
         data.calculate_normals();
         data.calculate_tangents();
-
         data
     }
 
     pub fn make_cone(sides: usize, r: f32, h: f32) -> Self {
-        let mut data = Self::new();
+        let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
         let d_theta = 1.0 / sides as f32;
@@ -346,27 +333,25 @@ impl SurfaceSharedData {
             let tx1 = d_theta * (i + 1) as f32;
 
             // back cap
-            data.insert_vertex_pos_tex(&Vec3::new(0.0, 0.0, h), Vec2::new(0.0, 0.0));
-            data.insert_vertex_pos_tex(&Vec3::new(x0, y0, h), Vec2::new(tx0, 1.0));
-            data.insert_vertex_pos_tex(&Vec3::new(x1, y1, h), Vec2::new(tx1, 0.0));
+            builder.insert(Vertex::from_pos_uv(Vec3::new(0.0, 0.0, h), Vec2::new(0.0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(Vec3::new(x0, y0, h), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(Vec3::new(x1, y1, h), Vec2::new(tx1, 0.0)));
 
             // sides
-            data.insert_vertex_pos_tex(&Vec3::new(0.0, 0.0, 0.0), Vec2::new(tx1, 0.0));
-            data.insert_vertex_pos_tex(&Vec3::new(x1, y1, h), Vec2::new(tx0, 1.0));
-            data.insert_vertex_pos_tex(&Vec3::new(x0, y0, h), Vec2::new(tx0, 0.0));
+            builder.insert(Vertex::from_pos_uv(Vec3::new(0.0, 0.0, 0.0), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(Vec3::new(x1, y1, h), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(Vec3::new(x0, y0, h), Vec2::new(tx0, 0.0)));
         }
 
 
+        let mut data = Self::from(builder.build());
         data.calculate_normals();
         data.calculate_tangents();
-
         data
     }
 
     pub fn make_cube() -> Self {
-        let mut data = Self::new();
-
-        data.vertices = vec![
+        let vertices = vec![
             // Front
             Vertex {
                 position: Vec3 { x: -0.5, y: -0.5, z: 0.5 },
@@ -572,23 +557,23 @@ impl SurfaceSharedData {
             },
         ];
 
-        data.indices = vec![
-            2, 1, 0,
-            3, 2, 0,
-            4, 5, 6,
-            4, 6, 7,
-            10, 9, 8,
-            11, 10, 8,
-            12, 13, 14,
-            12, 14, 15,
-            18, 17, 16,
-            19, 18, 16,
-            20, 21, 22,
-            20, 22, 23
+        let indices = vec![
+            TriangleDefinition { indices: [2, 1, 0] },
+            TriangleDefinition { indices: [3, 2, 0] },
+            TriangleDefinition { indices: [4, 5, 6] },
+            TriangleDefinition { indices: [4, 6, 7] },
+            TriangleDefinition { indices: [10, 9, 8] },
+            TriangleDefinition { indices: [11, 10, 8] },
+            TriangleDefinition { indices: [12, 13, 14] },
+            TriangleDefinition { indices: [12, 14, 15] },
+            TriangleDefinition { indices: [18, 17, 16] },
+            TriangleDefinition { indices: [19, 18, 16] },
+            TriangleDefinition { indices: [20, 21, 22] },
+            TriangleDefinition { indices: [20, 22, 23] },
         ];
 
+        let mut data = Self::new(vertices, indices);
         data.calculate_tangents();
-
         data
     }
 }
@@ -654,6 +639,16 @@ impl VertexWeightSet {
 
     pub fn iter_mut(&mut self) -> std::slice::IterMut<VertexWeight> {
         self.weights[0..self.count].iter_mut()
+    }
+
+    pub fn normalize(&mut self) {
+        let len = self.iter().fold(0.0, |qs, w| qs + w.value * w.value).sqrt();
+        if len >= std::f32::EPSILON {
+            let k = 1.0 / len;
+            for w in self.iter_mut() {
+                w.value *= k;
+            }
+        }
     }
 }
 
@@ -724,5 +719,14 @@ impl Surface {
     #[inline]
     pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.normal_texture = Some(tex);
+    }
+}
+
+impl From<RawMesh<Vertex>> for SurfaceSharedData {
+    fn from(raw: RawMesh<Vertex>) -> Self {
+        Self {
+            vertices: raw.vertices,
+            triangles: raw.triangles,
+        }
     }
 }

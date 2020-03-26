@@ -268,11 +268,6 @@ impl GeometryCache {
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
-            let mut triangles = Vec::with_capacity(data.indices.len() / 3);
-            for i in (0..data.indices.len()).step_by(3) {
-                triangles.push(TriangleDefinition { indices: [data.indices[i], data.indices[i + 1], data.indices[i + 2]] });
-            }
-
             let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
 
             geometry_buffer.bind()
@@ -285,7 +280,7 @@ impl GeometryCache {
                     AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false }])
                 .unwrap()
                 .set_vertices(data.vertices.as_slice())
-                .set_triangles(&triangles);
+                .set_triangles(data.triangles());
 
             TimedEntry { value: geometry_buffer, time_to_live: 20.0 }
         });

@@ -17,8 +17,10 @@ use crate::{
         string_to_mapping,
         error::FbxError,
     },
-    renderer::surface::{VertexWeightSet, VertexWeight},
-    utils::log::Log
+    renderer::surface::{
+        VertexWeightSet,
+        VertexWeight
+    },
 };
 
 pub struct FbxGeometry {
@@ -174,8 +176,8 @@ impl FbxGeometry {
                         value: *weight,
                         effector: sub_deformer.model.into(),
                     }) {
-                        // TODO: Maybe gather all weights, but then re-normalize them to 4-bones?
-                        Log::writeln("FBX: More than 4 bones per vertex?! Excess will be discarded".to_owned());
+                        // Re-normalize weights if there are more than 4 bones per vertex.
+                        bone_set.normalize();
                     }
                 }
             }
