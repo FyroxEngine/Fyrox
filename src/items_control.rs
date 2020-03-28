@@ -107,19 +107,16 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
             if let UINode::ItemsControl(_) = node { true } else { false }
         });
 
-        match &message.data {
-            UiMessageData::Widget(msg) => {
-                if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
-                    if let WidgetMessage::MouseUp { .. } = msg {
-                        // Explicitly set selection on parent items control. This will send
-                        // SelectionChanged message and all items will react.
-                        if let UINode::ItemsControl(items_control) = ui.node_mut(items_control) {
-                            items_control.set_selected(Some(self.index));
-                        }
+        if let UiMessageData::Widget(msg) = &message.data {
+            if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
+                if let WidgetMessage::MouseUp { .. } = msg {
+                    // Explicitly set selection on parent items control. This will send
+                    // SelectionChanged message and all items will react.
+                    if let UINode::ItemsControl(items_control) = ui.node_mut(items_control) {
+                        items_control.set_selected(Some(self.index));
                     }
                 }
             }
-            _ => ()
         }
     }
 }

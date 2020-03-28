@@ -40,6 +40,7 @@ use crate::{
     progress_bar::ProgressBar
 };
 
+#[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Border(Border<M, C>),
     Button(Button<M, C>),
