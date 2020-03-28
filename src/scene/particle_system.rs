@@ -923,12 +923,8 @@ impl ParticleSystem {
 
             let base_index = (i * 4) as u32;
 
-            draw_data.triangles.push(TriangleDefinition {
-                indices: [base_index, base_index + 1, base_index + 2]
-            });
-            draw_data.triangles.push(TriangleDefinition {
-                indices: [base_index, base_index + 2, base_index + 3]
-            });
+            draw_data.triangles.push(TriangleDefinition([base_index, base_index + 1, base_index + 2]));
+            draw_data.triangles.push(TriangleDefinition([base_index, base_index + 2, base_index + 3]));
         }
     }
 

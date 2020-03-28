@@ -4,15 +4,19 @@ use std::{
         Read,
         SeekFrom,
     },
-    collections::HashMap,
 };
 use byteorder::ReadBytesExt;
 use crate::{
-    resource::fbx::{
-        FbxNode,
-        Fbx,
-        attribute::FbxAttribute,
-        error::FbxError,
+    resource::{
+        fbx::{
+            error::FbxError,
+            document::{
+                FbxDocument,
+                FbxNode,
+                FbxNodeContainer,
+                attribute::FbxAttribute
+            }
+        }
     },
     core::pool::{
         Pool,
@@ -20,20 +24,23 @@ use crate::{
     },
 };
 
-pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
+pub fn read_ascii<R>(reader: &mut R) -> Result<FbxDocument, FbxError>
     where R: Read + Seek {
     let mut nodes: Pool<FbxNode> = Pool::new();
     let root_handle = nodes.spawn(FbxNode {
         name: String::from("__ROOT__"),
         children: Vec::new(),
         parent: Handle::NONE,
-        attribs: Vec::new(),
+        attributes: Vec::new(),
     });
     let mut parent_handle: Handle<FbxNode> = root_handle;
     let mut node_handle: Handle<FbxNode> = Handle::NONE;
     let mut buffer: Vec<u8> = Vec::new();
     let mut name: Vec<u8> = Vec::new();
     let mut value: Vec<u8> = Vec::new();
+
+    let buf_len = reader.seek(SeekFrom::End(0))?;
+    reader.seek(SeekFrom::Start(0))?;
 
     // Read line by line
     while reader.seek(SeekFrom::Current(0))? < buf_len {
@@ -70,7 +77,7 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
                 let name_copy = String::from_utf8(name.clone())?;
                 let node = FbxNode {
                     name: name_copy,
-                    attribs: Vec::new(),
+                    attributes: Vec::new(),
                     parent: parent_handle,
                     children: Vec::new(),
                 };
@@ -86,7 +93,7 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
                     let node = nodes.borrow_mut(node_handle);
                     let string_value = String::from_utf8(value.clone())?;
                     let attrib = FbxAttribute::String(string_value);
-                    node.attribs.push(attrib);
+                    node.attributes.push(attrib);
                     value.clear();
                 }
             } else if symbol == b'}' {
@@ -101,7 +108,7 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
                 let node = nodes.borrow_mut(node_handle);
                 let string_value = String::from_utf8(value.clone())?;
                 let attrib = FbxAttribute::String(string_value);
-                node.attribs.push(attrib);
+                node.attributes.push(attrib);
                 value.clear();
             } else if !read_value {
                 name.push(symbol);
@@ -111,11 +118,8 @@ pub fn read_ascii<R>(reader: &mut R, buf_len: u64) -> Result<Fbx, FbxError>
         }
     }
 
-    Ok(Fbx {
-        nodes,
-        root: root_handle,
-        component_pool: Pool::new(),
-        components: Vec::new(),
-        index_to_component: HashMap::new(),
+    Ok(FbxDocument {
+        nodes: FbxNodeContainer { nodes },
+        root: root_handle
     })
 }

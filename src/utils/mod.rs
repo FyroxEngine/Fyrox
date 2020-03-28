@@ -37,9 +37,9 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
 
         let vertices = shared_data.get_vertices();
         for triangle in shared_data.triangles() {
-            let a = global_transform.transform_vector(vertices[triangle.indices[0] as usize].position);
-            let b = global_transform.transform_vector(vertices[triangle.indices[1] as usize].position);
-            let c = global_transform.transform_vector(vertices[triangle.indices[2] as usize].position);
+            let a = global_transform.transform_vector(vertices[triangle[0] as usize].position);
+            let b = global_transform.transform_vector(vertices[triangle[1] as usize].position);
+            let c = global_transform.transform_vector(vertices[triangle[2] as usize].position);
 
             // Silently ignore degenerated triangles.
             if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
@@ -60,9 +60,9 @@ pub fn mesh_to_navmesh(mesh: &Mesh) -> Navmesh {
 
         let vertices = shared_data.get_vertices();
         for triangle in shared_data.triangles() {
-            builder.insert(global_transform.transform_vector(vertices[triangle.indices[0] as usize].position));
-            builder.insert(global_transform.transform_vector(vertices[triangle.indices[1] as usize].position));
-            builder.insert(global_transform.transform_vector(vertices[triangle.indices[2] as usize].position));
+            builder.insert(global_transform.transform_vector(vertices[triangle[0] as usize].position));
+            builder.insert(global_transform.transform_vector(vertices[triangle[1] as usize].position));
+            builder.insert(global_transform.transform_vector(vertices[triangle[2] as usize].position));
         }
     }
 

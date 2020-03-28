@@ -296,7 +296,7 @@ impl State {
     }
 
     pub fn set_clear_depth(&mut self, depth: f32) {
-        if self.clear_depth != depth {
+        if (self.clear_depth - depth).abs() > std::f32::EPSILON {
             self.clear_depth = depth;
 
             unsafe {

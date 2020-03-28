@@ -568,7 +568,7 @@ impl Transition {
     }
 
     pub fn is_done(&self) -> bool {
-        self.transition_time == self.elapsed_time
+        (self.transition_time - self.elapsed_time).abs() <= std::f32::EPSILON
     }
 }
 

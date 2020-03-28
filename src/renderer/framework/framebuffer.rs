@@ -189,6 +189,17 @@ fn pre_draw(fbo: GLuint,
     }
 }
 
+pub struct DrawPartContext<'a, 'b, 'c, 'd, T> {
+    pub state: &'a mut State,
+    pub viewport: Rect<i32>,
+    pub geometry: &'a mut GeometryBuffer<T>,
+    pub program: &'b mut GpuProgram,
+    pub params: DrawParameters,
+    pub uniforms: &'c [(UniformLocation, UniformValue<'d>)],
+    pub offset: usize,
+    pub count: usize
+}
+
 pub trait FrameBufferTrait {
     fn id(&self) -> u32;
 
@@ -231,18 +242,18 @@ pub trait FrameBufferTrait {
         geometry.bind().draw()
     }
 
-    fn draw_part<T>(&mut self,
-                    state: &mut State,
-                    viewport: Rect<i32>,
-                    geometry: &mut GeometryBuffer<T>,
-                    program: &mut GpuProgram,
-                    params: DrawParameters,
-                    uniforms: &[(UniformLocation, UniformValue<'_>)],
-                    offset: usize,
-                    count: usize,
-    ) -> Result<usize, RendererError> {
-        pre_draw(self.id(), state, viewport, program, params, uniforms);
-        geometry.bind().draw_part(offset, count)
+    fn draw_part<T>(&mut self, args: DrawPartContext<T>) -> Result<usize, RendererError> {
+        pre_draw(
+            self.id(),
+            args.state,
+            args.viewport,
+            args.program,
+            args.params,
+            args.uniforms
+        );
+        args.geometry
+            .bind()
+            .draw_part(args.offset, args.count)
     }
 }
 

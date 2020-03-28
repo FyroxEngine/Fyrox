@@ -63,6 +63,7 @@ use crate::{
         color::Color,
     },
 };
+use crate::renderer::framework::framebuffer::DrawPartContext;
 
 struct UiShader {
     program: GpuProgram,
@@ -110,6 +111,17 @@ pub struct UiRenderer {
     geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
 }
 
+pub struct UiRenderContext<'a, 'b, 'c> {
+    pub state: &'a mut State,
+    pub viewport: Rect<i32>,
+    pub backbuffer: &'b mut BackBuffer,
+    pub frame_width: f32,
+    pub frame_height: f32,
+    pub drawing_context: &'c DrawingContext,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub texture_cache: &'a mut TextureCache
+}
+
 impl UiRenderer {
     pub(in crate::renderer) fn new() -> Result<Self, RendererError> {
         let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
@@ -126,18 +138,12 @@ impl UiRenderer {
         })
     }
 
-    pub(in crate::renderer) fn render(&mut self,
-                                      state: &mut State,
-                                      viewport: Rect<i32>,
-                                      backbuffer: &mut BackBuffer,
-                                      frame_width: f32,
-                                      frame_height: f32,
-                                      drawing_context: &DrawingContext,
-                                      white_dummy: Rc<RefCell<GpuTexture>>,
-                                      texture_cache: &mut TextureCache,
-    ) -> Result<RenderPassStatistics, RendererError> {
-        let mut statistics = RenderPassStatistics::default();
+    pub(in crate::renderer) fn render(&mut self, args: UiRenderContext) -> Result<RenderPassStatistics, RendererError> {
+        let UiRenderContext{ state, viewport, backbuffer,
+            frame_width, frame_height, drawing_context, white_dummy
+            , texture_cache } = args;
 
+        let mut statistics = RenderPassStatistics::default();
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
@@ -282,14 +288,16 @@ impl UiRenderer {
 
             statistics.add_draw_call(
                 backbuffer.draw_part(
-                    state,
-                    viewport,
-                    &mut self.geometry_buffer,
-                    &mut self.shader.program,
-                    params,
-                    &uniforms,
-                    cmd.get_start_triangle(),
-                    cmd.get_triangle_count(),
+                    DrawPartContext {
+                        state,
+                        viewport,
+                        geometry: &mut self.geometry_buffer,
+                        program: &mut self.shader.program,
+                        params,
+                        uniforms: &uniforms,
+                        offset: cmd.get_start_triangle(),
+                        count: cmd.get_triangle_count(),
+                    }
                 )?
             );
         }

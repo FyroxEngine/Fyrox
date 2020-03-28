@@ -64,9 +64,9 @@ impl Navmesh {
         // Build triangles for octree.
         let raw_triangles = triangles.iter().map(|t| {
             [
-                vertices[t.indices[0] as usize],
-                vertices[t.indices[1] as usize],
-                vertices[t.indices[2] as usize]
+                vertices[t[0] as usize],
+                vertices[t[1] as usize],
+                vertices[t[2] as usize]
             ]
         }).collect::<Vec<[Vec3; 3]>>();
 
@@ -76,9 +76,9 @@ impl Navmesh {
 
         let mut edges = HashSet::new();
         for triangle in triangles {
-            edges.insert(Edge { a: triangle.indices[0], b: triangle.indices[1] });
-            edges.insert(Edge { a: triangle.indices[1], b: triangle.indices[2] });
-            edges.insert(Edge { a: triangle.indices[2], b: triangle.indices[0] });
+            edges.insert(Edge { a: triangle[0], b: triangle[1] });
+            edges.insert(Edge { a: triangle[1], b: triangle[2] });
+            edges.insert(Edge { a: triangle[2], b: triangle[0] });
         }
 
         for edge in edges {
@@ -86,7 +86,7 @@ impl Navmesh {
         }
 
         Self {
-            triangles: triangles.iter().cloned().collect(),
+            triangles: triangles.to_vec(),
             octree: Octree::new(&raw_triangles, 32),
             pathfinder,
             query_buffer: Default::default(),

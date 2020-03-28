@@ -1,15 +1,3 @@
-use crate::{
-    resource::fbx::{
-        FbxNode,
-        Fbx,
-        attribute::FbxAttribute,
-        error::FbxError,
-    },
-    core::pool::{
-        Handle,
-        Pool,
-    },
-};
 use std::{
     io::{
         Read,
@@ -17,15 +5,28 @@ use std::{
         Seek,
         SeekFrom,
     },
-    path::Path,
-    fs::File,
 };
 use byteorder::{
     LittleEndian,
     ReadBytesExt,
 };
+use crate::{
+    resource::fbx::{
+        document::{
+            FbxNodeContainer,
+            FbxDocument,
+            FbxNode,
+            attribute::FbxAttribute,
+        },
+        error::FbxError,
+    },
+    core::pool::{
+        Handle,
+        Pool,
+    },
+};
 
-fn read_attrib<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>
+fn read_attribute<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>
     where R: Read {
     match type_code {
         b'f' | b'F' => Ok(FbxAttribute::Float(file.read_f32::<LittleEndian>()?)),
@@ -47,7 +48,7 @@ fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxEr
 
     if encoding == 0 {
         for _ in 0..length {
-            array.push(read_attrib(type_code, file)?);
+            array.push(read_attribute(type_code, file)?);
         }
     } else {
         let mut compressed = Vec::with_capacity(compressed_length);
@@ -56,7 +57,7 @@ fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxEr
         let decompressed = inflate::inflate_bytes_zlib(&compressed)?;
         let mut cursor = Cursor::new(decompressed);
         for _ in 0..length {
-            array.push(read_attrib(type_code, &mut cursor)?);
+            array.push(read_attribute(type_code, &mut cursor)?);
         }
     }
 
@@ -109,18 +110,18 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
         match type_code {
             b'C' | b'Y' | b'I' | b'F' | b'D' | b'L' => {
                 let node = pool.borrow_mut(node_handle);
-                node.attribs.push(read_attrib(type_code, file)?);
+                node.attributes.push(read_attribute(type_code, file)?);
             }
             b'f' | b'd' | b'l' | b'i' | b'b' => {
                 let mut a = FbxNode::default();
                 a.name = String::from("a");
-                a.attribs = read_array(type_code, file)?;
+                a.attributes = read_array(type_code, file)?;
                 a.parent = node_handle;
                 let a_handle = pool.spawn(a);
                 let node = pool.borrow_mut(node_handle);
                 node.children.push(a_handle);
             }
-            b'S' => pool.borrow_mut(node_handle).attribs.push(read_string(file)?),
+            b'S' => pool.borrow_mut(node_handle).attributes.push(read_string(file)?),
             b'R' => {
                 // Ignore Raw data
                 let length = i64::from(file.read_u32::<LittleEndian>()?);
@@ -152,15 +153,7 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
     Ok(node_handle)
 }
 
-pub fn is_binary<P: AsRef<Path>>(path: P) -> Result<bool, FbxError> {
-    let mut file = File::open(path)?;
-    let mut magic = [0; 18];
-    file.read_exact(&mut magic)?;
-    let fbx_magic = b"Kaydara FBX Binary";
-    Ok(magic == *fbx_magic)
-}
-
-pub fn read_binary<R>(file: &mut R) -> Result<Fbx, FbxError>
+pub fn read_binary<R>(file: &mut R) -> Result<FbxDocument, FbxError>
     where R: Read + Seek {
     let total_length = file.seek(SeekFrom::End(0))?;
     file.seek(SeekFrom::Start(0))?;
@@ -191,11 +184,8 @@ pub fn read_binary<R>(file: &mut R) -> Result<Fbx, FbxError>
         nodes.borrow_mut(root_handle).children.push(root_child);
     }
 
-    Ok(Fbx {
-        nodes,
+    Ok(FbxDocument {
+        nodes: FbxNodeContainer { nodes },
         root: root_handle,
-        index_to_component: Default::default(),
-        component_pool: Pool::new(),
-        components: Vec::new(),
     })
 }

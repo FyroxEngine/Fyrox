@@ -1,11 +1,12 @@
 use std::fmt::Formatter;
 
+#[derive(Debug)]
 pub enum FbxError {
     Io(std::io::Error),
     UnknownAttributeType(u8),
     InvalidNullRecord,
     InvalidString,
-    Custom(String),
+    Custom(Box<String>),
     UnsupportedVersion(i32),
     InvalidPoolHandle,
     UnexpectedType,
@@ -13,6 +14,8 @@ pub enum FbxError {
     IndexOutOfBounds,
     UnableToFindBone,
     UnableToRemapModelToNode,
+    InvalidMapping,
+    InvalidReference,
 }
 
 impl std::fmt::Display for FbxError {
@@ -30,6 +33,8 @@ impl std::fmt::Display for FbxError {
             FbxError::IndexOutOfBounds => write!(f, "Index out of bounds."),
             FbxError::UnableToFindBone => write!(f, "Unable to find bone."),
             FbxError::UnableToRemapModelToNode => write!(f, "Unable to remap model to node."),
+            FbxError::InvalidMapping => write!(f, "Unknown mapping"),
+            FbxError::InvalidReference => write!(f, "Unknown reference"),
         }
     }
 }
@@ -42,7 +47,7 @@ impl From<std::io::Error> for FbxError {
 
 impl From<String> for FbxError {
     fn from(err: String) -> Self {
-        FbxError::Custom(err)
+        FbxError::Custom(Box::new(err))
     }
 }
 

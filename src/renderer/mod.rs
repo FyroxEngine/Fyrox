@@ -34,10 +34,19 @@ use std::{
 use crate::{
     resource::texture::Texture,
     renderer::{
-        ui_renderer::UiRenderer,
+        ui_renderer::{
+            UiRenderer,
+            UiRenderContext
+        },
         surface::SurfaceSharedData,
-        particle_system_renderer::ParticleSystemRenderer,
-        gbuffer::GBuffer,
+        particle_system_renderer::{
+            ParticleSystemRenderer,
+            ParticleSystemRenderContext
+        },
+        gbuffer::{
+            GBuffer,
+            GBufferRenderContext
+        },
         deferred_light_renderer::{
             DeferredLightRenderer,
             DeferredRendererContext,
@@ -66,10 +75,13 @@ use crate::{
             },
             gpu_program::UniformValue,
             state::State,
-            gl
+            gl,
         },
         flat_shader::FlatShader,
-        sprite_renderer::SpriteRenderer,
+        sprite_renderer::{
+            SpriteRenderer,
+            SpriteRenderContext
+        },
         debug_renderer::DebugRenderer,
     },
     scene::{
@@ -169,7 +181,7 @@ pub struct QualitySettings {
     pub use_ssao: bool,
     /// Radius of sampling hemisphere used in SSAO, it defines much ambient
     /// occlusion will be in your scene.
-    pub ssao_radius: f32
+    pub ssao_radius: f32,
 }
 
 impl Default for QualitySettings {
@@ -186,7 +198,7 @@ impl Default for QualitySettings {
             spot_soft_shadows: true,
 
             use_ssao: true,
-            ssao_radius: 0.5
+            ssao_radius: 0.5,
         }
     }
 }
@@ -470,13 +482,15 @@ impl Renderer {
                     .or_insert_with(|| GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap());
 
                 self.statistics += gbuffer.fill(
-                    state,
-                    graph,
-                    camera,
-                    self.white_dummy.clone(),
-                    self.normal_dummy.clone(),
-                    &mut self.texture_cache,
-                    &mut self.geometry_cache,
+                    GBufferRenderContext {
+                        state,
+                        graph,
+                        camera,
+                        white_dummy: self.white_dummy.clone(),
+                        normal_dummy: self.normal_dummy.clone(),
+                        texture_cache: &mut self.texture_cache,
+                        geom_cache: &mut self.geometry_cache,
+                    }
                 );
 
                 self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
@@ -494,27 +508,31 @@ impl Renderer {
                 let depth = gbuffer.depth();
 
                 self.statistics += self.particle_system_renderer.render(
-                    state,
-                    &mut gbuffer.opt_framebuffer,
-                    graph,
-                    camera,
-                    self.white_dummy.clone(),
-                    depth,
-                    frame_width,
-                    frame_height,
-                    viewport,
-                    &mut self.texture_cache,
+                    ParticleSystemRenderContext {
+                        state,
+                        framebuffer: &mut gbuffer.opt_framebuffer,
+                        graph,
+                        camera,
+                        white_dummy: self.white_dummy.clone(),
+                        depth,
+                        frame_width,
+                        frame_height,
+                        viewport,
+                        texture_cache: &mut self.texture_cache,
+                    }
                 );
 
                 self.statistics += self.sprite_renderer.render(
-                    state,
-                    &mut gbuffer.opt_framebuffer,
-                    graph,
-                    camera,
-                    self.white_dummy.clone(),
-                    viewport,
-                    &mut self.texture_cache,
-                    &mut self.geometry_cache,
+                    SpriteRenderContext {
+                        state,
+                        framebuffer: &mut gbuffer.opt_framebuffer,
+                        graph,
+                        camera,
+                        white_dummy: self.white_dummy.clone(),
+                        viewport,
+                        textures: &mut self.texture_cache,
+                        geom_map: &mut self.geometry_cache,
+                    }
                 );
 
                 self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.opt_framebuffer, camera);
@@ -551,14 +569,16 @@ impl Renderer {
 
         // Render UI on top of everything.
         self.statistics += self.ui_renderer.render(
-            &mut self.state,
-            window_viewport,
-            &mut self.backbuffer,
-            frame_width,
-            frame_height,
-            drawing_context,
-            self.white_dummy.clone(),
-            &mut self.texture_cache,
+            UiRenderContext {
+                state: &mut self.state,
+                viewport: window_viewport,
+                backbuffer: &mut self.backbuffer,
+                frame_width,
+                frame_height,
+                drawing_context,
+                white_dummy: self.white_dummy.clone(),
+                texture_cache: &mut self.texture_cache,
+            }
         )?;
 
         self.statistics.end_frame();

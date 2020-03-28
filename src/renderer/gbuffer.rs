@@ -8,7 +8,7 @@ use crate::{
             gpu_program::{
                 GpuProgram,
                 UniformLocation,
-                UniformValue
+                UniformValue,
             },
             framebuffer::{
                 FrameBuffer,
@@ -23,7 +23,7 @@ use crate::{
                 PixelKind,
                 GpuTexture,
                 Coordinate,
-                WrapMode
+                WrapMode,
             },
             state::State,
         },
@@ -82,6 +82,16 @@ pub struct GBuffer {
     bone_matrices: Vec<Mat4>,
     pub width: i32,
     pub height: i32,
+}
+
+pub struct GBufferRenderContext<'a, 'b> {
+    pub state: &'a mut State,
+    pub graph: &'b Graph,
+    pub camera: &'b Camera,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub texture_cache: &'a mut TextureCache,
+    pub geom_cache: &'a mut GeometryCache,
 }
 
 impl GBuffer {
@@ -162,16 +172,14 @@ impl GBuffer {
     }
 
     #[must_use]
-    pub fn fill(&mut self,
-                state: &mut State,
-                graph: &Graph,
-                camera: &Camera,
-                white_dummy: Rc<RefCell<GpuTexture>>,
-                normal_dummy: Rc<RefCell<GpuTexture>>,
-                texture_cache: &mut TextureCache,
-                geom_cache: &mut GeometryCache,
-    ) -> RenderPassStatistics {
+    pub fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        let GBufferRenderContext {
+            state, graph, camera,
+            white_dummy, normal_dummy,
+            texture_cache, geom_cache
+        } = args;
 
         let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 

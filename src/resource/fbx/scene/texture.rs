@@ -1,15 +1,12 @@
 use std::path::PathBuf;
 use crate::{
     resource::fbx::{
-        FbxNode,
-        find_and_borrow_node,
-    },
-    core::{
-        pool::{
-            Handle,
-            Pool,
+        document::{
+            FbxNode,
+            FbxNodeContainer
         }
-    }
+    },
+    core::pool::Handle,
 };
 
 pub struct FbxTexture {
@@ -17,11 +14,11 @@ pub struct FbxTexture {
 }
 
 impl FbxTexture {
-    pub(in crate::resource::fbx) fn read(texture_node_hanle: Handle<FbxNode>, nodes: &Pool<FbxNode>) -> Result<Self, String> {
+    pub(in crate::resource::fbx) fn read(texture_node_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
         let mut texture = FbxTexture {
             filename: PathBuf::new()
         };
-        if let Ok(relative_file_name_node) = find_and_borrow_node(nodes, texture_node_hanle, "RelativeFilename") {
+        if let Ok(relative_file_name_node) = nodes.get_by_name(texture_node_handle, "RelativeFilename") {
             // Since most of FBX files were made on Windows in 3ds MAX or Maya, it contains
             // paths with double back slashes, we must fix this so this path can be used
             // on linux.

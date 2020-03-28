@@ -23,12 +23,13 @@ use crate::{
                 State,
                 ColorMask,
                 StencilFunc,
-                StencilOp
-            }
+                StencilOp,
+            },
         },
         gbuffer::GBuffer,
         error::RendererError,
         shadow_map_renderer::{
+            PointShadowMapRenderContext,
             SpotShadowMapRenderer,
             PointShadowMapRenderer,
         },
@@ -36,7 +37,7 @@ use crate::{
         RenderPassStatistics,
         GeometryCache,
         TextureCache,
-        ssao::ScreenSpaceAmbientOcclusionRenderer
+        ssao::ScreenSpaceAmbientOcclusionRenderer,
     },
     scene::{
         camera::Camera,
@@ -61,7 +62,7 @@ struct AmbientLightShader {
     wvp_matrix: UniformLocation,
     diffuse_texture: UniformLocation,
     ambient_color: UniformLocation,
-    ao_sampler: UniformLocation
+    ao_sampler: UniformLocation,
 }
 
 impl AmbientLightShader {
@@ -179,44 +180,50 @@ impl DeferredLightRenderer {
         Ok(())
     }
 
-    pub fn set_frame_size(&mut self, state: &mut State, frame_size: (u32, u32)) -> Result<(), RendererError>{
+    pub fn set_frame_size(&mut self, state: &mut State, frame_size: (u32, u32)) -> Result<(), RendererError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(state, frame_size.0 as usize, frame_size.1 as usize)?;
         Ok(())
     }
 
     #[must_use]
-    pub fn render(&mut self, context: DeferredRendererContext) -> RenderPassStatistics {
+    pub fn render(&mut self, args: DeferredRendererContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
 
-        let viewport = Rect::new(0, 0, context.gbuffer.width, context.gbuffer.height);
-        let frustum = Frustum::from(context.camera.view_projection_matrix()).unwrap();
+        let DeferredRendererContext {
+            state, scene, camera,
+            gbuffer, white_dummy, ambient_color,
+            settings, textures, geometry_cache
+        } = args;
+
+        let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
+        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 
         let frame_matrix =
             Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
 
-        let projection_matrix = context.camera.projection_matrix();
-        let view_projection = context.camera.view_projection_matrix();
+        let projection_matrix = camera.projection_matrix();
+        let view_projection = camera.view_projection_matrix();
         let inv_view_projection = view_projection.inverse().unwrap_or_default();
 
         // Fill SSAO map.
-        if context.settings.use_ssao {
+        if settings.use_ssao {
             statistics += self.ssao_renderer.render(
-                context.state,
-                context.gbuffer,
-                context.geometry_cache,
+                state,
+                gbuffer,
+                geometry_cache,
                 projection_matrix,
-                context.camera.view_matrix().basis()
+                camera.view_matrix().basis(),
             );
         }
 
-        context.gbuffer.opt_framebuffer.clear(context.state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), None, Some(0));
+        gbuffer.opt_framebuffer.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), None, Some(0));
 
         // Ambient light.
-        context.gbuffer.opt_framebuffer.draw(
-            context.state,
+        gbuffer.opt_framebuffer.draw(
+            state,
             viewport,
-            context.geometry_cache.get(&self.quad),
+            geometry_cache.get(&self.quad),
             &mut self.ambient_light_shader.program,
             DrawParameters {
                 cull_face: CullFace::Back,
@@ -229,26 +236,26 @@ impl DeferredLightRenderer {
             },
             &[
                 (self.ambient_light_shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
-                (self.ambient_light_shader.ambient_color, UniformValue::Color(context.ambient_color)),
+                (self.ambient_light_shader.ambient_color, UniformValue::Color(ambient_color)),
                 (self.ambient_light_shader.diffuse_texture, UniformValue::Sampler {
                     index: 0,
-                    texture: context.gbuffer.diffuse_texture(),
+                    texture: gbuffer.diffuse_texture(),
                 }),
                 (self.ambient_light_shader.ao_sampler, UniformValue::Sampler {
                     index: 1,
-                    texture: if context.settings.use_ssao {
+                    texture: if settings.use_ssao {
                         self.ssao_renderer.ao_map()
                     } else {
-                        context.white_dummy.clone()
-                    }
+                        white_dummy.clone()
+                    },
                 })
             ],
         );
 
-        context.state.set_blend(true);
-        context.state.set_blend_func(gl::ONE, gl::ONE);
+        state.set_blend(true);
+        state.set_blend_func(gl::ONE, gl::ONE);
 
-        for light in context.scene.graph.linear_iter().filter_map(|node| {
+        for light in scene.graph.linear_iter().filter_map(|node| {
             if let Node::Light(light) = node { Some(light) } else { None }
         }) {
             if !light.base().global_visibility() {
@@ -271,11 +278,11 @@ impl DeferredLightRenderer {
                 continue;
             }
 
-            let distance_to_camera = (light.base().global_position() - context.camera.base().global_position()).len();
+            let distance_to_camera = (light.base().global_position() - camera.base().global_position()).len();
 
             let mut light_view_projection = Mat4::IDENTITY;
-            let apply_shadows = match light.get_kind() {
-                LightKind::Spot(spot) if distance_to_camera <= context.settings.spot_shadows_distance && context.settings.spot_shadows_enabled => {
+            let apply_shadows = light.is_cast_shadows() && match light.get_kind() {
+                LightKind::Spot(spot) if distance_to_camera <= settings.spot_shadows_distance && settings.spot_shadows_enabled => {
                     let light_projection_matrix = Mat4::perspective(
                         spot.full_cone_angle(),
                         1.0,
@@ -293,25 +300,27 @@ impl DeferredLightRenderer {
                     light_view_projection = light_projection_matrix * light_view_matrix;
 
                     statistics += self.spot_shadow_map_renderer.render(
-                        context.state,
-                        &context.scene.graph,
+                        state,
+                        &scene.graph,
                         &light_view_projection,
-                        context.white_dummy.clone(),
-                        context.textures,
-                        context.geometry_cache,
+                        white_dummy.clone(),
+                        textures,
+                        geometry_cache,
                     );
 
                     true
                 }
-                LightKind::Point(_) if distance_to_camera <= context.settings.point_shadows_distance && context.settings.point_shadows_enabled => {
+                LightKind::Point(_) if distance_to_camera <= settings.point_shadows_distance && settings.point_shadows_enabled => {
                     statistics += self.point_shadow_map_renderer.render(
-                        context.state,
-                        &context.scene.graph,
-                        context.white_dummy.clone(),
-                        light_position,
-                        light_radius,
-                        context.textures,
-                        context.geometry_cache,
+                        PointShadowMapRenderContext {
+                            state,
+                            graph: &scene.graph,
+                            white_dummy: white_dummy.clone(),
+                            light_pos: light_position,
+                            light_radius,
+                            texture_cache: textures,
+                            geom_cache: geometry_cache,
+                        }
                     );
 
                     true
@@ -320,14 +329,14 @@ impl DeferredLightRenderer {
             };
 
             // Mark lighted areas in stencil buffer to do light calculations only on them.
-            context.state.set_stencil_mask(0xFFFF_FFFF);
-            context.state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
-            context.state.set_stencil_op(StencilOp { zfail: gl::INCR, ..Default::default() });
+            state.set_stencil_mask(0xFFFF_FFFF);
+            state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
+            state.set_stencil_op(StencilOp { zfail: gl::INCR, ..Default::default() });
 
-            statistics.add_draw_call(context.gbuffer.opt_framebuffer.draw(
-                context.state,
+            statistics.add_draw_call(gbuffer.opt_framebuffer.draw(
+                state,
                 viewport,
-                context.geometry_cache.get(&self.sphere),
+                geometry_cache.get(&self.sphere),
                 &mut self.flat_shader.program,
                 DrawParameters {
                     cull_face: CullFace::Front,
@@ -345,13 +354,13 @@ impl DeferredLightRenderer {
                 ],
             ));
 
-            context.state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
-            context.state.set_stencil_op(StencilOp { zfail: gl::DECR, ..Default::default() });
+            state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
+            state.set_stencil_op(StencilOp { zfail: gl::DECR, ..Default::default() });
 
-            statistics.add_draw_call(context.gbuffer.opt_framebuffer.draw(
-                context.state,
+            statistics.add_draw_call(gbuffer.opt_framebuffer.draw(
+                state,
                 viewport,
-                context.geometry_cache.get(&self.sphere),
+                geometry_cache.get(&self.sphere),
                 &mut self.flat_shader.program,
                 DrawParameters {
                     cull_face: CullFace::Back,
@@ -369,8 +378,8 @@ impl DeferredLightRenderer {
                 ],
             ));
 
-            context.state.set_stencil_func(StencilFunc { func: gl::NOTEQUAL, ..Default::default() });
-            context.state.set_stencil_op(StencilOp { zpass: gl::ZERO, ..Default::default() });
+            state.set_stencil_func(StencilFunc { func: gl::NOTEQUAL, ..Default::default() });
+            state.set_stencil_op(StencilOp { zpass: gl::ZERO, ..Default::default() });
 
             let (hotspot_cone_angle, cone_angle) = match light.get_kind() {
                 LightKind::Spot(spot_light) => (spot_light.hotspot_cone_angle(), spot_light.full_cone_angle()),
@@ -378,10 +387,10 @@ impl DeferredLightRenderer {
             };
 
             // Finally render light.
-            statistics.add_draw_call(context.gbuffer.opt_framebuffer.draw(
-                context.state,
+            statistics.add_draw_call(gbuffer.opt_framebuffer.draw(
+                state,
                 viewport,
-                context.geometry_cache.get(&self.quad),
+                geometry_cache.get(&self.quad),
                 &mut self.shader.program,
                 DrawParameters {
                     cull_face: CullFace::Back,
@@ -403,8 +412,8 @@ impl DeferredLightRenderer {
                     (self.shader.light_view_proj_matrix, UniformValue::Mat4(light_view_projection)),
                     (self.shader.soft_shadows, UniformValue::Bool({
                         match light.get_kind() {
-                            LightKind::Spot(_) if context.settings.spot_soft_shadows => true,
-                            LightKind::Point(_) if context.settings.point_soft_shadows => true,
+                            LightKind::Spot(_) if settings.spot_soft_shadows => true,
+                            LightKind::Point(_) if settings.point_soft_shadows => true,
                             _ => false
                         }
                     })),
@@ -417,10 +426,10 @@ impl DeferredLightRenderer {
                     (self.shader.half_cone_angle_cos, UniformValue::Float((cone_angle * 0.5).cos())),
                     (self.shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
                     (self.shader.shadow_map_inv_size, UniformValue::Float(1.0 / (self.spot_shadow_map_renderer.size as f32))),
-                    (self.shader.camera_position, UniformValue::Vec3(context.camera.base().global_position())),
-                    (self.shader.depth_sampler, UniformValue::Sampler { index: 0, texture: context.gbuffer.depth() }),
-                    (self.shader.color_sampler, UniformValue::Sampler { index: 1, texture: context.gbuffer.diffuse_texture() }),
-                    (self.shader.normal_sampler, UniformValue::Sampler { index: 2, texture: context.gbuffer.normal_texture() }),
+                    (self.shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                    (self.shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
+                    (self.shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
+                    (self.shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
                     (self.shader.spot_shadow_texture, UniformValue::Sampler { index: 3, texture: self.spot_shadow_map_renderer.texture() }),
                     (self.shader.point_shadow_texture, UniformValue::Sampler { index: 4, texture: self.point_shadow_map_renderer.texture() })
                 ]));

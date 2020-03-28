@@ -25,12 +25,12 @@ use crate::{
                 FrameBufferTrait,
                 FrameBuffer,
                 Attachment,
-                AttachmentKind
+                AttachmentKind,
             },
             gpu_program::{
                 UniformValue,
                 GpuProgram,
-                UniformLocation
+                UniformLocation,
             },
             gpu_texture::{
                 GpuTextureKind,
@@ -42,13 +42,13 @@ use crate::{
                 CubeMapFace,
                 GpuTexture,
             },
-            state::{State, ColorMask}
+            state::{State, ColorMask},
         },
         TextureCache,
         GeometryCache,
         RenderPassStatistics,
         error::RendererError,
-    }
+    },
 };
 
 struct SpotShadowMapShader {
@@ -246,6 +246,16 @@ struct PointShadowCubeMapFace {
     up: Vec3,
 }
 
+pub struct PointShadowMapRenderContext<'a, 'c> {
+    pub state: &'a mut State,
+    pub graph: &'c Graph,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub light_pos: Vec3,
+    pub light_radius: f32,
+    pub texture_cache: &'a mut TextureCache,
+    pub geom_cache: &'a mut GeometryCache,
+}
+
 impl PointShadowMapRenderer {
     const FACES: [PointShadowCubeMapFace; 6] = [
         PointShadowCubeMapFace {
@@ -329,16 +339,13 @@ impl PointShadowMapRenderer {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn render(&mut self,
-                  state: &mut State,
-                  graph: &Graph,
-                  white_dummy: Rc<RefCell<GpuTexture>>,
-                  light_pos: Vec3,
-                  light_radius: f32,
-                  texture_cache: &mut TextureCache,
-                  geom_cache: &mut GeometryCache,
-    ) -> RenderPassStatistics {
+    pub fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        let PointShadowMapRenderContext {
+            state, graph, white_dummy
+            , light_pos, light_radius, texture_cache, geom_cache
+        } = args;
 
         let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
 

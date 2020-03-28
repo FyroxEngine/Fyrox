@@ -81,7 +81,7 @@ impl<T> RawMeshBuilder<T> where T: Hash + PartialEq {
             triangles: self
                 .indices
                 .chunks_exact(3)
-                .map(|i| TriangleDefinition { indices: [i[0], i[1], i[2]] })
+                .map(|i| TriangleDefinition([i[0], i[1], i[2]]))
                 .collect(),
         }
     }

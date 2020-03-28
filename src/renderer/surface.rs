@@ -15,8 +15,8 @@ use crate::{
     resource::texture::Texture,
     utils::raw_mesh::{
         RawMesh,
-        RawMeshBuilder
-    }
+        RawMeshBuilder,
+    },
 };
 use std::{
     sync::{
@@ -29,7 +29,7 @@ use std::{
     },
 };
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct Vertex {
     pub position: Vec3,
@@ -50,6 +50,17 @@ impl Vertex {
             bone_weights: [0.0, 0.0, 0.0, 0.0],
             bone_indices: Default::default(),
         }
+    }
+}
+
+impl PartialEq for Vertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.position == other.position &&
+            self.tex_coord == other.tex_coord &&
+            self.normal == other.normal &&
+            self.tangent == other.tangent &&
+            self.bone_weights == other.bone_weights &&
+            self.bone_indices == other.bone_indices
     }
 }
 
@@ -108,9 +119,9 @@ impl SurfaceSharedData {
         let mut tan2 = vec![Vec3::ZERO; self.vertices.len()];
 
         for triangle in self.triangles.iter() {
-            let i1 = triangle.indices[0] as usize;
-            let i2 = triangle.indices[1] as usize;
-            let i3 = triangle.indices[2] as usize;
+            let i1 = triangle[0] as usize;
+            let i2 = triangle[1] as usize;
+            let i3 = triangle[2] as usize;
 
             let v1 = &self.vertices[i1].position;
             let v2 = &self.vertices[i2].position;
@@ -201,8 +212,8 @@ impl SurfaceSharedData {
         ];
 
         let indices = vec![
-            TriangleDefinition { indices: [0, 1, 2] },
-            TriangleDefinition { indices: [0, 2, 3] }
+            TriangleDefinition([0, 1, 2]),
+            TriangleDefinition([0, 2, 3])
         ];
 
         Self::new(vertices, indices)
@@ -245,8 +256,8 @@ impl SurfaceSharedData {
         ];
 
         let indices = vec![
-            TriangleDefinition { indices: [0, 1, 2] },
-            TriangleDefinition { indices: [0, 2, 3] }
+            TriangleDefinition([0, 1, 2]),
+            TriangleDefinition([0, 2, 3])
         ];
 
         Self::new(vertices, indices)
@@ -254,9 +265,9 @@ impl SurfaceSharedData {
 
     pub fn calculate_normals(&mut self) {
         for triangle in self.triangles.iter() {
-            let ia = triangle.indices[0] as usize;
-            let ib = triangle.indices[1] as usize;
-            let ic = triangle.indices[2] as usize;
+            let ia = triangle[0] as usize;
+            let ib = triangle[1] as usize;
+            let ic = triangle[2] as usize;
 
             let a = self.vertices[ia].position;
             let b = self.vertices[ib].position;
@@ -558,18 +569,18 @@ impl SurfaceSharedData {
         ];
 
         let indices = vec![
-            TriangleDefinition { indices: [2, 1, 0] },
-            TriangleDefinition { indices: [3, 2, 0] },
-            TriangleDefinition { indices: [4, 5, 6] },
-            TriangleDefinition { indices: [4, 6, 7] },
-            TriangleDefinition { indices: [10, 9, 8] },
-            TriangleDefinition { indices: [11, 10, 8] },
-            TriangleDefinition { indices: [12, 13, 14] },
-            TriangleDefinition { indices: [12, 14, 15] },
-            TriangleDefinition { indices: [18, 17, 16] },
-            TriangleDefinition { indices: [19, 18, 16] },
-            TriangleDefinition { indices: [20, 21, 22] },
-            TriangleDefinition { indices: [20, 22, 23] },
+            TriangleDefinition([2, 1, 0]),
+            TriangleDefinition([3, 2, 0]),
+            TriangleDefinition([4, 5, 6]),
+            TriangleDefinition([4, 6, 7]),
+            TriangleDefinition([10, 9, 8]),
+            TriangleDefinition([11, 10, 8]),
+            TriangleDefinition([12, 13, 14]),
+            TriangleDefinition([12, 14, 15]),
+            TriangleDefinition([18, 17, 16]),
+            TriangleDefinition([19, 18, 16]),
+            TriangleDefinition([20, 21, 22]),
+            TriangleDefinition([20, 22, 23]),
         ];
 
         let mut data = Self::new(vertices, indices);

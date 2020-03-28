@@ -238,6 +238,16 @@ impl Light {
     pub fn get_kind_mut(&mut self) -> &mut LightKind {
         &mut self.kind
     }
+
+    #[inline]
+    pub fn set_cast_shadows(&mut self, value: bool) {
+        self.cast_shadows = value;
+    }
+
+    #[inline]
+    pub fn is_cast_shadows(&self) -> bool {
+        self.cast_shadows
+    }
 }
 
 pub struct LightBuilder {

@@ -472,7 +472,7 @@ impl Animation {
     }
 
     pub fn has_ended(&self) -> bool {
-        !self.looped && self.time_position == self.length
+        !self.looped && (self.time_position - self.length).abs() <= std::f32::EPSILON
     }
 
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {

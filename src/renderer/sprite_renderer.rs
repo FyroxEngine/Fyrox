@@ -27,7 +27,7 @@ use crate::{
                 CullFace,
                 FrameBufferTrait,
             },
-            state::State
+            state::State,
         },
         RenderPassStatistics,
     },
@@ -73,6 +73,17 @@ pub struct SpriteRenderer {
     surface: SurfaceSharedData,
 }
 
+pub struct SpriteRenderContext<'a, 'b, 'c> {
+    pub state: &'a mut State,
+    pub framebuffer: &'b mut FrameBuffer,
+    pub graph: &'c Graph,
+    pub camera: &'c Camera,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub viewport: Rect<i32>,
+    pub textures: &'a mut TextureCache,
+    pub geom_map: &'a mut GeometryCache,
+}
+
 impl SpriteRenderer {
     pub fn new() -> Result<Self, RendererError> {
         let surface = SurfaceSharedData::make_collapsed_xy_quad();
@@ -84,17 +95,14 @@ impl SpriteRenderer {
     }
 
     #[must_use]
-    pub fn render(&mut self,
-                  state: &mut State,
-                  framebuffer: &mut FrameBuffer,
-                  graph: &Graph,
-                  camera: &Camera,
-                  white_dummy: Rc<RefCell<GpuTexture>>,
-                  viewport: Rect<i32>,
-                  textures: &mut TextureCache,
-                  geom_map: &mut GeometryCache,
-    ) -> RenderPassStatistics {
+    pub fn render(&mut self, args: SpriteRenderContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        let SpriteRenderContext {
+            state, framebuffer, graph,
+            camera, white_dummy, viewport,
+            textures, geom_map
+        } = args;
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 

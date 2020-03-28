@@ -33,7 +33,7 @@ use crate::{
                 CullFace,
                 FrameBufferTrait,
             },
-            state::State
+            state::State,
         },
         RenderPassStatistics,
         TextureCache,
@@ -82,6 +82,19 @@ pub struct ParticleSystemRenderer {
     sorted_particles: Vec<u32>,
 }
 
+pub struct ParticleSystemRenderContext<'a, 'b, 'c> {
+    pub state: &'a mut State,
+    pub framebuffer: &'b mut FrameBuffer,
+    pub graph: &'c Graph,
+    pub camera: &'c Camera,
+    pub white_dummy: Rc<RefCell<GpuTexture>>,
+    pub depth: Rc<RefCell<GpuTexture>>,
+    pub frame_width: f32,
+    pub frame_height: f32,
+    pub viewport: Rect<i32>,
+    pub texture_cache: &'a mut TextureCache,
+}
+
 impl ParticleSystemRenderer {
     pub fn new() -> Result<Self, RendererError> {
         let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
@@ -104,19 +117,12 @@ impl ParticleSystemRenderer {
     }
 
     #[must_use]
-    pub fn render(&mut self,
-                  state: &mut State,
-                  framebuffer: &mut FrameBuffer,
-                  graph: &Graph,
-                  camera: &Camera,
-                  white_dummy: Rc<RefCell<GpuTexture>>,
-                  depth: Rc<RefCell<GpuTexture>>,
-                  frame_width: f32,
-                  frame_height: f32,
-                  viewport: Rect<i32>,
-                  texture_cache: &mut TextureCache,
-    ) -> RenderPassStatistics {
+    pub fn render(&mut self, args: ParticleSystemRenderContext) -> RenderPassStatistics {
         let mut statistics = RenderPassStatistics::default();
+
+        let ParticleSystemRenderContext{ state, framebuffer, graph
+            , camera, white_dummy, depth,
+            frame_width, frame_height, viewport, texture_cache } = args;
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
@@ -146,7 +152,7 @@ impl ParticleSystemRenderer {
                 (self.shader.diffuse_texture, UniformValue::Sampler {
                     index: 1,
                     texture: if let Some(texture) = particle_system.texture() {
-                        if let Some(texture) = texture_cache.get(state,texture) {
+                        if let Some(texture) = texture_cache.get(state, texture) {
                             texture
                         } else {
                             white_dummy.clone()
