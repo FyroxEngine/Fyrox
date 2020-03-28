@@ -16,6 +16,8 @@
 //! indirections that might cause cache invalidation. This is so called cache
 //! friendliness.
 
+#![allow(clippy::unneeded_field_pattern)]
+
 use std::{
     marker::PhantomData,
     hash::{Hash, Hasher},

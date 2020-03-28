@@ -40,7 +40,7 @@ impl Vec2 {
     pub const ZERO: Self = Vec2 { x: 0.0, y: 0.0 };
     pub const UNIT: Self = Vec2 { x: 1.0, y: 1.0 };
 
-    fn validate(&self) {
+    fn validate(self) {
         debug_assert!(!self.x.is_nan());
         debug_assert!(!self.y.is_nan());
     }

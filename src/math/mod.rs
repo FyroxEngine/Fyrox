@@ -15,7 +15,7 @@ pub mod aabb;
 
 use vec2::*;
 use vec3::*;
-use std::ops::{Add, Sub, Mul};
+use std::ops::{Add, Sub, Mul, Index, IndexMut};
 use crate::visitor::{Visit, VisitResult, Visitor};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -343,8 +343,30 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3
 
 #[derive(Clone, PartialEq, Eq)]
 #[repr(C)]
-pub struct TriangleDefinition {
-    pub indices: [u32; 3]
+pub struct TriangleDefinition(pub [u32; 3]);
+
+impl TriangleDefinition {
+    pub fn indices(&self) -> &[u32] {
+        self.as_ref()
+    }
+
+    pub fn indices_mut(&mut self) -> &mut [u32] {
+        self.as_mut()
+    }
+}
+
+impl Index<usize> for TriangleDefinition {
+    type Output = u32;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for TriangleDefinition {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
 }
 
 pub trait PositionProvider: Sized {
@@ -354,6 +376,18 @@ pub trait PositionProvider: Sized {
 impl PositionProvider for Vec3 {
     fn position(&self) -> Vec3 {
         *self
+    }
+}
+
+impl AsRef<[u32]> for TriangleDefinition {
+    fn as_ref(&self) -> &[u32] {
+        &self.0
+    }
+}
+
+impl AsMut<[u32]> for TriangleDefinition {
+    fn as_mut(&mut self) -> &mut [u32] {
+        &mut self.0
     }
 }
 
@@ -380,7 +414,7 @@ pub fn get_closest_point_triangles<P: PositionProvider>(points: &[P], triangles:
     let mut closest_index = None;
     for triangle_index in triangle_indices {
         let triangle = triangles.get(*triangle_index as usize).unwrap();
-        for point_index in triangle.indices.iter() {
+        for point_index in triangle.0.iter() {
             let vertex = points.get(*point_index as usize).unwrap();
             let sqr_distance = (vertex.position() - point).sqr_len();
             if sqr_distance < closest_sqr_distance {
@@ -454,12 +488,10 @@ impl SmoothAngle {
             } else {
                 -1.0
             }
+        } else if distance > std::f32::consts::PI {
+            -1.0
         } else {
-            if distance > std::f32::consts::PI {
-                -1.0
-            } else {
-                1.0
-            }
+            1.0
         }
     }
 }
@@ -495,7 +527,7 @@ mod test {
         let mut angle = SmoothAngle {
             angle: 290.0f32.to_radians(),
             target: 90.0f32.to_radians(),
-            speed: 100.0f32.to_radians()
+            speed: 100.0f32.to_radians(),
         };
 
         while !angle.at_target() {
