@@ -87,9 +87,8 @@ impl StreamingBuffer {
     /// This function will return Err if data source is `Raw`. It makes no sense to stream raw data which
     /// is already loaded into memory. Use Generic source instead!
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
-        match source {
-            DataSource::Raw {..} => return Err(source),
-            _ => ()
+        if let DataSource::Raw { .. } = source {
+            return Err(source)
         };
 
         let external_source_path =

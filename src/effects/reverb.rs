@@ -17,8 +17,8 @@
 //!     let mut reverb = Reverb::new();
 //!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
 //!     context.lock()
-//! 	    .unwrap()
-//!     	.add_effect(Effect::Reverb(reverb));
+//!         .unwrap()
+//!         .add_effect(Effect::Reverb(reverb));
 //! }
 //! ```
 //!
