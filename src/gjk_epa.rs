@@ -354,8 +354,7 @@ pub fn epa_get_penetration_info(simplex: Simplex, shape1: &ConvexShape, shape1_p
         // Find triangle that is closest to origin
         let mut min_dist = triangles[0].vertices[0].minkowski_dif.dot(&triangles[0].normal);
         closest_triangle_index = 0;
-        for i in 1..triangle_count {
-            let triangle = triangles[i];
+        for (i, triangle) in triangles.iter().enumerate().take(triangle_count).skip(1) {
             let dist = triangle.vertices[0].minkowski_dif.dot(&triangle.normal);
             if dist < min_dist {
                 min_dist = dist;
@@ -398,8 +397,9 @@ pub fn epa_get_penetration_info(simplex: Simplex, shape1: &ConvexShape, shape1_p
                     };
 
                     let mut already_in_list = false;
-                    /* Check if current edge is already in list */
-                    for k in 0..loose_edge_count {
+                    // Check if current edge is already in list
+                    let last_loose_edge = loose_edge_count;
+                    for k in 0..last_loose_edge {
                         if loose_edges[k].eq_ccw(&current_edge) {
                             // If we found that current edge is same as other loose edge
                             // but in reverse order, then we need to replace the loose
