@@ -1,8 +1,38 @@
 # Examples
 
-The engine contains examples for various aspects. Currently there is not much, but I'm working on it.
-
+The engine contains examples for various aspects. Currently there is not much, but I'm working on it. 
 It is better to run examples with `--release` flag, because Debug version is too slow.
+
+## How to build
+
+Make sure you have latest `rg3d` dependecies near `rg3d` crate: this is needed because engine split into multiple crates which are decoupled from each other. You need to get `rg3d-ui` `rg3d-sound` `rg3d-core` and `rg3d-physics` crates. So typical build script can be:
+
+```
+git clone https://github.com/mrDIMAS/rg3d
+git clone https://github.com/mrDIMAS/rg3d-ui
+git clone https://github.com/mrDIMAS/rg3d-core
+git clone https://github.com/mrDIMAS/rg3d-sound
+git clone https://github.com/mrDIMAS/rg3d-physics
+cd rg3d
+cargo run --example <example_name> --release
+```
+
+Or if you already have all dependencies, you can do:
+
+```
+cd rg3d
+git pull
+cd ../rg3d-ui
+git pull
+cd ../rg3d-core
+git pull
+cd ../rg3d-sound
+git pull
+cd ../rg3d-physics
+git pull
+cd ../rg3d
+cargo run --example <example_name> --release
+```
 
 ## Example 01 - Simple Scene
 
