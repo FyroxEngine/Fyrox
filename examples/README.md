@@ -8,7 +8,7 @@ The engine contains examples for various aspects. Currently there is not much, b
 
 This example shows how to create simple scene with animated model.
 
-![Example 01](examples/screenshots/simple.png?raw=true "Example 01")
+![Example 01](screenshots/simple.png?raw=true "Example 01")
 
 ## Example 02 - Asynchronous Scene Loading
 
@@ -16,8 +16,8 @@ This example shows how to create simple scene with animated model.
 
 This example shows how to load scene in separate thread and how create standard loading screen which will show progress.
 
-![Example 02_0](examples/screenshots/async_0.png?raw=true "Example 02_0")
-![Example 02_1](examples/screenshots/async_1.png?raw=true "Example 02_1")
+![Example 02_0](screenshots/async_0.png?raw=true "Example 02_0")
+![Example 02_1](screenshots/async_1.png?raw=true "Example 02_1")
 
 ## Example 03 - 3rd Person Walking Sumilator
 
@@ -29,7 +29,7 @@ In this example we'll create simple 3rd person game with character that can idle
 
 Also this example demonstrates the power of animation blending machines. Animation blending machines are used in all modern games to create complex animations from set of simple ones.
 
-![Example 03](examples/screenshots/3rd_person.png?raw=true "Example 03")
+![Example 03](screenshots/3rd_person.png?raw=true "Example 03")
 
 ## Example 04 - User Interface
 
@@ -37,7 +37,7 @@ Also this example demonstrates the power of animation blending machines. Animati
 
 This example shows how to use user interface system of engine. It is based on simple.rs example because UI will be used to operate on model.
 
-![Example 04](examples/screenshots/ui.png?raw=true "Example 04")
+![Example 04](screenshots/ui.png?raw=true "Example 04")
 
 ## Example 05 - Save/load
 
