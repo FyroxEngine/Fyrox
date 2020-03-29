@@ -367,6 +367,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                     ui.node_mut(minimize_button)
                         .widget_mut()
                         .set_visibility(self.can_minimize)
+                        .set_width_mut(30.0)
                         .set_row(0)
                         .set_column(1);
                     minimize_button
@@ -380,14 +381,15 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                     });
                     ui.node_mut(close_button)
                         .widget_mut()
+                        .set_width_mut(30.0)
                         .set_visibility(self.can_close)
                         .set_row(0)
                         .set_column(2);
                     close_button
                 }))
                 .add_column(Column::stretch())
-                .add_column(Column::strict(30.0))
-                .add_column(Column::strict(30.0))
+                .add_column(Column::auto())
+                .add_column(Column::auto())
                 .add_row(Row::stretch())
                 .build(ui))
             .on_row(0)

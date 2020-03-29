@@ -149,7 +149,8 @@ impl<M: 'static, C: 'static + Control<M, C>> ComboBoxBuilder<M, C> {
     }
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> where Self: Sized {
-        let items_control = ItemsControlBuilder::new(WidgetBuilder::new())
+        let items_control = ItemsControlBuilder::new(WidgetBuilder::new()
+            .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
             .with_items(self.items.clone())
             .build(ui);
 
