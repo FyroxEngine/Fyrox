@@ -2,6 +2,8 @@
 
 The engine contains examples for various aspects. Currently there is not much, but I'm working on it.
 
+It is better to run examples with `--release` flag, because Debug version is too slow.
+
 ## Example 01 - Simple Scene
 
 *Difficulty*: Easy.
@@ -47,6 +49,6 @@ This example shows how to use user interface system of engine. It is based on si
 
 - TODO
 
-## Example 07 - Simple gam
+## Example 07 - Simple game
 
 - TODO
