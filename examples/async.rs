@@ -348,7 +348,7 @@ fn main() {
                     // While scene is loading, we will update progress bar.
                     if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text) {
                         let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
+                        text.set_text(format!("Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
                     }
 
                     // It is very important to "pump" messages from UI. Even if don't need to

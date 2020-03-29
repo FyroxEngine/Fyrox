@@ -724,7 +724,7 @@ fn main() {
                     // While scene is loading, we will update progress bar.
                     if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text) {
                         let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}", fps));
+                        text.set_text(format!("Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}", fps));
                     }
 
                     // It is very important to "pump" messages from UI. Even if don't need to

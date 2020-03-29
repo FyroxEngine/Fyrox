@@ -36,16 +36,16 @@ use crate::{
     renderer::{
         ui_renderer::{
             UiRenderer,
-            UiRenderContext
+            UiRenderContext,
         },
         surface::SurfaceSharedData,
         particle_system_renderer::{
             ParticleSystemRenderer,
-            ParticleSystemRenderContext
+            ParticleSystemRenderContext,
         },
         gbuffer::{
             GBuffer,
-            GBufferRenderContext
+            GBufferRenderContext,
         },
         deferred_light_renderer::{
             DeferredLightRenderer,
@@ -80,7 +80,7 @@ use crate::{
         flat_shader::FlatShader,
         sprite_renderer::{
             SpriteRenderer,
-            SpriteRenderContext
+            SpriteRenderContext,
         },
         debug_renderer::DebugRenderer,
     },
@@ -99,7 +99,6 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
-    utils::log::Log,
     gui::draw::DrawingContext,
     engine::resource_manager::TimedEntry,
 };
@@ -305,9 +304,7 @@ impl GeometryCache {
         for entry in self.map.values_mut() {
             entry.time_to_live -= dt;
         }
-        self.map.retain(|_, v| {
-            v.time_to_live > 0.0
-        });
+        self.map.retain(|_, v| v.time_to_live > 0.0);
     }
 }
 
@@ -354,9 +351,7 @@ impl TextureCache {
         for entry in self.map.values_mut() {
             entry.time_to_live -= dt;
         }
-        self.map.retain(|_, v| {
-            v.time_to_live > 0.0
-        });
+        self.map.retain(|_, v| v.time_to_live > 0.0);
     }
 }
 
@@ -490,20 +485,20 @@ impl Renderer {
                         normal_dummy: self.normal_dummy.clone(),
                         texture_cache: &mut self.texture_cache,
                         geom_cache: &mut self.geometry_cache,
-                    }
-                );
+                    });
 
-                self.statistics += self.deferred_light_renderer.render(DeferredRendererContext {
-                    state,
-                    scene,
-                    camera,
-                    gbuffer,
-                    white_dummy: self.white_dummy.clone(),
-                    ambient_color: self.ambient_color,
-                    settings: &self.quality_settings,
-                    textures: &mut self.texture_cache,
-                    geometry_cache: &mut self.geometry_cache,
-                });
+                self.statistics += self.deferred_light_renderer.render(
+                    DeferredRendererContext {
+                        state,
+                        scene,
+                        camera,
+                        gbuffer,
+                        white_dummy: self.white_dummy.clone(),
+                        ambient_color: self.ambient_color,
+                        settings: &self.quality_settings,
+                        textures: &mut self.texture_cache,
+                        geometry_cache: &mut self.geometry_cache,
+                    });
 
                 let depth = gbuffer.depth();
 
@@ -519,8 +514,7 @@ impl Renderer {
                         frame_height,
                         viewport,
                         texture_cache: &mut self.texture_cache,
-                    }
-                );
+                    });
 
                 self.statistics += self.sprite_renderer.render(
                     SpriteRenderContext {
@@ -532,8 +526,7 @@ impl Renderer {
                         viewport,
                         textures: &mut self.texture_cache,
                         geom_map: &mut self.geometry_cache,
-                    }
-                );
+                    });
 
                 self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.opt_framebuffer, camera);
 
@@ -582,15 +575,9 @@ impl Renderer {
         )?;
 
         self.statistics.end_frame();
-
-        if context.swap_buffers().is_err() {
-            Log::writeln("Failed to swap buffers!".to_owned());
-        }
-
+        context.swap_buffers()?;
         check_gl_error!();
-
         self.statistics.finalize();
-
         Ok(())
     }
 }

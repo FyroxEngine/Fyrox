@@ -214,7 +214,7 @@ fn main() {
 
                     if let UiNode::Text(text) = engine.user_interface.node_mut(debug_text) {
                         let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example - Model\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
+                        text.set_text(format!("Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
                     }
 
                     engine.update(fixed_timestep);

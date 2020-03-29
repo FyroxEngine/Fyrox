@@ -1,4 +1,5 @@
 use std::ffi::NulError;
+use crate::ContextError;
 
 #[derive(Debug)]
 pub enum RendererError {
@@ -33,7 +34,9 @@ pub enum RendererError {
 
     InvalidFrameBuffer,
 
-    FailedToConstructFBO
+    FailedToConstructFBO,
+
+    Context(ContextError)
 }
 
 impl From<NulError> for RendererError {
@@ -42,3 +45,8 @@ impl From<NulError> for RendererError {
     }
 }
 
+impl From<ContextError> for RendererError {
+    fn from(err: ContextError) -> Self {
+        RendererError::Context(err)
+    }
+}
