@@ -10,7 +10,10 @@ use std::{
         Arc,
         Mutex,
     },
-    time,
+    time::{
+        self,
+        Duration,
+    },
 };
 use crate::{
     error::SoundError,
@@ -18,20 +21,22 @@ use crate::{
     listener::Listener,
     source::{
         Status,
-        SoundSource
+        SoundSource,
     },
     renderer::{
         Renderer,
         render_source_default,
     },
-    effects::Effect,
+    effects::{
+        Effect,
+        EffectRenderTrait,
+    },
     device,
 };
 use rg3d_core::{
     pool::{Pool, Handle},
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::time::Duration;
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -219,6 +224,16 @@ impl Context {
         &mut self.listener
     }
 
+    /// Returns shared reference to effect at given handle. If handle is invalid, this method will panic.
+    pub fn effect(&self, handle: Handle<Effect>) -> &Effect {
+        self.effects.borrow(handle)
+    }
+
+    /// Returns mutable reference to effect at given handle. If handle is invalid, this method will panic.
+    pub fn effect_mut(&mut self, handle: Handle<Effect>) -> &mut Effect {
+        self.effects.borrow_mut(handle)
+    }
+
     fn render(&mut self, buf: &mut [(f32, f32)]) {
         let last_time = time::Instant::now();
 
@@ -233,6 +248,8 @@ impl Context {
         for source in self.sources
             .iter_mut()
             .filter(|s| s.generic().status() == Status::Playing) {
+            source.generic_mut().render(buf.len());
+
             match self.renderer {
                 Renderer::Default => {
                     // Simple rendering path. Much faster (4-5 times) than HRTF path.
@@ -244,14 +261,8 @@ impl Context {
             }
         }
 
-        // TODO: This requires dry (without any effects such as HRTF) signal as input
-        //       so this should be changed when used with HRTF.
         for effect in self.effects.iter_mut() {
-            for (left, right) in buf.iter_mut() {
-                let (out_left, out_right) = effect.feed(*left, *right);
-                *left = out_left;
-                *right = out_right;
-            }
+            effect.render(&self.sources, &self.listener, self.distance_model, buf);
         }
 
         // Apply master gain to be able to control total sound volume.
@@ -275,6 +286,7 @@ impl Visit for Context {
         self.master_gain.visit("MasterGain", visitor)?;
         self.listener.visit("Listener", visitor)?;
         self.sources.visit("Sources", visitor)?;
+        self.effects.visit("Effects", visitor)?;
 
         visitor.leave_region()
     }

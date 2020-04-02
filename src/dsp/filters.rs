@@ -7,6 +7,7 @@
 //! description of each filter. There is no need to describe them all here.
 
 use crate::dsp::DelayLine;
+use rg3d_core::visitor::{Visit, Visitor, VisitResult};
 
 /// One-pole Filter.
 /// For details see - https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/
@@ -14,6 +15,16 @@ pub struct OnePole {
     a0: f32,
     b1: f32,
     last: f32,
+}
+
+impl Default for OnePole {
+    fn default() -> Self {
+        Self {
+            a0: 1.0,
+            b1: 0.0,
+            last: 0.0
+        }
+    }
 }
 
 fn get_b1(fc: f32) -> f32 {
@@ -51,12 +62,34 @@ impl OnePole {
     }
 }
 
+impl Visit for OnePole {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.a0.visit("A0", visitor)?;
+        self.b1.visit("B1", visitor)?;
+        self.last.visit("Last", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// Lowpass-Feedback Comb Filter
 /// For details see - https://ccrma.stanford.edu/~jos/pasp/Lowpass_Feedback_Comb_Filter.html
 pub struct LpfComb {
     low_pass: OnePole,
     delay_line: DelayLine,
     feedback: f32,
+}
+
+impl Default for LpfComb {
+    fn default() -> Self {
+        Self {
+            low_pass: Default::default(),
+            delay_line: Default::default(),
+            feedback: 0.0
+        }
+    }
 }
 
 impl LpfComb {
@@ -97,11 +130,32 @@ impl LpfComb {
     }
 }
 
+impl Visit for LpfComb {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.delay_line.visit("DelayLine", visitor)?;
+        self.feedback.visit("Feedback", visitor)?;
+        self.low_pass.visit("LowPass", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// Allpass Filter - https://ccrma.stanford.edu/~jos/pasp/Allpass_Filters.html
 /// For details see - https://ccrma.stanford.edu/~jos/pasp/Allpass_Two_Combs.html
 pub struct AllPass {
     delay_line: DelayLine,
     gain: f32,
+}
+
+impl Default for AllPass {
+    fn default() -> Self {
+        Self {
+            delay_line: Default::default(),
+            gain: 1.0
+        }
+    }
 }
 
 impl AllPass {
@@ -134,6 +188,17 @@ impl AllPass {
     }
 }
 
+impl Visit for AllPass {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.delay_line.visit("DelayLine", visitor)?;
+        self.gain.visit("Gain", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// Exact kind of biquad filter - it defines coefficients of the filter.
 /// More info here: https://shepazu.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html
 pub enum BiquadKind {
@@ -149,7 +214,7 @@ pub enum BiquadKind {
     /// Passes all frequencies but gives 90* phase shift to a signal at F_center.
     AllPass,
 
-    /// Reduces amplitude of frequencies in a shape like this ̅ \_ where location of center of /
+    /// Reduces amplitude of frequencies in a shape like this ̅ \_ where location of center of \
     /// defined by F_center.
     LowShelf,
 
@@ -160,6 +225,7 @@ pub enum BiquadKind {
 
 /// Generic second order digital filter.
 /// More info here: https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html
+#[derive(Clone)]
 pub struct Biquad {
     b0: f32,
     b1: f32,
@@ -177,15 +243,7 @@ impl Biquad {
     /// `quality` - defines band width at which amplitude decays by half (or by 3 db in log scale), the lower it will
     /// be, the wider band will be and vice versa. See more info [here](https://ccrma.stanford.edu/~jos/filters/Quality_Factor_Q.html)
     pub fn new(kind: BiquadKind, fc: f32, gain: f32, quality: f32) -> Self {
-        let mut filter = Self {
-            b0: 1.0,
-            b1: 0.0,
-            b2: 0.0,
-            a1: 0.0,
-            a2: 0.0,
-            prev1: 0.0,
-            prev2: 0.0,
-        };
+        let mut filter = Self::default();
 
         filter.tune(kind, fc, gain, quality);
 
@@ -289,5 +347,35 @@ impl Biquad {
         self.prev1 = sample * self.b1 - result * self.a1 + self.prev2;
         self.prev2 = sample * self.b2 - result * self.a2;
         result
+    }
+}
+
+impl Default for Biquad {
+    fn default() -> Self {
+        Self {
+            b0: 1.0,
+            b1: 0.0,
+            b2: 0.0,
+            a1: 0.0,
+            a2: 0.0,
+            prev1: 0.0,
+            prev2: 0.0,
+        }
+    }
+}
+
+impl Visit for Biquad {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.b0.visit("b0", visitor)?;
+        self.b1.visit("b1", visitor)?;
+        self.b2.visit("b2", visitor)?;
+        self.a1.visit("a1", visitor)?;
+        self.a2.visit("a2", visitor)?;
+        self.prev1.visit("prev1", visitor)?;
+        self.prev2.visit("prev2", visitor)?;
+
+        visitor.leave_region()
     }
 }

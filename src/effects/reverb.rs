@@ -27,16 +27,35 @@
 //! This reverberator has little "metallic" tone, but since this is one of the simplest reverberators this
 //! is acceptable. To remove this effect, more complex reverberator should be implemented.
 
-use crate::dsp::filters::{
-    LpfComb,
-    AllPass,
-};
 use std::time::Duration;
+use rg3d_core::{
+    pool::Pool,
+    visitor::{
+        Visit,
+        Visitor,
+        VisitResult
+    }
+};
+use crate::{
+    listener::Listener,
+    effects::{
+        EffectTrait,
+        BaseEffect,
+        EffectRenderTrait
+    },
+    dsp::filters::{
+        LpfComb,
+        AllPass,
+    },
+    source::SoundSource,
+    context::DistanceModel
+};
 
+#[derive(Default)]
 struct ChannelReverb {
     fc: f32,
-    sample_rate: usize,
-    stereo_spread: usize,
+    sample_rate: u32,
+    stereo_spread: u32,
     lp_fb_comb_filters: Vec<LpfComb>,
     all_pass_filters: Vec<AllPass>,
 }
@@ -45,9 +64,9 @@ struct ChannelReverb {
 const DB60: f32 = 0.001;
 
 /// Sample rate for which this reverb was designed.
-const DESIGN_SAMPLE_RATE: usize = 44100;
+const DESIGN_SAMPLE_RATE: u32 = 44100;
 
-fn calculate_decay(len: usize, sample_rate: usize, decay_time: Duration) -> f32 {
+fn calculate_decay(len: usize, sample_rate: u32, decay_time: Duration) -> f32 {
     let time_len = len as f32 / sample_rate as f32;
     // Asymptotically goes to 1.0 by exponential law
     DB60.powf(time_len / decay_time.as_secs_f32())
@@ -58,17 +77,17 @@ impl ChannelReverb {
     const COMB_LENGTHS: [usize; 8] = [1557, 1617, 1491, 1422, 1277, 1356, 1188, 1116];
     const ALLPASS_LENGTHS: [usize; 4] = [225, 556, 441, 341];
 
-    fn new(stereo_spread: usize, fc: f32, feedback: f32) -> Self {
+    fn new(stereo_spread: u32, fc: f32, feedback: f32) -> Self {
         Self {
             fc,
             stereo_spread,
             sample_rate: DESIGN_SAMPLE_RATE,
             lp_fb_comb_filters: Self::COMB_LENGTHS.iter()
-                .map(|len| LpfComb::new(*len + stereo_spread, fc, feedback))
+                .map(|len| LpfComb::new(*len + stereo_spread as usize, fc, feedback))
                 .collect(),
             all_pass_filters: Self::ALLPASS_LENGTHS.iter()
-                .map(|len| AllPass::new(*len + stereo_spread, 0.5))
-                .collect()
+                .map(|len| AllPass::new(*len + stereo_spread as usize, 0.5))
+                .collect(),
         }
     }
 
@@ -80,10 +99,10 @@ impl ChannelReverb {
         //       remove metallic ringing effect. But still not sure why then initial lengths
         //       are not 100% prime, for example 1422 is not prime number.
         self.lp_fb_comb_filters = Self::COMB_LENGTHS.iter()
-            .map(|len| LpfComb::new((scale * (*len) as f32) as usize + self.stereo_spread, self.fc, feedback))
+            .map(|len| LpfComb::new((scale * (*len) as f32) as usize + self.stereo_spread as usize, self.fc, feedback))
             .collect();
         self.all_pass_filters = Self::ALLPASS_LENGTHS.iter()
-            .map(|len| AllPass::new((scale * (*len) as f32) as usize + self.stereo_spread, 0.5))
+            .map(|len| AllPass::new((scale * (*len) as f32) as usize + self.stereo_spread as usize, 0.5))
             .collect();
     }
 
@@ -112,8 +131,23 @@ impl ChannelReverb {
     }
 }
 
+impl Visit for ChannelReverb {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.all_pass_filters.visit("APFilters", visitor)?;
+        self.fc.visit("FC", visitor)?;
+        self.lp_fb_comb_filters.visit("LPCFilters", visitor)?;
+        self.sample_rate.visit("SampleRate", visitor)?;
+        self.stereo_spread.visit("StereoSpread", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// See module docs.
 pub struct Reverb {
+    base: BaseEffect,
     dry: f32,
     wet: f32,
     left: ChannelReverb,
@@ -122,20 +156,29 @@ pub struct Reverb {
 
 impl Default for Reverb {
     fn default() -> Self {
-        Self::new()
+        Self::new(Default::default())
     }
 }
 
 impl Reverb {
-    const GAIN: f32 = 0.015;
+    /// Total amount of allpass + comb filters per channel
+    const TOTAL_FILTERS_COUNT: f32 = 4.0 + 8.0;
+
+    /// Accumulated gain of all sources of signal (all filters, delay lines, etc.)
+    /// it is used to scale input samples and prevent multiplication of signal gain
+    /// too much which will cause signal overflow.
+    ///
+    /// 2.0 here because left and right signals will be mixed together.
+    const GAIN: f32 = 1.0 / (2.0 * Self::TOTAL_FILTERS_COUNT);
 
     /// Creates new instance of reberb effect with cutoff frequency of ~11.2 kHz and
     /// 5 seconds decay time.
-    pub fn new() -> Self {
+    pub fn new(base: BaseEffect) -> Self {
         let fc = 0.25615; // 11296 Hz at 44100 Hz sample rate
         let feedback = 0.84;
 
         Self {
+            base,
             dry: 1.0,
             wet: 1.0,
             left: ChannelReverb::new(0, fc, feedback),
@@ -197,19 +240,48 @@ impl Reverb {
         self.left.set_fc(fc);
         self.right.set_fc(fc);
     }
+}
 
-    pub(in crate) fn feed(&mut self, left: f32, right: f32) -> (f32, f32) {
+impl Visit for Reverb {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.base.visit("Base", visitor)?;
+        self.right.visit("Right", visitor)?;
+        self.left.visit("Left", visitor)?;
+        self.dry.visit("Dry", visitor)?;
+        self.wet.visit("Wet", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl EffectRenderTrait for Reverb {
+    fn render(&mut self, sources: &Pool<SoundSource>, listener: &Listener, distance_model: DistanceModel, mix_buf: &mut [(f32, f32)]) {
+        self.base.render(sources, listener, distance_model, mix_buf.len());
+
         let wet1 = self.wet;
         let wet2 = 1.0 - self.wet;
 
-        let input = (left + right) * Self::GAIN;
+        for ((out_left, out_right), &(left, right)) in mix_buf.iter_mut().zip(self.base.frame_samples.iter()) {
+            let mid = (left + right) * 0.5;
+            let input = mid * Self::GAIN;
 
-        let processed_left = self.left.feed(input);
-        let processed_right = self.right.feed(input);
+            let processed_left = self.left.feed(input);
+            let processed_right = self.right.feed(input);
 
-        let out_left = processed_left * wet1 + processed_right * wet2 + self.dry * left;
-        let out_right = processed_right * wet1 + processed_left * wet2 + self.dry * right;
+            *out_left += processed_left * wet1 + processed_right * wet2 + self.dry * left;
+            *out_right += processed_right * wet1 + processed_left * wet2 + self.dry * right;
+        }
+    }
+}
 
-        (out_left, out_right)
+impl EffectTrait for Reverb {
+    fn base(&self) -> &BaseEffect {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut BaseEffect {
+        &mut self.base
     }
 }

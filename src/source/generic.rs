@@ -82,7 +82,8 @@ pub struct GenericSource {
     // gain). So if these are None engine will set correct values first and only then it
     // will start interpolation of gain.
     pub(in crate) last_left_gain: Option<f32>,
-    pub(in crate) last_right_gain: Option<f32>
+    pub(in crate) last_right_gain: Option<f32>,
+    frame_samples: Vec<(f32, f32)>
 }
 
 impl Default for GenericSource {
@@ -100,6 +101,7 @@ impl Default for GenericSource {
             play_once: false,
             last_left_gain: None,
             last_right_gain: None,
+            frame_samples: Default::default()
         }
     }
 }
@@ -298,7 +300,7 @@ impl GenericSource {
         }
     }
 
-    pub(in crate) fn next_sample_pair(&mut self, buffer: &mut SoundBuffer) -> (f32, f32) {
+    fn next_sample_pair(&mut self, buffer: &mut SoundBuffer) -> (f32, f32) {
         let step = self.pitch * self.resampling_multiplier;
 
         self.buf_read_pos += step;
@@ -338,6 +340,33 @@ impl GenericSource {
             let sample = samples[i];
             (sample, sample)
         }
+    }
+
+    pub(in crate) fn render(&mut self, amount: usize) {
+        if self.frame_samples.capacity() < amount {
+            self.frame_samples = Vec::with_capacity(amount);
+        }
+
+        self.frame_samples.clear();
+
+        if let Some(mut buffer) = self.buffer.clone().as_ref().and_then(|b| b.lock().ok().and_then(|b| if b.generic().is_empty() { None } else { Some(b) })) {
+            for _ in 0..amount {
+                if self.status == Status::Playing {
+                    let pair = self.next_sample_pair(&mut buffer);
+                    self.frame_samples.push(pair);
+                } else {
+                    self.frame_samples.push((0.0, 0.0));
+                }
+            }
+        } else {
+            for _ in 0..amount {
+                self.frame_samples.push((0.0, 0.0));
+            }
+        }
+    }
+
+    pub(in crate) fn frame_samples(&self) -> &[(f32, f32)] {
+        &self.frame_samples
     }
 }
 
@@ -482,6 +511,7 @@ impl GenericSourceBuilder {
             panning: self.panning,
             status: self.status,
             looping: self.looping,
+            frame_samples: Default::default(),
             ..Default::default()
         })
     }

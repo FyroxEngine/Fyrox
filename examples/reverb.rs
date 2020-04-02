@@ -13,18 +13,21 @@ use rg3d_sound::{
     context::Context,
     buffer::{
         DataSource,
-        SoundBuffer
+        SoundBuffer,
     },
     renderer::Renderer,
     effects::{
         reverb::Reverb,
-        Effect
+        Effect,
+        BaseEffect,
+        EffectTrait,
+        EffectInput
     },
     source::{
         SoundSource,
         spatial::SpatialSourceBuilder,
         generic::GenericSourceBuilder,
-        Status
+        Status,
     },
     math::{
         mat4::Mat4,
@@ -44,10 +47,12 @@ fn main() {
         .unwrap()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
+    let base_effect = BaseEffect::default();
+
     // Create reverb effect and set its decay time.
-    let mut reverb = Reverb::new();
+    let mut reverb = Reverb::new(base_effect);
     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-    context.lock()
+    let reverb_handle = context.lock()
         .unwrap()
         .add_effect(Effect::Reverb(reverb));
 
@@ -59,9 +64,17 @@ fn main() {
             .build()
             .unwrap())
         .build_source();
-    context.lock()
+    let door_sound = context.lock()
         .unwrap()
         .add_source(source);
+
+    // Each sound source must be attached to effect, otherwise sound won't be passed to effect
+    // and you'll hear sound without any difference.
+    context.lock()
+        .unwrap()
+        .effect_mut(reverb_handle)
+        .base_mut()
+        .add_input(EffectInput::direct(door_sound));
 
     let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
     let source = SpatialSourceBuilder::new(
@@ -71,9 +84,15 @@ fn main() {
             .build()
             .unwrap())
         .build_source();
-    let source_handle = context.lock()
+    let drop_sound_handle = context.lock()
         .unwrap()
         .add_source(source);
+
+    context.lock()
+        .unwrap()
+        .effect_mut(reverb_handle)
+        .base_mut()
+        .add_input(EffectInput::direct(drop_sound_handle));
 
     // Move sound around listener for some time.
     let start_time = time::Instant::now();
@@ -84,7 +103,7 @@ fn main() {
         {
             let mut context = context.lock().unwrap();
 
-            if let SoundSource::Spatial(sound) = context.source_mut(source_handle) {
+            if let SoundSource::Spatial(sound) = context.source_mut(drop_sound_handle) {
                 let axis = Vec3::new(0.0, 1.0, 0.0);
                 let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
                 sound.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 1.0)));

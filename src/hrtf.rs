@@ -82,14 +82,13 @@ use crate::{
     renderer::render_source_default,
     device,
     source::{
-        Status,
         spatial::SpatialSource,
         SoundSource,
     },
     math::{
         self,
-        mat4::Mat4
-    }
+        mat4::Mat4,
+    },
 };
 
 /// Single point of HRTF sphere. See module docs for more info.
@@ -379,48 +378,14 @@ pub struct HrtfRenderer {
     right_hrtf: Vec<Complex<f32>>,
 }
 
-fn fill_zeros(buffer: &mut [Complex<f32>]) {
-    for sample in buffer {
-        *sample = Complex::zero();
-    }
-}
-
-pub(in crate) fn get_raw_samples(source: &mut SpatialSource, left: &mut [Complex<f32>], right: &mut [Complex<f32>]) {
+pub(in crate) fn get_raw_samples(source: &mut SpatialSource, left: &mut [Complex<f32>], right: &mut [Complex<f32>], offset: usize) {
     assert_eq!(left.len(), right.len());
 
-    if source.generic().status() != Status::Playing {
-        fill_zeros(left);
-        fill_zeros(right);
-        return;
-    }
-
-    let mut anything_sampled = false;
-
-    if let Some(mut buffer) = source.generic().buffer().as_ref().and_then(|b| b.lock().ok()) {
-        if buffer.generic().is_empty() {
-            return;
-        }
-
-        for (left, right) in left.iter_mut().zip(right.iter_mut()) {
-            if source.generic().status() == Status::Playing {
-                // Ignore all channels except left. Only mono sounds can be processed by HRTF.
-                let (raw_left, _) = source.generic_mut().next_sample_pair(&mut buffer);
-                let sample = Complex::new(raw_left, 0.0);
-                *left = sample;
-                *right = sample;
-            } else {
-                // Fill rest with zeros
-                *left = Complex::zero();
-                *right = Complex::zero();
-            }
-
-            anything_sampled = true;
-        }
-    }
-
-    if !anything_sampled {
-        fill_zeros(left);
-        fill_zeros(right);
+    for ((left, right), &(raw_left, _)) in left.iter_mut().zip(right.iter_mut()).zip(&source.generic().frame_samples()[offset..]) {
+        // Ignore all channels except left. Only mono sounds can be processed by HRTF.
+        let sample = Complex::new(raw_left, 0.0);
+        *left = sample;
+        *right = sample;
     }
 }
 
@@ -489,7 +454,7 @@ impl HrtfRenderer {
                     let hrtf_len = self.hrtf_sphere.length - 1;
 
                     get_raw_samples(spatial, &mut self.left_in_buffer[hrtf_len..],
-                                    &mut self.right_in_buffer[hrtf_len..]);
+                                    &mut self.right_in_buffer[hrtf_len..], step * Context::HRTF_BLOCK_LEN);
 
                     convolve_overlap_save(&mut self.left_in_buffer, &mut self.left_out_buffer,
                                           &self.left_hrtf, hrtf_len, &mut spatial.prev_left_samples,
@@ -506,7 +471,7 @@ impl HrtfRenderer {
                     let left_payload = &self.left_in_buffer[hrtf_len..];
                     let right_payload = &self.right_in_buffer[hrtf_len..];
                     for ((out_left, out_right), (processed_left, processed_right))
-                        in out.iter_mut().zip(left_payload.iter().zip(right_payload)) {
+                    in out.iter_mut().zip(left_payload.iter().zip(right_payload)) {
                         *out_left += processed_left.re * k;
                         *out_right += processed_right.re * k;
                     }

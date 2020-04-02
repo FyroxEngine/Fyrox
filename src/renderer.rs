@@ -8,7 +8,6 @@
 use crate::{
     hrtf::HrtfRenderer,
     source::{
-        Status,
         SoundSource,
         generic::GenericSource,
     },
@@ -36,25 +35,19 @@ fn render_with_params(
     right_gain: f32,
     mix_buffer: &mut [(f32, f32)],
 ) {
-    if let Some(mut buffer) = source.buffer().as_ref().and_then(|b| b.lock().ok()) {
-        if !buffer.generic().is_empty() {
-            let step = 1.0 / mix_buffer.len() as f32;
-            let mut t = 0.0;
-            for (left, right) in mix_buffer {
-                if source.status() != Status::Playing {
-                    break;
-                }
+    let step = 1.0 / mix_buffer.len() as f32;
+    let mut t = 0.0;
 
-                let (raw_left, raw_right) = source.next_sample_pair(&mut buffer);
+    let last_left_gain = *source.last_left_gain.get_or_insert(left_gain);
+    let last_right_gain = *source.last_right_gain.get_or_insert(right_gain);
 
-                // Interpolation of gain is very important to remove clicks which appears
-                // when gain changes by significant value between frames.
-                *left += math::lerpf(*source.last_left_gain.get_or_insert(left_gain), left_gain, t) * raw_left;
-                *right += math::lerpf(*source.last_right_gain.get_or_insert(right_gain), right_gain, t) * raw_right;
+    for ((out_left, out_right), &(raw_left, raw_right)) in mix_buffer.iter_mut().zip(source.frame_samples()) {
+        // Interpolation of gain is very important to remove clicks which appears
+        // when gain changes by significant value between frames.
+        *out_left += math::lerpf(last_left_gain, left_gain, t) * raw_left;
+        *out_right += math::lerpf(last_right_gain, right_gain, t) * raw_right;
 
-                t += step;
-            }
-        }
+        t += step;
     }
 }
 

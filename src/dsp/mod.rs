@@ -8,13 +8,15 @@
 //!
 //! `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
 
+use rg3d_core::visitor::{Visit, Visitor, VisitResult};
+
 pub mod filters;
 
 /// See more info here https://ccrma.stanford.edu/~jos/pasp/Delay_Lines.html
 pub struct DelayLine {
     samples: Vec<f32>,
     last: f32,
-    pos: usize
+    pos: u32
 }
 
 impl DelayLine {
@@ -34,11 +36,11 @@ impl DelayLine {
 
     /// Processes single sample.
     pub fn feed(&mut self, sample: f32) -> f32 {
-        self.last = self.samples[self.pos];
-        self.samples[self.pos] = sample;
+        self.last = self.samples[self.pos as usize];
+        self.samples[self.pos as usize] = sample;
         self.pos += 1;
-        if self.pos >= self.samples.len() {
-            self.pos -= self.samples.len()
+        if self.pos >= self.samples.len() as u32 {
+            self.pos -= self.samples.len() as u32
         }
         self.last
     }
@@ -46,6 +48,28 @@ impl DelayLine {
     /// Returns last processed sample.
     pub fn last(&self) -> f32 {
         self.last
+    }
+}
+
+impl Default for DelayLine {
+    fn default() -> Self {
+        Self {
+            samples: vec![0.0],
+            last: 0.0,
+            pos: 0
+        }
+    }
+}
+
+impl Visit for DelayLine {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.last.visit("Last", visitor)?;
+        self.pos.visit("Pos", visitor)?;
+        self.samples.visit("Samples", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
