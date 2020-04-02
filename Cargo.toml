@@ -1,6 +1,6 @@
 [package]
 name = "rg3d-ui"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -10,5 +10,5 @@ repository = "https://github.com/mrDIMAS/rg3d-ui"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.6.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.7.0" }
 lazy_static = "1.4.0"
