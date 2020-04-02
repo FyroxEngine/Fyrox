@@ -140,6 +140,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C> {
         visitor.enter_region(name)?;
 
         if visitor.is_reading() {
+            self.renderer.flush();
             self.resource_manager.lock().unwrap().update(0.0);
             self.scenes.clear();
         }

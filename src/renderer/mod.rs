@@ -306,6 +306,10 @@ impl GeometryCache {
         }
         self.map.retain(|_, v| v.time_to_live > 0.0);
     }
+
+    fn clear(&mut self) {
+        self.map.clear();
+    }
 }
 
 #[derive(Default)]
@@ -352,6 +356,10 @@ impl TextureCache {
             entry.time_to_live -= dt;
         }
         self.map.retain(|_, v| v.time_to_live > 0.0);
+    }
+
+    fn clear(&mut self) {
+        self.map.clear();
     }
 }
 
@@ -428,6 +436,11 @@ impl Renderer {
 
     pub fn get_quality_settings(&self) -> QualitySettings {
         self.quality_settings
+    }
+
+    pub(in crate) fn flush(&mut self) {
+        self.texture_cache.clear();
+        self.geometry_cache.clear();
     }
 
     pub(in crate) fn render(&mut self,
