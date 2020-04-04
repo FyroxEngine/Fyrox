@@ -9,6 +9,7 @@ use crate::{
         base::AsBase,
     },
     core::{
+        scope_profile,
         math::{
             mat4::Mat4,
             vec3::Vec3,
@@ -124,6 +125,8 @@ impl SpotShadowMapRenderer {
                   textures: &mut TextureCache,
                   geom_map: &mut GeometryCache,
     ) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
@@ -340,6 +343,8 @@ impl PointShadowMapRenderer {
     }
 
     pub fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         let PointShadowMapRenderContext {

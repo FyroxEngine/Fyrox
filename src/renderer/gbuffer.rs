@@ -39,6 +39,7 @@ use crate::{
         base::AsBase,
     },
     core::{
+        scope_profile,
         math::{
             Rect,
             mat4::Mat4,
@@ -173,6 +174,8 @@ impl GBuffer {
 
     #[must_use]
     pub fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         let GBufferRenderContext {

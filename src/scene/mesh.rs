@@ -17,7 +17,7 @@ pub struct Mesh {
     base: Base,
     surfaces: Vec<Surface>,
     bounding_box: Cell<AxisAlignedBoundingBox>,
-    dirty: Cell<bool>,
+    bounding_box_dirty: Cell<bool>,
 }
 
 impl Default for Mesh {
@@ -26,7 +26,7 @@ impl Default for Mesh {
             base: Default::default(),
             surfaces: Default::default(),
             bounding_box: Default::default(),
-            dirty: Cell::new(true),
+            bounding_box_dirty: Cell::new(true),
         }
     }
 }
@@ -65,18 +65,20 @@ impl Mesh {
 
     #[inline]
     pub fn clear_surfaces(&mut self) {
-        self.surfaces.clear()
+        self.surfaces.clear();
+        self.bounding_box_dirty.set(true);
     }
 
     #[inline]
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.push(surface);
+        self.bounding_box_dirty.set(true);
     }
 
     /// Performs lazy bounding box evaluation.
     /// Bounding box presented in *local coordinates*
     pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
-        if self.dirty.get() {
+        if self.bounding_box_dirty.get() {
             let mut bounding_box = AxisAlignedBoundingBox::default();
             for surface in self.surfaces.iter() {
                 let data = surface.get_data();
@@ -86,6 +88,7 @@ impl Mesh {
                 }
             }
             self.bounding_box.set(bounding_box);
+            self.bounding_box_dirty.set(false);
         }
         self.bounding_box.get()
     }

@@ -13,6 +13,7 @@ use crate::{
         },
         TriangleDefinition,
     },
+    core::scope_profile,
     utils::log::Log
 };
 
@@ -167,6 +168,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     pub fn set_vertices(&mut self, vertices: &[T]) -> &mut Self {
+        scope_profile!();
+
         let size = (vertices.len() * size_of::<T>()) as isize;
         let data = vertices.as_ptr() as *const c_void;
         let usage = self.get_usage();
@@ -179,6 +182,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     pub fn describe_attributes(&mut self, definitions: Vec<AttributeDefinition>) -> Result<&mut Self, RendererError> {
+        scope_profile!();
+
         let vertex_size = size_of::<T>();
         let mut offset = 0;
         for (index, definition) in definitions.iter().enumerate() {
@@ -205,6 +210,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     pub fn set_triangles(&mut self, triangles: &[TriangleDefinition]) -> &mut Self {
+        scope_profile!();
+
         assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
         self.buffer.element_count.set(triangles.len());
 
@@ -218,6 +225,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     pub fn set_lines(&mut self, lines: &[[u32; 2]]) -> &mut Self {
+        scope_profile!();
+
         assert_eq!(self.buffer.element_kind, ElementKind::Line);
         self.buffer.element_count.set(lines.len());
 
@@ -231,11 +240,15 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     unsafe fn set_elements(&self, elements: *const c_void, size: isize) {
+        scope_profile!();
+
         let usage = self.get_usage();
         gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, usage);
     }
 
     pub fn draw_part(&self, offset: usize, count: usize) -> Result<usize, RendererError> {
+        scope_profile!();
+
         let last_triangle_index = offset + count;
 
         if last_triangle_index > self.buffer.element_count.get() {
@@ -263,6 +276,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     pub fn draw(&self) -> usize {
+        scope_profile!();
+
         let start_index = 0;
         let index_per_element = self.buffer.element_kind.index_per_element();
         let index_count = self.buffer.element_count.get() * index_per_element;
@@ -273,6 +288,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 
     unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
+        scope_profile!();
+
         if index_count > 0 {
             let indices = (start_index * size_of::<u32>()) as *const c_void;
             gl::DrawElements(self.mode(), index_count as i32, gl::UNSIGNED_INT, indices);
@@ -283,6 +300,8 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
 impl<T> GeometryBuffer<T> where T: Sized {
     pub fn new(kind: GeometryBufferKind, element_kind: ElementKind) -> Self {
         unsafe {
+            scope_profile!();
+
             let mut vao = 0;
             gl::GenVertexArrays(1, &mut vao);
 
@@ -308,6 +327,8 @@ impl<T> GeometryBuffer<T> where T: Sized {
     }
 
     pub fn bind(&mut self) -> GeometryBufferBinding<'_, T> {
+        scope_profile!();
+
         unsafe {
             gl::BindVertexArray(self.vertex_array_object);
             gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer_object);

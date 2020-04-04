@@ -38,6 +38,7 @@ use crate::{
         blur::Blur
     },
     core::{
+        scope_profile,
         math::{
             vec3::Vec3,
             Rect,
@@ -186,6 +187,8 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                   projection_matrix: Mat4,
                   view_matrix: Mat3,
     ) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut stats = RenderPassStatistics::default();
 
         let viewport = Rect::new(0, 0, self.width, self.height);

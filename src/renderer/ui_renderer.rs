@@ -54,6 +54,7 @@ use crate::{
         TextureKind,
     },
     core::{
+        scope_profile,
         math::{
             Rect,
             mat4::Mat4,
@@ -139,6 +140,8 @@ impl UiRenderer {
     }
 
     pub(in crate::renderer) fn render(&mut self, args: UiRenderContext) -> Result<RenderPassStatistics, RendererError> {
+        scope_profile!();
+
         let UiRenderContext{ state, viewport, backbuffer,
             frame_width, frame_height, drawing_context, white_dummy
             , texture_cache } = args;

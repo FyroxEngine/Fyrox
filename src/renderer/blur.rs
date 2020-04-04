@@ -4,6 +4,7 @@ use std::{
 };
 use crate::{
     core::{
+        scope_profile,
         math::{
             mat4::Mat4,
             Rect,
@@ -106,6 +107,8 @@ impl Blur {
                   geom_cache: &mut GeometryCache,
                   input: Rc<RefCell<GpuTexture>>,
     ) {
+        scope_profile!();
+
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         self.framebuffer.draw(

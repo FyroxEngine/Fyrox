@@ -131,7 +131,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     #[inline]
     pub fn render(&mut self, dt: f32) -> Result<(), RendererError> {
         self.user_interface.draw();
-        self.renderer.render(&self.scenes, &self.user_interface.get_drawing_context(), &self.context, dt)
+        self.renderer.render_and_swap_buffers(&self.scenes, &self.user_interface.get_drawing_context(), &self.context, dt)
     }
 }
 

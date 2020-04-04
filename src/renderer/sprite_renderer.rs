@@ -6,6 +6,7 @@ use crate::{
         camera::Camera,
     },
     core::{
+        scope_profile,
         math::Rect,
     },
     renderer::{
@@ -96,6 +97,8 @@ impl SpriteRenderer {
 
     #[must_use]
     pub fn render(&mut self, args: SpriteRenderContext) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         let SpriteRenderContext {

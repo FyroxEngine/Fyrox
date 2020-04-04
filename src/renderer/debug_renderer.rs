@@ -1,5 +1,6 @@
 use crate::{
     core::{
+        scope_profile,
         color::Color,
         math::{
             vec3::Vec3,
@@ -161,6 +162,8 @@ impl DebugRenderer {
     }
 
     pub(in crate) fn render(&mut self, state: &mut State, viewport: Rect<i32>, framebuffer: &mut FrameBuffer, camera: &Camera) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         self.vertices.clear();

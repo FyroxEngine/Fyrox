@@ -6,9 +6,12 @@ use crate::{
         graph::Graph,
         camera::Camera,
     },
-    core::math::{
-        vec2::Vec2,
-        Rect,
+    core::{
+        scope_profile,
+        math::{
+            vec2::Vec2,
+            Rect,
+        }
     },
     renderer::{
         error::RendererError,
@@ -118,6 +121,8 @@ impl ParticleSystemRenderer {
 
     #[must_use]
     pub fn render(&mut self, args: ParticleSystemRenderContext) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         let ParticleSystemRenderContext{ state, framebuffer, graph

@@ -89,6 +89,7 @@ use crate::{
         node::Node,
     },
     core::{
+        scope_profile,
         math::{
             vec3::Vec3,
             mat4::Mat4,
@@ -187,12 +188,12 @@ impl Default for QualitySettings {
     fn default() -> Self {
         Self {
             point_shadow_map_size: 1024,
-            point_shadows_distance: 5.0,
+            point_shadows_distance: 15.0,
             point_shadows_enabled: true,
             point_soft_shadows: true,
 
             spot_shadow_map_size: 1024,
-            spot_shadows_distance: 5.0,
+            spot_shadows_distance: 15.0,
             spot_shadows_enabled: true,
             spot_soft_shadows: true,
 
@@ -276,6 +277,8 @@ pub struct GeometryCache {
 
 impl GeometryCache {
     fn get(&mut self, data: &SurfaceSharedData) -> &mut GeometryBuffer<surface::Vertex> {
+        scope_profile!();
+
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
@@ -319,6 +322,8 @@ pub struct TextureCache {
 
 impl TextureCache {
     fn get(&mut self, state: &mut State, texture: Arc<Mutex<Texture>>) -> Option<Rc<RefCell<GpuTexture>>> {
+        scope_profile!();
+
         if texture.lock().unwrap().loaded {
             let key = (&*texture as *const _) as usize;
             let gpu_texture = self.map.entry(key).or_insert_with(move || {
@@ -443,12 +448,12 @@ impl Renderer {
         self.geometry_cache.clear();
     }
 
-    pub(in crate) fn render(&mut self,
-                            scenes: &SceneContainer,
+    fn render_frame(&mut self,                            scenes: &SceneContainer,
                             drawing_context: &DrawingContext,
-                            context: &glutin::WindowedContext<PossiblyCurrent>,
                             dt: f32,
     ) -> Result<(), RendererError> {
+        scope_profile!();
+
         // We have to invalidate resource bindings cache because some textures or programs,
         // or other GL resources can be destroyed and then on their "names" some new resource
         // are created, but cache still thinks that resource is correctly bound, but it is different
@@ -586,6 +591,20 @@ impl Renderer {
                 texture_cache: &mut self.texture_cache,
             }
         )?;
+
+        Ok(())
+    }
+
+
+    pub(in crate) fn render_and_swap_buffers(&mut self,
+                                             scenes: &SceneContainer,
+                                             drawing_context: &DrawingContext,
+                                             context: &glutin::WindowedContext<PossiblyCurrent>,
+                                             dt: f32,
+    ) -> Result<(), RendererError> {
+        scope_profile!();
+
+        self.render_frame(scenes, drawing_context, dt)?;
 
         self.statistics.end_frame();
         context.swap_buffers()?;

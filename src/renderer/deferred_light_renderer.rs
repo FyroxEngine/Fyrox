@@ -47,6 +47,7 @@ use crate::{
         base::AsBase,
     },
     core::{
+        scope_profile,
         math::{
             vec3::Vec3,
             mat4::Mat4,
@@ -187,6 +188,8 @@ impl DeferredLightRenderer {
 
     #[must_use]
     pub fn render(&mut self, args: DeferredRendererContext) -> RenderPassStatistics {
+        scope_profile!();
+
         let mut statistics = RenderPassStatistics::default();
 
         let DeferredRendererContext {

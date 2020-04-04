@@ -4,6 +4,7 @@ use std::{
 };
 use crate::{
     core::{
+        scope_profile,
         math::Rect,
         color::Color,
     },
@@ -204,6 +205,8 @@ pub trait FrameBufferTrait {
     fn id(&self) -> u32;
 
     fn clear(&mut self, state: &mut State, viewport: Rect<i32>, color: Option<Color>, depth: Option<f32>, stencil: Option<i32>) {
+        scope_profile!();
+
         let mut mask = 0;
 
         state.set_viewport(viewport);
@@ -238,6 +241,7 @@ pub trait FrameBufferTrait {
                params: DrawParameters,
                uniforms: &[(UniformLocation, UniformValue<'_>)],
     ) -> usize {
+        scope_profile!();
         pre_draw(self.id(), state, viewport, program, params, uniforms);
         geometry.bind().draw()
     }
