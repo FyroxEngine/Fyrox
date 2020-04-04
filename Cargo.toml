@@ -21,3 +21,6 @@ winapi = {version = "0.3.8", features = ["minwindef", "winnt", "windef", "winuse
 
 [target.'cfg(target_os = "linux")'.dependencies]
 alsa-sys = { version = "0.2.0" }
+
+[features]
+enable_profiler = ["rg3d-core/enable_profiler"]
