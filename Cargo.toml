@@ -12,3 +12,6 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.7.0" }
 lazy_static = "1.4.0"
+
+[features]
+enable_profiler = ["rg3d-core/enable_profiler"]
