@@ -166,11 +166,11 @@ impl SpotShadowMapRenderer {
                         white_dummy.clone()
                     };
 
-                    statistics.add_draw_call(self.framebuffer.draw(
+                    statistics += self.framebuffer.draw(
+                        geom_map.get(state, &surface.get_data().lock().unwrap()),
                         state,
                         viewport,
-                        geom_map.get(&surface.get_data().lock().unwrap()),
-                        &mut self.shader.program,
+                        &self.shader.program,
                         DrawParameters {
                             cull_face: CullFace::Back,
                             culling: true,
@@ -200,7 +200,7 @@ impl SpotShadowMapRenderer {
                                 texture: diffuse_texture,
                             })
                         ],
-                    ));
+                    );
                 }
             }
         }
@@ -399,11 +399,11 @@ impl PointShadowMapRenderer {
                             white_dummy.clone()
                         };
 
-                        statistics.add_draw_call(self.framebuffer.draw(
+                        statistics += self.framebuffer.draw(
+                            geom_cache.get(state, &surface.get_data().lock().unwrap()),
                             state,
                             viewport,
-                            geom_cache.get(&surface.get_data().lock().unwrap()),
-                            &mut self.shader.program,
+                            &self.shader.program,
                             DrawParameters {
                                 cull_face: CullFace::Back,
                                 culling: true,
@@ -435,7 +435,7 @@ impl PointShadowMapRenderer {
                                     texture: diffuse_texture,
                                 })
                             ],
-                        ));
+                        );
                     }
                 }
             }

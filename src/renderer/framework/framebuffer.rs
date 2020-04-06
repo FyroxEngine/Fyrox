@@ -27,6 +27,7 @@ use crate::{
         }
     }
 };
+use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub enum AttachmentKind {
@@ -177,7 +178,7 @@ impl FrameBuffer {
 fn pre_draw(fbo: GLuint,
             state: &mut State,
             viewport: Rect<i32>,
-            program: &mut GpuProgram,
+            program: &GpuProgram,
             params: DrawParameters,
             uniforms: &[(UniformLocation, UniformValue<'_>)]) {
     state.set_framebuffer(fbo);
@@ -234,19 +235,22 @@ pub trait FrameBufferTrait {
     }
 
     fn draw<T>(&mut self,
+               geometry: &GeometryBuffer<T>,
                state: &mut State,
                viewport: Rect<i32>,
-               geometry: &mut GeometryBuffer<T>,
-               program: &mut GpuProgram,
+               program: &GpuProgram,
                params: DrawParameters,
                uniforms: &[(UniformLocation, UniformValue<'_>)],
-    ) -> usize {
+    ) -> DrawCallStatistics {
         scope_profile!();
+
         pre_draw(self.id(), state, viewport, program, params, uniforms);
-        geometry.bind().draw()
+        geometry.bind(state).draw()
     }
 
-    fn draw_part<T>(&mut self, args: DrawPartContext<T>) -> Result<usize, RendererError> {
+    fn draw_part<T>(&mut self, args: DrawPartContext<T>) -> Result<DrawCallStatistics, RendererError> {
+        scope_profile!();
+
         pre_draw(
             self.id(),
             args.state,
@@ -256,7 +260,7 @@ pub trait FrameBufferTrait {
             args.uniforms
         );
         args.geometry
-            .bind()
+            .bind(args.state)
             .draw_part(args.offset, args.count)
     }
 }

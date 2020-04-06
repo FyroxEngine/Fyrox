@@ -8,15 +8,15 @@ use crate::{
         math::{
             mat4::Mat4,
             Rect,
-            vec3::Vec3
-        }
+            vec3::Vec3,
+        },
     },
     renderer::{
         framework::{
             gpu_program::{
                 UniformValue,
                 GpuProgram,
-                UniformLocation
+                UniformLocation,
             },
             framebuffer::{
                 DrawParameters,
@@ -24,7 +24,7 @@ use crate::{
                 FrameBuffer,
                 Attachment,
                 AttachmentKind,
-                FrameBufferTrait
+                FrameBufferTrait,
             },
             gpu_texture::{
                 GpuTexture,
@@ -33,18 +33,18 @@ use crate::{
                 Coordinate,
                 WrapMode,
             },
-            state::State
+            state::State,
         },
         error::RendererError,
         GeometryCache,
-        surface::SurfaceSharedData
+        surface::SurfaceSharedData,
     },
 };
 
 struct Shader {
     program: GpuProgram,
     world_view_projection_matrix: UniformLocation,
-    input_texture: UniformLocation
+    input_texture: UniformLocation,
 }
 
 impl Shader {
@@ -112,10 +112,10 @@ impl Blur {
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
 
         self.framebuffer.draw(
+            geom_cache.get(state, &self.quad),
             state,
             viewport,
-            geom_cache.get(&self.quad),
-            &mut self.shader.program,
+            &self.shader.program,
             DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,

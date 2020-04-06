@@ -81,16 +81,15 @@ impl AmbientLightShader {
     }
 }
 
-struct DeferredLightingShader {
+struct SpotLightShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     depth_sampler: UniformLocation,
     color_sampler: UniformLocation,
     normal_sampler: UniformLocation,
     spot_shadow_texture: UniformLocation,
-    point_shadow_texture: UniformLocation,
     light_view_proj_matrix: UniformLocation,
-    light_type: UniformLocation,
+    shadows_enabled: UniformLocation,
     soft_shadows: UniformLocation,
     shadow_map_inv_size: UniformLocation,
     light_position: UniformLocation,
@@ -103,9 +102,9 @@ struct DeferredLightingShader {
     camera_position: UniformLocation,
 }
 
-impl DeferredLightingShader {
+impl SpotLightShader {
     fn new() -> Result<Self, RendererError> {
-        let fragment_source = include_str!("shaders/deferred_light_fs.glsl");
+        let fragment_source = include_str!("shaders/deferred_spot_light_fs.glsl");
         let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
         let program = GpuProgram::from_source("DeferredLightShader", vertex_source, fragment_source)?;
         Ok(Self {
@@ -114,9 +113,8 @@ impl DeferredLightingShader {
             color_sampler: program.uniform_location("colorTexture")?,
             normal_sampler: program.uniform_location("normalTexture")?,
             spot_shadow_texture: program.uniform_location("spotShadowTexture")?,
-            point_shadow_texture: program.uniform_location("pointShadowTexture")?,
             light_view_proj_matrix: program.uniform_location("lightViewProjMatrix")?,
-            light_type: program.uniform_location("lightType")?,
+            shadows_enabled: program.uniform_location("shadowsEnabled")?,
             soft_shadows: program.uniform_location("softShadows")?,
             shadow_map_inv_size: program.uniform_location("shadowMapInvSize")?,
             light_position: program.uniform_location("lightPos")?,
@@ -133,9 +131,82 @@ impl DeferredLightingShader {
     }
 }
 
+struct PointLightShader {
+    program: GpuProgram,
+    wvp_matrix: UniformLocation,
+    depth_sampler: UniformLocation,
+    color_sampler: UniformLocation,
+    normal_sampler: UniformLocation,
+    point_shadow_texture: UniformLocation,
+    shadows_enabled: UniformLocation,
+    soft_shadows: UniformLocation,
+    light_position: UniformLocation,
+    light_radius: UniformLocation,
+    light_color: UniformLocation,
+    inv_view_proj_matrix: UniformLocation,
+    camera_position: UniformLocation,
+}
+
+impl PointLightShader {
+    fn new() -> Result<Self, RendererError> {
+        let fragment_source = include_str!("shaders/deferred_point_light_fs.glsl");
+        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
+        let program = GpuProgram::from_source("DeferredLightShader", vertex_source, fragment_source)?;
+        Ok(Self {
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            depth_sampler: program.uniform_location("depthTexture")?,
+            color_sampler: program.uniform_location("colorTexture")?,
+            normal_sampler: program.uniform_location("normalTexture")?,
+            point_shadow_texture: program.uniform_location("pointShadowTexture")?,
+            shadows_enabled: program.uniform_location("shadowsEnabled")?,
+            soft_shadows: program.uniform_location("softShadows")?,
+            light_position: program.uniform_location("lightPos")?,
+            light_radius: program.uniform_location("lightRadius")?,
+            light_color: program.uniform_location("lightColor")?,
+            inv_view_proj_matrix: program.uniform_location("invViewProj")?,
+            camera_position: program.uniform_location("cameraPosition")?,
+
+            program,
+        })
+    }
+}
+
+struct DirectionalLightShader {
+    program: GpuProgram,
+    wvp_matrix: UniformLocation,
+    depth_sampler: UniformLocation,
+    color_sampler: UniformLocation,
+    normal_sampler: UniformLocation,
+    light_direction: UniformLocation,
+    light_color: UniformLocation,
+    inv_view_proj_matrix: UniformLocation,
+    camera_position: UniformLocation,
+}
+
+impl DirectionalLightShader {
+    fn new() -> Result<Self, RendererError> {
+        let fragment_source = include_str!("shaders/deferred_directional_light_fs.glsl");
+        let vertex_source = include_str!("shaders/deferred_light_vs.glsl");
+        let program = GpuProgram::from_source("DeferredLightShader", vertex_source, fragment_source)?;
+        Ok(Self {
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            depth_sampler: program.uniform_location("depthTexture")?,
+            color_sampler: program.uniform_location("colorTexture")?,
+            normal_sampler: program.uniform_location("normalTexture")?,
+            light_direction: program.uniform_location("lightDirection")?,
+            light_color: program.uniform_location("lightColor")?,
+            inv_view_proj_matrix: program.uniform_location("invViewProj")?,
+            camera_position: program.uniform_location("cameraPosition")?,
+            program,
+        })
+    }
+}
+
 pub struct DeferredLightRenderer {
     pub ssao_renderer: ScreenSpaceAmbientOcclusionRenderer,
-    shader: DeferredLightingShader,
+    spot_light_shader: SpotLightShader,
+    point_light_shader: PointLightShader,
+    directional_light_shader: DirectionalLightShader,
     ambient_light_shader: AmbientLightShader,
     quad: SurfaceSharedData,
     sphere: SurfaceSharedData,
@@ -160,7 +231,9 @@ impl DeferredLightRenderer {
     pub fn new(state: &mut State, frame_size: (u32, u32), settings: &QualitySettings) -> Result<Self, RendererError> {
         Ok(Self {
             ssao_renderer: ScreenSpaceAmbientOcclusionRenderer::new(state, frame_size.0 as usize, frame_size.1 as usize)?,
-            shader: DeferredLightingShader::new()?,
+            spot_light_shader: SpotLightShader::new()?,
+            point_light_shader: PointLightShader::new()?,
+            directional_light_shader: DirectionalLightShader::new()?,
             ambient_light_shader: AmbientLightShader::new()?,
             quad: SurfaceSharedData::make_unit_xy_quad(),
             sphere: SurfaceSharedData::make_sphere(6, 6, 1.0),
@@ -220,14 +293,14 @@ impl DeferredLightRenderer {
             );
         }
 
-        gbuffer.opt_framebuffer.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), None, Some(0));
+        gbuffer.final_frame.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), None, Some(0));
 
         // Ambient light.
-        gbuffer.opt_framebuffer.draw(
+        gbuffer.final_frame.draw(
+            geometry_cache.get(state, &self.quad),
             state,
             viewport,
-            geometry_cache.get(&self.quad),
-            &mut self.ambient_light_shader.program,
+            &self.ambient_light_shader.program,
             DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
@@ -268,6 +341,7 @@ impl DeferredLightRenderer {
             let raw_radius = match light.get_kind() {
                 LightKind::Spot(spot_light) => spot_light.distance(),
                 LightKind::Point(point_light) => point_light.get_radius(),
+                LightKind::Directional => { std::f32::MAX }
             };
 
             let light_position = light.base().global_position();
@@ -284,7 +358,7 @@ impl DeferredLightRenderer {
             let distance_to_camera = (light.base().global_position() - camera.base().global_position()).len();
 
             let mut light_view_projection = Mat4::IDENTITY;
-            let apply_shadows = light.is_cast_shadows() && match light.get_kind() {
+            let shadows_enabled = light.is_cast_shadows() && match light.get_kind() {
                 LightKind::Spot(spot) if distance_to_camera <= settings.spot_shadows_distance && settings.spot_shadows_enabled => {
                     let light_projection_matrix = Mat4::perspective(
                         spot.full_cone_angle(),
@@ -328,6 +402,10 @@ impl DeferredLightRenderer {
 
                     true
                 }
+                LightKind::Directional => {
+                    // TODO: Add cascaded shadow map.
+                    false
+                }
                 _ => false
             };
 
@@ -336,11 +414,13 @@ impl DeferredLightRenderer {
             state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
             state.set_stencil_op(StencilOp { zfail: gl::INCR, ..Default::default() });
 
-            statistics.add_draw_call(gbuffer.opt_framebuffer.draw(
+            let sphere = geometry_cache.get(state, &self.sphere);
+
+            statistics += gbuffer.final_frame.draw(
+                sphere,
                 state,
                 viewport,
-                geometry_cache.get(&self.sphere),
-                &mut self.flat_shader.program,
+                &self.flat_shader.program,
                 DrawParameters {
                     cull_face: CullFace::Front,
                     culling: true,
@@ -355,16 +435,16 @@ impl DeferredLightRenderer {
                         view_projection * Mat4::translate(light_position) * Mat4::scale(light_radius_vec)
                     ))
                 ],
-            ));
+            );
 
             state.set_stencil_func(StencilFunc { func: gl::ALWAYS, ..Default::default() });
             state.set_stencil_op(StencilOp { zfail: gl::DECR, ..Default::default() });
 
-            statistics.add_draw_call(gbuffer.opt_framebuffer.draw(
+            statistics += gbuffer.final_frame.draw(
+                sphere,
                 state,
                 viewport,
-                geometry_cache.get(&self.sphere),
-                &mut self.flat_shader.program,
+                &self.flat_shader.program,
                 DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
@@ -379,63 +459,112 @@ impl DeferredLightRenderer {
                         view_projection * Mat4::translate(light_position) * Mat4::scale(light_radius_vec)
                     ))
                 ],
-            ));
+            );
 
             state.set_stencil_func(StencilFunc { func: gl::NOTEQUAL, ..Default::default() });
             state.set_stencil_op(StencilOp { zpass: gl::ZERO, ..Default::default() });
 
-            let (hotspot_cone_angle, cone_angle) = match light.get_kind() {
-                LightKind::Spot(spot_light) => (spot_light.hotspot_cone_angle(), spot_light.full_cone_angle()),
-                LightKind::Point(_) => (2.0 * std::f32::consts::PI, 2.0 * std::f32::consts::PI),
+            let draw_params = DrawParameters {
+                cull_face: CullFace::Back,
+                culling: false,
+                color_write: Default::default(),
+                depth_write: false,
+                stencil_test: true,
+                depth_test: false,
+                blend: true,
             };
 
-            // Finally render light.
-            statistics.add_draw_call(gbuffer.opt_framebuffer.draw(
-                state,
-                viewport,
-                geometry_cache.get(&self.quad),
-                &mut self.shader.program,
-                DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: false,
-                    color_write: Default::default(),
-                    depth_write: false,
-                    stencil_test: true,
-                    depth_test: false,
-                    blend: true,
-                },
-                &[
-                    (self.shader.light_type, UniformValue::Integer({
-                        match light.get_kind() {
-                            LightKind::Spot(_) if apply_shadows => 2,
-                            LightKind::Point(_) if apply_shadows => 0,
-                            _ => -1
-                        }
-                    })),
-                    (self.shader.light_view_proj_matrix, UniformValue::Mat4(light_view_projection)),
-                    (self.shader.soft_shadows, UniformValue::Bool({
-                        match light.get_kind() {
-                            LightKind::Spot(_) if settings.spot_soft_shadows => true,
-                            LightKind::Point(_) if settings.point_soft_shadows => true,
-                            _ => false
-                        }
-                    })),
-                    (self.shader.light_position, UniformValue::Vec3(light_position)),
-                    (self.shader.light_direction, UniformValue::Vec3(emit_direction)),
-                    (self.shader.light_radius, UniformValue::Float(light_radius)),
-                    (self.shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
-                    (self.shader.light_color, UniformValue::Color(light.get_color())),
-                    (self.shader.half_hotspot_cone_angle_cos, UniformValue::Float((hotspot_cone_angle * 0.5).cos())),
-                    (self.shader.half_cone_angle_cos, UniformValue::Float((cone_angle * 0.5).cos())),
-                    (self.shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
-                    (self.shader.shadow_map_inv_size, UniformValue::Float(1.0 / (self.spot_shadow_map_renderer.size as f32))),
-                    (self.shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
-                    (self.shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
-                    (self.shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
-                    (self.shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
-                    (self.shader.spot_shadow_texture, UniformValue::Sampler { index: 3, texture: self.spot_shadow_map_renderer.texture() }),
-                    (self.shader.point_shadow_texture, UniformValue::Sampler { index: 4, texture: self.point_shadow_map_renderer.texture() })
-                ]));
+            let quad = geometry_cache.get(state, &self.quad);
+
+            statistics += match light.get_kind() {
+                LightKind::Spot(spot_light) => {
+                    let shader = &self.spot_light_shader;
+
+                    let uniforms = [
+                        (shader.shadows_enabled, UniformValue::Bool(shadows_enabled)),
+                        (shader.light_view_proj_matrix, UniformValue::Mat4(light_view_projection)),
+                        (shader.soft_shadows, UniformValue::Bool(settings.spot_soft_shadows)),
+                        (shader.light_position, UniformValue::Vec3(light_position)),
+                        (shader.light_direction, UniformValue::Vec3(emit_direction)),
+                        (shader.light_radius, UniformValue::Float(light_radius)),
+                        (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
+                        (shader.light_color, UniformValue::Color(light.get_color())),
+                        (shader.half_hotspot_cone_angle_cos, UniformValue::Float((spot_light.hotspot_cone_angle() * 0.5).cos())),
+                        (shader.half_cone_angle_cos, UniformValue::Float((spot_light.full_cone_angle() * 0.5).cos())),
+                        (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
+                        (shader.shadow_map_inv_size, UniformValue::Float(1.0 / (self.spot_shadow_map_renderer.size as f32))),
+                        (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                        (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
+                        (shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
+                        (shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
+                        (shader.spot_shadow_texture, UniformValue::Sampler { index: 3, texture: self.spot_shadow_map_renderer.texture() }),
+                    ];
+
+                    gbuffer.final_frame.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &shader.program,
+                        draw_params,
+                        &uniforms)
+                }
+                LightKind::Point(_) => {
+                    let shader = &self.point_light_shader;
+
+                    let uniforms = [
+                        (shader.shadows_enabled, UniformValue::Bool(shadows_enabled)),
+                        (shader.soft_shadows, UniformValue::Bool(settings.point_soft_shadows)),
+                        (shader.light_position, UniformValue::Vec3(light_position)),
+                        (shader.light_radius, UniformValue::Float(light_radius)),
+                        (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
+                        (shader.light_color, UniformValue::Color(light.get_color())),
+                        (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
+                        (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                        (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
+                        (shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
+                        (shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
+                        (shader.point_shadow_texture, UniformValue::Sampler { index: 3, texture: self.point_shadow_map_renderer.texture() })
+                    ];
+
+                    gbuffer.final_frame.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &shader.program,
+                        draw_params,
+                        &uniforms)
+                }
+                LightKind::Directional => {
+                    let shader = &self.directional_light_shader;
+
+                    let uniforms = [
+                        (shader.light_direction, UniformValue::Vec3(emit_direction)),
+                        (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
+                        (shader.light_color, UniformValue::Color(light.get_color())),
+                        (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
+                        (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                        (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
+                        (shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
+                        (shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
+                    ];
+
+                    gbuffer.final_frame.draw(
+                        quad,
+                        state,
+                        viewport,
+                        &shader.program,
+                        DrawParameters {
+                            cull_face: CullFace::Back,
+                            culling: false,
+                            color_write: Default::default(),
+                            depth_write: false,
+                            stencil_test: false,
+                            depth_test: false,
+                            blend: true,
+                        },
+                        &uniforms)
+                }
+            };
         }
 
         statistics

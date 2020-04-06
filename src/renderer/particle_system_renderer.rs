@@ -11,7 +11,7 @@ use crate::{
         math::{
             vec2::Vec2,
             Rect,
-        }
+        },
     },
     renderer::{
         error::RendererError,
@@ -99,10 +99,10 @@ pub struct ParticleSystemRenderContext<'a, 'b, 'c> {
 }
 
 impl ParticleSystemRenderer {
-    pub fn new() -> Result<Self, RendererError> {
-        let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
+    pub fn new(state: &mut State) -> Result<Self, RendererError> {
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
-        geometry_buffer.bind()
+        geometry_buffer.bind(state)
             .describe_attributes(vec![
                 AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
                 AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
@@ -125,9 +125,11 @@ impl ParticleSystemRenderer {
 
         let mut statistics = RenderPassStatistics::default();
 
-        let ParticleSystemRenderContext{ state, framebuffer, graph
+        let ParticleSystemRenderContext {
+            state, framebuffer, graph
             , camera, white_dummy, depth,
-            frame_width, frame_height, viewport, texture_cache } = args;
+            frame_width, frame_height, viewport, texture_cache
+        } = args;
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
@@ -148,7 +150,7 @@ impl ParticleSystemRenderer {
                                                &camera.base().global_position());
 
             self.geometry_buffer
-                .bind()
+                .bind(state)
                 .set_triangles(self.draw_data.get_triangles())
                 .set_vertices(self.draw_data.get_vertices());
 
@@ -184,15 +186,14 @@ impl ParticleSystemRenderer {
                 blend: true,
             };
 
-            statistics.add_draw_call(
-                framebuffer.draw(
-                    state,
-                    viewport,
-                    &mut self.geometry_buffer,
-                    &mut self.shader.program,
-                    draw_params,
-                    &uniforms,
-                ));
+            statistics += framebuffer.draw(
+                &self.geometry_buffer,
+                state,
+                viewport,
+                &self.shader.program,
+                draw_params,
+                &uniforms,
+            );
         }
 
         statistics

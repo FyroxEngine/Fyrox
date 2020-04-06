@@ -84,11 +84,14 @@ impl FbxLight {
 
     pub fn convert(&self) -> Light {
         let light_kind = match self.actual_type {
-            FbxLightType::Point | FbxLightType::Directional | FbxLightType::Area | FbxLightType::Volume => {
+            FbxLightType::Point| FbxLightType::Area | FbxLightType::Volume => {
                 LightKind::Point(PointLight::new(self.radius))
             }
             FbxLightType::Spot => {
                 LightKind::Spot(SpotLight::new(self.radius, self.hotspot_cone_angle, self.falloff_cone_angle_delta))
+            }
+            FbxLightType::Directional => {
+                LightKind::Directional
             }
         };
 

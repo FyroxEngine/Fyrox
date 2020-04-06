@@ -103,6 +103,7 @@ use crate::{
     gui::draw::DrawingContext,
     engine::resource_manager::TimedEntry,
 };
+use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -142,10 +143,10 @@ impl std::ops::AddAssign for RenderPassStatistics {
     }
 }
 
-impl RenderPassStatistics {
-    pub fn add_draw_call(&mut self, triangles_rendered: usize) {
-        self.triangles_rendered += triangles_rendered;
+impl std::ops::AddAssign<DrawCallStatistics> for RenderPassStatistics {
+    fn add_assign(&mut self, rhs: DrawCallStatistics) {
         self.draw_calls += 1;
+        self.triangles_rendered += rhs.triangles;
     }
 }
 
@@ -276,15 +277,15 @@ pub struct GeometryCache {
 }
 
 impl GeometryCache {
-    fn get(&mut self, data: &SurfaceSharedData) -> &mut GeometryBuffer<surface::Vertex> {
+    fn get(&mut self, state: &mut State, data: &SurfaceSharedData) -> &mut GeometryBuffer<surface::Vertex> {
         scope_profile!();
 
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
-            let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
+            let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
 
-            geometry_buffer.bind()
+            geometry_buffer.bind(state)
                 .describe_attributes(vec![
                     AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
                     AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
@@ -387,11 +388,11 @@ impl Renderer {
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(&mut state, GpuTextureKind::Rectangle { width: 1, height: 1 },
                                                                PixelKind::RGBA8, Some(&[128, 128, 255, 255]))?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
-            ui_renderer: UiRenderer::new()?,
-            particle_system_renderer: ParticleSystemRenderer::new()?,
+            ui_renderer: UiRenderer::new(&mut state)?,
+            particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             ambient_color: Color::opaque(100, 100, 100),
             quality_settings: settings,
-            debug_renderer: DebugRenderer::new()?,
+            debug_renderer: DebugRenderer::new(&mut state)?,
             gbuffers: Default::default(),
             backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
             texture_cache: Default::default(),
@@ -448,9 +449,9 @@ impl Renderer {
         self.geometry_cache.clear();
     }
 
-    fn render_frame(&mut self,                            scenes: &SceneContainer,
-                            drawing_context: &DrawingContext,
-                            dt: f32,
+    fn render_frame(&mut self, scenes: &SceneContainer,
+                    drawing_context: &DrawingContext,
+                    dt: f32,
     ) -> Result<(), RendererError> {
         scope_profile!();
 
@@ -523,7 +524,7 @@ impl Renderer {
                 self.statistics += self.particle_system_renderer.render(
                     ParticleSystemRenderContext {
                         state,
-                        framebuffer: &mut gbuffer.opt_framebuffer,
+                        framebuffer: &mut gbuffer.final_frame,
                         graph,
                         camera,
                         white_dummy: self.white_dummy.clone(),
@@ -537,7 +538,7 @@ impl Renderer {
                 self.statistics += self.sprite_renderer.render(
                     SpriteRenderContext {
                         state,
-                        framebuffer: &mut gbuffer.opt_framebuffer,
+                        framebuffer: &mut gbuffer.final_frame,
                         graph,
                         camera,
                         white_dummy: self.white_dummy.clone(),
@@ -546,35 +547,34 @@ impl Renderer {
                         geom_map: &mut self.geometry_cache,
                     });
 
-                self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.opt_framebuffer, camera);
+                self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.final_frame, camera);
 
                 // Finally render everything into back buffer.
-                self.statistics.geometry.add_draw_call(
-                    self.backbuffer.draw(
-                        state,
-                        viewport,
-                        self.geometry_cache.get(&self.quad),
-                        &mut self.flat_shader.program,
-                        DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: false,
-                            color_write: Default::default(),
-                            depth_write: true,
-                            stencil_test: false,
-                            depth_test: false,
-                            blend: false,
-                        },
-                        &[
-                            (self.flat_shader.wvp_matrix, UniformValue::Mat4({
-                                Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
-                                    Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
-                            })),
-                            (self.flat_shader.diffuse_texture, UniformValue::Sampler {
-                                index: 0,
-                                texture: gbuffer.frame_texture(),
-                            })
-                        ],
-                    ));
+                self.statistics.geometry += self.backbuffer.draw(
+                    self.geometry_cache.get(state, &self.quad),
+                    state,
+                    viewport,
+                    &self.flat_shader.program,
+                    DrawParameters {
+                        cull_face: CullFace::Back,
+                        culling: false,
+                        color_write: Default::default(),
+                        depth_write: true,
+                        stencil_test: false,
+                        depth_test: false,
+                        blend: false,
+                    },
+                    &[
+                        (self.flat_shader.wvp_matrix, UniformValue::Mat4({
+                            Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
+                                Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
+                        })),
+                        (self.flat_shader.diffuse_texture, UniformValue::Sampler {
+                            index: 0,
+                            texture: gbuffer.frame_texture(),
+                        })
+                    ],
+                );
             }
         }
 

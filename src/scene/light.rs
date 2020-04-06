@@ -134,6 +134,7 @@ impl Default for PointLight {
 
 #[derive(Clone)]
 pub enum LightKind {
+    Directional,
     Spot(SpotLight),
     Point(PointLight),
 }
@@ -143,6 +144,7 @@ impl LightKind {
         match id {
             0 => Ok(LightKind::Spot(Default::default())),
             1 => Ok(LightKind::Point(Default::default())),
+            2 => Ok(LightKind::Directional),
             _ => Err(format!("Invalid light kind {}", id))
         }
     }
@@ -151,6 +153,7 @@ impl LightKind {
         match self {
             LightKind::Spot(_) => 0,
             LightKind::Point(_) => 1,
+            LightKind::Directional => 2,
         }
     }
 }
@@ -160,6 +163,7 @@ impl Visit for LightKind {
         match self {
             LightKind::Spot(spot_light) => spot_light.visit(name, visitor),
             LightKind::Point(point_light) => point_light.visit(name, visitor),
+            LightKind::Directional => Ok(())
         }
     }
 }

@@ -78,7 +78,7 @@ impl GBufferShader {
 
 pub struct GBuffer {
     framebuffer: FrameBuffer,
-    pub opt_framebuffer: FrameBuffer,
+    pub final_frame: FrameBuffer,
     shader: GBufferShader,
     bone_matrices: Vec<Mat4>,
     pub width: i32,
@@ -152,12 +152,12 @@ impl GBuffer {
             bone_matrices: Vec::new(),
             width: width as i32,
             height: height as i32,
-            opt_framebuffer,
+            final_frame: opt_framebuffer,
         })
     }
 
     pub fn frame_texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.opt_framebuffer.color_attachments()[0].texture.clone()
+        self.final_frame.color_attachments()[0].texture.clone()
     }
 
     pub fn depth(&self) -> Rc<RefCell<GpuTexture>> {
@@ -234,45 +234,44 @@ impl GBuffer {
                     normal_dummy.clone()
                 };
 
-                statistics.add_draw_call(
-                    self.framebuffer.draw(
-                        state,
-                        viewport,
-                        geom_cache.get(&surface.get_data().lock().unwrap()),
-                        &mut self.shader.program,
-                        DrawParameters {
-                            cull_face: CullFace::Back,
-                            culling: true,
-                            color_write: Default::default(),
-                            depth_write: true,
-                            stencil_test: false,
-                            depth_test: true,
-                            blend: false,
-                        },
-                        &[
-                            (self.shader.diffuse_texture, UniformValue::Sampler {
-                                index: 0,
-                                texture: diffuse_texture,
-                            }),
-                            (self.shader.normal_texture, UniformValue::Sampler {
-                                index: 1,
-                                texture: normal_texture,
-                            }),
-                            (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
-                            (self.shader.world_matrix, UniformValue::Mat4(world)),
-                            (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
-                            (self.shader.bone_matrices, UniformValue::Mat4Array({
-                                self.bone_matrices.clear();
-                                for bone_handle in surface.bones.iter() {
-                                    let bone_node = graph.get(*bone_handle);
-                                    self.bone_matrices.push(
-                                        bone_node.base().global_transform() *
-                                            bone_node.base().inv_bind_pose_transform());
-                                }
-                                &self.bone_matrices
-                            }))
-                        ],
-                    ));
+                statistics += self.framebuffer.draw(
+                    geom_cache.get(state,&surface.get_data().lock().unwrap()),
+                    state,
+                    viewport,
+                    &self.shader.program,
+                    DrawParameters {
+                        cull_face: CullFace::Back,
+                        culling: true,
+                        color_write: Default::default(),
+                        depth_write: true,
+                        stencil_test: false,
+                        depth_test: true,
+                        blend: false,
+                    },
+                    &[
+                        (self.shader.diffuse_texture, UniformValue::Sampler {
+                            index: 0,
+                            texture: diffuse_texture,
+                        }),
+                        (self.shader.normal_texture, UniformValue::Sampler {
+                            index: 1,
+                            texture: normal_texture,
+                        }),
+                        (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
+                        (self.shader.world_matrix, UniformValue::Mat4(world)),
+                        (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
+                        (self.shader.bone_matrices, UniformValue::Mat4Array({
+                            self.bone_matrices.clear();
+                            for bone_handle in surface.bones.iter() {
+                                let bone_node = graph.get(*bone_handle);
+                                self.bone_matrices.push(
+                                    bone_node.base().global_transform() *
+                                        bone_node.base().inv_bind_pose_transform());
+                            }
+                            &self.bone_matrices
+                        }))
+                    ],
+                );
             }
         }
 

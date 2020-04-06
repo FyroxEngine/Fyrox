@@ -46,6 +46,9 @@ pub struct State {
 
     stencil_func: StencilFunc,
     stencil_op: StencilOp,
+
+    vao: GLuint,
+    vbo: GLuint,
 }
 
 #[derive(Copy, Clone)]
@@ -162,6 +165,8 @@ impl State {
             texture_units: [Default::default(); 32],
             stencil_func: Default::default(),
             stencil_op: Default::default(),
+            vao: 0,
+            vbo: 0
         }
     }
 
@@ -366,6 +371,26 @@ impl State {
 
             unsafe {
                 gl::StencilOp(self.stencil_op.fail, self.stencil_op.zfail, self.stencil_op.zpass);
+            }
+        }
+    }
+
+    pub fn set_vertex_array_object(&mut self, vao: GLuint) {
+        if self.vao != vao {
+            self.vao = vao;
+
+            unsafe {
+                gl::BindVertexArray(vao);
+            }
+        }
+    }
+
+    pub fn set_vertex_buffer_object(&mut self, vbo: GLuint) {
+        if self.vbo != vbo {
+            self.vbo = vbo;
+
+            unsafe {
+                gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             }
         }
     }

@@ -16,7 +16,7 @@ use crate::{
                 GeometryBuffer,
                 AttributeDefinition,
                 AttributeKind,
-                GeometryBufferKind
+                GeometryBufferKind,
             },
             gpu_texture::GpuTexture,
             gpu_program::{
@@ -28,14 +28,14 @@ use crate::{
                 State,
                 ColorMask,
                 StencilFunc,
-                StencilOp
+                StencilOp,
             },
             framebuffer::{
                 BackBuffer,
                 FrameBufferTrait,
                 DrawParameters,
                 CullFace,
-            }
+            },
         },
         error::RendererError,
         TextureCache,
@@ -120,14 +120,14 @@ pub struct UiRenderContext<'a, 'b, 'c> {
     pub frame_height: f32,
     pub drawing_context: &'c DrawingContext,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub texture_cache: &'a mut TextureCache
+    pub texture_cache: &'a mut TextureCache,
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new() -> Result<Self, RendererError> {
-        let mut geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
+    pub(in crate::renderer) fn new(state: &mut State) -> Result<Self, RendererError> {
+        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
-        geometry_buffer.bind()
+        geometry_buffer.bind(state)
             .describe_attributes(vec![
                 AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
                 AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
@@ -142,15 +142,17 @@ impl UiRenderer {
     pub(in crate::renderer) fn render(&mut self, args: UiRenderContext) -> Result<RenderPassStatistics, RendererError> {
         scope_profile!();
 
-        let UiRenderContext{ state, viewport, backbuffer,
+        let UiRenderContext {
+            state, viewport, backbuffer,
             frame_width, frame_height, drawing_context, white_dummy
-            , texture_cache } = args;
+            , texture_cache
+        } = args;
 
         let mut statistics = RenderPassStatistics::default();
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
-        let mut geometry_buffer = self.geometry_buffer.bind();
+        let geometry_buffer = self.geometry_buffer.bind(state);
 
         geometry_buffer
             .set_triangles(drawing_context.get_triangles())
@@ -169,7 +171,7 @@ impl UiRenderer {
                     if cmd.get_nesting() == 1 {
                         backbuffer.clear(state, viewport, None, None, Some(0));
                     }
-                    state.set_stencil_op(StencilOp{ zpass: gl::INCR, .. Default::default() });
+                    state.set_stencil_op(StencilOp { zpass: gl::INCR, ..Default::default() });
                     // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
                     state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.get_nesting() - 1), ..Default::default() });
                     // Draw clipping geometry to stencil buffers
@@ -289,20 +291,18 @@ impl UiRenderer {
                 blend: true,
             };
 
-            statistics.add_draw_call(
-                backbuffer.draw_part(
-                    DrawPartContext {
-                        state,
-                        viewport,
-                        geometry: &mut self.geometry_buffer,
-                        program: &mut self.shader.program,
-                        params,
-                        uniforms: &uniforms,
-                        offset: cmd.get_start_triangle(),
-                        count: cmd.get_triangle_count(),
-                    }
-                )?
-            );
+            statistics += backbuffer.draw_part(
+                DrawPartContext {
+                    state,
+                    viewport,
+                    geometry: &mut self.geometry_buffer,
+                    program: &mut self.shader.program,
+                    params,
+                    uniforms: &uniforms,
+                    offset: cmd.get_start_triangle(),
+                    count: cmd.get_triangle_count(),
+                }
+            )?;
         }
         Ok(statistics)
     }

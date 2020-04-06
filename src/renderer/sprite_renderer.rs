@@ -131,11 +131,11 @@ impl SpriteRenderer {
                 white_dummy.clone()
             };
 
-            statistics.add_draw_call(framebuffer.draw(
+            statistics += framebuffer.draw(
+                geom_map.get(state, &self.surface),
                 state,
                 viewport,
-                geom_map.get(&self.surface),
-                &mut self.shader.program,
+                &self.shader.program,
                 DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
@@ -158,7 +158,7 @@ impl SpriteRenderer {
                     (self.shader.color, UniformValue::Color(sprite.color())),
                     (self.shader.rotation, UniformValue::Float(sprite.rotation()))
                 ],
-            ));
+            );
         }
 
         statistics

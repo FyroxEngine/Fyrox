@@ -71,40 +71,57 @@ pub enum UniformValue<'a> {
     Mat4Array(&'a [Mat4])
 }
 
-impl GpuProgram {
-    fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLuint, RendererError> {
-        unsafe {
-            let csource = CString::new(source)?;
+fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLuint, RendererError> {
+    unsafe {
+        let csource = prepare_source_code(source)?;
 
-            let shader = gl::CreateShader(actual_type);
-            gl::ShaderSource(shader, 1, &csource.as_ptr(), std::ptr::null());
-            gl::CompileShader(shader);
+        let shader = gl::CreateShader(actual_type);
+        gl::ShaderSource(shader, 1, &csource.as_ptr(), std::ptr::null());
+        gl::CompileShader(shader);
 
-            let mut status = 1;
-            gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
-            if status == 0 {
-                let mut log_len = 0;
-                gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
-                let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-                buffer.set_len(log_len as usize);
-                gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
-                let compilation_message = String::from_utf8_unchecked(buffer);
-                Log::writeln(format!("Failed to compile {} shader: {}", name, compilation_message));
-                Err(RendererError::ShaderCompilationFailed {
-                    shader_name: name,
-                    error_message: compilation_message,
-                })
-            } else {
-                Log::writeln(format!("Shader {} compiled!", name));
-                Ok(shader)
-            }
+        let mut status = 1;
+        gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
+        if status == 0 {
+            let mut log_len = 0;
+            gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
+            let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
+            buffer.set_len(log_len as usize);
+            gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
+            let compilation_message = String::from_utf8_unchecked(buffer);
+            Log::writeln(format!("Failed to compile {} shader: {}", name, compilation_message));
+            Err(RendererError::ShaderCompilationFailed {
+                shader_name: name,
+                error_message: compilation_message,
+            })
+        } else {
+            Log::writeln(format!("Shader {} compiled!", name));
+            Ok(shader)
         }
     }
+}
 
+fn prepare_source_code(code: &str) -> Result<CString, RendererError> {
+    let mut shared = "\n// include 'shared.glsl'\n".to_owned();
+    shared += include_str!("../shaders/shared.glsl");
+    shared += "\n// end of include\n";
+
+    if let Some(p) = code.rfind("#") {
+        let mut full = code.to_owned();
+        let end = p + full[p..].find("\n").unwrap() + 1;
+        full.insert_str(end, &shared);
+        Ok(CString::new(full)?)
+    } else {
+        let mut full = shared.to_owned();
+        full += code;
+        Ok(CString::new(full)?)
+    }
+}
+
+impl GpuProgram {
     pub fn from_source(name: &str, vertex_source: &str, fragment_source: &str) -> Result<GpuProgram, RendererError> {
         unsafe {
-            let vertex_shader = Self::create_shader(format!("{}_VertexShader", name), gl::VERTEX_SHADER, vertex_source)?;
-            let fragment_shader = Self::create_shader(format!("{}_FragmentShader", name), gl::FRAGMENT_SHADER, fragment_source)?;
+            let vertex_shader = create_shader(format!("{}_VertexShader", name), gl::VERTEX_SHADER, vertex_source)?;
+            let fragment_shader = create_shader(format!("{}_FragmentShader", name), gl::FRAGMENT_SHADER, fragment_source)?;
             let program: GLuint = gl::CreateProgram();
             gl::AttachShader(program, vertex_shader);
             gl::DeleteShader(vertex_shader);
@@ -148,11 +165,11 @@ impl GpuProgram {
         }
     }
 
-    pub fn bind(&mut self, state: &mut State) {
+    pub fn bind(&self, state: &mut State) {
         state.set_program(self.id);
     }
 
-    pub fn set_uniform(&mut self, state: &mut State, location: UniformLocation, value: &UniformValue<'_>) {
+    pub fn set_uniform(&self, state: &mut State, location: UniformLocation, value: &UniformValue<'_>) {
         state.set_program(self.id);
 
         let location = location.id;

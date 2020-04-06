@@ -35,7 +35,7 @@ use crate::{
                 UniformValue,
             },
         },
-        blur::Blur
+        blur::Blur,
     },
     core::{
         scope_profile,
@@ -101,7 +101,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
     height: i32,
     noise: Rc<RefCell<GpuTexture>>,
     kernel: [Vec3; KERNEL_SIZE],
-    radius: f32
+    radius: f32,
 }
 
 impl ScreenSpaceAmbientOcclusionRenderer {
@@ -164,7 +164,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     .set_wrap(Coordinate::T, WrapMode::Repeat);
                 texture
             })),
-            radius: 0.5
+            radius: 0.5,
         })
     }
 
@@ -199,38 +199,35 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         self.framebuffer.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), Some(1.0), None);
 
-        stats.add_draw_call(
-            self.framebuffer.draw(
-                state,
-                viewport,
-                geom_cache.get(&self.quad),
-                &mut self.shader.program,
-                DrawParameters {
-                    cull_face: CullFace::Back,
-                    culling: false,
-                    color_write: Default::default(),
-                    depth_write: false,
-                    stencil_test: false,
-                    depth_test: false,
-                    blend: false,
-                },
-                &[
-                    (self.shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
-                    (self.shader.normal_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.normal_texture() }),
-                    (self.shader.noise_sampler, UniformValue::Sampler { index: 2, texture: self.noise.clone() }),
-                    (self.shader.kernel, UniformValue::Vec3Array(&self.kernel)),
-                    (self.shader.radius, UniformValue::Float(self.radius)),
-                    (self.shader.noise_scale, UniformValue::Vec2({
-                        Vec2::new(self.width as f32 / NOISE_SIZE as f32,
-                                  self.height as f32 / NOISE_SIZE as f32)
-                    })),
-                    (self.shader.world_view_proj_matrix, UniformValue::Mat4(frame_matrix)),
-                    (self.shader.projection_matrix, UniformValue::Mat4(projection_matrix)),
-                    (self.shader.inv_proj_matrix, UniformValue::Mat4(projection_matrix.inverse().unwrap())),
-                    (self.shader.view_matrix, UniformValue::Mat3(view_matrix))
-                ],
-            )
-        );
+        stats += self.framebuffer.draw(
+            geom_cache.get(state, &self.quad),
+            state,
+            viewport,
+            &self.shader.program,
+            DrawParameters {
+                cull_face: CullFace::Back,
+                culling: false,
+                color_write: Default::default(),
+                depth_write: false,
+                stencil_test: false,
+                depth_test: false,
+                blend: false,
+            },
+            &[
+                (self.shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
+                (self.shader.normal_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.normal_texture() }),
+                (self.shader.noise_sampler, UniformValue::Sampler { index: 2, texture: self.noise.clone() }),
+                (self.shader.kernel, UniformValue::Vec3Array(&self.kernel)),
+                (self.shader.radius, UniformValue::Float(self.radius)),
+                (self.shader.noise_scale, UniformValue::Vec2({
+                    Vec2::new(self.width as f32 / NOISE_SIZE as f32,
+                              self.height as f32 / NOISE_SIZE as f32)
+                })),
+                (self.shader.world_view_proj_matrix, UniformValue::Mat4(frame_matrix)),
+                (self.shader.projection_matrix, UniformValue::Mat4(projection_matrix)),
+                (self.shader.inv_proj_matrix, UniformValue::Mat4(projection_matrix.inverse().unwrap())),
+                (self.shader.view_matrix, UniformValue::Mat3(view_matrix))
+            ]);
 
         self.blur.render(state, geom_cache, self.raw_ao_map());
 

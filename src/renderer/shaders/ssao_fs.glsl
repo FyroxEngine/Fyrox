@@ -18,15 +18,7 @@ out float finalOcclusion;
 in vec2 texCoord;
 
 vec3 GetViewSpacePosition(vec2 screenCoord) {
-    float depth = texture(depthSampler, screenCoord).r;
-    vec4 p = vec4(
-        screenCoord.x * 2.0 - 1.0,
-        screenCoord.y * 2.0 - 1.0,
-        depth * 2.0 - 1.0,
-        1.0
-    );
-    vec4 viewSpacePosition = inverseProjectionMatrix * p;
-    return viewSpacePosition.xyz / viewSpacePosition.w;
+    return S_UnProject(vec3(screenCoord, texture(depthSampler, screenCoord).r), inverseProjectionMatrix);
 }
 
 void main() {

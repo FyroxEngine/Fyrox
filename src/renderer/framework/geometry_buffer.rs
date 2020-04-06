@@ -9,17 +9,18 @@ use crate::{
         error::RendererError,
         framework::gl::{
             self,
-            types::{GLuint, GLint}
+            types::{GLuint, GLint},
         },
         TriangleDefinition,
     },
     core::scope_profile,
-    utils::log::Log
+    utils::log::Log,
 };
+use crate::renderer::framework::state::State;
 
 /// Safe wrapper over OpenGL's Vertex Array Objects for interleaved vertices (where
 /// position, normal, etc. stored together, not in separate arrays)
-/// WARNING: T must have #[repr(C)] attribute!
+/// WARNING: T must have repr(C) attribute!
 pub struct GeometryBuffer<T> {
     vertex_array_object: GLuint,
     vertex_buffer_object: GLuint,
@@ -156,7 +157,12 @@ impl ElementKind {
 }
 
 pub struct GeometryBufferBinding<'a, T> {
-    buffer: &'a mut GeometryBuffer<T>
+    buffer: &'a GeometryBuffer<T>
+}
+
+#[derive(Copy, Clone)]
+pub struct DrawCallStatistics {
+    pub triangles: usize
 }
 
 impl<'a, T> GeometryBufferBinding<'a, T> {
@@ -167,7 +173,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         }
     }
 
-    pub fn set_vertices(&mut self, vertices: &[T]) -> &mut Self {
+    pub fn set_vertices(self, vertices: &[T]) -> Self {
         scope_profile!();
 
         let size = (vertices.len() * size_of::<T>()) as isize;
@@ -181,7 +187,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         self
     }
 
-    pub fn describe_attributes(&mut self, definitions: Vec<AttributeDefinition>) -> Result<&mut Self, RendererError> {
+    pub fn describe_attributes(self, definitions: Vec<AttributeDefinition>) -> Result<Self, RendererError> {
         scope_profile!();
 
         let vertex_size = size_of::<T>();
@@ -209,7 +215,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         Ok(self)
     }
 
-    pub fn set_triangles(&mut self, triangles: &[TriangleDefinition]) -> &mut Self {
+    pub fn set_triangles(self, triangles: &[TriangleDefinition]) -> Self {
         scope_profile!();
 
         assert_eq!(self.buffer.element_kind, ElementKind::Triangle);
@@ -224,7 +230,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         self
     }
 
-    pub fn set_lines(&mut self, lines: &[[u32; 2]]) -> &mut Self {
+    pub fn set_lines(self, lines: &[[u32; 2]]) -> Self {
         scope_profile!();
 
         assert_eq!(self.buffer.element_kind, ElementKind::Line);
@@ -246,7 +252,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, usage);
     }
 
-    pub fn draw_part(&self, offset: usize, count: usize) -> Result<usize, RendererError> {
+    pub fn draw_part(&self, offset: usize, count: usize) -> Result<DrawCallStatistics, RendererError> {
         scope_profile!();
 
         let last_triangle_index = offset + count;
@@ -264,7 +270,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
 
             unsafe { self.draw_internal(start_index, index_count); }
 
-            Ok(count)
+            Ok(DrawCallStatistics { triangles: count })
         }
     }
 
@@ -275,7 +281,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         }
     }
 
-    pub fn draw(&self) -> usize {
+    pub fn draw(&self) -> DrawCallStatistics {
         scope_profile!();
 
         let start_index = 0;
@@ -284,7 +290,7 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
 
         unsafe { self.draw_internal(start_index, index_count) }
 
-        self.buffer.element_count.get()
+        DrawCallStatistics { triangles: self.buffer.element_count.get() }
     }
 
     unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
@@ -326,14 +332,18 @@ impl<T> GeometryBuffer<T> where T: Sized {
         }
     }
 
-    pub fn bind(&mut self) -> GeometryBufferBinding<'_, T> {
+    pub fn bind(&self, state: &mut State) -> GeometryBufferBinding<'_, T> {
         scope_profile!();
 
+        state.set_vertex_array_object(self.vertex_array_object);
+        state.set_vertex_buffer_object(self.vertex_buffer_object);
+
+        // Element buffer object binding is stored inside vertex array object, so
+        // it does not modified state.
         unsafe {
-            gl::BindVertexArray(self.vertex_array_object);
-            gl::BindBuffer(gl::ARRAY_BUFFER, self.vertex_buffer_object);
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
         }
+
         GeometryBufferBinding {
             buffer: self
         }

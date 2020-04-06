@@ -75,10 +75,10 @@ pub struct Line {
 }
 
 impl DebugRenderer {
-    pub(in crate) fn new() -> Result<Self, RendererError> {
-        let mut geometry = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Line);
+    pub(in crate) fn new(state: &mut State) -> Result<Self, RendererError> {
+        let geometry = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Line);
 
-        geometry.bind()
+        geometry.bind(state)
             .describe_attributes(vec![
                 AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
                 AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
@@ -178,15 +178,15 @@ impl DebugRenderer {
             i += 2;
         }
         self.geometry
-            .bind()
+            .bind(state)
             .set_vertices(&self.vertices)
             .set_lines(&self.line_indices);
 
-        statistics.add_draw_call(framebuffer.draw(
+        statistics += framebuffer.draw(
+            &self.geometry,
             state,
             viewport,
-            &mut self.geometry,
-            &mut self.shader.program,
+            &self.shader.program,
             DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
@@ -199,7 +199,7 @@ impl DebugRenderer {
             &[
                 (self.shader.wvp_matrix, UniformValue::Mat4(camera.view_projection_matrix()))
             ]
-        ));
+        );
 
         statistics.draw_calls += 1;
 
