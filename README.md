@@ -18,63 +18,39 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 ![5](pics/5.jpg?raw=true "Game 5")
 
-## What is done already?
+## [Examples](https://github.com/mrDIMAS/rg3d/tree/master/examples)
 
-- Window and OpenGL context.
-- Core library ([rg3d-core](https://github.com/mrDIMAS/rg3d-core)) with some handy data structures  - object pool, vectors, matrices, etc.
-- Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
-- FBX Loader - both ASCII and binary. Note: Only 7100 - 7400 versions are supported!
-- Advanced node-based UI with these widgets:
-	- Border
-	- Button
-	- Canvas (layout panel)
-	- Grid (layout panel)
-	- Stack panel
-	- Scroll bar
-	- Scroll viewer
-	- Scroll content presenter
-	- Text
-	- Text box
-	- List box	
-	- Tab control	
-	- Window 
-- Fonts - TTF Loader (compound characters are not supported yet)
-- Built-in save/load using object visitor - save/load state of engine in one call.
-- Skinning
-- Animation blending state machine - similar to Mecanim in Unity Engine.
-- Animation retargetting - allows you to remap animation from one model to another.
-- Automatic resource management
-	- Texture
-	- Models
-	- Sound buffers
+## Features
+
 - Deferred shading
-	- Point light
-	- Spot light
+	- Directional light
+	- Point light + shadows
+	- Spot light + shadows
 	- Bump mapping
-- A* pathfinder + Navmesh support.
-- Particle systems with soft particles.
-- Sounds - using [rg3d-sound](https://github.com/mrDIMAS/rg3d-sound) crate.
-- Physics - using [rg3d-physics](https://github.com/mrDIMAS/rg3d-physics) crate.
-
-### Plans
-
-- Simple editor - would be so nice to have, but until UI is not stabilized enough there is no point to try to write editor.
-- Documentation - it is still incomplete because engine contstantly changing its API.
-
-## Dependencies
-
-- glutin - window and OpenGL initialization
-- image - texture loading
-- lexical - fast text -> number parsing for ASCII FBX loader 
-- byteorder - read/write builtin rust types (u16, u32, f32, etc.)
-- base64 - encode binary data for object visitor's text output 
-- inflate - to decompress binary FBX data
-- rand - to generate random numbers in various places of the engine (mostly in particle systems)
+	- Screen-Space Ambient Occlusion (SSAO)
+	- Soft shadows
+- Scene graph with pivot, camera, mesh, light, particle system, sprite nodes
+- Built-in save/load - save/load state of engine in one call
+- [High quality binaurual sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound)
+- Skinning
+- Particle systems with soft particles
+- A* pathfinder 
+- Navmesh
+- FBX Loader
+- TTF Fonts
+- PNG, JPG, TGA, etc. textures
+- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d-ui) with lots of widgets.
+- Animation blending state machine - similar to Mecanim in Unity Engine
+- Animation retargetting - allows you to remap animation from one model to another
+- Asset management (textures, models, sound buffers)
+- [Simple physics](https://github.com/mrDIMAS/rg3d-physics)
+- [Core library](https://github.com/mrDIMAS/rg3d-core)
 
 ## Contributing
 
-Contributions are very welcome!
+Contributions are very welcome! Please check Issues to see how you can help project and feel free to create your own issue!
 
-## Why Rust?
+## Limitations
 
-Previously I wrote my engine in C ([DmitrysEngine](https://github.com/mrDIMAS/DmitrysEngine)), but at some point it become relatively hard to maintain it. I thought if it was hard to maintain for me, how hard it would be to use it *correcly* for newcomers? Initially I thought to port engine to modern C++, but C++ is not a silver bullet and won't guarantee memory safety. At my full-time job almost every day we fixing issues related to memory safety and threading bugs, I really tired of this and then I just remembered that Rust provides memory safety and safe concurrency. I've started to learning Rust and it was real pain in the ass at the first few weeks, I even thought to return back to C, but from some point I found ways of doing things without fighting with compiler... and engine started growing, and at some point I found that I crashed (because of segfault) only few times since start and only at unsafe code in OpenGL functions, that was very exciting!
+- FBX loader supports versions 7100 - 7400. Binary 7500 is not supported yet, but ASCII is.
+- TTF loader does not supports compound characters!
