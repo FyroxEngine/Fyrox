@@ -5,6 +5,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 use crate::math::lerpf;
+use crate::math::vec2::Vec2;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -54,8 +55,12 @@ impl Vec3 {
     }
 
     #[inline]
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
+    pub const fn new(x: f32, y: f32, z: f32) -> Self {
         Vec3 { x, y, z }
+    }
+
+    pub const fn xy(&self) -> Vec2 {
+        Vec2::new(self.x, self.y)
     }
 
     #[inline]

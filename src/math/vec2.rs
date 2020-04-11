@@ -46,7 +46,7 @@ impl Vec2 {
     }
 
     #[inline]
-    pub fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: f32, y: f32) -> Self {
         Vec2 { x, y }
     }
 

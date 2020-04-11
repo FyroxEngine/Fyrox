@@ -1,4 +1,7 @@
-use crate::math::vec3::Vec3;
+use crate::math::{
+    vec3::Vec3,
+    vec2::Vec2,
+};
 use std::hash::{Hash, Hasher};
 
 #[derive(Copy, Clone, Debug)]
@@ -32,6 +35,10 @@ impl Hash for Vec4 {
 impl Vec4 {
     pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0, w: 0.0 };
 
+    pub const fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+        Self { x, y, z, w }
+    }
+
     fn validate(&self) {
         debug_assert!(!self.x.is_nan());
         debug_assert!(!self.y.is_nan());
@@ -39,13 +46,21 @@ impl Vec4 {
         debug_assert!(!self.w.is_nan());
     }
 
-    pub fn from_vec3(v: Vec3, w: f32) -> Self {
+    pub const fn from_vec3(v: Vec3, w: f32) -> Self {
         Self {
             x: v.x,
             y: v.y,
             z: v.z,
             w,
         }
+    }
+
+    pub const fn xyz(&self) -> Vec3 {
+        Vec3 { x: self.x, y: self.y, z: self.z }
+    }
+
+    pub const fn xy(&self) -> Vec2 {
+        Vec2 { x: self.x, y: self.y }
     }
 }
 
