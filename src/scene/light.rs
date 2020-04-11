@@ -4,15 +4,18 @@ use crate::{
         visitor::{
             Visit,
             Visitor,
-            VisitResult
-        }
+            VisitResult,
+        },
+        math::vec3::Vec3
     },
     scene::base::{
         BaseBuilder,
         Base,
-        AsBase
-    }
+        AsBase,
+    },
 };
+
+pub const DEFAULT_SCATTER: Vec3 = Vec3::new(0.03, 0.03, 0.03);
 
 #[derive(Clone)]
 pub struct SpotLight {
@@ -26,7 +29,7 @@ impl Default for SpotLight {
         Self {
             hotspot_cone_angle: 90.0f32.to_radians(),
             falloff_angle_delta: 5.0f32.to_radians(),
-            distance: 10.0
+            distance: 10.0,
         }
     }
 }
@@ -36,7 +39,7 @@ impl SpotLight {
         Self {
             hotspot_cone_angle: hotspot_cone_angle.abs(),
             falloff_angle_delta: falloff_angle_delta.abs(),
-            distance
+            distance,
         }
     }
 
@@ -109,7 +112,7 @@ impl PointLight {
     }
 
     #[inline]
-    pub fn get_radius(&self) -> f32 {
+    pub fn radius(&self) -> f32 {
         self.radius
     }
 }
@@ -174,6 +177,8 @@ pub struct Light {
     kind: LightKind,
     color: Color,
     cast_shadows: bool,
+    scatter: Vec3,
+    scatter_enabled: bool,
 }
 
 impl AsBase for Light {
@@ -193,6 +198,8 @@ impl Default for Light {
             kind: LightKind::Point(Default::default()),
             color: Color::WHITE,
             cast_shadows: true,
+            scatter: Vec3::new(0.03, 0.03, 0.03),
+            scatter_enabled: true
         }
     }
 }
@@ -210,6 +217,8 @@ impl Visit for Light {
         self.color.visit("Color", visitor)?;
         self.base.visit("Base", visitor)?;
         self.cast_shadows.visit("CastShadows", visitor)?;
+        self.scatter.visit("ScatterFactor", visitor)?;
+        self.scatter_enabled.visit("ScatterEnabled", visitor)?;
 
         visitor.leave_region()
     }
@@ -219,7 +228,7 @@ impl Light {
     pub fn new(kind: LightKind) -> Self {
         Self {
             kind,
-            .. Default::default()
+            ..Default::default()
         }
     }
 
@@ -229,17 +238,17 @@ impl Light {
     }
 
     #[inline]
-    pub fn get_color(&self) -> Color {
+    pub fn color(&self) -> Color {
         self.color
     }
 
     #[inline]
-    pub fn get_kind(&self) -> &LightKind {
+    pub fn kind(&self) -> &LightKind {
         &self.kind
     }
 
     #[inline]
-    pub fn get_kind_mut(&mut self) -> &mut LightKind {
+    pub fn kind_mut(&mut self) -> &mut LightKind {
         &mut self.kind
     }
 
@@ -252,6 +261,26 @@ impl Light {
     pub fn is_cast_shadows(&self) -> bool {
         self.cast_shadows
     }
+
+    #[inline]
+    pub fn set_scatter(&mut self, f: Vec3) {
+        self.scatter = f;
+    }
+
+    #[inline]
+    pub fn scatter(&self) -> Vec3 {
+        self.scatter
+    }
+
+    #[inline]
+    pub fn enable_scatter(&mut self, state: bool) {
+        self.scatter_enabled = state;
+    }
+
+    #[inline]
+    pub fn is_scatter_enabled(&self) -> bool {
+        self.scatter_enabled
+    }
 }
 
 pub struct LightBuilder {
@@ -259,6 +288,8 @@ pub struct LightBuilder {
     kind: LightKind,
     color: Color,
     cast_shadows: bool,
+    scatter_factor: Vec3,
+    scatter_enabled: bool,
 }
 
 impl LightBuilder {
@@ -268,6 +299,8 @@ impl LightBuilder {
             kind,
             color: Color::WHITE,
             cast_shadows: true,
+            scatter_factor: DEFAULT_SCATTER,
+            scatter_enabled: true
         }
     }
 
@@ -281,12 +314,24 @@ impl LightBuilder {
         self
     }
 
+    pub fn with_scatter_factor(mut self, f: Vec3) -> Self {
+        self.scatter_factor = f;
+        self
+    }
+
+    pub fn with_scatter_enabled(mut self, state: bool) -> Self {
+        self.scatter_enabled = state;
+        self
+    }
+
     pub fn build(self) -> Light {
         Light {
             base: self.base_builder.build(),
             kind: self.kind,
             color: self.color,
-            cast_shadows: self.cast_shadows
+            cast_shadows: self.cast_shadows,
+            scatter: self.scatter_factor,
+            scatter_enabled: self.scatter_enabled
         }
     }
 }

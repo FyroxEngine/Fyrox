@@ -29,9 +29,10 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Bump mapping
 	- Screen-Space Ambient Occlusion (SSAO)
 	- Soft shadows
+	- Volumetric light (spot, point)
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes
 - Built-in save/load - save/load state of engine in one call
-- [High quality binaurual sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound)
+- [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound)
 - Skinning
 - Particle systems with soft particles
 - A* pathfinder 

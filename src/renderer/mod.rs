@@ -19,6 +19,7 @@ mod flat_shader;
 mod sprite_renderer;
 mod ssao;
 mod blur;
+mod light_volume;
 
 use glutin::PossiblyCurrent;
 use std::{
@@ -66,6 +67,7 @@ use crate::{
                 ElementKind,
                 AttributeKind,
                 AttributeDefinition,
+                DrawCallStatistics
             },
             framebuffer::{
                 BackBuffer,
@@ -103,7 +105,6 @@ use crate::{
     gui::draw::DrawingContext,
     engine::resource_manager::TimedEntry,
 };
-use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -183,6 +184,10 @@ pub struct QualitySettings {
     /// Radius of sampling hemisphere used in SSAO, it defines much ambient
     /// occlusion will be in your scene.
     pub ssao_radius: f32,
+
+    /// Global switch to enable or disable light scattering. Each light can have
+    /// its own scatter switch, but this one is able to globally disable scatter.
+    pub light_scatter_enabled: bool,
 }
 
 impl Default for QualitySettings {
@@ -200,6 +205,8 @@ impl Default for QualitySettings {
 
             use_ssao: true,
             ssao_radius: 0.5,
+
+            light_scatter_enabled: true
         }
     }
 }

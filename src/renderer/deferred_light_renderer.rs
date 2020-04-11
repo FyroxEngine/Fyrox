@@ -57,6 +57,7 @@ use crate::{
         color::Color,
     },
 };
+use crate::renderer::light_volume::LightVolumeRenderer;
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -213,6 +214,7 @@ pub struct DeferredLightRenderer {
     flat_shader: FlatShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
+    light_volume: LightVolumeRenderer,
 }
 
 pub struct DeferredRendererContext<'a> {
@@ -240,6 +242,7 @@ impl DeferredLightRenderer {
             flat_shader: FlatShader::new()?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(state, settings.spot_shadow_map_size)?,
             point_shadow_map_renderer: PointShadowMapRenderer::new(state, settings.point_shadow_map_size)?,
+            light_volume: LightVolumeRenderer::new()?
         })
     }
 
@@ -338,9 +341,9 @@ impl DeferredLightRenderer {
                 continue;
             }
 
-            let raw_radius = match light.get_kind() {
+            let raw_radius = match light.kind() {
                 LightKind::Spot(spot_light) => spot_light.distance(),
-                LightKind::Point(point_light) => point_light.get_radius(),
+                LightKind::Point(point_light) => point_light.radius(),
                 LightKind::Directional => { std::f32::MAX }
             };
 
@@ -358,7 +361,7 @@ impl DeferredLightRenderer {
             let distance_to_camera = (light.base().global_position() - camera.base().global_position()).len();
 
             let mut light_view_projection = Mat4::IDENTITY;
-            let shadows_enabled = light.is_cast_shadows() && match light.get_kind() {
+            let shadows_enabled = light.is_cast_shadows() && match light.kind() {
                 LightKind::Spot(spot) if distance_to_camera <= settings.spot_shadows_distance && settings.spot_shadows_enabled => {
                     let light_projection_matrix = Mat4::perspective(
                         spot.full_cone_angle(),
@@ -476,7 +479,7 @@ impl DeferredLightRenderer {
 
             let quad = geometry_cache.get(state, &self.quad);
 
-            statistics += match light.get_kind() {
+            statistics += match light.kind() {
                 LightKind::Spot(spot_light) => {
                     let shader = &self.spot_light_shader;
 
@@ -488,7 +491,7 @@ impl DeferredLightRenderer {
                         (shader.light_direction, UniformValue::Vec3(emit_direction)),
                         (shader.light_radius, UniformValue::Float(light_radius)),
                         (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
-                        (shader.light_color, UniformValue::Color(light.get_color())),
+                        (shader.light_color, UniformValue::Color(light.color())),
                         (shader.half_hotspot_cone_angle_cos, UniformValue::Float((spot_light.hotspot_cone_angle() * 0.5).cos())),
                         (shader.half_cone_angle_cos, UniformValue::Float((spot_light.full_cone_angle() * 0.5).cos())),
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
@@ -517,7 +520,7 @@ impl DeferredLightRenderer {
                         (shader.light_position, UniformValue::Vec3(light_position)),
                         (shader.light_radius, UniformValue::Float(light_radius)),
                         (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
-                        (shader.light_color, UniformValue::Color(light.get_color())),
+                        (shader.light_color, UniformValue::Color(light.color())),
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
                         (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
                         (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
@@ -540,7 +543,7 @@ impl DeferredLightRenderer {
                     let uniforms = [
                         (shader.light_direction, UniformValue::Vec3(emit_direction)),
                         (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
-                        (shader.light_color, UniformValue::Color(light.get_color())),
+                        (shader.light_color, UniformValue::Color(light.color())),
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
                         (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
                         (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
@@ -565,6 +568,18 @@ impl DeferredLightRenderer {
                         &uniforms)
                 }
             };
+
+            if settings.light_scatter_enabled {
+                statistics += self.light_volume.render_volume(
+                    state,
+                    light,
+                    gbuffer,
+                    quad,
+                    camera.view_matrix(),
+                    projection_matrix.inverse().unwrap_or_default(),
+                    viewport
+                );
+            }
         }
 
         statistics

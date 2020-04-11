@@ -1,6 +1,38 @@
 // Shared functions for all shaders in the engine. Contents of this
 // file will be *automatically* included in all shaders!
 
+// Tries to solve quadratic equation. Returns true iff there are any real roots.
+bool S_SolveQuadraticEq(float a, float b, float c, out float minT, out float maxT)
+{
+    float twoA = 2.0 * a;
+    float det = b * b - 2.0 * twoA * c;
+
+    if (det < 0.0)
+    {
+        minT = 0.0;
+        maxT = 0.0;
+
+        return false;
+    }
+
+    float sqrtDet = sqrt(det);
+
+    float root1 = (-b - sqrtDet) / twoA;
+    float root2 = (-b + sqrtDet) / twoA;
+
+    minT = min(root1, root2);
+    maxT = max(root1, root2);
+
+    return true;
+}
+
+// Returns attenuation in inverse square model. It falls to zero at given radius.
+float S_LightDistanceAttenuation(float distance, float radius)
+{
+    float attenuation = clamp(1.0 - distance * distance / (radius * radius), 0.0, 1.0);
+    return attenuation * attenuation;
+}
+
 // Projects world space position (typical use case) by given matrix.
 vec3 S_Project(vec3 worldPosition, mat4 matrix)
 {
@@ -68,15 +100,53 @@ TBlinnPhong S_BlinnPhong(TBlinnPhongContext ctx)
     float distance = length(lightVector);
     lightVector = lightVector / distance;
 
-    float clampedDistance = min(distance, ctx.lightRadius);
-
     float specular = S_SpecularFactor(lightVector, ctx.cameraPosition, ctx.fragmentPosition, ctx.fragmentNormal, ctx.specularPower);
 
     float lambertian = max(dot(ctx.fragmentNormal, lightVector), 0);
 
-    float distance_attenuation = 1.0 + cos((clampedDistance / ctx.lightRadius) * 3.14159);
+    float distance_attenuation = S_LightDistanceAttenuation(distance, ctx.lightRadius);
 
     float attenuation = lambertian * distance_attenuation;
 
     return TBlinnPhong(attenuation, specular, distance, lightVector);
+}
+
+// Returns scatter amount for given parameters.
+// https://cseweb.ucsd.edu/~ravir/papers/singlescat/scattering.pdf
+// https://blog.mmacklin.com/2010/05/29/in-scattering-demo/
+float S_InScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
+{
+    // light to ray origin
+    vec3 q = start - lightPos;
+
+    // coefficients
+    float b = dot(dir, q);
+    float c = dot(q, q);
+
+    // evaluate integral
+    float s = 1.0f / sqrt(c - b*b);
+    float l = s * (atan((d + b) * s) - atan(b*s));
+
+    return l;
+}
+
+// https://en.wikipedia.org/wiki/Rayleigh_scattering
+vec3 S_RayleighScatter(vec3 start, vec3 dir, vec3 lightPos, float d)
+{
+    float scatter = S_InScatter(start, dir, lightPos, d);
+
+    // Apply simple version of Rayleigh scattering. Just increase
+    // intensity of blue light over other colors.
+    return vec3(0.55, 0.75, 1.0) * scatter;
+}
+
+// Tries to find intersection of given ray with specified sphere. If there is an intersection, returns true.
+// In out parameters minT, maxT will be min and max ray parameters of intersection.
+bool S_RaySphereIntersection(vec3 origin, vec3 dir, vec3 center, float radius, out float minT, out float maxT)
+{
+    vec3 d = origin - center;
+    float a = dot(dir, dir);
+    float b = 2.0 * dot(dir, d);
+    float c = dot(d, d) - radius * radius;
+    return S_SolveQuadraticEq(a, b, c, minT, maxT);
 }
