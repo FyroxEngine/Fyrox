@@ -142,7 +142,7 @@ impl SpotShadowMapRenderer {
 
                 let global_transform = node.base().global_transform();
 
-                if !frustum.is_intersects_aabb_transform(&mesh.bounding_box(), &global_transform) {
+                if !mesh.is_intersect_frustum(graph, &frustum) {
                     continue;
                 }
 
@@ -375,7 +375,7 @@ impl PointShadowMapRenderer {
 
                     let global_transform = node.base().global_transform();
 
-                    if !frustum.is_intersects_aabb_transform(&mesh.bounding_box(), &global_transform) {
+                    if !mesh.is_intersect_frustum(graph, &frustum) {
                         continue;
                     }
 

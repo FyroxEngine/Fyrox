@@ -122,10 +122,14 @@ impl FbxScene {
             let connection = nodes.get(*connection_handle);
             let child_index = connection.get_attrib(1)?.as_i64()?;
             let parent_index = connection.get_attrib(2)?.as_i64()?;
+            let property = match connection.get_attrib(3) {
+                Ok(attrib) => attrib.as_string(),
+                Err(_) => String::from(""),
+            };
             if let Some(parent_handle) = index_to_component.get(&parent_index) {
                 if let Some(child_handle) = index_to_component.get(&child_index) {
                     let (child, parent) = components.borrow_two_mut((*child_handle, *parent_handle));
-                    link_child_with_parent_component(parent, child, *child_handle);
+                    link_child_with_parent_component(parent, child, *child_handle, property);
                 }
             }
         }
@@ -144,7 +148,7 @@ impl FbxScene {
     }
 }
 
-fn link_child_with_parent_component(parent: &mut FbxComponent, child: &mut FbxComponent, child_handle: Handle<FbxComponent>) {
+fn link_child_with_parent_component(parent: &mut FbxComponent, child: &mut FbxComponent, child_handle: Handle<FbxComponent>, property: String) {
     match parent {
         // Link model with other components
         FbxComponent::Model(model) => {
@@ -160,7 +164,7 @@ fn link_child_with_parent_component(parent: &mut FbxComponent, child: &mut FbxCo
         // Link material with textures
         FbxComponent::Material(material) => {
             if let FbxComponent::Texture(_) = child {
-                material.diffuse_texture = child_handle;
+                material.textures.push((property, child_handle));
             }
         }
         // Link animation curve node with animation curve
@@ -284,13 +288,13 @@ impl FbxSubDeformer {
 }
 
 pub struct FbxMaterial {
-    pub diffuse_texture: Handle<FbxComponent>
+    pub textures: Vec<(String, Handle<FbxComponent>)>
 }
 
 impl FbxMaterial {
     fn read(_material_node_handle: Handle<FbxNode>) -> Result<FbxMaterial, String> {
         Ok(FbxMaterial {
-            diffuse_texture: Handle::NONE
+            textures: Default::default()
         })
     }
 }

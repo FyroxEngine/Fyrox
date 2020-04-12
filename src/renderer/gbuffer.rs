@@ -191,17 +191,15 @@ impl GBuffer {
 
         let view_projection = camera.view_projection_matrix();
 
-        for mesh in graph.linear_iter().filter_map(|node| {
+        'mesh_loop: for mesh in graph.linear_iter().filter_map(|node| {
             if let Node::Mesh(mesh) = node { Some(mesh) } else { None }
         }) {
-            let global_transform = mesh.base().global_transform();
-
-            if !frustum.is_intersects_aabb_transform(&mesh.bounding_box(), &global_transform) {
-                continue;
+            if !mesh.is_intersect_frustum(graph, &frustum) {
+                continue 'mesh_loop;
             }
 
             if !mesh.base().global_visibility() {
-                continue;
+                continue 'mesh_loop;
             }
 
             for surface in mesh.surfaces().iter() {

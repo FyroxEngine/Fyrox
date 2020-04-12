@@ -231,28 +231,21 @@ fn create_surfaces(fbx_scene: &FbxScene,
             let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(data.builder.build()))));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
-            if material.diffuse_texture.is_some() {
-                let texture = fbx_scene.get(material.diffuse_texture).as_texture()?;
+            for (name, texture_handle) in material.textures.iter() {
+                let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
-                    let file_stem = path.file_stem().ok_or(FbxError::InvalidPath)?;
-                    let extension = path.extension().ok_or(FbxError::InvalidPath)?;
-
                     let diffuse_path = resource_manager.textures_path().join(&filename);
                     // Here we will load *every* texture as RGBA8, this probably is overkill,
                     // that will lead to higher memory consumption, but this will remove
                     // problems with transparent textures (like mesh texture, etc.)
-                    surface.set_diffuse_texture(resource_manager.request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8));
-
-                    let mut normal_map_name = file_stem.to_os_string();
-                    normal_map_name.push("_normal.");
-                    normal_map_name.push(extension);
-                    let normal_path = resource_manager.textures_path().join(normal_map_name);
-                    if normal_path.exists() {
-                        // Not sure if alpha channel is useful on normal maps, so will use RGB8 here.
-                        // Potentially it can be used to store some per-pixel material data like
-                        // roughness, shininess, etc. For now this is a TODO.
-                        surface.set_normal_texture(resource_manager.request_texture_async(normal_path.as_path(), TextureKind::RGB8));
+                    let texture = resource_manager.request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8);
+                    match name.as_str() {
+                        "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
+                        "DiffuseColor" => surface.set_diffuse_texture(texture),
+                        // No idea why it can be different for normal maps.
+                        "Bump" | "NormalMap" => surface.set_normal_texture(texture),
+                        _ => ()
                     }
                 }
             }

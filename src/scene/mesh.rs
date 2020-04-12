@@ -11,6 +11,8 @@ use crate::{
     }
 };
 use std::cell::Cell;
+use rg3d_core::math::frustum::Frustum;
+use crate::scene::graph::Graph;
 
 #[derive(Clone)]
 pub struct Mesh {
@@ -105,5 +107,21 @@ impl Mesh {
             }
         }
         bounding_box
+    }
+
+    pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
+        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.base.global_transform) {
+            return true;
+        }
+
+        for surface in self.surfaces.iter() {
+            for &bone in surface.bones.iter() {
+                if frustum.is_contains_point(graph.get(bone).base().global_position()) {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }

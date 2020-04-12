@@ -572,15 +572,16 @@ fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mute
 
         // Load simple map.
         resource_manager
-            .request_model("examples/data/map.FBX")
+            .request_model("examples/data/Sponza.FBX")
             .unwrap()
             .lock()
             .unwrap()
             .instantiate_geometry(&mut scene);
 
         // And create collision mesh so our character won't fall thru ground.
-        let collision_mesh_handle = scene.graph.find_by_name_from_root("Map");
-        let collision_mesh = scene.graph.get(collision_mesh_handle).as_mesh();
+        let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
+        let collision_mesh = scene.graph.get_mut(collision_mesh_handle).as_mesh_mut();
+        collision_mesh.base_mut().set_visibility(false);
         let static_geometry = mesh_to_static_geometry(collision_mesh);
         scene.physics.add_static_geometry(static_geometry);
 
