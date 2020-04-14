@@ -1,3 +1,27 @@
+//! Contains all methods and structures to create and manage scene graphs.
+//!
+//! Scene graph is the foundation of the engine. Graph is a hierarchical data
+//! structure where each element called node. Each node can have zero to one parent
+//! node, and any children nodes. Node with no parent node called root, with no
+//! children nodes - leaf. Graphical representation can be something like this:
+//!
+//!     Root____
+//!       |    |
+//!       D    A___
+//!       |    |  |
+//!       E    C  B
+//!     ............
+//!
+//! This picture clearly shows relations between nodes. Such structure allows us
+//! to create scenes of any complexity by just linking nodes with each other.
+//! Connections between nodes are used to traverse tree, to calculate global
+//! transforms, global visibility and many other things. Most interesting here -
+//! is global transform calculation - it allows you to produce complex movements
+//! just by linking nodes to each other. Good example of this is skeleton which
+//! is used in skinning (animating 3d model by set of bones).
+
+#![warn(missing_docs)]
+
 use std::collections::HashMap;
 use crate::{
     utils::log::Log,
@@ -27,6 +51,7 @@ use crate::{
     }
 };
 
+/// See module docs.
 pub struct Graph {
     root: Handle<Node>,
     pool: Pool<Node>,
@@ -82,7 +107,7 @@ impl Graph {
     }
 
     /// Tries to borrow mutable references to two nodes at the same time by given handles. Will
-    /// return Err of handles overlaps (points to same node).
+    /// panic if handles overlaps (points to same node).
     pub fn get_two_mut(&mut self, nodes: (Handle<Node>, Handle<Node>))
                        -> (&mut Node, &mut Node) {
         self.pool.borrow_two_mut(nodes)
@@ -96,7 +121,7 @@ impl Graph {
     }
 
     /// Tries to borrow mutable references to four nodes at the same time by given handles. Will
-    /// return Err of handles overlaps (points to same node).
+    /// panic if handles overlaps (points to same node).
     pub fn get_four_mut(&mut self, nodes: (Handle<Node>, Handle<Node>, Handle<Node>, Handle<Node>))
                         -> (&mut Node, &mut Node, &mut Node, &mut Node) {
         self.pool.borrow_four_mut(nodes)
@@ -277,7 +302,7 @@ impl Graph {
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Resolving graph...".to_owned());
 
-        self.update_transforms();
+        self.update_hierachical_data();
 
         // Resolve original handles. Original handle is a handle to a node in resource from which
         // a node was instantiated from. We can resolve it only by names of nodes, but this is not
@@ -341,7 +366,12 @@ impl Graph {
         Log::writeln("Graph resolved successfully!".to_owned());
     }
 
-    pub fn update_transforms(&mut self) {
+    /// Calculates local and global transform, global visibility for each node in graph.
+    /// Normally you not need to call this method directly, it will be called automatically
+    /// on each frame. However there is one use case - when you setup complex hierarchy and
+    /// need to know global transform of nodes before entering update loop, then you can call
+    /// this method.
+    pub fn update_hierachical_data(&mut self) {
         // Calculate transforms on nodes
         self.stack.clear();
         self.stack.push(self.root);
@@ -368,12 +398,14 @@ impl Graph {
         }
     }
 
+    /// Checks whether given node handle is valid or not.
     pub fn is_valid_handle(&self, node_handle: Handle<Node>) -> bool {
         self.pool.is_valid_handle(node_handle)
     }
 
+    /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
-        self.update_transforms();
+        self.update_hierachical_data();
 
         for node in self.pool.iter_mut() {
             if let Some(lifetime) = node.base().lifetime() {
@@ -453,6 +485,7 @@ impl Graph {
     }
 }
 
+/// Iterator that traverses tree in depth and returns shared references to nodes.
 pub struct GraphTraverseIterator<'a> {
     graph: &'a Graph,
     stack: Vec<Handle<Node>>,
@@ -476,6 +509,7 @@ impl<'a> Iterator for GraphTraverseIterator<'a> {
     }
 }
 
+/// Iterator that traverses tree in depth and returns handles to nodes.
 pub struct GraphHandleTraverseIterator<'a> {
     graph: &'a Graph,
     stack: Vec<Handle<Node>>,
