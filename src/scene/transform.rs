@@ -1,14 +1,71 @@
-use std::cell::Cell;
-use crate::core::{
-    math::{
-        vec3::Vec3,
-        quat::Quat,
-        mat4::Mat4
-    },
-    visitor::{Visit, VisitResult, Visitor},
-};
-use crate::utils::log::Log;
+//! Contains all structures and methods to create and manage transforms.
+//!
+//! Transform allows you to combine spatial properties into single matrix in
+//! easy manner. It contains many methods that can be used to modify a single
+//! property of transform which then will be "baked" into single matrix.
+//!
+//! # Complexity
+//!
+//! rg3d uses complex transform model inherited from FBX transform formulae:
+//!
+//! http://download.autodesk.com/us/fbx/20112/FBX_SDK_HELP/index.html?url=WS1a9193826455f5ff1f92379812724681e696651.htm,topicNumber=d0e7429
+//!
+//! Transform = T * Roff * Rp * Rpre * R * Rpost * Rp⁻¹ * Soff * Sp * S * Sp⁻¹
+//!
+//! where
+//! T     - Translation
+//! Roff  - Rotation offset
+//! Rp 	  - Rotation pivot
+//! Rpre  - Pre-rotation
+//! R 	  - Rotation
+//! Rpost - Post-rotation
+//! Rp⁻¹  - Inverse of the rotation pivot
+//! Soff  - Scaling offset
+//! Sp 	  - Scaling pivot
+//! S 	  - Scaling
+//! Sp⁻¹  - Inverse of the scaling pivot
+//!
+//! It is very flexible, however it can be slow in computation. To solve possible
+//! performance issues, rg3d tries to precache every possible component. This means
+//! that we use lazy evaluation: you can setup all required properties, and actual
+//! calculations will be delayed until you try to get matrix from transform. This makes
+//! calculations faster, but increases required amount of memory.
+//!
+//! In most cases you don't need to bother about all those properties, you need just T R S -
+//! it will cover 99% of requirements.
+//!
+//! Fun fact: transform format was dictated by the use of monster called FBX file format.
+//! Some libraries (like assimp) decomposes this complex formula into set of smaller transforms
+//! which are contains only T R S components and then combine them to get final result, I find
+//! this approach very bug prone, and it is still heavy from computation side. It is much
+//! easier to uses it as is.
+//!
+//! # Decomposition
+//!
+//! Once transform baked into matrix, it is *almost* impossible to decompose it back into
+//! initial components, thats why engine does not provide any methods to get those
+//! properties back.
 
+#![warn(missing_docs)]
+
+use std::cell::Cell;
+use crate::{
+    core::{
+        math::{
+            vec3::Vec3,
+            quat::Quat,
+            mat4::Mat4
+        },
+        visitor::{
+            Visit,
+            VisitResult,
+            Visitor
+        },
+    },
+    utils::log::Log
+};
+
+/// See module docs.
 #[derive(Clone)]
 pub struct Transform {
     /// Indicates that some property has changed and matrix must be
@@ -52,6 +109,8 @@ impl Default for Transform {
 }
 
 impl Transform {
+    /// Creates new transform that has no effect, in other words any vector
+    /// or matrix will remain unchanged if combined with identity transform.
     pub fn identity() -> Self {
         Self {
             dirty: Cell::new(true),
@@ -68,11 +127,13 @@ impl Transform {
         }
     }
 
+    /// Returns current position of transform.
     #[inline]
     pub fn position(&self) -> Vec3 {
         self.local_position
     }
 
+    /// Sets position of transform.
     #[inline]
     pub fn set_position(&mut self, pos: Vec3) -> &mut Self {
         self.local_position = pos;
@@ -80,11 +141,13 @@ impl Transform {
         self
     }
 
+    /// Returns current rotation quaternion of transform.
     #[inline]
     pub fn rotation(&self) -> Quat {
         self.local_rotation
     }
 
+    /// Sets rotation of transform.
     #[inline]
     pub fn set_rotation(&mut self, rot: Quat) -> &mut Self {
         self.local_rotation = rot;
@@ -92,11 +155,16 @@ impl Transform {
         self
     }
 
+    /// Returns current scale factor of transform.
     #[inline]
     pub fn scale(&self) -> Vec3 {
         self.local_scale
     }
 
+    /// Sets scale of transform. It is strongly advised to use only uniform scaling,
+    /// non-uniform is possible but it can lead to very "interesting" effects, also
+    /// non-uniform scaling possible will be removed in future, especially if engine
+    /// migrate to some full-featured physics engine.
     #[inline]
     pub fn set_scale(&mut self, scl: Vec3) -> &mut Self {
         self.local_scale = scl;
@@ -104,6 +172,9 @@ impl Transform {
         self
     }
 
+    /// Sets pre-rotation of transform. Usually pre-rotation can be used to change
+    /// "coordinate" system of transform. It is mostly for FBX compatibility, and
+    /// never used in other places of engine.
     #[inline]
     pub fn set_pre_rotation(&mut self, pre_rotation: Quat) -> &mut Self {
         self.pre_rotation = pre_rotation;
@@ -111,11 +182,15 @@ impl Transform {
         self
     }
 
+    /// Returns current pre-rotation of transform.
     #[inline]
     pub fn pre_rotation(&self) -> Quat {
         self.pre_rotation
     }
 
+    /// Sets post-rotation of transform. Usually post-rotation can be used to change
+    /// "coordinate" system of transform. It is mostly for FBX compatibility, and
+    /// never used in other places of engine.
     #[inline]
     pub fn set_post_rotation(&mut self, post_rotation: Quat) -> &mut Self {
         self.post_rotation = post_rotation;
@@ -123,11 +198,14 @@ impl Transform {
         self
     }
 
+    /// Returns current post-rotation of transform.
     #[inline]
     pub fn post_rotation(&self) -> Quat {
         self.post_rotation
     }
 
+    /// Sets rotation offset of transform. Moves rotation pivot using given vector,
+    /// it results in rotation being performed around rotation pivot with some offset.
     #[inline]
     pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) -> &mut Self {
         self.rotation_offset = rotation_offset;
@@ -135,11 +213,15 @@ impl Transform {
         self
     }
 
+    /// Returns current rotation offset of transform.
     #[inline]
     pub fn rotation_offset(&self) -> Vec3 {
         self.rotation_offset
     }
 
+    /// Sets rotation pivot of transform. This method sets a point around which all
+    /// rotations will be performed. For example it can be used to rotate a cube around
+    /// its vertex.
     #[inline]
     pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) -> &mut Self {
         self.rotation_pivot = rotation_pivot;
@@ -147,11 +229,14 @@ impl Transform {
         self
     }
 
+    /// Returns current rotation pivot of transform.
     #[inline]
     pub fn rotation_pivot(&self) -> Vec3 {
         self.rotation_pivot
     }
 
+    /// Sets scaling offset. Scaling offset defines offset from position of scaling
+    /// pivot.
     #[inline]
     pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) -> &mut Self {
         self.scaling_offset = scaling_offset;
@@ -159,11 +244,14 @@ impl Transform {
         self
     }
 
+    /// Returns current scaling offset of transform.
     #[inline]
     pub fn scaling_offset(&self) -> Vec3 {
         self.scaling_offset
     }
 
+    /// Sets scaling pivot. Scaling pivot sets a point around which scale will be
+    /// performed.
     #[inline]
     pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) -> &mut Self {
         self.scaling_pivot = scaling_pivot;
@@ -171,11 +259,14 @@ impl Transform {
         self
     }
 
+    /// Returns current scaling pivot of transform.
     #[inline]
     pub fn scaling_pivot(&self) -> Vec3 {
         self.scaling_pivot
     }
 
+    /// Shifts local position using given vector. It is a shortcut for:
+    /// set_position(position() + offset)
     #[inline]
     pub fn offset(&mut self, vec: Vec3) -> &mut Self {
         self.local_position += vec;
@@ -209,6 +300,8 @@ impl Transform {
             rotation_pivot_inv * scale_offset * scale_pivot * scale * scale_pivot_inv
     }
 
+    /// Returns matrix which is final result of transform. Matrix then can be used to transform
+    /// a vector, or combine with other matrix, to make transform hierarchy for example.
     pub fn matrix(&self) -> Mat4 {
         if self.dirty.get() {
             self.matrix.set(self.calculate_local_transform());
@@ -218,6 +311,8 @@ impl Transform {
     }
 }
 
+/// Transform builder allows you to construct transform in declarative manner.
+/// This is typical implementation of Builder pattern.
 pub struct TransformBuilder {
     local_scale: Option<Vec3>,
     local_position: Option<Vec3>,
@@ -237,6 +332,8 @@ impl Default for TransformBuilder {
 }
 
 impl TransformBuilder {
+    /// Creates new transform builder. If it won't be modified then it will produce
+    /// identity transform as result.
     pub fn new() -> Self {
         Self {
             local_scale: None,
@@ -251,51 +348,61 @@ impl TransformBuilder {
         }
     }
 
+    /// Sets desired local scale.
     pub fn with_local_scale(mut self, scale: Vec3) -> Self {
         self.local_scale = Some(scale);
         self
     }
 
+    /// Sets desired local position.
     pub fn with_local_position(mut self, position: Vec3) -> Self {
         self.local_position = Some(position);
         self
     }
 
+    /// Sets desired local rotation.
     pub fn with_local_rotation(mut self, rotation: Quat) -> Self {
         self.local_rotation = Some(rotation);
         self
     }
 
+    /// Sets desired pre-rotation.
     pub fn with_pre_rotation(mut self, rotation: Quat) -> Self {
         self.pre_rotation = Some(rotation);
         self
     }
 
+    /// Sets desired post-rotation.
     pub fn with_post_rotation(mut self, rotation: Quat) -> Self {
         self.post_rotation = Some(rotation);
         self
     }
 
+    /// Sets desired rotation offset.
     pub fn with_rotation_offset(mut self, offset: Vec3) -> Self {
         self.rotation_offset = Some(offset);
         self
     }
 
+    /// Sets desired rotation pivot.
     pub fn with_rotation_pivot(mut self, pivot: Vec3) -> Self {
         self.rotation_pivot = Some(pivot);
         self
     }
 
+    /// Sets desired scaling offset.
     pub fn with_scaling_offset(mut self, offset: Vec3) -> Self {
         self.scaling_offset = Some(offset);
         self
     }
 
+    /// Sets desired scaling pivot.
     pub fn with_scaling_pivot(mut self, pivot: Vec3) -> Self {
         self.scaling_pivot = Some(pivot);
         self
     }
 
+    /// Builds new Transform instance using provided values.
     pub fn build(self) -> Transform {
         Transform {
             dirty: Cell::new(true),
