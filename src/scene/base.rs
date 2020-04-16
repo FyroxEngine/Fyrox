@@ -1,3 +1,13 @@
+//! Contains all structures and methods to create and manage base scene graph nodes.
+//!
+//! Base scene graph node is a simplest possible node, it is used to build more complex
+//! ones using composition. It contains all fundamental properties for each scene graph
+//! nodes, like local and global transforms, name, lifetime, etc. Base node is a building
+//! block for all complex node hierarchies - it contains list of children and handle to
+//! parent node.
+
+#![warn(missing_docs)]
+
 use std::sync::{Arc, Mutex};
 use crate::{
     resource::model::Model,
@@ -12,6 +22,7 @@ use crate::{
     }
 };
 
+/// See module docs.
 pub struct Base {
     name: String,
     local_transform: Transform,
@@ -37,8 +48,13 @@ pub struct Base {
     lifetime: Option<f32>,
 }
 
+/// Used by other nodes to provide shared and mutable references to base
+/// node. As was said, each complex node must contain base one and must
+/// be able to provide reference to it.
 pub trait AsBase {
+    /// Provides shared reference to base node.
     fn base(&self) -> &Base;
+    /// Provides mutable reference to base node.
     fn base_mut(&mut self) -> &mut Base;
 }
 
@@ -143,7 +159,8 @@ impl Base {
     /// so if some parent node upper on tree is invisible then all its children will be
     /// invisible. It defines if object will be rendered. It is *not* the same as real
     /// visibility point of view of some camera. To check if object is visible from some
-    /// camera, use appropriate method (TODO: which one?)
+    /// camera, use frustum visibility check. However this still can't tell you if object
+    /// is behind obstacle or not.
     pub fn global_visibility(&self) -> bool {
         self.global_visibility
     }
@@ -178,8 +195,9 @@ impl Base {
     }
 }
 
-/// Shallow copy of node data.
 impl Clone for Base {
+    /// Shallow copy of node data. You should never use this directly, shallow copy
+    /// will produce invalid node in most cases!
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
@@ -230,6 +248,7 @@ impl Visit for Base {
     }
 }
 
+/// Base node builder allows you to create nodes in declarative manner.
 pub struct BaseBuilder {
     name: Option<String>,
     visibility: Option<bool>,
@@ -245,6 +264,7 @@ impl Default for BaseBuilder {
 }
 
 impl BaseBuilder {
+    /// Creates new builder instance.
     pub fn new() -> Self {
         Self {
             name: None,
@@ -255,31 +275,38 @@ impl BaseBuilder {
         }
     }
 
+    /// Sets desired name.
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = Some(name.to_owned());
         self
     }
 
+    /// Sets desired visibility.
     pub fn with_visibility(mut self, visibility: bool) -> Self {
         self.visibility = Some(visibility);
         self
     }
 
+    /// Sets desired local transform.
     pub fn with_local_transform(mut self, transform: Transform) -> Self {
         self.local_transform = Some(transform);
         self
     }
 
+    /// Sets desired list of children nodes.
     pub fn with_children(mut self, children: Vec<Handle<Node>>) -> Self {
         self.children = Some(children);
         self
     }
 
+    /// Sets desired lifetime.
     pub fn with_lifetime(mut self, time_seconds: f32) -> Self {
         self.lifetime = Some(time_seconds);
         self
     }
 
+    /// Creates new instance of base scene node. Do not forget to add
+    /// node to scene or pass to other nodes as base.
     pub fn build(self) -> Base {
         Base {
             name: self.name.unwrap_or_default(),
