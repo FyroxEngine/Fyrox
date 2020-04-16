@@ -1,19 +1,36 @@
+//! Contains all structures and methods to create and manage mesh scene graph nodes.
+//!
+//! Mesh is a 3D model, each mesh split into multiple surfaces, each surface holds single
+//! part of 3D model that have same textures assigned to each face. Such separation allows
+//! us to efficiently render geometry, thus reducing amount of draw calls.
+//!
+//! Usually there is no need to manually create meshes, it is much easier to make one in 3d
+//! modelling software or just download some model you like and load it in engine. But since
+//! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
+
+#![warn(missing_docs)]
+
+use std::cell::Cell;
 use crate::{
     renderer::surface::Surface,
-    scene::base::{Base, AsBase},
+    scene::{
+        base::{Base, AsBase},
+        graph::Graph
+    },
     core::{
         visitor::{
             Visit,
             Visitor,
             VisitResult,
         },
-        math::aabb::AxisAlignedBoundingBox,
+        math::{
+            aabb::AxisAlignedBoundingBox,
+            frustum::Frustum
+        }
     }
 };
-use std::cell::Cell;
-use rg3d_core::math::frustum::Frustum;
-use crate::scene::graph::Graph;
 
+/// See module docs.
 #[derive(Clone)]
 pub struct Mesh {
     base: Base,
@@ -55,30 +72,34 @@ impl Visit for Mesh {
 }
 
 impl Mesh {
+    /// Returns shared reference to array of surfaces.
     #[inline]
-    pub fn surfaces(&self) -> &Vec<Surface> {
+    pub fn surfaces(&self) -> &[Surface] {
         &self.surfaces
     }
 
+    /// Returns mutable reference to array of surfaces.
     #[inline]
     pub fn surfaces_mut(&mut self) -> &mut [Surface] {
         &mut self.surfaces
     }
 
+    /// Removes all surfaces from mesh.
     #[inline]
     pub fn clear_surfaces(&mut self) {
         self.surfaces.clear();
         self.bounding_box_dirty.set(true);
     }
 
+    /// Adds new surface into mesh, can be used to procedurally generate meshes.
     #[inline]
     pub fn add_surface(&mut self, surface: Surface) {
         self.surfaces.push(surface);
         self.bounding_box_dirty.set(true);
     }
 
-    /// Performs lazy bounding box evaluation.
-    /// Bounding box presented in *local coordinates*
+    /// Performs lazy bounding box evaluation. Bounding box presented in *local coordinates*
+    /// WARNING: This method does *not* includes bounds of bones!
     pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.bounding_box_dirty.get() {
             let mut bounding_box = AxisAlignedBoundingBox::default();
@@ -95,8 +116,8 @@ impl Mesh {
         self.bounding_box.get()
     }
 
-    /// Calculate bounding box in *world coordinates*.
-    /// This method is very heavy and not intended to use every frame!
+    /// Calculate bounding box in *world coordinates*. This method is very heavy and not
+    /// intended to use every frame! WARNING: This method does *not* includes bounds of bones!
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
@@ -109,6 +130,9 @@ impl Mesh {
         bounding_box
     }
 
+    /// Performs frustum visibility test. It uses mesh bounding box *and* positions of bones.
+    /// Mesh is considered visible if its bounding box visibile by frustum, or if any bones
+    /// position is inside frustum.
     pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
         if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.base.global_transform) {
             return true;
