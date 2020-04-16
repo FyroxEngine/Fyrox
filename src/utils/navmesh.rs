@@ -1,9 +1,33 @@
+//! Contains all structures and methods to create and manage navigation meshes (navmesh).
+//!
+//! Navigation mesh is a set of convex polygons which is used for path finding in complex
+//! environment.
+//!
+//! # Limitations
+//!
+//! Current implementation can only build paths from vertex to vertex in mesh, it can't
+//! search path from arbitrary point in polygon to other point in other polygon. It can
+//! be added pretty easily, but requires some extensive tests. This is still TODO.
+
+#![warn(missing_docs)]
+
+use std::{
+    collections::HashSet,
+    hash::{Hash, Hasher},
+};
 use crate::{
-    utils::astar::{
-        PathFinder,
-        PathVertex,
-        PathKind,
-        PathError,
+    scene::{
+        mesh::Mesh,
+        base::AsBase,
+    },
+    utils::{
+        astar::{
+            PathFinder,
+            PathVertex,
+            PathKind,
+            PathError,
+        },
+        raw_mesh::RawMeshBuilder,
     },
     core::{
         octree::Octree,
@@ -12,13 +36,10 @@ use crate::{
             vec3::Vec3,
             self,
         },
-    }
-};
-use std::{
-    collections::HashSet,
-    hash::{Hash, Hasher},
+    },
 };
 
+/// See module docs.
 pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
@@ -60,6 +81,9 @@ impl Default for Navmesh {
 }
 
 impl Navmesh {
+    /// Creates new navigation mesh from given set of triangles and vertices. This is
+    /// low level method that allows to specify triangles and vertices directly. In
+    /// most cases you should use `from_mesh` method.
     pub fn new(triangles: &[TriangleDefinition], vertices: &[Vec3]) -> Self {
         // Build triangles for octree.
         let raw_triangles = triangles.iter().map(|t| {
@@ -93,6 +117,45 @@ impl Navmesh {
         }
     }
 
+    /// Creates new navigation mesh (navmesh) from given mesh. It is most simple way to create complex
+    /// navigation mesh, it should be used in pair with model loading functionality - you can
+    /// load model from file and turn it into navigation mesh, or even build navigation mesh
+    /// from a model in existing scene. This method "eats" any kind of meshes with any amount
+    /// of surfaces - it joins all surfaces into single mesh and creates navmesh from it.
+    ///
+    /// Example:
+    /// ```
+    /// use rg3d::scene::Scene;
+    /// use rg3d::utils::navmesh::Navmesh;
+    ///
+    /// fn make_navmesh(scene: &Scene, navmesh_name: &str) -> Navmesh {
+    ///     // Find mesh node in existing scene and create navigation mesh from it.
+    ///     let navmesh_node_handle = scene.graph.find_by_name_from_root(navmesh_name);
+    ///     Navmesh::from_mesh(scene.graph.get(navmesh_node_handle).as_mesh())
+    /// }
+    /// ```
+    pub fn from_mesh(mesh: &Mesh) -> Self {
+        // Join surfaces into one simple mesh.
+        let mut builder = RawMeshBuilder::<Vec3>::default();
+        let global_transform = mesh.base().global_transform();
+        for surface in mesh.surfaces() {
+            let shared_data = surface.get_data();
+            let shared_data = shared_data.lock().unwrap();
+
+            let vertices = shared_data.get_vertices();
+            for triangle in shared_data.triangles() {
+                builder.insert(global_transform.transform_vector(vertices[triangle[0] as usize].position));
+                builder.insert(global_transform.transform_vector(vertices[triangle[1] as usize].position));
+                builder.insert(global_transform.transform_vector(vertices[triangle[2] as usize].position));
+            }
+        }
+
+        let mesh = builder.build();
+        Navmesh::new(&mesh.triangles, &mesh.vertices)
+    }
+
+    /// Searches closest graph vertex to given point. Returns Some(index), or None
+    /// if navmesh was empty.
     pub fn query_closest(&mut self, point: Vec3) -> Option<usize> {
         self.octree.point_query(point, &mut self.query_buffer);
         if self.query_buffer.is_empty() {
@@ -109,14 +172,34 @@ impl Navmesh {
         }
     }
 
+    /// Returns refernce to array of triangles.
     pub fn triangles(&self) -> &[TriangleDefinition] {
         &self.triangles
     }
 
+    /// Returns reference to array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         self.pathfinder.vertices()
     }
 
+    /// Tries to build path using indices of begin and end points.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// use rg3d::utils::navmesh::Navmesh;
+    /// use rg3d::core::math::vec3::Vec3;
+    /// use rg3d::utils::astar::{PathKind, PathError};
+    ///
+    /// fn find_path(navmesh: &mut Navmesh, begin: Vec3, end: Vec3, path: &mut Vec<Vec3>) -> Result<PathKind, PathError> {
+    ///     if let Some(begin_index) = navmesh.query_closest(begin) {
+    ///         if let Some(end_index) = navmesh.query_closest(end) {
+    ///             return navmesh.build_path(begin_index, end_index, path);
+    ///         }
+    ///     }
+    ///     Ok(PathKind::Empty)
+    /// }
+    /// ```
     pub fn build_path(&mut self, from: usize, to: usize, path: &mut Vec<Vec3>) -> Result<PathKind, PathError> {
         self.pathfinder.build(from, to, path)
     }

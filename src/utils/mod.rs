@@ -10,15 +10,12 @@ use crate::{
     gui::message::{KeyCode, OsEvent, ButtonState},
     core::{
         math::vec2::Vec2,
-    },
-    utils::navmesh::Navmesh,
+    }
 };
 use std::{
     any::Any,
     sync::Arc,
 };
-use crate::utils::raw_mesh::RawMeshBuilder;
-use rg3d_core::math::vec3::Vec3;
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
@@ -48,26 +45,6 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
         }
     }
     StaticGeometry::new(triangles)
-}
-
-pub fn mesh_to_navmesh(mesh: &Mesh) -> Navmesh {
-    // Join surfaces into one simple mesh.
-    let mut builder = RawMeshBuilder::<Vec3>::default();
-    let global_transform = mesh.base().global_transform();
-    for surface in mesh.surfaces() {
-        let shared_data = surface.get_data();
-        let shared_data = shared_data.lock().unwrap();
-
-        let vertices = shared_data.get_vertices();
-        for triangle in shared_data.triangles() {
-            builder.insert(global_transform.transform_vector(vertices[triangle[0] as usize].position));
-            builder.insert(global_transform.transform_vector(vertices[triangle[1] as usize].position));
-            builder.insert(global_transform.transform_vector(vertices[triangle[2] as usize].position));
-        }
-    }
-
-    let mesh = builder.build();
-    Navmesh::new(&mesh.triangles, &mesh.vertices)
 }
 
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
