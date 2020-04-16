@@ -1,14 +1,26 @@
-use crate::core::math::vec3::Vec3;
-use crate::core::math;
-use rg3d_core::math::PositionProvider;
+//! Contains classic A* (A-star) path finding algorithms.
+//!
+//! A* is one of fastest graph search algorithms, it is used to construct shortest
+//! possible path from vertex to vertex. In vast majority of games it is used in pair
+//! with navigation meshes (navmesh). Check navmesh module docs for more info.
+
+#![warn(missing_docs)]
+
+use crate::core::math::{
+    self,
+    vec3::Vec3,
+    PositionProvider,
+};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum PathVertexState {
+enum PathVertexState {
     NonVisited,
     Open,
     Closed,
 }
 
+/// Graph vertex that contains position in world and list of indices of neighbour
+/// vertices.
 pub struct PathVertex {
     /// Position in world.
     position: Vec3,
@@ -20,6 +32,7 @@ pub struct PathVertex {
 }
 
 impl PathVertex {
+    /// Creates new vertex at given position.
     pub fn new(position: Vec3) -> Self {
         Self {
             position,
@@ -31,26 +44,35 @@ impl PathVertex {
         }
     }
 
+    /// Returns reference to array of indices of neighbour vertices.
+    pub fn neighbours(&self) -> &[usize] {
+        &self.neighbours
+    }
+
     fn clear(&mut self) {
         self.g_score = std::f32::MAX;
         self.f_score = std::f32::MAX;
         self.state = PathVertexState::NonVisited;
         self.parent = None;
     }
-
-    pub fn neighbours(&self) -> &[usize] {
-        &self.neighbours
-    }
 }
 
+/// See module docs.
 pub struct PathFinder {
     vertices: Vec<PathVertex>
 }
 
+/// Shows path status.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathKind {
+    /// There is direct path from begin to end.
     Full,
+    /// No direct path, only partial to closest reachable vertex to destination. Can
+    /// happen if there are isolated "islands" of graph vertices with no links between
+    /// them and you trying to find path from one "island" to other.
     Partial,
+    /// Either array of vertices to search on was empty, or search was started from
+    /// isolated vertex.
     Empty,
 }
 
@@ -70,13 +92,19 @@ impl PositionProvider for PathVertex {
     }
 }
 
+/// Path search can be interrupted by errors, this enum stores all possible
+/// kinds of errors.
 #[derive(Copy, Clone, Debug)]
 pub enum PathError {
+    /// Out-of-bounds vertex index has found, it can be either index of begin/end
+    /// points, or some index of neighbour vertices in list of neighbours in vertex.
     InvalidIndex(usize),
-    CyclicReferenceFound,
+    /// There is a vertex that has itself as neighbour.
+    CyclicReferenceFound(usize),
 }
 
 impl PathFinder {
+    /// Creates new empty path finder.
     pub fn new() -> Self {
         Self {
             vertices: Default::default()
@@ -120,6 +148,7 @@ impl PathFinder {
         self.vertices.get(index)
     }
 
+    /// Returns reference to array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         &self.vertices
     }
@@ -188,7 +217,7 @@ impl PathFinder {
             for neighbour_index in current_vertex.neighbours.iter() {
                 // Make sure that borrowing rules are not violated.
                 if *neighbour_index == current_index {
-                    return Err(PathError::CyclicReferenceFound);
+                    return Err(PathError::CyclicReferenceFound(current_index));
                 }
 
                 // Safely get mutable reference to neighbour
