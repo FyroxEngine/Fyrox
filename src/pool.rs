@@ -28,6 +28,7 @@ use crate::visitor::{
     VisitResult,
     Visitor,
 };
+use std::ops::{Index, IndexMut};
 
 const INVALID_GENERATION: u32 = 0;
 
@@ -764,6 +765,20 @@ impl<T> Pool<T> {
             }
         }
         Handle::NONE
+    }
+}
+
+impl<T> Index<Handle<T>> for Pool<T> {
+    type Output = T;
+
+    fn index(&self, index: Handle<T>) -> &Self::Output {
+        self.borrow(index)
+    }
+}
+
+impl<T> IndexMut<Handle<T>> for Pool<T> {
+    fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
+        self.borrow_mut(index)
     }
 }
 
