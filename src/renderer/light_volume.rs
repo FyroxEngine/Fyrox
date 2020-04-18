@@ -1,16 +1,19 @@
 use crate::{
-    core::scope_profile,
-    core::math::{
-        Rect,
-        mat4::Mat4,
-        vec3::Vec3,
+    core::{
+        scope_profile,
+        math::{
+            Rect,
+            mat4::Mat4,
+            vec3::Vec3,
+        },
     },
     renderer::{
         framework::{
-            state::State,
-            geometry_buffer::{
-                GeometryBuffer,
-                DrawCallStatistics,
+            state::{
+                State,
+                StencilFunc,
+                ColorMask,
+                StencilOp,
             },
             framebuffer::{
                 FrameBufferTrait,
@@ -22,10 +25,14 @@ use crate::{
                 UniformLocation,
                 UniformValue,
             },
+            gl,
         },
         gbuffer::GBuffer,
-        surface,
         error::RendererError,
+        GeometryCache,
+        flat_shader::FlatShader,
+        surface::SurfaceSharedData,
+        RenderPassStatistics
     },
     scene::{
         light::{
@@ -98,6 +105,9 @@ impl PointLightShader {
 pub struct LightVolumeRenderer {
     spot_light_shader: SpotLightShader,
     point_light_shader: PointLightShader,
+    flat_shader: FlatShader,
+    cone: SurfaceSharedData,
+    sphere: SurfaceSharedData,
 }
 
 impl LightVolumeRenderer {
@@ -105,6 +115,9 @@ impl LightVolumeRenderer {
         Ok(Self {
             spot_light_shader: SpotLightShader::new()?,
             point_light_shader: PointLightShader::new()?,
+            flat_shader: FlatShader::new()?,
+            cone: SurfaceSharedData::make_cone(16, 1.0, 1.0, Vec3::new(0.0, -1.0, 0.0)),
+            sphere: SurfaceSharedData::make_sphere(8, 8, 1.0),
         })
     }
 
@@ -113,15 +126,19 @@ impl LightVolumeRenderer {
                          state: &mut State,
                          light: &Light,
                          gbuffer: &mut GBuffer,
-                         quad: &GeometryBuffer<surface::Vertex>,
+                         quad: &SurfaceSharedData,
+                         geom_cache: &mut GeometryCache,
                          view: Mat4,
                          inv_proj: Mat4,
+                         view_proj: Mat4,
                          viewport: Rect<i32>,
-    ) -> DrawCallStatistics {
+    ) -> RenderPassStatistics {
         scope_profile!();
 
+        let mut stats = RenderPassStatistics::default();
+
         if !light.is_scatter_enabled() {
-            return DrawCallStatistics { triangles: 0 };
+            return stats;
         }
 
         let frame_matrix =
@@ -134,8 +151,53 @@ impl LightVolumeRenderer {
             LightKind::Spot(spot) => {
                 let direction = view.basis().transform_vector(-light.up_vector().normalized().unwrap_or(Vec3::LOOK));
 
-                gbuffer.final_frame.draw(
-                    quad,
+                // Draw cone into stencil buffer - it will mark pixels for further volumetric light
+                // calculations, it will significantly reduce amount of pixels for far lights thus
+                // significantly improve performance.
+
+                // Angle bias is used to to slightly increase cone radius to add small margin
+                // for fadeout effect.
+                let bias = 0.05;
+                let k = ((0.5 + bias) * spot.full_cone_angle()).sin() * spot.distance();
+                let light_shape_matrix = light.global_transform * Mat4::scale(Vec3::new(k, spot.distance(), k));
+                let mvp = view_proj * light_shape_matrix;
+
+                gbuffer.final_frame.clear(state, viewport, None, None, Some(0));
+
+                state.set_stencil_mask(0xFFFF_FFFF);
+                state.set_stencil_func(StencilFunc {
+                    func: gl::EQUAL,
+                    ref_value: 0xFF,
+                    mask: 0xFFFF_FFFF,
+                });
+                state.set_stencil_op(StencilOp {
+                    fail: gl::REPLACE,
+                    zfail: gl::KEEP,
+                    zpass: gl::REPLACE,
+                });
+
+                stats += gbuffer.final_frame.draw(
+                    geom_cache.get(state, &self.cone),
+                    state,
+                    viewport,
+                    &self.flat_shader.program,
+                    DrawParameters {
+                        cull_face: CullFace::Back,
+                        culling: false,
+                        color_write: ColorMask::all(false),
+                        depth_write: false,
+                        stencil_test: true,
+                        depth_test: true,
+                        blend: false,
+                    },
+                    &[(self.flat_shader.wvp_matrix, UniformValue::Mat4(mvp))],
+                );
+
+                // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
+                // marked in stencil buffer. For distant lights it will be very low amount of pixels and
+                // so distant lights won't impact performance.
+                stats += gbuffer.final_frame.draw(
+                    geom_cache.get(state, quad),
                     state,
                     viewport,
                     &self.spot_light_shader.program,
@@ -144,7 +206,7 @@ impl LightVolumeRenderer {
                         culling: false,
                         color_write: Default::default(),
                         depth_write: false,
-                        stencil_test: false,
+                        stencil_test: true,
                         depth_test: false,
                         blend: true,
                     },
@@ -161,8 +223,49 @@ impl LightVolumeRenderer {
                 )
             }
             LightKind::Point(point) => {
-                gbuffer.final_frame.draw(
-                    quad,
+                gbuffer.final_frame.clear(state, viewport, None, None, Some(0));
+
+                state.set_stencil_mask(0xFFFF_FFFF);
+                state.set_stencil_func(StencilFunc {
+                    func: gl::EQUAL,
+                    ref_value: 0xFF,
+                    mask: 0xFFFF_FFFF,
+                });
+                state.set_stencil_op(StencilOp {
+                    fail: gl::REPLACE,
+                    zfail: gl::KEEP,
+                    zpass: gl::REPLACE,
+                });
+
+                // Radius bias is used to to slightly increase sphere radius to add small margin
+                // for fadeout effect. It is set to 5%.
+                let bias = 1.05;
+                let k = bias * point.radius();
+                let light_shape_matrix = light.global_transform * Mat4::scale(Vec3::new(k, k, k));
+                let mvp = view_proj * light_shape_matrix;
+
+                stats += gbuffer.final_frame.draw(
+                    geom_cache.get(state, &self.sphere),
+                    state,
+                    viewport,
+                    &self.flat_shader.program,
+                    DrawParameters {
+                        cull_face: CullFace::Back,
+                        culling: false,
+                        color_write: ColorMask::all(false),
+                        depth_write: false,
+                        stencil_test: true,
+                        depth_test: true,
+                        blend: false,
+                    },
+                    &[(self.flat_shader.wvp_matrix, UniformValue::Mat4(mvp))],
+                );
+
+                // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
+                // marked in stencil buffer. For distant lights it will be very low amount of pixels and
+                // so distant lights won't impact performance.
+                stats += gbuffer.final_frame.draw(
+                    geom_cache.get(state, quad),
                     state,
                     viewport,
                     &self.point_light_shader.program,
@@ -186,7 +289,9 @@ impl LightVolumeRenderer {
                     ],
                 )
             }
-            _ => DrawCallStatistics { triangles: 0 }
+            _ => ()
         }
+
+        stats
     }
 }

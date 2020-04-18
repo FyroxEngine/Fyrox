@@ -573,9 +573,11 @@ impl DeferredLightRenderer {
                     state,
                     light,
                     gbuffer,
-                    quad,
+                    &self.quad,
+                    geometry_cache,
                     camera.view_matrix(),
                     projection_matrix.inverse().unwrap_or_default(),
+                    camera.view_projection_matrix(),
                     viewport
                 );
             }

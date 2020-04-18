@@ -295,7 +295,7 @@ impl Default for Light {
             kind: LightKind::Point(Default::default()),
             color: Color::WHITE,
             cast_shadows: true,
-            scatter: Vec3::new(0.03, 0.03, 0.03),
+            scatter: DEFAULT_SCATTER,
             scatter_enabled: true,
         }
     }

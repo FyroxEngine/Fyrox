@@ -324,7 +324,8 @@ impl SurfaceSharedData {
         data
     }
 
-    pub fn make_cone(sides: usize, r: f32, h: f32) -> Self {
+    /// Creates vertical cone - it has its vertex higher than base.
+    pub fn make_cone(sides: usize, r: f32, h: f32, offset: Vec3) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
@@ -344,14 +345,14 @@ impl SurfaceSharedData {
             let tx1 = d_theta * (i + 1) as f32;
 
             // back cap
-            builder.insert(Vertex::from_pos_uv(Vec3::new(0.0, 0.0, h), Vec2::new(0.0, 0.0)));
-            builder.insert(Vertex::from_pos_uv(Vec3::new(x0, y0, h), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(Vec3::new(x1, y1, h), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(0.0, 0.0, 0.0), Vec2::new(0.0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x0, 0.0, y0), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x1, 0.0, y1), Vec2::new(tx1, 0.0)));
 
             // sides
-            builder.insert(Vertex::from_pos_uv(Vec3::new(0.0, 0.0, 0.0), Vec2::new(tx1, 0.0)));
-            builder.insert(Vertex::from_pos_uv(Vec3::new(x1, y1, h), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(Vec3::new(x0, y0, h), Vec2::new(tx0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(0.0, h, 0.0), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x1, 0.0, y1), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x0, 0.0, y0), Vec2::new(tx0, 0.0)));
         }
 
 

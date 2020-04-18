@@ -76,10 +76,10 @@ fn bool_to_gl_bool(v: bool) -> GLboolean {
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub struct ColorMask {
-    red: bool,
-    green: bool,
-    blue: bool,
-    alpha: bool,
+    pub red: bool,
+    pub green: bool,
+    pub blue: bool,
+    pub alpha: bool,
 }
 
 impl Default for ColorMask {
