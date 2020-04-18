@@ -39,6 +39,7 @@ use crate::{
     NodeHandleMapping,
     progress_bar::ProgressBar
 };
+use std::ops::{Deref, DerefMut};
 
 #[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -97,15 +98,51 @@ macro_rules! static_dispatch {
     };
 }
 
+macro_rules! static_dispatch_deref {
+    ($self:ident) => {
+        match $self {
+            UINode::Border(v) => v,
+            UINode::Button(v) => v,
+            UINode::Canvas(v) => v,
+            UINode::CheckBox(v) => v,
+            UINode::Grid(v) => v,
+            UINode::Image(v) => v,
+            UINode::ListBox(v) => v,
+            UINode::ListBoxItem(v) => v,
+            UINode::ScrollBar(v) => v,
+            UINode::ScrollContentPresenter(v) => v,
+            UINode::ScrollViewer(v) => v,
+            UINode::StackPanel(v) => v,
+            UINode::TabControl(v) => v,
+            UINode::Text(v) => v,
+            UINode::TextBox(v) => v,
+            UINode::Window(v) => v,
+            UINode::User(v) => v,
+            UINode::Popup(v) => v,
+            UINode::ComboBox(v) => v,
+            UINode::ItemsControl(v) => v,
+            UINode::ItemContainer(v) => v,
+            UINode::ProgressBar(v) => v,
+            UINode::Decorator(v) => v,
+        }
+    };
+}
+
+impl<M, C: 'static + Control<M, C>> Deref for UINode<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        static_dispatch_deref!(self)
+    }
+}
+
+impl<M, C: 'static + Control<M, C>> DerefMut for UINode<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        static_dispatch_deref!(self)
+    }
+}
+
 impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        static_dispatch!(self, widget,)
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        static_dispatch!(self, widget_mut,)
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         static_dispatch!(self, raw_copy,)
     }
@@ -156,19 +193,25 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
 pub enum StubNode {}
 
 impl Control<(), StubNode> for StubNode {
-    fn widget(&self) -> &Widget<(), StubNode> {
-        unimplemented!()
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<(), StubNode> {
-        unimplemented!()
-    }
-
     fn raw_copy(&self) -> UINode<(), StubNode> {
         unimplemented!()
     }
 
     fn handle_message(&mut self, _: Handle<UINode<(), StubNode>>, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
+        unimplemented!()
+    }
+}
+
+impl Deref for StubNode {
+    type Target = Widget<(), StubNode>;
+
+    fn deref(&self) -> &Self::Target {
+        unimplemented!()
+    }
+}
+
+impl DerefMut for StubNode{
+    fn deref_mut(&mut self) -> &mut Self::Target {
         unimplemented!()
     }
 }

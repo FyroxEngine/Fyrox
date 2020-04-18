@@ -37,6 +37,7 @@ use crate::{
     },
     NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
@@ -55,15 +56,21 @@ pub struct Window<M: 'static, C: 'static + Control<M, C>> {
     scroll_viewer: Handle<UINode<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Window<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Window<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Window(Self {
             widget: self.widget.raw_copy(),
@@ -92,13 +99,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if (message.source == self.header || ui.node(self.header).widget().has_descendant(message.source, ui))
+                if (message.source == self.header || ui.node(self.header).has_descendant(message.source, ui))
                     && message.source != self.close_button && message.source != self.minimize_button {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
                             self.widget.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::TopMost)));
                             ui.capture_mouse(self.header);
-                            let initial_position = self.widget().actual_local_position();
+                            let initial_position = self.actual_local_position();
                             self.mouse_click_pos = *pos;
                             self.initial_position = initial_position;
                             self.is_dragged = true;
@@ -143,8 +150,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 self.widget.invalidate_layout();
                                 if self.scroll_viewer.is_some() {
                                     if let UINode::ScrollViewer(scroll_viewer) = ui.node_mut(self.scroll_viewer) {
-                                        scroll_viewer.widget_mut()
-                                            .set_visibility(!*minimized);
+                                        scroll_viewer.set_visibility(!*minimized);
                                     }
                                 }
                             }
@@ -154,9 +160,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 self.can_minimize = *value;
                                 self.widget.invalidate_layout();
                                 if self.minimize_button.is_some() {
-                                    ui.node_mut(self.minimize_button)
-                                        .widget_mut()
-                                        .set_visibility(*value);
+                                    ui.node_mut(self.minimize_button).set_visibility(*value);
                                 }
                             }
                         }
@@ -165,9 +169,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 self.can_close = *value;
                                 self.widget.invalidate_layout();
                                 if self.close_button.is_some() {
-                                    ui.node_mut(self.close_button)
-                                        .widget_mut()
-                                        .set_visibility(*value);
+                                    ui.node_mut(self.close_button).set_visibility(*value);
                                 }
                             }
                         }
@@ -365,7 +367,6 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                             .build(ui)
                     });
                     ui.node_mut(minimize_button)
-                        .widget_mut()
                         .set_visibility(self.can_minimize)
                         .set_width_mut(30.0)
                         .set_row(0)
@@ -380,7 +381,6 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                             .build(ui)
                     });
                     ui.node_mut(close_button)
-                        .widget_mut()
                         .set_width_mut(30.0)
                         .set_visibility(self.can_close)
                         .set_row(0)
@@ -402,9 +402,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
         });
 
         if let UINode::ScrollViewer(sv) = ui.node_mut(scroll_viewer) {
-            sv.set_content(self.content)
-                .widget_mut()
-                .set_row(1);
+            sv.set_content(self.content).set_row(1);
         }
 
         let window = Window {

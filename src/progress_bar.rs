@@ -21,6 +21,7 @@ use crate::{
     },
     brush::Brush,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct ProgressBar<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -29,15 +30,21 @@ pub struct ProgressBar<M: 'static, C: 'static + Control<M, C>> {
     body: Handle<UINode<M, C>>
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ProgressBar<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ProgressBar<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ProgressBar(Self {
             widget: self.widget.raw_copy(),

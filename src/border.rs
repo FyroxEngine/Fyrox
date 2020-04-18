@@ -5,7 +5,7 @@ use crate::{
             vec2::Vec2,
             Rect,
         },
-        color::Color
+        color::Color,
     },
     UINode,
     draw::{
@@ -23,10 +23,25 @@ use crate::{
     brush::Brush,
     message::UiMessage,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct Border<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     stroke_thickness: Thickness,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Border<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Border<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Clone for Border<M, C> {
@@ -39,14 +54,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Border<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Border(self.clone())
     }
@@ -63,7 +70,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
-            let child = ui.nodes.borrow(*child_handle).widget();
+            let child = ui.nodes.borrow(*child_handle);
             let child_desired_size = child.desired_size();
             if child_desired_size.x > desired_size.x {
                 desired_size.x = child_desired_size.x;

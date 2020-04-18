@@ -22,6 +22,7 @@ use crate::{
     border::BorderBuilder,
     NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct ComboBox<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -31,15 +32,21 @@ pub struct ComboBox<M: 'static, C: 'static + Control<M, C>> {
     current: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ComboBox<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ComboBox<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ComboBox(Self {
             widget: self.widget.raw_copy(),
@@ -67,8 +74,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
                 if let WidgetMessage::MouseDown { .. } = msg {
                     if message.source == self_handle || self.widget.has_descendant(message.source, ui) {
                         if let UINode::Popup(popup) = ui.node_mut(self.popup) {
-                            popup.widget_mut()
-                                .set_width_mut(self.widget.actual_size().x);
+                            popup.set_width_mut(self.widget.actual_size().x);
                             let placement_position = self.widget.screen_position + Vec2::new(0.0, self.widget.actual_size().y);
                             popup.set_placement(Placement::Position(placement_position));
                             popup.open();

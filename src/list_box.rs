@@ -23,11 +23,26 @@ use crate::{
     brush::Brush,
     NodeHandleMapping
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct ListBox<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     selected_index: Option<usize>,
     items: Vec<Handle<UINode<M, C>>>,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ListBox<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ListBox<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> ListBox<M, C> {
@@ -66,15 +81,21 @@ pub struct ListBoxItem<M: 'static, C: 'static + Control<M, C>> {
     index: usize,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ListBoxItem<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ListBoxItem<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ListBoxItem(Self {
             widget: self.widget.raw_copy(),
@@ -90,14 +111,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_message(self_handle, ui, message);
 
-        let list_box = self.widget().find_by_criteria_up(ui, |node| {
+        let list_box = self.find_by_criteria_up(ui, |node| {
             if let UINode::ListBox(_) = node { true } else { false }
         });
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if self.body.is_some() && (message.source == self_handle || self.widget().has_descendant(message.source, ui)) {
-                    let body = ui.node_mut(self.body).widget_mut();
+                if self.body.is_some() && (message.source == self_handle || self.has_descendant(message.source, ui)) {
+                    let body = ui.node_mut(self.body);
                     match msg {
                         WidgetMessage::MouseLeave => {
                             body.set_background(Brush::Solid(Color::opaque(100, 100, 100)));
@@ -124,12 +145,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
                             // check at which index and keep visual state according to it.
                             if let Some(new_value) = *new_value {
                                 if new_value == self.index {
-                                    border.widget_mut().set_foreground(Brush::Solid(Color::opaque(0, 0, 0)));
+                                    border.set_foreground(Brush::Solid(Color::opaque(0, 0, 0)));
                                     border.set_stroke_thickness(Thickness::uniform(2.0));
                                     return;
                                 }
                             }
-                            border.widget_mut().set_foreground(Brush::Solid(Color::opaque(80, 80, 80)));
+                            border.set_foreground(Brush::Solid(Color::opaque(80, 80, 80)));
                             border.set_stroke_thickness(Thickness::uniform(1.0));
                         }
                     }
@@ -147,14 +168,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBoxItem<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for ListBox<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ListBox(Self {
             widget: self.widget.raw_copy(),

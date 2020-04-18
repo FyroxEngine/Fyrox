@@ -40,6 +40,7 @@ use crate::{
     draw::CommandTexture,
     message::WidgetMessage,
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -78,6 +79,20 @@ pub struct TextBox<M: 'static, C: 'static + Control<M, C>> {
     has_focus: bool,
     caret_brush: Brush,
     selection_brush: Brush,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for TextBox<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for TextBox<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
@@ -329,14 +344,6 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::TextBox(Self {
             widget: self.widget.raw_copy(),
@@ -468,7 +475,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         self.widget.handle_message(self_handle, ui, message);
 
         if let UiMessageData::Widget(msg) = &message.data {
-            if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
+            if message.source == self_handle || self.has_descendant(message.source, ui) {
                 match msg {
                     WidgetMessage::Text(symbol) => {
                         self.insert_char(*symbol);

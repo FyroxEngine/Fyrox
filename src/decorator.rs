@@ -26,6 +26,7 @@ use crate::{
     border::BorderBuilder,
     NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 /// A visual element that changes its appearance by listening specific events.
 /// It can has "pressed", "hover", "selected" or normal appearance:
@@ -49,15 +50,21 @@ pub struct Decorator<M: 'static, C: 'static + Control<M, C>> {
     is_selected: bool,
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Decorator<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.border
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Decorator<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.border
+    }
+}
+
 impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        self.border.widget()
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        self.border.widget_mut()
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Decorator(Self {
             border: self.border.clone(),
@@ -110,38 +117,26 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
+                if message.source == self_handle || self.has_descendant(message.source, ui) {
                     match msg {
                         WidgetMessage::MouseLeave => {
                             if self.is_selected {
-                                self.border
-                                    .widget_mut()
-                                    .set_background(self.selected_brush.clone());
+                                self.border.set_background(self.selected_brush.clone());
                             } else {
-                                self.border
-                                    .widget_mut()
-                                    .set_background(self.normal_brush.clone());
+                                self.border.set_background(self.normal_brush.clone());
                             }
                         }
                         WidgetMessage::MouseEnter => {
-                            self.border
-                                .widget_mut()
-                                .set_background(self.hover_brush.clone());
+                            self.border.set_background(self.hover_brush.clone());
                         }
                         WidgetMessage::MouseDown { .. } => {
-                            self.border
-                                .widget_mut()
-                                .set_background(self.pressed_brush.clone());
+                            self.border.set_background(self.pressed_brush.clone());
                         }
                         WidgetMessage::MouseUp { .. } => {
                             if self.is_selected {
-                                self.border
-                                    .widget_mut()
-                                    .set_background(self.selected_brush.clone());
+                                self.border.set_background(self.selected_brush.clone());
                             } else {
-                                self.border
-                                    .widget_mut()
-                                    .set_background(self.normal_brush.clone());
+                                self.border.set_background(self.normal_brush.clone());
                             }
                         }
                         _ => {}
@@ -151,12 +146,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
             UiMessageData::ItemsControl(msg) => {
                 // Reflect changes of selection in parent item container (if has any).
                 if let ItemsControlMessage::SelectionChanged(selection) = msg {
-                    let items_control = self.widget().find_by_criteria_up(ui, |n| {
+                    let items_control = self.find_by_criteria_up(ui, |n| {
                         if let UINode::ItemsControl(_) = n { true } else { false }
                     });
 
                     if message.source == items_control {
-                        let container = self.widget().find_by_criteria_up(ui, |n| {
+                        let container = self.find_by_criteria_up(ui, |n| {
                             if let UINode::ItemContainer(_) = n { true } else { false }
                         });
 
@@ -169,13 +164,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
                                 }
 
                                 if self.is_selected {
-                                    self.border
-                                        .widget_mut()
-                                        .set_background(self.selected_brush.clone());
+                                    self.border.set_background(self.selected_brush.clone());
                                 } else {
-                                    self.border
-                                        .widget_mut()
-                                        .set_background(self.normal_brush.clone());
+                                    self.border.set_background(self.normal_brush.clone());
                                 }
                             }
                         }
@@ -247,7 +238,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
 
         let mut border = self.border_builder.build_node();
 
-        border.widget_mut().set_background(normal_brush.clone());
+        border.set_background(normal_brush.clone());
 
         let decorator = UINode::Decorator(Decorator {
             border,

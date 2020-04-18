@@ -15,6 +15,7 @@ use crate::{
     UINode,
     message::UiMessage
 };
+use std::ops::{Deref, DerefMut};
 
 /// Allows user to scroll content
 pub struct ScrollContentPresenter<M: 'static, C: 'static + Control<M, C>> {
@@ -24,15 +25,21 @@ pub struct ScrollContentPresenter<M: 'static, C: 'static + Control<M, C>> {
     horizontal_scroll_allowed: bool,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollContentPresenter<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ScrollContentPresenter<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ScrollContentPresenter(Self {
             widget: self.widget.raw_copy(),
@@ -61,7 +68,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
 
-            let child = ui.nodes.borrow(*child_handle).widget();
+            let child = ui.nodes.borrow(*child_handle);
             let child_desired_size = child.desired_size();
             if child_desired_size.x > desired_size.x {
                 desired_size.x = child_desired_size.x;

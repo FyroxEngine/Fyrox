@@ -9,7 +9,7 @@ use crate::{
         UiMessage,
         UiMessageData,
         CheckBoxMessage,
-        WidgetMessage
+        WidgetMessage,
     },
     Thickness,
     border::BorderBuilder,
@@ -19,8 +19,9 @@ use crate::{
         color::Color,
     },
     brush::Brush,
-    NodeHandleMapping
+    NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct CheckBox<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -28,15 +29,21 @@ pub struct CheckBox<M: 'static, C: 'static + Control<M, C>> {
     check_mark: Handle<UINode<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for CheckBox<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for CheckBox<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::CheckBox(Self {
             widget: self.widget.raw_copy(),
@@ -79,7 +86,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
             UiMessageData::CheckBox(ref msg) => {
                 if let CheckBoxMessage::Checked(value) = msg {
                     if message.source == self_handle && self.check_mark.is_some() {
-                        let check_mark = ui.node_mut(self.check_mark).widget_mut();
+                        let check_mark = ui.node_mut(self.check_mark);
                         match value {
                             None => {
                                 check_mark.set_background(Brush::Solid(Color::opaque(30, 30, 80)));
@@ -165,7 +172,6 @@ impl<M, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
             true
         };
         ui.node_mut(check_mark)
-            .widget_mut()
             .set_visibility(visibility);
 
         let check_box = CheckBox {

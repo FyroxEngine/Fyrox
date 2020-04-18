@@ -28,11 +28,26 @@ use crate::{
     NodeHandleMapping,
     decorator::DecoratorBuilder
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct Button<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     decorator: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Button<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Button<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Clone for Button<M, C> {
@@ -69,14 +84,6 @@ impl<M, C: 'static + Control<M, C>> Button<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Button(self.clone())
     }
@@ -93,12 +100,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
+                if message.source == self_handle || self.has_descendant(message.source, ui) {
                     match msg {
                         WidgetMessage::MouseUp { .. } => {
-                            let widget = self.widget_mut();
-
-                            widget.post_message(UiMessage::new(UiMessageData::Button(ButtonMessage::Click)));
+                            self.post_message(UiMessage::new(UiMessageData::Button(ButtonMessage::Click)));
 
                             ui.release_mouse_capture();
                         }

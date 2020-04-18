@@ -22,8 +22,9 @@ use crate::{
     },
     brush::Brush,
     NodeHandleMapping,
-    draw::{DrawingContext, CommandTexture, CommandKind}
+    draw::{DrawingContext, CommandTexture, CommandKind},
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct ItemsControl<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -31,6 +32,20 @@ pub struct ItemsControl<M: 'static, C: 'static + Control<M, C>> {
     item_containers: Vec<Handle<UINode<M, C>>>,
     panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ItemsControl<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ItemsControl<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> ItemsControl<M, C> {
@@ -53,8 +68,8 @@ impl<M, C: 'static + Control<M, C>> ItemsControl<M, C> {
             old_value.is_some() && new_index.is_none() ||
             old_value.unwrap() != new_index.unwrap() {
             self.widget.post_message(UiMessage::new(
-                    UiMessageData::ItemsControl(
-                        ItemsControlMessage::SelectionChanged(self.selected_index))))
+                UiMessageData::ItemsControl(
+                    ItemsControlMessage::SelectionChanged(self.selected_index))))
         }
     }
 
@@ -72,6 +87,20 @@ pub struct ItemContainer<M: 'static, C: 'static + Control<M, C>> {
     index: usize,
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ItemContainer<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ItemContainer<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
+
 impl<M, C: 'static + Control<M, C>> ItemContainer<M, C> {
     pub fn index(&self) -> usize {
         self.index
@@ -79,14 +108,6 @@ impl<M, C: 'static + Control<M, C>> ItemContainer<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ItemContainer(Self {
             widget: self.widget.raw_copy(),
@@ -103,12 +124,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
     fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_message(self_handle, ui, message);
 
-        let items_control = self.widget().find_by_criteria_up(ui, |node| {
+        let items_control = self.find_by_criteria_up(ui, |node| {
             if let UINode::ItemsControl(_) = node { true } else { false }
         });
 
         if let UiMessageData::Widget(msg) = &message.data {
-            if message.source == self_handle || self.widget().has_descendant(message.source, ui) {
+            if message.source == self_handle || self.has_descendant(message.source, ui) {
                 if let WidgetMessage::MouseUp { .. } = msg {
                     // Explicitly set selection on parent items control. This will send
                     // SelectionChanged message and all items will react.
@@ -122,21 +143,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemContainer<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemsControl<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ItemsControl(Self {
             widget: self.widget.raw_copy(),
             selected_index: self.selected_index,
             item_containers: self.item_containers.clone(),
             panel: self.panel,
-            items: self.items.clone()
+            items: self.items.clone(),
         })
     }
 
@@ -157,7 +170,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ItemsControl<M, C> {
             if let ItemsControlMessage::Items(items) = msg {
                 if message.target == self_handle {
                     // Remove previous items.
-                    for child in ui.node(self.panel).widget().children().to_vec() {
+                    for child in ui.node(self.panel).children().to_vec() {
                         ui.remove_node(child);
                     }
 
@@ -183,7 +196,7 @@ pub struct ItemsControlBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     panel: Option<Handle<UINode<M, C>>>,
-    scroll_viewer: Option<Handle<UINode<M, C>>>
+    scroll_viewer: Option<Handle<UINode<M, C>>>,
 }
 
 impl<M, C: 'static + Control<M, C>> ItemsControlBuilder<M, C> {
@@ -192,7 +205,7 @@ impl<M, C: 'static + Control<M, C>> ItemsControlBuilder<M, C> {
             widget_builder,
             items: Vec::new(),
             panel: None,
-            scroll_viewer: None
+            scroll_viewer: None,
         }
     }
 

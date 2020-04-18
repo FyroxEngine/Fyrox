@@ -29,21 +29,28 @@ use std::{
     },
     cell::RefCell,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct Text<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     formatted_text: RefCell<FormattedText>,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Text<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Text<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Text(Self {
             widget: self.widget.raw_copy(),

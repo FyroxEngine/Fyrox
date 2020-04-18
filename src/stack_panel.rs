@@ -16,10 +16,25 @@ use crate::{
     },
     message::UiMessage
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct StackPanel<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     orientation: Orientation,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for StackPanel<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for StackPanel<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> StackPanel<M, C> {
@@ -43,14 +58,6 @@ impl<M, C: 'static + Control<M, C>> StackPanel<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::StackPanel(Self {
             widget: self.widget.raw_copy(),
@@ -97,7 +104,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, child_constraint);
 
-            let child = ui.node(*child_handle).widget();
+            let child = ui.node(*child_handle);
             let desired = child.desired_size();
             match self.orientation {
                 Orientation::Vertical => {
@@ -128,7 +135,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
         }
 
         for child_handle in self.widget.children() {
-            let child = ui.node(*child_handle).widget();
+            let child = ui.node(*child_handle);
             match self.orientation {
                 Orientation::Vertical => {
                     let child_bounds = Rect::new(

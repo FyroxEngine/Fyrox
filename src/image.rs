@@ -21,10 +21,25 @@ use crate::{
     UserInterface,
     message::UiMessage,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     texture: Option<Arc<Texture>>,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Image<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Image<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
 }
 
 impl<M, C: 'static + Control<M, C>> Image<M, C> {
@@ -50,14 +65,6 @@ impl<M, C: 'static + Control<M, C>> Clone for Image<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
-        &self.widget
-    }
-
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
-        &mut self.widget
-    }
-
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Image(self.clone())
     }

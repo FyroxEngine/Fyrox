@@ -444,7 +444,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
                 return true;
             }
 
-            let result = ui.nodes.borrow(*child_handle).widget().has_descendant(node_handle, ui);
+            let result = ui.nodes.borrow(*child_handle).has_descendant(node_handle, ui);
             if result {
                 return true;
             }
@@ -461,7 +461,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             if func(parent_node) {
                 return parent_handle;
             }
-            parent_handle = parent_node.widget().parent;
+            parent_handle = parent_node.parent;
         }
         Handle::NONE
     }
@@ -563,7 +563,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         for child_handle in self.children.iter() {
             ui.node(*child_handle).measure(ui, available_size);
 
-            let child = ui.node(*child_handle).widget();
+            let child = ui.node(*child_handle);
             let child_desired_size = child.desired_size.get();
             if child_desired_size.x > size.x {
                 size.x = child_desired_size.x;

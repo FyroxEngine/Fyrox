@@ -23,6 +23,7 @@ use crate::{
     },
     message::UiMessage
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
@@ -132,15 +133,21 @@ pub struct Grid<M: 'static, C: 'static + Control<M, C>> {
     border_thickness: f32,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Grid<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Grid<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Grid(Self {
             widget: self.widget.raw_copy(),
@@ -176,7 +183,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         // Step 3. Re-measure children with new constraints.
         for child_handle in self.widget.children() {
             let size_for_child = {
-                let child = ui.nodes.borrow(*child_handle).widget();
+                let child = ui.nodes.borrow(*child_handle);
                 Vec2 {
                     x: self.columns.borrow()[child.column()].actual_width,
                     y: self.rows.borrow()[child.row()].actual_height,
@@ -208,7 +215,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         for child_handle in self.widget.children() {
             let mut final_rect = None;
 
-            let child = ui.nodes.borrow(*child_handle).widget();
+            let child = ui.nodes.borrow(*child_handle);
             if let Some(column) = self.columns.borrow().get(child.column()) {
                 if let Some(row) = self.rows.borrow().get(child.row()) {
                     final_rect = Some(Rect::new(
@@ -374,7 +381,7 @@ impl<M, C: 'static + Control<M, C>> Grid<M, C> {
             } else if col.size_mode == SizeMode::Auto {
                 col.actual_width = col.desired_width;
                 for child_handle in self.widget.children() {
-                    let child = ui.nodes.borrow(*child_handle).widget();
+                    let child = ui.nodes.borrow(*child_handle);
                     if child.column() == i && child.visibility() && child.desired_size().x > col.actual_width {
                         col.actual_width = child.desired_size().x;
                     }
@@ -397,7 +404,7 @@ impl<M, C: 'static + Control<M, C>> Grid<M, C> {
             } else if row.size_mode == SizeMode::Auto {
                 row.actual_height = row.desired_height;
                 for child_handle in self.widget.children() {
-                    let child = ui.nodes.borrow(*child_handle).widget();
+                    let child = ui.nodes.borrow(*child_handle);
                     if child.row() == i && child.visibility() && child.desired_size().y > row.actual_height {
                         row.actual_height = child.desired_size().y;
                     }
@@ -413,7 +420,7 @@ impl<M, C: 'static + Control<M, C>> Grid<M, C> {
         let mut rest_width = 0.0;
         if available_size.x.is_infinite() {
             for child_handle in self.widget.children() {
-                let child = ui.nodes.borrow(*child_handle).widget();
+                let child = ui.nodes.borrow(*child_handle);
                 if let Some(column) = self.columns.borrow().get(child.column()) {
                     if column.size_mode == SizeMode::Stretch {
                         rest_width += child.desired_size().x;
@@ -446,7 +453,7 @@ impl<M, C: 'static + Control<M, C>> Grid<M, C> {
         let mut rest_height = 0.0;
         if available_size.y.is_infinite() {
             for child_handle in self.widget.children() {
-                let child = ui.nodes.borrow(*child_handle).widget();
+                let child = ui.nodes.borrow(*child_handle);
                 if let Some(row) = self.rows.borrow().get(child.row()) {
                     if row.size_mode == SizeMode::Stretch {
                         rest_height += child.desired_size().y;

@@ -37,6 +37,7 @@ use crate::{
     },
     NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -55,15 +56,21 @@ pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
     value_precision: usize,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollBar<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ScrollBar<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ScrollBar(Self {
             widget: self.widget.raw_copy(),
@@ -97,9 +104,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         // Adjust indicator position according to current value
         let percent = (self.value - self.min) / (self.max - 2.0 * self.min);
 
-        let field_size = ui.node(self.field).widget().actual_size();
+        let field_size = ui.node(self.field).actual_size();
 
-        let indicator = ui.node(self.indicator).widget();
+        let indicator = ui.node(self.indicator);
         match self.orientation {
             Orientation::Horizontal => {
                 indicator.set_desired_local_position(Vec2::new(
@@ -150,7 +157,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                             if self.indicator.is_some() {
                                 let indicator_pos = ui.nodes
                                     .borrow(self.indicator)
-                                    .widget()
                                     .screen_position;
                                 self.is_dragging = true;
                                 self.offset = indicator_pos - *pos;
@@ -165,10 +171,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                         }
                         WidgetMessage::MouseMove(mouse_pos) => {
                             if self.indicator.is_some() {
-                                let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::<M, C>::PART_CANVAS).widget();
+                                let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::<M, C>::PART_CANVAS);
                                 let indicator_size = ui.nodes
                                     .borrow(self.indicator)
-                                    .widget()
                                     .actual_size();
                                 if self.is_dragging {
                                     let percent = match self.orientation {
@@ -424,7 +429,6 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         });
 
         ui.node_mut(increase)
-            .widget_mut()
             .set_width_mut(match orientation {
                 Orientation::Horizontal => 30.0,
                 Orientation::Vertical => std::f32::NAN
@@ -452,7 +456,6 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         });
 
         ui.node_mut(decrease)
-            .widget_mut()
             .set_column(0)
             .set_row(0)
             .set_width_mut(match orientation {
@@ -470,7 +473,6 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         });
 
         ui.node_mut(indicator)
-            .widget_mut()
             .set_min_size(match orientation {
                 Orientation::Vertical => Vec2::new(0.0, 30.0),
                 Orientation::Horizontal => Vec2::new(30.0, 0.0),

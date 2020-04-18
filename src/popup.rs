@@ -21,6 +21,7 @@ use crate::{
     border::BorderBuilder,
     NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Placement {
@@ -42,15 +43,21 @@ pub struct Popup<M: 'static, C: 'static + Control<M, C>> {
     body: Handle<UINode<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for Popup<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Popup<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Popup(Self {
             widget: self.widget.raw_copy(),

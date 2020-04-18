@@ -1,12 +1,12 @@
 use crate::{
     core::{
         pool::Handle,
-        color::Color
+        color::Color,
     },
     UserInterface,
     widget::{
         Widget,
-        WidgetBuilder
+        WidgetBuilder,
     },
     Control,
     UINode,
@@ -23,8 +23,9 @@ use crate::{
     },
     brush::Brush,
     message::ButtonMessage,
-    NodeHandleMapping
+    NodeHandleMapping,
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct Tab<M: 'static, C: 'static + Control<M, C>> {
     header_button: Handle<UINode<M, C>>,
@@ -36,15 +37,21 @@ pub struct TabControl<M: 'static, C: 'static + Control<M, C>> {
     tabs: Vec<Tab<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
-    fn widget(&self) -> &Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for TabControl<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
         &self.widget
     }
+}
 
-    fn widget_mut(&mut self) -> &mut Widget<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for TabControl<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
+}
 
+impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::TabControl(Self {
             widget: self.widget.raw_copy(),
@@ -67,9 +74,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
                 for (i, tab) in self.tabs.iter().enumerate() {
                     if message.source == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
-                            ui.node_mut(other_tab.content)
-                                .widget_mut()
-                                .set_visibility(j == i);
+                            ui.node_mut(other_tab.content).set_visibility(j == i);
                         }
                         break;
                     }
@@ -126,9 +131,7 @@ impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
 
         // Hide everything but first tab content.
         for tab_def in self.tabs.iter().skip(1) {
-            ui.node_mut(tab_def.content)
-                .widget_mut()
-                .set_visibility(false);
+            ui.node_mut(tab_def.content).set_visibility(false);
         }
 
         let headers_grid = GridBuilder::new(WidgetBuilder::new()
@@ -159,7 +162,7 @@ impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
         let tab_control = TabControl {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Brush::Solid(Color::from_rgba(0,0,0,0)))
+                    .with_background(Brush::Solid(Color::from_rgba(0, 0, 0, 0)))
                     .with_child(grid))
                     .build(ui))
                 .build(),
