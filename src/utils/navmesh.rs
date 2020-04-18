@@ -16,10 +16,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 use crate::{
-    scene::{
-        mesh::Mesh,
-        base::AsBase,
-    },
+    scene::mesh::Mesh,
     utils::{
         astar::{
             PathFinder,
@@ -55,8 +52,9 @@ struct Edge {
 
 impl PartialEq for Edge {
     fn eq(&self, other: &Self) -> bool {
-        // Direction-agnostic compare
-        (self.a == other.a && self.b == other.b) || (self.a == other.b && self.b == other.a)
+        // Direction-agnostic compare.
+        (self.a == other.a && self.b == other.b) ||
+            (self.a == other.b && self.b == other.a)
     }
 }
 
@@ -64,8 +62,8 @@ impl Eq for Edge {}
 
 impl Hash for Edge {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // Intentionally make hash collision so Eq will be called.
-        state.write_i8(0);
+        // Direction-agnostic hash.
+        (self.a as u64 + self.b as u64).hash(state)
     }
 }
 
@@ -131,13 +129,13 @@ impl Navmesh {
     /// fn make_navmesh(scene: &Scene, navmesh_name: &str) -> Navmesh {
     ///     // Find mesh node in existing scene and create navigation mesh from it.
     ///     let navmesh_node_handle = scene.graph.find_by_name_from_root(navmesh_name);
-    ///     Navmesh::from_mesh(scene.graph.get(navmesh_node_handle).as_mesh())
+    ///     Navmesh::from_mesh(scene.graph[navmesh_node_handle].as_mesh())
     /// }
     /// ```
     pub fn from_mesh(mesh: &Mesh) -> Self {
         // Join surfaces into one simple mesh.
         let mut builder = RawMeshBuilder::<Vec3>::default();
-        let global_transform = mesh.base().global_transform();
+        let global_transform = mesh.global_transform();
         for surface in mesh.surfaces() {
             let shared_data = surface.get_data();
             let shared_data = shared_data.lock().unwrap();
@@ -172,7 +170,7 @@ impl Navmesh {
         }
     }
 
-    /// Returns refernce to array of triangles.
+    /// Returns reference to array of triangles.
     pub fn triangles(&self) -> &[TriangleDefinition] {
         &self.triangles
     }

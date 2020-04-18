@@ -3,6 +3,7 @@
 //! Machine is used to blend multiple animation as well as perform automatic "smooth transition
 //! between states. Let have a quick look at simple machine graph:
 //!
+//! ```text
 //!                                                  +-------------+
 //!                                                  |  Idle Anim  |
 //!                                                  +------+------+
@@ -28,6 +29,7 @@
 //!                                         +------+------+
 //!                                         |  Run Anim   |
 //!                                         +-------------+
+//! ```
 //!
 //! Here we have Walk, Idle, Run states which uses different sources of poses:
 //! - Walk - is most complicated here - it uses result of blending between
@@ -57,9 +59,6 @@
 //! let aim_animation = Handle::default();
 //!
 //! let mut machine = Machine::new();
-//!
-//! machine.add_parameter("WalkToIdle", Parameter::Rule(false));
-//! machine.add_parameter("IdleToWalk", Parameter::Rule(false));
 //!
 //! let aim = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
 //! let walk = machine.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
@@ -136,7 +135,6 @@ pub struct PlayAnimation {
 
 impl PlayAnimation {
     /// Creates new PlayAnimation node with given animation handle.
-
     pub fn new(animation: Handle<Animation>) -> Self {
         Self {
             animation,
@@ -447,7 +445,7 @@ impl EvaluatePose for BlendAnimation {
                 }
             };
 
-            let pose_source = nodes.borrow(blend_pose.pose_source).eval_pose(nodes, params, animations);
+            let pose_source = nodes[blend_pose.pose_source].eval_pose(nodes, params, animations);
             self.output_pose.borrow_mut().blend_with(&pose_source, weight);
         }
         self.output_pose.borrow()
@@ -669,7 +667,7 @@ impl Machine {
     }
 
     pub fn get_state(&self, state: Handle<State>) -> &State {
-        self.states.borrow(state)
+        &self.states[state]
     }
 
     pub fn pop_event(&mut self) -> Option<Event> {
@@ -720,12 +718,12 @@ impl Machine {
                             if *active {
                                 self.events.push(Event::StateLeave(self.active_state));
                                 if self.debug {
-                                    Log::writeln(format!("Leaving state: {}", self.states.borrow(self.active_state).name));
+                                    Log::writeln(format!("Leaving state: {}", self.states[self.active_state].name));
                                 }
 
                                 self.events.push(Event::StateEnter(transition.source));
                                 if self.debug {
-                                    Log::writeln(format!("Entering state: {}", self.states.borrow(transition.source).name));
+                                    Log::writeln(format!("Entering state: {}", self.states[transition.source].name));
                                 }
 
                                 self.active_state = Handle::NONE;
@@ -740,11 +738,11 @@ impl Machine {
 
             // Double check for active transition because we can have empty machine.
             if self.active_transition.is_some() {
-                let transition = self.transitions.borrow_mut(self.active_transition);
+                let transition = &mut self.transitions[self.active_transition];
 
                 // Blend between source and dest states.
-                self.final_pose.blend_with(&self.states.borrow_mut(transition.source).pose, 1.0 - transition.blend_factor);
-                self.final_pose.blend_with(&self.states.borrow_mut(transition.dest).pose, transition.blend_factor);
+                self.final_pose.blend_with(&self.states[transition.source].pose, 1.0 - transition.blend_factor);
+                self.final_pose.blend_with(&self.states[transition.dest].pose, transition.blend_factor);
 
                 transition.update(dt);
 
@@ -755,15 +753,13 @@ impl Machine {
                     self.events.push(Event::ActiveStateChanged(self.active_state));
 
                     if self.debug {
-                        Log::writeln(format!("Active state changed: {}", self.states.borrow(self.active_state).name));
+                        Log::writeln(format!("Active state changed: {}", self.states[self.active_state].name));
                     }
                 }
             } else {
                 // We must have active state all the time when we do not have any active transition.
-                let state = self.states.borrow_mut(self.active_state);
-
                 // Just get pose from active state.
-                state.pose.clone_into(&mut self.final_pose);
+                self.states[self.active_state].pose.clone_into(&mut self.final_pose);
             }
         }
 

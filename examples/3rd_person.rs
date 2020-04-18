@@ -53,10 +53,7 @@ use rg3d::{
         translate_event,
     },
     scene::{
-        base::{
-            AsBase,
-            BaseBuilder,
-        },
+        base::BaseBuilder,
         transform::TransformBuilder,
         camera::CameraBuilder,
         node::Node,
@@ -70,7 +67,6 @@ use rg3d::{
         progress_bar::ProgressBarBuilder,
         grid::{GridBuilder, Row, Column},
         VerticalAlignment,
-        Control,
         Thickness,
         HorizontalAlignment,
     },
@@ -94,8 +90,8 @@ use rg3d::{
             Transition,
             Parameter,
         },
-        AnimationSignal
-    }
+        AnimationSignal,
+    },
 };
 
 // Create our own engine type aliases. These specializations are needed
@@ -349,9 +345,7 @@ impl Player {
         let body_height = 1.2;
 
         // Now we have whole sub-graph instantiated, we can start modifying model instance.
-        scene.graph
-            .get_mut(model_handle)
-            .base_mut()
+        scene.graph[model_handle]
             .local_transform_mut()
             .set_position(Vec3::new(0.0, -body_height, 0.0))
             // Our model is too big, fix it by scale.
@@ -389,10 +383,7 @@ impl Player {
     }
 
     fn update(&mut self, scene: &mut Scene, dt: f32) {
-        let pivot = scene
-            .graph
-            .get(self.pivot)
-            .base();
+        let pivot = &scene.graph[self.pivot];
 
         let look_vector = pivot
             .look_vector()
@@ -453,9 +444,7 @@ impl Player {
         if is_moving {
             // Since we have free camera while not moving, we have to sync rotation of pivot
             // with rotation of camera so character will start moving in look direction.
-            scene.graph
-                .get_mut(self.pivot)
-                .base_mut()
+            scene.graph[self.pivot]
                 .local_transform_mut()
                 .set_rotation(quat_yaw);
 
@@ -488,26 +477,19 @@ impl Player {
                 .set_target(angle.to_radians())
                 .update(dt);
 
-            scene.graph
-                .get_mut(self.model)
-                .base_mut()
+            scene.graph[self.model]
                 .local_transform_mut()
                 .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), self.model_yaw.angle));
         }
 
-        let camera_pivot_transform = scene.graph
-            .get_mut(self.camera_pivot)
-            .base_mut()
-            .local_transform_mut();
+        let camera_pivot_transform = scene.graph[self.camera_pivot].local_transform_mut();
 
         camera_pivot_transform.set_rotation(quat_yaw)
             .set_position(position + velocity);
 
         // Rotate camera hinge - this will make camera move up and down while look at character
         // (well not exactly on character - on characters head)
-        scene.graph
-            .get_mut(self.camera_hinge)
-            .base_mut()
+        scene.graph[self.camera_hinge]
             .local_transform_mut()
             .set_rotation(Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), self.controller.pitch));
 
@@ -580,8 +562,8 @@ fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mute
 
         // And create collision mesh so our character won't fall thru ground.
         let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
-        let collision_mesh = scene.graph.get_mut(collision_mesh_handle).as_mesh_mut();
-        collision_mesh.base_mut().set_visibility(false);
+        let collision_mesh = scene.graph[collision_mesh_handle].as_mesh_mut();
+        collision_mesh.set_visibility(false);
         let static_geometry = mesh_to_static_geometry(collision_mesh);
         scene.physics.add_static_geometry(static_geometry);
 
@@ -695,11 +677,11 @@ fn main() {
 
                             // Once scene is loaded, we should hide progress bar and text.
                             if let UiNode::ProgressBar(progress_bar) = engine.user_interface.node_mut(interface.progress_bar) {
-                                progress_bar.widget_mut().set_visibility(false);
+                                progress_bar.set_visibility(false);
                             }
 
                             if let UiNode::Text(progress_text) = engine.user_interface.node_mut(interface.progress_text) {
-                                progress_text.widget_mut().set_visibility(false);
+                                progress_text.set_visibility(false);
                             }
                         }
 
@@ -717,8 +699,7 @@ fn main() {
                     if let Some(game_scene) = game_scene.as_mut() {
                         // Use stored scene handle to borrow a mutable reference of scene in
                         // engine.
-                        let scene = engine.scenes.get_mut(game_scene.scene);
-
+                        let scene = &mut engine.scenes[game_scene.scene];
                         game_scene.player.update(scene, fixed_timestep);
                     }
 
@@ -764,8 +745,7 @@ fn main() {
                         // in wrong position after resize.
                         let size = size.to_logical(engine.get_window().scale_factor());
                         if let UiNode::Grid(root) = engine.user_interface.node_mut(interface.root) {
-                            root.widget_mut()
-                                .set_width_mut(size.width)
+                            root.set_width_mut(size.width)
                                 .set_height_mut(size.height);
                         }
                     }

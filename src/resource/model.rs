@@ -2,7 +2,6 @@ use crate::{
     scene::{
         Scene,
         node::Node,
-        base::AsBase
     },
     animation::Animation,
     resource::{fbx, fbx::error::FbxError},
@@ -96,18 +95,18 @@ impl Model {
     /// animations from model to its instance. Can be helpful if you only need geometry.
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let root = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph);
-        dest_scene.graph.get_mut(root).base_mut().is_resource_instance = true;
+        dest_scene.graph[root].is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
         let mut stack = Vec::new();
         stack.push(root);
         while let Some(node_handle) = stack.pop() {
-            let node = dest_scene.graph.get_mut(node_handle);
+            let node = &mut dest_scene.graph[node_handle];
 
-            node.base_mut().resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
+            node.resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
             // Continue on children.
-            for child_handle in node.base().children() {
+            for child_handle in node.children() {
                 stack.push(child_handle.clone());
             }
         }
@@ -160,11 +159,11 @@ impl Model {
             // because we've made a plain copy and it has tracks with node handles mapped
             // to nodes of internal scene.
             for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
-                let ref_node = self.scene.graph.get(ref_track.get_node());
+                let ref_node = &self.scene.graph[ref_track.get_node()];
                 // Find instantiated node that corresponds to node in resource
-                let instance_node = dest_scene.graph.find_by_name(root, ref_node.base().name());
+                let instance_node = dest_scene.graph.find_by_name(root, ref_node.name());
                 if instance_node.is_none() {
-                    Log::writeln(format!("Failed to retarget animation {:?} for node {}", self.path, ref_node.base().name()));
+                    Log::writeln(format!("Failed to retarget animation {:?} for node {}", self.path, ref_node.name()));
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

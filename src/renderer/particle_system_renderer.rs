@@ -2,7 +2,6 @@ use crate::{
     scene::{
         node::Node,
         particle_system,
-        base::AsBase,
         graph::Graph,
         camera::Camera,
     },
@@ -147,7 +146,7 @@ impl ParticleSystemRenderer {
 
             particle_system.generate_draw_data(&mut self.sorted_particles,
                                                &mut self.draw_data,
-                                               &camera.base().global_position());
+                                               &camera.global_position());
 
             self.geometry_buffer
                 .bind(state)
@@ -171,7 +170,7 @@ impl ParticleSystemRenderer {
                 (self.shader.camera_side_vector, UniformValue::Vec3(camera_side)),
                 (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
                 (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
-                (self.shader.world_matrix, UniformValue::Mat4(node.base().global_transform())),
+                (self.shader.world_matrix, UniformValue::Mat4(node.global_transform())),
                 (self.shader.inv_screen_size, UniformValue::Vec2(Vec2::new(1.0 / frame_width, 1.0 / frame_height))),
                 (self.shader.proj_params, UniformValue::Vec2(Vec2::new(camera.z_far(), camera.z_near())))
             ];

@@ -14,10 +14,7 @@ use std::{
 };
 use rg3d::{
     scene::{
-        base::{
-            AsBase,
-            BaseBuilder,
-        },
+        base::BaseBuilder,
         transform::TransformBuilder,
         camera::CameraBuilder,
         node::Node,
@@ -61,7 +58,7 @@ use rg3d::{
             UiMessageData,
             ScrollBarMessage,
             ButtonMessage,
-            ItemsControlMessage
+            ItemsControlMessage,
         },
         widget::WidgetBuilder,
         text::TextBuilder,
@@ -69,7 +66,7 @@ use rg3d::{
         combobox::ComboBoxBuilder,
         decorator::DecoratorBuilder,
         border::BorderBuilder,
-    }
+    },
 };
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -380,7 +377,7 @@ fn main() {
 
                     // Use stored scene handle to borrow a mutable reference of scene in
                     // engine.
-                    let scene = engine.scenes.get_mut(scene_handle);
+                    let scene = &mut engine.scenes[scene_handle];
 
                     // Our animation must be applied to scene explicitly, otherwise
                     // it will have no effect.
@@ -389,9 +386,7 @@ fn main() {
                         .get_pose()
                         .apply(&mut scene.graph);
 
-                    scene.graph
-                        .get_mut(model_handle)
-                        .base_mut()
+                    scene.graph[model_handle]
                         .local_transform_mut()
                         .set_scale(Vec3::new(model_scale, model_scale, model_scale))
                         .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle.to_radians()));

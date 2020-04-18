@@ -36,7 +36,6 @@ use crate::{
         node::Node,
         graph::Graph,
         camera::Camera,
-        base::AsBase,
     },
     core::{
         scope_profile,
@@ -198,7 +197,7 @@ impl GBuffer {
                 continue 'mesh_loop;
             }
 
-            if !mesh.base().global_visibility() {
+            if !mesh.global_visibility() {
                 continue 'mesh_loop;
             }
 
@@ -208,7 +207,7 @@ impl GBuffer {
                 let world = if is_skinned {
                     Mat4::IDENTITY
                 } else {
-                    mesh.base().global_transform()
+                    mesh.global_transform()
                 };
                 let mvp = view_projection * world;
 
@@ -260,11 +259,11 @@ impl GBuffer {
                         (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
                         (self.shader.bone_matrices, UniformValue::Mat4Array({
                             self.bone_matrices.clear();
-                            for bone_handle in surface.bones.iter() {
-                                let bone_node = graph.get(*bone_handle);
+                            for &bone_handle in surface.bones.iter() {
+                                let bone_node = &graph[bone_handle];
                                 self.bone_matrices.push(
-                                    bone_node.base().global_transform() *
-                                        bone_node.base().inv_bind_pose_transform());
+                                    bone_node.global_transform() *
+                                        bone_node.inv_bind_pose_transform());
                             }
                             &self.bone_matrices
                         }))

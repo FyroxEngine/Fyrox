@@ -6,7 +6,6 @@ use crate::{
     scene::{
         node::Node,
         graph::Graph,
-        base::AsBase,
     },
     core::{
         scope_profile,
@@ -136,11 +135,11 @@ impl SpotShadowMapRenderer {
 
         for node in graph.linear_iter() {
             if let Node::Mesh(mesh) = node {
-                if !node.base().global_visibility() {
+                if !node.global_visibility() {
                     continue;
                 }
 
-                let global_transform = node.base().global_transform();
+                let global_transform = node.global_transform();
 
                 if !mesh.is_intersect_frustum(graph, &frustum) {
                     continue;
@@ -186,11 +185,11 @@ impl SpotShadowMapRenderer {
                             (self.shader.bone_matrices, UniformValue::Mat4Array({
                                 self.bone_matrices.clear();
 
-                                for bone_handle in surface.bones.iter() {
-                                    let bone_node = graph.get(*bone_handle);
+                                for &bone_handle in surface.bones.iter() {
+                                    let bone = &graph[bone_handle];
                                     self.bone_matrices.push(
-                                        bone_node.base().global_transform() *
-                                            bone_node.base().inv_bind_pose_transform());
+                                        bone.global_transform() *
+                                            bone.inv_bind_pose_transform());
                                 }
 
                                 &self.bone_matrices
@@ -369,11 +368,11 @@ impl PointShadowMapRenderer {
 
             for node in graph.linear_iter() {
                 if let Node::Mesh(mesh) = node {
-                    if !node.base().global_visibility() {
+                    if !node.global_visibility() {
                         continue;
                     }
 
-                    let global_transform = node.base().global_transform();
+                    let global_transform = node.global_transform();
 
                     if !mesh.is_intersect_frustum(graph, &frustum) {
                         continue;
@@ -421,11 +420,11 @@ impl PointShadowMapRenderer {
                                 (self.shader.bone_matrices, UniformValue::Mat4Array({
                                     self.bone_matrices.clear();
 
-                                    for bone_handle in surface.bones.iter() {
-                                        let bone_node = graph.get(*bone_handle);
+                                    for &bone_handle in surface.bones.iter() {
+                                        let bone = &graph[bone_handle];
                                         self.bone_matrices.push(
-                                            bone_node.base().global_transform() *
-                                                bone_node.base().inv_bind_pose_transform());
+                                            bone.global_transform() *
+                                                bone.inv_bind_pose_transform());
                                     }
 
                                     &self.bone_matrices

@@ -4,13 +4,13 @@ pub mod navmesh;
 pub mod raw_mesh;
 
 use crate::{
-    scene::{mesh::Mesh, base::AsBase},
+    scene::{mesh::Mesh},
     physics::static_geometry::{StaticGeometry, StaticTriangle},
     event::{ElementState, VirtualKeyCode, WindowEvent, MouseScrollDelta},
     gui::message::{KeyCode, OsEvent, ButtonState},
     core::{
         math::vec2::Vec2,
-    }
+    },
 };
 use std::{
     any::Any,
@@ -27,7 +27,7 @@ use std::{
 /// mesh.
 pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
     let mut triangles = Vec::new();
-    let global_transform = mesh.base().global_transform();
+    let global_transform = mesh.global_transform();
     for surface in mesh.surfaces() {
         let shared_data = surface.get_data();
         let shared_data = shared_data.lock().unwrap();

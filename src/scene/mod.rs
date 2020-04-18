@@ -28,12 +28,12 @@ use crate::{
     scene::{
         graph::Graph,
         node::Node,
-        base::AsBase,
     },
     animation::AnimationContainer,
     utils::log::Log,
 };
 use std::collections::HashMap;
+use std::ops::{Index, IndexMut};
 
 pub struct PhysicsBinder {
     node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
@@ -121,9 +121,8 @@ impl Scene {
 
         // Sync node positions with assigned physics bodies
         for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
-            let node = self.graph.get_mut(*node).base_mut();
             let body = physics.borrow_body(*body);
-            node.local_transform_mut().set_position(body.get_position());
+            self.graph[*node].local_transform_mut().set_position(body.get_position());
         }
     }
 
@@ -208,15 +207,21 @@ impl SceneContainer {
     pub fn remove(&mut self, handle: Handle<Scene>) {
         self.pool.free(handle);
     }
+}
+
+impl Index<Handle<Scene>> for SceneContainer {
+    type Output = Scene;
 
     #[inline]
-    pub fn get(&self, handle: Handle<Scene>) -> &Scene {
-        self.pool.borrow(handle)
+    fn index(&self, index: Handle<Scene>) -> &Self::Output {
+        &self.pool[index]
     }
+}
 
+impl IndexMut<Handle<Scene>> for SceneContainer {
     #[inline]
-    pub fn get_mut(&mut self, handle: Handle<Scene>) -> &mut Scene {
-        self.pool.borrow_mut(handle)
+    fn index_mut(&mut self, index: Handle<Scene>) -> &mut Self::Output {
+        &mut self.pool[index]
     }
 }
 

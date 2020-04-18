@@ -24,8 +24,7 @@ use crate::{
     },
     scene::{
         node::Node,
-        graph::Graph,
-        base::AsBase,
+        graph::Graph
     },
     resource::model::Model,
     utils::log::Log
@@ -376,9 +375,7 @@ impl AnimationPose {
             if node.is_none() {
                 Log::writeln("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
             } else {
-                graph.get_mut(*node)
-                    .base_mut()
-                    .local_transform_mut()
+                graph[*node].local_transform_mut()
                     .set_position(local_pose.position)
                     .set_rotation(local_pose.rotation)
                     .set_scale(local_pose.scale);
@@ -529,7 +526,7 @@ impl Animation {
                     break;
                 }
             }
-            for child in graph.get(node).base().children() {
+            for child in graph[node].children() {
                 stack.push(*child);
             }
         }
@@ -555,7 +552,7 @@ impl Animation {
                     // This may panic if animation has track that refers to a deleted node,
                     // it can happen if you deleted a node but forgot to remove animation
                     // that uses this node.
-                    let track_node = graph.get(track.get_node()).base();
+                    let track_node = &graph[track.get_node()];
 
                     // Find corresponding track in resource using names of nodes, not
                     // original handles of instantiated nodes. We can't use original
@@ -569,7 +566,7 @@ impl Animation {
                     // animation targetted to character instance.
                     let mut found = false;
                     for ref_track in ref_animation.get_tracks().iter() {
-                        if track_node.name() == resource.get_scene().graph.get(ref_track.get_node()).base().name() {
+                        if track_node.name() == resource.get_scene().graph[ref_track.get_node()].name() {
                             track.set_key_frames(ref_track.get_key_frames());
                             found = true;
                             break;

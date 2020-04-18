@@ -27,7 +27,7 @@ use crate::{
         Scene,
         node::Node,
         mesh::Mesh,
-        base::{Base, AsBase},
+        base::Base,
     },
     engine::resource_manager::ResourceManager,
     core::{
@@ -342,8 +342,7 @@ fn convert_model(fbx_scene: &FbxScene,
         };
 
     let node_local_rotation = quat_from_euler(model.rotation);
-    node.base_mut()
-        .set_name(model.name.as_str())
+    node.set_name(model.name.as_str())
         .local_transform_mut()
         .set_rotation(node_local_rotation)
         .set_scale(model.scale)
@@ -354,7 +353,7 @@ fn convert_model(fbx_scene: &FbxScene,
         .set_rotation_pivot(model.rotation_pivot)
         .set_scaling_offset(model.scaling_offset)
         .set_scaling_pivot(model.scaling_pivot);
-    node.base_mut().inv_bind_pose_transform = model.inv_bind_transform;
+    node.inv_bind_pose_transform = model.inv_bind_transform;
 
     let node_handle = graph.add_node(node);
 
@@ -435,7 +434,7 @@ fn convert_model(fbx_scene: &FbxScene,
 fn convert(
     fbx_scene: &FbxScene,
     resource_manager: &mut ResourceManager,
-    scene: &mut Scene
+    scene: &mut Scene,
 ) -> Result<Handle<Node>, FbxError> {
     let root = scene.graph.add_node(Node::Base(Base::default()));
     let animation_handle = scene.animations.add(Animation::default());
@@ -462,8 +461,7 @@ fn convert(
     // Remap handles from fbx model to handles of instantiated nodes
     // on each surface of each mesh.
     for &handle in fbx_model_to_node_map.values() {
-        let node = scene.graph.get_mut(handle);
-        if let Node::Mesh(mesh) = node {
+        if let Node::Mesh(mesh) = &mut scene.graph[handle] {
             let mut surface_bones = HashSet::new();
             for surface in mesh.surfaces_mut() {
                 for weight_set in surface.vertex_weights.iter_mut() {

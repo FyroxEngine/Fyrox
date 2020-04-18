@@ -8,14 +8,11 @@ extern crate rg3d;
 
 use std::{
     time::Instant,
-    sync::{Arc, Mutex}
+    sync::{Arc, Mutex},
 };
 use rg3d::{
     scene::{
-        base::{
-            AsBase,
-            BaseBuilder,
-        },
+        base::BaseBuilder,
         transform::TransformBuilder,
         camera::CameraBuilder,
         node::Node,
@@ -47,7 +44,7 @@ use rg3d::{
         },
     },
     animation::Animation,
-    utils::translate_event
+    utils::translate_event,
 };
 
 // Create our own engine type aliases. These specializations are needed
@@ -97,9 +94,7 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
         .instantiate_geometry(&mut scene);
 
     // Now we have whole sub-graph instantiated, we can start modifying model instance.
-    scene.graph
-        .get_mut(model_handle)
-        .base_mut()
+    scene.graph[model_handle]
         .local_transform_mut()
         // Our model is too big, fix it by scale.
         .set_scale(Vec3::new(0.05, 0.05, 0.05));
@@ -190,7 +185,7 @@ fn main() {
 
                     // Use stored scene handle to borrow a mutable reference of scene in
                     // engine.
-                    let scene = engine.scenes.get_mut(scene_handle);
+                    let scene = &mut engine.scenes[scene_handle];
 
                     // Our animation must be applied to scene explicitly, otherwise
                     // it will have no effect.
@@ -206,9 +201,7 @@ fn main() {
                         model_angle += 5.0f32.to_radians();
                     }
 
-                    scene.graph
-                        .get_mut(model_handle)
-                        .base_mut()
+                    scene.graph[model_handle]
                         .local_transform_mut()
                         .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
 

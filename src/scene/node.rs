@@ -5,12 +5,13 @@ use crate::{
     scene::{
         light::Light,
         camera::Camera,
-        base::{Base, AsBase},
         mesh::Mesh,
         sprite::Sprite,
         particle_system::ParticleSystem,
+        base::Base
     }
 };
+use std::ops::{Deref, DerefMut};
 
 /// Helper macros to reduce code bloat - its purpose it to dispatch
 /// specified call by actual enum variant.
@@ -49,13 +50,30 @@ pub enum Node {
     ParticleSystem(ParticleSystem),
 }
 
-impl AsBase for Node {
-    fn base(&self) -> &Base {
-        static_dispatch!(self, base, )
-    }
+macro_rules! static_dispatch_deref {
+    ($self:ident) => {
+        match $self {
+            Node::Base(v) => v,
+            Node::Mesh(v) => v,
+            Node::Camera(v) => v,
+            Node::Light(v) => v,
+            Node::ParticleSystem(v) => v,
+            Node::Sprite(v) => v,
+        }
+    };
+}
 
-    fn base_mut(&mut self) -> &mut Base {
-        static_dispatch!(self, base_mut, )
+impl Deref for Node {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
+        static_dispatch_deref!(self)
+    }
+}
+
+impl DerefMut for Node {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        static_dispatch_deref!(self)
     }
 }
 

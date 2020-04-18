@@ -1,7 +1,6 @@
 use crate::{
     scene::{
         node::Node,
-        base::AsBase,
         graph::Graph,
         camera::Camera,
     },
@@ -151,7 +150,7 @@ impl SpriteRenderer {
                         texture: diffuse_texture,
                     }),
                     (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
-                    (self.shader.world_matrix, UniformValue::Mat4(node.base().global_transform())),
+                    (self.shader.world_matrix, UniformValue::Mat4(node.global_transform())),
                     (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
                     (self.shader.camera_side_vector, UniformValue::Vec3(camera_side)),
                     (self.shader.size, UniformValue::Float(sprite.size())),

@@ -243,7 +243,7 @@ impl ResourceManager {
 
     pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<SharedSoundBuffer> {
         for sound_buffer in self.sound_buffers.iter() {
-            if let Some(ext_path) = sound_buffer.lock().unwrap().generic().external_data_path() {
+            if let Some(ext_path) = sound_buffer.lock().unwrap().external_data_path() {
                 if ext_path == path.as_ref() {
                     return Some(sound_buffer.value.clone());
                 }
@@ -304,7 +304,7 @@ impl ResourceManager {
         self.sound_buffers.retain(|buffer| {
             let retain = buffer.time_to_live > 0.0;
             if !retain {
-                if let Some(path) = buffer.lock().unwrap().generic().external_data_path().as_ref() {
+                if let Some(path) = buffer.lock().unwrap().external_data_path().as_ref() {
                     Log::writeln(format!("Sound resource {:?} destroyed because it not used anymore!", path));
                 }
             }
@@ -353,7 +353,7 @@ impl ResourceManager {
     fn reload_sound_buffers(&mut self) {
         for old_sound_buffer in self.sound_buffers() {
             let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
-            if let Some(ext_path) = old_sound_buffer.generic().external_data_path() {
+            if let Some(ext_path) = old_sound_buffer.external_data_path() {
                 if let Ok(data_source) = DataSource::from_file(ext_path.as_path()) {
                     let new_sound_buffer = match *old_sound_buffer {
                         SoundBuffer::Generic(_) => SoundBuffer::raw_generic(data_source),

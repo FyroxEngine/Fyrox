@@ -32,7 +32,6 @@ use crate::{
             Light,
             LightKind,
         },
-        base::AsBase,
     },
 };
 
@@ -109,6 +108,7 @@ impl LightVolumeRenderer {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render_volume(&mut self,
                          state: &mut State,
                          light: &Light,
@@ -128,11 +128,11 @@ impl LightVolumeRenderer {
             Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
                 Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
 
-        let position = view.transform_vector(light.base().global_position());
+        let position = view.transform_vector(light.global_position());
 
         match light.kind() {
             LightKind::Spot(spot) => {
-                let direction = view.basis().transform_vector(-light.base().up_vector().normalized().unwrap_or(Vec3::LOOK));
+                let direction = view.basis().transform_vector(-light.up_vector().normalized().unwrap_or(Vec3::LOOK));
 
                 gbuffer.final_frame.draw(
                     quad,

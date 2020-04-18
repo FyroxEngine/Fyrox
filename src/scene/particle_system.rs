@@ -8,6 +8,7 @@ use std::{
         MutexGuard,
         Arc,
     },
+    ops::{DerefMut, Deref}
 };
 use rand::Rng;
 use crate::{
@@ -15,7 +16,6 @@ use crate::{
     scene::base::{
         BaseBuilder,
         Base,
-        AsBase,
     },
     core::{
         math::{
@@ -785,12 +785,16 @@ pub struct ParticleSystem {
     color_over_lifetime: Option<ColorGradient>,
 }
 
-impl AsBase for ParticleSystem {
-    fn base(&self) -> &Base {
+impl Deref for ParticleSystem {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut Base {
+impl DerefMut for ParticleSystem {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }

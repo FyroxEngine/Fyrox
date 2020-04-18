@@ -61,12 +61,13 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     /// use rg3d::engine::Engine;
     /// use rg3d::window::WindowBuilder;
     /// use rg3d::event_loop::EventLoop;
+    /// use rg3d::gui::node::StubNode;
     ///
     /// let evt = EventLoop::new();
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let mut engine = Engine::new(window_builder, &evt).unwrap();
+    /// let mut engine: Engine<(), StubNode> = Engine::new(window_builder, &evt).unwrap();
     /// ```
     #[inline]
     pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine<M, C>, EngineError> {

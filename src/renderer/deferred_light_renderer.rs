@@ -44,7 +44,6 @@ use crate::{
         Scene,
         node::Node,
         light::LightKind,
-        base::AsBase,
     },
     core::{
         scope_profile,
@@ -337,7 +336,7 @@ impl DeferredLightRenderer {
         for light in scene.graph.linear_iter().filter_map(|node| {
             if let Node::Light(light) = node { Some(light) } else { None }
         }) {
-            if !light.base().global_visibility() {
+            if !light.global_visibility() {
                 continue;
             }
 
@@ -347,18 +346,18 @@ impl DeferredLightRenderer {
                 LightKind::Directional => { std::f32::MAX }
             };
 
-            let light_position = light.base().global_position();
-            let light_radius_scale = light.base().local_transform().scale().max_value();
+            let light_position = light.global_position();
+            let light_radius_scale = light.local_transform().scale().max_value();
             let light_radius = light_radius_scale * raw_radius;
             let light_r_inflate = 1.05 * light_radius;
             let light_radius_vec = Vec3::new(light_r_inflate, light_r_inflate, light_r_inflate);
-            let emit_direction = light.base().up_vector().normalized().unwrap_or(Vec3::LOOK);
+            let emit_direction = light.up_vector().normalized().unwrap_or(Vec3::LOOK);
 
             if !frustum.is_intersects_sphere(light_position, light_radius) {
                 continue;
             }
 
-            let distance_to_camera = (light.base().global_position() - camera.base().global_position()).len();
+            let distance_to_camera = (light.global_position() - camera.global_position()).len();
 
             let mut light_view_projection = Mat4::IDENTITY;
             let shadows_enabled = light.is_cast_shadows() && match light.kind() {
@@ -372,7 +371,7 @@ impl DeferredLightRenderer {
 
                     let light_look_at = light_position - emit_direction;
 
-                    let light_up_vec = light.base().look_vector().normalized().unwrap_or(Vec3::UP);
+                    let light_up_vec = light.look_vector().normalized().unwrap_or(Vec3::UP);
 
                     let light_view_matrix = Mat4::look_at(light_position, light_look_at, light_up_vec)
                         .unwrap_or_default();
@@ -496,7 +495,7 @@ impl DeferredLightRenderer {
                         (shader.half_cone_angle_cos, UniformValue::Float((spot_light.full_cone_angle() * 0.5).cos())),
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
                         (shader.shadow_map_inv_size, UniformValue::Float(1.0 / (self.spot_shadow_map_renderer.size as f32))),
-                        (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                        (shader.camera_position, UniformValue::Vec3(camera.global_position())),
                         (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
                         (shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
                         (shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
@@ -522,7 +521,7 @@ impl DeferredLightRenderer {
                         (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
                         (shader.light_color, UniformValue::Color(light.color())),
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
-                        (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                        (shader.camera_position, UniformValue::Vec3(camera.global_position())),
                         (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
                         (shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
                         (shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),
@@ -545,7 +544,7 @@ impl DeferredLightRenderer {
                         (shader.inv_view_proj_matrix, UniformValue::Mat4(inv_view_projection)),
                         (shader.light_color, UniformValue::Color(light.color())),
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
-                        (shader.camera_position, UniformValue::Vec3(camera.base().global_position())),
+                        (shader.camera_position, UniformValue::Vec3(camera.global_position())),
                         (shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
                         (shader.color_sampler, UniformValue::Sampler { index: 1, texture: gbuffer.diffuse_texture() }),
                         (shader.normal_sampler, UniformValue::Sampler { index: 2, texture: gbuffer.normal_texture() }),

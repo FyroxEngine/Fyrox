@@ -48,16 +48,6 @@ pub struct Base {
     lifetime: Option<f32>,
 }
 
-/// Used by other nodes to provide shared and mutable references to base
-/// node. As was said, each complex node must contain base one and must
-/// be able to provide reference to it.
-pub trait AsBase {
-    /// Provides shared reference to base node.
-    fn base(&self) -> &Base;
-    /// Provides mutable reference to base node.
-    fn base_mut(&mut self) -> &mut Base;
-}
-
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
     pub fn set_name(&mut self, name: &str) -> &mut Self {
@@ -218,16 +208,6 @@ impl Clone for Base {
 impl Default for Base {
     fn default() -> Self {
         BaseBuilder::new().build()
-    }
-}
-
-impl AsBase for Base {
-    fn base(&self) -> &Base {
-        self
-    }
-
-    fn base_mut(&mut self) -> &mut Base {
-        self
     }
 }
 

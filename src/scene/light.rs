@@ -26,14 +26,14 @@ use crate::{
             Visitor,
             VisitResult,
         },
-        math::vec3::Vec3
+        math::vec3::Vec3,
     },
     scene::base::{
         BaseBuilder,
         Base,
-        AsBase,
     },
 };
+use std::ops::{DerefMut, Deref};
 
 /// Default amount of light scattering, it is set to 3% which is fairly
 /// significant value and you'll clearly see light volume with such settings.
@@ -274,12 +274,16 @@ pub struct Light {
     scatter_enabled: bool,
 }
 
-impl AsBase for Light {
-    fn base(&self) -> &Base {
+impl Deref for Light {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut Base {
+impl DerefMut for Light {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
@@ -292,7 +296,7 @@ impl Default for Light {
             color: Color::WHITE,
             cast_shadows: true,
             scatter: Vec3::new(0.03, 0.03, 0.03),
-            scatter_enabled: true
+            scatter_enabled: true,
         }
     }
 }
@@ -419,7 +423,7 @@ impl LightBuilder {
             color: Color::WHITE,
             cast_shadows: true,
             scatter_factor: DEFAULT_SCATTER,
-            scatter_enabled: true
+            scatter_enabled: true,
         }
     }
 
@@ -457,7 +461,7 @@ impl LightBuilder {
             color: self.color,
             cast_shadows: self.cast_shadows,
             scatter: self.scatter_factor,
-            scatter_enabled: self.scatter_enabled
+            scatter_enabled: self.scatter_enabled,
         }
     }
 }

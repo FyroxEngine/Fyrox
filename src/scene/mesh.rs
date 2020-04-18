@@ -10,12 +10,15 @@
 
 #![warn(missing_docs)]
 
-use std::cell::Cell;
+use std::{
+    cell::Cell,
+    ops::{Deref, DerefMut}
+};
 use crate::{
     renderer::surface::Surface,
     scene::{
-        base::{Base, AsBase},
-        graph::Graph
+        base::Base,
+        graph::Graph,
     },
     core::{
         visitor::{
@@ -25,9 +28,9 @@ use crate::{
         },
         math::{
             aabb::AxisAlignedBoundingBox,
-            frustum::Frustum
-        }
-    }
+            frustum::Frustum,
+        },
+    },
 };
 
 /// See module docs.
@@ -50,12 +53,16 @@ impl Default for Mesh {
     }
 }
 
-impl AsBase for Mesh {
-    fn base(&self) -> &Base {
+impl Deref for Mesh {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut Base {
+impl DerefMut for Mesh {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
@@ -124,7 +131,7 @@ impl Mesh {
             let data = surface.get_data();
             let data = data.lock().unwrap();
             for vertex in data.get_vertices() {
-                bounding_box.add_point(self.base.global_transform().transform_vector(vertex.position));
+                bounding_box.add_point(self.global_transform().transform_vector(vertex.position));
             }
         }
         bounding_box
@@ -134,13 +141,13 @@ impl Mesh {
     /// Mesh is considered visible if its bounding box visibile by frustum, or if any bones
     /// position is inside frustum.
     pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
-        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.base.global_transform) {
+        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform) {
             return true;
         }
 
         for surface in self.surfaces.iter() {
             for &bone in surface.bones.iter() {
-                if frustum.is_contains_point(graph.get(bone).base().global_position()) {
+                if frustum.is_contains_point(graph[bone].global_position()) {
                     return true;
                 }
             }

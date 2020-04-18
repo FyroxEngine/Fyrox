@@ -1,13 +1,15 @@
-use std::sync::{
-    Arc,
-    Mutex,
+use std::{
+    sync::{
+        Arc,
+        Mutex,
+    },
+    ops::{Deref, DerefMut}
 };
 use crate::{
     resource::texture::Texture,
     scene::base::{
         BaseBuilder,
         Base,
-        AsBase,
     },
     core::{
         visitor::{
@@ -28,12 +30,16 @@ pub struct Sprite {
     rotation: f32,
 }
 
-impl AsBase for Sprite {
-    fn base(&self) -> &Base {
+impl Deref for Sprite {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut Base {
+impl DerefMut for Sprite {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }

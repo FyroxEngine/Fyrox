@@ -15,14 +15,14 @@
 //! where
 //! T     - Translation
 //! Roff  - Rotation offset
-//! Rp 	  - Rotation pivot
+//! Rp    - Rotation pivot
 //! Rpre  - Pre-rotation
-//! R 	  - Rotation
+//! R     - Rotation
 //! Rpost - Post-rotation
 //! Rp⁻¹  - Inverse of the rotation pivot
 //! Soff  - Scaling offset
-//! Sp 	  - Scaling pivot
-//! S 	  - Scaling
+//! Sp    - Scaling pivot
+//! S     - Scaling
 //! Sp⁻¹  - Inverse of the scaling pivot
 //!
 //! It is very flexible, however it can be slow in computation. To solve possible

@@ -13,10 +13,7 @@ use std::{
 };
 use rg3d::{
     scene::{
-        base::{
-            AsBase,
-            BaseBuilder,
-        },
+        base::BaseBuilder,
         transform::TransformBuilder,
         camera::CameraBuilder,
         node::Node,
@@ -30,9 +27,8 @@ use rg3d::{
         progress_bar::ProgressBarBuilder,
         grid::{GridBuilder, Row, Column},
         VerticalAlignment,
-        Control,
         Thickness,
-        HorizontalAlignment
+        HorizontalAlignment,
     },
     event::{
         Event,
@@ -51,8 +47,8 @@ use rg3d::{
         math::{
             vec3::Vec3,
             quat::Quat,
-            vec2::Vec2
-        }
+            vec2::Vec2,
+        },
     },
     animation::Animation,
     utils::translate_event,
@@ -68,12 +64,12 @@ struct Interface {
     root: Handle<UiNode>,
     debug_text: Handle<UiNode>,
     progress_bar: Handle<UiNode>,
-    progress_text: Handle<UiNode>
+    progress_text: Handle<UiNode>,
 }
 
 fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
     let debug_text;
-    let progress_bar ;
+    let progress_bar;
     let progress_text;
     let root = GridBuilder::new(WidgetBuilder::new()
         .with_width(screen_size.x)
@@ -114,7 +110,7 @@ fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
         root,
         debug_text,
         progress_bar,
-        progress_text
+        progress_text,
     }
 }
 
@@ -184,9 +180,7 @@ fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mute
             .instantiate_geometry(&mut scene);
 
         // Now we have whole sub-graph instantiated, we can start modifying model instance.
-        scene.graph
-            .get_mut(model_handle)
-            .base_mut()
+        scene.graph[model_handle]
             .local_transform_mut()
             // Our model is too big, fix it by scale.
             .set_scale(Vec3::new(0.05, 0.05, 0.05));
@@ -300,11 +294,11 @@ fn main() {
 
                             // Once scene is loaded, we should hide progress bar and text.
                             if let UiNode::ProgressBar(progress_bar) = engine.user_interface.node_mut(interface.progress_bar) {
-                                progress_bar.widget_mut().set_visibility(false);
+                                progress_bar.set_visibility(false);
                             }
 
                             if let UiNode::Text(progress_text) = engine.user_interface.node_mut(interface.progress_text) {
-                                progress_text.widget_mut().set_visibility(false);
+                                progress_text.set_visibility(false);
                             }
                         }
 
@@ -322,7 +316,7 @@ fn main() {
                     if scene_handle.is_some() {
                         // Use stored scene handle to borrow a mutable reference of scene in
                         // engine.
-                        let scene = engine.scenes.get_mut(scene_handle);
+                        let scene = &mut engine.scenes[scene_handle];
 
                         // Our animation must be applied to scene explicitly, otherwise
                         // it will have no effect.
@@ -338,9 +332,7 @@ fn main() {
                             model_angle += 5.0f32.to_radians();
                         }
 
-                        scene.graph
-                            .get_mut(model_handle)
-                            .base_mut()
+                        scene.graph[model_handle]
                             .local_transform_mut()
                             .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
                     }
@@ -387,8 +379,7 @@ fn main() {
                         // in wrong position after resize.
                         let size = size.to_logical(engine.get_window().scale_factor());
                         if let UiNode::Grid(root) = engine.user_interface.node_mut(interface.root) {
-                            root.widget_mut()
-                                .set_width_mut(size.width)
+                            root.set_width_mut(size.width)
                                 .set_height_mut(size.height);
                         }
                     }

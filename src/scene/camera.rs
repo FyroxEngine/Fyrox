@@ -21,7 +21,7 @@ use crate::{
         visitor::{
             Visitor,
             VisitResult,
-            Visit
+            Visit,
         },
         math::{
             Rect,
@@ -31,10 +31,10 @@ use crate::{
     },
     scene::base::{
         Base,
-        AsBase,
         BaseBuilder,
     },
 };
+use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Clone)]
@@ -49,12 +49,16 @@ pub struct Camera {
     enabled: bool,
 }
 
-impl AsBase for Camera {
-    fn base(&self) -> &Base {
+impl Deref for Camera {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut Base {
+impl DerefMut for Camera {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }

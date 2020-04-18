@@ -105,15 +105,14 @@ fn prepare_source_code(code: &str) -> Result<CString, RendererError> {
     shared += include_str!("../shaders/shared.glsl");
     shared += "\n// end of include\n";
 
-    if let Some(p) = code.rfind("#") {
+    if let Some(p) = code.rfind('#') {
         let mut full = code.to_owned();
-        let end = p + full[p..].find("\n").unwrap() + 1;
+        let end = p + full[p..].find('\n').unwrap() + 1;
         full.insert_str(end, &shared);
         Ok(CString::new(full)?)
     } else {
-        let mut full = shared.to_owned();
-        full += code;
-        Ok(CString::new(full)?)
+        shared += code;
+        Ok(CString::new(shared)?)
     }
 }
 
