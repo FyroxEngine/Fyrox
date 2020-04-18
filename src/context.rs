@@ -239,7 +239,7 @@ impl Context {
 
         for i in 0..self.sources.get_capacity() {
             if let Some(source) = self.sources.at(i) {
-                if source.generic().is_play_once() && source.generic().status() == Status::Stopped {
+                if source.is_play_once() && source.status() == Status::Stopped {
                     self.sources.free(self.sources.handle_from_index(i));
                 }
             }
@@ -247,8 +247,8 @@ impl Context {
 
         for source in self.sources
             .iter_mut()
-            .filter(|s| s.generic().status() == Status::Playing) {
-            source.generic_mut().render(buf.len());
+            .filter(|s| s.status() == Status::Playing) {
+            source.render(buf.len());
 
             match self.renderer {
                 Renderer::Default => {

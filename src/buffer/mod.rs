@@ -36,6 +36,7 @@ use crate::buffer::{
     streaming::StreamingBuffer,
     generic::GenericBuffer,
 };
+use std::ops::{DerefMut, Deref};
 
 pub mod generic;
 pub mod streaming;
@@ -155,22 +156,28 @@ impl SoundBuffer {
     pub fn raw_generic(data_source: DataSource) -> Result<Self, DataSource> {
         Ok(SoundBuffer::Generic(GenericBuffer::new(data_source)?))
     }
+}
+
+impl Deref for SoundBuffer {
+    type Target = GenericBuffer;
 
     /// Returns shared reference to generic buffer for any enum variant. It is possible because
     /// streaming sound buffers are built on top of generic buffers.
-    pub fn generic(&self) -> &GenericBuffer {
+    fn deref(&self) -> &Self::Target {
         match self {
-            SoundBuffer::Generic(generic) => generic,
-            SoundBuffer::Streaming(spatial) => spatial.generic(),
+            SoundBuffer::Generic(v) => v,
+            SoundBuffer::Streaming(v) => v,
         }
     }
+}
 
+impl DerefMut for SoundBuffer {
     /// Returns mutable reference to generic buffer for any enum variant. It is possible because
     /// streaming sound buffers are built on top of generic buffers.
-    pub fn generic_mut(&mut self) -> &mut GenericBuffer {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            SoundBuffer::Generic(generic) => generic,
-            SoundBuffer::Streaming(spatial) => spatial.generic_mut(),
+            SoundBuffer::Generic(v) => v,
+            SoundBuffer::Streaming(v) => v,
         }
     }
 }

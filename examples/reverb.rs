@@ -20,7 +20,6 @@ use rg3d_sound::{
         reverb::Reverb,
         Effect,
         BaseEffect,
-        EffectTrait,
         EffectInput
     },
     source::{
@@ -73,7 +72,6 @@ fn main() {
     context.lock()
         .unwrap()
         .effect_mut(reverb_handle)
-        .base_mut()
         .add_input(EffectInput::direct(door_sound));
 
     let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
@@ -91,7 +89,6 @@ fn main() {
     context.lock()
         .unwrap()
         .effect_mut(reverb_handle)
-        .base_mut()
         .add_input(EffectInput::direct(drop_sound_handle));
 
     // Move sound around listener for some time.

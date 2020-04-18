@@ -40,6 +40,7 @@ use rg3d_core::visitor::{
     Visitor,
     VisitResult
 };
+use std::ops::{Deref, DerefMut};
 
 /// Streaming buffer for long sounds. Does not support random access.
 pub struct StreamingBuffer {
@@ -117,17 +118,6 @@ impl StreamingBuffer {
         })
     }
 
-    /// Returns shared reference to internal generic buffer. Can be useful to get some info (sample rate,
-    /// channel count).
-    pub fn generic(&self) -> &GenericBuffer {
-        &self.generic
-    }
-
-    /// Returns mutable reference to internal generic buffer. Can be used to modify it.
-    pub fn generic_mut(&mut self) -> &mut GenericBuffer {
-        &mut self.generic
-    }
-
     /// Returns total duration of data. Can be `None` if internal decoder does not supports seeking.
     pub fn duration(&self) -> Option<Duration> {
         self.decoder.duration()
@@ -146,6 +136,23 @@ impl StreamingBuffer {
     #[inline]
     pub(in crate) fn time_seek(&mut self, location: Duration) {
         self.decoder.time_seek(location);
+    }
+}
+
+impl Deref for StreamingBuffer {
+    type Target = GenericBuffer;
+
+    /// Returns shared reference to internal generic buffer. Can be useful to get some info (sample rate,
+    /// channel count).
+    fn deref(&self) -> &Self::Target {
+        &self.generic
+    }
+}
+
+impl DerefMut for StreamingBuffer {
+    /// Returns mutable reference to internal generic buffer. Can be used to modify it.
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.generic
     }
 }
 

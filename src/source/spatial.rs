@@ -40,6 +40,7 @@ use crate::{
     listener::Listener,
     context::DistanceModel,
 };
+use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 pub struct SpatialSource {
@@ -153,6 +154,20 @@ impl SpatialSource {
             // This is ok to fallback to (0, 0, 1) vector because it's given
             // in listener coordinate system.
             .unwrap_or_else(|| Vec3::new(0.0, 0.0, 1.0))
+    }
+}
+
+impl Deref for SpatialSource {
+    type Target = GenericSource;
+
+    fn deref(&self) -> &Self::Target {
+        &self.generic
+    }
+}
+
+impl DerefMut for SpatialSource {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.generic
     }
 }
 

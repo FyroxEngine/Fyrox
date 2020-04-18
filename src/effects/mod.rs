@@ -16,6 +16,7 @@ use rg3d_core::{
     visitor::{Visit, Visitor, VisitResult},
     math
 };
+use std::ops::{Deref, DerefMut};
 
 pub mod reverb;
 
@@ -39,12 +40,16 @@ impl EffectRenderTrait for StubEffect {
     fn render(&mut self, _sources: &Pool<SoundSource>, _listener: &Listener, _distance_model: DistanceModel, _mix_buf: &mut [(f32, f32)]) {}
 }
 
-impl EffectTrait for StubEffect {
-    fn base(&self) -> &BaseEffect {
+impl Deref for StubEffect {
+    type Target = BaseEffect;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut BaseEffect {
+impl DerefMut for StubEffect {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
@@ -97,17 +102,7 @@ impl Visit for Effect {
     }
 }
 
-/// Base effect provider. Used for unified access to BaseEffect of all other composite
-/// effects.
-pub trait EffectTrait {
-    /// Returns shared reference to base effect.
-    fn base(&self) -> &BaseEffect;
-
-    /// Returns mutable reference to base effect.
-    fn base_mut(&mut self) -> &mut BaseEffect;
-}
-
-pub(in crate) trait EffectRenderTrait: EffectTrait {
+pub(in crate) trait EffectRenderTrait {
     fn render(&mut self, sources: &Pool<SoundSource>, listener: &Listener, distance_model: DistanceModel, mix_buf: &mut [(f32, f32)]);
 }
 
@@ -144,7 +139,7 @@ impl BaseEffect {
         for input in self.inputs.iter_mut() {
             let source = sources.borrow(input.source);
 
-            if source.generic().status() != Status::Playing {
+            if source.status() != Status::Playing {
                 continue;
             }
 
@@ -163,7 +158,7 @@ impl BaseEffect {
             match self.filters.try_borrow_mut(input.filter) {
                 None => {
                     for ((accum_left, accum_right), &(input_left, input_right)) in self
-                        .frame_samples.iter_mut().zip(source.generic().frame_samples()) {
+                        .frame_samples.iter_mut().zip(source.frame_samples()) {
                         let g = math::lerpf(prev_distance_gain, distance_gain, k);
                         *accum_left += input_left * g;
                         *accum_right += input_right * g;
@@ -172,7 +167,7 @@ impl BaseEffect {
                 },
                 Some(filter) => {
                     for ((accum_left, accum_right), &(input_left, input_right)) in self
-                        .frame_samples.iter_mut().zip(source.generic().frame_samples()) {
+                        .frame_samples.iter_mut().zip(source.frame_samples()) {
                         let (filtered_left, filtered_right) = filter.feed(input_left, input_right);
                         let g = math::lerpf(prev_distance_gain, distance_gain, k);
                         *accum_left += filtered_left * g;
@@ -332,12 +327,22 @@ impl EffectRenderTrait for Effect {
     }
 }
 
-impl EffectTrait for Effect {
-    fn base(&self) -> &BaseEffect {
-        static_dispatch!(self, base,)
-    }
+impl Deref for Effect {
+    type Target = BaseEffect;
 
-    fn base_mut(&mut self) -> &mut BaseEffect {
-        static_dispatch!(self, base_mut,)
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Effect::Stub(v) => v,
+            Effect::Reverb(v) => v,
+        }
+    }
+}
+
+impl DerefMut for Effect {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            Effect::Stub(v) => v,
+            Effect::Reverb(v) => v,
+        }
     }
 }

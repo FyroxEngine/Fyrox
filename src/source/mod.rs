@@ -16,6 +16,7 @@ use rg3d_core::visitor::{
     VisitResult,
     VisitError,
 };
+use std::ops::{Deref, DerefMut};
 
 pub mod generic;
 pub mod spatial;
@@ -45,24 +46,6 @@ pub enum SoundSource {
 }
 
 impl SoundSource {
-    /// Returns shared reference to generic source of each sound source variant. It is possible because
-    /// `Spatial` sources are composed using generic source.
-    pub fn generic(&self) -> &GenericSource {
-        match self {
-            SoundSource::Generic(generic) => generic,
-            SoundSource::Spatial(spatial) => &spatial.generic(),
-        }
-    }
-
-    /// Returns mutable reference to generic source of each sound source variant. It is possible because
-    /// `Spatial` sources are composed using generic source.
-    pub fn generic_mut(&mut self) -> &mut GenericSource {
-        match self {
-            SoundSource::Generic(generic) => generic,
-            SoundSource::Spatial(spatial) => spatial.generic_mut(),
-        }
-    }
-
     /// Tries to "cast" sound source to spatial source. It will panic if this is not spatial source.
     /// This is useful method for situations where you definitely know that source is spatial. So there
     /// is no need to use pattern matching to take reference as a spatial source.
@@ -80,6 +63,30 @@ impl SoundSource {
         match self {
             SoundSource::Generic(_) => panic!("Cast as spatial sound failed!"),
             SoundSource::Spatial(ref mut spatial) => spatial,
+        }
+    }
+}
+
+impl Deref for SoundSource {
+    type Target = GenericSource;
+
+    /// Returns shared reference to generic source of each sound source variant. It is possible because
+    /// `Spatial` sources are composed using generic source.
+    fn deref(&self) -> &Self::Target {
+        match self {
+            SoundSource::Generic(v) => v,
+            SoundSource::Spatial(v) => v,
+        }
+    }
+}
+
+impl DerefMut for SoundSource {
+    /// Returns mutable reference to generic source of each sound source variant. It is possible because
+    /// `Spatial` sources are composed using generic source.
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match self {
+            SoundSource::Generic(v) => v,
+            SoundSource::Spatial(v) => v,
         }
     }
 }

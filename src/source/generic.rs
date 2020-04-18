@@ -265,8 +265,8 @@ impl GenericSource {
     /// Returns playback duration.
     pub fn playback_time(&self) -> Duration {
         if let Some(buffer) = self.buffer.as_ref().and_then(|b| b.lock().ok()) {
-            let i = position_to_index(self.playback_pos, buffer.generic().channel_count());
-            Duration::from_secs_f64((i / buffer.generic().sample_rate()) as f64)
+            let i = position_to_index(self.playback_pos, buffer.channel_count());
+            Duration::from_secs_f64((i / buffer.sample_rate()) as f64)
         } else {
             Duration::from_secs(0)
         }
@@ -280,8 +280,8 @@ impl GenericSource {
                 streaming.time_seek(time);
             }
             // Set absolute position first.
-            self.playback_pos = (time.as_secs_f64() * buffer.generic().channel_count() as f64)
-                .min(buffer.generic().index_of_last_sample() as f64);
+            self.playback_pos = (time.as_secs_f64() * buffer.channel_count() as f64)
+                .min(buffer.index_of_last_sample() as f64);
             // Then adjust buffer read position.
             self.buf_read_pos =
                 match *buffer {
@@ -296,7 +296,7 @@ impl GenericSource {
                         self.playback_pos
                     }
                 };
-            assert!(position_to_index(self.buf_read_pos, buffer.generic().channel_count()) < buffer.generic().samples().len());
+            assert!(position_to_index(self.buf_read_pos, buffer.channel_count()) < buffer.samples().len());
         }
     }
 
@@ -306,11 +306,11 @@ impl GenericSource {
         self.buf_read_pos += step;
         self.playback_pos += step;
 
-        let channel_count = buffer.generic().channel_count();
+        let channel_count = buffer.channel_count();
         let mut i = position_to_index(self.buf_read_pos, channel_count);
 
-        let len = buffer.generic().samples().len();
-        if i > buffer.generic().index_of_last_sample() {
+        let len = buffer.samples().len();
+        if i > buffer.index_of_last_sample() {
             let mut end_reached = true;
             if let SoundBuffer::Streaming(streaming) = buffer {
                 // Means that this is the last available block.
@@ -331,7 +331,7 @@ impl GenericSource {
             i = 0;
         }
 
-        let samples = buffer.generic().samples();
+        let samples = buffer.samples();
         if channel_count == 2 {
             let left = samples[i];
             let right = samples[i + 1];
@@ -349,7 +349,7 @@ impl GenericSource {
 
         self.frame_samples.clear();
 
-        if let Some(mut buffer) = self.buffer.clone().as_ref().and_then(|b| b.lock().ok().and_then(|b| if b.generic().is_empty() { None } else { Some(b) })) {
+        if let Some(mut buffer) = self.buffer.clone().as_ref().and_then(|b| b.lock().ok().and_then(|b| if b.is_empty() { None } else { Some(b) })) {
             for _ in 0..amount {
                 if self.status == Status::Playing {
                     let pair = self.next_sample_pair(&mut buffer);
@@ -499,8 +499,8 @@ impl GenericSourceBuilder {
             }
             streaming.use_count += 1;
         }
-        let sample_rate = locked_buffer.generic().sample_rate() as f64;
-        let channel_count = locked_buffer.generic().channel_count() as f64;
+        let sample_rate = locked_buffer.sample_rate() as f64;
+        let channel_count = locked_buffer.channel_count() as f64;
         let resampling_multiplier = sample_rate / device_sample_rate * channel_count;
         Ok(GenericSource {
             resampling_multiplier,

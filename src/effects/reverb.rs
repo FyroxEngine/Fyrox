@@ -39,7 +39,6 @@ use rg3d_core::{
 use crate::{
     listener::Listener,
     effects::{
-        EffectTrait,
         BaseEffect,
         EffectRenderTrait
     },
@@ -50,6 +49,7 @@ use crate::{
     source::SoundSource,
     context::DistanceModel
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Default)]
 struct ChannelReverb {
@@ -276,12 +276,16 @@ impl EffectRenderTrait for Reverb {
     }
 }
 
-impl EffectTrait for Reverb {
-    fn base(&self) -> &BaseEffect {
+impl Deref for Reverb {
+    type Target = BaseEffect;
+
+    fn deref(&self) -> &Self::Target {
         &self.base
     }
+}
 
-    fn base_mut(&mut self) -> &mut BaseEffect {
+impl DerefMut for Reverb {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
