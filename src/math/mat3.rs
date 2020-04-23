@@ -1,7 +1,7 @@
 use crate::math::vec3::Vec3;
 use crate::math::quat::Quat;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Mat3 {
     pub f: [f32; 9]

@@ -7,7 +7,9 @@ use crate::math::{
     is_point_inside_triangle,
     solve_quadratic,
 };
+use crate::math::aabb::AxisAlignedBoundingBox;
 
+#[derive(Copy, Clone, Debug)]
 pub struct Ray {
     pub origin: Vec3,
     pub dir: Vec3,
@@ -192,6 +194,14 @@ impl Ray {
 
     pub fn box_intersection_points(&self, min: &Vec3, max: &Vec3) -> Option<[Vec3; 2]> {
         self.try_eval_points(self.box_intersection(min, max))
+    }
+
+    pub fn aabb_intersection(&self, aabb: &AxisAlignedBoundingBox) -> Option<IntersectionResult> {
+        self.box_intersection(&aabb.min, &aabb.max)
+    }
+
+    pub fn aabb_intersection_points(&self, aabb: &AxisAlignedBoundingBox) -> Option<[Vec3; 2]>  {
+        self.box_intersection_points(&aabb.min, &aabb.max)
     }
 
     /// Solves plane equation in order to find ray equation parameter.

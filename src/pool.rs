@@ -227,6 +227,24 @@ pub struct Ticket<T> {
     marker: PhantomData<T>,
 }
 
+impl<T: Clone> Clone for PoolRecord<T> {
+    fn clone(&self) -> Self {
+        Self {
+            generation: self.generation,
+            payload: self.payload.clone()
+        }
+    }
+}
+
+impl<T: Clone> Clone for Pool<T> {
+    fn clone(&self) -> Self {
+        Self {
+            records: self.records.clone(),
+            free_stack: self.free_stack.clone()
+        }
+    }
+}
+
 impl<T> Pool<T> {
     #[inline]
     pub fn new() -> Self {

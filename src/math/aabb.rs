@@ -2,8 +2,9 @@ use crate::{
     math::vec3::Vec3,
     visitor::{Visit, Visitor, VisitResult}
 };
+use crate::math::mat4::Mat4;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct AxisAlignedBoundingBox {
     pub min: Vec3,
     pub max: Vec3,
@@ -19,7 +20,10 @@ impl Default for AxisAlignedBoundingBox {
 }
 
 impl AxisAlignedBoundingBox {
-    pub fn from_min_max(min: Vec3, max: Vec3) -> Self {
+    pub const UNIT: AxisAlignedBoundingBox = AxisAlignedBoundingBox::from_min_max(
+        Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5));
+
+    pub const fn from_min_max(min: Vec3, max: Vec3) -> Self {
         Self {
             min,
             max,
@@ -139,6 +143,11 @@ impl AxisAlignedBoundingBox {
         }
 
         true
+    }
+
+    pub fn transform(&mut self, m: Mat4) {
+        self.max = m.transform_vector(self.max);
+        self.min = m.transform_vector(self.min);
     }
 }
 

@@ -7,6 +7,7 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 pub enum OctreeNode {
     Leaf {
         indices: Vec<u32>,
@@ -18,7 +19,7 @@ pub enum OctreeNode {
     },
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Octree {
     nodes: Pool<OctreeNode>,
     root: Handle<OctreeNode>,

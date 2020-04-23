@@ -1,6 +1,9 @@
 #![allow(clippy::len_without_is_empty)]
 
-use crate::math::vec3::*;
+use crate::math::{
+    vec3::*,
+    mat3::Mat3,
+};
 use std::ops;
 
 #[derive(Copy, Clone)]
@@ -11,6 +14,7 @@ pub struct Quat {
     pub w: f32,
 }
 
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Ord, Eq)]
 pub enum RotationOrder {
     XYZ,
     XZY,
@@ -23,6 +27,52 @@ pub enum RotationOrder {
 impl Default for Quat {
     fn default() -> Self {
         Self::IDENTITY
+    }
+}
+
+// Converting a Rotation Matrix to a Quaternion
+// Mike Day, Insomniac Games
+impl From<Mat3> for Quat {
+    fn from(m: Mat3) -> Self {
+        let t;
+        let q;
+        if m.f[8] < 0.0 {
+            if m.f[0] > m.f[4] {
+                t = 1.0 + m.f[0] - m.f[4] - m.f[8];
+                q = Quat {
+                    x: t,
+                    y: m.f[1] + m.f[3],
+                    z: m.f[6] + m.f[2],
+                    w: m.f[5] - m.f[7],
+                };
+            } else {
+                t = 1.0 - m.f[0] + m.f[4] - m.f[8];
+                q = Quat {
+                    x: m.f[1] + m.f[3],
+                    y: t,
+                    z: m.f[5] + m.f[7],
+                    w: m.f[6] - m.f[2],
+                };
+            }
+        } else if m.f[0] < -m.f[4] {
+            t = 1.0 - m.f[0] - m.f[4] + m.f[8];
+            q = Quat {
+                x: m.f[6] + m.f[2],
+                y: m.f[5] + m.f[7],
+                z: t,
+                w: m.f[1] - m.f[3],
+            };
+        } else {
+            t = 1.0 + m.f[0] + m.f[4] + m.f[8];
+            q = Quat {
+                x: m.f[5] - m.f[7],
+                y: m.f[6] - m.f[2],
+                z: m.f[1] - m.f[3],
+                w: t,
+            };
+        }
+
+        q * (0.5 / t.sqrt())
     }
 }
 
@@ -134,6 +184,7 @@ impl Quat {
 
 impl ops::Mul<Self> for Quat {
     type Output = Self;
+
     fn mul(self, b: Self) -> Self {
         Self {
             x: self.w * b.x + self.x * b.w + self.y * b.z - self.z * b.y,
@@ -144,6 +195,30 @@ impl ops::Mul<Self> for Quat {
     }
 }
 
+impl ops::MulAssign<Self> for Quat {
+    fn mul_assign(&mut self, rhs: Quat) {
+        *self = *self * rhs
+    }
+}
+
+impl ops::Mul<f32> for Quat {
+    type Output = Self;
+
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self {
+            x: self.x * rhs,
+            y: self.y * rhs,
+            z: self.z * rhs,
+            w: self.w * rhs,
+        }
+    }
+}
+
+impl ops::MulAssign<f32> for Quat {
+    fn mul_assign(&mut self, rhs: f32) {
+        *self = *self * rhs
+    }
+}
 
 impl ops::Add<Self> for Quat {
     type Output = Self;

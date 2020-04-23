@@ -6,6 +6,7 @@ use crate::{
     }
 };
 use crate::math::mat3::Mat3;
+use crate::math::vec4::Vec4;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -172,6 +173,15 @@ impl Mat4 {
             x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8],
             y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9],
             z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10],
+        }
+    }
+
+    pub fn transform_vector4(&self, v: Vec4) -> Vec4 {
+        Vec4 {
+            x: v.x * self.f[0] + v.y * self.f[4] + v.z * self.f[8] + v.w * self.f[12],
+            y: v.x * self.f[1] + v.y * self.f[5] + v.z * self.f[9] + v.w * self.f[13],
+            z: v.x * self.f[2] + v.y * self.f[6] + v.z * self.f[10] + v.w * self.f[14],
+            w: v.x * self.f[3] + v.y * self.f[7] + v.z * self.f[11] + v.w * self.f[15],
         }
     }
 
