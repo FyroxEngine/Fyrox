@@ -116,7 +116,7 @@ impl LightVolumeRenderer {
             spot_light_shader: SpotLightShader::new()?,
             point_light_shader: PointLightShader::new()?,
             flat_shader: FlatShader::new()?,
-            cone: SurfaceSharedData::make_cone(16, 1.0, 1.0, Vec3::new(0.0, -1.0, 0.0)),
+            cone: SurfaceSharedData::make_cone(16, 1.0, 1.0, Mat4::translate(Vec3::new(0.0, -1.0, 0.0))),
             sphere: SurfaceSharedData::make_sphere(8, 8, 1.0),
         })
     }

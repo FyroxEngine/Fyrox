@@ -28,6 +28,7 @@ use std::{
         Hasher,
     },
 };
+use rg3d_core::math::mat4::Mat4;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -325,7 +326,7 @@ impl SurfaceSharedData {
     }
 
     /// Creates vertical cone - it has its vertex higher than base.
-    pub fn make_cone(sides: usize, r: f32, h: f32, offset: Vec3) -> Self {
+    pub fn make_cone(sides: usize, r: f32, h: f32, transform: Mat4) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
@@ -338,29 +339,75 @@ impl SurfaceSharedData {
             let ny1 = (d_phi * (i + 1) as f32).sin();
 
             let x0 = r * nx0;
-            let y0 = r * ny0;
+            let z0 = r * ny0;
             let x1 = r * nx1;
-            let y1 = r * ny1;
+            let z1 = r * ny1;
             let tx0 = d_theta * i as f32;
             let tx1 = d_theta * (i + 1) as f32;
 
             // back cap
-            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(0.0, 0.0, 0.0), Vec2::new(0.0, 0.0)));
-            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x0, 0.0, y0), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x1, 0.0, y1), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)), Vec2::new(0.0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx1, 0.0)));
 
             // sides
-            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(0.0, h, 0.0), Vec2::new(tx1, 0.0)));
-            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x1, 0.0, y1), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(offset + Vec3::new(x0, 0.0, y0), Vec2::new(tx0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, h, 0.0)), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 0.0)));
         }
-
 
         let mut data = Self::from(builder.build());
         data.calculate_normals();
         data.calculate_tangents();
         data
     }
+
+    /// Creates vertical cylinder.
+    pub fn make_cylinder(sides: usize, r: f32, h: f32, transform: Mat4) -> Self {
+        let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
+
+        let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
+        let d_theta = 1.0 / sides as f32;
+
+        for i in 0..sides {
+            let nx0 = (d_phi * i as f32).cos();
+            let ny0 = (d_phi * i as f32).sin();
+            let nx1 = (d_phi * (i + 1) as f32).cos();
+            let ny1 = (d_phi * (i + 1) as f32).sin();
+
+            let x0 = r * nx0;
+            let z0 = r * ny0;
+            let x1 = r * nx1;
+            let z1 = r * ny1;
+            let tx0 = d_theta * i as f32;
+            let tx1 = d_theta * (i + 1) as f32;
+
+            // front cap
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, h, 0.0)), Vec2::new(0.0, 0.0)));
+
+            // back cap
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx1, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)), Vec2::new(0.0, 0.0)));
+
+            // sides
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx1, 0.0)));
+
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
+            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
+        }
+
+        let mut data = Self::from(builder.build());
+        data.calculate_normals();
+        data.calculate_tangents();
+        data
+    }
+
 
     pub fn make_cube() -> Self {
         let vertices = vec![

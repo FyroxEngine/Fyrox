@@ -35,6 +35,8 @@ use crate::{
     },
 };
 use std::ops::{Deref, DerefMut};
+use rg3d_core::math::ray::Ray;
+use rg3d_core::math::vec4::Vec4;
 
 /// See module docs.
 #[derive(Clone)]
@@ -201,6 +203,21 @@ impl Camera {
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
         self.enabled = enabled;
         self
+    }
+
+    /// Creates picking ray from given screen coordinates.
+    pub fn make_ray(&self, screen_coord: Vec2, screen_size: Vec2) -> Ray {
+        let viewport = self.viewport_pixels(screen_size);
+        let nx = screen_coord.x / (viewport.w as f32) * 2.0 - 1.0;
+        // Invert y here because OpenGL has origin at left bottom corner,
+        // but window coordinates starts from left *upper* corner.
+        let ny = (viewport.h as f32 - screen_coord.y) / (viewport.h as f32) * 2.0 - 1.0;
+        let inv_view_proj = self.view_projection_matrix().inverse().unwrap_or_default();
+        let near = inv_view_proj.transform_vector4(Vec4::new(nx, ny, -1.0, 1.0));
+        let far = inv_view_proj.transform_vector4(Vec4::new(nx, ny, 1.0, 1.0));
+        let begin = near.xyz().scale(1.0 / near.w);
+        let end = far.xyz().scale(1.0 / far.w);
+        Ray::from_two_points(&begin, &end).unwrap_or_default()
     }
 }
 

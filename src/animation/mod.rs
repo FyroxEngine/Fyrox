@@ -494,6 +494,11 @@ impl Animation {
         self.resource.clone()
     }
 
+    pub fn retain_tracks<F>(&mut self, filter: F)
+        where F: FnMut(&Track) -> bool {
+        self.tracks.retain(filter)
+    }
+
     pub fn add_signal(&mut self, signal: AnimationSignal) -> &mut Self {
         self.signals.push(signal);
         self
@@ -708,6 +713,12 @@ impl AnimationContainer {
     pub fn update_animations(&mut self, dt: f32) {
         for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
             animation.tick(dt);
+        }
+    }
+
+    pub fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone()
         }
     }
 }

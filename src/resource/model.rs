@@ -94,7 +94,7 @@ impl Model {
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let root = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph);
+        let (root, _) = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph, &mut |_| true);
         dest_scene.graph[root].is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.

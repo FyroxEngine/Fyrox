@@ -35,6 +35,7 @@ use crate::{
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
+#[derive(Clone)]
 pub struct PhysicsBinder {
     node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
 }
@@ -158,6 +159,36 @@ impl Scene {
         self.update_physics(dt);
         self.animations.update_animations(dt);
         self.graph.update_nodes(frame_size, dt);
+    }
+
+    pub fn clone<F>(&self, filter: &mut F) -> Self
+        where F: FnMut(&Node) -> bool {
+        let (graph, old_new_map) = self.graph.clone(filter);
+        let mut animations = self.animations.clone();
+        for animation in animations.iter_mut() {
+            // Remove all tracks for nodes that were filtered out.
+            animation.retain_tracks(|track| old_new_map.contains_key(&track.get_node()));
+            // Remap track nodes.
+            for track in animation.get_tracks_mut() {
+                track.set_node(old_new_map[&track.get_node()]);
+            }
+        }
+        let physics = self.physics.clone();
+        let mut physics_binder = PhysicsBinder::default();
+        for (node, &body) in self.physics_binder.node_rigid_body_map.iter() {
+            // Make sure we bind existing node with new physical body.
+            if let Some(&new_node) = old_new_map.get(node) {
+                // Re-use of body handle is fine here because physics copy bodies
+                // directly and handles from previous pool is still suitable for copy.
+                physics_binder.bind(new_node, body);
+            }
+        }
+        Self {
+            graph,
+            animations,
+            physics,
+            physics_binder
+        }
     }
 }
 

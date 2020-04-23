@@ -26,7 +26,7 @@
 
 use std::{
     collections::HashMap,
-    ops::{Index, IndexMut}
+    ops::{Index, IndexMut},
 };
 use crate::{
     utils::log::Log,
@@ -222,9 +222,19 @@ impl Graph {
     /// # Implementation notes
     ///
     /// This method automatically remaps bones for copied surfaces.
-    pub fn copy_node(&self, node_handle: Handle<Node>, dest_graph: &mut Graph) -> Handle<Node> {
+    ///
+    /// Returns tuple where first element is handle to copy of node, and second element -
+    /// old-to-new hash map, which can be used to easily find copy of node by its original.
+    ///
+    /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
+    /// odd nodes. Filtering applied only to descendant nodes.
+    pub fn copy_node<F>(&self,
+                        node_handle: Handle<Node>,
+                        dest_graph: &mut Graph,
+                        filter: &mut F,
+    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>) where F: FnMut(&Node) -> bool {
         let mut old_new_mapping = HashMap::new();
-        let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping);
+        let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
 
         // Iterate over instantiated nodes and remap bones handles.
         for (_, &new_node_handle) in old_new_mapping.iter() {
@@ -239,19 +249,26 @@ impl Graph {
             }
         }
 
-        root_handle
+        (root_handle, old_new_mapping)
     }
 
-    fn copy_node_raw(&self, root_handle: Handle<Node>, dest_graph: &mut Graph, old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>) -> Handle<Node> {
+    fn copy_node_raw<F>(&self,
+                        root_handle: Handle<Node>,
+                        dest_graph: &mut Graph,
+                        old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
+                        filter: &mut F,
+    ) -> Handle<Node> where F: FnMut(&Node) -> bool {
         let src_node = &self.pool[root_handle];
         let mut dest_node = src_node.clone();
         dest_node.original = root_handle;
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.insert(root_handle, dest_copy_handle);
-        for src_child_handle in src_node.children() {
-            let dest_child_handle = self.copy_node_raw(*src_child_handle, dest_graph, old_new_mapping);
-            if !dest_child_handle.is_none() {
-                dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
+        for &src_child_handle in src_node.children() {
+            if filter(&self.pool[src_child_handle]) {
+                let dest_child_handle = self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
+                if !dest_child_handle.is_none() {
+                    dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
+                }
             }
         }
         dest_copy_handle
@@ -461,6 +478,16 @@ impl Graph {
             graph: self,
             stack: vec![from],
         }
+    }
+
+    /// Creates deep copy of graph. Allows filtering while copying, returns copy and
+    /// old-to-new node mapping.
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
+        where F: FnMut(&Node) -> bool {
+        let mut copy = Self::default();
+        let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
+        copy.root = root;
+        (copy, old_new_map)
     }
 }
 

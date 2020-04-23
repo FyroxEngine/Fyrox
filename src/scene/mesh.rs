@@ -32,6 +32,7 @@ use crate::{
         },
     },
 };
+use crate::scene::base::BaseBuilder;
 
 /// See module docs.
 #[derive(Clone)]
@@ -154,5 +155,37 @@ impl Mesh {
         }
 
         false
+    }
+}
+
+/// Mesh builder allows you to construct mesh in declarative manner.
+pub struct MeshBuilder {
+    base_builder: BaseBuilder,
+    surfaces: Vec<Surface>
+}
+
+impl MeshBuilder {
+    /// Creates new instance of mesh builder.
+    pub fn new(base_builder: BaseBuilder) -> Self {
+        Self {
+            base_builder,
+            surfaces: Default::default()
+        }
+    }
+
+    /// Sets desired surfaces for mesh.
+    pub fn with_surfaces(mut self, surfaces: Vec<Surface>) -> Self {
+        self.surfaces = surfaces;
+        self
+    }
+
+    /// Creates new mesh.
+    pub fn build(self) -> Mesh {
+        Mesh {
+            base: self.base_builder.build(),
+            surfaces: self.surfaces,
+            bounding_box: Default::default(),
+            bounding_box_dirty: Default::default()
+        }
     }
 }
