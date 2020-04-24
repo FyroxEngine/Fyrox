@@ -17,7 +17,10 @@ use rg3d_core::{
         Visitor,
     },
 };
-use std::cmp::Ordering;
+use std::{
+    cmp::Ordering,
+    cell::RefCell
+};
 use crate::{
     rigid_body::RigidBody,
     static_geometry::StaticGeometry,
@@ -26,7 +29,6 @@ use crate::{
         CircumRadius
     }
 };
-use bitflags::_core::cell::RefCell;
 
 pub mod gjk_epa;
 pub mod convex_shape;
@@ -123,6 +125,14 @@ impl Physics {
 
     pub fn is_valid_body_handle(&self, handle: Handle<RigidBody>) -> bool {
         self.bodies.is_valid_handle(handle)
+    }
+
+    pub fn clone(&self) -> Self {
+        Self {
+            bodies: self.bodies.clone(),
+            static_geoms: self.static_geoms.clone(),
+            query_buffer: Default::default()
+        }
     }
 
     pub fn step(&mut self, delta_time: f32) {
