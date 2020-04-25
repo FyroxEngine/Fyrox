@@ -1,15 +1,9 @@
 use crate::{
-    core::{
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::visitor::{Visit, VisitResult, Visitor},
     scene::{
-        light::Light,
-        camera::Camera,
-        mesh::Mesh,
+        base::Base, camera::Camera, light::Light, mesh::Mesh, particle_system::ParticleSystem,
         sprite::Sprite,
-        particle_system::ParticleSystem,
-        base::Base
-    }
+    },
 };
 use std::ops::{Deref, DerefMut};
 
@@ -89,24 +83,24 @@ macro_rules! define_is_as {
         pub fn $is(&self) -> bool {
             match self {
                 Node::$kind(_) => true,
-                _ => false
+                _ => false,
             }
         }
 
         pub fn $as_ref(&self) -> &$result {
             match self {
                 Node::$kind(ref val) => val,
-                _ => panic!("Cast to {} failed!", stringify!($kind))
+                _ => panic!("Cast to {} failed!", stringify!($kind)),
             }
         }
 
         pub fn $as_mut(&mut self) -> &mut $result {
             match self {
                 Node::$kind(ref mut val) => val,
-                _ => panic!("Cast to {} failed!", stringify!($kind))
+                _ => panic!("Cast to {} failed!", stringify!($kind)),
             }
         }
-    }
+    };
 }
 
 impl Node {
@@ -119,7 +113,7 @@ impl Node {
             3 => Ok(Node::Mesh(Default::default())),
             4 => Ok(Node::Sprite(Default::default())),
             5 => Ok(Node::ParticleSystem(Default::default())),
-            _ => Err(format!("Invalid node kind {}", id))
+            _ => Err(format!("Invalid node kind {}", id)),
         }
     }
 
@@ -138,6 +132,12 @@ impl Node {
     define_is_as!(is_mesh, as_mesh, as_mesh_mut, Mesh, Mesh);
     define_is_as!(is_camera, as_camera, as_camera_mut, Camera, Camera);
     define_is_as!(is_light, as_light, as_light_mut, Light, Light);
-    define_is_as!(is_particle_system, as_particle_system, as_particle_system_mut, ParticleSystem, ParticleSystem);
+    define_is_as!(
+        is_particle_system,
+        as_particle_system,
+        as_particle_system_mut,
+        ParticleSystem,
+        ParticleSystem
+    );
     define_is_as!(is_sprite, as_sprite, as_sprite_mut, Sprite, Sprite);
 }

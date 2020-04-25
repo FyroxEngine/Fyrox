@@ -11,29 +11,20 @@
 
 #![warn(missing_docs)]
 
+use crate::{
+    core::{
+        math::{self, vec3::Vec3, TriangleDefinition},
+        octree::Octree,
+    },
+    scene::mesh::Mesh,
+    utils::{
+        astar::{PathError, PathFinder, PathKind, PathVertex},
+        raw_mesh::RawMeshBuilder,
+    },
+};
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
-};
-use crate::{
-    scene::mesh::Mesh,
-    utils::{
-        astar::{
-            PathFinder,
-            PathVertex,
-            PathKind,
-            PathError,
-        },
-        raw_mesh::RawMeshBuilder,
-    },
-    core::{
-        octree::Octree,
-        math::{
-            TriangleDefinition,
-            vec3::Vec3,
-            self,
-        },
-    },
 };
 
 /// See module docs.
@@ -53,8 +44,7 @@ struct Edge {
 impl PartialEq for Edge {
     fn eq(&self, other: &Self) -> bool {
         // Direction-agnostic compare.
-        (self.a == other.a && self.b == other.b) ||
-            (self.a == other.b && self.b == other.a)
+        (self.a == other.a && self.b == other.b) || (self.a == other.b && self.b == other.a)
     }
 }
 
@@ -84,13 +74,16 @@ impl Navmesh {
     /// most cases you should use `from_mesh` method.
     pub fn new(triangles: &[TriangleDefinition], vertices: &[Vec3]) -> Self {
         // Build triangles for octree.
-        let raw_triangles = triangles.iter().map(|t| {
-            [
-                vertices[t[0] as usize],
-                vertices[t[1] as usize],
-                vertices[t[2] as usize]
-            ]
-        }).collect::<Vec<[Vec3; 3]>>();
+        let raw_triangles = triangles
+            .iter()
+            .map(|t| {
+                [
+                    vertices[t[0] as usize],
+                    vertices[t[1] as usize],
+                    vertices[t[2] as usize],
+                ]
+            })
+            .collect::<Vec<[Vec3; 3]>>();
 
         // Fill in pathfinder.
         let mut pathfinder = PathFinder::new();
@@ -98,9 +91,18 @@ impl Navmesh {
 
         let mut edges = HashSet::new();
         for triangle in triangles {
-            edges.insert(Edge { a: triangle[0], b: triangle[1] });
-            edges.insert(Edge { a: triangle[1], b: triangle[2] });
-            edges.insert(Edge { a: triangle[2], b: triangle[0] });
+            edges.insert(Edge {
+                a: triangle[0],
+                b: triangle[1],
+            });
+            edges.insert(Edge {
+                a: triangle[1],
+                b: triangle[2],
+            });
+            edges.insert(Edge {
+                a: triangle[2],
+                b: triangle[0],
+            });
         }
 
         for edge in edges {
@@ -142,9 +144,15 @@ impl Navmesh {
 
             let vertices = shared_data.get_vertices();
             for triangle in shared_data.triangles() {
-                builder.insert(global_transform.transform_vector(vertices[triangle[0] as usize].position));
-                builder.insert(global_transform.transform_vector(vertices[triangle[1] as usize].position));
-                builder.insert(global_transform.transform_vector(vertices[triangle[2] as usize].position));
+                builder.insert(
+                    global_transform.transform_vector(vertices[triangle[0] as usize].position),
+                );
+                builder.insert(
+                    global_transform.transform_vector(vertices[triangle[1] as usize].position),
+                );
+                builder.insert(
+                    global_transform.transform_vector(vertices[triangle[2] as usize].position),
+                );
             }
         }
 
@@ -198,7 +206,12 @@ impl Navmesh {
     ///     Ok(PathKind::Empty)
     /// }
     /// ```
-    pub fn build_path(&mut self, from: usize, to: usize, path: &mut Vec<Vec3>) -> Result<PathKind, PathError> {
+    pub fn build_path(
+        &mut self,
+        from: usize,
+        to: usize,
+        path: &mut Vec<Vec3>,
+    ) -> Result<PathKind, PathError> {
         self.pathfinder.build(from, to, path)
     }
 }

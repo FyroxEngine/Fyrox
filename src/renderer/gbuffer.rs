@@ -1,52 +1,24 @@
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
 use crate::{
+    core::{
+        color::Color,
+        math::{frustum::Frustum, mat4::Mat4, Rect},
+        scope_profile,
+    },
     renderer::{
+        error::RendererError,
         framework::{
-            gpu_program::{
-                GpuProgram,
-                UniformLocation,
-                UniformValue,
-            },
             framebuffer::{
-                FrameBuffer,
-                Attachment,
-                AttachmentKind,
-                CullFace,
-                DrawParameters,
-                FrameBufferTrait,
+                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
             },
-            gpu_texture::{
-                GpuTextureKind,
-                PixelKind,
-                GpuTexture,
-                Coordinate,
-                WrapMode,
-            },
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            gpu_texture::{Coordinate, GpuTexture, GpuTextureKind, PixelKind, WrapMode},
             state::State,
         },
-        error::RendererError,
-        RenderPassStatistics,
-        TextureCache,
-        GeometryCache,
+        GeometryCache, RenderPassStatistics, TextureCache,
     },
-    scene::{
-        node::Node,
-        graph::Graph,
-        camera::Camera,
-    },
-    core::{
-        scope_profile,
-        math::{
-            Rect,
-            mat4::Mat4,
-            frustum::Frustum,
-        },
-        color::Color,
-    },
+    scene::{camera::Camera, graph::Graph, node::Node},
 };
+use std::{cell::RefCell, rc::Rc};
 
 struct GBufferShader {
     program: GpuProgram,
@@ -96,20 +68,38 @@ pub struct GBufferRenderContext<'a, 'b> {
 
 impl GBuffer {
     pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
-        let mut depth_stencil_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::D24S8, None)?;
-        depth_stencil_texture.bind_mut(state, 0)
+        let mut depth_stencil_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::D24S8,
+            None,
+        )?;
+        depth_stencil_texture
+            .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
-        let mut diffuse_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
-        diffuse_texture.bind_mut(state, 0)
+        let mut diffuse_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGBA8,
+            None,
+        )?;
+        diffuse_texture
+            .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
-        let mut normal_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
-        normal_texture.bind_mut(state, 0)
+        let mut normal_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGBA8,
+            None,
+        )?;
+        normal_texture
+            .bind_mut(state, 0)
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
@@ -128,9 +118,15 @@ impl GBuffer {
                     kind: AttachmentKind::Color,
                     texture: Rc::new(RefCell::new(normal_texture)),
                 },
-            ])?;
+            ],
+        )?;
 
-        let frame_texture = GpuTexture::new(state, GpuTextureKind::Rectangle { width, height }, PixelKind::RGBA8, None)?;
+        let frame_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGBA8,
+            None,
+        )?;
 
         let opt_framebuffer = FrameBuffer::new(
             state,
@@ -138,12 +134,11 @@ impl GBuffer {
                 kind: AttachmentKind::DepthStencil,
                 texture: depth_stencil,
             }),
-            vec![
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(frame_texture)),
-                }
-            ])?;
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(frame_texture)),
+            }],
+        )?;
 
         Ok(GBuffer {
             framebuffer,
@@ -178,20 +173,34 @@ impl GBuffer {
         let mut statistics = RenderPassStatistics::default();
 
         let GBufferRenderContext {
-            state, graph, camera,
-            white_dummy, normal_dummy,
-            texture_cache, geom_cache
+            state,
+            graph,
+            camera,
+            white_dummy,
+            normal_dummy,
+            texture_cache,
+            geom_cache,
         } = args;
 
         let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
 
         let viewport = Rect::new(0, 0, self.width, self.height);
-        self.framebuffer.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), Some(1.0), Some(0));
+        self.framebuffer.clear(
+            state,
+            viewport,
+            Some(Color::from_rgba(0, 0, 0, 0)),
+            Some(1.0),
+            Some(0),
+        );
 
         let view_projection = camera.view_projection_matrix();
 
         'mesh_loop: for mesh in graph.linear_iter().filter_map(|node| {
-            if let Node::Mesh(mesh) = node { Some(mesh) } else { None }
+            if let Node::Mesh(mesh) = node {
+                Some(mesh)
+            } else {
+                None
+            }
         }) {
             if !mesh.is_intersect_frustum(graph, &frustum) {
                 continue 'mesh_loop;
@@ -232,7 +241,7 @@ impl GBuffer {
                 };
 
                 statistics += self.framebuffer.draw(
-                    geom_cache.get(state,&surface.get_data().lock().unwrap()),
+                    geom_cache.get(state, &surface.get_data().lock().unwrap()),
                     state,
                     viewport,
                     &self.shader.program,
@@ -246,27 +255,40 @@ impl GBuffer {
                         blend: false,
                     },
                     &[
-                        (self.shader.diffuse_texture, UniformValue::Sampler {
-                            index: 0,
-                            texture: diffuse_texture,
-                        }),
-                        (self.shader.normal_texture, UniformValue::Sampler {
-                            index: 1,
-                            texture: normal_texture,
-                        }),
+                        (
+                            self.shader.diffuse_texture,
+                            UniformValue::Sampler {
+                                index: 0,
+                                texture: diffuse_texture,
+                            },
+                        ),
+                        (
+                            self.shader.normal_texture,
+                            UniformValue::Sampler {
+                                index: 1,
+                                texture: normal_texture,
+                            },
+                        ),
                         (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
                         (self.shader.world_matrix, UniformValue::Mat4(world)),
-                        (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
-                        (self.shader.bone_matrices, UniformValue::Mat4Array({
-                            self.bone_matrices.clear();
-                            for &bone_handle in surface.bones.iter() {
-                                let bone_node = &graph[bone_handle];
-                                self.bone_matrices.push(
-                                    bone_node.global_transform() *
-                                        bone_node.inv_bind_pose_transform());
-                            }
-                            &self.bone_matrices
-                        }))
+                        (
+                            self.shader.use_skeletal_animation,
+                            UniformValue::Bool(is_skinned),
+                        ),
+                        (
+                            self.shader.bone_matrices,
+                            UniformValue::Mat4Array({
+                                self.bone_matrices.clear();
+                                for &bone_handle in surface.bones.iter() {
+                                    let bone_node = &graph[bone_handle];
+                                    self.bone_matrices.push(
+                                        bone_node.global_transform()
+                                            * bone_node.inv_bind_pose_transform(),
+                                    );
+                                }
+                                &self.bone_matrices
+                            }),
+                        ),
                     ],
                 );
             }

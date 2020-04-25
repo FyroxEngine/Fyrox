@@ -1,12 +1,6 @@
-use std::path::*;
-use crate::{
-    core::visitor::{
-        Visit,
-        VisitResult,
-        Visitor
-    }
-};
+use crate::core::visitor::{Visit, VisitResult, Visitor};
 use image::GenericImageView;
+use std::path::*;
 
 pub struct Texture {
     pub(in crate) path: PathBuf,
@@ -14,7 +8,7 @@ pub struct Texture {
     pub(in crate) height: u32,
     pub(in crate) bytes: Vec<u8>,
     pub(in crate) kind: TextureKind,
-    pub(in crate) loaded: bool
+    pub(in crate) loaded: bool,
 }
 
 impl Default for Texture {
@@ -25,7 +19,7 @@ impl Default for Texture {
             height: 0,
             bytes: Vec::new(),
             kind: TextureKind::RGBA8,
-            loaded: false
+            loaded: false,
         }
     }
 }
@@ -59,7 +53,7 @@ impl TextureKind {
             0 => Ok(TextureKind::R8),
             1 => Ok(TextureKind::RGB8),
             2 => Ok(TextureKind::RGBA8),
-            _ => Err(format!("Invalid texture kind {}!", id))
+            _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
 
@@ -73,7 +67,10 @@ impl TextureKind {
 }
 
 impl Texture {
-    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P, kind: TextureKind) -> Result<Self, image::ImageError> {
+    pub(in crate) fn load_from_file<P: AsRef<Path>>(
+        path: P,
+        kind: TextureKind,
+    ) -> Result<Self, image::ImageError> {
         let dyn_img = image::open(path.as_ref())?;
 
         let width = dyn_img.width();
@@ -95,14 +92,19 @@ impl Texture {
         })
     }
 
-    pub(in crate) fn from_bytes(width: u32, height: u32, kind: TextureKind, bytes: Vec<u8>) -> Self {
+    pub(in crate) fn from_bytes(
+        width: u32,
+        height: u32,
+        kind: TextureKind,
+        bytes: Vec<u8>,
+    ) -> Self {
         Self {
             path: Default::default(),
             width,
             height,
             bytes,
             kind,
-            loaded: true
+            loaded: true,
         }
     }
 
@@ -110,4 +112,3 @@ impl Texture {
         self.loaded
     }
 }
-

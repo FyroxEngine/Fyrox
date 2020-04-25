@@ -1,17 +1,11 @@
 use crate::{
     core::{
-        math::{
-            vec3::Vec3,
-            mat4::Mat4,
-        },
+        math::{mat4::Mat4, vec3::Vec3},
         pool::Handle,
     },
     resource::fbx::{
+        document::{FbxNode, FbxNodeContainer},
         scene::FbxComponent,
-        document::{
-            FbxNode,
-            FbxNodeContainer
-        },
     },
 };
 
@@ -42,7 +36,10 @@ pub struct FbxModel {
 }
 
 impl FbxModel {
-    pub fn read(model_node_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<FbxModel, String> {
+    pub fn read(
+        model_node_handle: Handle<FbxNode>,
+        nodes: &FbxNodeContainer,
+    ) -> Result<FbxModel, String> {
         let mut name = String::from("Unnamed");
 
         let model_node = nodes.get(model_node_handle);
@@ -92,10 +89,12 @@ impl FbxModel {
                 "RotationPivot" => model.rotation_pivot = property_node.get_vec3_at(4)?,
                 "ScalingOffset" => model.scaling_offset = property_node.get_vec3_at(4)?,
                 "ScalingPivot" => model.scaling_pivot = property_node.get_vec3_at(4)?,
-                "GeometricTranslation" => model.geometric_translation = property_node.get_vec3_at(4)?,
+                "GeometricTranslation" => {
+                    model.geometric_translation = property_node.get_vec3_at(4)?
+                }
                 "GeometricScaling" => model.geometric_scale = property_node.get_vec3_at(4)?,
                 "GeometricRotation" => model.geometric_rotation = property_node.get_vec3_at(4)?,
-                _ => () // Unused properties
+                _ => (), // Unused properties
             }
         }
         Ok(model)

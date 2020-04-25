@@ -1,33 +1,19 @@
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
+use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
 use crate::{
-    core::{
-        scope_profile,
-        math::Rect,
-        color::Color,
-    },
+    core::{color::Color, math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
             geometry_buffer::GeometryBuffer,
-            gpu_texture::{
-                GpuTexture,
-                GpuTextureKind,
-                CubeMapFace,
-            },
-            gl::{
-                types::GLuint,
-                self,
-            },
-            gpu_program::{UniformLocation, GpuProgram, UniformValue},
+            gl::{self, types::GLuint},
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
+            state::ColorMask,
             state::State,
-            state::ColorMask
-        }
-    }
+        },
+    },
 };
-use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
+use std::{cell::RefCell, rc::Rc};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub enum AttachmentKind {
@@ -89,22 +75,51 @@ impl Default for DrawParameters {
 unsafe fn set_attachment(gl_attachment_kind: u32, texture: &GpuTexture) {
     match texture.kind() {
         GpuTextureKind::Line { .. } => {
-            gl::FramebufferTexture1D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_1D, texture.id(), 0);
+            gl::FramebufferTexture1D(
+                gl::FRAMEBUFFER,
+                gl_attachment_kind,
+                gl::TEXTURE_1D,
+                texture.id(),
+                0,
+            );
         }
         GpuTextureKind::Rectangle { .. } => {
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_2D, texture.id(), 0);
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl_attachment_kind,
+                gl::TEXTURE_2D,
+                texture.id(),
+                0,
+            );
         }
         GpuTextureKind::Cube { .. } => {
-            gl::FramebufferTexture2D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_CUBE_MAP_POSITIVE_X, texture.id(), 0);
+            gl::FramebufferTexture2D(
+                gl::FRAMEBUFFER,
+                gl_attachment_kind,
+                gl::TEXTURE_CUBE_MAP_POSITIVE_X,
+                texture.id(),
+                0,
+            );
         }
         GpuTextureKind::Volume { .. } => {
-            gl::FramebufferTexture3D(gl::FRAMEBUFFER, gl_attachment_kind, gl::TEXTURE_3D, texture.id(), 0, 0);
+            gl::FramebufferTexture3D(
+                gl::FRAMEBUFFER,
+                gl_attachment_kind,
+                gl::TEXTURE_3D,
+                texture.id(),
+                0,
+                0,
+            );
         }
     }
 }
 
 impl FrameBuffer {
-    pub fn new(state: &mut State, depth_attachment: Option<Attachment>, color_attachments: Vec<Attachment>) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut State,
+        depth_attachment: Option<Attachment>,
+        color_attachments: Vec<Attachment>,
+    ) -> Result<Self, RendererError> {
         unsafe {
             let mut fbo = 0;
 
@@ -114,9 +129,11 @@ impl FrameBuffer {
 
             if let Some(depth_attachment) = depth_attachment.as_ref() {
                 let depth_attachment_kind = match depth_attachment.kind {
-                    AttachmentKind::Color => panic!("Attempt to use color attachment as depth/stencil!"),
+                    AttachmentKind::Color => {
+                        panic!("Attempt to use color attachment as depth/stencil!")
+                    }
                     AttachmentKind::DepthStencil => gl::DEPTH_STENCIL_ATTACHMENT,
-                    AttachmentKind::Depth => gl::DEPTH_ATTACHMENT
+                    AttachmentKind::Depth => gl::DEPTH_ATTACHMENT,
                 };
                 set_attachment(depth_attachment_kind, &depth_attachment.texture.borrow());
             }
@@ -157,7 +174,12 @@ impl FrameBuffer {
         self.depth_attachment.as_ref()
     }
 
-    pub fn set_cubemap_face(&mut self, state: &mut State, attachment_index: usize, face: CubeMapFace) -> &mut Self {
+    pub fn set_cubemap_face(
+        &mut self,
+        state: &mut State,
+        attachment_index: usize,
+        face: CubeMapFace,
+    ) -> &mut Self {
         unsafe {
             state.set_framebuffer(self.fbo);
 
@@ -175,12 +197,14 @@ impl FrameBuffer {
     }
 }
 
-fn pre_draw(fbo: GLuint,
-            state: &mut State,
-            viewport: Rect<i32>,
-            program: &GpuProgram,
-            params: DrawParameters,
-            uniforms: &[(UniformLocation, UniformValue<'_>)]) {
+fn pre_draw(
+    fbo: GLuint,
+    state: &mut State,
+    viewport: Rect<i32>,
+    program: &GpuProgram,
+    params: DrawParameters,
+    uniforms: &[(UniformLocation, UniformValue<'_>)],
+) {
     state.set_framebuffer(fbo);
     state.set_viewport(viewport);
     state.apply_draw_parameters(&params);
@@ -199,13 +223,20 @@ pub struct DrawPartContext<'a, 'b, 'c, 'd, T> {
     pub params: DrawParameters,
     pub uniforms: &'c [(UniformLocation, UniformValue<'d>)],
     pub offset: usize,
-    pub count: usize
+    pub count: usize,
 }
 
 pub trait FrameBufferTrait {
     fn id(&self) -> u32;
 
-    fn clear(&mut self, state: &mut State, viewport: Rect<i32>, color: Option<Color>, depth: Option<f32>, stencil: Option<i32>) {
+    fn clear(
+        &mut self,
+        state: &mut State,
+        viewport: Rect<i32>,
+        color: Option<Color>,
+        depth: Option<f32>,
+        stencil: Option<i32>,
+    ) {
         scope_profile!();
 
         let mut mask = 0;
@@ -234,13 +265,14 @@ pub trait FrameBufferTrait {
         }
     }
 
-    fn draw<T>(&mut self,
-               geometry: &GeometryBuffer<T>,
-               state: &mut State,
-               viewport: Rect<i32>,
-               program: &GpuProgram,
-               params: DrawParameters,
-               uniforms: &[(UniformLocation, UniformValue<'_>)],
+    fn draw<T>(
+        &mut self,
+        geometry: &GeometryBuffer<T>,
+        state: &mut State,
+        viewport: Rect<i32>,
+        program: &GpuProgram,
+        params: DrawParameters,
+        uniforms: &[(UniformLocation, UniformValue<'_>)],
     ) -> DrawCallStatistics {
         scope_profile!();
 
@@ -248,7 +280,10 @@ pub trait FrameBufferTrait {
         geometry.bind(state).draw()
     }
 
-    fn draw_part<T>(&mut self, args: DrawPartContext<T>) -> Result<DrawCallStatistics, RendererError> {
+    fn draw_part<T>(
+        &mut self,
+        args: DrawPartContext<T>,
+    ) -> Result<DrawCallStatistics, RendererError> {
         scope_profile!();
 
         pre_draw(
@@ -257,7 +292,7 @@ pub trait FrameBufferTrait {
             args.viewport,
             args.program,
             args.params,
-            args.uniforms
+            args.uniforms,
         );
         args.geometry
             .bind(args.state)

@@ -1,31 +1,17 @@
-use std::{
-    io::{
-        Seek,
-        Read,
-        SeekFrom,
+use crate::{
+    core::pool::{Handle, Pool},
+    resource::fbx::{
+        document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
+        error::FbxError,
     },
 };
 use byteorder::ReadBytesExt;
-use crate::{
-    resource::{
-        fbx::{
-            error::FbxError,
-            document::{
-                FbxDocument,
-                FbxNode,
-                FbxNodeContainer,
-                attribute::FbxAttribute
-            }
-        }
-    },
-    core::pool::{
-        Pool,
-        Handle,
-    },
-};
+use std::io::{Read, Seek, SeekFrom};
 
 pub fn read_ascii<R>(reader: &mut R) -> Result<FbxDocument, FbxError>
-    where R: Read + Seek {
+where
+    R: Read + Seek,
+{
     let mut nodes: Pool<FbxNode> = Pool::new();
     let root_handle = nodes.spawn(FbxNode {
         name: String::from("__ROOT__"),
@@ -120,6 +106,6 @@ pub fn read_ascii<R>(reader: &mut R) -> Result<FbxDocument, FbxError>
 
     Ok(FbxDocument {
         nodes: FbxNodeContainer { nodes },
-        root: root_handle
+        root: root_handle,
     })
 }

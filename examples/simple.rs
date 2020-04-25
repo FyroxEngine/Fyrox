@@ -6,45 +6,25 @@
 
 extern crate rg3d;
 
-use std::{
-    time::Instant,
-    sync::{Arc, Mutex},
-};
 use rg3d::{
-    scene::{
-        base::BaseBuilder,
-        transform::TransformBuilder,
-        camera::CameraBuilder,
-        node::Node,
-        Scene,
-    },
-    engine::resource_manager::ResourceManager,
-    gui::{
-        widget::WidgetBuilder,
-        text::TextBuilder,
-        node::StubNode,
-    },
-    event::{
-        Event,
-        WindowEvent,
-        DeviceEvent,
-        VirtualKeyCode,
-        ElementState,
-    },
-    event_loop::{
-        EventLoop,
-        ControlFlow,
-    },
+    animation::Animation,
     core::{
         color::Color,
+        math::{quat::Quat, vec3::Vec3},
         pool::Handle,
-        math::{
-            vec3::Vec3,
-            quat::Quat,
-        },
     },
-    animation::Animation,
+    engine::resource_manager::ResourceManager,
+    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    gui::{node::StubNode, text::TextBuilder, widget::WidgetBuilder},
+    scene::{
+        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+    },
     utils::translate_event,
+};
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
 };
 
 // Create our own engine type aliases. These specializations are needed
@@ -54,8 +34,7 @@ type UserInterface = rg3d::gui::UserInterface<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 
 fn create_ui(ui: &mut UserInterface) -> Handle<UiNode> {
-    TextBuilder::new(WidgetBuilder::new())
-        .build(ui)
+    TextBuilder::new(WidgetBuilder::new()).build(ui)
 }
 
 struct GameScene {
@@ -70,11 +49,14 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     let mut resource_manager = resource_manager.lock().unwrap();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(BaseBuilder::new()
-        .with_local_transform(TransformBuilder::new()
-            .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-            .build()))
-        .build();
+    let camera = CameraBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vec3::new(0.0, 6.0, -12.0))
+                .build(),
+        ),
+    )
+    .build();
 
     scene.graph.add_node(Node::Camera(camera));
 
@@ -85,11 +67,14 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     // much more efficient is to load it one and then make copies of it. In case of
     // models it is very efficient because single vertex and index buffer can be used
     // for all models instances, so memory footprint on GPU will be lower.
-    let model_resource = resource_manager.request_model("examples/data/mutant.FBX").unwrap();
+    let model_resource = resource_manager
+        .request_model("examples/data/mutant.FBX")
+        .unwrap();
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource.lock()
+    let model_handle = model_resource
+        .lock()
         .unwrap()
         .instantiate_geometry(&mut scene);
 
@@ -101,7 +86,9 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
-    let walk_animation_resource = resource_manager.request_model("examples/data/walk.fbx").unwrap();
+    let walk_animation_resource = resource_manager
+        .request_model("examples/data/walk.fbx")
+        .unwrap();
 
     // Once animation resource is loaded it must be re-targeted to our model instance.
     // Why? Because animation in *resource* uses information about *resource* bones,
@@ -139,13 +126,21 @@ fn main() {
     // loads model resource it automatically tries to load textures it uses. But since most
     // model formats store absolute paths, we can't use them as direct path to load texture
     // instead we telling engine to search textures in given folder.
-    engine.resource_manager.lock().unwrap().set_textures_path("examples/data");
+    engine
+        .resource_manager
+        .lock()
+        .unwrap()
+        .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface);
 
     // Create test scene.
-    let GameScene { scene, model_handle, walk_animation } = create_scene(engine.resource_manager.clone());
+    let GameScene {
+        scene,
+        model_handle,
+        walk_animation,
+    } = create_scene(engine.resource_manager.clone());
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -153,7 +148,9 @@ fn main() {
     let scene_handle = engine.scenes.add(scene);
 
     // Set ambient light.
-    engine.renderer.set_ambient_color(Color::opaque(200, 200, 200));
+    engine
+        .renderer
+        .set_ambient_color(Color::opaque(200, 200, 200));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -163,7 +160,10 @@ fn main() {
     let mut model_angle = 180.0f32.to_radians();
 
     // Create input controller - it will hold information about needed actions.
-    let mut input_controller = InputController { rotate_left: false, rotate_right: false };
+    let mut input_controller = InputController {
+        rotate_left: false,
+        rotate_right: false,
+    };
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
@@ -189,7 +189,8 @@ fn main() {
 
                     // Our animation must be applied to scene explicitly, otherwise
                     // it will have no effect.
-                    scene.animations
+                    scene
+                        .animations
                         .get_mut(walk_animation)
                         .get_pose()
                         .apply(&mut scene.graph);
@@ -207,7 +208,10 @@ fn main() {
 
                     if let UiNode::Text(text) = engine.user_interface.node_mut(debug_text) {
                         let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
+                        text.set_text(format!(
+                            "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
+                            fps
+                        ));
                     }
 
                     engine.update(fixed_timestep);
@@ -233,16 +237,14 @@ fn main() {
             }
             Event::WindowEvent { event, .. } => {
                 match event {
-                    WindowEvent::CloseRequested => {
-                        *control_flow = ControlFlow::Exit
-                    }
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
                         engine.renderer.set_frame_size(size.into());
                     }
-                    _ => ()
+                    _ => (),
                 }
 
                 // It is very important to "feed" user interface (UI) with events coming
@@ -256,9 +258,13 @@ fn main() {
                 if let DeviceEvent::Key(key) = event {
                     if let Some(key_code) = key.virtual_keycode {
                         match key_code {
-                            VirtualKeyCode::A => input_controller.rotate_left = key.state == ElementState::Pressed,
-                            VirtualKeyCode::D => input_controller.rotate_right = key.state == ElementState::Pressed,
-                            _ => ()
+                            VirtualKeyCode::A => {
+                                input_controller.rotate_left = key.state == ElementState::Pressed
+                            }
+                            VirtualKeyCode::D => {
+                                input_controller.rotate_right = key.state == ElementState::Pressed
+                            }
+                            _ => (),
                         }
                     }
                 }

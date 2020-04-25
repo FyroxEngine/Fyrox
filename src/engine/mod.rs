@@ -1,38 +1,20 @@
-pub mod resource_manager;
 pub mod error;
+pub mod resource_manager;
 
 use crate::{
     core::{
         math::vec2::Vec2,
-        visitor::{
-            Visitor,
-            VisitResult,
-            Visit,
-        },
+        visitor::{Visit, VisitResult, Visitor},
     },
-    sound::context::Context,
-    engine::{
-        resource_manager::ResourceManager,
-        error::EngineError,
-    },
-    gui::UserInterface,
-    renderer::{
-        Renderer,
-        error::RendererError,
-    },
-    window::{
-        WindowBuilder,
-        Window,
-    },
-    scene::SceneContainer,
-    PossiblyCurrent,
-    GlRequest,
-    GlProfile,
-    WindowedContext,
-    NotCurrent,
-    Api,
+    engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::Control,
+    gui::UserInterface,
+    renderer::{error::RendererError, Renderer},
+    scene::SceneContainer,
+    sound::context::Context,
+    window::{Window, WindowBuilder},
+    Api, GlProfile, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };
 use std::{
     sync::{Arc, Mutex},
@@ -70,7 +52,10 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     /// let mut engine: Engine<(), StubNode> = Engine::new(window_builder, &evt).unwrap();
     /// ```
     #[inline]
-    pub fn new(window_builder: WindowBuilder, events_loop: &EventLoop<()>) -> Result<Engine<M, C>, EngineError> {
+    pub fn new(
+        window_builder: WindowBuilder,
+        events_loop: &EventLoop<()>,
+    ) -> Result<Engine<M, C>, EngineError> {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
@@ -132,7 +117,12 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     #[inline]
     pub fn render(&mut self, dt: f32) -> Result<(), RendererError> {
         self.user_interface.draw();
-        self.renderer.render_and_swap_buffers(&self.scenes, &self.user_interface.get_drawing_context(), &self.context, dt)
+        self.renderer.render_and_swap_buffers(
+            &self.scenes,
+            &self.user_interface.get_drawing_context(),
+            &self.context,
+            dt,
+        )
     }
 }
 
@@ -146,7 +136,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C> {
             self.scenes.clear();
         }
 
-        self.resource_manager.lock()?.visit("ResourceManager", visitor)?;
+        self.resource_manager
+            .lock()?
+            .visit("ResourceManager", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
         self.sound_context.lock()?.visit("SoundContext", visitor)?;
 
@@ -160,4 +152,3 @@ impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C> {
         visitor.leave_region()
     }
 }
-

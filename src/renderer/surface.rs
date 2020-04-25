@@ -1,34 +1,17 @@
 use crate::{
     core::{
-        math::{
-            vec2::Vec2,
-            vec3::Vec3,
-            vec4::Vec4,
-            TriangleDefinition,
-        },
-        pool::{
-            Handle,
-            ErasedHandle,
-        },
+        math::{vec2::Vec2, vec3::Vec3, vec4::Vec4, TriangleDefinition},
+        pool::{ErasedHandle, Handle},
     },
-    scene::node::Node,
     resource::texture::Texture,
-    utils::raw_mesh::{
-        RawMesh,
-        RawMeshBuilder,
-    },
-};
-use std::{
-    sync::{
-        Mutex,
-        Arc,
-    },
-    hash::{
-        Hash,
-        Hasher,
-    },
+    scene::node::Node,
+    utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
 use rg3d_core::math::mat4::Mat4;
+use std::{
+    hash::{Hash, Hasher},
+    sync::{Arc, Mutex},
+};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -47,7 +30,12 @@ impl Vertex {
             position,
             tex_coord,
             normal: Vec3::new(0.0, 1.0, 0.0),
-            tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+            tangent: Vec4 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                w: 0.0,
+            },
             bone_weights: [0.0, 0.0, 0.0, 0.0],
             bone_indices: Default::default(),
         }
@@ -56,12 +44,12 @@ impl Vertex {
 
 impl PartialEq for Vertex {
     fn eq(&self, other: &Self) -> bool {
-        self.position == other.position &&
-            self.tex_coord == other.tex_coord &&
-            self.normal == other.normal &&
-            self.tangent == other.tangent &&
-            self.bone_weights == other.bone_weights &&
-            self.bone_indices == other.bone_indices
+        self.position == other.position
+            && self.tex_coord == other.tex_coord
+            && self.normal == other.normal
+            && self.tangent == other.tangent
+            && self.bone_weights == other.bone_weights
+            && self.bone_indices == other.bone_indices
     }
 }
 
@@ -71,9 +59,12 @@ impl PartialEq for Vertex {
 impl Hash for Vertex {
     fn hash<H: Hasher>(&self, state: &mut H) {
         #[allow(unsafe_code)]
-            unsafe {
+        unsafe {
             let bytes = self as *const Self as *const u8;
-            state.write(std::slice::from_raw_parts(bytes, std::mem::size_of::<Self>()))
+            state.write(std::slice::from_raw_parts(
+                bytes,
+                std::mem::size_of::<Self>(),
+            ))
         }
     }
 }
@@ -179,43 +170,92 @@ impl SurfaceSharedData {
     pub fn make_unit_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 1.0, y: 1.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 1.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
-            }
+            },
         ];
 
-        let indices = vec![
-            TriangleDefinition([0, 1, 2]),
-            TriangleDefinition([0, 2, 3])
-        ];
+        let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         Self::new(vertices, indices)
     }
@@ -223,43 +263,92 @@ impl SurfaceSharedData {
     pub fn make_collapsed_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.0, y: 0.0, z: 0.0 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
-            }
+            },
         ];
 
-        let indices = vec![
-            TriangleDefinition([0, 1, 2]),
-            TriangleDefinition([0, 2, 3])
-        ];
+        let indices = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         Self::new(vertices, indices)
     }
@@ -306,15 +395,33 @@ impl SurfaceSharedData {
                 let k7 = r * (d_theta * ni as f32).cos();
 
                 if i != (stacks - 1) {
-                    builder.insert(Vertex::from_pos_uv(Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32)));
-                    builder.insert(Vertex::from_pos_uv(Vec3::new(k4 * k1, k4 * k2, k7), Vec2::new(d_tc_x * j as f32, d_tc_y * ni as f32)));
-                    builder.insert(Vertex::from_pos_uv(Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32)));
+                    builder.insert(Vertex::from_pos_uv(
+                        Vec3::new(k0 * k1, k0 * k2, k3),
+                        Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32),
+                    ));
+                    builder.insert(Vertex::from_pos_uv(
+                        Vec3::new(k4 * k1, k4 * k2, k7),
+                        Vec2::new(d_tc_x * j as f32, d_tc_y * ni as f32),
+                    ));
+                    builder.insert(Vertex::from_pos_uv(
+                        Vec3::new(k4 * k5, k4 * k6, k7),
+                        Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
+                    ));
                 }
 
                 if i != 0 {
-                    builder.insert(Vertex::from_pos_uv(Vec3::new(k4 * k5, k4 * k6, k7), Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32)));
-                    builder.insert(Vertex::from_pos_uv(Vec3::new(k0 * k5, k0 * k6, k3), Vec2::new(d_tc_x * nj as f32, d_tc_y * i as f32)));
-                    builder.insert(Vertex::from_pos_uv(Vec3::new(k0 * k1, k0 * k2, k3), Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32)));
+                    builder.insert(Vertex::from_pos_uv(
+                        Vec3::new(k4 * k5, k4 * k6, k7),
+                        Vec2::new(d_tc_x * nj as f32, d_tc_y * ni as f32),
+                    ));
+                    builder.insert(Vertex::from_pos_uv(
+                        Vec3::new(k0 * k5, k0 * k6, k3),
+                        Vec2::new(d_tc_x * nj as f32, d_tc_y * i as f32),
+                    ));
+                    builder.insert(Vertex::from_pos_uv(
+                        Vec3::new(k0 * k1, k0 * k2, k3),
+                        Vec2::new(d_tc_x * j as f32, d_tc_y * i as f32),
+                    ));
                 }
             }
         }
@@ -346,14 +453,32 @@ impl SurfaceSharedData {
             let tx1 = d_theta * (i + 1) as f32;
 
             // back cap
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)), Vec2::new(0.0, 0.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)),
+                Vec2::new(0.0, 0.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
+                Vec2::new(tx0, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
+                Vec2::new(tx1, 0.0),
+            ));
 
             // sides
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, h, 0.0)), Vec2::new(tx1, 0.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(0.0, h, 0.0)),
+                Vec2::new(tx1, 0.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
+                Vec2::new(tx0, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
+                Vec2::new(tx0, 0.0),
+            ));
         }
 
         let mut data = Self::from(builder.build());
@@ -383,23 +508,59 @@ impl SurfaceSharedData {
             let tx1 = d_theta * (i + 1) as f32;
 
             // front cap
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, h, 0.0)), Vec2::new(0.0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, h, z1)),
+                Vec2::new(tx1, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, h, z0)),
+                Vec2::new(tx0, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(0.0, h, 0.0)),
+                Vec2::new(0.0, 0.0),
+            ));
 
             // back cap
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx1, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)), Vec2::new(0.0, 0.0)));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
+                Vec2::new(tx1, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
+                Vec2::new(tx0, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)),
+                Vec2::new(0.0, 0.0),
+            ));
 
             // sides
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 0.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx1, 0.0)));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, 0.0, z0)),
+                Vec2::new(tx0, 0.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, h, z0)),
+                Vec2::new(tx0, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
+                Vec2::new(tx1, 0.0),
+            ));
 
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx1, 0.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, 0.0, z1)),
+                Vec2::new(tx1, 0.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x0, h, z0)),
+                Vec2::new(tx0, 1.0),
+            ));
+            builder.insert(Vertex::from_pos_uv(
+                transform.transform_vector(Vec3::new(x1, h, z1)),
+                Vec2::new(tx1, 1.0),
+            ));
         }
 
         let mut data = Self::from(builder.build());
@@ -408,209 +569,515 @@ impl SurfaceSharedData {
         data
     }
 
-
     pub fn make_cube() -> Self {
         let vertices = vec![
             // Front
             Vertex {
-                position: Vec3 { x: -0.5, y: -0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: -0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: 0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: 0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: 0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: 0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: -0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: -0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
-
             // Back
             Vertex {
-                position: Vec3 { x: -0.5, y: -0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: -0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: -1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: 0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: 0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: -1.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: 0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: 0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: -1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: -0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: -0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: -1.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
-
             // Left
             Vertex {
-                position: Vec3 { x: -0.5, y: -0.5, z: -0.5 },
-                normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: -0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: -1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: 0.5, z: -0.5 },
-                normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: 0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: -1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: 0.5, z: 0.5 },
-                normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: 0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: -1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: -0.5, z: 0.5 },
-                normal: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: -0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: -1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
-
             // Right
             Vertex {
-                position: Vec3 { x: 0.5, y: -0.5, z: -0.5 },
-                normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: -0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: 0.5, z: -0.5 },
-                normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: 0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: 0.5, z: 0.5 },
-                normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: 0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: -0.5, z: 0.5 },
-                normal: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: -0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 1.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
-
             // Top
             Vertex {
-                position: Vec3 { x: -0.5, y: 0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: 0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: 0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: 0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: 0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: 0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: 0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: 0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
-
             // Bottom
             Vertex {
-                position: Vec3 { x: -0.5, y: -0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: -0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: -1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: -0.5, y: -0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+                position: Vec3 {
+                    x: -0.5,
+                    y: -0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: -1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: -0.5, z: -0.5 },
-                normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: -0.5,
+                    z: -0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: -1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },
             Vertex {
-                position: Vec3 { x: 0.5, y: -0.5, z: 0.5 },
-                normal: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+                position: Vec3 {
+                    x: 0.5,
+                    y: -0.5,
+                    z: 0.5,
+                },
+                normal: Vec3 {
+                    x: 0.0,
+                    y: -1.0,
+                    z: 0.0,
+                },
                 tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                tangent: Vec4 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    w: 0.0,
+                },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
             },

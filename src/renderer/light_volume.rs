@@ -1,45 +1,22 @@
 use crate::{
     core::{
+        math::{mat4::Mat4, vec3::Vec3, Rect},
         scope_profile,
-        math::{
-            Rect,
-            mat4::Mat4,
-            vec3::Vec3,
-        },
     },
     renderer::{
+        error::RendererError,
+        flat_shader::FlatShader,
         framework::{
-            state::{
-                State,
-                StencilFunc,
-                ColorMask,
-                StencilOp,
-            },
-            framebuffer::{
-                FrameBufferTrait,
-                DrawParameters,
-                CullFace,
-            },
-            gpu_program::{
-                GpuProgram,
-                UniformLocation,
-                UniformValue,
-            },
+            framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
             gl,
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            state::{ColorMask, State, StencilFunc, StencilOp},
         },
         gbuffer::GBuffer,
-        error::RendererError,
-        GeometryCache,
-        flat_shader::FlatShader,
         surface::SurfaceSharedData,
-        RenderPassStatistics
+        GeometryCache, RenderPassStatistics,
     },
-    scene::{
-        light::{
-            Light,
-            LightKind,
-        },
-    },
+    scene::light::{Light, LightKind},
 };
 
 struct SpotLightShader {
@@ -58,7 +35,8 @@ impl SpotLightShader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
-        let program = GpuProgram::from_source("SpotVolumetricLight", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source("SpotVolumetricLight", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_proj_matrix: program.uniform_location("worldViewProjection")?,
             depth_sampler: program.uniform_location("depthSampler")?,
@@ -88,7 +66,8 @@ impl PointLightShader {
     fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
-        let program = GpuProgram::from_source("PointVolumetricLight", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source("PointVolumetricLight", vertex_source, fragment_source)?;
         Ok(Self {
             world_view_proj_matrix: program.uniform_location("worldViewProjection")?,
             depth_sampler: program.uniform_location("depthSampler")?,
@@ -116,22 +95,28 @@ impl LightVolumeRenderer {
             spot_light_shader: SpotLightShader::new()?,
             point_light_shader: PointLightShader::new()?,
             flat_shader: FlatShader::new()?,
-            cone: SurfaceSharedData::make_cone(16, 1.0, 1.0, Mat4::translate(Vec3::new(0.0, -1.0, 0.0))),
+            cone: SurfaceSharedData::make_cone(
+                16,
+                1.0,
+                1.0,
+                Mat4::translate(Vec3::new(0.0, -1.0, 0.0)),
+            ),
             sphere: SurfaceSharedData::make_sphere(8, 8, 1.0),
         })
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn render_volume(&mut self,
-                         state: &mut State,
-                         light: &Light,
-                         gbuffer: &mut GBuffer,
-                         quad: &SurfaceSharedData,
-                         geom_cache: &mut GeometryCache,
-                         view: Mat4,
-                         inv_proj: Mat4,
-                         view_proj: Mat4,
-                         viewport: Rect<i32>,
+    pub fn render_volume(
+        &mut self,
+        state: &mut State,
+        light: &Light,
+        gbuffer: &mut GBuffer,
+        quad: &SurfaceSharedData,
+        geom_cache: &mut GeometryCache,
+        view: Mat4,
+        inv_proj: Mat4,
+        view_proj: Mat4,
+        viewport: Rect<i32>,
     ) -> RenderPassStatistics {
         scope_profile!();
 
@@ -141,15 +126,16 @@ impl LightVolumeRenderer {
             return stats;
         }
 
-        let frame_matrix =
-            Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
-                Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
+        let frame_matrix = Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0)
+            * Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
 
         let position = view.transform_vector(light.global_position());
 
         match light.kind() {
             LightKind::Spot(spot) => {
-                let direction = view.basis().transform_vector(-light.up_vector().normalized().unwrap_or(Vec3::LOOK));
+                let direction = view
+                    .basis()
+                    .transform_vector(-light.up_vector().normalized().unwrap_or(Vec3::LOOK));
 
                 // Draw cone into stencil buffer - it will mark pixels for further volumetric light
                 // calculations, it will significantly reduce amount of pixels for far lights thus
@@ -159,10 +145,13 @@ impl LightVolumeRenderer {
                 // for fadeout effect.
                 let bias = 0.05;
                 let k = ((0.5 + bias) * spot.full_cone_angle()).sin() * spot.distance();
-                let light_shape_matrix = light.global_transform * Mat4::scale(Vec3::new(k, spot.distance(), k));
+                let light_shape_matrix =
+                    light.global_transform * Mat4::scale(Vec3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
-                gbuffer.final_frame.clear(state, viewport, None, None, Some(0));
+                gbuffer
+                    .final_frame
+                    .clear(state, viewport, None, None, Some(0));
 
                 state.set_stencil_mask(0xFFFF_FFFF);
                 state.set_stencil_func(StencilFunc {
@@ -211,19 +200,48 @@ impl LightVolumeRenderer {
                         blend: true,
                     },
                     &[
-                        (self.spot_light_shader.world_view_proj_matrix, UniformValue::Mat4(frame_matrix)),
-                        (self.spot_light_shader.inv_proj, UniformValue::Mat4(inv_proj)),
-                        (self.spot_light_shader.cone_angle_cos, UniformValue::Float((spot.full_cone_angle() * 0.5).cos())),
-                        (self.spot_light_shader.light_position, UniformValue::Vec3(position)),
-                        (self.spot_light_shader.light_direction, UniformValue::Vec3(direction)),
-                        (self.spot_light_shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
-                        (self.spot_light_shader.light_color, UniformValue::Vec3(light.color().as_frgba().xyz())),
-                        (self.spot_light_shader.scatter_factor, UniformValue::Vec3(light.scatter())),
+                        (
+                            self.spot_light_shader.world_view_proj_matrix,
+                            UniformValue::Mat4(frame_matrix),
+                        ),
+                        (
+                            self.spot_light_shader.inv_proj,
+                            UniformValue::Mat4(inv_proj),
+                        ),
+                        (
+                            self.spot_light_shader.cone_angle_cos,
+                            UniformValue::Float((spot.full_cone_angle() * 0.5).cos()),
+                        ),
+                        (
+                            self.spot_light_shader.light_position,
+                            UniformValue::Vec3(position),
+                        ),
+                        (
+                            self.spot_light_shader.light_direction,
+                            UniformValue::Vec3(direction),
+                        ),
+                        (
+                            self.spot_light_shader.depth_sampler,
+                            UniformValue::Sampler {
+                                index: 0,
+                                texture: gbuffer.depth(),
+                            },
+                        ),
+                        (
+                            self.spot_light_shader.light_color,
+                            UniformValue::Vec3(light.color().as_frgba().xyz()),
+                        ),
+                        (
+                            self.spot_light_shader.scatter_factor,
+                            UniformValue::Vec3(light.scatter()),
+                        ),
                     ],
                 )
             }
             LightKind::Point(point) => {
-                gbuffer.final_frame.clear(state, viewport, None, None, Some(0));
+                gbuffer
+                    .final_frame
+                    .clear(state, viewport, None, None, Some(0));
 
                 state.set_stencil_mask(0xFFFF_FFFF);
                 state.set_stencil_func(StencilFunc {
@@ -279,17 +297,41 @@ impl LightVolumeRenderer {
                         blend: true,
                     },
                     &[
-                        (self.point_light_shader.world_view_proj_matrix, UniformValue::Mat4(frame_matrix)),
-                        (self.point_light_shader.inv_proj, UniformValue::Mat4(inv_proj)),
-                        (self.point_light_shader.light_position, UniformValue::Vec3(position)),
-                        (self.point_light_shader.depth_sampler, UniformValue::Sampler { index: 0, texture: gbuffer.depth() }),
-                        (self.point_light_shader.light_radius, UniformValue::Float(point.radius())),
-                        (self.point_light_shader.light_color, UniformValue::Vec3(light.color().as_frgba().xyz())),
-                        (self.point_light_shader.scatter_factor, UniformValue::Vec3(light.scatter())),
+                        (
+                            self.point_light_shader.world_view_proj_matrix,
+                            UniformValue::Mat4(frame_matrix),
+                        ),
+                        (
+                            self.point_light_shader.inv_proj,
+                            UniformValue::Mat4(inv_proj),
+                        ),
+                        (
+                            self.point_light_shader.light_position,
+                            UniformValue::Vec3(position),
+                        ),
+                        (
+                            self.point_light_shader.depth_sampler,
+                            UniformValue::Sampler {
+                                index: 0,
+                                texture: gbuffer.depth(),
+                            },
+                        ),
+                        (
+                            self.point_light_shader.light_radius,
+                            UniformValue::Float(point.radius()),
+                        ),
+                        (
+                            self.point_light_shader.light_color,
+                            UniformValue::Vec3(light.color().as_frgba().xyz()),
+                        ),
+                        (
+                            self.point_light_shader.scatter_factor,
+                            UniformValue::Vec3(light.scatter()),
+                        ),
                     ],
                 )
             }
-            _ => ()
+            _ => (),
         }
 
         stats

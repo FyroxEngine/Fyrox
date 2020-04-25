@@ -7,51 +7,32 @@
 
 extern crate rg3d;
 
-use std::{
-    time::Instant,
-    sync::{Arc, Mutex},
-};
 use rg3d::{
-    scene::{
-        base::BaseBuilder,
-        transform::TransformBuilder,
-        camera::CameraBuilder,
-        node::Node,
-        Scene,
-    },
-    engine::resource_manager::ResourceManager,
-    gui::{
-        widget::WidgetBuilder,
-        text::TextBuilder,
-        node::StubNode,
-        progress_bar::ProgressBarBuilder,
-        grid::{GridBuilder, Row, Column},
-        VerticalAlignment,
-        Thickness,
-        HorizontalAlignment,
-    },
-    event::{
-        Event,
-        WindowEvent,
-        DeviceEvent,
-        VirtualKeyCode,
-        ElementState,
-    },
-    event_loop::{
-        EventLoop,
-        ControlFlow,
-    },
+    animation::Animation,
     core::{
         color::Color,
+        math::{quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::Handle,
-        math::{
-            vec3::Vec3,
-            quat::Quat,
-            vec2::Vec2,
-        },
     },
-    animation::Animation,
+    engine::resource_manager::ResourceManager,
+    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    gui::{
+        grid::{Column, GridBuilder, Row},
+        node::StubNode,
+        progress_bar::ProgressBarBuilder,
+        text::TextBuilder,
+        widget::WidgetBuilder,
+        HorizontalAlignment, Thickness, VerticalAlignment,
+    },
+    scene::{
+        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+    },
     utils::translate_event,
+};
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
 };
 
 // Create our own engine type aliases. These specializations are needed
@@ -71,40 +52,40 @@ fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
     let debug_text;
     let progress_bar;
     let progress_text;
-    let root = GridBuilder::new(WidgetBuilder::new()
-        .with_width(screen_size.x)
-        .with_height(screen_size.y)
-        .with_child({
-            debug_text = TextBuilder::new(WidgetBuilder::new()
-                .on_row(0)
-                .on_column(0))
-                .build(ui);
-            debug_text
-        })
-        .with_child({
-            progress_bar = ProgressBarBuilder::new(WidgetBuilder::new()
-                .on_row(1)
-                .on_column(1))
-                .build(ui);
-            progress_bar
-        })
-        .with_child({
-            progress_text = TextBuilder::new(WidgetBuilder::new()
-                .on_column(1)
-                .on_row(0)
-                .with_margin(Thickness::bottom(20.0))
-                .with_vertical_alignment(VerticalAlignment::Bottom))
+    let root = GridBuilder::new(
+        WidgetBuilder::new()
+            .with_width(screen_size.x)
+            .with_height(screen_size.y)
+            .with_child({
+                debug_text =
+                    TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0)).build(ui);
+                debug_text
+            })
+            .with_child({
+                progress_bar =
+                    ProgressBarBuilder::new(WidgetBuilder::new().on_row(1).on_column(1)).build(ui);
+                progress_bar
+            })
+            .with_child({
+                progress_text = TextBuilder::new(
+                    WidgetBuilder::new()
+                        .on_column(1)
+                        .on_row(0)
+                        .with_margin(Thickness::bottom(20.0))
+                        .with_vertical_alignment(VerticalAlignment::Bottom),
+                )
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .build(ui);
-            progress_text
-        }))
-        .add_row(Row::stretch())
-        .add_row(Row::strict(30.0))
-        .add_row(Row::stretch())
-        .add_column(Column::stretch())
-        .add_column(Column::strict(200.0))
-        .add_column(Column::stretch())
-        .build(ui);
+                progress_text
+            }),
+    )
+    .add_row(Row::stretch())
+    .add_row(Row::strict(30.0))
+    .add_row(Row::stretch())
+    .add_column(Column::stretch())
+    .add_column(Column::strict(200.0))
+    .add_column(Column::stretch())
+    .build(ui);
 
     Interface {
         root,
@@ -134,7 +115,9 @@ impl SceneLoadContext {
     }
 }
 
-fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mutex<SceneLoadContext>> {
+fn create_scene_async(
+    resource_manager: Arc<Mutex<ResourceManager>>,
+) -> Arc<Mutex<SceneLoadContext>> {
     // Create load context - it will be shared with caller and loader threads.
     let context = Arc::new(Mutex::new(SceneLoadContext {
         data: None,
@@ -151,18 +134,27 @@ fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mute
 
         // It is important to lock context for short period of time so other thread can
         // read data from it as soon as possible - not when everything was loaded.
-        context.lock().unwrap().report_progress(0.0, "Creating camera...");
+        context
+            .lock()
+            .unwrap()
+            .report_progress(0.0, "Creating camera...");
 
         // Camera is our eyes in the world - you won't see anything without it.
-        let camera = CameraBuilder::new(BaseBuilder::new()
-            .with_local_transform(TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-                .build()))
-            .build();
+        let camera = CameraBuilder::new(
+            BaseBuilder::new().with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vec3::new(0.0, 6.0, -12.0))
+                    .build(),
+            ),
+        )
+        .build();
 
         scene.graph.add_node(Node::Camera(camera));
 
-        context.lock().unwrap().report_progress(0.33, "Loading model...");
+        context
+            .lock()
+            .unwrap()
+            .report_progress(0.33, "Loading model...");
 
         // Load model resource. Is does *not* adds anything to our scene - it just loads a
         // resource then can be used later on to instantiate models from it on scene. Why
@@ -171,11 +163,14 @@ fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mute
         // much more efficient is to load it one and then make copies of it. In case of
         // models it is very efficient because single vertex and index buffer can be used
         // for all models instances, so memory footprint on GPU will be lower.
-        let model_resource = resource_manager.request_model("examples/data/mutant.FBX").unwrap();
+        let model_resource = resource_manager
+            .request_model("examples/data/mutant.FBX")
+            .unwrap();
 
         // Instantiate model on scene - but only geometry, without any animations.
         // Instantiation is a process of embedding model resource data in desired scene.
-        let model_handle = model_resource.lock()
+        let model_handle = model_resource
+            .lock()
             .unwrap()
             .instantiate_geometry(&mut scene);
 
@@ -185,11 +180,16 @@ fn create_scene_async(resource_manager: Arc<Mutex<ResourceManager>>) -> Arc<Mute
             // Our model is too big, fix it by scale.
             .set_scale(Vec3::new(0.05, 0.05, 0.05));
 
-        context.lock().unwrap().report_progress(0.66, "Loading animation...");
+        context
+            .lock()
+            .unwrap()
+            .report_progress(0.66, "Loading animation...");
 
         // Add simple animation for our model. Animations are loaded from model resources -
         // this is because animation is a set of skeleton bones with their own transforms.
-        let walk_animation_resource = resource_manager.request_model("examples/data/walk.fbx").unwrap();
+        let walk_animation_resource = resource_manager
+            .request_model("examples/data/walk.fbx")
+            .unwrap();
 
         // Once animation resource is loaded it must be re-targeted to our model instance.
         // Why? Because animation in *resource* uses information about *resource* bones,
@@ -233,12 +233,19 @@ fn main() {
     // loads model resource it automatically tries to load textures it uses. But since most
     // model formats store absolute paths, we can't use them as direct path to load texture
     // instead we telling engine to search textures in given folder.
-    engine.resource_manager.lock().unwrap().set_textures_path("examples/data");
+    engine
+        .resource_manager
+        .lock()
+        .unwrap()
+        .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let window = engine.get_window();
     let screen_size = window.inner_size().to_logical(window.scale_factor());
-    let interface = create_ui(&mut engine.user_interface, Vec2::new(screen_size.width, screen_size.height));
+    let interface = create_ui(
+        &mut engine.user_interface,
+        Vec2::new(screen_size.width, screen_size.height),
+    );
 
     // Create scene asynchronously - this method immediately returns empty load context
     // which will be filled with data over time.
@@ -250,7 +257,9 @@ fn main() {
     let mut walk_animation = Handle::NONE;
 
     // Set ambient light.
-    engine.renderer.set_ambient_color(Color::opaque(200, 200, 200));
+    engine
+        .renderer
+        .set_ambient_color(Color::opaque(200, 200, 200));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -260,7 +269,10 @@ fn main() {
     let mut model_angle = 180.0f32.to_radians();
 
     // Create input controller - it will hold information about needed actions.
-    let mut input_controller = InputController { rotate_left: false, rotate_right: false };
+    let mut input_controller = InputController {
+        rotate_left: false,
+        rotate_right: false,
+    };
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,

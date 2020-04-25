@@ -1,8 +1,5 @@
-use crate::{
-    renderer::error::RendererError,
-    sound::error::SoundError
-};
-use glutin::{CreationError, ContextError};
+use crate::{renderer::error::RendererError, sound::error::SoundError};
+use glutin::{ContextError, CreationError};
 
 #[derive(Debug)]
 pub enum EngineError {

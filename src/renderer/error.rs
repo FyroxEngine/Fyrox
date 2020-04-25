@@ -1,5 +1,5 @@
-use std::ffi::NulError;
 use crate::ContextError;
+use std::ffi::NulError;
 
 #[derive(Debug)]
 pub enum RendererError {
@@ -36,7 +36,7 @@ pub enum RendererError {
 
     FailedToConstructFBO,
 
-    Context(ContextError)
+    Context(ContextError),
 }
 
 impl From<NulError> for RendererError {

@@ -1,8 +1,8 @@
+use crate::core::math::TriangleDefinition;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
 };
-use crate::core::math::TriangleDefinition;
 
 #[derive(Copy, Clone)]
 struct IndexedStorage<T> {
@@ -10,7 +10,10 @@ struct IndexedStorage<T> {
     vertex: T,
 }
 
-impl<T> PartialEq for IndexedStorage<T> where T: PartialEq {
+impl<T> PartialEq for IndexedStorage<T>
+where
+    T: PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.vertex == other.vertex
     }
@@ -18,13 +21,19 @@ impl<T> PartialEq for IndexedStorage<T> where T: PartialEq {
 
 impl<T> Eq for IndexedStorage<T> where T: PartialEq {}
 
-impl<T> Hash for IndexedStorage<T> where T: Hash {
+impl<T> Hash for IndexedStorage<T>
+where
+    T: Hash,
+{
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.vertex.hash(state)
     }
 }
 
-impl<T> Default for RawMeshBuilder<T> where T: Hash + PartialEq {
+impl<T> Default for RawMeshBuilder<T>
+where
+    T: Hash + PartialEq,
+{
     fn default() -> Self {
         Self {
             vertices: Default::default(),
@@ -34,7 +43,10 @@ impl<T> Default for RawMeshBuilder<T> where T: Hash + PartialEq {
 }
 
 #[derive(Clone)]
-pub struct RawMeshBuilder<T> where T: Hash + PartialEq {
+pub struct RawMeshBuilder<T>
+where
+    T: Hash + PartialEq,
+{
     vertices: HashSet<IndexedStorage<T>>,
     indices: Vec<u32>,
 }
@@ -44,7 +56,10 @@ pub struct RawMesh<T> {
     pub triangles: Vec<TriangleDefinition>,
 }
 
-impl<T> RawMeshBuilder<T> where T: Hash + PartialEq {
+impl<T> RawMeshBuilder<T>
+where
+    T: Hash + PartialEq,
+{
     /// Creates new builder with given start values of capacity for internal
     /// buffers. These values doesn't need to be precise.
     pub fn new(vertices: usize, indices: usize) -> Self {
@@ -74,10 +89,7 @@ impl<T> RawMeshBuilder<T> where T: Hash + PartialEq {
         let mut vertices = self.vertices.into_iter().collect::<Vec<_>>();
         vertices.sort_unstable_by_key(|w| w.index);
         RawMesh {
-            vertices: vertices
-                .into_iter()
-                .map(|w| w.vertex)
-                .collect(),
+            vertices: vertices.into_iter().map(|w| w.vertex).collect(),
             triangles: self
                 .indices
                 .chunks_exact(3)

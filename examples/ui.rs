@@ -8,65 +8,41 @@
 
 extern crate rg3d;
 
-use std::{
-    time::Instant,
-    sync::{Arc, Mutex},
-};
 use rg3d::{
-    scene::{
-        base::BaseBuilder,
-        transform::TransformBuilder,
-        camera::CameraBuilder,
-        node::Node,
-        Scene,
-    },
-    engine::resource_manager::ResourceManager,
-    event::{
-        Event,
-        WindowEvent,
-        DeviceEvent,
-        VirtualKeyCode,
-        ElementState,
-    },
-    event_loop::{
-        EventLoop,
-        ControlFlow,
-    },
+    animation::Animation,
     core::{
         color::Color,
+        math::{quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::Handle,
-        math::{
-            vec3::Vec3,
-            quat::Quat,
-            vec2::Vec2,
-        },
     },
-    window::Fullscreen,
-    monitor::VideoMode,
-    animation::Animation,
-    utils::translate_event,
+    engine::resource_manager::ResourceManager,
+    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
     gui::{
-        stack_panel::StackPanelBuilder,
-        grid::{GridBuilder, Column, Row},
-        scroll_bar::{ScrollBarBuilder, Orientation},
-        Thickness,
-        VerticalAlignment,
-        HorizontalAlignment,
-        window::{WindowBuilder, WindowTitle},
+        border::BorderBuilder,
         button::ButtonBuilder,
-        message::{
-            UiMessageData,
-            ScrollBarMessage,
-            ButtonMessage,
-            ItemsControlMessage,
-        },
-        widget::WidgetBuilder,
-        text::TextBuilder,
-        node::StubNode,
         combobox::ComboBoxBuilder,
         decorator::DecoratorBuilder,
-        border::BorderBuilder,
+        grid::{Column, GridBuilder, Row},
+        message::{ButtonMessage, ItemsControlMessage, ScrollBarMessage, UiMessageData},
+        node::StubNode,
+        scroll_bar::{Orientation, ScrollBarBuilder},
+        stack_panel::StackPanelBuilder,
+        text::TextBuilder,
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
+        HorizontalAlignment, Thickness, VerticalAlignment,
     },
+    monitor::VideoMode,
+    scene::{
+        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+    },
+    utils::translate_event,
+    window::Fullscreen,
+};
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
 };
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -100,57 +76,64 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
 
     // Gather all suitable video modes, we'll use them to fill combo box of
     // available resolutions.
-    let video_modes =
-        engine.get_window()
-            .primary_monitor()
-            .video_modes()
-            .filter(|vm| {
-                // Leave only modern video modes, we are not in 1998.
-                vm.size().width > 800 &&
-                    vm.size().height > 600 &&
-                    vm.bit_depth() == 32
-            })
-            .collect::<Vec<_>>();
+    let video_modes = engine
+        .get_window()
+        .primary_monitor()
+        .video_modes()
+        .filter(|vm| {
+            // Leave only modern video modes, we are not in 1998.
+            vm.size().width > 800 && vm.size().height > 600 && vm.bit_depth() == 32
+        })
+        .collect::<Vec<_>>();
 
     let ui = &mut engine.user_interface;
 
     // First of all create debug text that will show title of example and current FPS.
-    let debug_text = TextBuilder::new(WidgetBuilder::new())
-        .build(ui);
+    let debug_text = TextBuilder::new(WidgetBuilder::new()).build(ui);
 
     // Then create model options window.
     let yaw;
     let scale;
     let reset;
-    WindowBuilder::new(WidgetBuilder::new()
-        // We want the window to be anchored at right top corner at the beginning
-        .with_desired_position(Vec2::new(window_width - 300.0, 0.0))
-        .with_width(300.0))
-        // Window can have any content you want, in this example it is Grid with other
-        // controls. The layout looks like this:
-        //  ______________________________
-        // | Yaw         | Scroll bar    |
-        // |_____________|_______________|
-        // | Scale       | Scroll bar    |
-        // |_____________|_______________|
-        // |             | Reset button  |
-        // |_____________|_______________|
-        //
-        .with_content(GridBuilder::new(WidgetBuilder::new()
-            .with_child(TextBuilder::new(WidgetBuilder::new()
-                .on_row(0)
-                .on_column(0)
-                .with_vertical_alignment(VerticalAlignment::Center))
-                .with_text("Yaw")
-                .build(ui))
-            .with_child({
-                yaw = ScrollBarBuilder::new(WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(1)
-                    // Make sure scroll bar will stay in center of available space.
-                    .with_vertical_alignment(VerticalAlignment::Center)
-                    // Add some margin so ui element won't be too close to each other.
-                    .with_margin(Thickness::uniform(2.0)))
+    WindowBuilder::new(
+        WidgetBuilder::new()
+            // We want the window to be anchored at right top corner at the beginning
+            .with_desired_position(Vec2::new(window_width - 300.0, 0.0))
+            .with_width(300.0),
+    )
+    // Window can have any content you want, in this example it is Grid with other
+    // controls. The layout looks like this:
+    //  ______________________________
+    // | Yaw         | Scroll bar    |
+    // |_____________|_______________|
+    // | Scale       | Scroll bar    |
+    // |_____________|_______________|
+    // |             | Reset button  |
+    // |_____________|_______________|
+    //
+    .with_content(
+        GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(0)
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_text("Yaw")
+                    .build(ui),
+                )
+                .with_child({
+                    yaw = ScrollBarBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(1)
+                            // Make sure scroll bar will stay in center of available space.
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            // Add some margin so ui element won't be too close to each other.
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
                     .with_min(0.0)
                     // Our max rotation is 360 degrees.
                     .with_max(360.0)
@@ -163,95 +146,119 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                     // Turn off all decimal places.
                     .with_value_precision(0)
                     .build(ui);
-                yaw
-            })
-            .with_child(TextBuilder::new(WidgetBuilder::new()
-                .on_row(1)
-                .on_column(0)
-                .with_vertical_alignment(VerticalAlignment::Center))
-                .with_text("Scale")
-                .build(ui))
-            .with_child({
-                scale = ScrollBarBuilder::new(WidgetBuilder::new()
-                    .on_row(1)
-                    .on_column(1)
-                    .with_vertical_alignment(VerticalAlignment::Center)
-                    .with_margin(Thickness::uniform(2.0)))
+                    yaw
+                })
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .on_column(0)
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_text("Scale")
+                    .build(ui),
+                )
+                .with_child({
+                    scale = ScrollBarBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .on_column(1)
+                            .with_vertical_alignment(VerticalAlignment::Center)
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
                     .with_min(0.01)
                     .with_max(0.1)
                     .with_step(0.01)
                     .with_value(DEFAULT_MODEL_SCALE)
                     .show_value(true)
                     .build(ui);
-                scale
-            })
-            .with_child(StackPanelBuilder::new(WidgetBuilder::new()
-                .on_row(2)
-                .on_column(1)
-                .with_horizontal_alignment(HorizontalAlignment::Right)
-                .with_child({
-                    reset = ButtonBuilder::new(WidgetBuilder::new())
-                        .with_text("Reset")
-                        .build(ui);
-                    reset
-                }))
-                .with_orientation(Orientation::Horizontal)
-                .build(ui)))
-            .add_column(Column::strict(100.0))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(30.0))
-            .add_row(Row::strict(30.0))
-            .add_row(Row::strict(30.0))
-            .build(ui))
-        .with_title(WindowTitle::Text("Model Options"))
-        .can_close(false)
-        .build(ui);
+                    scale
+                })
+                .with_child(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(2)
+                            .on_column(1)
+                            .with_horizontal_alignment(HorizontalAlignment::Right)
+                            .with_child({
+                                reset = ButtonBuilder::new(WidgetBuilder::new())
+                                    .with_text("Reset")
+                                    .build(ui);
+                                reset
+                            }),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ui),
+                ),
+        )
+        .add_column(Column::strict(100.0))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(30.0))
+        .add_row(Row::strict(30.0))
+        .add_row(Row::strict(30.0))
+        .build(ui),
+    )
+    .with_title(WindowTitle::Text("Model Options"))
+    .can_close(false)
+    .build(ui);
 
     // Create another window which will show some graphics options.
     let resolutions;
-    WindowBuilder::new(WidgetBuilder::new()
-        .with_desired_position(Vec2::new(window_width - 670.0, 0.0))
-        .with_width(350.0))
-        .with_content(GridBuilder::new(WidgetBuilder::new()
-            .with_child(TextBuilder::new(WidgetBuilder::new()
-                .on_column(0)
-                .on_row(0))
-                .with_text("Resolution")
-                .build(ui))
-            .with_child({
-                resolutions = ComboBoxBuilder::new(WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(1))
-                    // Set combo box items - each item will represent video mode value.
-                    // When user will select something, we'll receive SelectionChanged
-                    // message and will use received index to switch to desired video
-                    // mode.
-                    .with_items({
-                        let mut items = Vec::new();
-                        for video_mode in video_modes.iter() {
-                            let size = video_mode.size();
-                            let rate = video_mode.refresh_rate();
-                            let item = DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()
-                                .with_height(28.0)
-                                .with_child(TextBuilder::new(WidgetBuilder::new()
-                                    .with_horizontal_alignment(HorizontalAlignment::Center))
-                                    .with_text(format!("{}x{}@{}Hz", size.width, size.height, rate))
-                                    .build(ui))))
+    WindowBuilder::new(
+        WidgetBuilder::new()
+            .with_desired_position(Vec2::new(window_width - 670.0, 0.0))
+            .with_width(350.0),
+    )
+    .with_content(
+        GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new().on_column(0).on_row(0))
+                        .with_text("Resolution")
+                        .build(ui),
+                )
+                .with_child({
+                    resolutions = ComboBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
+                        // Set combo box items - each item will represent video mode value.
+                        // When user will select something, we'll receive SelectionChanged
+                        // message and will use received index to switch to desired video
+                        // mode.
+                        .with_items({
+                            let mut items = Vec::new();
+                            for video_mode in video_modes.iter() {
+                                let size = video_mode.size();
+                                let rate = video_mode.refresh_rate();
+                                let item = DecoratorBuilder::new(BorderBuilder::new(
+                                    WidgetBuilder::new().with_height(28.0).with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new().with_horizontal_alignment(
+                                                HorizontalAlignment::Center,
+                                            ),
+                                        )
+                                        .with_text(format!(
+                                            "{}x{}@{}Hz",
+                                            size.width, size.height, rate
+                                        ))
+                                        .build(ui),
+                                    ),
+                                ))
                                 .build(ui);
-                            items.push(item);
-                        }
-                        items
-                    })
-                    .build(ui);
-                resolutions
-            }))
-            .add_column(Column::strict(120.0))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(30.0))
-            .build(ui))
-        .with_title(WindowTitle::Text("Graphics Options"))
-        .can_close(false)
-        .build(ui);
+                                items.push(item);
+                            }
+                            items
+                        })
+                        .build(ui);
+                    resolutions
+                }),
+        )
+        .add_column(Column::strict(120.0))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(30.0))
+        .build(ui),
+    )
+    .with_title(WindowTitle::Text("Graphics Options"))
+    .can_close(false)
+    .build(ui);
 
     Interface {
         debug_text,
@@ -275,11 +282,14 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     let mut resource_manager = resource_manager.lock().unwrap();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(BaseBuilder::new()
-        .with_local_transform(TransformBuilder::new()
-            .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-            .build()))
-        .build();
+    let camera = CameraBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vec3::new(0.0, 6.0, -12.0))
+                .build(),
+        ),
+    )
+    .build();
 
     scene.graph.add_node(Node::Camera(camera));
 
@@ -290,17 +300,22 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     // much more efficient is to load it one and then make copies of it. In case of
     // models it is very efficient because single vertex and index buffer can be used
     // for all models instances, so memory footprint on GPU will be lower.
-    let model_resource = resource_manager.request_model("examples/data/mutant.FBX").unwrap();
+    let model_resource = resource_manager
+        .request_model("examples/data/mutant.FBX")
+        .unwrap();
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource.lock()
+    let model_handle = model_resource
+        .lock()
         .unwrap()
         .instantiate_geometry(&mut scene);
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
-    let walk_animation_resource = resource_manager.request_model("examples/data/walk.fbx").unwrap();
+    let walk_animation_resource = resource_manager
+        .request_model("examples/data/walk.fbx")
+        .unwrap();
 
     // Once animation resource is loaded it must be re-targeted to our model instance.
     // Why? Because animation in *resource* uses information about *resource* bones,
@@ -333,13 +348,21 @@ fn main() {
     // loads model resource it automatically tries to load textures it uses. But since most
     // model formats store absolute paths, we can't use them as direct path to load texture
     // instead we telling engine to search textures in given folder.
-    engine.resource_manager.lock().unwrap().set_textures_path("examples/data");
+    engine
+        .resource_manager
+        .lock()
+        .unwrap()
+        .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let interface = create_ui(&mut engine);
 
     // Create test scene.
-    let GameScene { scene, model_handle, walk_animation } = create_scene(engine.resource_manager.clone());
+    let GameScene {
+        scene,
+        model_handle,
+        walk_animation,
+    } = create_scene(engine.resource_manager.clone());
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -347,7 +370,9 @@ fn main() {
     let scene_handle = engine.scenes.add(scene);
 
     // Set ambient light.
-    engine.renderer.set_ambient_color(Color::opaque(200, 200, 200));
+    engine
+        .renderer
+        .set_ambient_color(Color::opaque(200, 200, 200));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -381,7 +406,8 @@ fn main() {
 
                     // Our animation must be applied to scene explicitly, otherwise
                     // it will have no effect.
-                    scene.animations
+                    scene
+                        .animations
                         .get_mut(walk_animation)
                         .get_pose()
                         .apply(&mut scene.graph);
@@ -389,9 +415,13 @@ fn main() {
                     scene.graph[model_handle]
                         .local_transform_mut()
                         .set_scale(Vec3::new(model_scale, model_scale, model_scale))
-                        .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle.to_radians()));
+                        .set_rotation(Quat::from_axis_angle(
+                            Vec3::new(0.0, 1.0, 0.0),
+                            model_angle.to_radians(),
+                        ));
 
-                    if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text) {
+                    if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text)
+                    {
                         let fps = engine.renderer.get_statistics().frames_per_second;
                         text.set_text(format!("Example 04 - User Interface\nFPS: {}", fps));
                     }
@@ -424,10 +454,14 @@ fn main() {
                                 // This is not ideal because there is tight coupling between UI code and model values,
                                 // but still good enough for example.
                                 if ui_message.source() == interface.reset {
-                                    if let UiNode::ScrollBar(scale_sb) = engine.user_interface.node_mut(interface.scale) {
+                                    if let UiNode::ScrollBar(scale_sb) =
+                                        engine.user_interface.node_mut(interface.scale)
+                                    {
                                         scale_sb.set_value(DEFAULT_MODEL_SCALE);
                                     }
-                                    if let UiNode::ScrollBar(rotation_sb) = engine.user_interface.node_mut(interface.yaw) {
+                                    if let UiNode::ScrollBar(rotation_sb) =
+                                        engine.user_interface.node_mut(interface.yaw)
+                                    {
                                         rotation_sb.set_value(DEFAULT_MODEL_ROTATION);
                                     }
                                 }
@@ -439,15 +473,20 @@ fn main() {
                                 if let &Some(idx) = idx {
                                     if ui_message.source() == interface.resolutions {
                                         let video_mode = interface.video_modes.get(idx).unwrap();
-                                        engine.get_window().set_fullscreen(Some(Fullscreen::Exclusive(video_mode.clone())));
+                                        engine.get_window().set_fullscreen(Some(
+                                            Fullscreen::Exclusive(video_mode.clone()),
+                                        ));
 
                                         // Due to some weird bug in winit it does not send Resized event.
-                                        engine.renderer.set_frame_size((video_mode.size().width, video_mode.size().height));
+                                        engine.renderer.set_frame_size((
+                                            video_mode.size().width,
+                                            video_mode.size().height,
+                                        ));
                                     }
                                 }
                             }
                         }
-                        _ => ()
+                        _ => (),
                     }
                 }
 
@@ -460,16 +499,14 @@ fn main() {
             }
             Event::WindowEvent { event, .. } => {
                 match event {
-                    WindowEvent::CloseRequested => {
-                        *control_flow = ControlFlow::Exit
-                    }
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
                         engine.renderer.set_frame_size(dbg!(size.into()));
                     }
-                    _ => ()
+                    _ => (),
                 }
 
                 // It is very important to "feed" user interface (UI) with events coming
@@ -482,7 +519,8 @@ fn main() {
             Event::DeviceEvent { event, .. } => {
                 if let DeviceEvent::Key(key) = event {
                     if let Some(key_code) = key.virtual_keycode {
-                        if key.state == ElementState::Pressed && key_code == VirtualKeyCode::Escape {
+                        if key.state == ElementState::Pressed && key_code == VirtualKeyCode::Escape
+                        {
                             *control_flow = ControlFlow::Exit;
                         }
                     }

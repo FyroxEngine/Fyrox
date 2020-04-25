@@ -1,45 +1,23 @@
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
 use crate::{
     core::{
+        math::{mat4::Mat4, vec3::Vec3, Rect},
         scope_profile,
-        math::{
-            mat4::Mat4,
-            Rect,
-            vec3::Vec3,
-        },
     },
     renderer::{
+        error::RendererError,
         framework::{
-            gpu_program::{
-                UniformValue,
-                GpuProgram,
-                UniformLocation,
-            },
             framebuffer::{
-                DrawParameters,
-                CullFace,
-                FrameBuffer,
-                Attachment,
-                AttachmentKind,
-                FrameBufferTrait,
+                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
             },
-            gpu_texture::{
-                GpuTexture,
-                GpuTextureKind,
-                PixelKind,
-                Coordinate,
-                WrapMode,
-            },
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            gpu_texture::{Coordinate, GpuTexture, GpuTextureKind, PixelKind, WrapMode},
             state::State,
         },
-        error::RendererError,
-        GeometryCache,
         surface::SurfaceSharedData,
+        GeometryCache,
     },
 };
+use std::{cell::RefCell, rc::Rc};
 
 struct Shader {
     program: GpuProgram,
@@ -74,7 +52,8 @@ impl Blur {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
-            texture.bind_mut(state, 0)
+            texture
+                .bind_mut(state, 0)
                 .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
                 .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
             texture
@@ -85,12 +64,10 @@ impl Blur {
             framebuffer: FrameBuffer::new(
                 state,
                 None,
-                vec![
-                    Attachment {
-                        kind: AttachmentKind::Color,
-                        texture: Rc::new(RefCell::new(frame)),
-                    }
-                ],
+                vec![Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(frame)),
+                }],
             )?,
             quad: SurfaceSharedData::make_unit_xy_quad(),
             width,
@@ -102,10 +79,11 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn render(&mut self,
-                  state: &mut State,
-                  geom_cache: &mut GeometryCache,
-                  input: Rc<RefCell<GpuTexture>>,
+    pub fn render(
+        &mut self,
+        state: &mut State,
+        geom_cache: &mut GeometryCache,
+        input: Rc<RefCell<GpuTexture>>,
     ) {
         scope_profile!();
 
@@ -126,11 +104,20 @@ impl Blur {
                 blend: false,
             },
             &[
-                (self.shader.world_view_projection_matrix, UniformValue::Mat4(
-                    Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
-                        Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
-                )),
-                (self.shader.input_texture, UniformValue::Sampler { index: 0, texture: input })
+                (
+                    self.shader.world_view_projection_matrix,
+                    UniformValue::Mat4(
+                        Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0)
+                            * Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0)),
+                    ),
+                ),
+                (
+                    self.shader.input_texture,
+                    UniformValue::Sampler {
+                        index: 0,
+                        texture: input,
+                    },
+                ),
             ],
         );
     }

@@ -1,12 +1,11 @@
 use std::{
-    sync::Mutex, fs::File,
-    io::{Write, self},
+    fs::File,
+    io::{self, Write},
+    sync::Mutex,
 };
 
 lazy_static! {
-    static ref LOG_FILE: Mutex<File> = {
-         Mutex::new(File::create("rg3d.log").unwrap())
-    };
+    static ref LOG_FILE: Mutex<File> = { Mutex::new(File::create("rg3d.log").unwrap()) };
 }
 
 pub struct Log {}

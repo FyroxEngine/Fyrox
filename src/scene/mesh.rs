@@ -10,29 +10,19 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::base::BaseBuilder;
+use crate::{
+    core::{
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    renderer::surface::Surface,
+    scene::{base::Base, graph::Graph},
+};
 use std::{
     cell::Cell,
-    ops::{Deref, DerefMut}
+    ops::{Deref, DerefMut},
 };
-use crate::{
-    renderer::surface::Surface,
-    scene::{
-        base::Base,
-        graph::Graph,
-    },
-    core::{
-        visitor::{
-            Visit,
-            Visitor,
-            VisitResult,
-        },
-        math::{
-            aabb::AxisAlignedBoundingBox,
-            frustum::Frustum,
-        },
-    },
-};
-use crate::scene::base::BaseBuilder;
 
 /// See module docs.
 #[derive(Clone)]
@@ -161,7 +151,7 @@ impl Mesh {
 /// Mesh builder allows you to construct mesh in declarative manner.
 pub struct MeshBuilder {
     base_builder: BaseBuilder,
-    surfaces: Vec<Surface>
+    surfaces: Vec<Surface>,
 }
 
 impl MeshBuilder {
@@ -169,7 +159,7 @@ impl MeshBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            surfaces: Default::default()
+            surfaces: Default::default(),
         }
     }
 
@@ -185,7 +175,7 @@ impl MeshBuilder {
             base: self.base_builder.build(),
             surfaces: self.surfaces,
             bounding_box: Default::default(),
-            bounding_box_dirty: Default::default()
+            bounding_box_dirty: Default::default(),
         }
     }
 }

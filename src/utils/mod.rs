@@ -4,18 +4,13 @@ pub mod navmesh;
 pub mod raw_mesh;
 
 use crate::{
-    scene::{mesh::Mesh},
+    core::math::vec2::Vec2,
+    event::{ElementState, MouseScrollDelta, VirtualKeyCode, WindowEvent},
+    gui::message::{ButtonState, KeyCode, OsEvent},
     physics::static_geometry::{StaticGeometry, StaticTriangle},
-    event::{ElementState, VirtualKeyCode, WindowEvent, MouseScrollDelta},
-    gui::message::{KeyCode, OsEvent, ButtonState},
-    core::{
-        math::vec2::Vec2,
-    },
+    scene::mesh::Mesh,
 };
-use std::{
-    any::Any,
-    sync::Arc,
-};
+use std::{any::Any, sync::Arc};
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
@@ -242,28 +237,20 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
                 None
             }
         }
-        WindowEvent::CursorMoved { position, .. } => {
-            Some(OsEvent::CursorMoved {
-                position: Vec2::new(position.x as f32, position.y as f32)
-            })
-        }
-        WindowEvent::MouseWheel { delta, .. } => {
-            match delta {
-                MouseScrollDelta::LineDelta(x, y) => {
-                    Some(OsEvent::MouseWheel(*x, *y))
-                }
-                MouseScrollDelta::PixelDelta(pos) => {
-                    Some(OsEvent::MouseWheel(pos.x as f32, pos.y as f32))
-                }
+        WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
+            position: Vec2::new(position.x as f32, position.y as f32),
+        }),
+        WindowEvent::MouseWheel { delta, .. } => match delta {
+            MouseScrollDelta::LineDelta(x, y) => Some(OsEvent::MouseWheel(*x, *y)),
+            MouseScrollDelta::PixelDelta(pos) => {
+                Some(OsEvent::MouseWheel(pos.x as f32, pos.y as f32))
             }
-        }
-        WindowEvent::MouseInput { state, button, .. } => {
-            Some(OsEvent::MouseInput {
-                button: translate_button(*button),
-                state: translate_state(*state),
-            })
-        }
-        _ => None
+        },
+        WindowEvent::MouseInput { state, button, .. } => Some(OsEvent::MouseInput {
+            button: translate_button(*button),
+            state: translate_state(*state),
+        }),
+        _ => None,
     }
 }
 
@@ -433,7 +420,9 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
     }
 }
 
-pub fn into_any_arc<T: Any + Send + Sync>(opt: Option<Arc<T>>) -> Option<Arc<dyn Any + Send + Sync>> {
+pub fn into_any_arc<T: Any + Send + Sync>(
+    opt: Option<Arc<T>>,
+) -> Option<Arc<dyn Any + Send + Sync>> {
     match opt {
         Some(r) => Some(r),
         None => None,

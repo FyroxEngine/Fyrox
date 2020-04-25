@@ -1,40 +1,22 @@
 use crate::{
     core::{
-        scope_profile,
         color::Color,
-        math::{
-            vec3::Vec3,
-            aabb::AxisAlignedBoundingBox,
-            frustum::Frustum,
-            Rect
-        }
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, vec3::Vec3, Rect},
+        scope_profile,
     },
-    scene::camera::Camera,
     renderer::{
-        RenderPassStatistics,
         error::RendererError,
         framework::{
-            framebuffer::{
-                FrameBufferTrait,
-                DrawParameters,
-                CullFace,
-                FrameBuffer
-            },
+            framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
             geometry_buffer::{
-                GeometryBuffer,
-                GeometryBufferKind,
-                AttributeDefinition,
-                AttributeKind,
-                ElementKind
+                AttributeDefinition, AttributeKind, ElementKind, GeometryBuffer, GeometryBufferKind,
             },
-            gpu_program::{
-                UniformLocation,
-                GpuProgram,
-                UniformValue
-            },
-            state::State
-        }
-    }
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            state::State,
+        },
+        RenderPassStatistics,
+    },
+    scene::camera::Camera,
 };
 use rg3d_core::math::mat4::Mat4;
 
@@ -79,11 +61,16 @@ impl DebugRenderer {
     pub(in crate) fn new(state: &mut State) -> Result<Self, RendererError> {
         let geometry = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Line);
 
-        geometry.bind(state)
-            .describe_attributes(vec![
-                AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-                AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: true },
-            ])?;
+        geometry.bind(state).describe_attributes(vec![
+            AttributeDefinition {
+                kind: AttributeKind::Float3,
+                normalized: false,
+            },
+            AttributeDefinition {
+                kind: AttributeKind::UnsignedByte4,
+                normalized: true,
+            },
+        ])?;
 
         Ok(Self {
             geometry,
@@ -114,22 +101,70 @@ impl DebugRenderer {
         let right_top_back = frustum.right_top_back_corner();
 
         // Front face
-        self.add_line(Line { begin: left_top_front, end: right_top_front, color });
-        self.add_line(Line { begin: right_top_front, end: right_bottom_front, color });
-        self.add_line(Line { begin: right_bottom_front, end: left_bottom_front, color });
-        self.add_line(Line { begin: left_bottom_front, end: left_top_front, color });
+        self.add_line(Line {
+            begin: left_top_front,
+            end: right_top_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: left_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_top_front,
+            color,
+        });
 
         // Back face
-        self.add_line(Line { begin: left_top_back, end: right_top_back, color });
-        self.add_line(Line { begin: right_top_back, end: right_bottom_back, color });
-        self.add_line(Line { begin: right_bottom_back, end: left_bottom_back, color });
-        self.add_line(Line { begin: left_bottom_back, end: left_top_back, color });
+        self.add_line(Line {
+            begin: left_top_back,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_back,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_back,
+            end: left_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_back,
+            end: left_top_back,
+            color,
+        });
 
         // Edges
-        self.add_line(Line { begin: left_top_front, end: left_top_back, color });
-        self.add_line(Line { begin: right_top_front, end: right_top_back, color });
-        self.add_line(Line { begin: right_bottom_front, end: right_bottom_back, color });
-        self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
+        self.add_line(Line {
+            begin: left_top_front,
+            end: left_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_bottom_back,
+            color,
+        });
     }
 
     pub fn draw_aabb(&mut self, aabb: &AxisAlignedBoundingBox, color: Color) {
@@ -144,55 +179,165 @@ impl DebugRenderer {
         let right_bottom_back = Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z);
 
         // Front face
-        self.add_line(Line { begin: left_top_front, end: right_top_front, color });
-        self.add_line(Line { begin: right_top_front, end: right_bottom_front, color });
-        self.add_line(Line { begin: right_bottom_front, end: left_bottom_front, color });
-        self.add_line(Line { begin: left_bottom_front, end: left_top_front, color });
+        self.add_line(Line {
+            begin: left_top_front,
+            end: right_top_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: left_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_top_front,
+            color,
+        });
 
         // Back face
-        self.add_line(Line { begin: left_top_back, end: right_top_back, color });
-        self.add_line(Line { begin: right_top_back, end: right_bottom_back, color });
-        self.add_line(Line { begin: right_bottom_back, end: left_bottom_back, color });
-        self.add_line(Line { begin: left_bottom_back, end: left_top_back, color });
+        self.add_line(Line {
+            begin: left_top_back,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_back,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_back,
+            end: left_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_back,
+            end: left_top_back,
+            color,
+        });
 
         // Edges
-        self.add_line(Line { begin: left_top_front, end: left_top_back, color });
-        self.add_line(Line { begin: right_top_front, end: right_top_back, color });
-        self.add_line(Line { begin: right_bottom_front, end: right_bottom_back, color });
-        self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
+        self.add_line(Line {
+            begin: left_top_front,
+            end: left_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_bottom_back,
+            color,
+        });
     }
 
     pub fn draw_oob(&mut self, aabb: &AxisAlignedBoundingBox, transform: Mat4, color: Color) {
-        let left_bottom_front = transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z));
-        let left_top_front = transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z));
-        let right_top_front = transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z));
-        let right_bottom_front = transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z));
+        let left_bottom_front =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z));
+        let left_top_front =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z));
+        let right_top_front =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z));
+        let right_bottom_front =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z));
 
-        let left_bottom_back = transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z));
-        let left_top_back = transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z));
-        let right_top_back = transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z));
-        let right_bottom_back = transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z));
+        let left_bottom_back =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z));
+        let left_top_back =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z));
+        let right_top_back =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z));
+        let right_bottom_back =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z));
 
         // Front face
-        self.add_line(Line { begin: left_top_front, end: right_top_front, color });
-        self.add_line(Line { begin: right_top_front, end: right_bottom_front, color });
-        self.add_line(Line { begin: right_bottom_front, end: left_bottom_front, color });
-        self.add_line(Line { begin: left_bottom_front, end: left_top_front, color });
+        self.add_line(Line {
+            begin: left_top_front,
+            end: right_top_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: left_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_top_front,
+            color,
+        });
 
         // Back face
-        self.add_line(Line { begin: left_top_back, end: right_top_back, color });
-        self.add_line(Line { begin: right_top_back, end: right_bottom_back, color });
-        self.add_line(Line { begin: right_bottom_back, end: left_bottom_back, color });
-        self.add_line(Line { begin: left_bottom_back, end: left_top_back, color });
+        self.add_line(Line {
+            begin: left_top_back,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_back,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_back,
+            end: left_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_back,
+            end: left_top_back,
+            color,
+        });
 
         // Edges
-        self.add_line(Line { begin: left_top_front, end: left_top_back, color });
-        self.add_line(Line { begin: right_top_front, end: right_top_back, color });
-        self.add_line(Line { begin: right_bottom_front, end: right_bottom_back, color });
-        self.add_line(Line { begin: left_bottom_front, end: left_bottom_back, color });
+        self.add_line(Line {
+            begin: left_top_front,
+            end: left_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_bottom_back,
+            color,
+        });
     }
 
-    pub(in crate) fn render(&mut self, state: &mut State, viewport: Rect<i32>, framebuffer: &mut FrameBuffer, camera: &Camera) -> RenderPassStatistics {
+    pub(in crate) fn render(
+        &mut self,
+        state: &mut State,
+        viewport: Rect<i32>,
+        framebuffer: &mut FrameBuffer,
+        camera: &Camera,
+    ) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -203,8 +348,14 @@ impl DebugRenderer {
         let mut i = 0;
         for line in self.lines.iter() {
             let color = line.color.into();
-            self.vertices.push(Vertex { position: line.begin, color });
-            self.vertices.push(Vertex { position: line.end, color });
+            self.vertices.push(Vertex {
+                position: line.begin,
+                color,
+            });
+            self.vertices.push(Vertex {
+                position: line.end,
+                color,
+            });
             self.line_indices.push([i, i + 1]);
             i += 2;
         }
@@ -225,11 +376,12 @@ impl DebugRenderer {
                 depth_write: false,
                 stencil_test: false,
                 depth_test: true,
-                blend: false
+                blend: false,
             },
-            &[
-                (self.shader.wvp_matrix, UniformValue::Mat4(camera.view_projection_matrix()))
-            ]
+            &[(
+                self.shader.wvp_matrix,
+                UniformValue::Mat4(camera.view_projection_matrix()),
+            )],
         );
 
         statistics.draw_calls += 1;

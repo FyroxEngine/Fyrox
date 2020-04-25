@@ -8,19 +8,16 @@
 
 #![warn(missing_docs)]
 
-use std::sync::{Arc, Mutex};
 use crate::{
-    resource::model::Model,
-    scene::{
-        node::Node,
-        transform::Transform
-    },
     core::{
-        math::{vec3::Vec3, mat4::Mat4},
-        visitor::{Visit, VisitResult, Visitor},
+        math::{mat4::Mat4, vec3::Vec3},
         pool::Handle,
-    }
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    resource::model::Model,
+    scene::{node::Node, transform::Transform},
 };
+use std::sync::{Arc, Mutex};
 
 /// See module docs.
 pub struct Base {
@@ -221,7 +218,8 @@ impl Visit for Base {
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;
         self.resource.visit("Resource", visitor)?;
-        self.is_resource_instance.visit("IsResourceInstance", visitor)?;
+        self.is_resource_instance
+            .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
 
         visitor.leave_region()

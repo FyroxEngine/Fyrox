@@ -1,37 +1,21 @@
-use std::{
-    cell::Cell,
-    cmp::Ordering,
-    any::Any,
-    sync::{
-        Mutex,
-        LockResult,
-        MutexGuard,
-        Arc,
+use crate::{
+    core::{
+        color::Color,
+        color_gradient::ColorGradient,
+        math::{vec2::Vec2, vec3::Vec3, TriangleDefinition},
+        numeric_range::NumericRange,
+        visitor::{Visit, VisitResult, Visitor},
     },
-    ops::{DerefMut, Deref}
+    resource::texture::Texture,
+    scene::base::{Base, BaseBuilder},
 };
 use rand::Rng;
-use crate::{
-    resource::texture::Texture,
-    scene::base::{
-        BaseBuilder,
-        Base,
-    },
-    core::{
-        math::{
-            vec3::Vec3,
-            vec2::Vec2,
-            TriangleDefinition,
-        },
-        visitor::{
-            Visit,
-            Visitor,
-            VisitResult,
-        },
-        color_gradient::ColorGradient,
-        numeric_range::NumericRange,
-        color::Color,
-    },
+use std::{
+    any::Any,
+    cell::Cell,
+    cmp::Ordering,
+    ops::{Deref, DerefMut},
+    sync::{Arc, LockResult, Mutex, MutexGuard},
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -200,17 +184,13 @@ pub struct SphereEmitter {
 
 impl Default for SphereEmitter {
     fn default() -> Self {
-        Self {
-            radius: 0.5
-        }
+        Self { radius: 0.5 }
     }
 }
 
 impl SphereEmitter {
     pub fn new(radius: f32) -> Self {
-        Self {
-            radius
-        }
+        Self { radius }
     }
 }
 
@@ -244,23 +224,20 @@ impl Emit for SphereEmitter {
 
 impl Clone for SphereEmitter {
     fn clone(&self) -> Self {
-        Self {
-            radius: 0.0
-        }
+        Self { radius: 0.0 }
     }
 }
 
-pub type CustomEmitterFactoryCallback = dyn Fn(i32) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
+pub type CustomEmitterFactoryCallback =
+    dyn Fn(i32) -> Result<Box<dyn CustomEmitter>, String> + Send + 'static;
 
 pub struct CustomEmitterFactory {
-    callback: Option<Box<CustomEmitterFactoryCallback>>
+    callback: Option<Box<CustomEmitterFactoryCallback>>,
 }
 
 impl Default for CustomEmitterFactory {
     fn default() -> Self {
-        Self {
-            callback: None
-        }
+        Self { callback: None }
     }
 }
 
@@ -282,7 +259,8 @@ impl CustomEmitterFactory {
 }
 
 lazy_static! {
-    static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> = Mutex::new(Default::default());
+    static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> =
+        Mutex::new(Default::default());
 }
 
 pub trait CustomEmitter: Any + Emit + Visit + Send {
@@ -312,7 +290,7 @@ impl EmitterKind {
             _ => match CustomEmitterFactory::get() {
                 Ok(factory) => Ok(EmitterKind::Custom(factory.spawn(id)?)),
                 Err(_) => Err(String::from("Failed get custom emitter factory!")),
-            }
+            },
         }
     }
 
@@ -339,8 +317,12 @@ impl Emit for EmitterKind {
         match self {
             EmitterKind::Unknown => panic!("Unknown emitter kind is not supported"),
             EmitterKind::Box(box_emitter) => box_emitter.emit(emitter, particle_system, particle),
-            EmitterKind::Sphere(sphere_emitter) => sphere_emitter.emit(emitter, particle_system, particle),
-            EmitterKind::Custom(custom_emitter) => custom_emitter.emit(emitter, particle_system, particle)
+            EmitterKind::Sphere(sphere_emitter) => {
+                sphere_emitter.emit(emitter, particle_system, particle)
+            }
+            EmitterKind::Custom(custom_emitter) => {
+                custom_emitter.emit(emitter, particle_system, particle)
+            }
         }
     }
 }
@@ -351,7 +333,7 @@ impl Clone for EmitterKind {
             EmitterKind::Unknown => panic!("Unknown emitter kind is not supported"),
             EmitterKind::Box(box_emitter) => EmitterKind::Box(box_emitter.clone()),
             EmitterKind::Sphere(sphere_emitter) => EmitterKind::Sphere(sphere_emitter.clone()),
-            EmitterKind::Custom(custom_emitter) => EmitterKind::Custom(custom_emitter.box_clone())
+            EmitterKind::Custom(custom_emitter) => EmitterKind::Custom(custom_emitter.box_clone()),
         }
     }
 }
@@ -528,15 +510,31 @@ impl EmitterBuilder {
             kind: self.kind,
             position: self.position.unwrap_or(Vec3::ZERO),
             particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
-            max_particles: self.max_particles.map_or(ParticleLimit::Unlimited, ParticleLimit::Strict),
-            lifetime: self.lifetime.unwrap_or_else(|| NumericRange::new(5.0, 10.0)),
+            max_particles: self
+                .max_particles
+                .map_or(ParticleLimit::Unlimited, ParticleLimit::Strict),
+            lifetime: self
+                .lifetime
+                .unwrap_or_else(|| NumericRange::new(5.0, 10.0)),
             size: self.size.unwrap_or_else(|| NumericRange::new(0.125, 0.250)),
-            size_modifier: self.size_modifier.unwrap_or_else(|| NumericRange::new(0.0005, 0.0010)),
-            x_velocity: self.x_velocity.unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
-            y_velocity: self.y_velocity.unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
-            z_velocity: self.z_velocity.unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
-            rotation_speed: self.rotation_speed.unwrap_or_else(|| NumericRange::new(-0.02, 0.02)),
-            rotation: self.rotation.unwrap_or_else(|| NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI)),
+            size_modifier: self
+                .size_modifier
+                .unwrap_or_else(|| NumericRange::new(0.0005, 0.0010)),
+            x_velocity: self
+                .x_velocity
+                .unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
+            y_velocity: self
+                .y_velocity
+                .unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
+            z_velocity: self
+                .z_velocity
+                .unwrap_or_else(|| NumericRange::new(-0.001, 0.001)),
+            rotation_speed: self
+                .rotation_speed
+                .unwrap_or_else(|| NumericRange::new(-0.02, 0.02)),
+            rotation: self
+                .rotation
+                .unwrap_or_else(|| NumericRange::new(-std::f32::consts::PI, std::f32::consts::PI)),
             alive_particles: Cell::new(0),
             time: 0.0,
             particles_to_spawn: 0,
@@ -719,7 +717,8 @@ impl Visit for Emitter {
         self.rotation.visit("Rotation", visitor)?;
         self.alive_particles.visit("AliveParticles", visitor)?;
         self.time.visit("Time", visitor)?;
-        self.resurrect_particles.visit("ResurrectParticles", visitor)?;
+        self.resurrect_particles
+            .visit("ResurrectParticles", visitor)?;
         self.spawned_particles.visit("SpawnedParticles", visitor)?;
 
         visitor.leave_region()
@@ -821,7 +820,9 @@ impl ParticleSystem {
             for _ in 0..emitter.particles_to_spawn {
                 let mut particle = Particle::default();
                 particle.emitter_index = i as u32;
-                emitter.alive_particles.set(emitter.alive_particles.get() + 1);
+                emitter
+                    .alive_particles
+                    .set(emitter.alive_particles.get() + 1);
                 emitter.emit(self, &mut particle);
                 if let Some(free_index) = self.free_particles.pop() {
                     self.particles[free_index as usize] = particle;
@@ -839,7 +840,9 @@ impl ParticleSystem {
                 if particle.lifetime >= particle.initial_lifetime {
                     self.free_particles.push(i as u32);
                     if let Some(emitter) = self.emitters.get(particle.emitter_index as usize) {
-                        emitter.alive_particles.set(emitter.alive_particles.get() - 1);
+                        emitter
+                            .alive_particles
+                            .set(emitter.alive_particles.get() - 1);
                     }
                     particle.alive = false;
                     particle.lifetime = particle.initial_lifetime;
@@ -862,12 +865,19 @@ impl ParticleSystem {
         }
     }
 
-    pub fn generate_draw_data(&self, sorted_particles: &mut Vec<u32>, draw_data: &mut DrawData, camera_pos: &Vec3) {
+    pub fn generate_draw_data(
+        &self,
+        sorted_particles: &mut Vec<u32>,
+        draw_data: &mut DrawData,
+        camera_pos: &Vec3,
+    ) {
         sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
             if particle.alive {
                 let actual_position = particle.position + self.base.global_position();
-                particle.sqr_distance_to_camera.set(camera_pos.sqr_distance(&actual_position));
+                particle
+                    .sqr_distance_to_camera
+                    .set(camera_pos.sqr_distance(&actual_position));
                 sorted_particles.push(i as u32);
             }
         }
@@ -927,8 +937,16 @@ impl ParticleSystem {
 
             let base_index = (i * 4) as u32;
 
-            draw_data.triangles.push(TriangleDefinition([base_index, base_index + 1, base_index + 2]));
-            draw_data.triangles.push(TriangleDefinition([base_index, base_index + 2, base_index + 3]));
+            draw_data.triangles.push(TriangleDefinition([
+                base_index,
+                base_index + 1,
+                base_index + 2,
+            ]));
+            draw_data.triangles.push(TriangleDefinition([
+                base_index,
+                base_index + 2,
+                base_index + 3,
+            ]));
         }
     }
 
@@ -940,7 +958,6 @@ impl ParticleSystem {
         self.texture.clone()
     }
 }
-
 
 impl Visit for ParticleSystem {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -1015,7 +1032,9 @@ impl ParticleSystemBuilder {
             free_particles: Vec::new(),
             emitters: self.emitters.unwrap_or_default(),
             texture: self.texture.clone(),
-            acceleration: self.acceleration.unwrap_or_else(|| Vec3::new(0.0, -9.81, 0.0)),
+            acceleration: self
+                .acceleration
+                .unwrap_or_else(|| Vec3::new(0.0, -9.81, 0.0)),
             color_over_lifetime: self.color_over_lifetime,
         }
     }

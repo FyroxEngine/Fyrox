@@ -2,42 +2,19 @@ pub mod machine;
 
 use crate::{
     core::{
-        math::{
-            vec3::Vec3,
-            quat::Quat,
-            clampf,
-            wrapf,
-        },
-        visitor::{
-            Visit,
-            VisitResult,
-            Visitor,
-        },
+        math::{clampf, quat::Quat, vec3::Vec3, wrapf},
         pool::{
-            Pool,
-            Handle,
-            PoolIterator,
-            PoolIteratorMut,
-            PoolPairIterator,
-            PoolPairIteratorMut,
+            Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
         },
-    },
-    scene::{
-        node::Node,
-        graph::Graph
+        visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::Model,
-    utils::log::Log
+    scene::{graph::Graph, node::Node},
+    utils::log::Log,
 };
 use std::{
-    sync::{
-        Mutex,
-        Arc
-    },
-    collections::{
-        HashMap,
-        VecDeque
-    }
+    collections::{HashMap, VecDeque},
+    sync::{Arc, Mutex},
 };
 
 #[derive(Copy, Clone)]
@@ -187,13 +164,11 @@ impl Track {
         }
 
         if time >= self.max_time {
-            return self.frames.last().map(|k| {
-                LocalPose {
-                    node: self.node,
-                    position: k.position,
-                    scale: k.scale,
-                    rotation: k.rotation,
-                }
+            return self.frames.last().map(|k| LocalPose {
+                node: self.node,
+                position: k.position,
+                scale: k.scale,
+                rotation: k.rotation,
             });
         }
 
@@ -208,13 +183,11 @@ impl Track {
         }
 
         if right_index == 0 {
-            return self.frames.first().map(|k| {
-                LocalPose {
-                    node: self.node,
-                    position: k.position,
-                    scale: k.scale,
-                    rotation: k.rotation,
-                }
+            return self.frames.first().map(|k| LocalPose {
+                node: self.node,
+                position: k.position,
+                scale: k.scale,
+                rotation: k.rotation,
             });
         } else if let Some(left) = self.frames.get(right_index - 1) {
             if let Some(right) = self.frames.get(right_index) {
@@ -235,7 +208,7 @@ impl Track {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct AnimationEvent {
-    pub signal_id: u64
+    pub signal_id: u64,
 }
 
 #[derive(Clone)]
@@ -250,7 +223,7 @@ impl AnimationSignal {
         Self {
             id,
             time,
-            enabled: true
+            enabled: true,
         }
     }
 
@@ -297,7 +270,7 @@ pub struct Animation {
     pub(in crate) resource: Option<Arc<Mutex<Model>>>,
     pose: AnimationPose,
     signals: Vec<AnimationSignal>,
-    events: VecDeque<AnimationEvent>
+    events: VecDeque<AnimationEvent>,
 }
 
 /// Snapshot of scene node local transform state.
@@ -339,7 +312,7 @@ impl LocalPose {
 
 #[derive(Default)]
 pub struct AnimationPose {
-    local_poses: HashMap<Handle<Node>, LocalPose>
+    local_poses: HashMap<Handle<Node>, LocalPose>,
 }
 
 impl AnimationPose {
@@ -375,7 +348,8 @@ impl AnimationPose {
             if node.is_none() {
                 Log::writeln("Invalid node handle found for animation pose, most likely it means that animation retargetting failed!".to_owned());
             } else {
-                graph[*node].local_transform_mut()
+                graph[*node]
+                    .local_transform_mut()
                     .set_position(local_pose.position)
                     .set_rotation(local_pose.rotation)
                     .set_scale(local_pose.scale);
@@ -396,7 +370,7 @@ impl Clone for Animation {
             resource: self.resource.clone(),
             pose: Default::default(),
             signals: self.signals.clone(),
-            events: Default::default()
+            events: Default::default(),
         }
     }
 }
@@ -439,7 +413,9 @@ impl Animation {
             if current_time_position < signal.time && new_time_position >= signal.time {
                 // TODO: Make this configurable.
                 if self.events.len() < 32 {
-                    self.events.push_back(AnimationEvent { signal_id: signal.id });
+                    self.events.push_back(AnimationEvent {
+                        signal_id: signal.id,
+                    });
                 }
             }
         }
@@ -495,7 +471,9 @@ impl Animation {
     }
 
     pub fn retain_tracks<F>(&mut self, filter: F)
-        where F: FnMut(&Track) -> bool {
+    where
+        F: FnMut(&Track) -> bool,
+    {
         self.tracks.retain(filter)
     }
 
@@ -571,14 +549,19 @@ impl Animation {
                     // animation targetted to character instance.
                     let mut found = false;
                     for ref_track in ref_animation.get_tracks().iter() {
-                        if track_node.name() == resource.get_scene().graph[ref_track.get_node()].name() {
+                        if track_node.name()
+                            == resource.get_scene().graph[ref_track.get_node()].name()
+                        {
                             track.set_key_frames(ref_track.get_key_frames());
                             found = true;
                             break;
                         }
                     }
                     if !found {
-                        Log::write(format!("Failed to copy key frames for node {}!", track_node.name()));
+                        Log::write(format!(
+                            "Failed to copy key frames for node {}!",
+                            track_node.name()
+                        ));
                     }
                 }
             }
@@ -613,7 +596,7 @@ impl Default for Animation {
             resource: Default::default(),
             pose: Default::default(),
             signals: Default::default(),
-            events: Default::default()
+            events: Default::default(),
         }
     }
 }
@@ -636,7 +619,7 @@ impl Visit for Animation {
 }
 
 pub struct AnimationContainer {
-    pool: Pool<Animation>
+    pool: Pool<Animation>,
 }
 
 impl Default for AnimationContainer {
@@ -647,9 +630,7 @@ impl Default for AnimationContainer {
 
 impl AnimationContainer {
     pub(in crate) fn new() -> Self {
-        Self {
-            pool: Pool::new()
-        }
+        Self { pool: Pool::new() }
     }
 
     #[inline]
@@ -698,7 +679,10 @@ impl AnimationContainer {
     }
 
     #[inline]
-    pub fn retain<P>(&mut self, pred: P) where P: FnMut(&Animation) -> bool {
+    pub fn retain<P>(&mut self, pred: P)
+    where
+        P: FnMut(&Animation) -> bool,
+    {
         self.pool.retain(pred)
     }
 
@@ -718,7 +702,7 @@ impl AnimationContainer {
 
     pub fn clone(&self) -> Self {
         Self {
-            pool: self.pool.clone()
+            pool: self.pool.clone(),
         }
     }
 }

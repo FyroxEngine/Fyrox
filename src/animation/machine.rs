@@ -85,33 +85,17 @@
 //! locomotion and other is for combat. This means that locomotion machine will take control over
 //! lower body and combat machine will control upper body.
 
-use std::{
-    cell::{RefCell, Ref},
-    collections::{
-        HashMap,
-        VecDeque,
-    },
-};
 use crate::{
-    utils::log::Log,
-    animation::{
-        Animation,
-        AnimationContainer,
-        AnimationPose,
-    },
+    animation::{Animation, AnimationContainer, AnimationPose},
     core::{
-        pool::{
-            Pool,
-            Handle,
-            PoolIterator
-        },
-        visitor::{
-            Visit,
-            Visitor,
-            VisitError,
-            VisitResult,
-        },
-    }
+        pool::{Handle, Pool, PoolIterator},
+        visitor::{Visit, VisitError, VisitResult, Visitor},
+    },
+    utils::log::Log,
+};
+use std::{
+    cell::{Ref, RefCell},
+    collections::{HashMap, VecDeque},
 };
 
 /// Specific machine event.
@@ -176,7 +160,7 @@ impl Parameter {
         match id {
             0 => Ok(Parameter::Weight(0.0)),
             1 => Ok(Parameter::Rule(false)),
-            _ => Err(format!("Invalid parameter id {}", id))
+            _ => Err(format!("Invalid parameter id {}", id)),
         }
     }
 
@@ -228,7 +212,7 @@ impl PoseWeight {
         match id {
             0 => Ok(PoseWeight::Parameter(Default::default())),
             1 => Ok(PoseWeight::Constant(0.0)),
-            _ => Err(format!("Invalid pose weight id {}", id))
+            _ => Err(format!("Invalid pose weight id {}", id)),
         }
     }
 
@@ -280,7 +264,7 @@ impl BlendPose {
     pub fn with_constant_weight(weight: f32, pose_source: Handle<PoseNode>) -> Self {
         Self {
             weight: PoseWeight::Constant(weight),
-            pose_source
+            pose_source,
         }
     }
 
@@ -289,7 +273,7 @@ impl BlendPose {
     pub fn with_param_weight(param_id: &str, pose_source: Handle<PoseNode>) -> Self {
         Self {
             weight: PoseWeight::Parameter(param_id.to_owned()),
-            pose_source
+            pose_source,
         }
     }
 }
@@ -370,7 +354,7 @@ impl PoseNode {
         match id {
             0 => Ok(PoseNode::PlayAnimation(Default::default())),
             1 => Ok(PoseNode::BlendAnimations(Default::default())),
-            _ => Err(format!("Invalid pose node id {}", id))
+            _ => Err(format!("Invalid pose node id {}", id)),
         }
     }
 
@@ -414,12 +398,23 @@ pub struct State {
 type ParameterContainer = HashMap<String, Parameter>;
 
 trait EvaluatePose {
-    fn eval_pose(&self, nodes: &Pool<PoseNode>, params: &ParameterContainer, animations: &AnimationContainer) -> Ref<AnimationPose>;
+    fn eval_pose(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+    ) -> Ref<AnimationPose>;
 }
 
 impl EvaluatePose for PlayAnimation {
-    fn eval_pose(&self, _nodes: &Pool<PoseNode>, _params: &ParameterContainer, animations: &AnimationContainer) -> Ref<AnimationPose> {
-        animations.get(self.animation)
+    fn eval_pose(
+        &self,
+        _nodes: &Pool<PoseNode>,
+        _params: &ParameterContainer,
+        animations: &AnimationContainer,
+    ) -> Ref<AnimationPose> {
+        animations
+            .get(self.animation)
             .get_pose()
             .clone_into(&mut self.output_pose.borrow_mut());
         self.output_pose.borrow()
@@ -427,7 +422,12 @@ impl EvaluatePose for PlayAnimation {
 }
 
 impl EvaluatePose for BlendAnimation {
-    fn eval_pose(&self, nodes: &Pool<PoseNode>, params: &ParameterContainer, animations: &AnimationContainer) -> Ref<AnimationPose> {
+    fn eval_pose(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+    ) -> Ref<AnimationPose> {
         self.output_pose.borrow_mut().reset();
         for blend_pose in self.pose_sources.borrow_mut().iter_mut() {
             let weight = match blend_pose.weight {
@@ -446,14 +446,21 @@ impl EvaluatePose for BlendAnimation {
             };
 
             let pose_source = nodes[blend_pose.pose_source].eval_pose(nodes, params, animations);
-            self.output_pose.borrow_mut().blend_with(&pose_source, weight);
+            self.output_pose
+                .borrow_mut()
+                .blend_with(&pose_source, weight);
         }
         self.output_pose.borrow()
     }
 }
 
 impl EvaluatePose for PoseNode {
-    fn eval_pose(&self, nodes: &Pool<PoseNode>, params: &ParameterContainer, animations: &AnimationContainer) -> Ref<AnimationPose> {
+    fn eval_pose(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+    ) -> Ref<AnimationPose> {
         static_dispatch!(self, eval_pose, nodes, params, animations)
     }
 }
@@ -468,9 +475,15 @@ impl State {
         }
     }
 
-    fn update(&mut self, nodes: &Pool<PoseNode>, params: &ParameterContainer, animations: &AnimationContainer) {
+    fn update(
+        &mut self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+    ) {
         self.pose.reset();
-        nodes.borrow(self.root)
+        nodes
+            .borrow(self.root)
             .eval_pose(nodes, params, animations)
             .clone_into(&mut self.pose);
     }
@@ -520,7 +533,13 @@ impl Visit for Transition {
 }
 
 impl Transition {
-    pub fn new(name: &str, src: Handle<State>, dest: Handle<State>, time: f32, rule: &str) -> Transition {
+    pub fn new(
+        name: &str,
+        src: Handle<State>,
+        dest: Handle<State>,
+        time: f32,
+        rule: &str,
+    ) -> Transition {
         Self {
             name: name.to_owned(),
             transition_time: time,
@@ -602,7 +621,7 @@ impl LimitedEventQueue {
     fn new(limit: u32) -> Self {
         Self {
             queue: VecDeque::with_capacity(limit as usize),
-            limit
+            limit,
         }
     }
 
@@ -638,7 +657,8 @@ impl Machine {
     }
 
     pub fn set_parameter(&mut self, id: &str, parameter: Parameter) -> &mut Self {
-        self.parameters.entry(id.to_owned())
+        self.parameters
+            .entry(id.to_owned())
             .and_modify(|p| *p = parameter)
             .or_insert(parameter);
         self
@@ -710,7 +730,9 @@ impl Machine {
             if self.active_transition.is_none() {
                 // Find transition.
                 for (handle, transition) in self.transitions.pair_iter_mut() {
-                    if transition.dest == self.active_state || transition.source != self.active_state {
+                    if transition.dest == self.active_state
+                        || transition.source != self.active_state
+                    {
                         continue;
                     }
                     if let Some(rule) = self.parameters.get(&transition.rule) {
@@ -718,12 +740,18 @@ impl Machine {
                             if *active {
                                 self.events.push(Event::StateLeave(self.active_state));
                                 if self.debug {
-                                    Log::writeln(format!("Leaving state: {}", self.states[self.active_state].name));
+                                    Log::writeln(format!(
+                                        "Leaving state: {}",
+                                        self.states[self.active_state].name
+                                    ));
                                 }
 
                                 self.events.push(Event::StateEnter(transition.source));
                                 if self.debug {
-                                    Log::writeln(format!("Entering state: {}", self.states[transition.source].name));
+                                    Log::writeln(format!(
+                                        "Entering state: {}",
+                                        self.states[transition.source].name
+                                    ));
                                 }
 
                                 self.active_state = Handle::NONE;
@@ -741,8 +769,12 @@ impl Machine {
                 let transition = &mut self.transitions[self.active_transition];
 
                 // Blend between source and dest states.
-                self.final_pose.blend_with(&self.states[transition.source].pose, 1.0 - transition.blend_factor);
-                self.final_pose.blend_with(&self.states[transition.dest].pose, transition.blend_factor);
+                self.final_pose.blend_with(
+                    &self.states[transition.source].pose,
+                    1.0 - transition.blend_factor,
+                );
+                self.final_pose
+                    .blend_with(&self.states[transition.dest].pose, transition.blend_factor);
 
                 transition.update(dt);
 
@@ -750,16 +782,22 @@ impl Machine {
                     transition.reset();
                     self.active_transition = Handle::NONE;
                     self.active_state = transition.dest;
-                    self.events.push(Event::ActiveStateChanged(self.active_state));
+                    self.events
+                        .push(Event::ActiveStateChanged(self.active_state));
 
                     if self.debug {
-                        Log::writeln(format!("Active state changed: {}", self.states[self.active_state].name));
+                        Log::writeln(format!(
+                            "Active state changed: {}",
+                            self.states[self.active_state].name
+                        ));
                     }
                 }
             } else {
                 // We must have active state all the time when we do not have any active transition.
                 // Just get pose from active state.
-                self.states[self.active_state].pose.clone_into(&mut self.final_pose);
+                self.states[self.active_state]
+                    .pose
+                    .clone_into(&mut self.final_pose);
             }
         }
 

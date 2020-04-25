@@ -1,73 +1,55 @@
-mod scene;
 mod document;
 pub mod error;
+mod scene;
 
 use std::{
-    path::Path,
     collections::{HashMap, HashSet},
-    time::Instant,
+    path::Path,
     sync::{Arc, Mutex},
+    time::Instant,
 };
 
 use crate::{
-    renderer::surface::{
-        SurfaceSharedData,
-        Surface,
-        Vertex,
-        VertexWeightSet,
-    },
-    animation::{
-        AnimationContainer,
-        Track,
-        KeyFrame,
-        Animation,
-    },
-    scene::{
-        graph::Graph,
-        Scene,
-        node::Node,
-        mesh::Mesh,
-        base::Base,
-    },
-    engine::resource_manager::ResourceManager,
+    animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{
-        pool::Handle,
         math::{
-            vec4::Vec4,
-            vec3::Vec3,
-            vec2::Vec2,
             mat4::Mat4,
             quat::{Quat, RotationOrder},
             triangulator::triangulate,
+            vec2::Vec2,
+            vec3::Vec3,
+            vec4::Vec4,
         },
+        pool::Handle,
     },
-    utils::{
-        log::Log,
-        raw_mesh::RawMeshBuilder,
-    },
+    engine::resource_manager::ResourceManager,
+    renderer::surface::{Surface, SurfaceSharedData, Vertex, VertexWeightSet},
     resource::{
-        texture::TextureKind,
         fbx::{
-            scene::{
-                animation::FbxAnimationCurveNodeType,
-                geometry::FbxGeometry,
-                FbxMapping,
-                FbxComponent,
-                FbxScene,
-                model::FbxModel,
-            },
-            error::FbxError,
             document::FbxDocument,
+            error::FbxError,
+            scene::{
+                animation::FbxAnimationCurveNodeType, geometry::FbxGeometry, model::FbxModel,
+                FbxComponent, FbxMapping, FbxScene,
+            },
         },
+        texture::TextureKind,
     },
+    scene::{base::Base, graph::Graph, mesh::Mesh, node::Node, Scene},
+    utils::{log::Log, raw_mesh::RawMeshBuilder},
 };
 use std::cmp::Ordering;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vec3) -> Quat {
     Quat::from_euler(
-        Vec3::new(euler.x.to_radians(), euler.y.to_radians(), euler.z.to_radians()),
-        RotationOrder::XYZ)
+        Vec3::new(
+            euler.x.to_radians(),
+            euler.y.to_radians(),
+            euler.z.to_radians(),
+        ),
+        RotationOrder::XYZ,
+    )
 }
 
 /// Fixes index that is used as indicator of end of a polygon
@@ -83,11 +65,13 @@ fn fix_index(index: i32) -> usize {
 
 /// Triangulates polygon face if needed.
 /// Returns number of processed indices.
-fn prepare_next_face(vertices: &[Vec3],
-                     indices: &[i32],
-                     temp_vertices: &mut Vec<Vec3>,
-                     out_triangles: &mut Vec<[usize; 3]>,
-                     out_face_triangles: &mut Vec<[usize; 3]>) -> usize {
+fn prepare_next_face(
+    vertices: &[Vec3],
+    indices: &[i32],
+    temp_vertices: &mut Vec<Vec3>,
+    out_triangles: &mut Vec<[usize; 3]>,
+    out_face_triangles: &mut Vec<[usize; 3]>,
+) -> usize {
     out_triangles.clear();
     out_face_triangles.clear();
 
@@ -128,7 +112,8 @@ fn prepare_next_face(vertices: &[Vec3],
                 out_triangles.push([
                     fix_index(indices[triangle[0]]),
                     fix_index(indices[triangle[1]]),
-                    fix_index(indices[triangle[2]])]);
+                    fix_index(indices[triangle[2]]),
+                ]);
             }
         }
     }
@@ -162,35 +147,34 @@ impl Into<Vertex> for UnpackedVertex {
     }
 }
 
-fn convert_vertex(geom: &FbxGeometry,
-                  geometric_transform: &Mat4,
-                  material_index: usize,
-                  index: usize,
-                  index_in_polygon: usize,
-                  skin_data: &[VertexWeightSet])
-                  -> Result<UnpackedVertex, FbxError> {
-    let position = *geom.vertices
-        .get(index)
-        .ok_or(FbxError::IndexOutOfBounds)?;
+fn convert_vertex(
+    geom: &FbxGeometry,
+    geometric_transform: &Mat4,
+    material_index: usize,
+    index: usize,
+    index_in_polygon: usize,
+    skin_data: &[VertexWeightSet],
+) -> Result<UnpackedVertex, FbxError> {
+    let position = *geom.vertices.get(index).ok_or(FbxError::IndexOutOfBounds)?;
 
     let normal = match geom.normals.as_ref() {
         Some(normals) => *normals.get(index, index_in_polygon)?,
-        None => Vec3::UP
+        None => Vec3::UP,
     };
 
     let tangent = match geom.tangents.as_ref() {
         Some(tangents) => *tangents.get(index, index_in_polygon)?,
-        None => Vec3::UP
+        None => Vec3::UP,
     };
 
     let uv = match geom.uvs.as_ref() {
         Some(uvs) => *uvs.get(index, index_in_polygon)?,
-        None => Vec2::ZERO
+        None => Vec2::ZERO,
     };
 
     let material = match geom.materials.as_ref() {
         Some(materials) => *materials.get(material_index, index_in_polygon)?,
-        None => 0
+        None => 0,
     };
 
     Ok(UnpackedVertex {
@@ -213,22 +197,28 @@ struct SurfaceData {
     skin_data: Vec<VertexWeightSet>,
 }
 
-fn create_surfaces(fbx_scene: &FbxScene,
-                   data_set: Vec<SurfaceData>,
-                   mesh: &mut Mesh,
-                   resource_manager: &mut ResourceManager,
-                   model: &FbxModel) -> Result<(), FbxError> {
+fn create_surfaces(
+    fbx_scene: &FbxScene,
+    data_set: Vec<SurfaceData>,
+    mesh: &mut Mesh,
+    resource_manager: &mut ResourceManager,
+    model: &FbxModel,
+) -> Result<(), FbxError> {
     // Create surfaces per material
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(data.builder.build()))));
+        let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(
+            data.builder.build(),
+        ))));
         surface.vertex_weights = data.skin_data;
         mesh.add_surface(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(data.builder.build()))));
+            let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(
+                data.builder.build(),
+            ))));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             for (name, texture_handle) in material.textures.iter() {
@@ -239,13 +229,14 @@ fn create_surfaces(fbx_scene: &FbxScene,
                     // Here we will load *every* texture as RGBA8, this probably is overkill,
                     // that will lead to higher memory consumption, but this will remove
                     // problems with transparent textures (like mesh texture, etc.)
-                    let texture = resource_manager.request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8);
+                    let texture = resource_manager
+                        .request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8);
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
                         "DiffuseColor" => surface.set_diffuse_texture(texture),
                         // No idea why it can be different for normal maps.
                         "Bump" | "NormalMap" => surface.set_normal_texture(texture),
-                        _ => ()
+                        _ => (),
                     }
                 }
             }
@@ -256,15 +247,16 @@ fn create_surfaces(fbx_scene: &FbxScene,
     Ok(())
 }
 
-fn convert_mesh(fbx_scene: &FbxScene,
-                resource_manager: &mut ResourceManager,
-                model: &FbxModel) -> Result<Mesh, FbxError> {
+fn convert_mesh(
+    fbx_scene: &FbxScene,
+    resource_manager: &mut ResourceManager,
+    model: &FbxModel,
+) -> Result<Mesh, FbxError> {
     let mut mesh = Mesh::default();
 
-    let geometric_transform =
-        Mat4::translate(model.geometric_translation) *
-            Mat4::from_quat(quat_from_euler(model.geometric_rotation)) *
-            Mat4::scale(model.geometric_scale);
+    let geometric_transform = Mat4::translate(model.geometric_translation)
+        * Mat4::from_quat(quat_from_euler(model.geometric_rotation))
+        * Mat4::scale(model.geometric_scale);
 
     let mut temp_vertices = Vec::new();
     let mut triangles = Vec::new();
@@ -277,20 +269,36 @@ fn convert_mesh(fbx_scene: &FbxScene,
         let geom = fbx_scene.get(geom_handle).as_geometry()?;
         let skin_data = geom.get_skin_data(fbx_scene)?;
 
-        let mut data_set = vec![SurfaceData {
-            builder: RawMeshBuilder::new(1024, 1024),
-            skin_data: Default::default(),
-        }; model.materials.len().max(1)];
+        let mut data_set = vec![
+            SurfaceData {
+                builder: RawMeshBuilder::new(1024, 1024),
+                skin_data: Default::default(),
+            };
+            model.materials.len().max(1)
+        ];
 
         let mut material_index = 0;
         let mut n = 0;
         while n < geom.indices.len() {
             let origin = n;
-            n += prepare_next_face(&geom.vertices, &geom.indices[origin..], &mut temp_vertices, &mut triangles, &mut face_triangles);
+            n += prepare_next_face(
+                &geom.vertices,
+                &geom.indices[origin..],
+                &mut temp_vertices,
+                &mut triangles,
+                &mut face_triangles,
+            );
             for (triangle, face_triangle) in triangles.iter().zip(face_triangles.iter()) {
                 for (&index, &face_vertex_index) in triangle.iter().zip(face_triangle.iter()) {
                     let polygon_vertex_index = origin + face_vertex_index;
-                    let vertex = convert_vertex(geom, &geometric_transform, material_index, index, polygon_vertex_index, &skin_data)?;
+                    let vertex = convert_vertex(
+                        geom,
+                        &geometric_transform,
+                        material_index,
+                        index,
+                        polygon_vertex_index,
+                        &skin_data,
+                    )?;
                     let data = data_set.get_mut(vertex.surface).unwrap();
                     let weights = vertex.weights;
                     let is_unique_vertex = data.builder.insert(vertex.into());
@@ -312,10 +320,7 @@ fn convert_mesh(fbx_scene: &FbxScene,
 
         if geom.tangents.is_none() {
             for surface in mesh.surfaces_mut() {
-                surface.get_data()
-                    .lock()
-                    .unwrap()
-                    .calculate_tangents();
+                surface.get_data().lock().unwrap().calculate_tangents();
             }
         }
     }
@@ -323,23 +328,23 @@ fn convert_mesh(fbx_scene: &FbxScene,
     Ok(mesh)
 }
 
-fn convert_model(fbx_scene: &FbxScene,
-                 model: &FbxModel,
-                 resource_manager: &mut ResourceManager,
-                 graph: &mut Graph,
-                 animations: &mut AnimationContainer,
-                 animation_handle: Handle<Animation>)
-                 -> Result<Handle<Node>, FbxError> {
+fn convert_model(
+    fbx_scene: &FbxScene,
+    model: &FbxModel,
+    resource_manager: &mut ResourceManager,
+    graph: &mut Graph,
+    animations: &mut AnimationContainer,
+    animation_handle: Handle<Animation>,
+) -> Result<Handle<Node>, FbxError> {
     // Create node with correct kind.
-    let mut node =
-        if !model.geoms.is_empty() {
-            Node::Mesh(convert_mesh(fbx_scene, resource_manager, model)?)
-        } else if model.light.is_some() {
-            let fbx_light_component = fbx_scene.get(model.light);
-            Node::Light(fbx_light_component.as_light()?.convert())
-        } else {
-            Node::Base(Base::default())
-        };
+    let mut node = if !model.geoms.is_empty() {
+        Node::Mesh(convert_mesh(fbx_scene, resource_manager, model)?)
+    } else if model.light.is_some() {
+        let fbx_light_component = fbx_scene.get(model.light);
+        Node::Light(fbx_light_component.as_light()?.convert())
+    } else {
+        Node::Base(Base::default())
+    };
 
     let node_local_rotation = quat_from_euler(model.rotation);
     node.set_name(model.name.as_str())
@@ -441,7 +446,14 @@ fn convert(
     let mut fbx_model_to_node_map = HashMap::new();
     for (component_handle, component) in fbx_scene.pair_iter() {
         if let FbxComponent::Model(model) = component {
-            let node = convert_model(fbx_scene, model, resource_manager, &mut scene.graph, &mut scene.animations, animation_handle)?;
+            let node = convert_model(
+                fbx_scene,
+                model,
+                resource_manager,
+                &mut scene.graph,
+                &mut scene.animations,
+                animation_handle,
+            )?;
             scene.graph.link_nodes(node, root);
             fbx_model_to_node_map.insert(component_handle, node);
         }
@@ -467,7 +479,8 @@ fn convert(
                 for weight_set in surface.vertex_weights.iter_mut() {
                     for weight in weight_set.iter_mut() {
                         let fbx_model: Handle<FbxComponent> = weight.effector.into();
-                        let bone_handle = fbx_model_to_node_map.get(&fbx_model)
+                        let bone_handle = fbx_model_to_node_map
+                            .get(&fbx_model)
                             .ok_or(FbxError::UnableToRemapModelToNode)?;
                         surface_bones.insert(*bone_handle);
                         weight.effector = (*bone_handle).into();
@@ -478,12 +491,18 @@ fn convert(
                 let data_rc = surface.get_data();
                 let mut data = data_rc.lock().unwrap();
                 if data.get_vertices().len() == surface.vertex_weights.len() {
-                    for (vertex, weight_set) in data.get_vertices_mut().iter_mut().zip(surface.vertex_weights.iter()) {
+                    for (vertex, weight_set) in data
+                        .get_vertices_mut()
+                        .iter_mut()
+                        .zip(surface.vertex_weights.iter())
+                    {
                         for (k, weight) in weight_set.iter().enumerate() {
-                            vertex.bone_indices[k] = surface.bones
+                            vertex.bone_indices[k] = surface
+                                .bones
                                 .iter()
                                 .position(|bone_handle| *bone_handle == weight.effector.into())
-                                .ok_or(FbxError::UnableToFindBone)? as u8;
+                                .ok_or(FbxError::UnableToFindBone)?
+                                as u8;
                             vertex.bone_weights[k] = weight.value;
                         }
                     }
@@ -495,8 +514,11 @@ fn convert(
     Ok(root)
 }
 
-
-pub fn load_to_scene<P: AsRef<Path>>(scene: &mut Scene, resource_manager: &mut ResourceManager, path: P) -> Result<Handle<Node>, FbxError> {
+pub fn load_to_scene<P: AsRef<Path>>(
+    scene: &mut Scene,
+    resource_manager: &mut ResourceManager,
+    path: P,
+) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();
 
     Log::writeln(format!("Trying to load {:?}", path.as_ref()));

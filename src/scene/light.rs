@@ -21,19 +21,12 @@
 use crate::{
     core::{
         color::Color,
-        visitor::{
-            Visit,
-            Visitor,
-            VisitResult,
-        },
         math::vec3::Vec3,
+        visitor::{Visit, VisitResult, Visitor},
     },
-    scene::base::{
-        BaseBuilder,
-        Base,
-    },
+    scene::base::{Base, BaseBuilder},
 };
-use std::ops::{DerefMut, Deref};
+use std::ops::{Deref, DerefMut};
 
 /// Default amount of light scattering, it is set to 3% which is fairly
 /// significant value and you'll clearly see light volume with such settings.
@@ -142,7 +135,8 @@ impl Visit for SpotLight {
         visitor.enter_region(name)?;
 
         self.hotspot_cone_angle.visit("HotspotConeAngle", visitor)?;
-        self.falloff_angle_delta.visit("FalloffAngleDelta", visitor)?;
+        self.falloff_angle_delta
+            .visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
 
         visitor.leave_region()
@@ -169,15 +163,13 @@ impl Visit for SpotLight {
 /// scattering is relatively heavy too.
 #[derive(Clone)]
 pub struct PointLight {
-    radius: f32
+    radius: f32,
 }
 
 impl PointLight {
     /// Creates new point light with given radius.
     pub fn new(radius: f32) -> Self {
-        Self {
-            radius
-        }
+        Self { radius }
     }
 
     /// Sets radius of point light. This parameter also affects radius of spherical
@@ -206,9 +198,7 @@ impl Visit for PointLight {
 
 impl Default for PointLight {
     fn default() -> Self {
-        Self {
-            radius: 10.0
-        }
+        Self { radius: 10.0 }
     }
 }
 
@@ -238,7 +228,7 @@ impl LightKind {
             0 => Ok(LightKind::Spot(Default::default())),
             1 => Ok(LightKind::Point(Default::default())),
             2 => Ok(LightKind::Directional),
-            _ => Err(format!("Invalid light kind {}", id))
+            _ => Err(format!("Invalid light kind {}", id)),
         }
     }
 
@@ -256,7 +246,7 @@ impl Visit for LightKind {
         match self {
             LightKind::Spot(spot_light) => spot_light.visit(name, visitor),
             LightKind::Point(point_light) => point_light.visit(name, visitor),
-            LightKind::Directional => Ok(())
+            LightKind::Directional => Ok(()),
         }
     }
 }

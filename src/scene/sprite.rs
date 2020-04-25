@@ -1,24 +1,14 @@
-use std::{
-    sync::{
-        Arc,
-        Mutex,
-    },
-    ops::{Deref, DerefMut}
-};
 use crate::{
-    resource::texture::Texture,
-    scene::base::{
-        BaseBuilder,
-        Base,
-    },
     core::{
-        visitor::{
-            VisitResult,
-            Visit,
-            Visitor,
-        },
         color::Color,
+        visitor::{Visit, VisitResult, Visitor},
     },
+    resource::texture::Texture,
+    scene::base::{Base, BaseBuilder},
+};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
 };
 
 #[derive(Clone)]

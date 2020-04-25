@@ -18,25 +18,14 @@
 
 use crate::{
     core::{
-        visitor::{
-            Visitor,
-            VisitResult,
-            Visit,
-        },
-        math::{
-            Rect,
-            mat4::Mat4,
-            vec2::Vec2,
-        },
+        math::{mat4::Mat4, vec2::Vec2, Rect},
+        visitor::{Visit, VisitResult, Visitor},
     },
-    scene::base::{
-        Base,
-        BaseBuilder,
-    },
+    scene::base::{Base, BaseBuilder},
 };
-use std::ops::{Deref, DerefMut};
 use rg3d_core::math::ray::Ray;
 use rg3d_core::math::vec4::Vec4;
+use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Clone)]
@@ -241,7 +230,12 @@ impl CameraBuilder {
             fov: 75.0f32.to_radians(),
             z_near: 0.025,
             z_far: 2048.0,
-            viewport: Rect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 },
+            viewport: Rect {
+                x: 0.0,
+                y: 0.0,
+                w: 1.0,
+                h: 1.0,
+            },
         }
     }
 

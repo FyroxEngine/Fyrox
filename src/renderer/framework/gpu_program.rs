@@ -1,36 +1,23 @@
-use std::{
-    ffi::CString,
-    marker::PhantomData,
-    rc::Rc,
-    cell::RefCell
-};
 use crate::{
     core::{
-        math::{
-            vec4::Vec4,
-            mat4::Mat4,
-            vec3::Vec3,
-            vec2::Vec2,
-        },
-        color::Color
+        color::Color,
+        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, vec4::Vec4},
     },
     renderer::{
         error::RendererError,
         framework::{
-            gpu_texture::GpuTexture,
             gl::{
                 self,
-                types::{
-                    GLuint,
-                    GLint,
-                }
+                types::{GLint, GLuint},
             },
-            state::State
-        }
+            gpu_texture::GpuTexture,
+            state::State,
+        },
     },
     utils::log::Log,
 };
 use rg3d_core::math::mat3::Mat3;
+use std::{cell::RefCell, ffi::CString, marker::PhantomData, rc::Rc};
 
 pub struct GpuProgram {
     id: GLuint,
@@ -68,7 +55,7 @@ pub enum UniformValue<'a> {
     Vec2Array(&'a [Vec2]),
     Vec3Array(&'a [Vec3]),
     Vec4Array(&'a [Vec4]),
-    Mat4Array(&'a [Mat4])
+    Mat4Array(&'a [Mat4]),
 }
 
 fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLuint, RendererError> {
@@ -86,9 +73,17 @@ fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLui
             gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
             let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
             buffer.set_len(log_len as usize);
-            gl::GetShaderInfoLog(shader, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
+            gl::GetShaderInfoLog(
+                shader,
+                log_len,
+                std::ptr::null_mut(),
+                buffer.as_mut_ptr() as *mut i8,
+            );
             let compilation_message = String::from_utf8_unchecked(buffer);
-            Log::writeln(format!("Failed to compile {} shader: {}", name, compilation_message));
+            Log::writeln(format!(
+                "Failed to compile {} shader: {}",
+                name, compilation_message
+            ));
             Err(RendererError::ShaderCompilationFailed {
                 shader_name: name,
                 error_message: compilation_message,
@@ -117,10 +112,22 @@ fn prepare_source_code(code: &str) -> Result<CString, RendererError> {
 }
 
 impl GpuProgram {
-    pub fn from_source(name: &str, vertex_source: &str, fragment_source: &str) -> Result<GpuProgram, RendererError> {
+    pub fn from_source(
+        name: &str,
+        vertex_source: &str,
+        fragment_source: &str,
+    ) -> Result<GpuProgram, RendererError> {
         unsafe {
-            let vertex_shader = create_shader(format!("{}_VertexShader", name), gl::VERTEX_SHADER, vertex_source)?;
-            let fragment_shader = create_shader(format!("{}_FragmentShader", name), gl::FRAGMENT_SHADER, fragment_source)?;
+            let vertex_shader = create_shader(
+                format!("{}_VertexShader", name),
+                gl::VERTEX_SHADER,
+                vertex_source,
+            )?;
+            let fragment_shader = create_shader(
+                format!("{}_FragmentShader", name),
+                gl::FRAGMENT_SHADER,
+                fragment_source,
+            )?;
             let program: GLuint = gl::CreateProgram();
             gl::AttachShader(program, vertex_shader);
             gl::DeleteShader(vertex_shader);
@@ -133,7 +140,12 @@ impl GpuProgram {
                 let mut log_len = 0;
                 gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
                 let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-                gl::GetProgramInfoLog(program, log_len, std::ptr::null_mut(), buffer.as_mut_ptr() as *mut i8);
+                gl::GetProgramInfoLog(
+                    program,
+                    log_len,
+                    std::ptr::null_mut(),
+                    buffer.as_mut_ptr() as *mut i8,
+                );
                 Err(RendererError::ShaderLinkingFailed {
                     shader_name: name.to_owned(),
                     error_message: String::from_utf8_unchecked(buffer),
@@ -159,7 +171,10 @@ impl GpuProgram {
             if id < 0 {
                 Err(RendererError::UnableToFindShaderUniform(name.to_owned()))
             } else {
-                Ok(UniformLocation { id, thread_mark: PhantomData })
+                Ok(UniformLocation {
+                    id,
+                    thread_mark: PhantomData,
+                })
             }
         }
     }
@@ -168,7 +183,12 @@ impl GpuProgram {
         state.set_program(self.id);
     }
 
-    pub fn set_uniform(&self, state: &mut State, location: UniformLocation, value: &UniformValue<'_>) {
+    pub fn set_uniform(
+        &self,
+        state: &mut State,
+        location: UniformLocation,
+        value: &UniformValue<'_>,
+    ) {
         state.set_program(self.id);
 
         let location = location.id;
@@ -176,7 +196,7 @@ impl GpuProgram {
             match value {
                 UniformValue::Sampler { index, texture } => {
                     gl::Uniform1i(location, *index as i32);
-                    texture.borrow().bind(state,*index);
+                    texture.borrow().bind(state, *index);
                 }
                 UniformValue::Bool(value) => {
                     gl::Uniform1i(location, if *value { gl::TRUE } else { gl::FALSE } as i32);
@@ -218,7 +238,12 @@ impl GpuProgram {
                     gl::UniformMatrix3fv(location, 1, gl::FALSE, &value.f as *const _);
                 }
                 UniformValue::Mat4Array(value) => {
-                    gl::UniformMatrix4fv(location, value.len() as i32, gl::FALSE, value.as_ptr() as *const _);
+                    gl::UniformMatrix4fv(
+                        location,
+                        value.len() as i32,
+                        gl::FALSE,
+                        value.as_ptr() as *const _,
+                    );
                 }
                 UniformValue::Color(value) => {
                     let rgba = value.as_frgba();

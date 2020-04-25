@@ -1,20 +1,12 @@
 use crate::{
     core::{
-        pool::{Handle},
-        math::{
-            vec3::Vec3,
-            quat::Quat
-        }
+        math::{quat::Quat, vec3::Vec3},
+        pool::Handle,
     },
-    resource::{
-        fbx::{
-            document::{
-                FbxNode,
-                FbxNodeContainer
-            },
-            quat_from_euler,
-            scene::{FBX_TIME_UNIT, FbxComponent, FbxScene}
-        }
+    resource::fbx::{
+        document::{FbxNode, FbxNodeContainer},
+        quat_from_euler,
+        scene::{FbxComponent, FbxScene, FBX_TIME_UNIT},
     },
     utils::log::Log,
 };
@@ -25,11 +17,14 @@ pub struct FbxTimeValuePair {
 }
 
 pub struct FbxAnimationCurve {
-    pub keys: Vec<FbxTimeValuePair>
+    pub keys: Vec<FbxTimeValuePair>,
 }
 
 impl FbxAnimationCurve {
-    pub(in crate::resource::fbx) fn read(curve_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
+    pub(in crate::resource::fbx) fn read(
+        curve_handle: Handle<FbxNode>,
+        nodes: &FbxNodeContainer,
+    ) -> Result<Self, String> {
         let key_time_handle = nodes.find(curve_handle, "KeyTime")?;
         let key_time_array = nodes.get_by_name(key_time_handle, "a")?;
 
@@ -37,12 +32,12 @@ impl FbxAnimationCurve {
         let key_value_array = nodes.get_by_name(key_value_handle, "a")?;
 
         if key_time_array.attrib_count() != key_value_array.attrib_count() {
-            return Err(String::from("FBX: Animation curve contains wrong key data!"));
+            return Err(String::from(
+                "FBX: Animation curve contains wrong key data!",
+            ));
         }
 
-        let mut curve = FbxAnimationCurve {
-            keys: Vec::new()
-        };
+        let mut curve = FbxAnimationCurve { keys: Vec::new() };
 
         for i in 0..key_value_array.attrib_count() {
             curve.keys.push(FbxTimeValuePair {
@@ -108,36 +103,33 @@ impl FbxAnimationCurveNode {
         let node = nodes.get(node_handle);
         Ok(FbxAnimationCurveNode {
             actual_type: match node.get_attrib(1)?.as_string().as_str() {
-                "T" | "AnimCurveNode::T" => { FbxAnimationCurveNodeType::Translation }
-                "R" | "AnimCurveNode::R" => { FbxAnimationCurveNodeType::Rotation }
-                "S" | "AnimCurveNode::S" => { FbxAnimationCurveNodeType::Scale }
-                _ => { FbxAnimationCurveNodeType::Unknown }
+                "T" | "AnimCurveNode::T" => FbxAnimationCurveNodeType::Translation,
+                "R" | "AnimCurveNode::R" => FbxAnimationCurveNodeType::Rotation,
+                "S" | "AnimCurveNode::S" => FbxAnimationCurveNodeType::Scale,
+                _ => FbxAnimationCurveNodeType::Unknown,
             },
             curves: Vec::new(),
         })
     }
 
     pub fn eval_vec3(&self, scene: &FbxScene, time: f32) -> Vec3 {
-        let x =
-            if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[0]) {
-                curve.eval(time)
-            } else {
-                0.0
-            };
+        let x = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[0]) {
+            curve.eval(time)
+        } else {
+            0.0
+        };
 
-        let y =
-            if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[1]) {
-                curve.eval(time)
-            } else {
-                0.0
-            };
+        let y = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[1]) {
+            curve.eval(time)
+        } else {
+            0.0
+        };
 
-        let z =
-            if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[2]) {
-                curve.eval(time)
-            } else {
-                0.0
-            };
+        let z = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[2]) {
+            curve.eval(time)
+        } else {
+            0.0
+        };
 
         Vec3::new(x, y, z)
     }
