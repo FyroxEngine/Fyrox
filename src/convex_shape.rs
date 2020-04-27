@@ -7,7 +7,7 @@ use rg3d_core::{
     visitor::{Visit, VisitResult, Visitor, VisitError},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SphereShape {
     pub radius: f32
 }
@@ -61,7 +61,7 @@ impl SphereShape {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TriangleShape {
     pub vertices: [Vec3; 3]
 }
@@ -111,7 +111,7 @@ impl TriangleShape {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BoxShape {
     half_extents: Vec3,
 }
@@ -172,7 +172,7 @@ impl BoxShape {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PointCloudShape {
     points: Vec<Vec3>
 }
@@ -214,7 +214,7 @@ impl PointCloudShape {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum Axis {
     X = 0,
     Y = 1,
@@ -237,7 +237,7 @@ impl Visit for Axis {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CapsuleShape {
     axis: Axis,
     radius: f32,
@@ -353,7 +353,7 @@ impl CapsuleShape {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ConvexShape {
     Dummy,
     Box(BoxShape),

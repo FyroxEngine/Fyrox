@@ -67,6 +67,7 @@ pub struct RayCastResult {
     pub sqr_distance: f32,
 }
 
+#[derive(Debug)]
 pub struct Physics {
     bodies: Pool<RigidBody>,
     static_geoms: Pool<StaticGeometry>,

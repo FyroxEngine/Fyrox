@@ -21,6 +21,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct RigidBody {
     pub(in crate) position: Vec3,
     pub(in crate) shape: ConvexShape,

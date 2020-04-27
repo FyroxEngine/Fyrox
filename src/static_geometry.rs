@@ -7,7 +7,7 @@ use rg3d_core::{
     octree::Octree
 };
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct StaticGeometry {
     pub(in crate) triangles: Vec<StaticTriangle>,
     pub(in crate) octree: Octree,
@@ -41,7 +41,7 @@ impl Visit for StaticGeometry {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StaticTriangle {
     pub points: [Vec3; 3],
     pub ca: Vec3,
