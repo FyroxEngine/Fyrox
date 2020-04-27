@@ -36,6 +36,7 @@ const INVALID_GENERATION: u32 = 0;
 /// block. It allows to create and delete objects much faster than if they'll
 /// be allocated on heap. Also since objects stored in contiguous memory block
 /// they can be effectively accessed because such memory layout is cache-friendly.
+#[derive(Debug)]
 pub struct Pool<T: Sized> {
     records: Vec<PoolRecord<T>>,
     free_stack: Vec<u32>,
@@ -115,6 +116,7 @@ impl<T> Debug for Handle<T> {
     }
 }
 
+#[derive(Debug)]
 struct PoolRecord<T: Sized> {
     /// Generation number, used to keep info about lifetime. The handle is valid
     /// only if record it points to is of the same generation as the pool record.
@@ -222,6 +224,7 @@ impl<T> Default for Pool<T> {
     }
 }
 
+#[derive(Debug)]
 pub struct Ticket<T> {
     index: u32,
     marker: PhantomData<T>,
@@ -566,9 +569,18 @@ impl<T> Pool<T> {
     /// # Panics
     ///
     /// In normal conditions it must never panic.
-    pub fn put_back(&mut self, ticket: Ticket<T>, value: T) {
-        let old = self.records[ticket.index as usize].payload.replace(value);
+    pub fn put_back(&mut self, ticket: Ticket<T>, value: T) -> Handle<T> {
+        let record = &mut self.records[ticket.index as usize];
+        let old = record.payload.replace(value);
         assert!(old.is_none());
+        Handle::make(ticket.index, record.generation)
+    }
+
+    /// Forgets that value at ticket was reserved and makes it usable again.
+    /// Useful when you don't need to put value back by ticket, but just make
+    /// pool record usable again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<T>) {
+        self.free_stack.push(ticket.index);
     }
 
     /// Returns total capacity of pool. Capacity has nothing about real amount of objects in pool!

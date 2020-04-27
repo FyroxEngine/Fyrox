@@ -3,7 +3,7 @@ use crate::{
     visitor::{Visit, Visitor, VisitResult},
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Plane {
     pub normal: Vec3,
     pub d: f32,

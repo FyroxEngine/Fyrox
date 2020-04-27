@@ -48,6 +48,7 @@ impl Clone for GradientPoint {
     }
 }
 
+#[derive(Debug)]
 pub struct ColorGradient {
     points: Vec<GradientPoint>
 }

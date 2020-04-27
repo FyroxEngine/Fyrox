@@ -341,7 +341,7 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3
     Vec3::new(x, y, z)
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
 

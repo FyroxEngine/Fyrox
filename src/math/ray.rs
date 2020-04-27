@@ -8,6 +8,7 @@ use crate::math::{
     solve_quadratic,
 };
 use crate::math::aabb::AxisAlignedBoundingBox;
+use crate::math::mat4::Mat4;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
@@ -339,6 +340,21 @@ impl Ray {
         let cap_a = self.sphere_intersection(pa, radius);
         let cap_b = self.sphere_intersection(pb, radius);
         self.try_eval_points(IntersectionResult::from_set(&[cylinder, cap_a, cap_b]))
+    }
+
+    /// Transforms ray using given matrix. This method is useful when you need to
+    /// transform ray into some object space to simplify calculations. For example
+    /// you may have mesh with lots of triangles, and in one way you would take all
+    /// vertices, transform them into world space by some matrix, then do intersection
+    /// test in world space. This works, but too inefficient, much more faster would
+    /// be to put ray into object space and do intersection test in object space. This
+    /// removes vertex*matrix multiplication and significantly improves performance.
+    #[must_use = "Method does not modify ray, instead it returns transformed copy"]
+    pub fn transform(&self, mat: Mat4) -> Self {
+        Self {
+            origin: mat.transform_vector(self.origin),
+            dir: mat.transform_vector(self.dir),
+        }
     }
 }
 

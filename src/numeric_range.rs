@@ -1,6 +1,7 @@
 use rand::Rng;
 use crate::visitor::{Visitor, Visit, VisitResult};
 
+#[derive(Debug)]
 pub struct NumericRange<T> {
     pub min: T,
     pub max: T,

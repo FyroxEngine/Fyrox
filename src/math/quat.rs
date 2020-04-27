@@ -6,13 +6,21 @@ use crate::math::{
 };
 use std::ops;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Quat {
     pub x: f32,
     pub y: f32,
     pub z: f32,
     pub w: f32,
 }
+
+impl PartialEq for Quat {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y && self.z == other.z && self.w == other.w
+    }
+}
+
+impl Eq for Quat {}
 
 #[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Ord, Eq)]
 pub enum RotationOrder {
