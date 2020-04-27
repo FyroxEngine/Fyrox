@@ -31,6 +31,7 @@ use std::{
 /// such data in save file. Also this mechanism works perfectly when you changing
 /// resource in external editor (3Ds max, Maya, Blender, etc.) engine will assign
 /// correct visual data when loading a saved game.
+#[derive(Debug)]
 pub struct Model {
     // enable_shared_from_this trick from C++
     pub(in crate) self_weak_ref: Option<Weak<Mutex<Model>>>,
@@ -94,7 +95,7 @@ impl Model {
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let (root, _) = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph, &mut |_| true);
+        let (root, _) = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph, &mut |_,_| true);
         dest_scene.graph[root].is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.

@@ -29,7 +29,7 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
     let mut triangles = Vec::new();
     let global_transform = mesh.global_transform();
     for surface in mesh.surfaces() {
-        let shared_data = surface.get_data();
+        let shared_data = surface.data();
         let shared_data = shared_data.lock().unwrap();
 
         let vertices = shared_data.get_vertices();

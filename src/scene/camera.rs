@@ -39,7 +39,7 @@ use rg3d_core::math::ray::Ray;
 use rg3d_core::math::vec4::Vec4;
 
 /// See module docs.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Camera {
     base: Base,
     fov: f32,

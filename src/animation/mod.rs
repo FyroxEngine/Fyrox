@@ -40,7 +40,7 @@ use std::{
     }
 };
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct KeyFrame {
     pub position: Vec3,
     pub scale: Vec3,
@@ -83,6 +83,7 @@ impl Visit for KeyFrame {
     }
 }
 
+#[derive(Debug)]
 pub struct Track {
     // Frames are not serialized, because it makes no sense to store them in save file,
     // they will be taken from resource on Resolve stage.
@@ -233,12 +234,12 @@ impl Track {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct AnimationEvent {
     pub signal_id: u64
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AnimationSignal {
     id: u64,
     time: f32,
@@ -285,6 +286,7 @@ impl Visit for AnimationSignal {
     }
 }
 
+#[derive(Debug)]
 pub struct Animation {
     // TODO: Extract into separate struct AnimationTimeline
     tracks: Vec<Track>,
@@ -301,7 +303,7 @@ pub struct Animation {
 }
 
 /// Snapshot of scene node local transform state.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LocalPose {
     node: Handle<Node>,
     position: Vec3,
@@ -337,7 +339,7 @@ impl LocalPose {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct AnimationPose {
     local_poses: HashMap<Handle<Node>, LocalPose>
 }
@@ -635,6 +637,7 @@ impl Visit for Animation {
     }
 }
 
+#[derive(Debug)]
 pub struct AnimationContainer {
     pool: Pool<Animation>
 }

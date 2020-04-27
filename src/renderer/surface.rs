@@ -29,6 +29,7 @@ use std::{
     },
 };
 use rg3d_core::math::mat4::Mat4;
+use rg3d_core::color::Color;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)] // OpenGL expects this structure packed as in C
@@ -78,6 +79,7 @@ impl Hash for Vertex {
     }
 }
 
+#[derive(Debug)]
 pub struct SurfaceSharedData {
     pub(in crate) vertices: Vec<Vertex>,
     pub(in crate) triangles: Vec<TriangleDefinition>,
@@ -264,6 +266,54 @@ impl SurfaceSharedData {
         Self::new(vertices, indices)
     }
 
+    pub fn make_quad(transform: Mat4) -> Self {
+        let mut vertices = vec![
+            Vertex {
+                position: Vec3 { x: -0.5, y: 0.0, z: 0.5 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 0.0, y: 1.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 0.5, y: 0.0, z: 0.5 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 1.0, y: 1.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: 0.5, y: 0.0, z: -0.5 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 1.0, y: 0.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            },
+            Vertex {
+                position: Vec3 { x: -0.5, y: 0.0, z: -0.5 },
+                normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                tex_coord: Vec2 { x: 0.0, y: 0.0 },
+                tangent: Vec4 { x: 0.0, y: 0.0, z: 0.0, w: 0.0 },
+                bone_weights: [0.0, 0.0, 0.0, 0.0],
+                bone_indices: [0, 0, 0, 0],
+            }
+        ];
+
+        for v in vertices.iter_mut() {
+            v.position = transform.transform_vector(v.position);
+        }
+
+        let indices = vec![
+            TriangleDefinition([0, 1, 2]),
+            TriangleDefinition([0, 2, 3])
+        ];
+
+        Self::new(vertices, indices)
+    }
+
     pub fn calculate_normals(&mut self) {
         for triangle in self.triangles.iter() {
             let ia = triangle[0] as usize;
@@ -363,7 +413,7 @@ impl SurfaceSharedData {
     }
 
     /// Creates vertical cylinder.
-    pub fn make_cylinder(sides: usize, r: f32, h: f32, transform: Mat4) -> Self {
+    pub fn make_cylinder(sides: usize, r: f32, h: f32, caps: bool, transform: Mat4) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(3 * sides, 3 * sides);
 
         let d_phi = 2.0 * std::f32::consts::PI / sides as f32;
@@ -382,15 +432,17 @@ impl SurfaceSharedData {
             let tx0 = d_theta * i as f32;
             let tx1 = d_theta * (i + 1) as f32;
 
-            // front cap
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, h, 0.0)), Vec2::new(0.0, 0.0)));
+            if caps {
+                // front cap
+                builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
+                builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, h, z0)), Vec2::new(tx0, 1.0)));
+                builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, h, 0.0)), Vec2::new(0.0, 0.0)));
 
-            // back cap
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx1, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx0, 1.0)));
-            builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)), Vec2::new(0.0, 0.0)));
+                // back cap
+                builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx1, 1.0)));
+                builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, 0.0, z1)), Vec2::new(tx0, 1.0)));
+                builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)), Vec2::new(0.0, 0.0)));
+            }
 
             // sides
             builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 0.0)));
@@ -409,8 +461,8 @@ impl SurfaceSharedData {
     }
 
 
-    pub fn make_cube() -> Self {
-        let vertices = vec![
+    pub fn make_cube(transform: Mat4) -> Self {
+        let mut vertices = vec![
             // Front
             Vertex {
                 position: Vec3 { x: -0.5, y: -0.5, z: 0.5 },
@@ -616,6 +668,10 @@ impl SurfaceSharedData {
             },
         ];
 
+        for v in vertices.iter_mut() {
+            v.position = transform.transform_vector(v.position);
+        }
+
         let indices = vec![
             TriangleDefinition([2, 1, 0]),
             TriangleDefinition([3, 2, 0]),
@@ -711,6 +767,7 @@ impl VertexWeightSet {
     }
 }
 
+#[derive(Debug)]
 pub struct Surface {
     data: Arc<Mutex<SurfaceSharedData>>,
     diffuse_texture: Option<Arc<Mutex<Texture>>>,
@@ -723,6 +780,7 @@ pub struct Surface {
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     pub vertex_weights: Vec<VertexWeightSet>,
     pub bones: Vec<Handle<Node>>,
+    color: Color
 }
 
 /// Shallow copy of surface.
@@ -739,6 +797,7 @@ impl Clone for Surface {
             normal_texture: self.normal_texture.clone(),
             bones: self.bones.clone(),
             vertex_weights: Vec::new(),
+            color: self.color
         }
     }
 }
@@ -752,22 +811,13 @@ impl Surface {
             normal_texture: None,
             bones: Vec::new(),
             vertex_weights: Vec::new(),
+            color: Color::WHITE
         }
     }
 
     #[inline]
-    pub fn get_data(&self) -> Arc<Mutex<SurfaceSharedData>> {
+    pub fn data(&self) -> Arc<Mutex<SurfaceSharedData>> {
         self.data.clone()
-    }
-
-    #[inline]
-    pub fn get_diffuse_texture(&self) -> Option<Arc<Mutex<Texture>>> {
-        self.diffuse_texture.clone()
-    }
-
-    #[inline]
-    pub fn get_normal_texture(&self) -> Option<Arc<Mutex<Texture>>> {
-        self.normal_texture.clone()
     }
 
     #[inline]
@@ -776,8 +826,28 @@ impl Surface {
     }
 
     #[inline]
+    pub fn diffuse_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+        self.diffuse_texture.clone()
+    }
+
+    #[inline]
     pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.normal_texture = Some(tex);
+    }
+
+    #[inline]
+    pub fn normal_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+        self.normal_texture.clone()
+    }
+
+    #[inline]
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
+    }
+
+    #[inline]
+    pub fn color(&self) -> Color {
+        self.color
     }
 }
 
@@ -786,6 +856,57 @@ impl From<RawMesh<Vertex>> for SurfaceSharedData {
         Self {
             vertices: raw.vertices,
             triangles: raw.triangles,
+        }
+    }
+}
+
+pub struct SurfaceBuilder {
+    data: Arc<Mutex<SurfaceSharedData>>,
+    diffuse_texture: Option<Arc<Mutex<Texture>>>,
+    normal_texture: Option<Arc<Mutex<Texture>>>,
+    bones: Vec<Handle<Node>>,
+    color: Color
+}
+
+impl SurfaceBuilder {
+    pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
+        Self {
+            data,
+            diffuse_texture: None,
+            normal_texture: None,
+            bones: Default::default(),
+            color: Color::WHITE
+        }
+    }
+
+    pub fn with_diffuse_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
+        self.diffuse_texture = Some(tex);
+        self
+    }
+
+    pub fn with_normal_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
+        self.normal_texture = Some(tex);
+        self
+    }
+
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn with_bones(mut self, bones: Vec<Handle<Node>>) -> Self {
+        self.bones = bones;
+        self
+    }
+
+    pub fn build(self) -> Surface {
+        Surface {
+            data: self.data,
+            diffuse_texture: self.diffuse_texture,
+            normal_texture: self.normal_texture,
+            vertex_weights: Default::default(),
+            bones: self.bones,
+            color: self.color
         }
     }
 }

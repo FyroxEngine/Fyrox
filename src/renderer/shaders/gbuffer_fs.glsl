@@ -6,6 +6,7 @@ layout(location = 1) out vec4 outNormal;
 uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D specularTexture;
+uniform vec4 diffuseColor;
 
 in vec3 normal;
 in vec2 texCoord;
@@ -14,7 +15,7 @@ in vec3 binormal;
 
 void main()
 {
-    outColor = texture2D(diffuseTexture, texCoord);
+    outColor = diffuseColor * texture2D(diffuseTexture, texCoord);
     if (outColor.a < 0.5) discard;
     outColor.a = 1;
     vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);

@@ -8,6 +8,7 @@ use crate::{
 };
 use image::GenericImageView;
 
+#[derive(Debug)]
 pub struct Texture {
     pub(in crate) path: PathBuf,
     pub(in crate) width: u32,
@@ -46,7 +47,7 @@ impl Visit for Texture {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TextureKind {
     R8,
     RGB8,

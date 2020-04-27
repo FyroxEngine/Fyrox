@@ -35,7 +35,7 @@ use crate::{
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PhysicsBinder {
     node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
 }
@@ -68,6 +68,7 @@ impl Visit for PhysicsBinder {
     }
 }
 
+#[derive(Debug)]
 pub struct Scene {
     /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
     /// updates them and performs all other important work. See `graph` module docs for more
@@ -162,7 +163,7 @@ impl Scene {
     }
 
     pub fn clone<F>(&self, filter: &mut F) -> Self
-        where F: FnMut(&Node) -> bool {
+        where F: FnMut(Handle<Node>, &Node) -> bool {
         let (graph, old_new_map) = self.graph.clone(filter);
         let mut animations = self.animations.clone();
         for animation in animations.iter_mut() {

@@ -62,7 +62,7 @@ pub const DEFAULT_SCATTER: Vec3 = Vec3::new(0.03, 0.03, 0.03);
 ///
 /// Light scattering feature may significantly impact performance on low-end
 /// hardware!
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SpotLight {
     hotspot_cone_angle: f32,
     falloff_angle_delta: f32,
@@ -167,7 +167,7 @@ impl Visit for SpotLight {
 /// Point lights supports shadows, but keep in mind - they're very expensive and
 /// can easily ruin performance of your game, especially on low-end hardware. Light
 /// scattering is relatively heavy too.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PointLight {
     radius: f32
 }
@@ -213,7 +213,7 @@ impl Default for PointLight {
 }
 
 /// Engine supports limited amount of light source kinds
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum LightKind {
     /// Directional light is a light source with parallel rays, it has
     /// excellent example in real life - Sun. It does not have position,
@@ -264,7 +264,7 @@ impl Visit for LightKind {
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Light {
     base: Base,
     kind: LightKind,

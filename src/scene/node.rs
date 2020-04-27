@@ -40,7 +40,7 @@ impl Visit for Node {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Node {
     Base(Base),
     Light(Light),

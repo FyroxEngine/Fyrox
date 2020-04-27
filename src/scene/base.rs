@@ -23,6 +23,7 @@ use crate::{
 };
 
 /// See module docs.
+#[derive(Debug)]
 pub struct Base {
     name: String,
     local_transform: Transform,
@@ -46,6 +47,7 @@ pub struct Base {
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
     lifetime: Option<f32>,
+    depth_offset: f32
 }
 
 impl Base {
@@ -183,6 +185,24 @@ impl Base {
     pub fn up_vector(&self) -> Vec3 {
         self.global_transform.up()
     }
+
+    /// Sets depth range offset factor. It allows you to move depth range by given
+    /// value. This can be used to draw weapons on top of other stuff in scene.
+    ///
+    /// # Details
+    ///
+    /// This value is used to modify projection matrix before render node.
+    /// Element m[4][3] of projection matrix usually set to -1 to which makes w coordinate
+    /// of in homogeneous space to be -z_fragment for further perspective divide. We can
+    /// abuse this to shift z of fragment by some value.
+    pub fn set_depth_offset_factor(&mut self, factor: f32) {
+        self.depth_offset = factor.abs().min(1.0).max(0.0);
+    }
+
+    /// Returns depth offset factor.
+    pub fn depth_offset_factor(&self) -> f32 {
+        self.depth_offset
+    }
 }
 
 impl Clone for Base {
@@ -223,6 +243,7 @@ impl Visit for Base {
         self.resource.visit("Resource", visitor)?;
         self.is_resource_instance.visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
+        self.depth_offset.visit("DepthOffset", visitor)?;
 
         visitor.leave_region()
     }
@@ -235,6 +256,7 @@ pub struct BaseBuilder {
     local_transform: Option<Transform>,
     children: Option<Vec<Handle<Node>>>,
     lifetime: Option<f32>,
+    depth_offset: f32,
 }
 
 impl Default for BaseBuilder {
@@ -252,12 +274,13 @@ impl BaseBuilder {
             local_transform: None,
             children: None,
             lifetime: None,
+            depth_offset: 0.0
         }
     }
 
     /// Sets desired name.
-    pub fn with_name(mut self, name: &str) -> Self {
-        self.name = Some(name.to_owned());
+    pub fn with_name<P: AsRef<str>>(mut self, name: P) -> Self {
+        self.name = Some(name.as_ref().to_owned());
         self
     }
 
@@ -285,6 +308,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired depth offset.
+    pub fn with_depth_offset(mut self, offset: f32) -> Self {
+        self.depth_offset = offset;
+        self
+    }
+
     /// Creates new instance of base scene node. Do not forget to add
     /// node to scene or pass to other nodes as base.
     pub fn build(self) -> Base {
@@ -301,6 +330,7 @@ impl BaseBuilder {
             resource: None,
             original: Handle::NONE,
             is_resource_instance: false,
+            depth_offset: self.depth_offset
         }
     }
 }

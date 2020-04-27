@@ -33,6 +33,7 @@ use crate::{
         color::Color,
     },
 };
+use std::fmt::Debug;
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
@@ -135,6 +136,7 @@ pub trait Emit {
     fn emit(&self, emitter: &Emitter, particle_system: &ParticleSystem, particle: &mut Particle);
 }
 
+#[derive(Debug)]
 pub struct BoxEmitter {
     half_width: f32,
     half_height: f32,
@@ -194,6 +196,7 @@ impl Clone for BoxEmitter {
     }
 }
 
+#[derive(Debug)]
 pub struct SphereEmitter {
     radius: f32,
 }
@@ -285,7 +288,7 @@ lazy_static! {
     static ref CUSTOM_EMITTER_FACTORY_INSTANCE: Mutex<CustomEmitterFactory> = Mutex::new(Default::default());
 }
 
-pub trait CustomEmitter: Any + Emit + Visit + Send {
+pub trait CustomEmitter: Any + Emit + Visit + Send + Debug {
     /// Creates boxed copy of custom emitter.
     fn box_clone(&self) -> Box<dyn CustomEmitter>;
 
@@ -294,6 +297,7 @@ pub trait CustomEmitter: Any + Emit + Visit + Send {
     fn get_kind(&self) -> i32;
 }
 
+#[derive(Debug)]
 pub enum EmitterKind {
     /// Unknown kind here is just to have ability to implement Default trait,
     /// must not be used at runtime!
@@ -367,7 +371,7 @@ impl Visit for EmitterKind {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum ParticleLimit {
     Unlimited,
     Strict(u32),
@@ -396,6 +400,7 @@ impl Visit for ParticleLimit {
     }
 }
 
+#[derive(Debug)]
 pub struct Emitter {
     kind: EmitterKind,
     /// Offset from center of particle system.
@@ -774,7 +779,7 @@ impl Default for Emitter {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ParticleSystem {
     base: Base,
     particles: Vec<Particle>,

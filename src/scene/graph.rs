@@ -52,8 +52,10 @@ use crate::{
         },
     },
 };
+use rg3d_core::pool::Ticket;
 
 /// See module docs.
+#[derive(Debug)]
 pub struct Graph {
     root: Handle<Node>,
     pool: Pool<Node>,
@@ -232,7 +234,7 @@ impl Graph {
                         node_handle: Handle<Node>,
                         dest_graph: &mut Graph,
                         filter: &mut F,
-    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>) where F: FnMut(&Node) -> bool {
+    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>) where F: FnMut(Handle<Node>, &Node) -> bool {
         let mut old_new_mapping = HashMap::new();
         let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
 
@@ -257,14 +259,14 @@ impl Graph {
                         dest_graph: &mut Graph,
                         old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
                         filter: &mut F,
-    ) -> Handle<Node> where F: FnMut(&Node) -> bool {
+    ) -> Handle<Node> where F: FnMut(Handle<Node>, &Node) -> bool {
         let src_node = &self.pool[root_handle];
         let mut dest_node = src_node.clone();
         dest_node.original = root_handle;
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
-            if filter(&self.pool[src_child_handle]) {
+            if filter(src_child_handle, &self.pool[src_child_handle]) {
                 let dest_child_handle = self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
                 if !dest_child_handle.is_none() {
                     dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
@@ -454,6 +456,26 @@ impl Graph {
         self.pool.pair_iter_mut()
     }
 
+    /// Extracts node from graph and reserves its handle. It is used to temporarily take
+    /// ownership over node, and then put node back using given ticket. Extracted node is
+    /// detached from its parent!
+    pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
+        self.unlink_internal(handle);
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts node back by given ticket. Attaches back to root node of graph.
+    pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
+        let handle = self.pool.put_back(ticket, node);
+        self.link_nodes(handle, self.root);
+        handle
+    }
+
+    /// Makes node handle vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<Node>) {
+        self.pool.forget_ticket(ticket)
+    }
+
     /// Create graph depth traversal iterator.
     ///
     /// # Notes
@@ -483,7 +505,7 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
-        where F: FnMut(&Node) -> bool {
+        where F: FnMut(Handle<Node>, &Node) -> bool {
         let mut copy = Self::default();
         let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
         copy.root = root;

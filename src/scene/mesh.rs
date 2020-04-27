@@ -33,9 +33,10 @@ use crate::{
     },
 };
 use crate::scene::base::BaseBuilder;
+use rg3d_core::color::Color;
 
 /// See module docs.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Mesh {
     base: Base,
     surfaces: Vec<Surface>,
@@ -106,13 +107,21 @@ impl Mesh {
         self.bounding_box_dirty.set(true);
     }
 
+    /// Applies given color to all surfaces.
+    #[inline]
+    pub fn set_color(&mut self, color: Color) {
+        for surface in self.surfaces.iter_mut() {
+            surface.set_color(color);
+        }
+    }
+
     /// Performs lazy bounding box evaluation. Bounding box presented in *local coordinates*
     /// WARNING: This method does *not* includes bounds of bones!
     pub fn bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.bounding_box_dirty.get() {
             let mut bounding_box = AxisAlignedBoundingBox::default();
             for surface in self.surfaces.iter() {
-                let data = surface.get_data();
+                let data = surface.data();
                 let data = data.lock().unwrap();
                 for vertex in data.get_vertices() {
                     bounding_box.add_point(vertex.position);
@@ -129,7 +138,7 @@ impl Mesh {
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         let mut bounding_box = AxisAlignedBoundingBox::default();
         for surface in self.surfaces.iter() {
-            let data = surface.get_data();
+            let data = surface.data();
             let data = data.lock().unwrap();
             for vertex in data.get_vertices() {
                 bounding_box.add_point(self.global_transform().transform_vector(vertex.position));
@@ -139,7 +148,7 @@ impl Mesh {
     }
 
     /// Performs frustum visibility test. It uses mesh bounding box *and* positions of bones.
-    /// Mesh is considered visible if its bounding box visibile by frustum, or if any bones
+    /// Mesh is considered visible if its bounding box visible by frustum, or if any bones
     /// position is inside frustum.
     pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
         if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform) {
@@ -185,7 +194,7 @@ impl MeshBuilder {
             base: self.base_builder.build(),
             surfaces: self.surfaces,
             bounding_box: Default::default(),
-            bounding_box_dirty: Default::default()
+            bounding_box_dirty: Cell::new(true)
         }
     }
 }

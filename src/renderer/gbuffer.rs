@@ -56,6 +56,7 @@ struct GBufferShader {
     bone_matrices: UniformLocation,
     diffuse_texture: UniformLocation,
     normal_texture: UniformLocation,
+    diffuse_color: UniformLocation,
 }
 
 impl GBufferShader {
@@ -70,6 +71,7 @@ impl GBufferShader {
             bone_matrices: program.uniform_location("boneMatrices")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             normal_texture: program.uniform_location("normalTexture")?,
+            diffuse_color: program.uniform_location("diffuseColor")?,
             program,
         })
     }
@@ -188,7 +190,7 @@ impl GBuffer {
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(state, viewport, Some(Color::from_rgba(0, 0, 0, 0)), Some(1.0), Some(0));
 
-        let view_projection = camera.view_projection_matrix();
+        let initial_view_projection =  camera.view_projection_matrix();
 
         'mesh_loop: for mesh in graph.linear_iter().filter_map(|node| {
             if let Node::Mesh(mesh) = node { Some(mesh) } else { None }
@@ -201,6 +203,14 @@ impl GBuffer {
                 continue 'mesh_loop;
             }
 
+            let view_projection = if mesh.depth_offset_factor() != 0.0 {
+                let mut projection = camera.projection_matrix();
+                projection.f[14] -= mesh.depth_offset_factor();
+                projection * camera.view_matrix()
+            } else {
+                initial_view_projection
+            };
+
             for surface in mesh.surfaces().iter() {
                 let is_skinned = !surface.bones.is_empty();
 
@@ -211,7 +221,7 @@ impl GBuffer {
                 };
                 let mvp = view_projection * world;
 
-                let diffuse_texture = if let Some(texture) = surface.get_diffuse_texture() {
+                let diffuse_texture = if let Some(texture) = surface.diffuse_texture() {
                     if let Some(texture) = texture_cache.get(state, texture) {
                         texture
                     } else {
@@ -221,7 +231,7 @@ impl GBuffer {
                     white_dummy.clone()
                 };
 
-                let normal_texture = if let Some(texture) = surface.get_normal_texture() {
+                let normal_texture = if let Some(texture) = surface.normal_texture() {
                     if let Some(texture) = texture_cache.get(state, texture) {
                         texture
                     } else {
@@ -232,7 +242,7 @@ impl GBuffer {
                 };
 
                 statistics += self.framebuffer.draw(
-                    geom_cache.get(state,&surface.get_data().lock().unwrap()),
+                    geom_cache.get(state, &surface.data().lock().unwrap()),
                     state,
                     viewport,
                     &self.shader.program,
@@ -257,6 +267,7 @@ impl GBuffer {
                         (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
                         (self.shader.world_matrix, UniformValue::Mat4(world)),
                         (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
+                        (self.shader.diffuse_color, UniformValue::Color(surface.color())),
                         (self.shader.bone_matrices, UniformValue::Mat4Array({
                             self.bone_matrices.clear();
                             for &bone_handle in surface.bones.iter() {

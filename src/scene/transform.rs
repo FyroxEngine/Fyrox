@@ -66,7 +66,7 @@ use crate::{
 };
 
 /// See module docs.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Transform {
     /// Indicates that some property has changed and matrix must be
     /// recalculated before use. This is some sort of lazy evaluation.

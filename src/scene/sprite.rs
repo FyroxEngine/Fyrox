@@ -21,7 +21,7 @@ use crate::{
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Sprite {
     base: Base,
     texture: Option<Arc<Mutex<Texture>>>,

@@ -155,7 +155,7 @@ impl SpotShadowMapRenderer {
                     };
                     let mvp = *light_view_projection * world;
 
-                    let diffuse_texture = if let Some(texture) = surface.get_diffuse_texture() {
+                    let diffuse_texture = if let Some(texture) = surface.diffuse_texture() {
                         if let Some(texture) = textures.get(state, texture) {
                             texture
                         } else {
@@ -166,7 +166,7 @@ impl SpotShadowMapRenderer {
                     };
 
                     statistics += self.framebuffer.draw(
-                        geom_map.get(state, &surface.get_data().lock().unwrap()),
+                        geom_map.get(state, &surface.data().lock().unwrap()),
                         state,
                         viewport,
                         &self.shader.program,
@@ -388,7 +388,7 @@ impl PointShadowMapRenderer {
                         };
                         let mvp = light_view_projection_matrix * world;
 
-                        let diffuse_texture = if let Some(texture) = surface.get_diffuse_texture() {
+                        let diffuse_texture = if let Some(texture) = surface.diffuse_texture() {
                             if let Some(texture) = texture_cache.get(state, texture) {
                                 texture
                             } else {
@@ -399,7 +399,7 @@ impl PointShadowMapRenderer {
                         };
 
                         statistics += self.framebuffer.draw(
-                            geom_cache.get(state, &surface.get_data().lock().unwrap()),
+                            geom_cache.get(state, &surface.data().lock().unwrap()),
                             state,
                             viewport,
                             &self.shader.program,

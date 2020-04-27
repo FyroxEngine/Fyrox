@@ -312,7 +312,7 @@ fn convert_mesh(fbx_scene: &FbxScene,
 
         if geom.tangents.is_none() {
             for surface in mesh.surfaces_mut() {
-                surface.get_data()
+                surface.data()
                     .lock()
                     .unwrap()
                     .calculate_tangents();
@@ -475,7 +475,7 @@ fn convert(
                 }
                 surface.bones = surface_bones.iter().copied().collect();
 
-                let data_rc = surface.get_data();
+                let data_rc = surface.data();
                 let mut data = data_rc.lock().unwrap();
                 if data.get_vertices().len() == surface.vertex_weights.len() {
                     for (vertex, weight_set) in data.get_vertices_mut().iter_mut().zip(surface.vertex_weights.iter()) {
