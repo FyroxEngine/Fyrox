@@ -92,7 +92,9 @@ impl Graph {
     #[inline]
     pub fn add_node(&mut self, node: Node) -> Handle<Node> {
         let handle = self.pool.spawn(node);
-        self.link_nodes(handle, self.root);
+        if self.root.is_some() {
+            self.link_nodes(handle, self.root);
+        }
         handle
     }
 

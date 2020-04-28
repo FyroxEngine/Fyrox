@@ -30,8 +30,9 @@ use std::{
 };
 use rg3d_core::math::mat4::Mat4;
 use rg3d_core::color::Color;
+use rg3d_core::visitor::{Visit, Visitor, VisitResult};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct Vertex {
     pub position: Vec3,
@@ -40,6 +41,29 @@ pub struct Vertex {
     pub tangent: Vec4,
     pub bone_weights: [f32; 4],
     pub bone_indices: [u8; 4],
+}
+
+impl Visit for Vertex {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.position.visit("Position", visitor)?;
+        self.tex_coord.visit("TexCoord", visitor)?;
+        self.normal.visit("Normal", visitor)?;
+        self.tangent.visit("Tangent", visitor)?;
+
+        self.bone_weights[0].visit("Weight0", visitor)?;
+        self.bone_weights[1].visit("Weight1", visitor)?;
+        self.bone_weights[2].visit("Weight2", visitor)?;
+        self.bone_weights[3].visit("Weight3", visitor)?;
+
+        self.bone_indices[0].visit("BoneIndex0", visitor)?;
+        self.bone_indices[1].visit("BoneIndex1", visitor)?;
+        self.bone_indices[2].visit("BoneIndex2", visitor)?;
+        self.bone_indices[3].visit("BoneIndex3", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 impl Vertex {
@@ -83,6 +107,9 @@ impl Hash for Vertex {
 pub struct SurfaceSharedData {
     pub(in crate) vertices: Vec<Vertex>,
     pub(in crate) triangles: Vec<TriangleDefinition>,
+    // If true - indicates that surface was generated and does not have reference
+    // resource. Procedural data will be serialized.
+    is_procedural: bool,
 }
 
 impl Default for SurfaceSharedData {
@@ -90,15 +117,25 @@ impl Default for SurfaceSharedData {
         Self {
             vertices: Default::default(),
             triangles: Default::default(),
+            is_procedural: false,
         }
     }
 }
 
 impl SurfaceSharedData {
-    pub fn new(vertices: Vec<Vertex>, triangles: Vec<TriangleDefinition>) -> Self {
+    pub fn new(vertices: Vec<Vertex>, triangles: Vec<TriangleDefinition>, is_procedural: bool) -> Self {
         Self {
             vertices,
             triangles,
+            is_procedural,
+        }
+    }
+
+    pub fn from_raw_mesh(raw: RawMesh<Vertex>, is_procedural: bool) -> Self {
+        Self {
+            vertices: raw.vertices,
+            triangles: raw.triangles,
+            is_procedural,
         }
     }
 
@@ -219,7 +256,7 @@ impl SurfaceSharedData {
             TriangleDefinition([0, 2, 3])
         ];
 
-        Self::new(vertices, indices)
+        Self::new(vertices, indices, true)
     }
 
     pub fn make_collapsed_xy_quad() -> Self {
@@ -263,7 +300,7 @@ impl SurfaceSharedData {
             TriangleDefinition([0, 2, 3])
         ];
 
-        Self::new(vertices, indices)
+        Self::new(vertices, indices, true)
     }
 
     pub fn make_quad(transform: Mat4) -> Self {
@@ -311,7 +348,7 @@ impl SurfaceSharedData {
             TriangleDefinition([0, 2, 3])
         ];
 
-        Self::new(vertices, indices)
+        Self::new(vertices, indices, true)
     }
 
     pub fn calculate_normals(&mut self) {
@@ -369,7 +406,7 @@ impl SurfaceSharedData {
             }
         }
 
-        let mut data = Self::from(builder.build());
+        let mut data = Self::from_raw_mesh(builder.build(), true);
         data.calculate_normals();
         data.calculate_tangents();
         data
@@ -406,7 +443,7 @@ impl SurfaceSharedData {
             builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x0, 0.0, z0)), Vec2::new(tx0, 0.0)));
         }
 
-        let mut data = Self::from(builder.build());
+        let mut data = Self::from_raw_mesh(builder.build(), true);
         data.calculate_normals();
         data.calculate_tangents();
         data
@@ -454,7 +491,7 @@ impl SurfaceSharedData {
             builder.insert(Vertex::from_pos_uv(transform.transform_vector(Vec3::new(x1, h, z1)), Vec2::new(tx1, 1.0)));
         }
 
-        let mut data = Self::from(builder.build());
+        let mut data = Self::from_raw_mesh(builder.build(), true);
         data.calculate_normals();
         data.calculate_tangents();
         data
@@ -687,9 +724,29 @@ impl SurfaceSharedData {
             TriangleDefinition([20, 22, 23]),
         ];
 
-        let mut data = Self::new(vertices, indices);
+        let mut data = Self::new(vertices, indices, true);
         data.calculate_tangents();
         data
+    }
+}
+
+impl Visit for SurfaceSharedData {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        if visitor.is_reading() || (self.is_procedural && !visitor.is_reading()) {
+            self.vertices.visit("Vertices", visitor)?;
+            self.triangles.visit("Triangles", visitor)?;
+        } else {
+            let mut dummy = Vec::<Vertex>::new();
+            dummy.visit("Vertices", visitor)?;
+            let mut dummy = Vec::<TriangleDefinition>::new();
+            dummy.visit("Triangles", visitor)?;
+        }
+
+        self.is_procedural.visit("IsProcedural", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
@@ -767,9 +824,11 @@ impl VertexWeightSet {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Surface {
-    data: Arc<Mutex<SurfaceSharedData>>,
+    // Wrapped into option to be able to implement Default for serialization.
+    // In normal conditions it must never be None!
+    data: Option<Arc<Mutex<SurfaceSharedData>>>,
     diffuse_texture: Option<Arc<Mutex<Texture>>>,
     normal_texture: Option<Arc<Mutex<Texture>>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
@@ -780,7 +839,7 @@ pub struct Surface {
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     pub vertex_weights: Vec<VertexWeightSet>,
     pub bones: Vec<Handle<Node>>,
-    color: Color
+    color: Color,
 }
 
 /// Shallow copy of surface.
@@ -792,12 +851,12 @@ pub struct Surface {
 impl Clone for Surface {
     fn clone(&self) -> Self {
         Surface {
-            data: Arc::clone(&self.data),
+            data: Some(Arc::clone(&self.data.as_ref().unwrap())),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
             bones: self.bones.clone(),
             vertex_weights: Vec::new(),
-            color: self.color
+            color: self.color,
         }
     }
 }
@@ -806,18 +865,18 @@ impl Surface {
     #[inline]
     pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
         Self {
-            data,
+            data: Some(data),
             diffuse_texture: None,
             normal_texture: None,
             bones: Vec::new(),
             vertex_weights: Vec::new(),
-            color: Color::WHITE
+            color: Color::WHITE,
         }
     }
 
     #[inline]
     pub fn data(&self) -> Arc<Mutex<SurfaceSharedData>> {
-        self.data.clone()
+        self.data.as_ref().unwrap().clone()
     }
 
     #[inline]
@@ -851,12 +910,18 @@ impl Surface {
     }
 }
 
-impl From<RawMesh<Vertex>> for SurfaceSharedData {
-    fn from(raw: RawMesh<Vertex>) -> Self {
-        Self {
-            vertices: raw.vertices,
-            triangles: raw.triangles,
-        }
+impl Visit for Surface {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.data.visit("Data", visitor)?;
+        self.normal_texture.visit("NormalTexture", visitor)?;
+        self.diffuse_texture.visit("DiffuseTexture", visitor)?;
+        self.color.visit("Color", visitor)?;
+        self.bones.visit("Bones", visitor)?;
+        // self.vertex_weights intentionally not serialized!
+
+        visitor.leave_region()
     }
 }
 
@@ -865,7 +930,7 @@ pub struct SurfaceBuilder {
     diffuse_texture: Option<Arc<Mutex<Texture>>>,
     normal_texture: Option<Arc<Mutex<Texture>>>,
     bones: Vec<Handle<Node>>,
-    color: Color
+    color: Color,
 }
 
 impl SurfaceBuilder {
@@ -875,7 +940,7 @@ impl SurfaceBuilder {
             diffuse_texture: None,
             normal_texture: None,
             bones: Default::default(),
-            color: Color::WHITE
+            color: Color::WHITE,
         }
     }
 
@@ -901,12 +966,12 @@ impl SurfaceBuilder {
 
     pub fn build(self) -> Surface {
         Surface {
-            data: self.data,
+            data: Some(self.data),
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
-            color: self.color
+            color: self.color,
         }
     }
 }

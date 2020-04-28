@@ -451,7 +451,10 @@ impl Renderer {
         self.quality_settings
     }
 
-    pub(in crate) fn flush(&mut self) {
+    /// Removes all cached GPU data, forces renderer to re-upload data to GPU.
+    /// Do not call this method until you absolutely need! It may cause **significant**
+    /// performance lag!
+    pub fn flush(&mut self) {
         self.texture_cache.clear();
         self.geometry_cache.clear();
     }

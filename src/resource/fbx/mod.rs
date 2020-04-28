@@ -222,13 +222,13 @@ fn create_surfaces(fbx_scene: &FbxScene,
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(data.builder.build()))));
+        let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from_raw_mesh(data.builder.build(), false))));
         surface.vertex_weights = data.skin_data;
         mesh.add_surface(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from(data.builder.build()))));
+            let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from_raw_mesh(data.builder.build(), false))));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             for (name, texture_handle) in material.textures.iter() {
