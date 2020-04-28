@@ -45,21 +45,13 @@ use rg3d::{
         text_box::TextBoxBuilder,
     },
 };
-use std::{
-    time::Instant,
-    sync::{
-        mpsc::{Receiver, Sender},
-        mpsc
-    },
-    path::PathBuf
-};
 use crate::{
     interaction::{
         InteractionMode,
         MoveInteractionMode,
         ScaleInteractionMode,
         RotateInteractionMode,
-        InteractionModeTrait
+        InteractionModeTrait,
     },
     camera::CameraController,
     command::{
@@ -68,6 +60,19 @@ use crate::{
         CreateNodeCommand,
         NodeKind,
     },
+};
+use std::{
+    path::{
+        Path,
+        PathBuf
+    },
+    time::Instant,
+    sync::{
+        mpsc::{Receiver, Sender},
+        mpsc,
+    },
+    fs::File,
+    io::Write
 };
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
@@ -132,6 +137,8 @@ struct EntityPanel {
     create_spot_light: Handle<UiNode>,
     create_point_light: Handle<UiNode>,
     message_sender: Sender<Message>,
+    save_scene: Handle<UiNode>,
+    load_scene: Handle<UiNode>
 }
 
 impl EntityPanel {
@@ -139,6 +146,8 @@ impl EntityPanel {
         let create_cube;
         let create_spot_light;
         let create_point_light;
+        let save_scene;
+        let load_scene;
         let window = WindowBuilder::new(WidgetBuilder::new()
             .with_width(250.0))
             .with_content(GridBuilder::new(WidgetBuilder::new()
@@ -165,8 +174,26 @@ impl EntityPanel {
                         .with_text("Create Point Light")
                         .build(ui);
                     create_point_light
+                })
+                .with_child({
+                    save_scene = ButtonBuilder::new(WidgetBuilder::new()
+                        .on_row(3)
+                        .on_column(0))
+                        .with_text("Save")
+                        .build(ui);
+                    save_scene
+                })
+                .with_child({
+                    load_scene = ButtonBuilder::new(WidgetBuilder::new()
+                        .on_row(4)
+                        .on_column(0))
+                        .with_text("Load")
+                        .build(ui);
+                    load_scene
                 }))
                 .add_column(Column::stretch())
+                .add_row(Row::strict(32.0))
+                .add_row(Row::strict(32.0))
                 .add_row(Row::strict(32.0))
                 .add_row(Row::strict(32.0))
                 .add_row(Row::strict(32.0))
@@ -180,6 +207,8 @@ impl EntityPanel {
             create_cube,
             create_spot_light,
             create_point_light,
+            save_scene,
+            load_scene
         }
     }
 
@@ -198,6 +227,14 @@ impl EntityPanel {
                     } else if message.source() == self.create_point_light {
                         self.message_sender
                             .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::PointLight))))
+                            .unwrap();
+                    } else if message.source() == self.save_scene {
+                        self.message_sender
+                            .send(Message::SaveScene("test_scene.rgs".into()))
+                            .unwrap();
+                    } else if message.source() == self.load_scene {
+                        self.message_sender
+                            .send(Message::LoadScene("test_scene.rgs".into()))
                             .unwrap();
                     }
                 }
@@ -292,6 +329,28 @@ impl Editor {
         editor
     }
 
+    fn set_scene(&mut self, engine: &mut GameEngine, mut scene: Scene) {
+        engine.scenes.remove(self.scene.scene);
+
+        let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
+
+        self.scene = EditorScene {
+            root,
+            scene: engine.scenes.add(scene),
+        };
+
+        self.interaction_modes = vec![
+            InteractionMode::Move(MoveInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
+            InteractionMode::Scale(ScaleInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
+            InteractionMode::Rotate(RotateInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
+        ];
+
+        self.camera_controller = CameraController::new(&self.scene, engine);
+        self.command_stack = CommandStack::new();
+
+        self.set_interaction_mode(Some(0), engine);
+    }
+
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
         self.node_editor.sync_to_model(&self.scene, engine);
     }
@@ -332,36 +391,12 @@ impl Editor {
             &WindowEvent::MouseInput { state, button, .. } => {
                 if button == MouseButton::Left {
                     if let Some(current_im) = self.current_interaction_mode {
-                        match &mut self.interaction_modes[current_im] {
-                            InteractionMode::Move(move_mode) => {
-                                match state {
-                                    ElementState::Pressed => {
-                                        move_mode.on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine);
-                                    }
-                                    ElementState::Released => {
-                                        move_mode.on_left_mouse_button_up(&self.scene, engine);
-                                    }
-                                }
+                        match state {
+                            ElementState::Pressed => {
+                                self.interaction_modes[current_im].on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine);
                             }
-                            InteractionMode::Scale(scale_mode) => {
-                                match state {
-                                    ElementState::Pressed => {
-                                        scale_mode.on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine);
-                                    }
-                                    ElementState::Released => {
-                                        scale_mode.on_left_mouse_button_up(&self.scene, engine);
-                                    }
-                                }
-                            }
-                            InteractionMode::Rotate(rotate_mode) => {
-                                match state {
-                                    ElementState::Pressed => {
-                                        rotate_mode.on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine);
-                                    }
-                                    ElementState::Released => {
-                                        rotate_mode.on_left_mouse_button_up(&self.scene, engine);
-                                    }
-                                }
+                            ElementState::Released => {
+                                self.interaction_modes[current_im].on_left_mouse_button_up(&self.scene, engine);
                             }
                         }
                     }
@@ -458,16 +493,25 @@ impl Editor {
                 Message::Undo => self.undo_command(engine),
                 Message::Redo => self.redo_command(engine),
                 Message::SetSelection(node) => self.node_editor.node = node,
-                Message::SaveScene(path) => {
+                Message::SaveScene(mut path) => {
                     let scene = &mut engine.scenes[self.scene.scene];
                     let editor_root = self.scene.root;
                     let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
                     let mut visitor = Visitor::new();
                     pure_scene.visit("Scene", &mut visitor).unwrap();
                     visitor.save_binary(&path).unwrap();
+                    // Add text output for debugging.
+                    path.set_extension("txt");
+                    if let Ok(mut file) = File::create(path) {
+                        file.write(visitor.save_text().as_bytes()).unwrap();
+                    }
                 }
                 Message::LoadScene(path) => {
-
+                    let mut visitor = Visitor::load_binary(&path).unwrap();
+                    let mut scene = Scene::default();
+                    scene.visit("Scene", &mut visitor).unwrap();
+                    self.set_scene(engine, scene);
+                    engine.renderer.flush();
                 }
             }
         }

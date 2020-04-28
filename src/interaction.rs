@@ -573,7 +573,7 @@ impl ScaleGizmo {
                     let delta = next_point - initial_point;
                     return match self.mode {
                         ScaleGizmoMode::None => unreachable!(),
-                        ScaleGizmoMode::X => Vec3::new(delta.x, 0.0, 0.0),
+                        ScaleGizmoMode::X => Vec3::new(-delta.x, 0.0, 0.0),
                         ScaleGizmoMode::Y => Vec3::new(0.0, delta.y, 0.0),
                         ScaleGizmoMode::Z => Vec3::new(0.0, 0.0, delta.z),
                         ScaleGizmoMode::Uniform => {
@@ -835,14 +835,14 @@ impl RotationGizmo {
             let offset_ray = camera.make_ray(mouse_position + mouse_offset, screen_size);
 
             let axis = match self.mode {
-                RotateGizmoMode::None => return Default::default(),
+                RotateGizmoMode::None => return Quat::default(),
                 RotateGizmoMode::Pitch => Vec3::RIGHT,
                 RotateGizmoMode::Yaw => Vec3::UP,
                 RotateGizmoMode::Roll => Vec3::LOOK,
                 RotateGizmoMode::Arbitrary => Vec3::ZERO,
             };
 
-            let plane = Plane::from_normal_and_point(&node_global_transform.transform_vector(axis), &Vec3::ZERO).unwrap_or_default();
+            let plane = Plane::from_normal_and_point(&node_global_transform.transform_vector(axis), &node_global_transform.position()).unwrap_or_default();
 
             // Get two intersection points with plane and use delta between them to calculate scale delta.
             // TODO: Still bugged and sometimes make unpredictable results.

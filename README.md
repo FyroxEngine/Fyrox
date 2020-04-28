@@ -24,8 +24,8 @@ rg3d engine getting bigger, but still does not have scene editor what makes crea
 	- [x] Rotate.
 - [x] Undo/redo.
 - [x] Camera controller.
-- [ ] Save scene.
-- [ ] Load scene.
+- [x] Save scene.
+- [x] Load scene.
 - [ ] Node properties editor.
 
 ... Lots of stuff.
