@@ -26,6 +26,8 @@ use crate::{
     pool::{Handle, Pool},
 };
 use crate::math::mat3::Mat3;
+use crate::math::vec2::Vec2;
+use crate::math::vec4::Vec4;
 
 pub enum FieldKind {
     Bool(bool),
@@ -43,7 +45,9 @@ pub enum FieldKind {
     Quat(Quat),
     Mat4(Mat4),
     Data(Vec<u8>),
-    Mat3(Mat3)
+    Mat3(Mat3),
+    Vec2(Vec2),
+    Vec4(Vec4),
 }
 
 impl FieldKind {
@@ -86,6 +90,12 @@ impl FieldKind {
                     out += format!("{}; ", f).as_str();
                 }
                 out
+            }
+            FieldKind::Vec2(data) => {
+                format!("<vec2 = {}; {}>, ", data.x, data.y)
+            },
+            FieldKind::Vec4(data) => {
+                format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
         }
     }
@@ -135,6 +145,8 @@ impl_field_data!(Quat, FieldKind::Quat);
 impl_field_data!(Mat4, FieldKind::Mat4);
 impl_field_data!(bool, FieldKind::Bool);
 impl_field_data!(Mat3, FieldKind::Mat3);
+impl_field_data!(Vec2, FieldKind::Vec2);
+impl_field_data!(Vec4, FieldKind::Vec4);
 
 impl<T> Visit for T where T: FieldData + 'static {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -339,6 +351,18 @@ impl Field {
                     file.write_f32::<LittleEndian>(*f)?;
                 }
             }
+            FieldKind::Vec2(data) => {
+                file.write_u8(17)?;
+                file.write_f32::<LittleEndian>(data.x)?;
+                file.write_f32::<LittleEndian>(data.y)?;
+            }
+            FieldKind::Vec4(data) => {
+                file.write_u8(18)?;
+                file.write_f32::<LittleEndian>(data.x)?;
+                file.write_f32::<LittleEndian>(data.y)?;
+                file.write_f32::<LittleEndian>(data.z)?;
+                file.write_f32::<LittleEndian>(data.w)?;
+            }
         }
         Ok(())
     }
@@ -394,6 +418,18 @@ impl Field {
                     *n = file.read_f32::<LittleEndian>()?;
                 }
                 Mat3 { f }
+            }),
+            17 => FieldKind::Vec2({
+                let x = file.read_f32::<LittleEndian>()?;
+                let y = file.read_f32::<LittleEndian>()?;
+                Vec2 { x, y }
+            }),
+            18 => FieldKind::Vec4({
+                let x = file.read_f32::<LittleEndian>()?;
+                let y = file.read_f32::<LittleEndian>()?;
+                let z = file.read_f32::<LittleEndian>()?;
+                let w = file.read_f32::<LittleEndian>()?;
+                Vec4 { x, y, z, w }
             }),
             _ => return Err(VisitError::UnknownFieldType(id))
         }))

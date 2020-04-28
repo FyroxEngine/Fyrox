@@ -341,7 +341,7 @@ pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3
     Vec3::new(x, y, z)
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug, Default)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
 
@@ -352,6 +352,18 @@ impl TriangleDefinition {
 
     pub fn indices_mut(&mut self) -> &mut [u32] {
         self.as_mut()
+    }
+}
+
+impl Visit for TriangleDefinition {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.0[0].visit("A", visitor)?;
+        self.0[1].visit("B", visitor)?;
+        self.0[2].visit("C", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
