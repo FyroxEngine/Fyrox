@@ -40,6 +40,7 @@ use crate::{
     progress_bar::ProgressBar
 };
 use std::ops::{Deref, DerefMut};
+use crate::tree::Tree;
 
 #[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -65,6 +66,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     ComboBox(ComboBox<M, C>),
     Decorator(Decorator<M, C>),
     ProgressBar(ProgressBar<M, C>),
+    Tree(Tree<M, C>),
     User(C)
 }
 
@@ -94,6 +96,7 @@ macro_rules! static_dispatch {
             UINode::ItemContainer(v) => v.$func($($args),*),
             UINode::ProgressBar(v) => v.$func($($args),*),
             UINode::Decorator(v) => v.$func($($args),*),
+            UINode::Tree(v) => v.$func($($args),*),
         }
     };
 }
@@ -124,6 +127,7 @@ macro_rules! static_dispatch_deref {
             UINode::ItemContainer(v) => v,
             UINode::ProgressBar(v) => v,
             UINode::Decorator(v) => v,
+            UINode::Tree(v) => v
         }
     };
 }

@@ -37,6 +37,7 @@ pub mod combobox;
 pub mod items_control;
 pub mod decorator;
 pub mod progress_bar;
+pub mod tree;
 
 use std::{
     collections::VecDeque,
@@ -129,7 +130,7 @@ impl Thickness {
 
 pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
 
-/// Trait for all UI controls in engine.
+/// Trait for all UI controls in library.
 ///
 /// Control must provide at least references (shared and mutable) to inner widget,
 /// which means that any control must be based on widget struct.
@@ -1164,31 +1165,19 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 #[cfg(test)]
 mod test {
     use crate::{
-        widget::{WidgetBuilder, Widget},
+        widget::{WidgetBuilder},
         grid::{GridBuilder, Row, Column},
         window::{WindowBuilder, WindowTitle},
         Thickness,
-        Builder,
         UserInterface,
-        Control,
         button::ButtonBuilder,
-        node::UINode,
         core::math::vec2::Vec2,
     };
-
-    pub struct StubUiMessage {}
-
-    pub struct StubUiNode {}
-
-    impl Control<StubUiMessage, StubUiNode> for StubUiNode {
-        fn raw_copy(&self) -> UINode<StubUiMessage, StubUiNode> {
-            unimplemented!()
-        }
-    }
+    use crate::node::StubNode;
 
     #[test]
     fn perf_test() {
-        let mut ui = UserInterface::<StubUiMessage, StubUiNode>::new();
+        let mut ui = UserInterface::<(), StubNode>::new();
 
         GridBuilder::new(WidgetBuilder::new()
             .with_width(1000.0)

@@ -93,6 +93,15 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ComboBox<M, C> {
                             self.items = items.clone();
                         }
                     }
+                    &ItemsControlMessage::AddItem(item) => {
+                        if message.target == self_handle {
+                            ui.post_message(UiMessage::targeted(
+                                self.items_control,
+                                UiMessageData::ItemsControl(
+                                    ItemsControlMessage::AddItem(item))));
+                            self.items.push(item);
+                        }
+                    }
                     ItemsControlMessage::SelectionChanged(selection) => {
                         if message.source == self.items_control {
                             // Copy node from current selection in items controls. This is not

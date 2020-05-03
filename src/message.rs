@@ -79,6 +79,7 @@ pub enum ScrollBarMessage {
     MaxValue(f32),
 }
 
+#[allow(irrefutable_let_patterns)]
 #[derive(Debug)]
 pub enum CheckBoxMessage {
     Checked(Option<bool>),
@@ -101,7 +102,8 @@ pub enum ScrollViewerMessage<M: 'static, C: 'static + Control<M, C>> {
 #[derive(Debug)]
 pub enum ItemsControlMessage<M: 'static, C: 'static + Control<M, C>> {
     SelectionChanged(Option<usize>),
-    Items(Vec<Handle<UINode<M, C>>>)
+    Items(Vec<Handle<UINode<M, C>>>),
+    AddItem(Handle<UINode<M, C>>)
 }
 
 #[derive(Debug)]
@@ -112,6 +114,12 @@ pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
     Placement(Placement)
 }
 
+#[allow(irrefutable_let_patterns)]
+#[derive(Debug)]
+pub enum TreeMessage {
+    Expand(bool),
+}
+
 #[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Widget(WidgetMessage),
@@ -119,9 +127,11 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     ScrollBar(ScrollBarMessage),
     CheckBox(CheckBoxMessage),
     Window(WindowMessage),
+    /// ItemsControl and all derived controls: Combobox, Tree, ListBox.
     ItemsControl(ItemsControlMessage<M, C>),
     Popup(PopupMessage<M, C>),
     ScrollViewer(ScrollViewerMessage<M, C>),
+    Tree(TreeMessage),
     User(M),
 }
 
