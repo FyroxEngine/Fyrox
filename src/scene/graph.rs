@@ -478,6 +478,11 @@ impl Graph {
         self.pool.forget_ticket(ticket)
     }
 
+    /// Returns amount of nodes in graph.
+    pub fn node_count(&self) -> usize {
+        self.pool.alive_count()
+    }
+
     /// Create graph depth traversal iterator.
     ///
     /// # Notes
