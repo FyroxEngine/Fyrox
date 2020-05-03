@@ -3,6 +3,7 @@ extern crate rg3d;
 pub mod interaction;
 pub mod camera;
 pub mod command;
+pub mod world_outliner;
 
 use rg3d::{
     scene::{
@@ -60,19 +61,17 @@ use crate::{
         CreateNodeCommand,
         NodeKind,
     },
+    world_outliner::WorldOutliner,
 };
 use std::{
-    path::{
-        Path,
-        PathBuf
-    },
+    path::PathBuf,
     time::Instant,
     sync::{
         mpsc::{Receiver, Sender},
         mpsc,
     },
     fs::File,
-    io::Write
+    io::Write,
 };
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
@@ -138,7 +137,7 @@ struct EntityPanel {
     create_point_light: Handle<UiNode>,
     message_sender: Sender<Message>,
     save_scene: Handle<UiNode>,
-    load_scene: Handle<UiNode>
+    load_scene: Handle<UiNode>,
 }
 
 impl EntityPanel {
@@ -208,7 +207,7 @@ impl EntityPanel {
             create_spot_light,
             create_point_light,
             save_scene,
-            load_scene
+            load_scene,
         }
     }
 
@@ -270,6 +269,7 @@ struct Editor {
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<InteractionMode>,
     current_interaction_mode: Option<usize>,
+    world_outliner: WorldOutliner,
 }
 
 fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>) {
@@ -305,6 +305,7 @@ impl Editor {
 
         let node_editor = NodeEditor::new(ui);
         let entity_panel = EntityPanel::new(ui, message_sender.clone());
+        let world_outliner = WorldOutliner::new(ui);
 
         let interaction_modes = vec![
             InteractionMode::Move(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),
@@ -322,6 +323,7 @@ impl Editor {
             message_receiver,
             interaction_modes,
             current_interaction_mode: None,
+            world_outliner,
         };
 
         editor.set_interaction_mode(Some(0), engine);
@@ -475,6 +477,7 @@ impl Editor {
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         self.camera_controller.update(&self.scene, engine, dt);
+        self.world_outliner.sync_to_model(&self.scene, engine);
 
         if let Some(mode) = self.current_interaction_mode {
             self.interaction_modes[mode].update(&self.scene, engine);
