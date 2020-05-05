@@ -78,8 +78,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), texture);
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
     }
 }
 

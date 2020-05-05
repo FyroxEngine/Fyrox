@@ -82,9 +82,10 @@ impl<M, C: 'static + Control<M, C>> ScrollViewer<M, C> {
         if self.content != content {
             self.content = content;
             self.widget.post_message(
-                UiMessage::new(
-                    UiMessageData::ScrollViewer(
-                        ScrollViewerMessage::Content(content))));
+                UiMessage {
+                    data: UiMessageData::ScrollViewer(ScrollViewerMessage::Content(content)),
+                    ..Default::default()
+                })
         }
         self
     }
@@ -117,65 +118,78 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
 
             let x_max = (content_size.x - available_size_for_content.x).max(0.0);
             self.widget.post_message(
-                UiMessage::targeted(self.h_scroll_bar,
-                                    UiMessageData::ScrollBar(ScrollBarMessage::Value(x_max))));
+                UiMessage {
+                    destination: self.h_scroll_bar,
+                    data: UiMessageData::ScrollBar(ScrollBarMessage::MaxValue(x_max)),
+                    ..Default::default()
+                });
 
             let y_max = (content_size.y - available_size_for_content.y).max(0.0);
             self.widget.post_message(
-                UiMessage::targeted(self.v_scroll_bar,
-                                    UiMessageData::ScrollBar(ScrollBarMessage::Value(y_max))));
+                UiMessage {
+                    destination: self.v_scroll_bar,
+                    data: UiMessageData::ScrollBar(ScrollBarMessage::MaxValue(y_max)),
+                    ..Default::default()
+                });
         }
 
         size
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::MouseWheel { amount, .. } = msg {
-                    if self.v_scroll_bar.is_some() && !message.handled && (message.source == self_handle || self.has_descendant(message.source, ui)) {
+                    if self.v_scroll_bar.is_some() && !message.handled {
                         if let UINode::ScrollBar(v_scroll_bar) = ui.node_mut(self.v_scroll_bar) {
-                            v_scroll_bar.scroll(-amount * 10.0);
-                            message.handled = true;
+                            if v_scroll_bar.scroll(-amount * 10.0) {
+                                message.handled = true;
+                            }
                         }
                     }
                 }
             }
             UiMessageData::ScrollBar(msg) => {
-                if let ScrollBarMessage::Value(new_value) = msg {
-                    if message.target == self.v_scroll_bar && self.v_scroll_bar.is_some() {
-                        if let UINode::ScrollBar(scroll_bar) = ui.node_mut(self.v_scroll_bar) {
-                            scroll_bar.set_max_value(*new_value);
-                            if (scroll_bar.max_value() - scroll_bar.min_value()).abs() <= std::f32::EPSILON {
-                                scroll_bar.set_visibility(false);
-                            } else {
-                                scroll_bar.set_visibility(true);
+                match msg {
+                    ScrollBarMessage::Value(new_value) => {
+                        if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
+                            if let UINode::ScrollContentPresenter(content_presenter) = ui.node_mut(self.content_presenter) {
+                                content_presenter.set_vertical_scroll(*new_value);
                             }
-                        }
-                    } else if message.target == self.h_scroll_bar && self.h_scroll_bar.is_some() {
-                        if let UINode::ScrollBar(scroll_bar) = ui.node_mut(self.h_scroll_bar) {
-                            scroll_bar.set_max_value(*new_value);
-                            if (scroll_bar.max_value() - scroll_bar.min_value()).abs() <= std::f32::EPSILON {
-                                scroll_bar.set_visibility(false);
-                            } else {
-                                scroll_bar.set_visibility(true);
+                        } else if message.destination == self.h_scroll_bar && self.h_scroll_bar.is_some() {
+                            if let UINode::ScrollContentPresenter(content_presenter) = ui.node_mut(self.content_presenter) {
+                                content_presenter.set_horizontal_scroll(*new_value);
                             }
-                        }
-                    } else if message.source == self.h_scroll_bar && self.content_presenter.is_some() {
-                        if let UINode::ScrollContentPresenter(content_presenter) = ui.node_mut(self.content_presenter) {
-                            content_presenter.set_horizontal_scroll(*new_value);
-                        }
-                    } else if message.source == self.v_scroll_bar && self.content_presenter.is_some() {
-                        if let UINode::ScrollContentPresenter(content_presenter) = ui.node_mut(self.content_presenter) {
-                            content_presenter.set_vertical_scroll(*new_value);
                         }
                     }
+                    &ScrollBarMessage::MaxValue(max_value) => {
+                        if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
+                            if let UINode::ScrollBar(scroll_bar) = ui.node_mut(self.v_scroll_bar) {
+                                scroll_bar.set_max_value(max_value);
+                                if (scroll_bar.max_value() - scroll_bar.min_value()).abs() <= std::f32::EPSILON {
+                                    scroll_bar.set_visibility(false);
+                                } else {
+                                    scroll_bar.set_visibility(true);
+                                }
+                            }
+                        } else if message.destination == self.h_scroll_bar && self.h_scroll_bar.is_some() {
+                            if let UINode::ScrollBar(scroll_bar) = ui.node_mut(self.h_scroll_bar) {
+                                scroll_bar.set_max_value(max_value);
+                                if (scroll_bar.max_value() - scroll_bar.min_value()).abs() <= std::f32::EPSILON {
+                                    scroll_bar.set_visibility(false);
+                                } else {
+                                    scroll_bar.set_visibility(true);
+                                }
+                            }
+                        }
+                    }
+                    _ => ()
                 }
             }
             UiMessageData::ScrollViewer(msg) => {
-                if message.source == self_handle || message.target == self_handle {
+                if message.destination == self_handle {
                     if let ScrollViewerMessage::Content(content) = msg {
                         for child in ui.node(self.content_presenter).children().to_vec() {
                             ui.remove_node(child);

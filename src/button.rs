@@ -26,7 +26,7 @@ use crate::{
         ButtonMessage,
     },
     NodeHandleMapping,
-    decorator::DecoratorBuilder
+    decorator::DecoratorBuilder,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -95,27 +95,29 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
         self.decorator = *node_map.get(&self.decorator).unwrap();
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.source == self_handle || self.has_descendant(message.source, ui) {
+                if message.destination == self_handle || self.has_descendant(message.destination, ui) {
                     match msg {
                         WidgetMessage::MouseUp { .. } => {
-                            self.post_message(UiMessage::new(UiMessageData::Button(ButtonMessage::Click)));
-
+                            self.post_message(UiMessage {
+                                data: UiMessageData::Button(ButtonMessage::Click),
+                                ..Default::default()
+                            });
                             ui.release_mouse_capture();
                         }
                         WidgetMessage::MouseDown { .. } => {
-                            ui.capture_mouse(message.source);
+                            ui.capture_mouse(message.destination);
                         }
                         _ => ()
                     }
                 }
             }
             UiMessageData::Button(msg) => {
-                if message.target() == self_handle {
+                if message.destination == self_handle {
                     match msg {
                         ButtonMessage::Click => (),
                         ButtonMessage::Content(content) => {

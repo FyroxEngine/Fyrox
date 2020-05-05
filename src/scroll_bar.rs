@@ -126,21 +126,21 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         size
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         match &message.data {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.source == self.increase {
+                    if message.destination == self.increase {
                         self.set_value(self.value + self.step);
-                    } else if message.source == self.decrease {
+                    } else if message.destination == self.decrease {
                         self.set_value(self.value - self.step);
                     }
                 }
             }
             UiMessageData::ScrollBar(ref prop) => {
-                if message.source == self_handle || message.target == self_handle {
+                if message.destination == self_handle {
                     if let ScrollBarMessage::Value(value) = prop {
                         if self.value_text.is_some() {
                             if let UINode::Text(text) = ui.node_mut(self.value_text) {
@@ -151,7 +151,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                 }
             }
             UiMessageData::Widget(msg) => {
-                if message.source == self.indicator {
+                if message.destination == self.indicator {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
                             if self.indicator.is_some() {
@@ -262,7 +262,10 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
         let new_value = math::clampf(value, self.min, self.max);
         if (new_value - old_value).abs() > std::f32::EPSILON {
             self.value = new_value;
-            self.widget.post_message(UiMessage::new(UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value))));
+            self.widget.post_message(UiMessage {
+                data: UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value)),
+                ..Default::default()
+            });
             self.widget.invalidate_layout();
         }
         self
@@ -317,8 +320,10 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
         self.step
     }
 
-    pub fn scroll(&mut self, amount: f32) {
+    pub fn scroll(&mut self, amount: f32) -> bool {
+        let old_value = self.value;
         self.set_value(self.value + amount);
+        (old_value - self.value).abs() > std::f32::EPSILON
     }
 }
 

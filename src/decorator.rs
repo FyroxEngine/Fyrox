@@ -12,7 +12,6 @@ use crate::{
         UiMessage,
         UiMessageData,
         WidgetMessage,
-        ItemsControlMessage,
     },
     node::UINode,
     Control,
@@ -112,12 +111,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.update(dt)
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.border.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.border.handle_routed_message(self_handle, ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.source == self_handle || self.has_descendant(message.source, ui) {
+                if message.destination == self_handle || self.has_descendant(message.destination, ui) {
                     match msg {
                         WidgetMessage::MouseLeave => {
                             if self.is_selected {
@@ -143,42 +142,25 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
                     }
                 }
             }
-            UiMessageData::ItemsControl(msg) => {
-                // Reflect changes of selection in parent item container (if has any).
-                if let ItemsControlMessage::SelectionChanged(selection) = msg {
-                    let items_control = self.find_by_criteria_up(ui, |n| {
-                        if let UINode::ItemsControl(_) = n { true } else { false }
-                    });
-
-                    if message.source == items_control {
-                        let container = self.find_by_criteria_up(ui, |n| {
-                            if let UINode::ItemContainer(_) = n { true } else { false }
-                        });
-
-                        if container.is_some() {
-                            if let UINode::ItemContainer(container) = ui.node(container) {
-                                if let Some(selection) = selection {
-                                    self.is_selected = container.index() == *selection;
-                                } else {
-                                    self.is_selected = false;
-                                }
-
-                                if self.is_selected {
-                                    self.border.set_background(self.selected_brush.clone());
-                                } else {
-                                    self.border.set_background(self.normal_brush.clone());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             _ => {}
         }
     }
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
         self.border.remove_ref(handle)
+    }
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Decorator<M, C> {
+    pub fn set_selected(&mut self, selected: bool) {
+        if self.is_selected != selected {
+            self.is_selected = selected;
+            if self.is_selected {
+                self.border.set_background(self.selected_brush.clone());
+            } else {
+                self.border.set_background(self.normal_brush.clone());
+            }
+        }
     }
 }
 

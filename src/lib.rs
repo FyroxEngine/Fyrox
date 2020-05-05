@@ -4,6 +4,7 @@
 
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::float_cmp)]
+#![warn(rust_2018_idioms)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -24,7 +25,7 @@ pub mod grid;
 pub mod window;
 pub mod formatted_text;
 pub mod widget;
-pub mod list_box;
+pub mod list_view;
 pub mod stack_panel;
 pub mod text_box;
 pub mod check_box;
@@ -33,8 +34,7 @@ pub mod ttf;
 pub mod brush;
 pub mod node;
 pub mod popup;
-pub mod combobox;
-pub mod items_control;
+pub mod dropdown_list;
 pub mod decorator;
 pub mod progress_bar;
 pub mod tree;
@@ -77,6 +77,7 @@ use crate::{
     node::UINode,
 };
 use std::ops::{DerefMut, Deref};
+use std::cell::RefCell;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -337,7 +338,11 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
     /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
     /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
     /// to check if event came from/for this node or to capture input on node.
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>);
+
+    fn preview_message(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
+        // This method is optional.
+    }
 
     /// Provides a way to respond to OS specific events. Can be useful to detect if a key or mouse
     /// button was pressed. This method significantly differs from `handle_message` because os events
@@ -360,7 +365,7 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     captured_node: Handle<UINode<M, C>>,
     keyboard_focus_node: Handle<UINode<M, C>>,
     cursor_position: Vec2,
-    messages: VecDeque<UiMessage<M, C>>,
+    messages: RefCell<VecDeque<UiMessage<M, C>>>,
     stack: Vec<Handle<UINode<M, C>>>,
     root_picking_node: Handle<UINode<M, C>>,
 }
@@ -383,7 +388,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn new() -> UserInterface<M, C> {
         let mut ui = UserInterface {
             screen_size: Vec2::new(1000.0, 1000.0),
-            messages: VecDeque::new(),
+            messages: Default::default(),
             visual_debug: false,
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
@@ -677,7 +682,11 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             return node_handle;
         }
 
-        self.find_by_criteria_up(node.parent(), func)
+        if node.parent().is_some() {
+            self.find_by_criteria_up(node.parent(), func)
+        } else {
+            Handle::NONE
+        }
     }
 
     /// Checks if specified node is a child of some other node on `root_handle`. This method
@@ -750,8 +759,8 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     /// Pushes new UI event to the common queue. Could be useful to send a message
     /// to some specific node in deferred manner.
-    pub fn post_message(&mut self, message: UiMessage<M, C>) {
-        self.messages.push_back(message);
+    pub fn post_message(&self, message: UiMessage<M, C>) {
+        self.messages.borrow_mut().push_back(message);
     }
 
     /// Puts node at the end of children list of a parent node.
@@ -778,22 +787,48 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         // Gather events from nodes.
         for (handle, node) in self.nodes.pair_iter_mut() {
             while let Some(mut outgoing_message) = node.pop_message() {
-                outgoing_message.source = handle;
-                self.messages.push_back(outgoing_message)
+                // Some events may not have destination node - this means that such event
+                // was thrown for node itself.
+                if outgoing_message.destination.is_none() {
+                    outgoing_message.destination = handle;
+                }
+                self.messages.borrow_mut().push_back(outgoing_message)
             }
         }
 
-        let mut event = self.messages.pop_front();
+        let mut event = self.messages.borrow_mut().pop_front();
 
         if let Some(ref mut message) = event {
-            for i in 0..self.nodes.get_capacity() {
-                let handle = self.nodes.handle_from_index(i);
+            // Fire preview handler first. This will allow controls to do some actions before
+            // message will begin bubble routing. Preview routing does not care about destination
+            // node of message, it always starts from root and descend to leaf nodes.
+            self.stack.clear();
+            self.stack.push(self.root());
+            while let Some(handle) = self.stack.pop() {
+                let (ticket, mut node) = self.nodes.take_reserve(handle);
+                for &child in node.children() {
+                    self.stack.push(child);
+                }
+                node.preview_message(handle, self, message);
+                self.nodes.put_back(ticket, node);
+            }
 
-                if self.nodes.is_valid_handle(handle) {
+            // Dispatch event using bubble strategy. Bubble routing means that message will go
+            // from specified destination up on tree to tree root.
+            if message.destination.is_some() {
+                // Gather chain of nodes from source to root.
+                self.stack.clear();
+                self.stack.push(message.destination);
+                let mut parent = self.nodes[message.destination].parent();
+                while parent.is_some() {
+                    self.stack.push(parent);
+                    parent = self.nodes[parent].parent();
+                }
+                self.stack.reverse();
+
+                while let Some(handle) = self.stack.pop() {
                     let (ticket, mut node) = self.nodes.take_reserve(handle);
-
-                    node.handle_message(handle, self, message);
-
+                    node.handle_routed_message(handle, self, message);
                     self.nodes.put_back(ticket, node);
                 }
             }
@@ -804,7 +839,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         // Keep order of children of a parent node of a node that changed z-index
                         // the same as z-index of children.
                         if let WidgetProperty::ZIndex(_) = property {
-                            let parent = self.node(message.source).parent();
+                            let parent = self.node(message.destination).parent();
                             if parent.is_some() {
                                 self.stack.clear();
                                 for child in self.nodes.borrow(parent).children() {
@@ -827,10 +862,8 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         }
                     }
                     WidgetMessage::TopMost => {
-                        if message.target.is_some() {
-                            self.make_topmost(message.target);
-                        } else if message.source.is_some() {
-                            self.make_topmost(message.source);
+                        if message.destination.is_some() {
+                            self.make_topmost(message.destination);
                         }
                     }
                     _ => {}
@@ -863,49 +896,45 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
                         if self.keyboard_focus_node != self.picked_node {
                             if self.keyboard_focus_node.is_some() {
-                                self.messages.push_back(UiMessage {
-                                    handled: false,
+                                self.post_message(UiMessage {
                                     data: UiMessageData::Widget(WidgetMessage::LostFocus),
-                                    target: Handle::NONE,
-                                    source: self.keyboard_focus_node,
+                                    destination: self.keyboard_focus_node,
+                                    ..Default::default()
                                 });
                             }
 
                             self.keyboard_focus_node = self.picked_node;
 
                             if self.keyboard_focus_node.is_some() {
-                                self.messages.push_back(UiMessage {
-                                    handled: false,
+                                self.post_message(UiMessage {
                                     data: UiMessageData::Widget(WidgetMessage::GotFocus),
-                                    target: Handle::NONE,
-                                    source: self.keyboard_focus_node,
+                                    destination: self.keyboard_focus_node,
+                                    ..Default::default()
                                 });
                             }
                         }
 
                         if self.picked_node.is_some() {
-                            self.messages.push_back(UiMessage {
-                                handled: false,
+                            self.post_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::MouseDown {
                                     pos: self.cursor_position,
                                     button: *button,
                                 }),
-                                target: Handle::NONE,
-                                source: self.picked_node,
+                                destination: self.picked_node,
+                                ..Default::default()
                             });
                             event_processed = true;
                         }
                     }
                     ButtonState::Released => {
                         if self.picked_node.is_some() {
-                            self.messages.push_back(UiMessage {
-                                handled: false,
+                            self.post_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::MouseUp {
                                     pos: self.cursor_position,
                                     button: *button,
                                 }),
-                                target: Handle::NONE,
-                                source: self.picked_node,
+                                destination: self.picked_node,
+                                ..Default::default()
                             });
                             event_processed = true;
                         }
@@ -921,11 +950,10 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node);
                     if prev_picked_node.is_mouse_directly_over {
                         prev_picked_node.is_mouse_directly_over = false;
-                        self.messages.push_back(UiMessage {
-                            handled: false,
+                        self.post_message(UiMessage {
                             data: UiMessageData::Widget(WidgetMessage::MouseLeave),
-                            target: Handle::NONE,
-                            source: self.prev_picked_node,
+                            destination: self.prev_picked_node,
+                            ..Default::default()
                         });
                     }
                 }
@@ -934,20 +962,18 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     let picked_node = self.nodes.borrow_mut(self.picked_node);
                     if !picked_node.is_mouse_directly_over {
                         picked_node.is_mouse_directly_over = true;
-                        self.messages.push_back(UiMessage {
-                            handled: false,
+                        self.post_message(UiMessage {
                             data: UiMessageData::Widget(WidgetMessage::MouseEnter),
-                            target: Handle::NONE,
-                            source: self.picked_node,
+                            destination: self.picked_node,
+                            ..Default::default()
                         });
                     }
 
                     // Fire mouse move
-                    self.messages.push_back(UiMessage {
-                        handled: false,
+                    self.post_message(UiMessage {
                         data: UiMessageData::Widget(WidgetMessage::MouseMove(self.cursor_position)),
-                        target: Handle::NONE,
-                        source: self.picked_node,
+                        destination: self.picked_node,
+                        ..Default::default()
                     });
 
                     event_processed = true;
@@ -955,14 +981,13 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             }
             OsEvent::MouseWheel(_, y) => {
                 if self.picked_node.is_some() {
-                    self.messages.push_back(UiMessage {
-                        handled: false,
+                    self.post_message(UiMessage {
                         data: UiMessageData::Widget(WidgetMessage::MouseWheel {
                             pos: self.cursor_position,
                             amount: *y,
                         }),
-                        target: Handle::NONE,
-                        source: self.picked_node,
+                        destination: self.picked_node,
+                        ..Default::default()
                     });
 
                     event_processed = true;
@@ -971,7 +996,6 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             OsEvent::KeyboardInput { button, state } => {
                 if self.keyboard_focus_node.is_some() {
                     let message = UiMessage {
-                        handled: false,
                         data: match state {
                             ButtonState::Pressed => {
                                 UiMessageData::Widget(WidgetMessage::KeyDown(*button))
@@ -980,11 +1004,11 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                                 UiMessageData::Widget(WidgetMessage::KeyUp(*button))
                             }
                         },
-                        target: Handle::NONE,
-                        source: self.keyboard_focus_node,
+                        destination: self.keyboard_focus_node,
+                        ..Default::default()
                     };
 
-                    self.messages.push_back(message);
+                    self.post_message(message);
 
                     event_processed = true;
                 }
@@ -992,13 +1016,12 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             OsEvent::Character(unicode) => {
                 if self.keyboard_focus_node.is_some() {
                     let message = UiMessage {
-                        handled: false,
                         data: UiMessageData::Widget(WidgetMessage::Text(*unicode)),
-                        target: Handle::NONE,
-                        source: self.keyboard_focus_node,
+                        destination: self.keyboard_focus_node,
+                        ..Default::default()
                     };
 
-                    self.messages.push_back(message);
+                    self.post_message(message);
 
                     event_processed = true;
                 }
@@ -1118,7 +1141,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
         // Remove child from parent's children list
         if parent_handle.is_some() {
-            self.node_mut(parent_handle)               .remove_child(node_handle);
+            self.node_mut(parent_handle).remove_child(node_handle);
         }
     }
 

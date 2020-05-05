@@ -471,11 +471,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         }
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         if let UiMessageData::Widget(msg) = &message.data {
-            if message.source == self_handle || self.has_descendant(message.source, ui) {
+            if message.destination == self_handle || self.has_descendant(message.destination, ui) {
                 match msg {
                     WidgetMessage::Text(symbol) => {
                         self.insert_char(*symbol);

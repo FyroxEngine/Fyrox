@@ -5,10 +5,6 @@ use crate::{
         OsEvent
     },
     draw::DrawingContext,
-    list_box::{
-        ListBox,
-        ListBoxItem
-    },
     image::Image,
     grid::Grid,
     check_box::CheckBox,
@@ -33,14 +29,14 @@ use crate::{
         },
         pool::Handle,
     },
-    combobox::ComboBox,
-    items_control::{ItemsControl, ItemContainer},
+    dropdown_list::DropdownList,
+    list_view::{ListView, ListViewItem},
     decorator::Decorator,
     NodeHandleMapping,
-    progress_bar::ProgressBar
+    progress_bar::ProgressBar,
+    tree::{Tree, TreeRoot}
 };
 use std::ops::{Deref, DerefMut};
-use crate::tree::Tree;
 
 #[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -50,10 +46,8 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     CheckBox(CheckBox<M, C>),
     Grid(Grid<M, C>),
     Image(Image<M, C>),
-    ItemsControl(ItemsControl<M, C>),
-    ItemContainer(ItemContainer<M, C>),
-    ListBox(ListBox<M, C>),
-    ListBoxItem(ListBoxItem<M, C>),
+    ListView(ListView<M, C>),
+    ListViewItem(ListViewItem<M, C>),
     ScrollBar(ScrollBar<M, C>),
     ScrollContentPresenter(ScrollContentPresenter<M, C>),
     ScrollViewer(ScrollViewer<M, C>),
@@ -63,10 +57,11 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     TextBox(TextBox<M, C>),
     Window(Window<M, C>),
     Popup(Popup<M, C>),
-    ComboBox(ComboBox<M, C>),
+    DropdownList(DropdownList<M, C>),
     Decorator(Decorator<M, C>),
     ProgressBar(ProgressBar<M, C>),
     Tree(Tree<M, C>),
+    TreeRoot(TreeRoot<M, C>),
     User(C)
 }
 
@@ -79,8 +74,6 @@ macro_rules! static_dispatch {
             UINode::CheckBox(v) => v.$func($($args),*),
             UINode::Grid(v) => v.$func($($args),*),
             UINode::Image(v) => v.$func($($args),*),
-            UINode::ListBox(v) => v.$func($($args),*),
-            UINode::ListBoxItem(v) => v.$func($($args),*),
             UINode::ScrollBar(v) => v.$func($($args),*),
             UINode::ScrollContentPresenter(v) => v.$func($($args),*),
             UINode::ScrollViewer(v) => v.$func($($args),*),
@@ -91,12 +84,13 @@ macro_rules! static_dispatch {
             UINode::Window(v) => v.$func($($args),*),
             UINode::User(v) => v.$func($($args),*),
             UINode::Popup(v) => v.$func($($args),*),
-            UINode::ComboBox(v) => v.$func($($args),*),
-            UINode::ItemsControl(v) => v.$func($($args),*),
-            UINode::ItemContainer(v) => v.$func($($args),*),
+            UINode::DropdownList(v) => v.$func($($args),*),
+            UINode::ListView(v) => v.$func($($args),*),
+            UINode::ListViewItem(v) => v.$func($($args),*),
             UINode::ProgressBar(v) => v.$func($($args),*),
             UINode::Decorator(v) => v.$func($($args),*),
             UINode::Tree(v) => v.$func($($args),*),
+            UINode::TreeRoot(v) => v.$func($($args),*),
         }
     };
 }
@@ -110,8 +104,6 @@ macro_rules! static_dispatch_deref {
             UINode::CheckBox(v) => v,
             UINode::Grid(v) => v,
             UINode::Image(v) => v,
-            UINode::ListBox(v) => v,
-            UINode::ListBoxItem(v) => v,
             UINode::ScrollBar(v) => v,
             UINode::ScrollContentPresenter(v) => v,
             UINode::ScrollViewer(v) => v,
@@ -122,12 +114,13 @@ macro_rules! static_dispatch_deref {
             UINode::Window(v) => v,
             UINode::User(v) => v,
             UINode::Popup(v) => v,
-            UINode::ComboBox(v) => v,
-            UINode::ItemsControl(v) => v,
-            UINode::ItemContainer(v) => v,
+            UINode::DropdownList(v) => v,
+            UINode::ListView(v) => v,
+            UINode::ListViewItem(v) => v,
             UINode::ProgressBar(v) => v,
             UINode::Decorator(v) => v,
-            UINode::Tree(v) => v
+            UINode::Tree(v) => v,
+            UINode::TreeRoot(v) => v
         }
     };
 }
@@ -179,8 +172,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, update, dt)
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        static_dispatch!(self, handle_message, self_handle, ui, message)
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        static_dispatch!(self, handle_routed_message, self_handle, ui, message)
+    }
+
+    fn preview_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        static_dispatch!(self, preview_message, self_handle, ui, message)
     }
 
     fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
@@ -192,7 +189,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
     }
 }
 
-
 #[derive(Debug)]
 pub enum StubNode {}
 
@@ -201,7 +197,7 @@ impl Control<(), StubNode> for StubNode {
         unimplemented!()
     }
 
-    fn handle_message(&mut self, _: Handle<UINode<(), StubNode>>, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
+    fn handle_routed_message(&mut self, _: Handle<UINode<(), StubNode>>, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
         unimplemented!()
     }
 }

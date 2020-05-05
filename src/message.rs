@@ -79,7 +79,6 @@ pub enum ScrollBarMessage {
     MaxValue(f32),
 }
 
-#[allow(irrefutable_let_patterns)]
 #[derive(Debug)]
 pub enum CheckBoxMessage {
     Checked(Option<bool>),
@@ -100,7 +99,7 @@ pub enum ScrollViewerMessage<M: 'static, C: 'static + Control<M, C>> {
 }
 
 #[derive(Debug)]
-pub enum ItemsControlMessage<M: 'static, C: 'static + Control<M, C>> {
+pub enum ListViewMessage<M: 'static, C: 'static + Control<M, C>> {
     SelectionChanged(Option<usize>),
     Items(Vec<Handle<UINode<M, C>>>),
     AddItem(Handle<UINode<M, C>>)
@@ -114,24 +113,33 @@ pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
     Placement(Placement)
 }
 
-#[allow(irrefutable_let_patterns)]
 #[derive(Debug)]
-pub enum TreeMessage {
+pub enum TreeMessage<M: 'static, C: 'static + Control<M, C>> {
     Expand(bool),
+    AddItem(Handle<UINode<M, C>>),
+    SetItems(Vec<Handle<UINode<M, C>>>)
+}
+
+#[derive(Debug)]
+pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
+    AddItem(Handle<UINode<M, C>>),
+    SetItems(Vec<Handle<UINode<M, C>>>),
+    SetSelected(Handle<UINode<M, C>>)
 }
 
 #[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
+    Dummy,
     Widget(WidgetMessage),
     Button(ButtonMessage<M, C>),
     ScrollBar(ScrollBarMessage),
     CheckBox(CheckBoxMessage),
     Window(WindowMessage),
-    /// ItemsControl and all derived controls: Combobox, Tree, ListBox.
-    ItemsControl(ItemsControlMessage<M, C>),
+    ListView(ListViewMessage<M, C>),
     Popup(PopupMessage<M, C>),
     ScrollViewer(ScrollViewerMessage<M, C>),
-    Tree(TreeMessage),
+    Tree(TreeMessage<M, C>),
+    TreeRoot(TreeRootMessage<M, C>),
     User(M),
 }
 
@@ -139,54 +147,32 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
 /// or to user code.
 #[derive(Debug)]
 pub struct UiMessage<M: 'static, C: 'static + Control<M, C>> {
-    /// Useful flag to check if a message was already handled, this flag does *not* affects
-    /// dispatcher.
+    /// Useful flag to check if a message was already handled.
     pub handled: bool,
 
     /// Actual message data. Use pattern matching to get node-specific data.
+    ///
+    /// # Notes
+    ///
+    /// This field should be read-only.
     pub data: UiMessageData<M, C>,
 
-    /// Handle of node for which this event was produced. Can be NONE if target is undefined,
-    /// this is the case when user click a button, button produces Click event but it does
-    /// not know who will handle it. Targeted events are useful to send some data to specific
-    /// nodes. Even if message has `target` it still will be available to all other message
-    /// handlers.
-    pub(in crate) target: Handle<UINode<M, C>>,
-
-    /// Source of event. Can be NONE if event is targeted, however if there is source and target
-    /// both present, then it means node-to-node communication.
-    pub(in crate) source: Handle<UINode<M, C>>,
+    /// Handle of node that will receive message. Please note that all nodes in hierarchy will
+    /// also receive this message, order is defined by routing strategy.
+    ///
+    /// # Notes
+    ///
+    /// This field should be read-only.
+    pub destination: Handle<UINode<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> UiMessage<M, C> {
-    #[inline]
-    pub fn targeted(target: Handle<UINode<M, C>>, kind: UiMessageData<M, C>) -> Self {
+impl<M, C: 'static + Control<M, C>> Default for UiMessage<M, C> {
+    fn default() -> Self {
         Self {
-            data: kind,
             handled: false,
-            source: Handle::NONE,
-            target,
+            data: UiMessageData::Dummy,
+            destination: Default::default()
         }
-    }
-
-    #[inline]
-    pub fn new(kind: UiMessageData<M, C>) -> Self {
-        Self {
-            data: kind,
-            handled: false,
-            source: Handle::NONE,
-            target: Handle::NONE,
-        }
-    }
-
-    #[inline]
-    pub fn target(&self) -> Handle<UINode<M, C>> {
-        self.target
-    }
-
-    #[inline]
-    pub fn source(&self) -> Handle<UINode<M, C>> {
-        self.source
     }
 }
 

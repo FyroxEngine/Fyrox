@@ -5,7 +5,7 @@ use crate::{
         UiMessage,
         UiMessageData,
         WidgetMessage,
-        WidgetProperty
+        WidgetProperty,
     },
     node::UINode,
     widget::{
@@ -17,7 +17,7 @@ use crate::{
     core::{
         pool::Handle,
         math::vec2::Vec2,
-        color::Color
+        color::Color,
     },
     brush::Brush,
 };
@@ -27,7 +27,7 @@ pub struct ProgressBar<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     progress: f32,
     indicator: Handle<UINode<M, C>>,
-    body: Handle<UINode<M, C>>
+    body: Handle<UINode<M, C>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for ProgressBar<M, C> {
@@ -50,7 +50,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
             widget: self.widget.raw_copy(),
             progress: self.progress,
             indicator: self.indicator,
-            body: self.body
+            body: self.body,
         })
     }
 
@@ -58,22 +58,24 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
         let size = self.widget.arrange_override(ui, final_size);
 
         self.widget.post_message(
-            UiMessage::targeted(self.indicator,
-                UiMessageData::Widget(
-                    WidgetMessage::Property(
-                        WidgetProperty::Width(size.x * self.progress)))));
+            UiMessage {
+                destination: self.indicator,
+                data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Width(size.x * self.progress))),
+                ..Default::default()
+            });
 
         self.widget.post_message(
-            UiMessage::targeted(self.indicator,
-                UiMessageData::Widget(
-                    WidgetMessage::Property(
-                        WidgetProperty::Height(size.y)))));
+            UiMessage {
+                destination: self.indicator,
+                data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Height(size.y))),
+                ..Default::default()
+            });
 
         size
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
     }
 }
 

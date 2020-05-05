@@ -94,16 +94,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if (message.source == self.header || ui.node(self.header).has_descendant(message.source, ui))
-                    && message.source != self.close_button && message.source != self.minimize_button {
+                if (message.destination == self.header || ui.node(self.header).has_descendant(message.destination, ui))
+                    && message.destination != self.close_button && message.destination != self.minimize_button {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
-                            self.widget.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::TopMost)));
+                            self.widget.post_message(UiMessage {
+                                data: UiMessageData::Widget(WidgetMessage::TopMost),
+                                ..Default::default()
+                            });
                             ui.capture_mouse(self.header);
                             let initial_position = self.actual_local_position();
                             self.mouse_click_pos = *pos;
@@ -128,15 +131,15 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
             }
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.source == self.minimize_button {
+                    if message.destination == self.minimize_button {
                         self.minimize(!self.minimized);
-                    } else if message.source == self.close_button {
+                    } else if message.destination == self.close_button {
                         self.close();
                     }
                 }
             }
             UiMessageData::Window(msg) => {
-                if message.source == self_handle || message.target == self_handle {
+                if message.destination == self_handle {
                     match msg {
                         WindowMessage::Opened => {
                             self.widget.set_visibility(true);
@@ -221,27 +224,42 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
 
     pub fn close(&mut self) {
         self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::Closed)));
+        self.widget.post_message(UiMessage {
+            data: UiMessageData::Window(WindowMessage::Closed),
+            ..Default::default()
+        });
     }
 
     pub fn open(&mut self) {
         self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::Opened)));
+        self.widget.post_message(UiMessage {
+            data: UiMessageData::Window(WindowMessage::Opened),
+            ..Default::default()
+        });
     }
 
     pub fn minimize(&mut self, state: bool) {
         self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::Minimized(state))));
+        self.widget.post_message(UiMessage {
+            data: UiMessageData::Window(WindowMessage::Minimized(state)),
+            ..Default::default()
+        });
     }
 
     pub fn set_can_close(&mut self, state: bool) {
         self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::CanClose(state))));
+        self.widget.post_message(UiMessage {
+            data: UiMessageData::Window(WindowMessage::CanClose(state)),
+            ..Default::default()
+        });
     }
 
     pub fn set_can_minimize(&mut self, state: bool) {
         self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage::new(UiMessageData::Window(WindowMessage::CanMinimize(state))));
+        self.widget.post_message(UiMessage {
+            data: UiMessageData::Window(WindowMessage::CanMinimize(state)),
+            ..Default::default()
+        });
     }
 }
 

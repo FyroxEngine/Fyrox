@@ -56,19 +56,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
         self.check_mark = *node_map.get(&self.check_mark).unwrap();
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         match message.data {
             UiMessageData::Widget(ref msg) => {
                 match msg {
                     WidgetMessage::MouseDown { .. } => {
-                        if message.source == self_handle || self.widget.has_descendant(message.source, ui) {
+                        if message.destination == self_handle || self.widget.has_descendant(message.destination, ui) {
                             ui.capture_mouse(self_handle);
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if message.source == self_handle || self.widget.has_descendant(message.source, ui) {
+                        if message.destination == self_handle || self.widget.has_descendant(message.destination, ui) {
                             ui.release_mouse_capture();
 
                             if let Some(value) = self.checked {
@@ -85,7 +85,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
             }
             UiMessageData::CheckBox(ref msg) => {
                 if let CheckBoxMessage::Checked(value) = msg {
-                    if message.source == self_handle && self.check_mark.is_some() {
+                    if message.destination == self_handle && self.check_mark.is_some() {
                         let check_mark = ui.node_mut(self.check_mark);
                         match value {
                             None => {
@@ -126,7 +126,10 @@ impl<M, C: 'static + Control<M, C>> CheckBox<M, C> {
     pub fn set_checked(&mut self, value: Option<bool>) -> &mut Self {
         if self.checked != value {
             self.checked = value;
-            self.widget.post_message(UiMessage::new(UiMessageData::CheckBox(CheckBoxMessage::Checked(value))));
+            self.post_message(UiMessage {
+                data: UiMessageData::CheckBox(CheckBoxMessage::Checked(value)),
+                ..Default::default()
+            });
         }
         self
     }

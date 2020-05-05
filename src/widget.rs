@@ -18,8 +18,8 @@ use crate::{
         UiMessageData,
         WidgetMessage,
         UiMessage,
-        WidgetProperty
-    }
+        WidgetProperty,
+    },
 };
 use std::{
     cell::{
@@ -77,6 +77,7 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
     z_index: usize,
+   // pub sender: Sender<UiMessage<M, C>>
 }
 
 impl<M, C: 'static + Control<M, C>> Default for Widget<M, C> {
@@ -86,6 +87,7 @@ impl<M, C: 'static + Control<M, C>> Default for Widget<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Widget<M, C> {
+    /// Posts new message to UI in deferred manner. It holds
     #[inline]
     pub fn post_message(&self, message: UiMessage<M, C>) {
         self.outgoing_messages
@@ -99,7 +101,10 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     fn post_property_changed_message(&self, property: WidgetProperty) {
-        self.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::Property(property))));
+        self.post_message(UiMessage {
+            data: UiMessageData::Widget(WidgetMessage::Property(property)),
+            ..Default::default()
+        });
     }
 
     #[inline]
@@ -466,8 +471,8 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         Handle::NONE
     }
 
-    pub fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
-        if msg.target == self_handle {
+    pub fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
+        if msg.destination == self_handle {
             if let UiMessageData::Widget(msg) = &msg.data {
                 if let WidgetMessage::Property(property) = msg {
                     match property {

@@ -66,13 +66,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
         }
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(self_handle, ui, message);
 
         if let UiMessageData::Button(msg) = &message.data {
             if let ButtonMessage::Click = msg {
                 for (i, tab) in self.tabs.iter().enumerate() {
-                    if message.source == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
+                    if message.destination == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
                             ui.node_mut(other_tab.content).set_visibility(j == i);
                         }

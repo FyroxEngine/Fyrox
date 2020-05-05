@@ -76,9 +76,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
         self.body = *node_map.get(&self.body).unwrap();
     }
 
-    fn handle_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         match &message.data {
-            UiMessageData::Popup(msg) if message.target == self_handle || message.source == self_handle => {
+            UiMessageData::Popup(msg) if message.destination == self_handle => {
                 match msg {
                     PopupMessage::Open => {
                         self.is_open = true;
@@ -86,7 +86,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                         if !self.stays_open {
                             ui.restrict_picking_to(self_handle);
                         }
-                        self.widget.post_message(UiMessage::new(UiMessageData::Widget(WidgetMessage::TopMost)));
+                        self.widget.post_message(UiMessage {
+                            data: UiMessageData::Widget(WidgetMessage::TopMost),
+                            ..Default::default()
+                        });
                         match self.placement {
                             Placement::LeftTop => {
                                 self.widget
@@ -172,14 +175,20 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
     pub fn open(&mut self) {
         if !self.is_open {
             self.widget.invalidate_layout();
-            self.widget.post_message(UiMessage::new(UiMessageData::Popup(PopupMessage::Open)));
+            self.widget.post_message(UiMessage {
+                data: UiMessageData::Popup(PopupMessage::Open),
+                ..Default::default()
+            });
         }
     }
 
     pub fn close(&mut self) {
         if self.is_open {
             self.widget.invalidate_layout();
-            self.widget.post_message(UiMessage::new(UiMessageData::Popup(PopupMessage::Close)));
+            self.widget.post_message(UiMessage {
+                data: UiMessageData::Popup(PopupMessage::Close),
+                ..Default::default()
+            });
         }
     }
 
@@ -187,7 +196,10 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
         if self.placement != placement {
             self.placement = placement;
             self.widget.invalidate_layout();
-            self.widget.post_message(UiMessage::new(UiMessageData::Popup(PopupMessage::Placement(placement))));
+            self.widget.post_message(UiMessage {
+                data: UiMessageData::Popup(PopupMessage::Placement(placement)),
+                ..Default::default()
+            });
         }
     }
 }
