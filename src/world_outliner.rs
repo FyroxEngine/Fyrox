@@ -1,30 +1,37 @@
-use crate::{EditorScene, GameEngine, UiNode, Ui};
+use crate::{EditorScene, GameEngine, UiNode, Ui, UiMessage, Message};
 use rg3d::{
     gui::{
         window::{WindowTitle, WindowBuilder},
         widget::WidgetBuilder,
-        tree::TreeBuilder,
+        tree::{TreeBuilder, TreeRootBuilder},
         text::TextBuilder,
-        border::BorderBuilder
+        Thickness,
+        message::{UiMessageData, TreeRootMessage},
     },
     scene::node::Node,
-    core::pool::Handle,
+    core::{
+        pool::Handle,
+        math::vec2::Vec2
+    }
 };
 use std::collections::HashMap;
+use std::sync::mpsc::Sender;
 
 pub struct WorldOutliner {
     nodes: HashMap<Handle<Node>, Handle<UiNode>>,
     root: Handle<UiNode>,
+    sender: Sender<Message>
 }
 
 impl WorldOutliner {
-    pub fn new(ui: &mut Ui) -> Self {
+    pub fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
         let root;
         WindowBuilder::new(WidgetBuilder::new()
-            .with_width(250.0))
+            .with_width(250.0)
+            .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
             .with_title(WindowTitle::Text("World Outliner"))
             .with_content({
-                root = BorderBuilder::new(WidgetBuilder::new())
+                root = TreeRootBuilder::new(WidgetBuilder::new())
                     .build(ui);
                 root
             })
@@ -32,7 +39,8 @@ impl WorldOutliner {
 
         Self {
             nodes: Default::default(),
-            root
+            sender,
+            root,
         }
     }
 
@@ -42,9 +50,11 @@ impl WorldOutliner {
         let ui = &mut engine.user_interface;
 
         if self.nodes.len() != graph.node_count() {
-            for child in ui.node(self.root).children().to_vec() {
-                ui.remove_node(child);
-            }
+            ui.post_message(UiMessage {
+                destination: self.root,
+                data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(Vec::new())),
+                ..Default::default()
+            });
 
             let mut stack = vec![graph.get_root()];
             while let Some(handle) = stack.pop() {
@@ -56,16 +66,22 @@ impl WorldOutliner {
                     *self.nodes.get(&node.parent()).unwrap()
                 };
 
-                let tree = TreeBuilder::new(WidgetBuilder::new())
+                let tree = TreeBuilder::new(WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0)))
                     .with_content(TextBuilder::new(WidgetBuilder::new())
                         .with_text(node.name())
-                        .build(ui))
+                        .build(ui)
+                    )
                     .build(ui);
 
-                if let UiNode::Tree(parent_tree) = ui.node_mut(parent) {
-                    parent_tree.add_item(tree);
-                } else {
-                    ui.link_nodes(tree, parent);
+                match ui.node_mut(parent) {
+                    UiNode::Tree(parent_tree) => {
+                        parent_tree.add_item(tree);
+                    }
+                    UiNode::TreeRoot(root) => {
+                        root.add_item(tree);
+                    }
+                    _ => ()
                 }
 
                 self.nodes.insert(handle, tree);
@@ -74,6 +90,31 @@ impl WorldOutliner {
                     stack.push(child);
                 }
             }
+        }
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage) {
+        if let UiMessageData::TreeRoot(msg) = &message.data {
+            if let &TreeRootMessage::SetSelected(selection) = msg {
+                for (&node, &tree) in self.nodes.iter() {
+                    if tree == selection {
+                        self.sender.send(Message::SetSelection(node)).unwrap();
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {
+        match message {
+            &Message::SetSelection(selection) => {
+                if let UiNode::TreeRoot(root) = engine.user_interface.node_mut(self.root) {
+                    if let Some(&node) = self.nodes.get(&selection) {
+                        root.set_selected(node);
+                    }
+                }
+            },
+            _ => ()
         }
     }
 }

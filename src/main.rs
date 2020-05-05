@@ -215,23 +215,23 @@ impl EntityPanel {
         match &message.data {
             UiMessageData::Button(button) => {
                 if let ButtonMessage::Click = button {
-                    if message.source() == self.create_cube {
+                    if message.destination == self.create_cube {
                         self.message_sender
                             .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::Cube))))
                             .unwrap();
-                    } else if message.source() == self.create_spot_light {
+                    } else if message.destination == self.create_spot_light {
                         self.message_sender
                             .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::SpotLight))))
                             .unwrap();
-                    } else if message.source() == self.create_point_light {
+                    } else if message.destination == self.create_point_light {
                         self.message_sender
                             .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::PointLight))))
                             .unwrap();
-                    } else if message.source() == self.save_scene {
+                    } else if message.destination == self.save_scene {
                         self.message_sender
                             .send(Message::SaveScene("test_scene.rgs".into()))
                             .unwrap();
-                    } else if message.source() == self.load_scene {
+                    } else if message.destination == self.load_scene {
                         self.message_sender
                             .send(Message::LoadScene("test_scene.rgs".into()))
                             .unwrap();
@@ -305,7 +305,7 @@ impl Editor {
 
         let node_editor = NodeEditor::new(ui);
         let entity_panel = EntityPanel::new(ui, message_sender.clone());
-        let world_outliner = WorldOutliner::new(ui);
+        let world_outliner = WorldOutliner::new(ui, message_sender.clone());
 
         let interaction_modes = vec![
             InteractionMode::Move(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),
@@ -359,6 +359,7 @@ impl Editor {
 
     fn handle_message(&mut self, message: &UiMessage) {
         self.entity_panel.handle_message(message);
+        self.world_outliner.handle_ui_message(message);
     }
 
     fn handle_raw_input(&mut self, device_event: &DeviceEvent, engine: &mut GameEngine) {
@@ -487,6 +488,8 @@ impl Editor {
             for mode in &mut self.interaction_modes {
                 mode.handle_message(&message);
             }
+
+            self.world_outliner.handle_message(&message, engine);
 
             match message {
                 Message::ExecuteCommand(command) => {
