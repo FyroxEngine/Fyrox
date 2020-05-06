@@ -50,10 +50,10 @@ impl WorldOutliner {
         let ui = &mut engine.user_interface;
 
         if self.nodes.len() != graph.node_count() {
-            ui.post_message(UiMessage {
+            ui.send_message(UiMessage {
                 destination: self.root,
                 data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(Vec::new())),
-                ..Default::default()
+                handled: false
             });
 
             let mut stack = vec![graph.get_root()];
