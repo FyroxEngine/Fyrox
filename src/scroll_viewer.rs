@@ -81,11 +81,11 @@ impl<M, C: 'static + Control<M, C>> ScrollViewer<M, C> {
     pub fn set_content(&mut self, content: Handle<UINode<M, C>>) -> &mut Self {
         if self.content != content {
             self.content = content;
-            self.widget.post_message(
-                UiMessage {
-                    data: UiMessageData::ScrollViewer(ScrollViewerMessage::Content(content)),
-                    ..Default::default()
-                })
+            self.send_message(UiMessage {
+                data: UiMessageData::ScrollViewer(ScrollViewerMessage::Content(content)),
+                destination: self.handle,
+                handled: false,
+            })
         }
         self
     }
@@ -117,27 +117,25 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
             let available_size_for_content = ui.node(self.content_presenter).desired_size();
 
             let x_max = (content_size.x - available_size_for_content.x).max(0.0);
-            self.widget.post_message(
-                UiMessage {
-                    destination: self.h_scroll_bar,
-                    data: UiMessageData::ScrollBar(ScrollBarMessage::MaxValue(x_max)),
-                    ..Default::default()
-                });
+            self.widget.send_message(UiMessage {
+                destination: self.h_scroll_bar,
+                data: UiMessageData::ScrollBar(ScrollBarMessage::MaxValue(x_max)),
+                handled: false
+            });
 
             let y_max = (content_size.y - available_size_for_content.y).max(0.0);
-            self.widget.post_message(
-                UiMessage {
-                    destination: self.v_scroll_bar,
-                    data: UiMessageData::ScrollBar(ScrollBarMessage::MaxValue(y_max)),
-                    ..Default::default()
-                });
+            self.widget.send_message(UiMessage {
+                destination: self.v_scroll_bar,
+                data: UiMessageData::ScrollBar(ScrollBarMessage::MaxValue(y_max)),
+                handled: false
+            });
         }
 
         size
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
@@ -189,7 +187,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                 }
             }
             UiMessageData::ScrollViewer(msg) => {
-                if message.destination == self_handle {
+                if message.destination == self.handle {
                     if let ScrollViewerMessage::Content(content) = msg {
                         for child in ui.node(self.content_presenter).children().to_vec() {
                             ui.remove_node(child);
@@ -288,7 +286,7 @@ impl<M, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
                     .build(ui))
-                .build(),
+                .build(ui.sender()),
             content: self.content,
             v_scroll_bar,
             h_scroll_bar,

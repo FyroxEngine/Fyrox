@@ -95,17 +95,18 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
         self.decorator = *node_map.get(&self.decorator).unwrap();
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.destination == self_handle || self.has_descendant(message.destination, ui) {
+                if message.destination == self.handle || self.has_descendant(message.destination, ui) {
                     match msg {
                         WidgetMessage::MouseUp { .. } => {
-                            self.post_message(UiMessage {
+                            self.send_message(UiMessage {
+                                destination: self.handle,
                                 data: UiMessageData::Button(ButtonMessage::Click),
-                                ..Default::default()
+                                handled: false
                             });
                             ui.release_mouse_capture();
                         }
@@ -117,7 +118,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
                 }
             }
             UiMessageData::Button(msg) => {
-                if message.destination == self_handle {
+                if message.destination == self.handle {
                     match msg {
                         ButtonMessage::Click => (),
                         ButtonMessage::Content(content) => {
@@ -226,7 +227,7 @@ impl<M, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
         let button = Button {
             widget: self.widget_builder
                 .with_child(decorator)
-                .build(),
+                .build(ui.sender()),
             decorator,
             content,
         };

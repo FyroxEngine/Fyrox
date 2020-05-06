@@ -264,8 +264,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         }
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
     }
 }
 
@@ -320,7 +320,7 @@ impl<M, C: 'static + Control<M, C>> GridBuilder<M, C> {
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let handle = ui.add_node(UINode::Grid(Grid {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ui.sender()),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
             draw_border: self.draw_border,

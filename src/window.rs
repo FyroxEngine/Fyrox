@@ -94,8 +94,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
@@ -103,9 +103,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                     && message.destination != self.close_button && message.destination != self.minimize_button {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
-                            self.widget.post_message(UiMessage {
+                            self.send_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::TopMost),
-                                ..Default::default()
+                                destination: self.handle,
+                                handled: false
                             });
                             ui.capture_mouse(self.header);
                             let initial_position = self.actual_local_position();
@@ -139,7 +140,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                 }
             }
             UiMessageData::Window(msg) => {
-                if message.destination == self_handle {
+                if message.destination == self.handle {
                     match msg {
                         WindowMessage::Opened => {
                             self.widget.set_visibility(true);
@@ -223,42 +224,47 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
     }
 
     pub fn close(&mut self) {
-        self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage {
+        self.invalidate_layout();
+        self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::Closed),
-            ..Default::default()
+            destination: self.handle,
+            handled: false
         });
     }
 
     pub fn open(&mut self) {
-        self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage {
+        self.invalidate_layout();
+        self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::Opened),
-            ..Default::default()
+            destination: self.handle,
+            handled: false
         });
     }
 
     pub fn minimize(&mut self, state: bool) {
-        self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage {
+        self.invalidate_layout();
+        self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::Minimized(state)),
-            ..Default::default()
+            destination: self.handle,
+            handled: false
         });
     }
 
     pub fn set_can_close(&mut self, state: bool) {
-        self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage {
+        self.invalidate_layout();
+        self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::CanClose(state)),
-            ..Default::default()
+            destination: self.handle,
+            handled: false
         });
     }
 
     pub fn set_can_minimize(&mut self, state: bool) {
-        self.widget.invalidate_layout();
-        self.widget.post_message(UiMessage {
+        self.invalidate_layout();
+        self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::CanMinimize(state)),
-            ..Default::default()
+            destination: self.handle,
+            handled: false
         });
     }
 }
@@ -435,7 +441,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                         .add_row(Row::stretch())
                         .build(ui)))
                     .build(ui))
-                .build(),
+                .build(ui.sender()),
             mouse_click_pos: Vec2::ZERO,
             initial_position: Vec2::ZERO,
             is_dragged: false,

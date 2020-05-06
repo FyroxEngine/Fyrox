@@ -129,7 +129,6 @@ pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
 
 #[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
-    Dummy,
     Widget(WidgetMessage),
     Button(ButtonMessage<M, C>),
     ScrollBar(ScrollBarMessage),
@@ -164,16 +163,6 @@ pub struct UiMessage<M: 'static, C: 'static + Control<M, C>> {
     ///
     /// This field should be read-only.
     pub destination: Handle<UINode<M, C>>,
-}
-
-impl<M, C: 'static + Control<M, C>> Default for UiMessage<M, C> {
-    fn default() -> Self {
-        Self {
-            handled: false,
-            data: UiMessageData::Dummy,
-            destination: Default::default()
-        }
-    }
 }
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]

@@ -69,13 +69,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
         }
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::MouseDown { .. } = msg {
-                    if message.destination == self_handle || self.widget.has_descendant(message.destination, ui) {
+                    if message.destination == self.handle || self.widget.has_descendant(message.destination, ui) {
                         if let UINode::Popup(popup) = ui.node_mut(self.popup) {
                             popup.set_width_mut(self.widget.actual_size().x);
                             let placement_position = self.widget.screen_position + Vec2::new(0.0, self.widget.actual_size().y);
@@ -88,21 +88,21 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
             UiMessageData::ListView(msg) => {
                 match msg {
                     ListViewMessage::Items(items) => {
-                        if message.destination == self_handle {
-                            ui.post_message(UiMessage {
+                        if message.destination == self.handle {
+                            ui.send_message(UiMessage {
                                 destination: self.list_view,
                                 data: UiMessageData::ListView(ListViewMessage::Items(items.clone())),
-                                ..Default::default()
+                                handled: false
                             });
                             self.items = items.clone();
                         }
                     }
                     &ListViewMessage::AddItem(item) => {
-                        if message.destination == self_handle {
-                            ui.post_message(UiMessage {
+                        if message.destination == self.handle {
+                            ui.send_message(UiMessage {
                                 destination: self.list_view,
                                 data: UiMessageData::ListView(ListViewMessage::AddItem(item)),
-                                ..Default::default()
+                                handled: false
                             });
                             self.items.push(item);
                         }
@@ -114,7 +114,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
         }
     }
 
-    fn preview_message(&mut self, _self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         if let UiMessageData::ListView(msg) = &message.data {
             if let ListViewMessage::SelectionChanged(selection) = msg {
                 if message.destination == self.list_view {
@@ -138,9 +138,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
                     }
                     // Post message again but from name of this drop-down list so user can catch
                     // message and respond properly.
-                    self.post_message(UiMessage {
+                    self.send_message(UiMessage {
                         data: UiMessageData::ListView(ListViewMessage::SelectionChanged(*selection)),
-                        ..Default::default()
+                        destination: self.handle,
+                        handled: false
                     })
                 }
             }
@@ -150,10 +151,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
 
 impl<M: 'static, C: 'static + Control<M, C>> DropdownList<M, C> {
     pub fn set_items(&mut self, items: Vec<Handle<UINode<M, C>>>) {
-        self.post_message(UiMessage {
+        self.send_message(UiMessage {
             destination: self.list_view,
             data: UiMessageData::ListView(ListViewMessage::Items(items)),
-            ..Default::default()
+            handled: false
         })
     }
 }
@@ -198,7 +199,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_child(current))
                     .build(ui))
-                .build(),
+                .build(ui.sender()),
             popup,
             items: self.items,
             list_view: items_control,

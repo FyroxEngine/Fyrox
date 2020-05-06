@@ -71,8 +71,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
         drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), &self.formatted_text.borrow());
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
     }
 }
 
@@ -212,7 +212,7 @@ impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
         }
 
         let handle = ui.add_node(UINode::Text(Text {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ui.sender()),
             formatted_text: RefCell::new(FormattedTextBuilder::new()
                 .with_text(self.text.unwrap_or_default())
                 .with_vertical_alignment(self.vertical_text_alignment)

@@ -111,12 +111,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.update(dt)
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.border.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.border.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.destination == self_handle || self.has_descendant(message.destination, ui) {
+                if message.destination == self.handle || self.has_descendant(message.destination, ui) {
                     match msg {
                         WidgetMessage::MouseLeave => {
                             if self.is_selected {
@@ -218,7 +218,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
             }
         });
 
-        let mut border = self.border_builder.build_node();
+        let mut border = self.border_builder.build_node(ui.sender());
 
         border.set_background(normal_brush.clone());
 

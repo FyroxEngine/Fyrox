@@ -471,11 +471,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         }
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Widget(msg) = &message.data {
-            if message.destination == self_handle || self.has_descendant(message.destination, ui) {
+            if message.destination == self.handle || self.has_descendant(message.destination, ui) {
                 match msg {
                     WidgetMessage::Text(symbol) => {
                         self.insert_char(*symbol);
@@ -525,7 +525,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 })
                             }
 
-                            ui.capture_mouse(self_handle);
+                            ui.capture_mouse(self.handle);
                         }
                     }
                     WidgetMessage::MouseMove(pos) => {
@@ -594,7 +594,7 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         }
 
         let text_box = TextBox {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ui.sender()),
             caret_line: 0,
             caret_offset: 0,
             caret_visible: false,

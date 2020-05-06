@@ -76,60 +76,55 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
         self.body = *node_map.get(&self.body).unwrap();
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         match &message.data {
-            UiMessageData::Popup(msg) if message.destination == self_handle => {
+            UiMessageData::Popup(msg) if message.destination == self.handle => {
                 match msg {
                     PopupMessage::Open => {
                         self.is_open = true;
-                        self.widget.set_visibility(true);
+                        self.set_visibility(true);
                         if !self.stays_open {
-                            ui.restrict_picking_to(self_handle);
+                            ui.restrict_picking_to(self.handle);
                         }
-                        self.widget.post_message(UiMessage {
+                        self.send_message(UiMessage {
                             data: UiMessageData::Widget(WidgetMessage::TopMost),
-                            ..Default::default()
+                            destination: self.handle,
+                            handled: false
                         });
                         match self.placement {
                             Placement::LeftTop => {
-                                self.widget
-                                    .set_desired_local_position(Vec2::ZERO);
+                                self.set_desired_local_position(Vec2::ZERO);
                             }
                             Placement::RightTop => {
                                 let width = self.widget.actual_size().x;
                                 let screen_width = ui.screen_size().x;
-                                self.widget
-                                    .set_desired_local_position(
-                                        Vec2::new(screen_width - width, 0.0));
+                                self.set_desired_local_position(
+                                    Vec2::new(screen_width - width, 0.0));
                             }
                             Placement::Center => {
                                 let size = self.widget.actual_size();
                                 let screen_size = ui.screen_size;
-                                self.widget
-                                    .set_desired_local_position(
-                                        (screen_size - size).scale(0.5));
+                                self.set_desired_local_position(
+                                    (screen_size - size).scale(0.5));
                             }
                             Placement::LeftBottom => {
                                 let height = self.widget.actual_size().y;
                                 let screen_height = ui.screen_size().y;
-                                self.widget.
-                                    set_desired_local_position(
-                                        Vec2::new(0.0, screen_height - height));
+                                self.set_desired_local_position(
+                                    Vec2::new(0.0, screen_height - height));
                             }
                             Placement::RightBottom => {
                                 let size = self.widget.actual_size();
                                 let screen_size = ui.screen_size;
-                                self.widget
-                                    .set_desired_local_position(
-                                        screen_size - size);
+                                self.set_desired_local_position(
+                                    screen_size - size);
                             }
                             Placement::Cursor => {
-                                self.widget
-                                    .set_desired_local_position(
-                                        ui.cursor_position())
+                                self.set_desired_local_position(
+                                    ui.cursor_position())
                             }
                             Placement::Position(position) => {
-                                self.widget
+                                self
                                     .set_desired_local_position(
                                         position)
                             }
@@ -137,11 +132,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                     }
                     PopupMessage::Close => {
                         self.is_open = false;
-                        self.widget.set_visibility(false);
+                        self.set_visibility(false);
                         if !self.stays_open {
                             ui.clear_picking_restriction();
                         }
-                        if ui.captured_node() == self_handle {
+                        if ui.captured_node() == self.handle {
                             ui.release_mouse_capture();
                         }
                     }
@@ -174,20 +169,22 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
 impl<M, C: 'static + Control<M, C>> Popup<M, C> {
     pub fn open(&mut self) {
         if !self.is_open {
-            self.widget.invalidate_layout();
-            self.widget.post_message(UiMessage {
+            self.invalidate_layout();
+            self.send_message(UiMessage {
                 data: UiMessageData::Popup(PopupMessage::Open),
-                ..Default::default()
+                destination: self.handle,
+                handled: false
             });
         }
     }
 
     pub fn close(&mut self) {
         if self.is_open {
-            self.widget.invalidate_layout();
-            self.widget.post_message(UiMessage {
+            self.invalidate_layout();
+            self.send_message(UiMessage {
                 data: UiMessageData::Popup(PopupMessage::Close),
-                ..Default::default()
+                destination: self.handle,
+                handled: false
             });
         }
     }
@@ -195,10 +192,11 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
     pub fn set_placement(&mut self, placement: Placement) {
         if self.placement != placement {
             self.placement = placement;
-            self.widget.invalidate_layout();
-            self.widget.post_message(UiMessage {
+            self.invalidate_layout();
+            self.send_message(UiMessage {
                 data: UiMessageData::Popup(PopupMessage::Placement(placement)),
-                ..Default::default()
+                destination: self.handle,
+                handled: false
             });
         }
     }
@@ -245,7 +243,7 @@ impl<M, C: 'static + Control<M, C>> PopupBuilder<M, C> {
             widget: self.widget_builder
                 .with_child(body)
                 .with_visibility(false)
-                .build(),
+                .build(ui.sender()),
             placement: self.placement,
             stays_open: self.stays_open,
             is_open: false,

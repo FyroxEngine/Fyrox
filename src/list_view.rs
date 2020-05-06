@@ -64,9 +64,10 @@ impl<M, C: 'static + Control<M, C>> ListView<M, C> {
         self.selected_index = new_index;
 
         if new_index != old_index {
-            self.post_message(UiMessage {
+            self.send_message(UiMessage {
                 data: UiMessageData::ListView(ListViewMessage::SelectionChanged(self.selected_index)),
-                ..Default::default()
+                destination: self.handle,
+                handled: false
             })
         }
     }
@@ -85,9 +86,10 @@ impl<M, C: 'static + Control<M, C>> ListView<M, C> {
 
     /// Deferred item addition.
     pub fn add_item(&mut self, item: Handle<UINode<M, C>>) {
-        self.post_message(UiMessage {
+        self.send_message(UiMessage {
             data: UiMessageData::ListView(ListViewMessage::AddItem(item)),
-            ..Default::default()
+            destination: self.handle,
+            handled: false
         });
     }
 }
@@ -131,8 +133,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListViewItem<M, C> {
         drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::TRANSPARENT), CommandTexture::None);
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         let items_control = self.find_by_criteria_up(ui, |node| {
             if let UINode::ListView(_) = node { true } else { false }
@@ -174,11 +176,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
         }
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self,  ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::ListView(msg) = &message.data {
-            if message.destination == self_handle {
+            if message.destination == self.handle {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Remove previous items.
@@ -295,7 +297,7 @@ impl<M, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
         let list_box = ListView {
             widget: self.widget_builder
                 .with_child(scroll_viewer)
-                .build(),
+                .build(ui.sender()),
             selected_index: None,
             item_containers,
             items: self.items,
@@ -314,7 +316,7 @@ fn generate_item_container<M: 'static, C: 'static + Control<M, C>>(ui: &mut User
     let item = ListViewItem {
         widget: WidgetBuilder::new()
             .with_child(item)
-            .build(),
+            .build(ui.sender()),
         index,
     };
 

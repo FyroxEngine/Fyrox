@@ -96,8 +96,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, 
         final_size
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message( ui, message);
     }
 }
 
@@ -174,7 +174,7 @@ impl<M, C: 'static + Control<M, C>> ScrollContentPresenterBuilder<M, C> {
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let handle = ui.add_node(UINode::ScrollContentPresenter(ScrollContentPresenter {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ui.sender()),
             scroll: Vec2::ZERO,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),

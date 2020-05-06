@@ -24,6 +24,7 @@ use crate::{
     message::UiMessage,
 };
 use std::ops::{Deref, DerefMut};
+use std::sync::mpsc::Sender;
 
 pub struct Border<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -109,8 +110,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
         drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
     }
 }
 
@@ -149,19 +150,19 @@ impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
         self
     }
 
-    pub fn build_node(mut self) -> Border<M, C> {
+    pub fn build_node(mut self, sender: Sender<UiMessage<M, C>>) -> Border<M, C> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(100, 100, 100)));
         }
 
         Border {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(sender),
             stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
         }
     }
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let handle = ui.add_node(UINode::Border(self.build_node()));
+        let handle = ui.add_node(UINode::Border(self.build_node(ui.sender())));
 
         ui.flush_messages();
 

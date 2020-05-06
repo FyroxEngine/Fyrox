@@ -172,12 +172,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, update, dt)
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        static_dispatch!(self, handle_routed_message, self_handle, ui, message)
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        static_dispatch!(self, handle_routed_message, ui, message)
     }
 
-    fn preview_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        static_dispatch!(self, preview_message, self_handle, ui, message)
+    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        static_dispatch!(self, preview_message, ui, message)
     }
 
     fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
@@ -197,7 +197,7 @@ impl Control<(), StubNode> for StubNode {
         unimplemented!()
     }
 
-    fn handle_routed_message(&mut self, _: Handle<UINode<(), StubNode>>, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
+    fn handle_routed_message(&mut self, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
         unimplemented!()
     }
 }

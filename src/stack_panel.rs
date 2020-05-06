@@ -174,8 +174,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
         Vec2::new(width, height)
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
     }
 }
 
@@ -199,7 +199,7 @@ impl<M, C: 'static + Control<M, C>> StackPanelBuilder<M, C> {
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let stack_panel = StackPanel {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.build(ui.sender()),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
         };
 

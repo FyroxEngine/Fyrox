@@ -57,32 +57,30 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 
-        self.widget.post_message(
-            UiMessage {
-                destination: self.indicator,
-                data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Width(size.x * self.progress))),
-                ..Default::default()
-            });
+        self.send_message(UiMessage {
+            destination: self.indicator,
+            data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Width(size.x * self.progress))),
+            handled: false
+        });
 
-        self.widget.post_message(
-            UiMessage {
-                destination: self.indicator,
-                data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Height(size.y))),
-                ..Default::default()
-            });
+        self.send_message(UiMessage {
+            destination: self.indicator,
+            data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Height(size.y))),
+            handled: false
+        });
 
         size
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message( ui, message);
     }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> ProgressBar<M, C> {
     pub fn set_progress(&mut self, progress: f32) {
         self.progress = progress.min(1.0).max(0.0);
-        self.widget.invalidate_layout();
+        self.invalidate_layout();
     }
 
     pub fn progress(&self) -> f32 {
@@ -143,7 +141,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
         let progress_bar = ProgressBar {
             widget: self.widget_builder
                 .with_child(body)
-                .build(),
+                .build(ui.sender()),
             progress: self.progress,
             indicator,
             body,

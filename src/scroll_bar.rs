@@ -126,8 +126,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         size
     }
 
-    fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message(self_handle, ui, message);
+    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Button(msg) => {
@@ -140,7 +140,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                 }
             }
             UiMessageData::ScrollBar(ref prop) => {
-                if message.destination == self_handle {
+                if message.destination == self.handle {
                     if let ScrollBarMessage::Value(value) = prop {
                         if self.value_text.is_some() {
                             if let UINode::Text(text) = ui.node_mut(self.value_text) {
@@ -262,11 +262,12 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
         let new_value = math::clampf(value, self.min, self.max);
         if (new_value - old_value).abs() > std::f32::EPSILON {
             self.value = new_value;
-            self.widget.post_message(UiMessage {
+            self.send_message(UiMessage {
                 data: UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value)),
-                ..Default::default()
+                destination: self.handle,
+                handled: false,
             });
-            self.widget.invalidate_layout();
+            self.invalidate_layout();
         }
         self
     }
@@ -557,7 +558,7 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         let scroll_bar = ScrollBar {
             widget: self.widget_builder
                 .with_child(body)
-                .build(),
+                .build(ui.sender()),
             min,
             max,
             value,

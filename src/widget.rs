@@ -26,10 +26,11 @@ use std::{
         RefCell,
         Cell,
     },
-    collections::VecDeque,
 };
+use std::sync::mpsc::Sender;
 
 pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
+    pub(in crate) handle: Handle<UINode<M, C>>,
     name: String,
     /// Desired position relative to parent node
     desired_local_position: Cell<Vec2>,
@@ -72,38 +73,25 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) is_mouse_directly_over: bool,
     measure_valid: Cell<bool>,
     arrange_valid: Cell<bool>,
-    outgoing_messages: RefCell<VecDeque<UiMessage<M, C>>>,
     hit_test_visibility: bool,
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
     z_index: usize,
-   // pub sender: Sender<UiMessage<M, C>>
-}
-
-impl<M, C: 'static + Control<M, C>> Default for Widget<M, C> {
-    fn default() -> Self {
-        WidgetBuilder::new().build()
-    }
+    pub sender: Sender<UiMessage<M, C>>
 }
 
 impl<M, C: 'static + Control<M, C>> Widget<M, C> {
-    /// Posts new message to UI in deferred manner. It holds
     #[inline]
-    pub fn post_message(&self, message: UiMessage<M, C>) {
-        self.outgoing_messages
-            .borrow_mut()
-            .push_back(message)
-    }
-
-    pub(in crate) fn pop_message(&self) -> Option<UiMessage<M, C>> {
-        self.outgoing_messages.borrow_mut().pop_front()
+    pub fn send_message(&self, message: UiMessage<M, C>) {
+        self.sender.send(message).unwrap();
     }
 
     #[inline]
     fn post_property_changed_message(&self, property: WidgetProperty) {
-        self.post_message(UiMessage {
+        self.send_message(UiMessage {
+            destination: self.handle,
             data: UiMessageData::Widget(WidgetMessage::Property(property)),
-            ..Default::default()
+            handled: false
         });
     }
 
@@ -266,6 +254,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     pub fn raw_copy(&self) -> Self {
         Self {
+            handle: Default::default(),
             name: self.name.clone(),
             desired_local_position: self.desired_local_position.clone(),
             width: self.width.clone(),
@@ -292,11 +281,11 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             is_mouse_directly_over: self.is_mouse_directly_over,
             measure_valid: Cell::new(false),
             arrange_valid: Cell::new(false),
-            outgoing_messages: Default::default(),
             hit_test_visibility: self.hit_test_visibility,
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
+            sender: self.sender.clone()
         }
     }
 
@@ -471,8 +460,8 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         Handle::NONE
     }
 
-    pub fn handle_routed_message(&mut self, self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
-        if msg.destination == self_handle {
+    pub fn handle_routed_message(&mut self, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
+        if msg.destination == self.handle {
             if let UiMessageData::Widget(msg) = &msg.data {
                 if let WidgetMessage::Property(property) = msg {
                     match property {
@@ -641,6 +630,16 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         self.prev_global_visibility = self.global_visibility;
         self.global_visibility = value;
     }
+
+    #[inline]
+    pub fn handle(&self) -> Handle<UINode<M, C>> {
+        self.handle
+    }
+
+    #[inline]
+    pub fn sender(&self) -> Sender<UiMessage<M, C>> {
+        self.sender.clone()
+    }
 }
 
 pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
@@ -786,8 +785,9 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn build(self) -> Widget<M, C> {
+    pub fn build(self, sender: Sender<UiMessage<M, C>>) -> Widget<M, C> {
         Widget {
+            handle: Default::default(),
             name: self.name,
             desired_local_position: Cell::new(self.desired_position),
             width: Cell::new(self.width),
@@ -814,11 +814,11 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             is_mouse_directly_over: false,
             measure_valid: Cell::new(false),
             arrange_valid: Cell::new(false),
-            outgoing_messages: Default::default(),
             hit_test_visibility: self.is_hit_test_visible,
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
+            sender
         }
     }
 }
