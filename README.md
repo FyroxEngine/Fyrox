@@ -26,6 +26,33 @@ rg3d engine getting bigger, but still does not have scene editor what makes crea
 - [x] Camera controller.
 - [x] Save scene.
 - [x] Load scene.
-- [ ] Node properties editor.
+- [ ] Commands
+	- [x] Move.
+	- [x] Scale.
+	- [x] Rotate.
+	- [x] Delete node.
+	- [x] Create node.
+	- [x] Link nodes.
+	- [ ] Other?
+- [ ] World outliner
+	- [x] Syncing with graph.
+	- [x] Syncing selection with scene selection and vice versa.
+	- [x] Drag'n'drop hierarchy edit.
+	- [ ] Nodes context menu
+- [ ] Node properties editor
+	- [ ] Base node
+		- [x] Show name.
+		- [ ] Edit name.
+		- [ ] Edit position.
+		- [ ] Edit rotation.
+		- [ ] Edit scale.
+	- [ ] Light node
+	- [ ] Particle system node.
+		- [ ] Particle system properties.
+	- [ ] Sprite node.
+		- [ ] Sprite properties.
+	- [ ] Mesh node.
+		- [ ] Mesh properties.
+- [ ] Asset browser.
 
 ... Lots of stuff.
