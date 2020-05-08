@@ -16,6 +16,26 @@ rg3d engine getting bigger, but still does not have scene editor what makes crea
 - [Z] - Undo
 - [Y] - Redo
 
+## How to use produced scenes.
+
+`rgs` can be loaded by standard object visitor like this:
+
+```rust
+use rg3d::core::visitor::Visitor;
+use rg3d::scene::Scene;
+
+// Load scene
+let mut visitor = Visitor::load_binary("your_scene.rgs").unwrap();
+let mut scene = Scene::default();
+scene.visit("Scene", &mut visitor).unwrap();
+
+...
+
+// and add to engine
+let scene_handle = engine.scenes.add(scene);
+
+```
+
 ## Plan
 
 - [x] Interaction modes.
