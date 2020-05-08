@@ -60,6 +60,8 @@ use crate::{
         Command,
         CreateNodeCommand,
         NodeKind,
+        DeleteNodeCommand,
+        ChangeSelectionCommand
     },
     world_outliner::WorldOutliner,
 };
@@ -82,7 +84,6 @@ type UiMessage = rg3d::gui::message::UiMessage<(), StubNode>;
 struct NodeEditor {
     window: Handle<UiNode>,
     node: Handle<Node>,
-
     node_name: Handle<UiNode>,
 }
 
@@ -272,20 +273,80 @@ struct Editor {
     world_outliner: WorldOutliner,
 }
 
-fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>) {
+fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
     let scene = &mut engine.scenes[editor_scene.scene];
     let graph = &mut scene.graph;
 
     match command {
-        Command::CreateNode(create_node_command) => create_node_command.execute(graph),
-        Command::MoveNode(move_node_command) => move_node_command.execute(graph),
-        Command::ScaleNode(scale_node_command) => scale_node_command.execute(graph),
-        Command::RotateNode(rotate_node_command) => rotate_node_command.execute(graph),
-        Command::ChangeSelection(change_selection_command) => {
-            // Just re-cast message so every system will handle it correctly.
-            message_sender.send(Message::SetSelection(change_selection_command.execute()))
-                .unwrap();
+        Command::CommandGroup(group) => {
+            for command in group {
+                execute_command(editor_scene, engine, command, message_sender.clone(), current_selection)
+            }
         }
+        Command::CreateNode(command) => command.execute(graph),
+        Command::MoveNode(command) => command.execute(graph),
+        Command::ScaleNode(command) => command.execute(graph),
+        Command::RotateNode(command) => command.execute(graph),
+        Command::ChangeSelection(command) => {
+            let selection = command.execute();
+            if selection != current_selection {
+                // Just re-cast message so every system will handle it correctly.
+                message_sender
+                    .send(Message::SetSelection(selection))
+                    .unwrap();
+            }
+        }
+        Command::LinkNodes(command) => command.execute(graph),
+        Command::DeleteNode(command) => command.execute(graph)
+    }
+}
+
+fn revert_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
+    let scene = &mut engine.scenes[editor_scene.scene];
+    let graph = &mut scene.graph;
+
+    match command {
+        Command::CommandGroup(group) => {
+            for command in group {
+                revert_command(editor_scene, engine, command, message_sender.clone(), current_selection)
+            }
+        }
+        Command::CreateNode(command) => command.revert(graph),
+        Command::MoveNode(command) => command.revert(graph),
+        Command::ScaleNode(command) => command.revert(graph),
+        Command::RotateNode(command) => command.revert(graph),
+        Command::ChangeSelection(command) => {
+            let selection = command.revert();
+            if selection != current_selection {
+                // Just re-cast message so every system will handle it correctly.
+                message_sender
+                    .send(Message::SetSelection(selection))
+                    .unwrap();
+            }
+        }
+        Command::LinkNodes(command) => command.revert(graph),
+        Command::DeleteNode(command) => command.revert(graph),
+    }
+}
+
+fn finalize_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: Command) {
+    let scene = &mut engine.scenes[editor_scene.scene];
+    let graph = &mut scene.graph;
+
+    match command {
+        Command::CommandGroup(group) => {
+            for command in group {
+                finalize_command(editor_scene, engine, command);
+            }
+        }
+        Command::CreateNode(command) => command.finalize(graph),
+        Command::DeleteNode(command) => command.finalize(graph),
+        // Intentionally not using _ => () to be notified about new commands by compiler.
+        Command::ChangeSelection(_) => {}
+        Command::MoveNode(_) => {}
+        Command::ScaleNode(_) => {}
+        Command::RotateNode(_) => {}
+        Command::LinkNodes(_) => {}
     }
 }
 
@@ -347,19 +408,16 @@ impl Editor {
             InteractionMode::Rotate(RotateInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
         ];
 
+        self.world_outliner.clear(&mut engine.user_interface);
         self.camera_controller = CameraController::new(&self.scene, engine);
         self.command_stack = CommandStack::new();
 
         self.set_interaction_mode(Some(0), engine);
     }
 
-    fn sync_to_model(&mut self, engine: &mut GameEngine) {
-        self.node_editor.sync_to_model(&self.scene, engine);
-    }
-
-    fn handle_message(&mut self, message: &UiMessage) {
+    fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         self.entity_panel.handle_message(message);
-        self.world_outliner.handle_ui_message(message);
+        self.world_outliner.handle_ui_message(message, &engine.user_interface, self.node_editor.node);
     }
 
     fn handle_raw_input(&mut self, device_event: &DeviceEvent, engine: &mut GameEngine) {
@@ -424,6 +482,17 @@ impl Editor {
                             VirtualKeyCode::Key3 => {
                                 self.set_interaction_mode(Some(2), engine)
                             }
+                            VirtualKeyCode::Delete => {
+                                if self.node_editor.node.is_some() {
+                                    let command = Command::CommandGroup(vec![
+                                        Command::ChangeSelection(ChangeSelectionCommand::new(Handle::NONE, self.node_editor.node)),
+                                        Command::DeleteNode(DeleteNodeCommand::new(self.node_editor.node))
+                                    ]);
+                                    self.message_sender
+                                        .send(Message::ExecuteCommand(command))
+                                        .unwrap();
+                                }
+                            }
                             _ => ()
                         }
                     }
@@ -434,56 +503,31 @@ impl Editor {
     }
 
     fn undo_command(&mut self, engine: &mut GameEngine) {
-        let scene = &mut engine.scenes[self.scene.scene];
-        let graph = &mut scene.graph;
-
         if let Some(command) = self.command_stack.undo() {
             println!("Undo command {:?}", command);
-
-            match command {
-                Command::CreateNode(create_node_command) => create_node_command.revert(graph),
-                Command::MoveNode(move_node_command) => move_node_command.revert(graph),
-                Command::ScaleNode(scale_node_command) => scale_node_command.revert(graph),
-                Command::RotateNode(rotate_node_command) => rotate_node_command.revert(graph),
-                Command::ChangeSelection(change_selection) => {
-                    // Just re-cast message so every system will handle it correctly.
-                    self.message_sender
-                        .send(Message::SetSelection(change_selection.revert()))
-                        .unwrap();
-                }
-            }
+            revert_command(&self.scene, engine, command, self.message_sender.clone(), self.node_editor.node);
         }
     }
 
     fn redo_command(&mut self, engine: &mut GameEngine) {
         if let Some(command) = self.command_stack.redo() {
             println!("Redo command {:?}", command);
-            execute_command(&self.scene, engine, command, self.message_sender.clone());
+            execute_command(&self.scene, engine, command, self.message_sender.clone(), self.node_editor.node);
         }
     }
 
     fn add_command(&mut self, engine: &mut GameEngine, mut command: Command) {
-        execute_command(&self.scene, engine, &mut command, self.message_sender.clone());
+        execute_command(&self.scene, engine, &mut command, self.message_sender.clone(), self.node_editor.node);
         let scene = &mut engine.scenes[self.scene.scene];
         let graph = &mut scene.graph;
         let dropped_commands = self.command_stack.add_command(command);
         for command in dropped_commands {
             println!("Finalizing command {:?}", command);
-            match command {
-                Command::CreateNode(create_node_command) => create_node_command.finalize(graph),
-                _ => ()
-            }
+            finalize_command(&self.scene, engine, command);
         }
     }
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
-        self.camera_controller.update(&self.scene, engine, dt);
-        self.world_outliner.sync_to_model(&self.scene, engine);
-
-        if let Some(mode) = self.current_interaction_mode {
-            self.interaction_modes[mode].update(&self.scene, engine);
-        }
-
         while let Ok(message) = self.message_receiver.try_recv() {
             for mode in &mut self.interaction_modes {
                 mode.handle_message(&message);
@@ -521,6 +565,14 @@ impl Editor {
                 }
             }
         }
+
+        self.camera_controller.update(&self.scene, engine, dt);
+        self.world_outliner.sync_to_model(&self.scene, engine);
+        self.node_editor.sync_to_model(&self.scene, engine);
+
+        if let Some(mode) = self.current_interaction_mode {
+            self.interaction_modes[mode].update(&self.scene, engine);
+        }
     }
 }
 
@@ -552,12 +604,11 @@ fn main() {
                     elapsed_time += fixed_timestep;
                     engine.update(fixed_timestep);
 
-                    editor.sync_to_model(&mut engine);
                     editor.update(&mut engine, dt);
                 }
 
                 while let Some(ui_message) = engine.user_interface.poll_message() {
-                    editor.handle_message(&ui_message);
+                    editor.handle_message(&ui_message, &mut engine);
                 }
 
                 engine.get_window().request_redraw();
@@ -576,11 +627,15 @@ fn main() {
                     _ => ()
                 }
 
+                let mut message_handled = false;
+
                 if let Some(os_event) = translate_event(&event) {
-                    engine.user_interface.process_os_event(&os_event);
+                    message_handled |= engine.user_interface.process_os_event(&os_event);
                 }
 
-                editor.handle_input(&event, &mut engine);
+                if !message_handled {
+                    editor.handle_input(&event, &mut engine);
+                }
             }
             Event::DeviceEvent { event, .. } => {
                 editor.handle_raw_input(&event, &mut engine);

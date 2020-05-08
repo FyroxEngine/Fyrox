@@ -122,7 +122,7 @@ impl CameraController {
         }
     }
 
-    pub fn handle_input(&mut self, window_event: &WindowEvent, engine: &mut GameEngine) {
+    pub fn handle_input(&mut self, window_event: &WindowEvent, _engine: &mut GameEngine) {
         match window_event {
             &WindowEvent::MouseInput { state, button, .. } => {
                 if button == MouseButton::Right {
@@ -214,7 +214,9 @@ impl CameraController {
                     // Do coarse intersection test with bounding box.
                     if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         // Do fine intersection test with surfaces if any
-                        if let Some(surfaces) = surfaces {}
+                        if let Some(_surfaces) = surfaces {
+                            // TODO
+                        }
 
                         let da = points[0].distance(&object_space_ray.origin);
                         let db = points[1].distance(&object_space_ray.origin);

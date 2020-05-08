@@ -16,11 +16,14 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum Command {
+    CommandGroup(Vec<Command>),
     CreateNode(CreateNodeCommand),
     ChangeSelection(ChangeSelectionCommand),
     MoveNode(MoveNodeCommand),
     ScaleNode(ScaleNodeCommand),
     RotateNode(RotateNodeCommand),
+    LinkNodes(LinkNodesCommand),
+    DeleteNode(DeleteNodeCommand)
 }
 
 #[derive(Debug)]
@@ -235,6 +238,66 @@ impl RotateNodeCommand {
     }
 }
 
+#[derive(Debug)]
+pub struct LinkNodesCommand {
+    child: Handle<Node>,
+    parent: Handle<Node>
+}
+
+impl LinkNodesCommand {
+    pub fn new(child: Handle<Node>, parent: Handle<Node>) -> Self{
+        Self {
+            child,
+            parent
+        }
+    }
+
+    fn link(&mut self, graph: &mut Graph) {
+        let old_parent = graph[self.child].parent();
+        graph.link_nodes(self.child, self.parent);
+        self.parent = old_parent;
+    }
+
+    pub fn execute(&mut self, graph: &mut Graph) {
+        self.link(graph);
+    }
+
+    pub fn revert(&mut self, graph: &mut Graph) {
+        self.link(graph);
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteNodeCommand {
+    handle: Handle<Node>,
+    ticket: Option<Ticket<Node>>,
+    node: Option<Node>
+}
+
+impl DeleteNodeCommand {
+    pub fn new(handle: Handle<Node>) -> Self{
+        Self {
+            handle,
+            ticket: None,
+            node: None
+        }
+    }
+
+    pub fn execute(&mut self, graph: &mut Graph) {
+        let (ticket, node) = graph.take_reserve(self.handle);
+        self.node = Some(node);
+        self.ticket = Some(ticket);
+    }
+
+    pub fn revert(&mut self, graph: &mut Graph) {
+        self.handle = graph.put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
+    }
+
+    pub fn finalize(self, graph: &mut Graph) {
+        graph.forget_ticket(self.ticket.unwrap())
+    }
+}
+
 pub struct CommandStack {
     commands: Vec<Command>,
     top: Option<usize>,
@@ -248,6 +311,7 @@ impl CommandStack {
         }
     }
 
+    #[must_use = "dropped commands must be finalized!"]
     pub fn add_command(&mut self, command: Command) -> Vec<Command> {
         let mut dropped_commands = Vec::default();
         if self.commands.is_empty() {

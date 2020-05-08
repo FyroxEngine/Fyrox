@@ -6,21 +6,42 @@ use rg3d::{
         tree::{TreeBuilder, TreeRootBuilder},
         text::TextBuilder,
         Thickness,
-        message::{UiMessageData, TreeRootMessage},
+        message::{UiMessageData, TreeRootMessage, WidgetMessage, TreeMessage},
     },
     scene::node::Node,
     core::{
         pool::Handle,
-        math::vec2::Vec2
-    }
+        math::vec2::Vec2,
+    },
 };
-use std::collections::HashMap;
 use std::sync::mpsc::Sender;
+use crate::command::{Command, LinkNodesCommand, ChangeSelectionCommand};
+use std::rc::Rc;
 
 pub struct WorldOutliner {
-    nodes: HashMap<Handle<Node>, Handle<UiNode>>,
     root: Handle<UiNode>,
-    sender: Sender<Message>
+    sender: Sender<Message>,
+    stack: Vec<(Handle<UiNode>, Handle<Node>)>,
+}
+
+fn make_tree(node: &Node, handle: Handle<Node>, ui: &mut Ui) -> Handle<UiNode> {
+    TreeBuilder::new(WidgetBuilder::new()
+        .with_user_data(Rc::new(handle))
+        .with_margin(Thickness::uniform(1.0)))
+        .with_content(TextBuilder::new(WidgetBuilder::new())
+            .with_text(node.name())
+            .build(ui)
+        )
+        .build(ui)
+}
+
+fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
+    *ui.node(tree)
+        .user_data
+        .as_ref()
+        .unwrap()
+        .downcast_ref::<Handle<Node>>()
+        .unwrap()
 }
 
 impl WorldOutliner {
@@ -38,9 +59,9 @@ impl WorldOutliner {
             .build(ui);
 
         Self {
-            nodes: Default::default(),
             sender,
             root,
+            stack: Default::default(),
         }
     }
 
@@ -49,72 +70,174 @@ impl WorldOutliner {
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
 
-        if self.nodes.len() != graph.node_count() {
-            ui.send_message(UiMessage {
-                destination: self.root,
-                data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(Vec::new())),
-                handled: false
-            });
-
-            let mut stack = vec![graph.get_root()];
-            while let Some(handle) = stack.pop() {
-                let node = &graph[handle];
-
-                let parent = if node.parent().is_none() {
-                    self.root
-                } else {
-                    *self.nodes.get(&node.parent()).unwrap()
-                };
-
-                let tree = TreeBuilder::new(WidgetBuilder::new()
-                    .with_margin(Thickness::uniform(1.0)))
-                    .with_content(TextBuilder::new(WidgetBuilder::new())
-                        .with_text(node.name())
-                        .build(ui)
-                    )
-                    .build(ui);
-
-                match ui.node_mut(parent) {
-                    UiNode::Tree(parent_tree) => {
-                        parent_tree.add_item(tree);
+        // Sync tree structure with graph structure.
+        self.stack.clear();
+        self.stack.push((self.root, graph.get_root()));
+        while let Some((tree_handle, node_handle)) = self.stack.pop() {
+            // Hide all editor nodes.
+            if node_handle == editor_scene.root {
+                continue;
+            }
+            let node = &graph[node_handle];
+            match ui.node_mut(tree_handle) {
+                UiNode::Tree(tree) => {
+                    // Since we are filtering out editor stuff from world outliner, we must
+                    // correctly count children, excluding editor nodes.
+                    let mut child_count = 0;
+                    for &child in node.children() {
+                        if child != editor_scene.root {
+                            child_count += 1;
+                        }
                     }
-                    UiNode::TreeRoot(root) => {
-                        root.add_item(tree);
+                    let items = tree.items().to_vec();
+                    if child_count < items.len() {
+                        for &item in items.iter() {
+                            let child_node = tree_node(ui, item);
+                            if !node.children().contains(&child_node) {
+                                ui.send_message(UiMessage {
+                                    destination: tree_handle,
+                                    data: UiMessageData::Tree(TreeMessage::RemoveItem(item)),
+                                    handled: false,
+                                });
+                                ui.flush_messages();
+                            } else {
+                                self.stack.push((item, child_node));
+                            }
+                        }
+                    } else if child_count > tree.items().len() {
+                        for &child_handle in node.children() {
+                            // Hide all editor nodes.
+                            if child_handle == editor_scene.root {
+                                continue;
+                            }
+                            let mut found = false;
+                            for &item in items.iter() {
+                                let tree_node_handle = tree_node(ui, item);
+                                if tree_node_handle == child_handle {
+                                    self.stack.push((item, child_handle));
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if !found {
+                                let tree = make_tree(&graph[child_handle], child_handle, ui);
+                                ui.send_message(UiMessage {
+                                    data: UiMessageData::Tree(TreeMessage::AddItem(tree)),
+                                    destination: tree_handle,
+                                    handled: false,
+                                });
+                                ui.flush_messages();
+                                self.stack.push((tree, child_handle));
+                            }
+                        }
+                    } else {
+                        for &tree in items.iter() {
+                            let child = tree_node(ui, tree);
+                            self.stack.push((tree, child));
+                        }
                     }
-                    _ => ()
                 }
-
-                self.nodes.insert(handle, tree);
-
-                for &child in node.children() {
-                    stack.push(child);
+                UiNode::TreeRoot(root) => {
+                    if root.items().is_empty() {
+                        let tree = make_tree(node, node_handle, ui);
+                        ui.send_message(UiMessage {
+                            data: UiMessageData::TreeRoot(TreeRootMessage::AddItem(tree)),
+                            destination: tree_handle,
+                            handled: false,
+                        });
+                        ui.flush_messages();
+                        self.stack.push((tree, node_handle));
+                    } else {
+                        self.stack.push((root.items()[0], node_handle));
+                    }
                 }
+                _ => unreachable!()
             }
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage) {
-        if let UiMessageData::TreeRoot(msg) = &message.data {
-            if let &TreeRootMessage::SetSelected(selection) = msg {
-                for (&node, &tree) in self.nodes.iter() {
-                    if tree == selection {
-                        self.sender.send(Message::SetSelection(node)).unwrap();
+    fn map_tree_to_node(&self, tree: Handle<UiNode>, ui: &Ui) -> Handle<Node> {
+        if tree.is_some() {
+            *ui.node(tree).user_data.as_ref().unwrap().downcast_ref::<Handle<Node>>().unwrap()
+        } else {
+            Handle::NONE
+        }
+    }
+
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui, current_selection: Handle<Node>) {
+        match &message.data {
+            UiMessageData::TreeRoot(msg) => {
+                if let &TreeRootMessage::SetSelected(selection) = msg {
+                    let node = self.map_tree_to_node(selection, ui);
+                    if node != current_selection {
+                        self.sender
+                            .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(node, current_selection))))
+                            .unwrap();
                     }
                 }
             }
+            UiMessageData::Widget(msg) => {
+                if let &WidgetMessage::Drop(node) = msg {
+                    if node != message.destination {
+                        let child = self.map_tree_to_node(node, ui);
+                        let parent = self.map_tree_to_node(message.destination, ui);
+                        if child.is_some() && parent.is_some() {
+                            self.sender
+                                .send(Message::ExecuteCommand(Command::LinkNodes(LinkNodesCommand::new(child, parent))))
+                                .unwrap();
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
+    }
+
+    pub fn clear(&mut self, ui: &mut Ui) {
+        ui.send_message(UiMessage{
+            handled: false,
+            data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(vec![])),
+            destination: self.root
+        });
+        ui.flush_messages();
     }
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {
+        let ui = &engine.user_interface;
+
         match message {
             &Message::SetSelection(selection) => {
+                let tree = self.map_node_to_tree(ui, selection);
                 if let UiNode::TreeRoot(root) = engine.user_interface.node_mut(self.root) {
-                    if let Some(&node) = self.nodes.get(&selection) {
-                        root.set_selected(node);
-                    }
+                    root.set_selected(tree);
                 }
-            },
+            }
             _ => ()
         }
+    }
+
+    fn map_node_to_tree(&self, ui: &Ui, node: Handle<Node>) -> Handle<UiNode> {
+        let mut stack = vec![self.root];
+        while let Some(tree_handle) = stack.pop() {
+            match ui.node(tree_handle) {
+                UiNode::Tree(tree) => {
+                    let handle = *tree.user_data.as_ref().unwrap().downcast_ref::<Handle<Node>>().unwrap();
+                    if handle == node {
+                        return tree_handle;
+                    } else {
+                        for &item in tree.items() {
+                            stack.push(item);
+                        }
+                    }
+                }
+                UiNode::TreeRoot(root) => {
+                    for &item in root.items() {
+                        stack.push(item);
+                    }
+                }
+                _ => unreachable!()
+            }
+        }
+        Handle::NONE
     }
 }
