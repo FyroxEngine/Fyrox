@@ -20,7 +20,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 ## [Examples](https://github.com/mrDIMAS/rg3d/tree/master/examples)
 
-## [Editor] (https://github.com/mrDIMAS/rusty-editor/)
+## [Editor](https://github.com/mrDIMAS/rusty-editor/)
 
 ## Features
 
