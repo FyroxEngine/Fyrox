@@ -169,7 +169,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                             ui.release_mouse_capture();
                             message.handled = true;
                         }
-                        WidgetMessage::MouseMove(mouse_pos) => {
+                        WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                             if self.indicator.is_some() {
                                 let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::<M, C>::PART_CANVAS);
                                 let indicator_size = ui.nodes

@@ -6,19 +6,10 @@
 //! by itself and it is mixed together with a bit of imperative style where you
 //! modify widgets directly by calling appropriate method.
 
-use crate::{
-    core::{
-        math::vec2::Vec2,
-        pool::Handle,
-    },
-    UINode,
-    VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    brush::Brush,
-    Control,
-    popup::Placement
-};
+use crate::{core::{
+    math::vec2::Vec2,
+    pool::Handle,
+}, UINode, VerticalAlignment, HorizontalAlignment, Thickness, brush::Brush, Control, popup::Placement, MouseState};
 
 #[derive(Debug)]
 pub enum WidgetProperty {
@@ -41,7 +32,7 @@ pub enum WidgetProperty {
 }
 
 #[derive(Debug)]
-pub enum WidgetMessage {
+pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
     MouseDown {
         pos: Vec2,
         button: MouseButton,
@@ -50,7 +41,10 @@ pub enum WidgetMessage {
         pos: Vec2,
         button: MouseButton,
     },
-    MouseMove(Vec2),
+    MouseMove{
+        pos: Vec2,
+        state: MouseState
+    },
     Text(char),
     KeyDown(KeyCode),
     KeyUp(KeyCode),
@@ -63,7 +57,10 @@ pub enum WidgetMessage {
     MouseLeave,
     MouseEnter,
     TopMost,
-    Property(WidgetProperty)
+    Property(WidgetProperty),
+    DragStarted(Handle<UINode<M, C>>),
+    DragOver(Handle<UINode<M, C>>),
+    Drop(Handle<UINode<M, C>>)
 }
 
 #[derive(Debug)]
@@ -117,19 +114,21 @@ pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
 pub enum TreeMessage<M: 'static, C: 'static + Control<M, C>> {
     Expand(bool),
     AddItem(Handle<UINode<M, C>>),
+    RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>)
 }
 
 #[derive(Debug)]
 pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
     AddItem(Handle<UINode<M, C>>),
+    RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
     SetSelected(Handle<UINode<M, C>>)
 }
 
 #[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
-    Widget(WidgetMessage),
+    Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
     ScrollBar(ScrollBarMessage),
     CheckBox(CheckBoxMessage),

@@ -528,7 +528,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                             ui.capture_mouse(self.handle);
                         }
                     }
-                    WidgetMessage::MouseMove(pos) => {
+                    WidgetMessage::MouseMove { pos, .. } => {
                         if self.selecting {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 if let Some(ref mut sel_range) = self.selection_range {

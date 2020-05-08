@@ -68,7 +68,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Tree<M, C> {
             is_selected: self.is_selected,
             selected_brush: self.selected_brush.clone(),
             hovered_brush: self.hovered_brush.clone(),
-            normal_brush: self.normal_brush.clone()
+            normal_brush: self.normal_brush.clone(),
         }
     }
 }
@@ -94,7 +94,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
         self.send_message(UiMessage {
             destination: self.expander,
             data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Visibility(expander_visibility))),
-            handled: false
+            handled: false,
         });
 
         size
@@ -160,6 +160,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                             ui.link_nodes(item, self.panel);
                             self.items.push(item);
                         }
+                        &TreeMessage::RemoveItem(item) => {
+                            if let Some(pos) = self.items.iter().position(|&i| i == item) {
+                                ui.remove_node(item);
+                                self.items.remove(pos);
+                            }
+                        }
                         TreeMessage::SetItems(items) => {
                             for &item in self.items.iter() {
                                 ui.remove_node(item);
@@ -201,7 +207,16 @@ impl<M, C: 'static + Control<M, C>> Tree<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Tree(TreeMessage::AddItem(item)),
             destination: self.handle,
-            handled: false
+            handled: false,
+        });
+    }
+
+    /// Removes specified item from Tree.
+    pub fn remove_item(&mut self, item: Handle<UINode<M, C>>) {
+        self.send_message(UiMessage {
+            data: UiMessageData::Tree(TreeMessage::RemoveItem(item)),
+            destination: self.handle,
+            handled: false,
         });
     }
 
@@ -209,7 +224,7 @@ impl<M, C: 'static + Control<M, C>> Tree<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Tree(TreeMessage::SetItems(items)),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 
@@ -218,9 +233,13 @@ impl<M, C: 'static + Control<M, C>> Tree<M, C> {
             self.send_message(UiMessage {
                 data: UiMessageData::Tree(TreeMessage::Expand(expand)),
                 destination: self.handle,
-                handled: false
+                handled: false,
             });
         }
+    }
+
+    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+        &self.items
     }
 }
 
@@ -314,6 +333,8 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
 
         let tree = Tree {
             widget: self.widget_builder
+                .with_allow_drag(true)
+                .with_allow_drop(true)
                 .with_child(grid)
                 .build(ui.sender()),
             content: self.content,
@@ -325,7 +346,7 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
             is_selected: false,
             selected_brush: self.selected_brush,
             hovered_brush: self.hovered_brush,
-            normal_brush: self.normal_brush
+            normal_brush: self.normal_brush,
         };
 
         let handle = ui.add_node(UINode::Tree(tree));
@@ -340,6 +361,7 @@ pub struct TreeRoot<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
+    selected: Handle<UINode<M, C>>
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for TreeRoot<M, C> {
@@ -362,6 +384,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for TreeRoot<M, C> {
             widget: self.widget.raw_copy(),
             panel: self.panel,
             items: self.items.clone(),
+            selected: self.selected
         }
     }
 }
@@ -373,56 +396,76 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
 
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.panel = *node_map.get(&self.panel).unwrap();
+        if self.selected.is_some() {
+            self.selected = *node_map.get(&self.selected).unwrap();
+        }
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::TreeRoot(msg) = &message.data {
-            if message.destination == self.handle {
-                match msg {
-                    &TreeRootMessage::AddItem(item) => {
-                        ui.link_nodes(item, self.panel);
-                        self.items.push(item);
-                    }
-                    TreeRootMessage::SetItems(items) => {
-                        for &item in self.items.iter() {
-                            ui.remove_node(item);
-                        }
-                        for &item in items {
+        match &message.data {
+            UiMessageData::TreeRoot(msg) => {
+                if message.destination == self.handle {
+                    match msg {
+                        &TreeRootMessage::AddItem(item) => {
                             ui.link_nodes(item, self.panel);
+                            self.items.push(item);
                         }
-                        self.items = items.to_vec();
-                    }
-                    &TreeRootMessage::SetSelected(selected) => {
-                        let mut stack = self.children().to_vec();
-                        while let Some(handle) = stack.pop() {
-                            let node = ui.node_mut(handle);
-                            for &child_handle in node.children() {
-                                stack.push(child_handle);
+                        &TreeRootMessage::RemoveItem(item) => {
+                            if let Some(pos) = self.items.iter().position(|&i| i == item) {
+                                ui.remove_node(item);
+                                self.items.remove(pos);
                             }
-                            if let UINode::Tree(tree) = node {
-                                let (select, brush) = if handle == selected {
-                                    (true, tree.selected_brush.clone())
-                                } else {
-                                    (false, tree.normal_brush.clone())
-                                };
-                                tree.is_selected = select;
-                                let background_handle = tree.background;
-                                if let UINode::Border(background) = ui.node_mut(background_handle) {
-                                    background.set_background(brush);
+                        }
+                        TreeRootMessage::SetItems(items) => {
+                            for &item in self.items.iter() {
+                                ui.remove_node(item);
+                            }
+                            for &item in items {
+                                ui.link_nodes(item, self.panel);
+                            }
+                            self.items = items.to_vec();
+                        }
+                        &TreeRootMessage::SetSelected(selected) => {
+                            if self.selected != selected {
+                                let mut stack = self.children().to_vec();
+                                while let Some(handle) = stack.pop() {
+                                    let node = ui.node_mut(handle);
+                                    for &child_handle in node.children() {
+                                        stack.push(child_handle);
+                                    }
+                                    if let UINode::Tree(tree) = node {
+                                        let (select, brush) = if handle == selected {
+                                            (true, tree.selected_brush.clone())
+                                        } else {
+                                            (false, tree.normal_brush.clone())
+                                        };
+                                        tree.is_selected = select;
+                                        if select {
+                                            self.selected = selected;
+                                        }
+                                        let background_handle = tree.background;
+                                        if let UINode::Border(background) = ui.node_mut(background_handle) {
+                                            background.set_background(brush);
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            _ => {}
         }
     }
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
         if self.panel == handle {
             self.panel = Default::default();
+        }
+        if self.selected == handle {
+            self.selected = Default::default();
         }
     }
 }
@@ -434,7 +477,16 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeRoot<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::TreeRoot(TreeRootMessage::AddItem(item)),
             destination: self.handle,
-            handled: false
+            handled: false,
+        });
+    }
+
+    /// Removes specified item from TreeRoot.
+    pub fn remove_item(&mut self, item: Handle<UINode<M, C>>) {
+        self.send_message(UiMessage {
+            data: UiMessageData::TreeRoot(TreeRootMessage::RemoveItem(item)),
+            destination: self.handle,
+            handled: false,
         });
     }
 
@@ -444,18 +496,24 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeRoot<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(items)),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 
     /// Makes desired node selected. Pass Handle::NONE to deselect all nodes.
     /// This method has deferred execution.
     pub fn set_selected(&mut self, selected: Handle<UINode<M, C>>) {
-        self.send_message(UiMessage {
-            data: UiMessageData::TreeRoot(TreeRootMessage::SetSelected(selected)),
-            destination: self.handle,
-            handled: false
-        });
+        if self.selected != selected {
+            self.send_message(UiMessage {
+                data: UiMessageData::TreeRoot(TreeRootMessage::SetSelected(selected)),
+                destination: self.handle,
+                handled: false,
+            });
+        }
+    }
+
+    pub fn items(&self) -> &[Handle<UINode<M, C>>] {
+        &self.items
     }
 }
 
@@ -488,6 +546,7 @@ impl<M, C: 'static + Control<M, C>> TreeRootBuilder<M, C> {
                 .build(ui.sender()),
             panel,
             items: self.items,
+            selected: Default::default()
         };
 
         let handle = ui.add_node(UINode::TreeRoot(tree));

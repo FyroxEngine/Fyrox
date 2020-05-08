@@ -106,7 +106,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             self.send_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::TopMost),
                                 destination: self.handle,
-                                handled: false
+                                handled: false,
                             });
                             ui.capture_mouse(self.header);
                             let initial_position = self.actual_local_position();
@@ -120,7 +120,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             self.is_dragged = false;
                             message.handled = true;
                         }
-                        WidgetMessage::MouseMove(pos) => {
+                        WidgetMessage::MouseMove { pos, .. } => {
                             if self.is_dragged {
                                 self.widget.set_desired_local_position(self.initial_position + *pos - self.mouse_click_pos);
                             }
@@ -228,7 +228,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::Closed),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 
@@ -237,7 +237,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::Opened),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 
@@ -246,7 +246,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::Minimized(state)),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 
@@ -255,7 +255,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::CanClose(state)),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 
@@ -264,7 +264,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
         self.send_message(UiMessage {
             data: UiMessageData::Window(WindowMessage::CanMinimize(state)),
             destination: self.handle,
-            handled: false
+            handled: false,
         });
     }
 }

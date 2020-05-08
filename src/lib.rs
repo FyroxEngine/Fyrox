@@ -54,12 +54,12 @@ use crate::{
     draw::{
         DrawingContext,
         CommandKind,
-        CommandTexture
+        CommandTexture,
     },
     canvas::Canvas,
     widget::{
         Widget,
-        WidgetBuilder
+        WidgetBuilder,
     },
     ttf::Font,
     message::{
@@ -81,11 +81,12 @@ use std::{
         mpsc::{
             Sender,
             Receiver,
-            self
-        }
+            self,
+        },
     },
     collections::HashMap,
 };
+use crate::message::MouseButton;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum HorizontalAlignment {
@@ -362,6 +363,40 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
     fn remove_ref(&mut self, _handle: Handle<UINode<M, C>>) {}
 }
 
+pub struct DragContext<M: 'static, C: 'static + Control<M, C>> {
+    is_dragging: bool,
+    drag_node: Handle<UINode<M, C>>,
+    click_pos: Vec2,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Default for DragContext<M, C> {
+    fn default() -> Self {
+        Self {
+            is_dragging: false,
+            drag_node: Default::default(),
+            click_pos: Default::default(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct MouseState {
+    left: ButtonState,
+    right: ButtonState,
+    middle: ButtonState,
+    // TODO Add rest of buttons
+}
+
+impl Default for MouseState {
+    fn default() -> Self {
+        Self {
+            left: ButtonState::Released,
+            right: ButtonState::Released,
+            middle: ButtonState::Released,
+        }
+    }
+}
+
 pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     screen_size: Vec2,
     nodes: Pool<UINode<M, C>>,
@@ -377,6 +412,8 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     sender: Sender<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
     root_picking_node: Handle<UINode<M, C>>,
+    drag_context: DragContext<M, C>,
+    mouse_state: MouseState,
 }
 
 lazy_static! {
@@ -411,6 +448,8 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             keyboard_focus_node: Handle::NONE,
             stack: Default::default(),
             root_picking_node: Default::default(),
+            drag_context: Default::default(),
+            mouse_state: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build(sender.clone()))));
         ui
@@ -799,6 +838,10 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     /// UI will not respond to any kind of events and simply speaking will just not work.
     pub fn poll_message(&mut self) -> Option<UiMessage<M, C>> {
         if let Ok(mut message) = self.receiver.try_recv() {
+            if !self.nodes.is_valid_handle(message.destination) {
+                return None;
+            }
+
             // Fire preview handler first. This will allow controls to do some actions before
             // message will begin bubble routing. Preview routing does not care about destination
             // node of message, it always starts from root and descend to leaf nodes.
@@ -828,7 +871,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
                 while let Some(handle) = self.stack.pop() {
                     let (ticket, mut node) = self.nodes.take_reserve(handle);
-                    node.handle_routed_message( self, &mut message);
+                    node.handle_routed_message(self, &mut message);
                     self.nodes.put_back(ticket, node);
                 }
             }
@@ -891,17 +934,41 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         let mut event_processed = false;
 
         match event {
-            OsEvent::MouseInput { button, state, .. } => {
+            &OsEvent::MouseInput { button, state, .. } => {
+                match button {
+                    MouseButton::Left => self.mouse_state.left = state,
+                    MouseButton::Right => self.mouse_state.right = state,
+                    MouseButton::Middle => self.mouse_state.middle = state,
+                    _ => {}
+                }
+
                 match state {
                     ButtonState::Pressed => {
                         self.picked_node = self.hit_test(self.cursor_position);
+
+                        // Try to find draggable node in hierarchy starting from picked node.
+                        if self.picked_node.is_some() {
+                            self.stack.clear();
+                            self.stack.push(self.picked_node);
+                            while let Some(handle) = self.stack.pop() {
+                                let node = &self.nodes[handle];
+                                if node.is_drag_allowed() {
+                                    self.drag_context.drag_node = handle;
+                                    self.stack.clear();
+                                    break;
+                                } else if node.parent().is_some() {
+                                    self.stack.push(node.parent());
+                                }
+                            }
+                            self.drag_context.click_pos = self.cursor_position;
+                        }
 
                         if self.keyboard_focus_node != self.picked_node {
                             if self.keyboard_focus_node.is_some() {
                                 self.send_message(UiMessage {
                                     data: UiMessageData::Widget(WidgetMessage::LostFocus),
                                     destination: self.keyboard_focus_node,
-                                    handled: false
+                                    handled: false,
                                 });
                             }
 
@@ -911,7 +978,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                                 self.send_message(UiMessage {
                                     data: UiMessageData::Widget(WidgetMessage::GotFocus),
                                     destination: self.keyboard_focus_node,
-                                    handled: false
+                                    handled: false,
                                 });
                             }
                         }
@@ -920,23 +987,46 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                             self.send_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::MouseDown {
                                     pos: self.cursor_position,
-                                    button: *button,
+                                    button,
                                 }),
                                 destination: self.picked_node,
-                                handled: false
+                                handled: false,
                             });
                             event_processed = true;
                         }
                     }
                     ButtonState::Released => {
                         if self.picked_node.is_some() {
+                            if self.drag_context.is_dragging {
+                                self.drag_context.is_dragging = false;
+
+                                // Try to find node with drop allowed in hierarchy starting from picked node.
+                                self.stack.clear();
+                                self.stack.push(self.picked_node);
+                                while let Some(handle) = self.stack.pop() {
+                                    let node = &self.nodes[handle];
+                                    if node.is_drop_allowed() {
+                                        self.send_message(UiMessage {
+                                            handled: false,
+                                            data: UiMessageData::Widget(WidgetMessage::Drop(self.drag_context.drag_node)),
+                                            destination: handle,
+                                        });
+                                        self.stack.clear();
+                                        break;
+                                    } else if node.parent().is_some() {
+                                        self.stack.push(node.parent());
+                                    }
+                                }
+                            }
+                            self.drag_context.drag_node = Handle::NONE;
+
                             self.send_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::MouseUp {
                                     pos: self.cursor_position,
-                                    button: *button,
+                                    button,
                                 }),
                                 destination: self.picked_node,
-                                handled: false
+                                handled: false,
                             });
                             event_processed = true;
                         }
@@ -947,6 +1037,18 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                 self.cursor_position = *position;
                 self.picked_node = self.hit_test(self.cursor_position);
 
+                if !self.drag_context.is_dragging && self.mouse_state.left == ButtonState::Pressed && self.picked_node.is_some() {
+                    if (self.drag_context.click_pos - *position).len() > 5.0 {
+                        self.drag_context.is_dragging = true;
+
+                        self.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Widget(WidgetMessage::DragStarted(self.drag_context.drag_node)),
+                            destination: self.picked_node
+                        })
+                    }
+                }
+
                 // Fire mouse leave for previously picked node
                 if self.picked_node != self.prev_picked_node && self.prev_picked_node.is_some() {
                     let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node);
@@ -955,28 +1057,39 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         self.send_message(UiMessage {
                             data: UiMessageData::Widget(WidgetMessage::MouseLeave),
                             destination: self.prev_picked_node,
-                            handled: false
+                            handled: false,
                         });
                     }
                 }
 
-                if !self.picked_node.is_none() {
+                if self.picked_node.is_some() {
                     let picked_node = self.nodes.borrow_mut(self.picked_node);
                     if !picked_node.is_mouse_directly_over {
                         picked_node.is_mouse_directly_over = true;
                         self.send_message(UiMessage {
                             data: UiMessageData::Widget(WidgetMessage::MouseEnter),
                             destination: self.picked_node,
-                            handled: false
+                            handled: false,
                         });
                     }
 
                     // Fire mouse move
                     self.send_message(UiMessage {
-                        data: UiMessageData::Widget(WidgetMessage::MouseMove(self.cursor_position)),
+                        data: UiMessageData::Widget(WidgetMessage::MouseMove {
+                            pos: self.cursor_position,
+                            state: self.mouse_state,
+                        }),
                         destination: self.picked_node,
-                        handled: false
+                        handled: false,
                     });
+
+                    if self.drag_context.is_dragging {
+                        self.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Widget(WidgetMessage::DragOver(self.drag_context.drag_node)),
+                            destination: self.picked_node
+                        });
+                    }
 
                     event_processed = true;
                 }
@@ -989,7 +1102,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                             amount: *y,
                         }),
                         destination: self.picked_node,
-                        handled: false
+                        handled: false,
                     });
 
                     event_processed = true;
@@ -1007,7 +1120,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                             }
                         },
                         destination: self.keyboard_focus_node,
-                        handled: false
+                        handled: false,
                     };
 
                     self.send_message(message);
@@ -1020,7 +1133,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     let message = UiMessage {
                         data: UiMessageData::Widget(WidgetMessage::Text(*unicode)),
                         destination: self.keyboard_focus_node,
-                        handled: false
+                        handled: false,
                     };
 
                     self.send_message(message);
@@ -1129,10 +1242,8 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn link_nodes(&mut self, child_handle: Handle<UINode<M, C>>, parent_handle: Handle<UINode<M, C>>) {
         assert_ne!(child_handle, parent_handle);
         self.unlink_node(child_handle);
-        let child = self.nodes_mut().borrow_mut(child_handle);
-        child.set_parent(parent_handle);
-        let parent = self.nodes_mut().borrow_mut(parent_handle);
-        parent.add_child(child_handle);
+        self.nodes[child_handle].set_parent(parent_handle);
+        self.nodes[parent_handle].add_child(child_handle);
     }
 
     /// Unlinks specified node from its parent, so node will become root.

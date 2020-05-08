@@ -28,6 +28,8 @@ use std::{
     },
 };
 use std::sync::mpsc::Sender;
+use std::any::Any;
+use std::rc::Rc;
 
 pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) handle: Handle<UINode<M, C>>,
@@ -77,7 +79,10 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
     z_index: usize,
-    pub sender: Sender<UiMessage<M, C>>
+    pub sender: Sender<UiMessage<M, C>>,
+    allow_drag: bool,
+    allow_drop: bool,
+    pub user_data: Option<Rc<dyn Any>>
 }
 
 impl<M, C: 'static + Control<M, C>> Widget<M, C> {
@@ -285,7 +290,10 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
-            sender: self.sender.clone()
+            sender: self.sender.clone(),
+            allow_drop: self.allow_drop,
+            allow_drag: self.allow_drag,
+            user_data: self.user_data.clone()
         }
     }
 
@@ -368,6 +376,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     pub(in crate) fn remove_child(&mut self, child: Handle<UINode<M, C>>) {
         if let Some(i) = self.children.iter().position(|h| *h == child) {
             self.children.remove(i);
+            self.invalidate_layout();
         }
     }
 
@@ -640,6 +649,16 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     pub fn sender(&self) -> Sender<UiMessage<M, C>> {
         self.sender.clone()
     }
+
+    #[inline]
+    pub fn is_drag_allowed(&self) -> bool {
+        self.allow_drag
+    }
+
+    #[inline]
+    pub fn is_drop_allowed(&self) -> bool {
+        self.allow_drop
+    }
 }
 
 pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
@@ -660,6 +679,9 @@ pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub is_hit_test_visible: bool,
     pub visibility: bool,
     pub z_index: usize,
+    pub allow_drag: bool,
+    pub allow_drop: bool,
+    pub user_data: Option<Rc<dyn Any>>
 }
 
 impl<M, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -688,6 +710,9 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             is_hit_test_visible: true,
             visibility: true,
             z_index: 0,
+            allow_drag: false,
+            allow_drop: false,
+            user_data: None
         }
     }
 
@@ -785,6 +810,21 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
+    pub fn with_allow_drop(mut self, allow_drop: bool) -> Self {
+        self.allow_drop = allow_drop;
+        self
+    }
+
+    pub fn with_allow_drag(mut self, allow_drag: bool) -> Self {
+        self.allow_drag = allow_drag;
+        self
+    }
+
+    pub fn with_user_data(mut self, user_data: Rc<dyn Any>) -> Self {
+        self.user_data = Some(user_data);
+        self
+    }
+
     pub fn build(self, sender: Sender<UiMessage<M, C>>) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
@@ -818,7 +858,10 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
-            sender
+            sender,
+            allow_drag: self.allow_drag,
+            allow_drop: self.allow_drop,
+            user_data: self.user_data
         }
     }
 }
