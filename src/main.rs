@@ -557,11 +557,12 @@ impl Editor {
                     }
                 }
                 Message::LoadScene(path) => {
-                    let mut visitor = Visitor::load_binary(&path).unwrap();
-                    let mut scene = Scene::default();
-                    scene.visit("Scene", &mut visitor).unwrap();
-                    self.set_scene(engine, scene);
-                    engine.renderer.flush();
+                    if let Ok(mut visitor) = Visitor::load_binary(&path) {
+                        let mut scene = Scene::default();
+                        scene.visit("Scene", &mut visitor).unwrap();
+                        self.set_scene(engine, scene);
+                        engine.renderer.flush();
+                    }
                 }
             }
         }
