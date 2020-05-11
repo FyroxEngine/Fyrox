@@ -41,6 +41,7 @@ use crate::{
     message::WidgetMessage,
 };
 use std::ops::{Deref, DerefMut};
+use crate::message::TextBoxMessage;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -209,6 +210,11 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
                 .insert_char(c, position)
                 .build();
             self.move_caret_x(1, HorizontalDirection::Right);
+            self.send_message(UiMessage {
+                handled: false,
+                data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
+                destination: self.handle
+            });
         }
     }
 
@@ -236,6 +242,12 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
                 };
                 self.formatted_text.borrow_mut().remove_at(position);
                 self.formatted_text.borrow_mut().build();
+
+                self.send_message(UiMessage {
+                    handled: false,
+                    data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
+                    destination: self.handle
+                });
 
                 if direction == HorizontalDirection::Left {
                     self.move_caret_x(1, direction);
@@ -573,8 +585,8 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
-    pub fn with_text(mut self, text: String) -> Self {
-        self.text = text;
+    pub fn with_text<P: AsRef<str>>(mut self, text: P) -> Self {
+        self.text = text.as_ref().to_owned();
         self
     }
 

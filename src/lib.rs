@@ -38,6 +38,7 @@ pub mod dropdown_list;
 pub mod decorator;
 pub mod progress_bar;
 pub mod tree;
+pub mod file_browser;
 
 use crate::{
     core::{
@@ -848,22 +849,23 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             self.stack.clear();
             self.stack.push(self.root());
             while let Some(handle) = self.stack.pop() {
-                let (ticket, mut node) = self.nodes.take_reserve(handle);
-                for &child in node.children() {
-                    self.stack.push(child);
+                if let Ok((ticket, mut node)) = self.nodes.try_take_reserve(handle) {
+                    for &child in node.children() {
+                        self.stack.push(child);
+                    }
+                    node.preview_message(self, &mut message);
+                    self.nodes.put_back(ticket, node);
                 }
-                node.preview_message(self, &mut message);
-                self.nodes.put_back(ticket, node);
             }
 
             // Dispatch event using bubble strategy. Bubble routing means that message will go
             // from specified destination up on tree to tree root.
-            if message.destination.is_some() {
+            if message.destination.is_some() && self.nodes.is_valid_handle(message.destination) {
                 // Gather chain of nodes from source to root.
                 self.stack.clear();
                 self.stack.push(message.destination);
                 let mut parent = self.nodes[message.destination].parent();
-                while parent.is_some() {
+                while parent.is_some() && self.nodes.is_valid_handle(parent) {
                     self.stack.push(parent);
                     parent = self.nodes[parent].parent();
                 }

@@ -39,6 +39,7 @@ pub struct Tree<M: 'static, C: 'static + Control<M, C>> {
     selected_brush: Brush,
     hovered_brush: Brush,
     normal_brush: Brush,
+    always_show_expander: bool
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for Tree<M, C> {
@@ -69,6 +70,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Tree<M, C> {
             selected_brush: self.selected_brush.clone(),
             hovered_brush: self.hovered_brush.clone(),
             normal_brush: self.normal_brush.clone(),
+            always_show_expander: self.always_show_expander
         }
     }
 }
@@ -89,13 +91,15 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
-        let expander_visibility = !self.items.is_empty();
 
-        self.send_message(UiMessage {
-            destination: self.expander,
-            data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Visibility(expander_visibility))),
-            handled: false,
-        });
+        if !self.always_show_expander {
+            let expander_visibility = !self.items.is_empty();
+            self.send_message(UiMessage {
+                destination: self.expander,
+                data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Visibility(expander_visibility))),
+                handled: false,
+            });
+        }
 
         size
     }
@@ -153,12 +157,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                 if message.destination == self.handle {
                     match msg {
                         &TreeMessage::Expand(expand) => {
-                            self.is_expanded = dbg!(expand);
+                            self.is_expanded = expand;
                             ui.node_mut(self.panel).set_visibility(self.is_expanded);
                         }
                         &TreeMessage::AddItem(item) => {
                             ui.link_nodes(item, self.panel);
                             self.items.push(item);
+                            dbg!();
                         }
                         &TreeMessage::RemoveItem(item) => {
                             if let Some(pos) = self.items.iter().position(|&i| i == item) {
@@ -251,6 +256,7 @@ pub struct TreeBuilder<M: 'static, C: 'static + Control<M, C>> {
     selected_brush: Brush,
     hovered_brush: Brush,
     normal_brush: Brush,
+    always_show_expander: bool
 }
 
 impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
@@ -263,6 +269,7 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
             selected_brush: Brush::Solid(Color::opaque(140, 140, 140)),
             hovered_brush: Brush::Solid(Color::opaque(100, 100, 100)),
             normal_brush: Brush::Solid(Color::TRANSPARENT),
+            always_show_expander: false
         }
     }
 
@@ -278,6 +285,11 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
 
     pub fn with_expanded(mut self, expanded: bool) -> Self {
         self.is_expanded = expanded;
+        self
+    }
+
+    pub fn with_always_show_expander(mut self, state: bool) -> Self {
+        self.always_show_expander = state;
         self
     }
 
@@ -347,6 +359,7 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
             selected_brush: self.selected_brush,
             hovered_brush: self.hovered_brush,
             normal_brush: self.normal_brush,
+            always_show_expander: self.always_show_expander
         };
 
         let handle = ui.add_node(UINode::Tree(tree));

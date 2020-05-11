@@ -34,7 +34,8 @@ use crate::{
     decorator::Decorator,
     NodeHandleMapping,
     progress_bar::ProgressBar,
-    tree::{Tree, TreeRoot}
+    tree::{Tree, TreeRoot},
+    file_browser::FileBrowser
 };
 use std::ops::{Deref, DerefMut};
 
@@ -62,6 +63,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     ProgressBar(ProgressBar<M, C>),
     Tree(Tree<M, C>),
     TreeRoot(TreeRoot<M, C>),
+    FileBrowser(FileBrowser<M, C>),
     User(C)
 }
 
@@ -91,6 +93,7 @@ macro_rules! static_dispatch {
             UINode::Decorator(v) => v.$func($($args),*),
             UINode::Tree(v) => v.$func($($args),*),
             UINode::TreeRoot(v) => v.$func($($args),*),
+            UINode::FileBrowser(v) => v.$func($($args),*),
         }
     };
 }
@@ -120,7 +123,8 @@ macro_rules! static_dispatch_deref {
             UINode::ProgressBar(v) => v,
             UINode::Decorator(v) => v,
             UINode::Tree(v) => v,
-            UINode::TreeRoot(v) => v
+            UINode::TreeRoot(v) => v,
+            UINode::FileBrowser(v) => v,
         }
     };
 }

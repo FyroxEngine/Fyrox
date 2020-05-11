@@ -10,6 +10,7 @@ use crate::{core::{
     math::vec2::Vec2,
     pool::Handle,
 }, UINode, VerticalAlignment, HorizontalAlignment, Thickness, brush::Brush, Control, popup::Placement, MouseState};
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum WidgetProperty {
@@ -127,6 +128,17 @@ pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
 }
 
 #[derive(Debug)]
+pub enum FileBrowserMessage {
+    Path(PathBuf),
+    SelectionChanged(PathBuf),
+}
+
+#[derive(Debug)]
+pub enum TextBoxMessage {
+    Text(String)
+}
+
+#[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
@@ -138,6 +150,8 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     ScrollViewer(ScrollViewerMessage<M, C>),
     Tree(TreeMessage<M, C>),
     TreeRoot(TreeRootMessage<M, C>),
+    FileBrowser(FileBrowserMessage),
+    TextBox(TextBoxMessage),
     User(M),
 }
 
