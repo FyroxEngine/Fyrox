@@ -1,4 +1,16 @@
-use crate::{EditorScene, GameEngine, UiNode, Ui, UiMessage, Message};
+use crate::{
+    EditorScene,
+    GameEngine,
+    UiNode,
+    Ui,
+    UiMessage,
+    Message,
+    command::{
+        Command,
+        LinkNodesCommand,
+        ChangeSelectionCommand,
+    },
+};
 use rg3d::{
     gui::{
         window::{WindowTitle, WindowBuilder},
@@ -14,9 +26,10 @@ use rg3d::{
         math::vec2::Vec2,
     },
 };
-use std::sync::mpsc::Sender;
-use crate::command::{Command, LinkNodesCommand, ChangeSelectionCommand};
-use std::rc::Rc;
+use std::{
+    sync::mpsc::Sender,
+    rc::Rc,
+};
 
 pub struct WorldOutliner {
     root: Handle<UiNode>,
@@ -167,18 +180,20 @@ impl WorldOutliner {
     pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui, current_selection: Handle<Node>) {
         match &message.data {
             UiMessageData::TreeRoot(msg) => {
-                if let &TreeRootMessage::SetSelected(selection) = msg {
-                    let node = self.map_tree_to_node(selection, ui);
-                    if node != current_selection {
-                        self.sender
-                            .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(node, current_selection))))
-                            .unwrap();
+                if message.destination == self.root {
+                    if let &TreeRootMessage::SetSelected(selection) = msg {
+                        let node = self.map_tree_to_node(selection, ui);
+                        if node != current_selection {
+                            self.sender
+                                .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(node, current_selection))))
+                                .unwrap();
+                        }
                     }
                 }
             }
             UiMessageData::Widget(msg) => {
                 if let &WidgetMessage::Drop(node) = msg {
-                    if node != message.destination {
+                    if ui.is_node_child_of(node, self.root) && ui.is_node_child_of(message.destination, self.root) && node != message.destination {
                         let child = self.map_tree_to_node(node, ui);
                         let parent = self.map_tree_to_node(message.destination, ui);
                         if child.is_some() && parent.is_some() {
@@ -194,10 +209,10 @@ impl WorldOutliner {
     }
 
     pub fn clear(&mut self, ui: &mut Ui) {
-        ui.send_message(UiMessage{
+        ui.send_message(UiMessage {
             handled: false,
             data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(vec![])),
-            destination: self.root
+            destination: self.root,
         });
         ui.flush_messages();
     }

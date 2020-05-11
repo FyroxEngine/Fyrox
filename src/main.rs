@@ -40,6 +40,7 @@ use rg3d::{
             UiMessageData,
             ButtonMessage,
         },
+        file_browser::FileBrowserBuilder,
         widget::WidgetBuilder,
         text::TextBuilder,
         node::StubNode,
@@ -103,10 +104,16 @@ impl NodeEditor {
                         .on_column(1))
                         .build(ui);
                     node_name
-                }))
+                })
+                .with_child(FileBrowserBuilder::new(WidgetBuilder::new()
+                    .on_column(1)
+                    .on_row(1))
+                    .with_path("./")
+                    .build(ui)))
                 .add_column(Column::strict(110.0))
                 .add_column(Column::stretch())
                 .add_row(Row::strict(32.0))
+                .add_row(Row::stretch())
                 .build(ui))
             .with_title(WindowTitle::Text("Node Properties"))
             .build(ui);
