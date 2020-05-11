@@ -564,6 +564,27 @@ impl<T> Pool<T> {
         }
     }
 
+    /// Does same as take_reserve but returns result, instead of panic.
+    #[inline]
+    pub fn try_take_reserve(&mut self, handle: Handle<T>) -> Result<(Ticket<T>, T), ()> {
+        if let Some(record) = self.records.get_mut(handle.index as usize) {
+            if record.generation == handle.generation {
+                if let Some(payload) = record.payload.take() {
+                    let ticket = Ticket {
+                        index: handle.index,
+                        marker: PhantomData,
+                    };
+                    Ok((ticket, payload))
+                } else {
+                    Err(())
+                }
+            } else {
+                Err(())
+            }
+        } else {
+            Err(())
+        }
+    }
     /// Returns value back into pool using given ticket.
     ///
     /// # Panics
