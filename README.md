@@ -6,6 +6,10 @@ Scene editor for rg3d engine. **It is not ready for use yet.**
 
 rg3d engine getting bigger, but still does not have scene editor what makes creation of scenes harder - you have to use 3d editors (like Blender, 3ds Max, etc.) to create scenes in them, no need to say that this looks like "hack" instead of normal solution. This editor is planned to be relatively small; not tied to any type of game. It will be used to compose scene from existing 3d models, setup physics, and all such stuff.
 
+## Screenshots
+
+![1](screenshots/1.png?raw=true "Editor")
+
 ## Controls
 
 - [Click] - Select
@@ -46,6 +50,7 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Camera controller.
 - [x] Save scene.
 - [x] Load scene.
+- [x] Docking windows.
 - [ ] Commands
 	- [x] Move.
 	- [x] Scale.
