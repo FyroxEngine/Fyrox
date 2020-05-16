@@ -23,7 +23,8 @@ Retained mode, general purpose, graphics API agnostic user interface library.
 - [x] Text box
 - [x] Tree
 - [x] Window
-- [ ] Docking manager
+- [x] File browser
+- [x] Docking manager
 
 ## Documentation
 

@@ -46,7 +46,7 @@ pub struct Window<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     mouse_click_pos: Vec2,
     initial_position: Vec2,
-    is_dragged: bool,
+    is_dragging: bool,
     minimized: bool,
     can_minimize: bool,
     can_close: bool,
@@ -54,6 +54,7 @@ pub struct Window<M: 'static, C: 'static + Control<M, C>> {
     minimize_button: Handle<UINode<M, C>>,
     close_button: Handle<UINode<M, C>>,
     scroll_viewer: Handle<UINode<M, C>>,
+    drag_delta: Vec2
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for Window<M, C> {
@@ -76,7 +77,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
             widget: self.widget.raw_copy(),
             mouse_click_pos: self.mouse_click_pos,
             initial_position: self.initial_position,
-            is_dragged: self.is_dragged,
+            is_dragging: self.is_dragging,
             minimized: self.minimized,
             can_minimize: self.can_minimize,
             can_close: self.can_close,
@@ -84,6 +85,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
             minimize_button: self.minimize_button,
             close_button: self.close_button,
             scroll_viewer: self.scroll_viewer,
+            drag_delta: self.drag_delta
         })
     }
 
@@ -103,30 +105,40 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                     && message.destination != self.close_button && message.destination != self.minimize_button {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
-                            self.send_message(UiMessage {
-                                data: UiMessageData::Widget(WidgetMessage::TopMost),
-                                destination: self.handle,
-                                handled: false,
-                            });
-                            ui.capture_mouse(self.header);
-                            let initial_position = self.actual_local_position();
-                            self.mouse_click_pos = *pos;
-                            self.initial_position = initial_position;
-                            self.is_dragged = true;
                             message.handled = true;
+                            self.mouse_click_pos = *pos;
+                            ui.send_message(UiMessage {
+                                handled: false,
+                                data: UiMessageData::Window(WindowMessage::MoveStart),
+                                destination: self.handle
+                            });
                         }
                         WidgetMessage::MouseUp { .. } => {
-                            ui.release_mouse_capture();
-                            self.is_dragged = false;
                             message.handled = true;
+                            ui.send_message(UiMessage {
+                                handled: false,
+                                data: UiMessageData::Window(WindowMessage::MoveEnd),
+                                destination: self.handle
+                            });
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
-                            if self.is_dragged {
-                                self.widget.set_desired_local_position(self.initial_position + *pos - self.mouse_click_pos);
+                            if self.is_dragging {
+                                self.drag_delta = *pos - self.mouse_click_pos;
+                                let new_pos = self.initial_position + self.drag_delta;
+                                ui.send_message(UiMessage {
+                                    handled: false,
+                                    data: UiMessageData::Window(WindowMessage::Move(new_pos)),
+                                    destination: self.handle
+                                });
                             }
                             message.handled = true;
                         }
                         _ => ()
+                    }
+                }
+                if let WidgetMessage::Unlink = msg {
+                    if message.destination == self.handle {
+                        self.initial_position = self.screen_position;
                     }
                 }
             }
@@ -142,13 +154,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
             UiMessageData::Window(msg) => {
                 if message.destination == self.handle {
                     match msg {
-                        WindowMessage::Opened => {
+                        WindowMessage::Open => {
                             self.widget.set_visibility(true);
                         }
-                        WindowMessage::Closed => {
+                        WindowMessage::Close => {
                             self.widget.set_visibility(false);
                         }
-                        WindowMessage::Minimized(minimized) => {
+                        WindowMessage::Minimize(minimized) => {
                             if self.minimized != *minimized {
                                 self.minimized = *minimized;
                                 self.widget.invalidate_layout();
@@ -176,6 +188,26 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                     ui.node_mut(self.close_button).set_visibility(*value);
                                 }
                             }
+                        }
+                        &WindowMessage::Move(new_pos) => {
+                            if self.desired_local_position() != new_pos {
+                                self.set_desired_local_position(new_pos);
+                            }
+                        }
+                        WindowMessage::MoveStart => {
+                            self.send_message(UiMessage {
+                                data: UiMessageData::Widget(WidgetMessage::TopMost),
+                                destination: self.handle,
+                                handled: false,
+                            });
+                            ui.capture_mouse(self.header);
+                            let initial_position = self.actual_local_position();
+                            self.initial_position = initial_position;
+                            self.is_dragging = true;
+                        }
+                        WindowMessage::MoveEnd => {
+                            ui.release_mouse_capture();
+                            self.is_dragging = false;
                         }
                     }
                 }
@@ -212,7 +244,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
             widget,
             mouse_click_pos: Default::default(),
             initial_position: Default::default(),
-            is_dragged: false,
+            is_dragging: false,
             minimized: false,
             can_minimize: true,
             can_close: true,
@@ -220,13 +252,14 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
             minimize_button,
             close_button,
             scroll_viewer,
+            drag_delta: Default::default()
         }
     }
 
     pub fn close(&mut self) {
         self.invalidate_layout();
         self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::Closed),
+            data: UiMessageData::Window(WindowMessage::Close),
             destination: self.handle,
             handled: false,
         });
@@ -235,7 +268,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
     pub fn open(&mut self) {
         self.invalidate_layout();
         self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::Opened),
+            data: UiMessageData::Window(WindowMessage::Open),
             destination: self.handle,
             handled: false,
         });
@@ -244,7 +277,7 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
     pub fn minimize(&mut self, state: bool) {
         self.invalidate_layout();
         self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::Minimized(state)),
+            data: UiMessageData::Window(WindowMessage::Minimize(state)),
             destination: self.handle,
             handled: false,
         });
@@ -266,6 +299,14 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
             destination: self.handle,
             handled: false,
         });
+    }
+
+    pub fn is_dragging(&self) -> bool {
+        self.is_dragging
+    }
+
+    pub fn drag_delta(&self) -> Vec2 {
+        self.drag_delta
     }
 }
 
@@ -444,7 +485,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                 .build(ui.sender()),
             mouse_click_pos: Vec2::ZERO,
             initial_position: Vec2::ZERO,
-            is_dragged: false,
+            is_dragging: false,
             minimized: false,
             can_minimize: self.can_minimize,
             can_close: self.can_close,
@@ -452,6 +493,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             minimize_button,
             close_button,
             scroll_viewer,
+            drag_delta: Default::default()
         };
 
         let handle = ui.add_node(UINode::Window(window));

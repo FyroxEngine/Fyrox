@@ -1,3 +1,5 @@
+//! File browser is a tree view over file system. It allows to select file or folder.
+
 use std::{
     path::{PathBuf, Path},
     ops::{Deref, DerefMut},
@@ -13,7 +15,8 @@ use crate::{
         UiMessageData,
         FileBrowserMessage,
         TreeRootMessage,
-        TextBoxMessage
+        TextBoxMessage,
+        TreeMessage,
     },
     node::UINode,
     widget::{Widget, WidgetBuilder},
@@ -21,8 +24,8 @@ use crate::{
     NodeHandleMapping,
     UserInterface,
     core::pool::Handle,
+    scroll_viewer::ScrollViewerBuilder,
 };
-use crate::message::TreeMessage;
 
 pub struct FileBrowser<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -51,7 +54,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for FileBrowser<M, C> {
             widget: self.widget.raw_copy(),
             tree_root: self.tree_root,
             path: self.path.clone(),
-            path_text: self.path_text
+            path_text: self.path_text,
         }
     }
 }
@@ -73,10 +76,16 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
             UiMessageData::FileBrowser(msg) => {
                 if message.destination == self.handle {
                     match msg {
-                        FileBrowserMessage::Path(_) => {
-
+                        FileBrowserMessage::Path(path) => {
+                            // Rebuild tree.
+                            ui.send_message(UiMessage {
+                                handled: false,
+                                data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(vec![])),
+                                destination: self.tree_root,
+                            });
+                            build_tree(self.tree_root, true, path, ui);
                         }
-                        FileBrowserMessage::SelectionChanged(_) => {}
+                        _ => ()
                     }
                 }
             }
@@ -97,18 +106,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
             }
             UiMessageData::Tree(msg) => {
                 if let &TreeMessage::Expand(expand) = msg {
-                    // Look into internals of directory and build tree items.
                     if expand {
+                        // Look into internals of directory and build tree items.
                         if let UINode::Tree(tree) = ui.node(message.destination) {
-                            let path = tree.user_data
-                                .as_ref()
-                                .unwrap()
-                                .downcast_ref::<PathBuf>()
-                                .unwrap();
+                            let path = tree.user_data_ref::<PathBuf>();
                             if let Ok(dir_iter) = std::fs::read_dir(path) {
                                 for p in dir_iter {
                                     if let Ok(entry) = p {
-                                        build_tree(message.destination, false, &entry.path(), ui, false);
+                                        build_tree(message.destination, false, &entry.path(), ui);
                                     }
                                 }
                             }
@@ -118,14 +123,18 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     } else {
                         // Nuke everything in collapsed item. This also will free some resources
                         // and will speed up layout pass.
-
+                        ui.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Tree(TreeMessage::SetItems(vec![])),
+                            destination: message.destination,
+                        });
                     }
                 }
             }
             UiMessageData::TreeRoot(msg) => {
                 if message.destination == self.tree_root {
                     if let &TreeRootMessage::SetSelected(selection) = msg {
-                        let path = ui.node(selection).user_data.as_ref().unwrap().downcast_ref::<PathBuf>().unwrap().clone();
+                        let path = ui.node(selection).user_data_ref::<PathBuf>().clone();
                         if let UINode::TextBox(path_text) = ui.node_mut(self.path_text) {
                             path_text.set_text(path.to_string_lossy());
                         } else {
@@ -153,7 +162,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
     }
 }
 
-fn find_tree<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(node: Handle<UINode<M, C>>, path: &P, ui: &UserInterface<M, C>) -> Handle<UINode<M, C>>{
+fn find_tree<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(node: Handle<UINode<M, C>>, path: &P, ui: &UserInterface<M, C>) -> Handle<UINode<M, C>> {
     let mut tree_handle = Handle::NONE;
     match ui.node(node) {
         UINode::Tree(tree) => {
@@ -168,7 +177,7 @@ fn find_tree<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(node: Handl
                     break;
                 }
             }
-        },
+        }
         UINode::TreeRoot(root) => {
             for &item in root.items() {
                 let tree = find_tree(item, path, ui);
@@ -177,17 +186,19 @@ fn find_tree<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(node: Handl
                     break;
                 }
             }
-        },
+        }
         _ => unreachable!()
     }
     tree_handle
 }
 
-fn build_tree<M: 'static, C: 'static + Control<M, C>>(parent: Handle<UINode<M, C>>, is_parent_root: bool, path: &Path, ui: &mut UserInterface<M, C>, recursive: bool) -> Handle<UINode<M, C>> {
+fn build_tree<M: 'static, C: 'static + Control<M, C>>(parent: Handle<UINode<M, C>>, is_parent_root: bool, path: &Path, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    let is_dir_empty = path.read_dir().map_or(true, |mut f| f.next().is_none());
+
     let tree = TreeBuilder::new(WidgetBuilder::new()
         .with_user_data(Rc::new(path.to_owned())))
         .with_expanded(false)
-        .with_always_show_expander(true)
+        .with_always_show_expander(!is_dir_empty)
         .with_content(TextBuilder::new(WidgetBuilder::new())
             .with_text(path.to_string_lossy())
             .build(ui))
@@ -197,25 +208,14 @@ fn build_tree<M: 'static, C: 'static + Control<M, C>>(parent: Handle<UINode<M, C
         ui.send_message(UiMessage {
             handled: false,
             data: UiMessageData::TreeRoot(TreeRootMessage::AddItem(tree)),
-            destination: parent
+            destination: parent,
         });
     } else {
         ui.send_message(UiMessage {
             handled: false,
             data: UiMessageData::Tree(TreeMessage::AddItem(tree)),
-            destination: parent
+            destination: parent,
         });
-    }
-
-    // Continue build.
-    if recursive {
-        if let Ok(dir_iter) = std::fs::read_dir(path) {
-            for p in dir_iter {
-                if let Ok(entry) = p {
-                    build_tree(tree, false, &entry.path(), ui, recursive);
-                }
-            }
-        }
     }
 
     tree
@@ -242,6 +242,7 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let tree_root;
         let path_text;
+
         let grid = GridBuilder::new(WidgetBuilder::new()
             .with_child({
                 path_text = TextBoxBuilder::new(WidgetBuilder::new()
@@ -251,19 +252,21 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
                     .build(ui);
                 path_text
             })
-            .with_child({
-                tree_root = TreeRootBuilder::new(WidgetBuilder::new()
-                    .on_row(1)
-                    .on_column(0))
-                    .build(ui);
-                tree_root
-            }))
+            .with_child(ScrollViewerBuilder::new(WidgetBuilder::new()
+                .on_row(1)
+                .on_column(0))
+                .with_content({
+                    tree_root = TreeRootBuilder::new(WidgetBuilder::new())
+                        .build(ui);
+                    tree_root
+                })
+                .build(ui)))
             .add_column(Column::auto())
             .add_row(Row::strict(30.0))
             .add_row(Row::stretch())
             .build(ui);
 
-        build_tree(tree_root, true, &self.path, ui, false);
+        build_tree(tree_root, true, &self.path, ui);
 
         let browser = FileBrowser {
             widget: self.widget_builder

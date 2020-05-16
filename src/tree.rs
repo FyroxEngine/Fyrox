@@ -163,7 +163,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                         &TreeMessage::AddItem(item) => {
                             ui.link_nodes(item, self.panel);
                             self.items.push(item);
-                            dbg!();
                         }
                         &TreeMessage::RemoveItem(item) => {
                             if let Some(pos) = self.items.iter().position(|&i| i == item) {
@@ -296,6 +295,7 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let expander = ButtonBuilder::new(WidgetBuilder::new()
             .with_width(20.0)
+            .with_visibility(self.always_show_expander || !self.items.is_empty())
             .on_row(0)
             .on_column(0))
             .with_text("+")

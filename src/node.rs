@@ -35,9 +35,11 @@ use crate::{
     NodeHandleMapping,
     progress_bar::ProgressBar,
     tree::{Tree, TreeRoot},
-    file_browser::FileBrowser
+    file_browser::FileBrowser,
+    dock::{DockingManager}
 };
 use std::ops::{Deref, DerefMut};
+use crate::dock::Tile;
 
 #[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -64,6 +66,8 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Tree(Tree<M, C>),
     TreeRoot(TreeRoot<M, C>),
     FileBrowser(FileBrowser<M, C>),
+    DockingManager(DockingManager<M, C>),
+    Tile(Tile<M, C>),
     User(C)
 }
 
@@ -94,6 +98,8 @@ macro_rules! static_dispatch {
             UINode::Tree(v) => v.$func($($args),*),
             UINode::TreeRoot(v) => v.$func($($args),*),
             UINode::FileBrowser(v) => v.$func($($args),*),
+            UINode::DockingManager(v) => v.$func($($args),*),
+            UINode::Tile(v) => v.$func($($args),*),
         }
     };
 }
@@ -125,6 +131,8 @@ macro_rules! static_dispatch_deref {
             UINode::Tree(v) => v,
             UINode::TreeRoot(v) => v,
             UINode::FileBrowser(v) => v,
+            UINode::DockingManager(v) => v,
+            UINode::Tile(v) => v,
         }
     };
 }

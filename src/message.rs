@@ -6,10 +6,20 @@
 //! by itself and it is mixed together with a bit of imperative style where you
 //! modify widgets directly by calling appropriate method.
 
-use crate::{core::{
-    math::vec2::Vec2,
-    pool::Handle,
-}, UINode, VerticalAlignment, HorizontalAlignment, Thickness, brush::Brush, Control, popup::Placement, MouseState};
+use crate::{
+    core::{
+        math::vec2::Vec2,
+        pool::Handle,
+    },
+    UINode,
+    VerticalAlignment,
+    HorizontalAlignment,
+    Thickness,
+    brush::Brush,
+    Control,
+    popup::Placement,
+    MouseState,
+};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -29,7 +39,7 @@ pub enum WidgetProperty {
     HitTestVisibility(bool),
     Visibility(bool),
     ZIndex(usize),
-    DesiredPosition(Vec2)
+    DesiredPosition(Vec2),
 }
 
 #[derive(Debug)]
@@ -42,9 +52,9 @@ pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
         pos: Vec2,
         button: MouseButton,
     },
-    MouseMove{
+    MouseMove {
         pos: Vec2,
-        state: MouseState
+        state: MouseState,
     },
     Text(char),
     KeyDown(KeyCode),
@@ -58,10 +68,13 @@ pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
     MouseLeave,
     MouseEnter,
     TopMost,
+    Unlink,
+    Remove,
+    LinkWith(Handle<UINode<M, C>>),
     Property(WidgetProperty),
     DragStarted(Handle<UINode<M, C>>),
     DragOver(Handle<UINode<M, C>>),
-    Drop(Handle<UINode<M, C>>)
+    Drop(Handle<UINode<M, C>>),
 }
 
 #[derive(Debug)]
@@ -79,16 +92,20 @@ pub enum ScrollBarMessage {
 
 #[derive(Debug)]
 pub enum CheckBoxMessage {
-    Checked(Option<bool>),
+    Check(Option<bool>),
 }
 
 #[derive(Debug)]
 pub enum WindowMessage {
-    Opened,
-    Closed,
-    Minimized(bool),
+    Open,
+    Close,
+    Minimize(bool),
     CanMinimize(bool),
     CanClose(bool),
+    MoveStart,
+    /// New position is in local coordinates.
+    Move(Vec2),
+    MoveEnd,
 }
 
 #[derive(Debug)]
@@ -100,7 +117,7 @@ pub enum ScrollViewerMessage<M: 'static, C: 'static + Control<M, C>> {
 pub enum ListViewMessage<M: 'static, C: 'static + Control<M, C>> {
     SelectionChanged(Option<usize>),
     Items(Vec<Handle<UINode<M, C>>>),
-    AddItem(Handle<UINode<M, C>>)
+    AddItem(Handle<UINode<M, C>>),
 }
 
 #[derive(Debug)]
@@ -108,7 +125,7 @@ pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
     Open,
     Close,
     Content(Handle<UINode<M, C>>),
-    Placement(Placement)
+    Placement(Placement),
 }
 
 #[derive(Debug)]
@@ -116,7 +133,7 @@ pub enum TreeMessage<M: 'static, C: 'static + Control<M, C>> {
     Expand(bool),
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
-    SetItems(Vec<Handle<UINode<M, C>>>)
+    SetItems(Vec<Handle<UINode<M, C>>>),
 }
 
 #[derive(Debug)]
@@ -124,7 +141,7 @@ pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
-    SetSelected(Handle<UINode<M, C>>)
+    SetSelected(Handle<UINode<M, C>>),
 }
 
 #[derive(Debug)]

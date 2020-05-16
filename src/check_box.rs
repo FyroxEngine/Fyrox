@@ -84,7 +84,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
                 }
             }
             UiMessageData::CheckBox(ref msg) => {
-                if let CheckBoxMessage::Checked(value) = msg {
+                if let CheckBoxMessage::Check(value) = msg {
                     if message.destination == self.handle && self.check_mark.is_some() {
                         let check_mark = ui.node_mut(self.check_mark);
                         match value {
@@ -127,7 +127,7 @@ impl<M, C: 'static + Control<M, C>> CheckBox<M, C> {
         if self.checked != value {
             self.checked = value;
             self.send_message(UiMessage {
-                data: UiMessageData::CheckBox(CheckBoxMessage::Checked(value)),
+                data: UiMessageData::CheckBox(CheckBoxMessage::Check(value)),
                 destination: self.handle,
                 handled: false
             });

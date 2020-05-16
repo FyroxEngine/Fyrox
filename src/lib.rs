@@ -4,7 +4,6 @@
 
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::float_cmp)]
-#![warn(rust_2018_idioms)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -39,6 +38,7 @@ pub mod decorator;
 pub mod progress_bar;
 pub mod tree;
 pub mod file_browser;
+pub mod dock;
 
 use crate::{
     core::{
@@ -431,6 +431,43 @@ impl<M, C: 'static + Control<M, C>> Default for UserInterface<M, C> {
     }
 }
 
+fn draw_node<M, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M,C>>, node_handle: Handle<UINode<M, C>>, drawing_context: &mut DrawingContext, nesting: u8) {
+    let node = &nodes[node_handle];
+    let bounds = node.screen_bounds();
+    let parent = node.parent();
+
+    if parent.is_some() && !nodes.borrow(parent).screen_bounds().intersects(bounds) {
+        return;
+    }
+
+    if !node.is_globally_visible() {
+        return;
+    }
+
+    let start_index = drawing_context.get_commands().len();
+    drawing_context.set_nesting(nesting);
+    drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
+
+    node.draw(drawing_context);
+
+    let end_index = drawing_context.get_commands().len();
+    for i in start_index..end_index {
+        node.command_indices
+            .borrow_mut()
+            .push(i);
+    }
+
+    // Continue on children
+    for &child_node in node.children().iter() {
+        // Do not continue render of top-most nodes - they'll be rendered in separate pass.
+        if !nodes[child_node].draw_on_top {
+            draw_node(nodes, child_node, drawing_context, nesting + 1);
+        }
+    }
+
+    drawing_context.revert_clip_geom();
+}
+
 impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn new() -> UserInterface<M, C> {
         let (sender, receiver) = mpsc::channel();
@@ -452,7 +489,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             drag_context: Default::default(),
             mouse_state: Default::default(),
         };
-        ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build(sender.clone()))));
+        ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build(sender))));
         ui
     }
 
@@ -545,42 +582,6 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         }
     }
 
-    fn draw_node(&mut self, node_handle: Handle<UINode<M, C>>, nesting: u8) {
-        let node = self.nodes.borrow(node_handle);
-        let bounds = node.screen_bounds();
-        let parent = node.parent();
-
-        if parent.is_some() && !self.nodes.borrow(parent).screen_bounds().intersects(bounds) {
-            return;
-        }
-
-        if !node.is_globally_visible() {
-            return;
-        }
-
-        let start_index = self.drawing_context.get_commands().len();
-        self.drawing_context.set_nesting(nesting);
-        self.drawing_context.commit_clip_rect(&bounds.inflate(0.9, 0.9));
-
-        node.draw(&mut self.drawing_context);
-
-        let end_index = self.drawing_context.get_commands().len();
-        for i in start_index..end_index {
-            node.command_indices
-                .borrow_mut()
-                .push(i);
-        }
-
-        let children = unsafe { (*(node.deref() as *const Widget<M, C>)).children() };
-
-        // Continue on children
-        for child_node in children.iter() {
-            self.draw_node(*child_node, nesting + 1);
-        }
-
-        self.drawing_context.revert_clip_geom();
-    }
-
     pub fn draw(&mut self) -> &DrawingContext {
         self.drawing_context.clear();
 
@@ -590,9 +591,24 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                 .clear();
         }
 
-        let root_canvas = self.root_canvas;
-        self.draw_node(root_canvas, 1);
+        // Draw everything except top-most nodes.
+        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context, 1);
 
+        // Render top-most nodes in separate pass.
+        // TODO: This may give weird results because of invalid nesting.
+        self.stack.clear();
+        self.stack.push(self.root());
+        while let Some(node_handle) = self.stack.pop() {
+            let node = &self.nodes[node_handle];
+            if node.draw_on_top {
+                draw_node( &self.nodes, node_handle, &mut self.drawing_context, 1);
+            }
+            for &child in node.children() {
+                self.stack.push(child);
+            }
+        }
+
+        // Debug info rendered on top of other.
         if self.visual_debug {
             self.drawing_context.set_nesting(0);
 
@@ -797,6 +813,11 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         self.nodes.borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
+    pub fn try_borrow_by_criteria_up<Func>(&self, start_node_handle: Handle<UINode<M, C>>, func: Func) -> Option<&UINode<M, C>>
+        where Func: Fn(&UINode<M, C>) -> bool {
+        self.nodes.try_borrow(self.find_by_criteria_up(start_node_handle, func))
+    }
+
     /// Searches for a node up on tree that satisfies some criteria and then borrows
     /// mutable reference.
     ///
@@ -839,6 +860,8 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     /// UI will not respond to any kind of events and simply speaking will just not work.
     pub fn poll_message(&mut self) -> Option<UiMessage<M, C>> {
         if let Ok(mut message) = self.receiver.try_recv() {
+            // Destination node may be destroyed at the time we receive message,
+            // we have to discard such messages.
             if !self.nodes.is_valid_handle(message.destination) {
                 return None;
             }
@@ -849,6 +872,9 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             self.stack.clear();
             self.stack.push(self.root());
             while let Some(handle) = self.stack.pop() {
+                // Use try_take_reserve here because user can flush messages in message handler,
+                // but node was moved out of pool at that time and this will cause panic when we'll
+                // try to move node out of pool.
                 if let Ok((ticket, mut node)) = self.nodes.try_take_reserve(handle) {
                     for &child in node.children() {
                         self.stack.push(child);
@@ -911,6 +937,21 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                             self.make_topmost(message.destination);
                         }
                     }
+                    WidgetMessage::Unlink => {
+                        if message.destination.is_some() {
+                            self.unlink_node(message.destination);
+                        }
+                    }
+                    &WidgetMessage::LinkWith(parent) => {
+                        if message.destination.is_some() {
+                            self.link_nodes(message.destination, parent);
+                        }
+                    }
+                    WidgetMessage::Remove => {
+                        if message.destination.is_some() {
+                            self.remove_node(message.destination);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -925,6 +966,10 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         self.captured_node
     }
 
+    /// Pops all messages out of queue and passes them to all nodes, this method is needed
+    /// because library uses deferred mechanism of execution - most of complex actions are
+    /// made by sending messages to specific nodes and sometimes you want to execute all
+    /// deferred actions but do not allow to "leak" messages out of library to user code.
     pub fn flush_messages(&mut self) {
         while let Some(_) = self.poll_message() {}
     }
@@ -1203,7 +1248,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     }
 
     pub fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
-        self.unlink_node(node);
+        self.unlink_node_internal(node);
 
         let mut removed_nodes = Vec::new();
         let mut stack = vec![node];
@@ -1243,17 +1288,18 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
     #[inline]
     pub fn link_nodes(&mut self, child_handle: Handle<UINode<M, C>>, parent_handle: Handle<UINode<M, C>>) {
         assert_ne!(child_handle, parent_handle);
-        self.unlink_node(child_handle);
+        self.unlink_node_internal(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle);
     }
 
     /// Unlinks specified node from its parent, so node will become root.
     #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
+    pub(in crate) fn unlink_node_internal(&mut self, node_handle: Handle<UINode<M, C>>) {
         let parent_handle;
         // Replace parent handle of child
         let node = self.nodes_mut().borrow_mut(node_handle);
+        node.set_desired_local_position(node.screen_position);
         parent_handle = node.parent();
         node.set_parent(Handle::NONE);
 
@@ -1261,6 +1307,13 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         if parent_handle.is_some() {
             self.node_mut(parent_handle).remove_child(node_handle);
         }
+    }
+
+    /// Unlinks specified node from its parent and attaches back to root canvas.
+    #[inline]
+    pub fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
+        self.unlink_node_internal(node_handle);
+        self.link_nodes(node_handle, self.root_canvas);
     }
 
     #[inline]

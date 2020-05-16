@@ -26,10 +26,10 @@ use std::{
         RefCell,
         Cell,
     },
+    sync::mpsc::Sender,
+    any::Any,
+    rc::Rc
 };
-use std::sync::mpsc::Sender;
-use std::any::Any;
-use std::rc::Rc;
 
 pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) handle: Handle<UINode<M, C>>,
@@ -82,7 +82,8 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub sender: Sender<UiMessage<M, C>>,
     allow_drag: bool,
     allow_drop: bool,
-    pub user_data: Option<Rc<dyn Any>>
+    pub user_data: Option<Rc<dyn Any>>,
+    pub(in crate) draw_on_top: bool
 }
 
 impl<M, C: 'static + Control<M, C>> Widget<M, C> {
@@ -293,7 +294,8 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             sender: self.sender.clone(),
             allow_drop: self.allow_drop,
             allow_drag: self.allow_drag,
-            user_data: self.user_data.clone()
+            user_data: self.user_data.clone(),
+            draw_on_top: self.draw_on_top
         }
     }
 
@@ -659,6 +661,15 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     pub fn is_drop_allowed(&self) -> bool {
         self.allow_drop
     }
+
+    #[inline]
+    pub fn user_data_ref<T: 'static>(&self) -> &T {
+        self.user_data
+            .as_ref()
+            .unwrap()
+            .downcast_ref::<T>()
+            .unwrap()
+    }
 }
 
 pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
@@ -681,7 +692,8 @@ pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub z_index: usize,
     pub allow_drag: bool,
     pub allow_drop: bool,
-    pub user_data: Option<Rc<dyn Any>>
+    pub user_data: Option<Rc<dyn Any>>,
+    pub draw_on_top: bool,
 }
 
 impl<M, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -712,7 +724,8 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             z_index: 0,
             allow_drag: false,
             allow_drop: false,
-            user_data: None
+            user_data: None,
+            draw_on_top: false
         }
     }
 
@@ -788,9 +801,16 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
+    pub fn with_draw_on_top(mut self, draw_on_top: bool) -> Self {
+        self.draw_on_top = draw_on_top;
+        self
+    }
+
     pub fn with_children(mut self, children: &[Handle<UINode<M, C>>]) -> Self {
-        for child in children {
-            self.children.push(*child)
+        for &child in children {
+            if child.is_some() {
+                self.children.push(child)
+            }
         }
         self
     }
@@ -861,7 +881,8 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             sender,
             allow_drag: self.allow_drag,
             allow_drop: self.allow_drop,
-            user_data: self.user_data
+            user_data: self.user_data,
+            draw_on_top: self.draw_on_top
         }
     }
 }
