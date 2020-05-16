@@ -33,11 +33,11 @@ impl Color {
     pub const BLUE: Self = Self { r: 0, g: 0, b: 255, a: 255 };
     pub const TRANSPARENT: Self = Self { r: 0, g: 0, b: 0, a: 0 };
 
-    pub fn opaque(r: u8, g: u8, b: u8) -> Color {
+    pub const fn opaque(r: u8, g: u8, b: u8) -> Color {
         Color { r, g, b, a: 255 }
     }
 
-    pub fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
+    pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
         Color { r, g, b, a }
     }
 

@@ -51,6 +51,7 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
         }
     }
 
+    #[must_use = "this method creates new instance of rect"]
     pub fn inflate(&self, dw: T, dh: T) -> Rect<T> {
         Rect {
             x: self.x - dw,
@@ -60,6 +61,7 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
         }
     }
 
+    #[must_use = "this method creates new instance of rect"]
     pub fn deflate(&self, dw: T, dh: T) -> Rect<T> {
         Rect {
             x: self.x + dw,
@@ -78,6 +80,16 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
             self.y < other.y + other.h
         } else {
             false
+        }
+    }
+
+    #[must_use = "this method creates new instance of rect"]
+    pub fn translate(&self, dx: T, dy: T) -> Self {
+        Self {
+            x: self.x + dx,
+            y: self.y + dy,
+            w: self.w,
+            h: self.h
         }
     }
 }
