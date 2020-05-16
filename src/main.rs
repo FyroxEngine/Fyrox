@@ -45,6 +45,7 @@ use rg3d::{
         text::TextBuilder,
         node::StubNode,
         text_box::TextBoxBuilder,
+        dock::{DockingManagerBuilder, TileBuilder, TileContent},
     },
 };
 use crate::{
@@ -62,7 +63,7 @@ use crate::{
         CreateNodeCommand,
         NodeKind,
         DeleteNodeCommand,
-        ChangeSelectionCommand
+        ChangeSelectionCommand,
     },
     world_outliner::WorldOutliner,
 };
@@ -107,7 +108,8 @@ impl NodeEditor {
                 })
                 .with_child(FileBrowserBuilder::new(WidgetBuilder::new()
                     .on_column(1)
-                    .on_row(1))
+                    .on_row(1)
+                    .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
                     .with_path("./")
                     .build(ui)))
                 .add_column(Column::strict(110.0))
@@ -155,8 +157,7 @@ impl EntityPanel {
         let create_point_light;
         let save_scene;
         let load_scene;
-        let window = WindowBuilder::new(WidgetBuilder::new()
-            .with_width(250.0))
+        let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(GridBuilder::new(WidgetBuilder::new()
                 .with_child({
                     create_cube = ButtonBuilder::new(WidgetBuilder::new()
@@ -278,6 +279,7 @@ struct Editor {
     interaction_modes: Vec<InteractionMode>,
     current_interaction_mode: Option<usize>,
     world_outliner: WorldOutliner,
+    docking_manager: Handle<UiNode>,
 }
 
 fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
@@ -375,6 +377,44 @@ impl Editor {
         let entity_panel = EntityPanel::new(ui, message_sender.clone());
         let world_outliner = WorldOutliner::new(ui, message_sender.clone());
 
+        let docking_manager = DockingManagerBuilder::new(WidgetBuilder::new()
+            .with_width(engine.renderer.get_frame_size().0 as f32)
+            .with_height(engine.renderer.get_frame_size().1 as f32)
+            .with_child(TileBuilder::new(WidgetBuilder::new())
+                .with_content(TileContent::VerticalTiles {
+                    splitter: 0.7,
+                    tiles: [
+                        TileBuilder::new(WidgetBuilder::new())
+                            .with_content(TileContent::HorizontalTiles {
+                                splitter: 0.75,
+                                tiles: [
+                                    TileBuilder::new(WidgetBuilder::new())
+                                        .with_content(TileContent::Empty)
+                                        .build(ui),
+                                    TileBuilder::new(WidgetBuilder::new())
+                                        .with_content(TileContent::Window(node_editor.window))
+                                        .build(ui)
+                                ],
+                            })
+                            .build(ui),
+                        TileBuilder::new(WidgetBuilder::new())
+                            .with_content(TileContent::HorizontalTiles {
+                                splitter: 0.5,
+                                tiles: [
+                                    TileBuilder::new(WidgetBuilder::new())
+                                        .with_content(TileContent::Window(world_outliner.window))
+                                        .build(ui),
+                                    TileBuilder::new(WidgetBuilder::new())
+                                        .with_content(TileContent::Window( entity_panel.window))
+                                        .build(ui)
+                                ],
+                            })
+                            .build(ui)
+                    ],
+                })
+                .build(ui)))
+            .build(ui);
+
         let interaction_modes = vec![
             InteractionMode::Move(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),
             InteractionMode::Scale(ScaleInteractionMode::new(&editor_scene, engine, message_sender.clone())),
@@ -392,6 +432,7 @@ impl Editor {
             interaction_modes,
             current_interaction_mode: None,
             world_outliner,
+            docking_manager,
         };
 
         editor.set_interaction_mode(Some(0), engine);

@@ -32,6 +32,7 @@ use std::{
 };
 
 pub struct WorldOutliner {
+    pub window: Handle<UiNode>,
     root: Handle<UiNode>,
     sender: Sender<Message>,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
@@ -60,8 +61,7 @@ fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
 impl WorldOutliner {
     pub fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
         let root;
-        WindowBuilder::new(WidgetBuilder::new()
-            .with_width(250.0)
+        let window = WindowBuilder::new(WidgetBuilder::new()
             .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
             .with_title(WindowTitle::Text("World Outliner"))
             .with_content({
@@ -72,6 +72,7 @@ impl WorldOutliner {
             .build(ui);
 
         Self {
+            window,
             sender,
             root,
             stack: Default::default(),
