@@ -2,9 +2,14 @@ use crate::{
     EditorScene,
     GameEngine,
     Message,
-    command::{Command, MoveNodeCommand, ChangeSelectionCommand},
+    command::{
+        Command,
+        MoveNodeCommand,
+        ChangeSelectionCommand,
+        ScaleNodeCommand,
+        RotateNodeCommand
+    },
     camera::CameraController,
-    command::ScaleNodeCommand,
 };
 use rg3d::{
     renderer::surface::{
@@ -39,7 +44,6 @@ use std::{
         mpsc::Sender,
     }
 };
-use crate::command::RotateNodeCommand;
 
 pub trait InteractionModeTrait {
     fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine, mouse_pos: Vec2);
@@ -1043,4 +1047,13 @@ impl InteractionModeTrait for InteractionMode {
     fn handle_message(&mut self, message: &Message) {
         static_dispatch!(self, handle_message, message)
     }
+}
+
+/// Helper enum to be able to access interaction modes in array directly.
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
+#[repr(usize)]
+pub enum InteractionModeKind {
+    Move = 0,
+    Scale = 1,
+    Rotate = 2,
 }

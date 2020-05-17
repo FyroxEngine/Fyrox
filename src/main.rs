@@ -39,7 +39,7 @@ use rg3d::{
             ButtonMessage,
             WidgetMessage,
             KeyCode,
-            MouseButton
+            MouseButton,
         },
         Thickness,
         stack_panel::StackPanelBuilder,
@@ -85,6 +85,9 @@ use std::{
     io::Write,
 };
 use rg3d::renderer::RenderTarget;
+use rg3d::resource::texture::TextureKind;
+use rg3d::utils::into_any_arc;
+use crate::interaction::InteractionModeKind;
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
@@ -314,30 +317,106 @@ impl EntityPanel {
 pub struct ScenePreview {
     frame: Handle<UiNode>,
     window: Handle<UiNode>,
-    last_mouse_pos: Option<Vec2>
+    last_mouse_pos: Option<Vec2>,
+    // Side bar stuff
+    move_mode: Handle<UiNode>,
+    rotate_mode: Handle<UiNode>,
+    scale_mode: Handle<UiNode>,
+    sender: Sender<Message>,
 }
 
 impl ScenePreview {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
         let ui = &mut engine.user_interface;
 
         let frame;
+        let move_mode;
+        let rotate_mode;
+        let scale_mode;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
-            .with_content({
-                frame = ImageBuilder::new(WidgetBuilder::new())
-                    .with_flip(true)
-                    .with_texture(engine.renderer.frame_texture())
-                    .build(ui);
-                frame
-            })
+            .with_content(GridBuilder::new(WidgetBuilder::new()
+                .with_child({
+                    frame = ImageBuilder::new(WidgetBuilder::new()
+                        .on_row(0)
+                        .on_column(1))
+                        .with_flip(true)
+                        .with_texture(engine.renderer.frame_texture())
+                        .build(ui);
+                    frame
+                })
+                .with_child(StackPanelBuilder::new(WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0))
+                    .on_row(0)
+                    .on_column(0)
+                    .with_child({
+                        move_mode = ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0)))
+                            .with_content(ImageBuilder::new(WidgetBuilder::new()
+                                .with_width(32.0)
+                                .with_height(32.0))
+                                .with_opt_texture(into_any_arc(engine.resource_manager.lock().unwrap().request_texture("resources/move_arrow.png", TextureKind::RGBA8)))
+                                .build(ui))
+                            .build(ui);
+                        move_mode
+                    })
+                    .with_child({
+                        rotate_mode = ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0)))
+                            .with_content(ImageBuilder::new(WidgetBuilder::new()
+                                .with_width(32.0)
+                                .with_height(32.0))
+                                .with_opt_texture(into_any_arc(engine.resource_manager.lock().unwrap().request_texture("resources/rotate_arrow.png", TextureKind::RGBA8)))
+                                .build(ui))
+                            .build(ui);
+                        rotate_mode
+                    })
+                    .with_child({
+                        scale_mode = ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0)))
+                            .with_content(ImageBuilder::new(WidgetBuilder::new()
+                                .with_width(32.0)
+                                .with_height(32.0))
+                                .with_opt_texture(into_any_arc(engine.resource_manager.lock().unwrap().request_texture("resources/scale_arrow.png", TextureKind::RGBA8)))
+                                .build(ui))
+                            .build(ui);
+                        scale_mode
+                    }))
+                    .build(ui)))
+                .add_row(Row::stretch())
+                .add_column(Column::auto())
+                .add_column(Column::stretch())
+                .build(ui))
             .with_title(WindowTitle::Text("Scene Preview"))
             .build(ui);
 
         Self {
+            sender,
             window,
             frame,
-            last_mouse_pos: None
+            last_mouse_pos: None,
+            move_mode,
+            rotate_mode,
+            scale_mode,
+        }
+    }
+}
+
+impl ScenePreview {
+    fn handle_message(&mut self, message: &UiMessage) {
+        match &message.data {
+            UiMessageData::Button(msg) => {
+                if let ButtonMessage::Click = msg {
+                    if message.destination == self.scale_mode {
+                        self.sender.send(Message::SetInteractionMode(InteractionModeKind::Scale)).unwrap();
+                    } else if message.destination == self.rotate_mode {
+                        self.sender.send(Message::SetInteractionMode(InteractionModeKind::Rotate)).unwrap();
+                    } else if message.destination == self.move_mode {
+                        self.sender.send(Message::SetInteractionMode(InteractionModeKind::Move)).unwrap();
+                    }
+                }
+            }
+            _ => ()
         }
     }
 }
@@ -350,6 +429,7 @@ pub enum Message {
     SetSelection(Handle<Node>),
     SaveScene(PathBuf),
     LoadScene(PathBuf),
+    SetInteractionMode(InteractionModeKind),
 }
 
 pub struct EditorScene {
@@ -453,7 +533,9 @@ fn finalize_command(editor_scene: &EditorScene, engine: &mut GameEngine, command
 
 impl Editor {
     fn new(engine: &mut GameEngine) -> Self {
-        let preview = ScenePreview::new(engine);
+        let (message_sender, message_receiver) = mpsc::channel();
+
+        let preview = ScenePreview::new(engine, message_sender.clone());
 
         let ui = &mut engine.user_interface;
 
@@ -464,8 +546,6 @@ impl Editor {
             root,
             scene: engine.scenes.add(scene),
         };
-
-        let (message_sender, message_receiver) = mpsc::channel();
 
         let node_editor = NodeEditor::new(ui);
         let entity_panel = EntityPanel::new(ui, message_sender.clone());
@@ -589,6 +669,7 @@ impl Editor {
 
         self.entity_panel.handle_message(message);
         self.world_outliner.handle_ui_message(message, ui, self.node_editor.node);
+        self.preview.handle_message(message);
 
         if message.destination == self.preview.frame {
             match &message.data {
@@ -614,10 +695,10 @@ impl Editor {
                             }
                             self.camera_controller.on_mouse_button_up(button);
                         }
-                        &WidgetMessage::MouseWheel {amount,..} => {
+                        &WidgetMessage::MouseWheel { amount, .. } => {
                             self.camera_controller.on_mouse_wheel(amount, &self.scene, engine);
                         }
-                        &WidgetMessage::MouseMove {pos,..} => {
+                        &WidgetMessage::MouseMove { pos, .. } => {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
                             self.camera_controller.on_mouse_move(pos - last_pos);
                             self.preview.last_mouse_pos = Some(pos);
@@ -724,6 +805,9 @@ impl Editor {
                         self.set_scene(engine, scene);
                         engine.renderer.flush();
                     }
+                }
+                Message::SetInteractionMode(mode_kind) => {
+                    self.set_interaction_mode(Some(mode_kind as usize), engine);
                 }
             }
         }

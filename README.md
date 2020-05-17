@@ -51,6 +51,8 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Save scene.
 - [x] Load scene.
 - [x] Docking windows.
+- [x] Scene preview
+- [x] Side bar with interaction modes.
 - [ ] Commands
 	- [x] Move.
 	- [x] Scale.
