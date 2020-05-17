@@ -17,7 +17,6 @@ use rg3d::{
         mesh::MeshBuilder,
         transform::{
             TransformBuilder,
-            Transform,
         },
         graph::Graph,
     },

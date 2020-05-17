@@ -15,8 +15,6 @@ use rg3d::{
         Event,
         WindowEvent,
         DeviceEvent,
-        VirtualKeyCode,
-        ElementState,
     },
     event_loop::{
         EventLoop,
@@ -683,8 +681,6 @@ impl Editor {
 
     fn add_command(&mut self, engine: &mut GameEngine, mut command: Command) {
         execute_command(&self.scene, engine, &mut command, self.message_sender.clone(), self.node_editor.node);
-        let scene = &mut engine.scenes[self.scene.scene];
-        let graph = &mut scene.graph;
         let dropped_commands = self.command_stack.add_command(command);
         for command in dropped_commands {
             println!("Finalizing command {:?}", command);
@@ -809,7 +805,11 @@ fn main() {
                         *control_flow = ControlFlow::Exit
                     }
                     WindowEvent::Resized(size) => {
-                        engine.renderer.set_frame_size(dbg!(size.into()));
+                        engine.renderer.set_frame_size(size.into());
+                        engine.user_interface
+                            .node_mut(editor.docking_manager)
+                            .set_width_mut(size.width as f32)
+                            .set_height_mut(size.height as f32);
                     }
                     _ => ()
                 }

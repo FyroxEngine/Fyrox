@@ -16,13 +16,6 @@ use rg3d::{
         aabb::AxisAlignedBoundingBox
     },
     core::pool::Handle,
-    event::{
-        WindowEvent,
-        DeviceEvent,
-        VirtualKeyCode,
-        ElementState,
-        MouseScrollDelta,
-    },
     gui::message::{MouseButton, KeyCode},
 };
 use std::{
