@@ -17,7 +17,6 @@ use rg3d::{
         DeviceEvent,
         VirtualKeyCode,
         ElementState,
-        MouseButton,
     },
     event_loop::{
         EventLoop,
@@ -27,6 +26,7 @@ use rg3d::{
         color::Color,
         pool::Handle,
         math::{
+            Rect,
             vec2::Vec2,
         },
         visitor::{Visitor, Visit},
@@ -39,13 +39,22 @@ use rg3d::{
         message::{
             UiMessageData,
             ButtonMessage,
+            WidgetMessage,
+            KeyCode,
+            MouseButton
         },
+        Thickness,
+        stack_panel::StackPanelBuilder,
         file_browser::FileBrowserBuilder,
         widget::WidgetBuilder,
         text::TextBuilder,
         node::StubNode,
         text_box::TextBoxBuilder,
+        scroll_bar::Orientation,
+        HorizontalAlignment,
+        VerticalAlignment,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
+        image::ImageBuilder,
     },
 };
 use crate::{
@@ -77,6 +86,7 @@ use std::{
     fs::File,
     io::Write,
 };
+use rg3d::renderer::RenderTarget;
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
@@ -105,13 +115,7 @@ impl NodeEditor {
                         .on_column(1))
                         .build(ui);
                     node_name
-                })
-                .with_child(FileBrowserBuilder::new(WidgetBuilder::new()
-                    .on_column(1)
-                    .on_row(1)
-                    .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
-                    .with_path("./")
-                    .build(ui)))
+                }))
                 .add_column(Column::strict(110.0))
                 .add_column(Column::stretch())
                 .add_row(Row::strict(32.0))
@@ -136,6 +140,63 @@ impl NodeEditor {
             if let UiNode::TextBox(node_name) = ui.node_mut(self.node_name) {
                 node_name.set_text(node.name());
             }
+        }
+    }
+}
+
+pub struct FileSelector {
+    browser: Handle<UiNode>,
+}
+
+impl FileSelector {
+    pub fn new(ui: &mut Ui) -> Self {
+        let browser;
+        WindowBuilder::new(WidgetBuilder::new())
+            .with_title(WindowTitle::Text("Select File"))
+            .with_content(GridBuilder::new(WidgetBuilder::new()
+                .with_child({
+                    browser = FileBrowserBuilder::new(WidgetBuilder::new()
+                        .with_height(400.0)
+                        .on_column(0)
+                        .on_column(0))
+                        .with_path("./")
+                        .build(ui);
+                    browser
+                })
+                .with_child(StackPanelBuilder::new(WidgetBuilder::new()
+                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                    .on_column(0)
+                    .on_row(1)
+                    .with_child(ButtonBuilder::new(WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_width(100.0)
+                        .with_height(30.0))
+                        .with_content(TextBuilder::new(WidgetBuilder::new())
+                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text("OK")
+                            .build(ui))
+                        .build(ui))
+                    .with_child(ButtonBuilder::new(WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_width(100.0)
+                        .with_height(30.0))
+                        .with_content(TextBuilder::new(WidgetBuilder::new())
+                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text("Cancel")
+                            .build(ui))
+                        .build(ui)))
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ui)))
+                .add_column(Column::auto())
+                .add_row(Row::stretch())
+                .add_row(Row::auto())
+                .build(ui))
+            .build(ui);
+
+        Self {
+            browser
         }
     }
 }
@@ -252,6 +313,37 @@ impl EntityPanel {
     }
 }
 
+pub struct ScenePreview {
+    frame: Handle<UiNode>,
+    window: Handle<UiNode>,
+    last_mouse_pos: Option<Vec2>
+}
+
+impl ScenePreview {
+    pub fn new(engine: &mut GameEngine) -> Self {
+        let ui = &mut engine.user_interface;
+
+        let frame;
+        let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_close(false)
+            .with_content({
+                frame = ImageBuilder::new(WidgetBuilder::new())
+                    .with_flip(true)
+                    .with_texture(engine.renderer.frame_texture())
+                    .build(ui);
+                frame
+            })
+            .with_title(WindowTitle::Text("Scene Preview"))
+            .build(ui);
+
+        Self {
+            window,
+            frame,
+            last_mouse_pos: None
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Message {
     ExecuteCommand(Command),
@@ -280,6 +372,8 @@ struct Editor {
     current_interaction_mode: Option<usize>,
     world_outliner: WorldOutliner,
     docking_manager: Handle<UiNode>,
+    file_selector: FileSelector,
+    preview: ScenePreview,
 }
 
 fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
@@ -361,6 +455,8 @@ fn finalize_command(editor_scene: &EditorScene, engine: &mut GameEngine, command
 
 impl Editor {
     fn new(engine: &mut GameEngine) -> Self {
+        let preview = ScenePreview::new(engine);
+
         let ui = &mut engine.user_interface;
 
         let mut scene = Scene::new();
@@ -389,7 +485,7 @@ impl Editor {
                                 splitter: 0.75,
                                 tiles: [
                                     TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Empty)
+                                        .with_content(TileContent::Window(preview.window))
                                         .build(ui),
                                     TileBuilder::new(WidgetBuilder::new())
                                         .with_content(TileContent::Window(node_editor.window))
@@ -405,7 +501,7 @@ impl Editor {
                                         .with_content(TileContent::Window(world_outliner.window))
                                         .build(ui),
                                     TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Window( entity_panel.window))
+                                        .with_content(TileContent::Window(entity_panel.window))
                                         .build(ui)
                                 ],
                             })
@@ -414,6 +510,8 @@ impl Editor {
                 })
                 .build(ui)))
             .build(ui);
+
+        let file_selector = FileSelector::new(ui);
 
         let interaction_modes = vec![
             InteractionMode::Move(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),
@@ -424,6 +522,7 @@ impl Editor {
         let mut editor = Self {
             node_editor,
             entity_panel,
+            preview,
             camera_controller: CameraController::new(&editor_scene, engine),
             scene: editor_scene,
             command_stack: CommandStack::new(),
@@ -433,6 +532,7 @@ impl Editor {
             current_interaction_mode: None,
             world_outliner,
             docking_manager,
+            file_selector,
         };
 
         editor.set_interaction_mode(Some(0), engine);
@@ -463,14 +563,7 @@ impl Editor {
         self.set_interaction_mode(Some(0), engine);
     }
 
-    fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
-        self.entity_panel.handle_message(message);
-        self.world_outliner.handle_ui_message(message, &engine.user_interface, self.node_editor.node);
-    }
-
     fn handle_raw_input(&mut self, device_event: &DeviceEvent, engine: &mut GameEngine) {
-        self.camera_controller.handle_raw_input(&self.scene, device_event, engine);
-
         match device_event {
             &DeviceEvent::MouseMotion { delta } => {
                 let mouse_offset = Vec2::new(delta.0 as f32, delta.1 as f32);
@@ -493,60 +586,84 @@ impl Editor {
         }
     }
 
-    fn handle_input(&mut self, window_event: &WindowEvent, engine: &mut GameEngine) {
-        self.camera_controller.handle_input(window_event, engine);
+    fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        let ui = &mut engine.user_interface;
 
-        match window_event {
-            &WindowEvent::MouseInput { state, button, .. } => {
-                if button == MouseButton::Left {
-                    if let Some(current_im) = self.current_interaction_mode {
-                        match state {
-                            ElementState::Pressed => {
-                                self.interaction_modes[current_im].on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine);
-                            }
-                            ElementState::Released => {
-                                self.interaction_modes[current_im].on_left_mouse_button_up(&self.scene, engine);
-                            }
-                        }
-                    }
-                }
-            }
-            &WindowEvent::KeyboardInput { input, .. } => {
-                if input.state == ElementState::Pressed {
-                    if let Some(keycode) = input.virtual_keycode {
-                        match keycode {
-                            VirtualKeyCode::Y => {
-                                self.message_sender.send(Message::Redo).unwrap();
-                            }
-                            VirtualKeyCode::Z => {
-                                self.message_sender.send(Message::Undo).unwrap();
-                            }
-                            VirtualKeyCode::Key1 => {
-                                self.set_interaction_mode(Some(0), engine)
-                            }
-                            VirtualKeyCode::Key2 => {
-                                self.set_interaction_mode(Some(1), engine)
-                            }
-                            VirtualKeyCode::Key3 => {
-                                self.set_interaction_mode(Some(2), engine)
-                            }
-                            VirtualKeyCode::Delete => {
-                                if self.node_editor.node.is_some() {
-                                    let command = Command::CommandGroup(vec![
-                                        Command::ChangeSelection(ChangeSelectionCommand::new(Handle::NONE, self.node_editor.node)),
-                                        Command::DeleteNode(DeleteNodeCommand::new(self.node_editor.node))
-                                    ]);
-                                    self.message_sender
-                                        .send(Message::ExecuteCommand(command))
-                                        .unwrap();
+        self.entity_panel.handle_message(message);
+        self.world_outliner.handle_ui_message(message, ui, self.node_editor.node);
+
+        if message.destination == self.preview.frame {
+            match &message.data {
+                UiMessageData::Widget(msg) => {
+                    match msg {
+                        &WidgetMessage::MouseDown { button, pos, .. } => {
+                            ui.capture_mouse(self.preview.frame);
+                            if button == MouseButton::Left {
+                                if let Some(current_im) = self.current_interaction_mode {
+                                    let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                                    let rel_pos = Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+                                    self.interaction_modes[current_im].on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine, rel_pos);
                                 }
                             }
-                            _ => ()
+                            self.camera_controller.on_mouse_button_down(button);
                         }
+                        &WidgetMessage::MouseUp { button, .. } => {
+                            ui.release_mouse_capture();
+                            if button == MouseButton::Left {
+                                if let Some(current_im) = self.current_interaction_mode {
+                                    self.interaction_modes[current_im].on_left_mouse_button_up(&self.scene, engine);
+                                }
+                            }
+                            self.camera_controller.on_mouse_button_up(button);
+                        }
+                        &WidgetMessage::MouseWheel {amount,..} => {
+                            self.camera_controller.on_mouse_wheel(amount, &self.scene, engine);
+                        }
+                        &WidgetMessage::MouseMove {pos,..} => {
+                            let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
+                            self.camera_controller.on_mouse_move(pos - last_pos);
+                            self.preview.last_mouse_pos = Some(pos);
+                        }
+                        &WidgetMessage::KeyUp(key) => {
+                            self.camera_controller.on_key_up(key);
+                        }
+                        &WidgetMessage::KeyDown(key) => {
+                            self.camera_controller.on_key_down(key);
+                            match key {
+                                KeyCode::Y => {
+                                    self.message_sender.send(Message::Redo).unwrap();
+                                }
+                                KeyCode::Z => {
+                                    self.message_sender.send(Message::Undo).unwrap();
+                                }
+                                KeyCode::Key1 => {
+                                    self.set_interaction_mode(Some(0), engine)
+                                }
+                                KeyCode::Key2 => {
+                                    self.set_interaction_mode(Some(1), engine)
+                                }
+                                KeyCode::Key3 => {
+                                    self.set_interaction_mode(Some(2), engine)
+                                }
+                                KeyCode::Delete => {
+                                    if self.node_editor.node.is_some() {
+                                        let command = Command::CommandGroup(vec![
+                                            Command::ChangeSelection(ChangeSelectionCommand::new(Handle::NONE, self.node_editor.node)),
+                                            Command::DeleteNode(DeleteNodeCommand::new(self.node_editor.node))
+                                        ]);
+                                        self.message_sender
+                                            .send(Message::ExecuteCommand(command))
+                                            .unwrap();
+                                    }
+                                }
+                                _ => ()
+                            }
+                        }
+                        _ => {}
                     }
                 }
+                _ => ()
             }
-            _ => ()
         }
     }
 
@@ -615,12 +732,32 @@ impl Editor {
             }
         }
 
+        // Adjust camera viewport to size of frame.
+        let frame_size = engine.renderer.get_frame_size();
+        let scene = &mut engine.scenes[self.scene.scene];
+        if let Node::Camera(camera) = &mut scene.graph[self.camera_controller.camera] {
+            let frame_size = Vec2::new(frame_size.0 as f32, frame_size.1 as f32);
+            let viewport = camera.viewport_pixels(frame_size);
+
+            if let UiNode::Image(frame) = engine.user_interface.node(self.preview.frame) {
+                let preview_frame_size = frame.actual_size();
+                if viewport.w != preview_frame_size.x as i32 || viewport.h != preview_frame_size.y as i32 {
+                    camera.set_viewport(Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        w: preview_frame_size.x / frame_size.x,
+                        h: preview_frame_size.y / frame_size.y,
+                    });
+                }
+            }
+        }
+
         self.camera_controller.update(&self.scene, engine, dt);
         self.world_outliner.sync_to_model(&self.scene, engine);
         self.node_editor.sync_to_model(&self.scene, engine);
 
         if let Some(mode) = self.current_interaction_mode {
-            self.interaction_modes[mode].update(&self.scene, engine);
+            self.interaction_modes[mode].update(&self.scene, self.camera_controller.camera, engine);
         }
     }
 }
@@ -634,6 +771,7 @@ fn main() {
 
     let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
 
+    engine.renderer.set_render_target(RenderTarget::Texture);
     engine.resource_manager.lock().unwrap().set_textures_path("data");
 
     // Set ambient light.
@@ -676,14 +814,8 @@ fn main() {
                     _ => ()
                 }
 
-                let mut message_handled = false;
-
                 if let Some(os_event) = translate_event(&event) {
-                    message_handled |= engine.user_interface.process_os_event(&os_event);
-                }
-
-                if !message_handled {
-                    editor.handle_input(&event, &mut engine);
+                    engine.user_interface.process_os_event(&os_event);
                 }
             }
             Event::DeviceEvent { event, .. } => {

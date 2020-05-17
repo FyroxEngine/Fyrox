@@ -43,10 +43,10 @@ use std::{
 use crate::command::RotateNodeCommand;
 
 pub trait InteractionModeTrait {
-    fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine);
+    fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine, mouse_pos: Vec2);
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn on_mouse_move(&mut self, mouse_offset: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine);
-    fn update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
+    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine);
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn handle_message(&mut self, message: &Message);
 }
@@ -289,13 +289,14 @@ impl MoveGizmo {
         Vec3::ZERO
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>) {
+    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>, scale: Vec3) {
         let (rotation, position) = extract_rotation_position_no_scale(node, graph);
         graph[self.origin]
             .set_visibility(true)
             .local_transform_mut()
             .set_rotation(rotation)
-            .set_position(position);
+            .set_position(position)
+            .set_scale(scale);
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
@@ -332,6 +333,8 @@ pub struct MoveInteractionMode {
     message_sender: Sender<Message>,
 }
 
+pub const GIZMO_SCALE_FACTOR: f32 = 0.35; // Replace with tan(fov) of camera.
+
 impl MoveInteractionMode {
     pub fn new(editor_scene: &EditorScene, engine: &mut GameEngine, message_sender: Sender<Message>) -> Self {
         Self {
@@ -350,9 +353,8 @@ impl InteractionModeTrait for MoveInteractionMode {
                                  camera_controller: &mut CameraController,
                                  current_selection: Handle<Node>,
                                  engine: &mut GameEngine,
+                                 mouse_pos: Vec2,
     ) {
-        let mouse_pos = engine.user_interface.cursor_position();
-
         // Pick gizmo nodes.
         let camera = camera_controller.camera;
         let camera_pivot = camera_controller.pivot;
@@ -399,10 +401,12 @@ impl InteractionModeTrait for MoveInteractionMode {
         }
     }
 
-    fn update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine) {
         if self.node.is_some() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.move_gizmo.sync_transform(graph, self.node);
+            let distance = GIZMO_SCALE_FACTOR * graph[self.move_gizmo.origin].global_position().distance(&graph[camera].global_position());
+            let scale = Vec3::new(distance, distance, distance);
+            self.move_gizmo.sync_transform(graph, self.node, scale);
             self.move_gizmo.set_visible(graph, true);
         } else {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -610,13 +614,14 @@ impl ScaleGizmo {
         Vec3::ZERO
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>) {
+    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>, scale: Vec3) {
         let (rotation, position) = extract_rotation_position_no_scale(node, graph);
         graph[self.origin]
             .set_visibility(true)
             .local_transform_mut()
             .set_rotation(rotation)
-            .set_position(position);
+            .set_position(position)
+            .set_scale(scale);
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
@@ -650,9 +655,8 @@ impl InteractionModeTrait for ScaleInteractionMode {
                                  camera_controller: &mut CameraController,
                                  current_selection: Handle<Node>,
                                  engine: &mut GameEngine,
+                                 mouse_pos: Vec2,
     ) {
-        let mouse_pos = engine.user_interface.cursor_position();
-
         // Pick gizmo nodes.
         let camera = camera_controller.camera;
         let camera_pivot = camera_controller.pivot;
@@ -701,10 +705,12 @@ impl InteractionModeTrait for ScaleInteractionMode {
         }
     }
 
-    fn update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine) {
         if self.node.is_some() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.scale_gizmo.sync_transform(graph, self.node);
+            let distance = GIZMO_SCALE_FACTOR * graph[self.scale_gizmo.origin].global_position().distance(&graph[camera].global_position());
+            let scale = Vec3::new(distance, distance, distance);
+            self.scale_gizmo.sync_transform(graph, self.node, scale);
             self.scale_gizmo.set_visible(graph, true);
         } else {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -881,13 +887,14 @@ impl RotationGizmo {
         Quat::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>) {
+    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>, scale: Vec3) {
         let (rotation, position) = extract_rotation_position_no_scale(node, graph);
         graph[self.origin]
             .set_visibility(true)
             .local_transform_mut()
             .set_rotation(rotation)
-            .set_position(position);
+            .set_position(position)
+            .set_scale(scale);
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
@@ -921,9 +928,8 @@ impl InteractionModeTrait for RotateInteractionMode {
                                  camera_controller: &mut CameraController,
                                  current_selection: Handle<Node>,
                                  engine: &mut GameEngine,
+                                 mouse_pos: Vec2,
     ) {
-        let mouse_pos = engine.user_interface.cursor_position();
-
         // Pick gizmo nodes.
         let camera = camera_controller.camera;
         let camera_pivot = camera_controller.pivot;
@@ -972,10 +978,12 @@ impl InteractionModeTrait for RotateInteractionMode {
         }
     }
 
-    fn update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine) {
         if self.node.is_some() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.rotation_gizmo.sync_transform(graph, self.node);
+            let distance = GIZMO_SCALE_FACTOR * graph[self.rotation_gizmo.origin].global_position().distance(&graph[camera].global_position());
+            let scale = Vec3::new(distance, distance, distance);
+            self.rotation_gizmo.sync_transform(graph, self.node, scale);
             self.rotation_gizmo.set_visible(graph, true);
         } else {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -1013,8 +1021,8 @@ pub enum InteractionMode {
 }
 
 impl InteractionModeTrait for InteractionMode {
-    fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine) {
-        static_dispatch!(self, on_left_mouse_button_down, editor_scene, camera_controller, current_selection, engine)
+    fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine, mouse_pos: Vec2) {
+        static_dispatch!(self, on_left_mouse_button_down, editor_scene, camera_controller, current_selection, engine, mouse_pos)
     }
 
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
@@ -1025,8 +1033,8 @@ impl InteractionModeTrait for InteractionMode {
         static_dispatch!(self, on_mouse_move, mouse_offset, camera, editor_scene, engine)
     }
 
-    fn update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        static_dispatch!(self, update, editor_scene, engine)
+    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine) {
+        static_dispatch!(self, update, editor_scene, camera, engine)
     }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {

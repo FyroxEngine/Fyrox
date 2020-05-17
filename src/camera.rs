@@ -22,8 +22,8 @@ use rg3d::{
         VirtualKeyCode,
         ElementState,
         MouseScrollDelta,
-        MouseButton,
-    }
+    },
+    gui::message::{MouseButton, KeyCode},
 };
 use std::{
     collections::hash_map::DefaultHasher,
@@ -86,49 +86,53 @@ impl CameraController {
         }
     }
 
-    pub fn handle_raw_input(&mut self, editor_scene: &EditorScene, device_event: &DeviceEvent, engine: &mut GameEngine) {
-        match device_event {
-            &DeviceEvent::MouseMotion { delta } => {
-                if self.rotate {
-                    self.yaw -= delta.0 as f32 * 0.01;
-                    self.pitch += delta.1 as f32 * 0.01;
-                }
-            }
-            &DeviceEvent::MouseWheel { delta } => {
-                if let MouseScrollDelta::LineDelta(_, delta) = delta {
-                    let scene = &mut engine.scenes[editor_scene.scene];
-                    let camera = &mut scene.graph[self.camera];
+    pub fn on_mouse_move(&mut self, delta: Vec2) {
+        if self.rotate {
+            self.yaw -= delta.x as f32 * 0.01;
+            self.pitch += delta.y as f32 * 0.01;
+        }
+    }
 
-                    let look = camera.global_transform().look();
+    pub fn on_mouse_wheel(&mut self, delta: f32, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        let scene = &mut engine.scenes[editor_scene.scene];
+        let camera = &mut scene.graph[self.camera];
 
-                    if let Node::Base(pivot) = &mut scene.graph[self.pivot] {
-                        pivot.local_transform_mut()
-                            .offset(look.scale(delta));
-                    }
-                }
-            }
-            DeviceEvent::Key(keyboard) => {
-                if let Some(code) = keyboard.virtual_keycode {
-                    match code {
-                        VirtualKeyCode::W => self.move_forward = keyboard.state == ElementState::Pressed,
-                        VirtualKeyCode::S => self.move_backward = keyboard.state == ElementState::Pressed,
-                        VirtualKeyCode::A => self.move_left = keyboard.state == ElementState::Pressed,
-                        VirtualKeyCode::D => self.move_right = keyboard.state == ElementState::Pressed,
-                        _ => ()
-                    }
-                }
-            }
+        let look = camera.global_transform().look();
+
+        if let Node::Base(pivot) = &mut scene.graph[self.pivot] {
+            pivot.local_transform_mut()
+                .offset(look.scale(delta));
+        }
+    }
+
+    pub fn on_mouse_button_up(&mut self, button: MouseButton) {
+        if button == MouseButton::Right {
+            self.rotate = false;
+        }
+    }
+
+    pub fn on_mouse_button_down(&mut self, button: MouseButton) {
+        if button == MouseButton::Right {
+            self.rotate = true;
+        }
+    }
+
+    pub fn on_key_up(&mut self, key: KeyCode) {
+        match key {
+            KeyCode::W => self.move_forward = false,
+            KeyCode::S => self.move_backward = false,
+            KeyCode::A => self.move_left = false,
+            KeyCode::D => self.move_right = false,
             _ => ()
         }
     }
 
-    pub fn handle_input(&mut self, window_event: &WindowEvent, _engine: &mut GameEngine) {
-        match window_event {
-            &WindowEvent::MouseInput { state, button, .. } => {
-                if button == MouseButton::Right {
-                    self.rotate = state == ElementState::Pressed;
-                }
-            }
+    pub fn on_key_down(&mut self, key: KeyCode) {
+        match key {
+            KeyCode::W => self.move_forward = true,
+            KeyCode::S => self.move_backward = true,
+            KeyCode::A => self.move_left = true,
+            KeyCode::D => self.move_right = true,
             _ => ()
         }
     }
