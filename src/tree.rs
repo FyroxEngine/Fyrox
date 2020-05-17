@@ -159,6 +159,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                         &TreeMessage::Expand(expand) => {
                             self.is_expanded = expand;
                             ui.node_mut(self.panel).set_visibility(self.is_expanded);
+                            if let UINode::Button(expander) = ui.node(self.expander) {
+                                let content = expander.content();
+                                if let UINode::Text(txt) = ui.node_mut(content) {
+                                    txt.set_text(if expand { "-" } else { "+" });
+                                }
+                            }
                         }
                         &TreeMessage::AddItem(item) => {
                             ui.link_nodes(item, self.panel);

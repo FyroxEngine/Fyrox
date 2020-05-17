@@ -604,6 +604,9 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
         }
+        if self.widget_builder.background.is_none() {
+            self.widget_builder.background = Some(Brush::Solid(Color::opaque(100, 100, 100)));
+        }
 
         let text_box = TextBox {
             widget: self.widget_builder.build(ui.sender()),

@@ -539,11 +539,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
         splitter.set_visibility(true);
         match direction {
             SplitDirection::Horizontal => {
-                splitter.set_width_mut(10.0)
+                splitter.set_width_mut(DEFAULT_SPLITTER_SIZE)
                     .set_height(std::f32::INFINITY);
             }
             SplitDirection::Vertical => {
-                splitter.set_height_mut(10.0)
+                splitter.set_height_mut(DEFAULT_SPLITTER_SIZE)
                     .set_width(std::f32::INFINITY);
             }
         }
@@ -636,6 +636,7 @@ pub struct TileBuilder<M: 'static, C: 'static + Control<M, C>> {
     content: TileContent<M, C>,
 }
 
+pub const DEFAULT_SPLITTER_SIZE: f32 = 6.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
 pub fn make_default_anchor<M, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
@@ -701,14 +702,14 @@ impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
         let splitter = BorderBuilder::new(WidgetBuilder::new()
             .with_width({
                 if let TileContent::HorizontalTiles { .. } = self.content {
-                    10.0
+                    DEFAULT_SPLITTER_SIZE
                 } else {
                     std::f32::INFINITY
                 }
             })
             .with_height({
                 if let TileContent::VerticalTiles { .. } = self.content {
-                    10.0
+                    DEFAULT_SPLITTER_SIZE
                 } else {
                     std::f32::INFINITY
                 }

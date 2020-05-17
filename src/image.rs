@@ -22,10 +22,12 @@ use crate::{
     message::UiMessage,
 };
 use std::ops::{Deref, DerefMut};
+use rg3d_core::math::vec2::Vec2;
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     texture: Option<Arc<Texture>>,
+    flip: bool
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for Image<M, C> {
@@ -47,6 +49,7 @@ impl<M, C: 'static + Control<M, C>> Image<M, C> {
         Self {
             widget,
             texture: None,
+            flip: false
         }
     }
 
@@ -60,6 +63,7 @@ impl<M, C: 'static + Control<M, C>> Clone for Image<M, C> {
         Self {
             widget: self.widget.raw_copy(),
             texture: self.texture.clone(),
+            flip: false
         }
     }
 }
@@ -71,7 +75,17 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None);
+        let tex_coords = if self.flip {
+            Some([
+                Vec2::new(0.0, 0.0),
+                Vec2::new(1.0, 0.0),
+                Vec2::new(1.0, -1.0),
+                Vec2::new(0.0, -1.0),
+            ])
+        } else {
+            None
+        };
+        drawing_context.push_rect_filled(&bounds, tex_coords.as_ref());
         let texture = self.texture
             .as_ref()
             .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
@@ -86,6 +100,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
 pub struct ImageBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     texture: Option<Arc<Texture>>,
+    flip: bool
 }
 
 impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
@@ -93,7 +108,13 @@ impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         Self {
             widget_builder,
             texture: None,
+            flip: false
         }
+    }
+
+    pub fn with_flip(mut self, flip: bool) -> Self {
+        self.flip = flip;
+        self
     }
 
     pub fn with_texture(mut self, texture: Arc<Texture>) -> Self {
@@ -114,6 +135,7 @@ impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         let image = Image {
             widget: self.widget_builder.build(ui.sender()),
             texture: self.texture,
+            flip: self.flip
         };
 
         let handle = ui.add_node(UINode::Image(image));
