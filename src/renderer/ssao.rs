@@ -225,7 +225,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 })),
                 (self.shader.world_view_proj_matrix, UniformValue::Mat4(frame_matrix)),
                 (self.shader.projection_matrix, UniformValue::Mat4(projection_matrix)),
-                (self.shader.inv_proj_matrix, UniformValue::Mat4(projection_matrix.inverse().unwrap())),
+                (self.shader.inv_proj_matrix, UniformValue::Mat4(projection_matrix.inverse().unwrap_or_default())),
                 (self.shader.view_matrix, UniformValue::Mat3(view_matrix))
             ]);
 
