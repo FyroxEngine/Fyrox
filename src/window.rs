@@ -15,7 +15,6 @@ use crate::{
     text::TextBuilder,
     Thickness,
     button::ButtonBuilder,
-    scroll_viewer::ScrollViewerBuilder,
     widget::{
         Widget,
         WidgetBuilder,
@@ -53,8 +52,8 @@ pub struct Window<M: 'static, C: 'static + Control<M, C>> {
     header: Handle<UINode<M, C>>,
     minimize_button: Handle<UINode<M, C>>,
     close_button: Handle<UINode<M, C>>,
-    scroll_viewer: Handle<UINode<M, C>>,
-    drag_delta: Vec2
+    drag_delta: Vec2,
+    content: Handle<UINode<M, C>>
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for Window<M, C> {
@@ -84,8 +83,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
             header: self.header,
             minimize_button: self.minimize_button,
             close_button: self.close_button,
-            scroll_viewer: self.scroll_viewer,
-            drag_delta: self.drag_delta
+            drag_delta: self.drag_delta,
+            content: self.content
         })
     }
 
@@ -93,7 +92,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         self.header = *node_map.get(&self.header).unwrap();
         self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
         self.close_button = *node_map.get(&self.close_button).unwrap();
-        self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
+        if self.content.is_some() {
+            self.content = *node_map.get(&self.content).unwrap();
+        }
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
@@ -164,10 +165,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             if self.minimized != *minimized {
                                 self.minimized = *minimized;
                                 self.widget.invalidate_layout();
-                                if self.scroll_viewer.is_some() {
-                                    if let UINode::ScrollViewer(scroll_viewer) = ui.node_mut(self.scroll_viewer) {
-                                        scroll_viewer.set_visibility(!*minimized);
-                                    }
+                                if self.content.is_some() {
+                                    ui.node_mut(self.content).set_visibility(!*minimized);
                                 }
                             }
                         }
@@ -220,8 +219,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         if self.header == handle {
             self.header = Handle::NONE;
         }
-        if self.scroll_viewer == handle {
-            self.scroll_viewer = Handle::NONE;
+        if self.content == handle {
+            self.content = Handle::NONE;
         }
         if self.close_button == handle {
             self.close_button = Handle::NONE;
@@ -233,29 +232,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
 }
 
 impl<M, C: 'static + Control<M, C>> Window<M, C> {
-    pub fn new(
-        widget: Widget<M, C>,
-        header: Handle<UINode<M, C>>,
-        minimize_button: Handle<UINode<M, C>>,
-        close_button: Handle<UINode<M, C>>,
-        scroll_viewer: Handle<UINode<M, C>>,
-    ) -> Self {
-        Self {
-            widget,
-            mouse_click_pos: Default::default(),
-            initial_position: Default::default(),
-            is_dragging: false,
-            minimized: false,
-            can_minimize: true,
-            can_close: true,
-            header,
-            minimize_button,
-            close_button,
-            scroll_viewer,
-            drag_delta: Default::default()
-        }
-    }
-
     pub fn close(&mut self) {
         self.invalidate_layout();
         self.send_message(UiMessage {
@@ -317,7 +293,6 @@ pub struct WindowBuilder<'a, M: 'static, C: 'static + Control<M, C>> {
     can_close: bool,
     can_minimize: bool,
     open: bool,
-    scroll_viewer: Option<Handle<UINode<M, C>>>,
     close_button: Option<Handle<UINode<M, C>>>,
     minimize_button: Option<Handle<UINode<M, C>>>,
 }
@@ -343,7 +318,6 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             can_close: true,
             can_minimize: true,
             open: true,
-            scroll_viewer: None,
             close_button: None,
             minimize_button: None,
         }
@@ -356,11 +330,6 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
 
     pub fn with_title(mut self, title: WindowTitle<'a, M, C>) -> Self {
         self.title = Some(title);
-        self
-    }
-
-    pub fn with_scroll_scroll_viewer(mut self, sv: Handle<UINode<M, C>>) -> Self {
-        self.scroll_viewer = Some(sv);
         self
     }
 
@@ -460,22 +429,14 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             .on_row(0)
         ).build(ui);
 
-        let scroll_viewer = self.scroll_viewer.unwrap_or_else(|| {
-            ScrollViewerBuilder::new(WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0)))
-                .build(ui)
-        });
-
-        if let UINode::ScrollViewer(sv) = ui.node_mut(scroll_viewer) {
-            sv.set_content(self.content).set_row(1);
-        }
+        ui.node_mut(self.content).set_row(1);
 
         let window = Window {
             widget: self.widget_builder
                 .with_visibility(self.open)
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_child(GridBuilder::new(WidgetBuilder::new()
-                        .with_child(scroll_viewer)
+                        .with_child(self.content)
                         .with_child(header))
                         .add_column(Column::stretch())
                         .add_row(Row::auto())
@@ -492,8 +453,8 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             header,
             minimize_button,
             close_button,
-            scroll_viewer,
-            drag_delta: Default::default()
+            drag_delta: Default::default(),
+            content: self.content
         };
 
         let handle = ui.add_node(UINode::Window(window));
