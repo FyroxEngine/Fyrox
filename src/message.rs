@@ -8,7 +8,10 @@
 
 use crate::{
     core::{
-        math::vec2::Vec2,
+        math::{
+            vec2::Vec2,
+            vec3::Vec3
+        },
         pool::Handle,
     },
     UINode,
@@ -156,6 +159,16 @@ pub enum TextBoxMessage {
 }
 
 #[derive(Debug)]
+pub enum NumericUpDownMessage {
+    Value(f32),
+}
+
+#[derive(Debug)]
+pub enum Vec3EditorMessage {
+    Value(Vec3)
+}
+
+#[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
@@ -169,6 +182,8 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     TreeRoot(TreeRootMessage<M, C>),
     FileBrowser(FileBrowserMessage),
     TextBox(TextBoxMessage),
+    NumericUpDown(NumericUpDownMessage),
+    Vec3Editor(Vec3EditorMessage),
     User(M),
 }
 

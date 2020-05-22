@@ -39,6 +39,8 @@ pub mod progress_bar;
 pub mod tree;
 pub mod file_browser;
 pub mod dock;
+pub mod vec;
+pub mod numeric;
 
 use crate::{
     core::{

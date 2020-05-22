@@ -2,6 +2,7 @@ use std::{
     cmp,
     sync::{Mutex, Arc},
     cell::RefCell,
+    ops::{Deref, DerefMut},
 };
 use crate::{
     brush::Brush,
@@ -33,15 +34,15 @@ use crate::{
         UiMessageData,
         MouseButton,
         KeyCode,
+        WidgetMessage,
+        TextBoxMessage,
     },
     ttf::Font,
     VerticalAlignment,
     HorizontalAlignment,
     draw::CommandTexture,
-    message::WidgetMessage,
 };
-use std::ops::{Deref, DerefMut};
-use crate::message::TextBoxMessage;
+use std::rc::Rc;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -67,6 +68,8 @@ pub struct SelectionRange {
     end: Position,
 }
 
+pub type FilterCallback = dyn FnMut(char) -> bool;
+
 pub struct TextBox<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     caret_line: usize,
@@ -80,6 +83,7 @@ pub struct TextBox<M: 'static, C: 'static + Control<M, C>> {
     has_focus: bool,
     caret_brush: Brush,
     selection_brush: Brush,
+    filter: Option<Rc<RefCell<FilterCallback>>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for TextBox<M, C> {
@@ -113,6 +117,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
             has_focus: false,
             caret_brush: Brush::Solid(Color::WHITE),
             selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
+            filter: None,
         }
     }
 
@@ -213,7 +218,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
             self.send_message(UiMessage {
                 handled: false,
                 data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
-                destination: self.handle
+                destination: self.handle,
             });
         }
     }
@@ -246,7 +251,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
                 self.send_message(UiMessage {
                     handled: false,
                     data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
-                    destination: self.handle
+                    destination: self.handle,
                 });
 
                 if direction == HorizontalDirection::Left {
@@ -289,9 +294,19 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
-        self.formatted_text
-            .borrow_mut()
-            .set_text(text);
+        let mut equals = false;
+        for (&new, old) in self.formatted_text.borrow().get_raw_text().iter().zip(text.as_ref().chars()) {
+            if old as u32 != new {
+                equals = false;
+                break;
+            }
+        }
+        if !equals {
+            self.formatted_text
+                .borrow_mut()
+                .set_text(text);
+            self.invalidate_layout();
+        }
         self
     }
 
@@ -371,6 +386,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
             selection_brush: self.selection_brush.clone(),
             caret_brush: self.caret_brush.clone(),
             has_focus: false,
+            filter: None,
         })
     }
 
@@ -449,8 +465,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                 if let Some(line) = text.get_lines().get(self.caret_line) {
                     let text = text.get_raw_text();
                     let mut caret_pos = Vec2::new(
-                        screen_position.x,
-                        screen_position.y + self.caret_line as f32 * font.get_ascender(),
+                        screen_position.x + line.x_offset,
+                        screen_position.y + line.y_offset + self.caret_line as f32 * font.get_ascender(),
                     );
                     for (offset, char_index) in (line.begin..line.end).enumerate() {
                         if offset >= self.caret_offset {
@@ -486,76 +502,96 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Widget(msg) = &message.data {
-            if message.destination == self.handle || self.has_descendant(message.destination, ui) {
-                match msg {
-                    WidgetMessage::Text(symbol) => {
-                        self.insert_char(*symbol);
-                    }
-                    WidgetMessage::KeyDown(code) => {
-                        match code {
-                            KeyCode::Up => {
-                                self.move_caret_y(1, VerticalDirection::Up);
+        if message.destination == self.handle {
+            match &message.data {
+                UiMessageData::Widget(msg) => {
+                    match msg {
+                        &WidgetMessage::Text(symbol) => {
+                            let insert =  if let Some(filter) = self.filter.as_ref() {
+                                let filter = &mut *filter.borrow_mut();
+                                if filter(symbol) {
+                                    true
+                                } else {
+                                    false
+                                }
+                            } else {
+                                true
+                            };
+                            if insert {
+                                self.insert_char(symbol);
                             }
-                            KeyCode::Down => {
-                                self.move_caret_y(1, VerticalDirection::Down);
-                            }
-                            KeyCode::Right => {
-                                self.move_caret_x(1, HorizontalDirection::Right);
-                            }
-                            KeyCode::Left => {
-                                self.move_caret_x(1, HorizontalDirection::Left);
-                            }
-                            KeyCode::Delete => {
-                                self.remove_char(HorizontalDirection::Right);
-                            }
-                            KeyCode::Backspace => {
-                                self.remove_char(HorizontalDirection::Left);
-                            }
-                            _ => ()
                         }
-                    }
-                    WidgetMessage::GotFocus => {
-                        self.reset_blink();
-                        self.has_focus = true;
-                    }
-                    WidgetMessage::LostFocus => {
-                        self.has_focus = false;
-                    }
-                    WidgetMessage::MouseDown { pos, button } => {
-                        if *button == MouseButton::Left {
-                            self.selection_range = None;
-                            self.selecting = true;
-
-                            if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                self.caret_line = position.line;
-                                self.caret_offset = position.offset;
-
-                                self.selection_range = Some(SelectionRange {
-                                    begin: position,
-                                    end: position,
-                                })
+                        WidgetMessage::KeyDown(code) => {
+                            match code {
+                                KeyCode::Up => {
+                                    self.move_caret_y(1, VerticalDirection::Up);
+                                }
+                                KeyCode::Down => {
+                                    self.move_caret_y(1, VerticalDirection::Down);
+                                }
+                                KeyCode::Right => {
+                                    self.move_caret_x(1, HorizontalDirection::Right);
+                                }
+                                KeyCode::Left => {
+                                    self.move_caret_x(1, HorizontalDirection::Left);
+                                }
+                                KeyCode::Delete => {
+                                    self.remove_char(HorizontalDirection::Right);
+                                }
+                                KeyCode::Backspace => {
+                                    self.remove_char(HorizontalDirection::Left);
+                                }
+                                _ => ()
                             }
-
-                            ui.capture_mouse(self.handle);
                         }
-                    }
-                    WidgetMessage::MouseMove { pos, .. } => {
-                        if self.selecting {
-                            if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                if let Some(ref mut sel_range) = self.selection_range {
-                                    sel_range.end = position;
+                        WidgetMessage::GotFocus => {
+                            self.reset_blink();
+                            self.has_focus = true;
+                        }
+                        WidgetMessage::LostFocus => {
+                            self.has_focus = false;
+                        }
+                        WidgetMessage::MouseDown { pos, button } => {
+                            if *button == MouseButton::Left {
+                                self.selection_range = None;
+                                self.selecting = true;
+
+                                if let Some(position) = self.screen_pos_to_text_pos(*pos) {
+                                    self.caret_line = position.line;
+                                    self.caret_offset = position.offset;
+
+                                    self.selection_range = Some(SelectionRange {
+                                        begin: position,
+                                        end: position,
+                                    })
+                                }
+
+                                ui.capture_mouse(self.handle);
+                            }
+                        }
+                        WidgetMessage::MouseMove { pos, .. } => {
+                            if self.selecting {
+                                if let Some(position) = self.screen_pos_to_text_pos(*pos) {
+                                    if let Some(ref mut sel_range) = self.selection_range {
+                                        sel_range.end = position;
+                                    }
                                 }
                             }
                         }
-                    }
-                    WidgetMessage::MouseUp { .. } => {
-                        self.selecting = false;
+                        WidgetMessage::MouseUp { .. } => {
+                            self.selecting = false;
 
-                        ui.release_mouse_capture();
+                            ui.release_mouse_capture();
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
+                UiMessageData::TextBox(msg) => {
+                    if let TextBoxMessage::Text(new_text) = msg {
+                        self.set_text(new_text);
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -567,6 +603,10 @@ pub struct TextBoxBuilder<M: 'static, C: 'static + Control<M, C>> {
     text: String,
     caret_brush: Brush,
     selection_brush: Brush,
+    filter: Option<Rc<RefCell<FilterCallback>>>,
+    vertical_alignment: VerticalAlignment,
+    horizontal_alignment: HorizontalAlignment,
+    wrap: bool
 }
 
 impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
@@ -577,6 +617,10 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             text: "".to_owned(),
             caret_brush: Brush::Solid(Color::WHITE),
             selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
+            filter: None,
+            vertical_alignment: VerticalAlignment::Top,
+            horizontal_alignment: HorizontalAlignment::Left,
+            wrap: false
         }
     }
 
@@ -600,6 +644,26 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
+    pub fn with_filter(mut self, filter: Rc<RefCell<FilterCallback>>) -> Self {
+        self.filter = Some(filter);
+        self
+    }
+
+    pub fn with_vertical_text_alignment(mut self, alignment: VerticalAlignment) -> Self {
+        self.vertical_alignment = alignment;
+        self
+    }
+
+    pub fn with_horizontal_text_alignment(mut self, alignment: HorizontalAlignment) -> Self {
+        self.horizontal_alignment = alignment;
+        self
+    }
+
+    pub fn with_wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
+    }
+
     pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
@@ -618,12 +682,16 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             formatted_text: RefCell::new(FormattedTextBuilder::new()
                 .with_text(self.text)
                 .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
+                .with_horizontal_alignment(self.horizontal_alignment)
+                .with_vertical_alignment(self.vertical_alignment)
+                .with_wrap(self.wrap)
                 .build()),
             selection_range: None,
             selecting: false,
             selection_brush: self.selection_brush,
             caret_brush: self.caret_brush,
             has_focus: false,
+            filter: self.filter,
         };
 
         let handle = ui.add_node(UINode::TextBox(text_box));

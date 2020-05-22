@@ -36,10 +36,14 @@ use crate::{
     progress_bar::ProgressBar,
     tree::{Tree, TreeRoot},
     file_browser::FileBrowser,
-    dock::{DockingManager}
+    dock::{
+        DockingManager,
+        Tile
+    },
+    vec::Vec3Editor,
+    numeric::NumericUpDown
 };
 use std::ops::{Deref, DerefMut};
-use crate::dock::Tile;
 
 #[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -68,6 +72,8 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     FileBrowser(FileBrowser<M, C>),
     DockingManager(DockingManager<M, C>),
     Tile(Tile<M, C>),
+    Vec3Editor(Vec3Editor<M, C>),
+    NumericUpDown(NumericUpDown<M, C>),
     User(C)
 }
 
@@ -100,6 +106,8 @@ macro_rules! static_dispatch {
             UINode::FileBrowser(v) => v.$func($($args),*),
             UINode::DockingManager(v) => v.$func($($args),*),
             UINode::Tile(v) => v.$func($($args),*),
+            UINode::Vec3Editor(v) => v.$func($($args),*),
+            UINode::NumericUpDown(v) => v.$func($($args),*),
         }
     };
 }
@@ -133,6 +141,8 @@ macro_rules! static_dispatch_deref {
             UINode::FileBrowser(v) => v,
             UINode::DockingManager(v) => v,
             UINode::Tile(v) => v,
+            UINode::Vec3Editor(v) => v,
+            UINode::NumericUpDown(v) => v,
         }
     };
 }
