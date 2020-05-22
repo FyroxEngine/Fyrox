@@ -268,7 +268,7 @@ impl FileSelector {
                         .with_height(400.0)
                         .on_column(0)
                         .on_column(0))
-                        .with_path("./")
+                        .with_path("./data")
                         .build(ui);
                     browser
                 })

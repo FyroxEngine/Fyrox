@@ -70,9 +70,9 @@ let scene_handle = engine.scenes.add(scene);
 	- [ ] Base node
 		- [x] Show name.
 		- [ ] Edit name.
-		- [ ] Edit position.
-		- [ ] Edit rotation.
-		- [ ] Edit scale.
+		- [x] Edit position.
+		- [x] Edit rotation.
+		- [x] Edit scale.
 	- [ ] Light node
 	- [ ] Particle system node.
 		- [ ] Particle system properties.
