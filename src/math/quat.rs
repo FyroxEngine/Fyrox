@@ -126,6 +126,28 @@ impl Quat {
         }
     }
 
+    pub fn to_euler(&self) -> Vec3 {
+        // roll (x-axis rotation)
+        let sinr_cosp = 2.0 * (self.w * self.x + self.y * self.z);
+        let cosr_cosp = 1.0 - 2.0 * (self.x * self.x + self.y * self.y);
+        let roll = sinr_cosp.atan2(cosr_cosp);
+
+        // pitch (y-axis rotation)
+        let sinp = 2.0 * (self.w * self.y - self.z * self.x);
+        let pitch = if sinp.abs() >= 1.0 {
+            std::f32::consts::FRAC_PI_2.copysign(sinp)
+        }  else {
+            sinp.asin()
+        };
+
+        // yaw (z-axis rotation)
+        let siny_cosp = 2.0 * (self.w * self.z + self.x * self.y);
+        let cosy_cosp = 1.0 - 2.0 * (self.y * self.y + self.z * self.z);
+        let yaw = siny_cosp.atan2(cosy_cosp);
+
+        Vec3::new(roll, pitch, yaw)
+    }
+
     pub fn dot(&self, other: &Quat) -> f32 {
         self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
     }
@@ -187,6 +209,13 @@ impl Quat {
             z: self.z * factor,
             w: self.w * factor,
         }
+    }
+
+    pub fn approx_eq(&self, other: Self, precision: f32) -> bool {
+        (self.x - other.x).abs() <= precision &&
+        (self.y - other.y).abs() <= precision &&
+        (self.z - other.z).abs() <= precision &&
+        (self.w - other.w).abs() <= precision
     }
 }
 
