@@ -5,7 +5,42 @@ pub mod camera;
 pub mod command;
 pub mod world_outliner;
 
+use crate::{
+    interaction::{
+        InteractionMode,
+        MoveInteractionMode,
+        ScaleInteractionMode,
+        RotateInteractionMode,
+        InteractionModeTrait,
+        InteractionModeKind,
+    },
+    camera::CameraController,
+    command::{
+        CommandStack,
+        Command,
+        CreateNodeCommand,
+        NodeKind,
+        DeleteNodeCommand,
+        ChangeSelectionCommand,
+        RotateNodeCommand,
+        MoveNodeCommand,
+        ScaleNodeCommand
+    },
+    world_outliner::WorldOutliner,
+};
+use std::{
+    path::PathBuf,
+    time::Instant,
+    sync::{
+        mpsc::{Receiver, Sender},
+        mpsc,
+    },
+    fs::File,
+    io::Write,
+};
 use rg3d::{
+    resource::texture::TextureKind,
+    renderer::RenderTarget,
     scene::{
         base::BaseBuilder,
         node::Node,
@@ -26,6 +61,8 @@ use rg3d::{
         math::{
             Rect,
             vec2::Vec2,
+            vec3::Vec3,
+            quat::{Quat, RotationOrder},
         },
         visitor::{Visitor, Visit},
     },
@@ -40,6 +77,7 @@ use rg3d::{
             WidgetMessage,
             KeyCode,
             MouseButton,
+            Vec3EditorMessage,
         },
         Thickness,
         stack_panel::StackPanelBuilder,
@@ -53,41 +91,10 @@ use rg3d::{
         VerticalAlignment,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         image::ImageBuilder,
+        vec::Vec3EditorBuilder,
     },
+    utils::into_any_arc,
 };
-use crate::{
-    interaction::{
-        InteractionMode,
-        MoveInteractionMode,
-        ScaleInteractionMode,
-        RotateInteractionMode,
-        InteractionModeTrait,
-    },
-    camera::CameraController,
-    command::{
-        CommandStack,
-        Command,
-        CreateNodeCommand,
-        NodeKind,
-        DeleteNodeCommand,
-        ChangeSelectionCommand,
-    },
-    world_outliner::WorldOutliner,
-};
-use std::{
-    path::PathBuf,
-    time::Instant,
-    sync::{
-        mpsc::{Receiver, Sender},
-        mpsc,
-    },
-    fs::File,
-    io::Write,
-};
-use rg3d::renderer::RenderTarget;
-use rg3d::resource::texture::TextureKind;
-use rg3d::utils::into_any_arc;
-use crate::interaction::InteractionModeKind;
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
@@ -98,27 +105,67 @@ struct NodeEditor {
     window: Handle<UiNode>,
     node: Handle<Node>,
     node_name: Handle<UiNode>,
+    position: Handle<UiNode>,
+    rotation: Handle<UiNode>,
+    scale: Handle<UiNode>,
+    sender: Sender<Message>,
+}
+
+fn make_text_mark(ui: &mut Ui, text: &str, row: usize) -> Handle<UiNode> {
+    TextBuilder::new(WidgetBuilder::new()
+        .with_vertical_alignment(VerticalAlignment::Center)
+        .with_margin(Thickness::left(4.0))
+        .on_row(row)
+        .on_column(0))
+        .with_text(text)
+        .build(ui)
+}
+
+fn make_vec3_input_field(ui: &mut Ui, row: usize) -> Handle<UiNode> {
+    Vec3EditorBuilder::new(WidgetBuilder::new()
+        .with_margin(Thickness::uniform(1.0))
+        .on_row(row)
+        .on_column(1))
+        .build(ui)
 }
 
 impl NodeEditor {
-    fn new(ui: &mut Ui) -> Self {
+    fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
         let node_name;
+        let position;
+        let rotation;
+        let scale;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(GridBuilder::new(WidgetBuilder::new()
-                .with_child(TextBuilder::new(WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(0))
-                    .with_text("Name")
-                    .build(ui))
+                .with_child(make_text_mark(ui, "Name", 0))
                 .with_child({
                     node_name = TextBoxBuilder::new(WidgetBuilder::new()
                         .on_row(0)
-                        .on_column(1))
+                        .on_column(1)
+                        .with_margin(Thickness::uniform(1.0)))
                         .build(ui);
                     node_name
+                })
+                .with_child(make_text_mark(ui, "Position", 1))
+                .with_child({
+                    position = make_vec3_input_field(ui, 1);
+                    position
+                })
+                .with_child(make_text_mark(ui, "Rotation", 2))
+                .with_child({
+                    rotation = make_vec3_input_field(ui, 2);
+                    rotation
+                })
+                .with_child(make_text_mark(ui, "Scale", 3))
+                .with_child({
+                    scale = make_vec3_input_field(ui, 3);
+                    scale
                 }))
                 .add_column(Column::strict(110.0))
                 .add_column(Column::stretch())
+                .add_row(Row::strict(32.0))
+                .add_row(Row::strict(32.0))
+                .add_row(Row::strict(32.0))
                 .add_row(Row::strict(32.0))
                 .add_row(Row::stretch())
                 .build(ui))
@@ -129,6 +176,10 @@ impl NodeEditor {
             window,
             node: Default::default(),
             node_name,
+            position,
+            rotation,
+            sender,
+            scale
         }
     }
 
@@ -140,6 +191,63 @@ impl NodeEditor {
 
             if let UiNode::TextBox(node_name) = ui.node_mut(self.node_name) {
                 node_name.set_text(node.name());
+            }
+            ui.send_message(UiMessage {
+                handled: true,
+                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(node.local_transform().position())),
+                destination: self.position,
+            });
+
+            let euler = node.local_transform().rotation().to_euler();
+            let euler_degrees = Vec3::new(euler.x.to_degrees(), euler.y.to_degrees(), euler.z.to_degrees());
+            ui.send_message(UiMessage {
+                handled: true,
+                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(euler_degrees)),
+                destination: self.rotation,
+            });
+
+            ui.send_message(UiMessage {
+                handled: true,
+                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(node.local_transform().scale())),
+                destination: self.scale
+            });
+        }
+    }
+
+    fn handle_message(&mut self, message: &UiMessage, editor_scene: &EditorScene, engine: &GameEngine) {
+        let graph = &engine.scenes[editor_scene.scene].graph;
+        if self.node.is_some() && !message.handled {
+            match &message.data {
+                UiMessageData::Vec3Editor(msg) => {
+                    if let &Vec3EditorMessage::Value(value) = msg {
+                        let transform = graph[self.node].local_transform();
+                        if message.destination == self.rotation {
+                            let old_rotation = transform.rotation();
+                            let euler = Vec3::new(value.x.to_radians(), value.y.to_radians(), value.z.to_radians());
+                            let new_rotation = Quat::from_euler(euler, RotationOrder::XYZ);
+                            if !old_rotation.approx_eq(new_rotation, 0.001) {
+                                self.sender
+                                    .send(Message::ExecuteCommand(Command::RotateNode(RotateNodeCommand::new(self.node, old_rotation, new_rotation))))
+                                    .unwrap();
+                            }
+                        } else if message.destination == self.position {
+                            let old_position = transform.position();
+                            if old_position != value {
+                                self.sender
+                                    .send(Message::ExecuteCommand(Command::MoveNode(MoveNodeCommand::new(self.node, old_position, value))))
+                                    .unwrap();
+                            }
+                        } else if message.destination == self.scale {
+                            let old_scale = transform.scale();
+                            if old_scale != value {
+                                self.sender
+                                    .send(Message::ExecuteCommand(Command::ScaleNode(ScaleNodeCommand::new(self.node, old_scale, value))))
+                                    .unwrap();
+                            }
+                        }
+                    }
+                }
+                _ => ()
             }
         }
     }
@@ -471,7 +579,7 @@ fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command:
         Command::ChangeSelection(command) => {
             let selection = command.execute();
             if selection != current_selection {
-                // Just re-cast message so every system will handle it correctly.
+                // Just re-post message so every system will handle it correctly.
                 message_sender
                     .send(Message::SetSelection(selection))
                     .unwrap();
@@ -499,7 +607,7 @@ fn revert_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: 
         Command::ChangeSelection(command) => {
             let selection = command.revert();
             if selection != current_selection {
-                // Just re-cast message so every system will handle it correctly.
+                // Just re-post message so every system will handle it correctly.
                 message_sender
                     .send(Message::SetSelection(selection))
                     .unwrap();
@@ -547,7 +655,7 @@ impl Editor {
             scene: engine.scenes.add(scene),
         };
 
-        let node_editor = NodeEditor::new(ui);
+        let node_editor = NodeEditor::new(ui, message_sender.clone());
         let entity_panel = EntityPanel::new(ui, message_sender.clone());
         let world_outliner = WorldOutliner::new(ui, message_sender.clone());
 
@@ -665,9 +773,10 @@ impl Editor {
     }
 
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
-        let ui = &mut engine.user_interface;
-
+        self.node_editor.handle_message(message, &self.scene, engine);
         self.entity_panel.handle_message(message);
+
+        let ui = &mut engine.user_interface;
         self.world_outliner.handle_ui_message(message, ui, self.node_editor.node);
         self.preview.handle_message(message);
 
@@ -751,6 +860,7 @@ impl Editor {
             println!("Undo command {:?}", command);
             revert_command(&self.scene, engine, command, self.message_sender.clone(), self.node_editor.node);
         }
+        self.sync_to_model(engine);
     }
 
     fn redo_command(&mut self, engine: &mut GameEngine) {
@@ -758,6 +868,7 @@ impl Editor {
             println!("Redo command {:?}", command);
             execute_command(&self.scene, engine, command, self.message_sender.clone(), self.node_editor.node);
         }
+        self.sync_to_model(engine);
     }
 
     fn add_command(&mut self, engine: &mut GameEngine, mut command: Command) {
@@ -767,6 +878,12 @@ impl Editor {
             println!("Finalizing command {:?}", command);
             finalize_command(&self.scene, engine, command);
         }
+        self.sync_to_model(engine);
+    }
+
+    fn sync_to_model(&mut self, engine: &mut GameEngine) {
+        self.world_outliner.sync_to_model(&self.scene, engine);
+        self.node_editor.sync_to_model(&self.scene, engine);
     }
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
@@ -833,8 +950,6 @@ impl Editor {
         }
 
         self.camera_controller.update(&self.scene, engine, dt);
-        self.world_outliner.sync_to_model(&self.scene, engine);
-        self.node_editor.sync_to_model(&self.scene, engine);
 
         if let Some(mode) = self.current_interaction_mode {
             self.interaction_modes[mode].update(&self.scene, self.camera_controller.camera, engine);
