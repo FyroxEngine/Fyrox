@@ -92,9 +92,13 @@ use rg3d::{
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         image::ImageBuilder,
         vec::Vec3EditorBuilder,
+        ttf::Font
     },
     utils::into_any_arc,
 };
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::path::Path;
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
@@ -268,6 +272,14 @@ impl FileSelector {
                         .with_height(400.0)
                         .on_column(0)
                         .on_column(0))
+                        .with_filter(Rc::new(RefCell::new(|path: &Path| {
+                            path.extension()
+                                .map_or(false, |ext| {
+                                    ext.to_string_lossy()
+                                        .to_owned()
+                                        .to_lowercase() == "fbx"
+                                })
+                        })))
                         .with_path("./data")
                         .build(ui);
                     browser
@@ -646,6 +658,7 @@ impl Editor {
         let preview = ScenePreview::new(engine, message_sender.clone());
 
         let ui = &mut engine.user_interface;
+        *rg3d::gui::DEFAULT_FONT.lock().unwrap() = Font::from_file("resources/arial.ttf", 14.0, Font::default_char_set()).unwrap();
 
         let mut scene = Scene::new();
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
