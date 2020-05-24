@@ -18,33 +18,27 @@ use crate::{
     command::{
         CommandStack,
         Command,
-        CreateNodeCommand,
-        NodeKind,
+        AddNodeCommand,
         DeleteNodeCommand,
         ChangeSelectionCommand,
         RotateNodeCommand,
         MoveNodeCommand,
-        ScaleNodeCommand
+        ScaleNodeCommand,
     },
     world_outliner::WorldOutliner,
 };
-use std::{
-    path::PathBuf,
-    time::Instant,
-    sync::{
-        mpsc::{Receiver, Sender},
-        mpsc,
-    },
-    fs::File,
-    io::Write,
-};
 use rg3d::{
     resource::texture::TextureKind,
-    renderer::RenderTarget,
+    renderer::{
+        RenderTarget,
+        surface::{Surface, SurfaceSharedData},
+    },
     scene::{
         base::BaseBuilder,
         node::Node,
         Scene,
+        mesh::Mesh,
+        light::{LightKind, LightBuilder, SpotLight, PointLight},
     },
     event::{
         Event,
@@ -66,7 +60,10 @@ use rg3d::{
         },
         visitor::{Visitor, Visit},
     },
-    utils::translate_event,
+    utils::{
+        translate_event,
+        into_any_arc,
+    },
     gui::{
         grid::{GridBuilder, Column, Row},
         window::{WindowBuilder, WindowTitle},
@@ -86,19 +83,33 @@ use rg3d::{
         text::TextBuilder,
         node::StubNode,
         text_box::TextBoxBuilder,
-        scroll_bar::Orientation,
+        Orientation,
         HorizontalAlignment,
         VerticalAlignment,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         image::ImageBuilder,
         vec::Vec3EditorBuilder,
-        ttf::Font
+        ttf::Font,
+        menu::{MenuBuilder, MenuItemBuilder},
     },
-    utils::into_any_arc,
 };
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::path::Path;
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    path::{
+        PathBuf,
+        Path,
+    },
+    time::Instant,
+    sync::{
+        mpsc::{Receiver, Sender},
+        mpsc,
+        Arc,
+        Mutex,
+    },
+    fs::File,
+    io::Write,
+};
 
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
@@ -165,12 +176,12 @@ impl NodeEditor {
                     scale = make_vec3_input_field(ui, 3);
                     scale
                 }))
-                .add_column(Column::strict(110.0))
+                .add_column(Column::strict(70.0))
                 .add_column(Column::stretch())
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
                 .build(ui))
             .with_title(WindowTitle::Text("Node Properties"))
@@ -183,14 +194,15 @@ impl NodeEditor {
             position,
             rotation,
             sender,
-            scale
+            scale,
         }
     }
 
     fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() {
-            let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[editor_scene.scene];
+        if scene.graph.is_valid_handle(self.node) {
             let node = &scene.graph[self.node];
+
             let ui = &mut engine.user_interface;
 
             if let UiNode::TextBox(node_name) = ui.node_mut(self.node_name) {
@@ -213,7 +225,7 @@ impl NodeEditor {
             ui.send_message(UiMessage {
                 handled: true,
                 data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(node.local_transform().scale())),
-                destination: self.scale
+                destination: self.scale,
             });
         }
     }
@@ -259,11 +271,15 @@ impl NodeEditor {
 
 pub struct FileSelector {
     browser: Handle<UiNode>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
 }
 
 impl FileSelector {
     pub fn new(ui: &mut Ui) -> Self {
         let browser;
+        let ok;
+        let cancel;
         WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::Text("Select File"))
             .with_content(GridBuilder::new(WidgetBuilder::new()
@@ -288,26 +304,24 @@ impl FileSelector {
                     .with_horizontal_alignment(HorizontalAlignment::Right)
                     .on_column(0)
                     .on_row(1)
-                    .with_child(ButtonBuilder::new(WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_width(100.0)
-                        .with_height(30.0))
-                        .with_content(TextBuilder::new(WidgetBuilder::new())
-                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_child({
+                        ok = ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0)
+                            .with_height(30.0))
                             .with_text("OK")
-                            .build(ui))
-                        .build(ui))
-                    .with_child(ButtonBuilder::new(WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_width(100.0)
-                        .with_height(30.0))
-                        .with_content(TextBuilder::new(WidgetBuilder::new())
-                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .build(ui);
+                        ok
+                    })
+                    .with_child({
+                        cancel = ButtonBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0)
+                            .with_height(30.0))
                             .with_text("Cancel")
-                            .build(ui))
-                        .build(ui)))
+                            .build(ui);
+                        cancel
+                    }))
                     .with_orientation(Orientation::Horizontal)
                     .build(ui)))
                 .add_column(Column::auto())
@@ -317,7 +331,9 @@ impl FileSelector {
             .build(ui);
 
         Self {
-            browser
+            browser,
+            ok,
+            cancel,
         }
     }
 }
@@ -382,11 +398,11 @@ impl EntityPanel {
                     load_scene
                 }))
                 .add_column(Column::stretch())
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
-                .add_row(Row::strict(32.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
                 .build(ui))
             .with_title(WindowTitle::Text("Entity Panel"))
             .build(ui);
@@ -407,16 +423,28 @@ impl EntityPanel {
             UiMessageData::Button(button) => {
                 if let ButtonMessage::Click = button {
                     if message.destination == self.create_cube {
+                        let mut mesh = Mesh::default();
+                        mesh.set_name("Cube");
+                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cube(Default::default())))));
+                        let node = Node::Mesh(mesh);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::Cube))))
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_spot_light {
+                        let kind = LightKind::Spot(SpotLight::new(10.0, 45.0, 2.0));
+                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
+                        light.set_name("SpotLight");
+                        let node = Node::Light(light);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::SpotLight))))
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_point_light {
+                        let kind = LightKind::Point(PointLight::new(10.0));
+                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
+                        light.set_name("PointLight");
+                        let node = Node::Light(light);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::CreateNode(CreateNodeCommand::new(NodeKind::PointLight))))
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.save_scene {
                         self.message_sender
@@ -455,6 +483,7 @@ impl ScenePreview {
         let scale_mode;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
+            .can_minimize(false)
             .with_content(GridBuilder::new(WidgetBuilder::new()
                 .with_child({
                     frame = ImageBuilder::new(WidgetBuilder::new()
@@ -567,9 +596,9 @@ struct Editor {
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<InteractionMode>,
-    current_interaction_mode: Option<usize>,
+    current_interaction_mode: Option<InteractionModeKind>,
     world_outliner: WorldOutliner,
-    docking_manager: Handle<UiNode>,
+    root_grid: Handle<UiNode>,
     file_selector: FileSelector,
     preview: ScenePreview,
 }
@@ -584,7 +613,7 @@ fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command:
                 execute_command(editor_scene, engine, command, message_sender.clone(), current_selection)
             }
         }
-        Command::CreateNode(command) => command.execute(graph),
+        Command::AddNode(command) => command.execute(graph),
         Command::MoveNode(command) => command.execute(graph),
         Command::ScaleNode(command) => command.execute(graph),
         Command::RotateNode(command) => command.execute(graph),
@@ -612,7 +641,7 @@ fn revert_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: 
                 revert_command(editor_scene, engine, command, message_sender.clone(), current_selection)
             }
         }
-        Command::CreateNode(command) => command.revert(graph),
+        Command::AddNode(command) => command.revert(graph),
         Command::MoveNode(command) => command.revert(graph),
         Command::ScaleNode(command) => command.revert(graph),
         Command::RotateNode(command) => command.revert(graph),
@@ -640,7 +669,7 @@ fn finalize_command(editor_scene: &EditorScene, engine: &mut GameEngine, command
                 finalize_command(editor_scene, engine, command);
             }
         }
-        Command::CreateNode(command) => command.finalize(graph),
+        Command::AddNode(command) => command.finalize(graph),
         Command::DeleteNode(command) => command.finalize(graph),
         // Intentionally not using _ => () to be notified about new commands by compiler.
         Command::ChangeSelection(_) => {}
@@ -672,42 +701,105 @@ impl Editor {
         let entity_panel = EntityPanel::new(ui, message_sender.clone());
         let world_outliner = WorldOutliner::new(ui, message_sender.clone());
 
-        let docking_manager = DockingManagerBuilder::new(WidgetBuilder::new()
+        let root_grid = GridBuilder::new(WidgetBuilder::new()
             .with_width(engine.renderer.get_frame_size().0 as f32)
             .with_height(engine.renderer.get_frame_size().1 as f32)
-            .with_child(TileBuilder::new(WidgetBuilder::new())
-                .with_content(TileContent::VerticalTiles {
-                    splitter: 0.7,
-                    tiles: [
-                        TileBuilder::new(WidgetBuilder::new())
-                            .with_content(TileContent::HorizontalTiles {
-                                splitter: 0.75,
-                                tiles: [
-                                    TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Window(preview.window))
-                                        .build(ui),
-                                    TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Window(node_editor.window))
+            .with_child(MenuBuilder::new(WidgetBuilder::new()
+                .on_row(0))
+                .with_items(vec![
+                    MenuItemBuilder::new(WidgetBuilder::new()
+                        .with_min_size(Vec2::new(40.0, 20.0)))
+                        .with_content(TextBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(3.0)))
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text("File")
+                            .build(ui))
+                        .with_items(vec![
+                            MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(Vec2::new(120.0, 20.0)))
+                                .with_content(TextBuilder::new(WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(3.0)))
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text("Save")
+                                    .build(ui))
+                                .build(ui),
+                            MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(Vec2::new(120.0, 20.0)))
+                                .with_content(TextBuilder::new(WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(3.0)))
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text("Options")
+                                    .build(ui))
+                                .with_items(vec![
+                                    MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(Vec2::new(120.0, 20.0)))
+                                        .with_content(TextBuilder::new(WidgetBuilder::new()
+                                            .with_margin(Thickness::uniform(3.0)))
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .with_text("Foobar")
+                                            .build(ui))
                                         .build(ui)
-                                ],
-                            })
-                            .build(ui),
-                        TileBuilder::new(WidgetBuilder::new())
-                            .with_content(TileContent::HorizontalTiles {
-                                splitter: 0.5,
-                                tiles: [
-                                    TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Window(world_outliner.window))
-                                        .build(ui),
-                                    TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Window(entity_panel.window))
-                                        .build(ui)
-                                ],
-                            })
-                            .build(ui)
-                    ],
-                })
+                                ])
+                                .build(ui),
+                            MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(Vec2::new(120.0, 20.0)))
+                                .with_content(TextBuilder::new(WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(3.0)))
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text("Exit")
+                                    .build(ui))
+                                .build(ui)
+                        ])
+                        .build(ui),
+                    MenuItemBuilder::new(WidgetBuilder::new()
+                        .with_min_size(Vec2::new(40.0, 20.0)))
+                        .with_content(TextBuilder::new(WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(3.0)))
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text("Edit")
+                            .build(ui))
+                        .build(ui)
+                ])
+                .build(ui))
+            .with_child(DockingManagerBuilder::new(WidgetBuilder::new()
+                .on_row(1)
+                .with_child(TileBuilder::new(WidgetBuilder::new())
+                    .with_content(TileContent::VerticalTiles {
+                        splitter: 0.7,
+                        tiles: [
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::HorizontalTiles {
+                                    splitter: 0.75,
+                                    tiles: [
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(preview.window))
+                                            .build(ui),
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(node_editor.window))
+                                            .build(ui)
+                                    ],
+                                })
+                                .build(ui),
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::HorizontalTiles {
+                                    splitter: 0.5,
+                                    tiles: [
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(world_outliner.window))
+                                            .build(ui),
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::Window(entity_panel.window))
+                                            .build(ui)
+                                    ],
+                                })
+                                .build(ui)
+                        ],
+                    })
+                    .build(ui)))
                 .build(ui)))
+            .add_row(Row::strict(25.0))
+            .add_row(Row::stretch())
+            .add_column(Column::stretch())
             .build(ui);
 
         let file_selector = FileSelector::new(ui);
@@ -730,11 +822,11 @@ impl Editor {
             interaction_modes,
             current_interaction_mode: None,
             world_outliner,
-            docking_manager,
+            root_grid,
             file_selector,
         };
 
-        editor.set_interaction_mode(Some(0), engine);
+        editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
 
         editor
     }
@@ -759,7 +851,7 @@ impl Editor {
         self.camera_controller = CameraController::new(&self.scene, engine);
         self.command_stack = CommandStack::new();
 
-        self.set_interaction_mode(Some(0), engine);
+        self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
     }
 
     fn handle_raw_input(&mut self, device_event: &DeviceEvent, engine: &mut GameEngine) {
@@ -767,21 +859,21 @@ impl Editor {
             &DeviceEvent::MouseMotion { delta } => {
                 let mouse_offset = Vec2::new(delta.0 as f32, delta.1 as f32);
                 if let Some(current_im) = self.current_interaction_mode {
-                    self.interaction_modes[current_im].on_mouse_move(mouse_offset, self.camera_controller.camera, &self.scene, engine);
+                    self.interaction_modes[current_im as usize].on_mouse_move(mouse_offset, self.camera_controller.camera, &self.scene, engine);
                 }
             }
             _ => ()
         }
     }
 
-    fn set_interaction_mode(&mut self, index: Option<usize>, engine: &mut GameEngine) {
-        if self.current_interaction_mode != index {
+    fn set_interaction_mode(&mut self, mode: Option<InteractionModeKind>, engine: &mut GameEngine) {
+        if self.current_interaction_mode != mode {
             // Deactivate current first.
             if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode].deactivate(&self.scene, engine);
+                self.interaction_modes[current_mode as usize].deactivate(&self.scene, engine);
             }
 
-            self.current_interaction_mode = index;
+            self.current_interaction_mode = mode;
         }
     }
 
@@ -803,7 +895,7 @@ impl Editor {
                                 if let Some(current_im) = self.current_interaction_mode {
                                     let screen_bounds = ui.node(self.preview.frame).screen_bounds();
                                     let rel_pos = Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
-                                    self.interaction_modes[current_im].on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine, rel_pos);
+                                    self.interaction_modes[current_im as usize].on_left_mouse_button_down(&self.scene, &mut self.camera_controller, self.node_editor.node, engine, rel_pos);
                                 }
                             }
                             self.camera_controller.on_mouse_button_down(button);
@@ -812,7 +904,7 @@ impl Editor {
                             ui.release_mouse_capture();
                             if button == MouseButton::Left {
                                 if let Some(current_im) = self.current_interaction_mode {
-                                    self.interaction_modes[current_im].on_left_mouse_button_up(&self.scene, engine);
+                                    self.interaction_modes[current_im as usize].on_left_mouse_button_up(&self.scene, engine);
                                 }
                             }
                             self.camera_controller.on_mouse_button_up(button);
@@ -838,13 +930,13 @@ impl Editor {
                                     self.message_sender.send(Message::Undo).unwrap();
                                 }
                                 KeyCode::Key1 => {
-                                    self.set_interaction_mode(Some(0), engine)
+                                    self.set_interaction_mode(Some(InteractionModeKind::Move), engine)
                                 }
                                 KeyCode::Key2 => {
-                                    self.set_interaction_mode(Some(1), engine)
+                                    self.set_interaction_mode(Some(InteractionModeKind::Rotate), engine)
                                 }
                                 KeyCode::Key3 => {
-                                    self.set_interaction_mode(Some(2), engine)
+                                    self.set_interaction_mode(Some(InteractionModeKind::Scale), engine)
                                 }
                                 KeyCode::Delete => {
                                     if self.node_editor.node.is_some() {
@@ -937,7 +1029,7 @@ impl Editor {
                     }
                 }
                 Message::SetInteractionMode(mode_kind) => {
-                    self.set_interaction_mode(Some(mode_kind as usize), engine);
+                    self.set_interaction_mode(Some(mode_kind), engine);
                 }
             }
         }
@@ -965,7 +1057,7 @@ impl Editor {
         self.camera_controller.update(&self.scene, engine, dt);
 
         if let Some(mode) = self.current_interaction_mode {
-            self.interaction_modes[mode].update(&self.scene, self.camera_controller.camera, engine);
+            self.interaction_modes[mode as usize].update(&self.scene, self.camera_controller.camera, engine);
         }
     }
 }
@@ -1019,7 +1111,7 @@ fn main() {
                     WindowEvent::Resized(size) => {
                         engine.renderer.set_frame_size(size.into());
                         engine.user_interface
-                            .node_mut(editor.docking_manager)
+                            .node_mut(editor.root_grid)
                             .set_width_mut(size.width as f32)
                             .set_height_mut(size.height as f32);
                     }

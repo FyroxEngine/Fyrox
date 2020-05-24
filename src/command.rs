@@ -1,75 +1,36 @@
 use rg3d::{
-    renderer::surface::{Surface, SurfaceSharedData},
     core::{
         pool::{Handle, Ticket},
         math::{vec3::Vec3, quat::Quat},
     },
     scene::{
-        light::{LightKind, LightBuilder, SpotLight, PointLight},
         node::Node,
         graph::Graph,
-        mesh::Mesh,
-        base::BaseBuilder,
     },
 };
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 pub enum Command {
     CommandGroup(Vec<Command>),
-    CreateNode(CreateNodeCommand),
+    AddNode(AddNodeCommand),
+    DeleteNode(DeleteNodeCommand),
     ChangeSelection(ChangeSelectionCommand),
     MoveNode(MoveNodeCommand),
     ScaleNode(ScaleNodeCommand),
     RotateNode(RotateNodeCommand),
     LinkNodes(LinkNodesCommand),
-    DeleteNode(DeleteNodeCommand)
 }
 
 #[derive(Debug)]
-pub enum NodeKind {
-    Base,
-    Cube,
-    PointLight,
-    SpotLight,
-}
-
-#[derive(Debug)]
-pub struct CreateNodeCommand {
-    kind: NodeKind,
+pub struct AddNodeCommand {
     ticket: Option<Ticket<Node>>,
     handle: Handle<Node>,
     node: Option<Node>,
 }
 
-impl CreateNodeCommand {
-    pub fn new(kind: NodeKind) -> Self {
-        let node = match kind {
-            NodeKind::Base => {
-                Node::Base(BaseBuilder::new().build())
-            }
-            NodeKind::Cube => {
-                let mut mesh = Mesh::default();
-                mesh.set_name("Cube");
-                mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cube(Default::default())))));
-                Node::Mesh(mesh)
-            }
-            NodeKind::PointLight => {
-                let kind = LightKind::Point(PointLight::new(10.0));
-                let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
-                light.set_name("PointLight");
-                Node::Light(light)
-            }
-            NodeKind::SpotLight => {
-                let kind = LightKind::Spot(SpotLight::new(10.0, 45.0, 2.0));
-                let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
-                light.set_name("SpotLight");
-                Node::Light(light)
-            }
-        };
-
+impl AddNodeCommand {
+    pub fn new(node: Node) -> Self {
         Self {
-            kind,
             ticket: None,
             handle: Default::default(),
             node: Some(node),
@@ -293,8 +254,10 @@ impl DeleteNodeCommand {
         self.handle = graph.put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
     }
 
-    pub fn finalize(self, graph: &mut Graph) {
-        graph.forget_ticket(self.ticket.unwrap())
+    pub fn finalize(mut self, graph: &mut Graph) {
+        if let Some(ticket) = self.ticket.take() {
+            graph.forget_ticket(ticket)
+        }
     }
 }
 
