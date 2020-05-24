@@ -420,7 +420,7 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
 }
 
 lazy_static! {
-    static ref DEFAULT_FONT: Arc<Mutex<Font>> = {
+    pub static ref DEFAULT_FONT: Arc<Mutex<Font>> = {
         let font_bytes = std::include_bytes!("./built_in_font.ttf").to_vec();
         let font = Font::from_memory(font_bytes, 20.0, Font::default_char_set()).unwrap();
         Arc::new(Mutex::new(font))

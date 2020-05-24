@@ -12,17 +12,16 @@ use crate::{
         },
         pool::{Pool, Handle},
     },
-    draw::Texture
+    draw::Texture,
 };
 use std::{
-    cmp::Ordering,
     collections::HashMap,
     path::Path,
     fs::File,
     io::Read,
-    ops::Range
+    ops::Range,
+    sync::Arc
 };
-use std::sync::Arc;
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -99,7 +98,7 @@ pub struct Font {
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
     atlas_size: i32,
-    pub texture: Option<Arc<Texture>>
+    pub texture: Option<Arc<Texture>>,
 }
 
 struct RectPackNode {
@@ -144,31 +143,29 @@ impl RectPacker {
             let left_bounds;
             let right_bounds;
 
-            {
-                let node = self.nodes.borrow_mut(node_handle);
-                if node.split {
-                    unvisited.push(node.right);
-                    unvisited.push(node.left);
+            let node = self.nodes.borrow_mut(node_handle);
+            if node.split {
+                unvisited.push(node.right);
+                unvisited.push(node.left);
+                continue;
+            } else {
+                if node.filled || node.bounds.w < w || node.bounds.h < h {
                     continue;
+                }
+
+                if node.bounds.w == w && node.bounds.h == h {
+                    node.filled = true;
+                    return Some(node.bounds);
+                }
+
+                // Split and continue
+                node.split = true;
+                if node.bounds.w - w > node.bounds.h - h {
+                    left_bounds = Rect::new(node.bounds.x, node.bounds.y, w, node.bounds.h);
+                    right_bounds = Rect::new(node.bounds.x + w, node.bounds.y, node.bounds.w - w, node.bounds.h);
                 } else {
-                    if node.filled || node.bounds.w < w || node.bounds.h < h {
-                        continue;
-                    }
-
-                    if node.bounds.w == w && node.bounds.h == h {
-                        node.filled = true;
-                        return Some(node.bounds);
-                    }
-
-                    // Split and continue
-                    node.split = true;
-                    if node.bounds.w - w > node.bounds.h - h {
-                        left_bounds = Rect::new(node.bounds.x, node.bounds.y, w, node.bounds.h);
-                        right_bounds = Rect::new(node.bounds.x + w, node.bounds.y, node.bounds.w - w, node.bounds.h);
-                    } else {
-                        left_bounds = Rect::new(node.bounds.x, node.bounds.y, node.bounds.w, h);
-                        right_bounds = Rect::new(node.bounds.x, node.bounds.y + h, node.bounds.w, node.bounds.h - h);
-                    }
+                    left_bounds = Rect::new(node.bounds.x, node.bounds.y, node.bounds.w, h);
+                    right_bounds = Rect::new(node.bounds.x, node.bounds.y + h, node.bounds.w, node.bounds.h - h);
                 }
             }
 
@@ -187,14 +184,10 @@ impl RectPacker {
 
 impl Bitmap {
     fn new(w: usize, h: usize) -> Bitmap {
-        let mut pixels = Vec::with_capacity(w * h);
-        for _ in 0..(w * h) {
-            pixels.push(0);
-        }
         Bitmap {
             width: w,
             height: h,
-            pixels,
+            pixels: vec![0; w * h],
         }
     }
 
@@ -209,7 +202,7 @@ impl Bitmap {
         self.pixels[y * self.width + x] = pixel;
     }
 
-    fn get_fpixel(&self, x: usize, y: usize) -> f32 {
+    fn get_intensity(&self, x: usize, y: usize) -> f32 {
         if x >= self.width {
             return 0.0;
         }
@@ -326,7 +319,7 @@ fn line_line_intersection(a: &Line2, b: &Line2) -> Option<Point> {
 
 fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32) -> Vec<Line2> {
     let bias = 0.0001;
-    let y_oversample = 5.0;
+    let y_oversample = 4.0;
     let y_step = 1.0 / y_oversample;
 
     let real_width = scale * width;
@@ -347,12 +340,9 @@ fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32)
         scanline.begin.y = y;
         scanline.end.y = y;
 
-        /* Find all intersection points for current y */
+        // Find all intersection points for current y
         for poly in polys {
-            for j in (0..poly.points.len()).step_by(2) {
-                let begin = poly.points.get(j).unwrap();
-                let end = poly.points.get(j + 1).unwrap();
-
+            for (begin, end) in poly.points.chunks_exact(2).map(|p| (p[0], p[1])) {
                 let edge = Line2 {
                     begin: Point {
                         x: begin.x * scale,
@@ -372,21 +362,13 @@ fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32)
             }
         }
 
-        intersections.sort_by(|a, b| {
-            if a.x < b.x {
-                Ordering::Less
-            } else if a.x > b.x {
-                Ordering::Greater
-            } else {
-                Ordering::Equal
-            }
-        });
+        intersections.sort_by(|a, b| a.x.partial_cmp(&b.x).unwrap());
 
         if intersections.len() % 2 != 0 {
             println!("Font: Scanline rasterization failed {:?}", intersections);
         }
 
-        /* Convert intersection points into scanlines */
+        // Convert intersection points into scanlines
         if !intersections.is_empty() {
             for i in (0..(intersections.len() - 1)).step_by(2) {
                 let line = Line2 {
@@ -412,19 +394,19 @@ fn raster_scanlines(w: usize, h: usize, lines: &[Line2]) -> Bitmap {
 
         // Calculate new opacity for pixel at the begin of scanline.
         let bx = scanline.begin.x;
-        let begin_opacity = 0.5 * ((bx.ceil() - bx) + bitmap.get_fpixel(bx as usize, yi));
+        let begin_opacity = 0.5 * ((bx.ceil() - bx) + bitmap.get_intensity(bx as usize, yi));
         bitmap.set_pixel(bx as usize, yi, (255.0 * begin_opacity) as u8);
 
         // Calculate new opacity for pixel at the end of scanline.
         let ex = scanline.end.x;
-        let end_opacity = 0.5 * ((ex - ex.floor()) + bitmap.get_fpixel(ex as usize, yi));
+        let end_opacity = 0.5 * ((ex - ex.floor()) + bitmap.get_intensity(ex as usize, yi));
         bitmap.set_pixel(ex as usize, yi, (255.0 * end_opacity) as u8);
 
-        /* Modulate rest with opaque color. */
+        // Modulate rest with opaque color.
         let begin = bx.ceil() as usize;
-        let end = ex.ceil() as usize;
+        let end = ex.floor() as usize;
         for x in begin..end {
-            let value = 0.5 * (1.0 + bitmap.get_fpixel(x, yi));
+            let value = 0.5 * (1.0 + bitmap.get_intensity(x, yi));
             bitmap.set_pixel(x, yi, (255.0 * value) as u8);
         }
     }
@@ -432,7 +414,7 @@ fn raster_scanlines(w: usize, h: usize, lines: &[Line2]) -> Bitmap {
     let border = 4;
     let mut out_bitmap = Bitmap::new(bitmap.width + border, bitmap.height + border);
 
-    /* add border to glyph to remove seams due to bilinear filtration on GPU */
+    // Add border to glyph to remove seams due to bilinear filtration on GPU
     let half_border = border / 2;
     for row in half_border..out_bitmap.height {
         for col in half_border..out_bitmap.width {
@@ -553,8 +535,8 @@ impl TrueType {
             };
         }
 
-        let height = ((scale * f32::from(glyph.y_max - glyph.y_min)) + 1.0) as usize;
-        let width = ((scale * f32::from(glyph.x_max - glyph.x_min)) + 1.0) as usize;
+        let height = ((scale * f32::from(glyph.y_max - glyph.y_min)).ceil()) as usize;
+        let width = ((scale * f32::from(glyph.x_max - glyph.x_min)).ceil()) as usize;
 
         let lines = polygons_to_scanlines(
             &glyph.contours,
@@ -699,7 +681,7 @@ impl TrueType {
     }
 }
 
-fn eval_quad_bezier(p0: &Point, p1: &Point, p2: &Point, steps: usize) -> Vec<Point> {
+fn eval_quad_bezier(p0: Point, p1: Point, p2: Point, steps: usize) -> Vec<Point> {
     let step = 1.0 / steps as f32;
 
     let mut result = Vec::new();
@@ -736,132 +718,124 @@ impl TtfGlyph {
     }
 
     fn convert_curves_to_line_set(&mut self) {
-        unsafe {
-            for _ in 0..self.num_contours {
-                self.contours.push(Polygon { points: Vec::new() });
-            }
+        for raw_contour in self.raw_contours.iter() {
+            let mut contour = Polygon { points: Vec::new() };
 
-            for i in 0..(self.num_contours as usize) {
-                let contour = self.contours.get_unchecked_mut(i);
-                let raw_contour = self.raw_contours.get_unchecked(i);
+            let mut j = 0;
+            while j < raw_contour.points.len() {
+                let p0 = raw_contour.points[j];
+                let p1 = raw_contour.points[(j + 1) % raw_contour.points.len()];
+                let p2 = raw_contour.points[(j + 2) % raw_contour.points.len()];
 
-                /* Extract vertices */
-                let mut j = 0;
-                while j < raw_contour.points.len() {
-                    let p0 = raw_contour.points.get_unchecked(j);
-                    let p1 = raw_contour.points.get_unchecked((j + 1) % raw_contour.points.len());
-                    let p2 = raw_contour.points.get_unchecked((j + 2) % raw_contour.points.len());
+                let p0_on = (p0.flags & ON_CURVE_POINT) != 0;
+                let p1_on = (p1.flags & ON_CURVE_POINT) != 0;
+                let p2_on = (p2.flags & ON_CURVE_POINT) != 0;
 
-                    let p0_on = (p0.flags & ON_CURVE_POINT) != 0;
-                    let p1_on = (p1.flags & ON_CURVE_POINT) != 0;
-                    let p2_on = (p2.flags & ON_CURVE_POINT) != 0;
-
-                    if p0_on && !p1_on && p2_on {
-                        let points = eval_quad_bezier(p0, p1, p2, 6);
-                        for k in 0..(points.len() - 1) {
-                            contour.points.push(*points.get_unchecked(k));
-                            contour.points.push(*points.get_unchecked(k + 1));
-                        }
-                        j += 2;
-                    } else if p0_on && p1_on {
-                        contour.points.push(*p0);
-                        contour.points.push(*p1);
-                        j += 1
-                    } else {
-                        j += 2;
-                        println!("Invalid point sequence! Probably a bug in de_ttf_prepare_contours");
+                if p0_on && !p1_on && p2_on {
+                    let points = eval_quad_bezier(p0, p1, p2, 6);
+                    for k in 0..(points.len() - 1) {
+                        contour.points.push(points[k]);
+                        contour.points.push(points[k + 1]);
                     }
+                    j += 2;
+                } else if p0_on && p1_on {
+                    contour.points.push(p0);
+                    contour.points.push(p1);
+                    j += 1
+                } else {
+                    j += 2;
+                    println!("Invalid point sequence!");
                 }
             }
+
+            self.contours.push(contour);
         }
     }
 
     fn prepare_contours(&mut self, points: Vec<Point>) {
-        unsafe {
-            let glyph_height = self.y_max - self.y_min;
+        let glyph_height = self.y_max - self.y_min;
 
-            /* Extract contours */
-            for _ in 0..self.num_contours {
-                self.raw_contours.push(Polygon { points: Vec::new() });
+        /* Extract contours */
+        for _ in 0..self.num_contours {
+            self.raw_contours.push(Polygon { points: Vec::new() });
+        }
+
+        let mut prev_end_pt = 0;
+        for j in 0..self.num_contours {
+            let end_pt = self.end_points[j as usize];
+            let contour = &mut self.raw_contours[j as usize];
+
+            /* Extract vertices */
+            let mut k = prev_end_pt;
+            while k <= end_pt {
+                let pt = points[k as usize];
+
+                let off_pt = Point {
+                    x: pt.x - f32::from(self.x_min),
+                    y: pt.y - f32::from(self.y_min),
+                    flags: pt.flags,
+                };
+
+                contour.points.push(off_pt);
+
+                k += 1;
             }
 
-            let mut prev_end_pt = 0;
-            for j in 0..self.num_contours {
-                let end_pt = self.end_points[j as usize];
-                let contour = self.raw_contours.get_unchecked_mut(j as usize);
+            prev_end_pt = end_pt + 1;
+        }
 
-                /* Extract vertices */
-                let mut k = prev_end_pt;
-                while k <= end_pt {
-                    let pt = points.get_unchecked(k as usize);
+        /* Unpack contours */
+        for j in 0..self.num_contours {
+            let raw_contour = &mut self.raw_contours[j as usize];
+            let mut unpacked_contour = Polygon { points: Vec::new() };
 
-                    let off_pt = Point {
-                        x: pt.x - f32::from(self.x_min),
-                        y: pt.y - f32::from(self.y_min),
-                        flags: pt.flags,
+            let start_off = (raw_contour.points[0].flags & ON_CURVE_POINT) == 0;
+
+            let to =
+                if start_off {
+                    /* when first point is off-curve we should add middle point between first and last points */
+                    let first = raw_contour.points.first().unwrap();
+                    let last = raw_contour.points.last().unwrap();
+
+                    let middle = Point {
+                        flags: ON_CURVE_POINT,
+                        x: (first.x + last.x) / 2.0,
+                        y: f32::from(glyph_height) - (first.y + last.y) / 2.0,
                     };
 
-                    contour.points.push(off_pt);
+                    unpacked_contour.points.push(middle);
 
-                    k += 1;
+                    /* also make sure to iterate not to the end - we already added point */
+                    raw_contour.points.len() - 1
+                } else {
+                    raw_contour.points.len()
+                };
+
+            for k in 0..to {
+                let p0 = raw_contour.points[k as usize];
+                let p1 = raw_contour.points[(k + 1) % raw_contour.points.len()];
+
+                let p0_off_curve = (p0.flags & ON_CURVE_POINT) == 0;
+                let p1_off_curve = (p1.flags & ON_CURVE_POINT) == 0;
+
+                let flipped = Point {
+                    flags: p0.flags,
+                    x: p0.x,
+                    y: f32::from(glyph_height) - p0.y,
+                };
+                unpacked_contour.points.push(flipped);
+
+                if p0_off_curve && p1_off_curve {
+                    let middle = Point {
+                        flags: ON_CURVE_POINT,
+                        x: (p0.x + p1.x) / 2.0,
+                        y: f32::from(glyph_height) - (p0.y + p1.y) / 2.0,
+                    };
+                    unpacked_contour.points.push(middle);
                 }
-
-                prev_end_pt = end_pt + 1;
             }
 
-            /* Unpack contours */
-            for j in 0..self.num_contours {
-                let raw_contour = self.raw_contours.get_unchecked_mut(j as usize);
-                let mut unpacked_contour = Polygon { points: Vec::new() };
-
-                let start_off = (raw_contour.points[0].flags & ON_CURVE_POINT) == 0;
-
-                let to =
-                    if start_off {
-                        /* when first point is off-curve we should add middle point between first and last points */
-                        let first = raw_contour.points.first().unwrap();
-                        let last = raw_contour.points.last().unwrap();
-
-                        let middle = Point {
-                            flags: ON_CURVE_POINT,
-                            x: (first.x + last.x) / 2.0,
-                            y: f32::from(glyph_height) - (first.y + last.y) / 2.0,
-                        };
-
-                        unpacked_contour.points.push(middle);
-
-                        /* also make sure to iterate not to the end - we already added point */
-                        raw_contour.points.len() - 1
-                    } else {
-                        raw_contour.points.len()
-                    };
-
-                for k in 0..to {
-                    let p0 = raw_contour.points.get_unchecked(k as usize);
-                    let p1 = raw_contour.points.get_unchecked((k + 1) % raw_contour.points.len());
-
-                    let p0_off_curve = (p0.flags & ON_CURVE_POINT) == 0;
-                    let p1_off_curve = (p1.flags & ON_CURVE_POINT) == 0;
-
-                    let flipped = Point {
-                        flags: p0.flags,
-                        x: p0.x,
-                        y: f32::from(glyph_height) - p0.y,
-                    };
-                    unpacked_contour.points.push(flipped);
-
-                    if p0_off_curve && p1_off_curve {
-                        let middle = Point {
-                            flags: ON_CURVE_POINT,
-                            x: (p0.x + p1.x) / 2.0,
-                            y: f32::from(glyph_height) - (p0.y + p1.y) / 2.0,
-                        };
-                        unpacked_contour.points.push(middle);
-                    }
-                }
-
-                *raw_contour = unpacked_contour;
-            }
+            *raw_contour = unpacked_contour;
         }
     }
 }
@@ -884,7 +858,7 @@ impl Font {
             char_map: HashMap::new(),
             atlas: Vec::new(),
             atlas_size: 0,
-            texture: None
+            texture: None,
         };
 
         for ttf_glyph in ttf.glyphs.iter() {
@@ -903,7 +877,7 @@ impl Font {
         Ok(font)
     }
 
-    pub fn from_file(path: &Path, height: f32, char_set: &[Range<u32>]) -> Result<Self, ()> {
+    pub fn from_file<P: AsRef<Path>>(path: P, height: f32, char_set: &[Range<u32>]) -> Result<Self, ()> {
         if let Ok(ref mut file) = File::open(path) {
             let mut file_content: Vec<u8> = Vec::with_capacity(file.metadata().unwrap().len() as usize);
             file.read_to_end(&mut file_content).unwrap();

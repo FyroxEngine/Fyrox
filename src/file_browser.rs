@@ -25,13 +25,16 @@ use crate::{
     scroll_viewer::ScrollViewerBuilder,
     Thickness,
 };
+use std::cell::RefCell;
+
+pub type Filter = dyn FnMut(&Path) -> bool;
 
 pub struct FileBrowser<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     tree_root: Handle<UINode<M, C>>,
     path: PathBuf,
     path_text: Handle<UINode<M, C>>,
-    extensions: Vec<String>
+    filter: Option<Rc<RefCell<Filter>>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for FileBrowser<M, C> {
@@ -55,7 +58,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for FileBrowser<M, C> {
             tree_root: self.tree_root,
             path: self.path.clone(),
             path_text: self.path_text,
-            extensions: self.extensions.clone()
+            filter: self.filter.clone(),
         }
     }
 }
@@ -110,11 +113,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     if expand {
                         // Look into internals of directory and build tree items.
                         if let UINode::Tree(tree) = ui.node(message.destination) {
-                            let path = tree.user_data_ref::<PathBuf>().clone();
-                            if let Ok(dir_iter) = std::fs::read_dir(&path) {
+                            let parent_path = tree.user_data_ref::<PathBuf>().clone();
+                            if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
                                 for p in dir_iter {
                                     if let Ok(entry) = p {
-                                        build_tree(message.destination, false, &entry.path(), &path,  ui);
+                                        let path = entry.path();
+                                        let build = if let Some(filter) = self.filter.as_ref() {
+                                            filter.deref().borrow_mut().deref_mut()(&path)
+                                        } else {
+                                            true
+                                        };
+                                        if build {
+                                            build_tree(message.destination, false, &path, &parent_path, ui);
+                                        }
                                     }
                                 }
                             }
@@ -225,6 +236,7 @@ fn build_tree<M: 'static, C: 'static + Control<M, C>>(parent: Handle<UINode<M, C
 pub struct FileBrowserBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     path: PathBuf,
+    filter: Option<Rc<RefCell<Filter>>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
@@ -232,7 +244,13 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
         Self {
             widget_builder,
             path: Default::default(),
+            filter: None,
         }
+    }
+
+    pub fn with_filter(mut self, filter: Rc<RefCell<Filter>>) -> Self {
+        self.filter = Some(filter);
+        self
     }
 
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
@@ -277,7 +295,7 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
             tree_root,
             path: self.path,
             path_text,
-            extensions: Default::default()
+            filter: self.filter,
         };
 
         let handle = ui.add_node(UINode::FileBrowser(browser));
