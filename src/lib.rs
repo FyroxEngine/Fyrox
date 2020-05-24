@@ -41,6 +41,7 @@ pub mod file_browser;
 pub mod dock;
 pub mod vec;
 pub mod numeric;
+pub mod menu;
 
 use crate::{
     core::{
@@ -113,6 +114,12 @@ pub struct Thickness {
     pub top: f32,
     pub right: f32,
     pub bottom: f32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Orientation {
+    Vertical,
+    Horizontal,
 }
 
 impl Thickness {
@@ -414,7 +421,7 @@ pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
     receiver: Receiver<UiMessage<M, C>>,
     sender: Sender<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
-    root_picking_node: Handle<UINode<M, C>>,
+    picking_stack: Vec<Handle<UINode<M, C>>>,
     drag_context: DragContext<M, C>,
     mouse_state: MouseState,
 }
@@ -487,7 +494,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             prev_picked_node: Handle::NONE,
             keyboard_focus_node: Handle::NONE,
             stack: Default::default(),
-            root_picking_node: Default::default(),
+            picking_stack: Default::default(),
             drag_context: Default::default(),
             mouse_state: Default::default(),
         };
@@ -709,14 +716,26 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         if self.nodes.is_valid_handle(self.captured_node) {
             self.captured_node
         } else {
-            let mut level = 0;
-            let root =
-                if self.nodes.is_valid_handle(self.root_picking_node) {
-                    self.root_picking_node
-                } else {
-                    self.root_canvas
-                };
-            self.pick_node(root, pt, &mut level)
+            if self.picking_stack.is_empty() {
+                // We're not restricted to any node, just start from root.
+                let mut level = 0;
+                self.pick_node(self.root_canvas, pt, &mut level)
+            } else {
+                // We have some picking restriction chain.
+                // Go over picking stack and try each entry. This will help with picking
+                // in a series of popups, especially in menus where may be many open popups
+                // at the same time.
+                for &root in self.picking_stack.iter().rev() {
+                    if self.nodes.is_valid_handle(root) {
+                        let mut level = 0;
+                        let picked = self.pick_node(root, pt, &mut level);
+                        if picked.is_some() {
+                            return picked;
+                        }
+                    }
+                }
+                Handle::NONE
+            }
         }
     }
 
@@ -1237,16 +1256,23 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         node_handle
     }
 
-    pub fn restrict_picking_to(&mut self, node: Handle<UINode<M, C>>) {
-        self.root_picking_node = node;
+    pub fn push_picking_restriction(&mut self, node: Handle<UINode<M, C>>) {
+        assert_ne!(self.top_picking_restriction(), node);
+        self.picking_stack.push(node);
     }
 
-    pub fn clear_picking_restriction(&mut self) {
-        self.root_picking_node = Handle::NONE;
+    pub fn pop_picking_restriction(&mut self) {
+        assert!(!self.picking_stack.is_empty());
+        self.picking_stack.pop();
     }
 
-    pub fn picking_restricted_node(&self) -> Handle<UINode<M, C>> {
-        self.root_picking_node
+    /// Removes all picking restrictions.
+    pub fn drop_picking_restrictions(&mut self) {
+        self.picking_stack.clear();
+    }
+
+    pub fn top_picking_restriction(&self) -> Handle<UINode<M, C>> {
+        *self.picking_stack.last().unwrap_or(&Handle::NONE)
     }
 
     pub fn remove_node(&mut self, node: Handle<UINode<M, C>>) {
@@ -1269,8 +1295,8 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             if self.keyboard_focus_node == handle {
                 self.keyboard_focus_node = Handle::NONE;
             }
-            if self.root_picking_node == handle {
-                self.root_picking_node = Handle::NONE;
+            if self.top_picking_restriction() == handle {
+                self.pop_picking_restriction();
             }
 
             for child in self.nodes().borrow(handle).children().iter() {

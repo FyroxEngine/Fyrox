@@ -27,6 +27,7 @@ Retained mode, general purpose, graphics API agnostic user interface library.
 - [x] Docking manager
 - [x] NumericUpDown
 - [x] Vec3 editor
+- [x] Menu
 
 ## Documentation
 

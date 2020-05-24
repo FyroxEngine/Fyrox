@@ -702,7 +702,7 @@ impl<M, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
     pub fn new() -> Self {
         Self {
             name: Default::default(),
@@ -806,8 +806,8 @@ impl<M, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_children(mut self, children: &[Handle<UINode<M, C>>]) -> Self {
-        for &child in children {
+    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<UINode<M, C>>>>(mut self, children: I) -> Self {
+        for &child in children.into_iter() {
             if child.is_some() {
                 self.children.push(child)
             }

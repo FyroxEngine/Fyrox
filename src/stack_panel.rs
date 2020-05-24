@@ -5,7 +5,6 @@ use crate::{
         WidgetBuilder,
     },
     UINode,
-    scroll_bar::Orientation,
     Control,
     core::{
         math::{
@@ -14,7 +13,8 @@ use crate::{
         },
         pool::Handle,
     },
-    message::UiMessage
+    message::UiMessage,
+    Orientation
 };
 use std::ops::{Deref, DerefMut};
 

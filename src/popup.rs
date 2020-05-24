@@ -84,7 +84,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                         self.is_open = true;
                         self.set_visibility(true);
                         if !self.stays_open {
-                            ui.restrict_picking_to(self.handle);
+                            if ui.top_picking_restriction() != self.handle {
+                                ui.push_picking_restriction(self.handle);
+                            }
                         }
                         self.send_message(UiMessage {
                             data: UiMessageData::Widget(WidgetMessage::TopMost),
@@ -134,7 +136,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                         self.is_open = false;
                         self.set_visibility(false);
                         if !self.stays_open {
-                            ui.clear_picking_restriction();
+                            ui.pop_picking_restriction();
                         }
                         if ui.captured_node() == self.handle {
                             ui.release_mouse_capture();
@@ -147,7 +149,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
                         self.content = *content;
                         ui.link_nodes(self.content, self.body);
                     }
-                    _ => {}
+                    &PopupMessage::Placement(placement) => {
+                        self.placement = placement;
+                        self.invalidate_layout();
+                    }
                 }
             }
             _ => {}
@@ -156,7 +161,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
 
     fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
         if let OsEvent::MouseInput { state, .. } = event {
-            if *state == ButtonState::Pressed && ui.picking_restricted_node() == self_handle && self.is_open {
+            if *state == ButtonState::Pressed && ui.top_picking_restriction() == self_handle && self.is_open {
                 let pos = ui.cursor_position();
                 if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
                     self.close();

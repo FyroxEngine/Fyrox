@@ -340,7 +340,7 @@ impl<M, C: 'static + Control<M, C>> TreeBuilder<M, C> {
                     .on_row(1)
                     .on_column(0)
                     .with_margin(Thickness::left(15.0))
-                    .with_children(&self.items))
+                    .with_children(self.items.iter()))
                     .build(ui);
                 panel
             }))
@@ -556,7 +556,7 @@ impl<M, C: 'static + Control<M, C>> TreeRootBuilder<M, C> {
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let panel = StackPanelBuilder::new(WidgetBuilder::new()
-            .with_children(&self.items))
+            .with_children(self.items.iter()))
             .build(ui);
 
         let tree = TreeRoot {

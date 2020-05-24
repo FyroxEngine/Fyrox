@@ -1,29 +1,16 @@
 use std::ops::{Deref, DerefMut};
-use crate::{
-    message::{
-        UiMessage,
-        UiMessageData,
-        TextBoxMessage,
-        WidgetMessage,
-        NumericUpDownMessage,
-        KeyCode,
-    },
-    node::UINode,
-    Control,
-    UserInterface,
-    widget::{Widget, WidgetBuilder},
-    core::pool::Handle,
-    NodeHandleMapping,
-    grid::{
-        GridBuilder,
-        Row,
-        Column,
-    },
-    text_box::TextBoxBuilder,
-    button::ButtonBuilder,
-    VerticalAlignment,
-    HorizontalAlignment,
-};
+use crate::{message::{
+    UiMessage,
+    UiMessageData,
+    TextBoxMessage,
+    WidgetMessage,
+    NumericUpDownMessage,
+    KeyCode,
+}, node::UINode, Control, UserInterface, widget::{Widget, WidgetBuilder}, core::pool::Handle, NodeHandleMapping, grid::{
+    GridBuilder,
+    Row,
+    Column,
+}, text_box::TextBoxBuilder, button::ButtonBuilder, VerticalAlignment, HorizontalAlignment, Thickness};
 use crate::message::ButtonMessage;
 
 pub struct NumericUpDown<M: 'static, C: 'static + Control<M, C>> {
@@ -219,6 +206,7 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
                 .on_column(1)
                 .with_child({
                     increase = ButtonBuilder::new(WidgetBuilder::new()
+                        .with_margin(Thickness::right(1.0))
                         .on_row(0))
                         .with_text("^")
                         .build(ui);
@@ -226,6 +214,7 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
                 })
                 .with_child({
                     decrease = ButtonBuilder::new(WidgetBuilder::new()
+                        .with_margin(Thickness::right(1.0))
                         .on_row(1))
                         .with_text("v")
                         .build(ui);

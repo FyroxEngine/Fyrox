@@ -1,34 +1,22 @@
-use crate::{
-    UserInterface,
-    scroll_content_presenter::ScrollContentPresenterBuilder,
-    scroll_bar::{
-        ScrollBarBuilder,
-        Orientation,
-    },
-    grid::{
-        Row,
-        GridBuilder,
-        Column,
-    },
-    message::{
-        UiMessageData,
-        UiMessage,
-        ScrollBarMessage,
-        WidgetMessage,
-        ScrollViewerMessage,
-    },
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
-    UINode,
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-    },
-    NodeHandleMapping,
-};
+use crate::{UserInterface, scroll_content_presenter::ScrollContentPresenterBuilder, scroll_bar::{
+    ScrollBarBuilder,
+}, grid::{
+    Row,
+    GridBuilder,
+    Column,
+}, message::{
+    UiMessageData,
+    UiMessage,
+    ScrollBarMessage,
+    WidgetMessage,
+    ScrollViewerMessage,
+}, widget::{
+    Widget,
+    WidgetBuilder,
+}, Control, UINode, core::{
+    pool::Handle,
+    math::vec2::Vec2,
+}, NodeHandleMapping, Orientation};
 use std::ops::{Deref, DerefMut};
 
 pub struct ScrollViewer<M: 'static, C: 'static + Control<M, C>> {

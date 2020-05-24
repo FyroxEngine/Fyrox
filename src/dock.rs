@@ -341,7 +341,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
         match &message.data {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::Unlink = msg {
-                    //if
                     if let TileContent::Empty | TileContent::Window(_) = self.content {
                         // Show anchors.
                         for &anchor in &self.anchors() {

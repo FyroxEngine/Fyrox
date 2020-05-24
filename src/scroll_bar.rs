@@ -36,6 +36,7 @@ use crate::{
         WidgetMessage,
     },
     NodeHandleMapping,
+    Orientation
 };
 use std::ops::{Deref, DerefMut};
 
@@ -343,11 +344,7 @@ pub struct ScrollBarBuilder<M: 'static, C: 'static + Control<M, C>> {
     value_precision: usize,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum Orientation {
-    Vertical,
-    Horizontal,
-}
+
 
 impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
