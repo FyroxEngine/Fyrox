@@ -1,6 +1,6 @@
 # rusty editor
 
-Scene editor for rg3d engine. **It is not ready for use yet.**
+Scene editor for [rg3d engine](https://github.com/mrDIMAS/rg3d). **It is not ready for use yet.**
 
 ## Motivation
 
