@@ -48,7 +48,7 @@ use rg3d::{
     gui::{
         stack_panel::StackPanelBuilder,
         grid::{GridBuilder, Column, Row},
-        scroll_bar::{ScrollBarBuilder, Orientation},
+        scroll_bar::{ScrollBarBuilder},
         Thickness,
         VerticalAlignment,
         HorizontalAlignment,
@@ -58,15 +58,16 @@ use rg3d::{
             UiMessageData,
             ScrollBarMessage,
             ButtonMessage,
-            ItemsControlMessage,
+            ListViewMessage,
         },
         widget::WidgetBuilder,
         text::TextBuilder,
         node::StubNode,
-        combobox::ComboBoxBuilder,
+        dropdown_list::DropdownListBuilder,
         decorator::DecoratorBuilder,
         border::BorderBuilder,
-    },
+        Orientation
+    }
 };
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -219,7 +220,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                 .with_text("Resolution")
                 .build(ui))
             .with_child({
-                resolutions = ComboBoxBuilder::new(WidgetBuilder::new()
+                resolutions = DropdownListBuilder::new(WidgetBuilder::new()
                     .on_row(0)
                     .on_column(1))
                     // Set combo box items - each item will represent video mode value.
@@ -410,9 +411,9 @@ fn main() {
                             if let &ScrollBarMessage::Value(value) = sb {
                                 // Each message has source - a handle of UI element that created this message.
                                 // It is used to understand from which UI element message has come.
-                                if ui_message.source() == interface.scale {
+                                if ui_message.destination == interface.scale {
                                     model_scale = value;
-                                } else if ui_message.source() == interface.yaw {
+                                } else if ui_message.destination == interface.yaw {
                                     model_angle = value;
                                 }
                             }
@@ -423,7 +424,7 @@ fn main() {
                                 // of model. To do that we borrow each UI element in engine and set its value directly.
                                 // This is not ideal because there is tight coupling between UI code and model values,
                                 // but still good enough for example.
-                                if ui_message.source() == interface.reset {
+                                if ui_message.destination == interface.reset {
                                     if let UiNode::ScrollBar(scale_sb) = engine.user_interface.node_mut(interface.scale) {
                                         scale_sb.set_value(DEFAULT_MODEL_SCALE);
                                     }
@@ -433,11 +434,11 @@ fn main() {
                                 }
                             }
                         }
-                        UiMessageData::ItemsControl(ic) => {
-                            if let ItemsControlMessage::SelectionChanged(idx) = ic {
+                        UiMessageData::ListView(ic) => {
+                            if let ListViewMessage::SelectionChanged(idx) = ic {
                                 // Video mode has changed and we must change video mode to what user wants.
                                 if let &Some(idx) = idx {
-                                    if ui_message.source() == interface.resolutions {
+                                    if ui_message.destination == interface.resolutions {
                                         let video_mode = interface.video_modes.get(idx).unwrap();
                                         engine.get_window().set_fullscreen(Some(Fullscreen::Exclusive(video_mode.clone())));
 
