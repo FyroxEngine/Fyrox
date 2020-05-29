@@ -101,6 +101,7 @@ pub enum CheckBoxMessage {
 #[derive(Debug)]
 pub enum WindowMessage {
     Open,
+    OpenModal,
     Close,
     Minimize(bool),
     CanMinimize(bool),
@@ -169,6 +170,18 @@ pub enum Vec3EditorMessage {
 }
 
 #[derive(Debug)]
+pub enum MenuMessage {
+    Activate,
+    Deactivate
+}
+
+#[derive(Debug)]
+pub enum MenuItemMessage {
+    Open,
+    Close
+}
+
+#[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
@@ -184,6 +197,8 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     TextBox(TextBoxMessage),
     NumericUpDown(NumericUpDownMessage),
     Vec3Editor(Vec3EditorMessage),
+    Menu(MenuMessage),
+    MenuItem(MenuItemMessage),
     User(M),
 }
 

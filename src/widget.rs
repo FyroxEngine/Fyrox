@@ -134,6 +134,16 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
+    pub fn min_width(&self) -> f32 {
+        self.min_size.x
+    }
+
+    #[inline]
+    pub fn min_height(&self) -> f32 {
+        self.min_size.y
+    }
+
+    #[inline]
     pub fn invalidate_layout(&self) {
         self.measure_valid.set(false);
         self.arrange_valid.set(false);
@@ -152,6 +162,16 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn max_size(&self) -> Vec2 {
         self.max_size
+    }
+
+    #[inline]
+    pub fn max_width(&self) -> f32 {
+        self.max_size.x
+    }
+
+    #[inline]
+    pub fn max_height(&self) -> f32 {
+        self.max_size.y
     }
 
     #[inline]
@@ -195,20 +215,16 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_width_mut(&mut self, width: f32) -> &mut Self {
-        if self.width.get() != width {
-            self.width.set(width);
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Width(width));
-        }
+        self.set_width(width);
         self
     }
 
     #[inline]
     pub fn set_width(&self, width: f32) {
         if self.width.get() != width {
-            self.width.set(width);
+            self.width.set(width.max(self.min_size.x).min(self.max_size.x));
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Width(width));
+            self.post_property_changed_message(WidgetProperty::Width(self.width.get()));
         }
     }
 
@@ -219,20 +235,16 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_height_mut(&mut self, height: f32) -> &mut Self {
-        if self.height.get() != height {
-            self.height.set(height);
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Height(height));
-        }
+        self.set_height(height);
         self
     }
 
     #[inline]
     pub fn set_height(&self, height: f32) {
         if self.height.get() != height {
-            self.height.set(height);
+            self.height.set(height.max(self.min_size.y).min(self.max_size.y));
             self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Height(height));
+            self.post_property_changed_message(WidgetProperty::Height(self.height.get()));
         }
     }
 

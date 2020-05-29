@@ -223,6 +223,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
             };
 
             ui.node(child_handle).arrange(ui, &bounds);
+
+            // Main difference between tile arrangement and other arrangement methods in
+            // library is that tile has to explicitly set width of child windows, otherwise
+            // layout will be weird - window will most likely will stay at its previous size.
+            if let UINode::Window(window) = ui.node(child_handle) {
+                window.set_width(bounds.w);
+                window.set_height(bounds.h);
+            }
         }
 
         final_size

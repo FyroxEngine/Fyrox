@@ -81,65 +81,64 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
             UiMessageData::Popup(msg) if message.destination == self.handle => {
                 match msg {
                     PopupMessage::Open => {
-                        self.is_open = true;
-                        self.set_visibility(true);
-                        if !self.stays_open {
-                            if ui.top_picking_restriction() != self.handle {
-                                ui.push_picking_restriction(self.handle);
-                            }
-                        }
-                        self.send_message(UiMessage {
-                            data: UiMessageData::Widget(WidgetMessage::TopMost),
-                            destination: self.handle,
-                            handled: false
-                        });
-                        match self.placement {
-                            Placement::LeftTop => {
-                                self.set_desired_local_position(Vec2::ZERO);
-                            }
-                            Placement::RightTop => {
-                                let width = self.widget.actual_size().x;
-                                let screen_width = ui.screen_size().x;
-                                self.set_desired_local_position(
-                                    Vec2::new(screen_width - width, 0.0));
-                            }
-                            Placement::Center => {
-                                let size = self.widget.actual_size();
-                                let screen_size = ui.screen_size;
-                                self.set_desired_local_position(
-                                    (screen_size - size).scale(0.5));
-                            }
-                            Placement::LeftBottom => {
-                                let height = self.widget.actual_size().y;
-                                let screen_height = ui.screen_size().y;
-                                self.set_desired_local_position(
-                                    Vec2::new(0.0, screen_height - height));
-                            }
-                            Placement::RightBottom => {
-                                let size = self.widget.actual_size();
-                                let screen_size = ui.screen_size;
-                                self.set_desired_local_position(
-                                    screen_size - size);
-                            }
-                            Placement::Cursor => {
-                                self.set_desired_local_position(
-                                    ui.cursor_position())
-                            }
-                            Placement::Position(position) => {
-                                self
-                                    .set_desired_local_position(
-                                        position)
+                        if !self.is_open {
+                            self.is_open = true;
+                            self.set_visibility(true);
+                            ui.push_picking_restriction(self.handle);
+
+                            self.send_message(UiMessage {
+                                data: UiMessageData::Widget(WidgetMessage::TopMost),
+                                destination: self.handle,
+                                handled: false,
+                            });
+                            match self.placement {
+                                Placement::LeftTop => {
+                                    self.set_desired_local_position(Vec2::ZERO);
+                                }
+                                Placement::RightTop => {
+                                    let width = self.widget.actual_size().x;
+                                    let screen_width = ui.screen_size().x;
+                                    self.set_desired_local_position(
+                                        Vec2::new(screen_width - width, 0.0));
+                                }
+                                Placement::Center => {
+                                    let size = self.widget.actual_size();
+                                    let screen_size = ui.screen_size;
+                                    self.set_desired_local_position(
+                                        (screen_size - size).scale(0.5));
+                                }
+                                Placement::LeftBottom => {
+                                    let height = self.widget.actual_size().y;
+                                    let screen_height = ui.screen_size().y;
+                                    self.set_desired_local_position(
+                                        Vec2::new(0.0, screen_height - height));
+                                }
+                                Placement::RightBottom => {
+                                    let size = self.widget.actual_size();
+                                    let screen_size = ui.screen_size;
+                                    self.set_desired_local_position(
+                                        screen_size - size);
+                                }
+                                Placement::Cursor => {
+                                    self.set_desired_local_position(
+                                        ui.cursor_position())
+                                }
+                                Placement::Position(position) => {
+                                    self
+                                        .set_desired_local_position(
+                                            position)
+                                }
                             }
                         }
                     }
                     PopupMessage::Close => {
-                        self.is_open = false;
-                        self.set_visibility(false);
-                        if !self.stays_open {
-                            ui.pop_picking_restriction();
-                        }
-                        if ui.captured_node() == self.handle {
-                            ui.release_mouse_capture();
+                        if self.is_open {
+                            self.is_open = false;
+                            self.set_visibility(false);
+                            ui.remove_picking_restriction(self.handle);
+                            if ui.captured_node() == self.handle {
+                                ui.release_mouse_capture();
+                            }
                         }
                     }
                     PopupMessage::Content(content) => {
@@ -178,7 +177,7 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
             self.send_message(UiMessage {
                 data: UiMessageData::Popup(PopupMessage::Open),
                 destination: self.handle,
-                handled: false
+                handled: false,
             });
         }
     }
@@ -189,7 +188,7 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
             self.send_message(UiMessage {
                 data: UiMessageData::Popup(PopupMessage::Close),
                 destination: self.handle,
-                handled: false
+                handled: false,
             });
         }
     }
@@ -201,7 +200,7 @@ impl<M, C: 'static + Control<M, C>> Popup<M, C> {
             self.send_message(UiMessage {
                 data: UiMessageData::Popup(PopupMessage::Placement(placement)),
                 destination: self.handle,
-                handled: false
+                handled: false,
             });
         }
     }

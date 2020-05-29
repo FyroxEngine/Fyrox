@@ -109,9 +109,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
                                 handled: false
                             });
                             ui.release_mouse_capture();
+                            message.handled = true;
                         }
                         WidgetMessage::MouseDown { .. } => {
                             ui.capture_mouse(message.destination);
+                            message.handled = true;
                         }
                         _ => ()
                     }

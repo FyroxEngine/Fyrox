@@ -1261,9 +1261,14 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         self.picking_stack.push(node);
     }
 
-    pub fn pop_picking_restriction(&mut self) {
-        assert!(!self.picking_stack.is_empty());
-        self.picking_stack.pop();
+    pub fn remove_picking_restriction(&mut self, node: Handle<UINode<M, C>>) {
+        if let Some(pos) = self.picking_stack.iter().position(|&h| h == node) {
+            self.picking_stack.remove(pos);
+        }
+    }
+
+    pub fn picking_restriction_stack(&self) -> &[Handle<UINode<M, C>>] {
+        &self.stack
     }
 
     /// Removes all picking restrictions.
@@ -1295,9 +1300,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
             if self.keyboard_focus_node == handle {
                 self.keyboard_focus_node = Handle::NONE;
             }
-            if self.top_picking_restriction() == handle {
-                self.pop_picking_restriction();
-            }
+            self.remove_picking_restriction(handle);
 
             for child in self.nodes().borrow(handle).children().iter() {
                 stack.push(*child);
