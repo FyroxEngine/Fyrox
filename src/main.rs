@@ -456,6 +456,7 @@ pub enum Message {
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     SetInteractionMode(InteractionModeKind),
+    Exit,
 }
 
 pub struct EditorScene {
@@ -478,6 +479,7 @@ struct Editor {
     file_selector: FileSelector,
     preview: ScenePreview,
     menu: Menu,
+    exit: bool,
 }
 
 fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
@@ -756,6 +758,30 @@ impl Menu {
                         self.message_sender
                             .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
+                    } else if message.destination == self.create_cone {
+                        let mut mesh = Mesh::default();
+                        mesh.set_name("Cone");
+                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cone(16, 1.0, 1.0, Default::default())))));
+                        let node = Node::Mesh(mesh);
+                        self.message_sender
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .unwrap();
+                    } else if message.destination == self.create_cylinder {
+                        let mut mesh = Mesh::default();
+                        mesh.set_name("Cylinder");
+                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cylinder(16, 1.0, 1.0, true, Default::default())))));
+                        let node = Node::Mesh(mesh);
+                        self.message_sender
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .unwrap();
+                    } else if message.destination == self.create_sphere {
+                        let mut mesh = Mesh::default();
+                        mesh.set_name("Sphere");
+                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_sphere(16, 16, 1.0)))));
+                        let node = Node::Mesh(mesh);
+                        self.message_sender
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .unwrap();
                     } else if message.destination == self.save {
                         self.message_sender
                             .send(Message::SaveScene("test_scene.rgs".into()))
@@ -763,6 +789,18 @@ impl Menu {
                     } else if message.destination == self.load {
                         self.message_sender
                             .send(Message::LoadScene("test_scene.rgs".into()))
+                            .unwrap();
+                    } else if message.destination == self.undo {
+                        self.message_sender
+                            .send(Message::Undo)
+                            .unwrap();
+                    } else if message.destination == self.redo {
+                        self.message_sender
+                            .send(Message::Redo)
+                            .unwrap();
+                    } else if message.destination == self.exit {
+                        self.message_sender
+                            .send(Message::Exit)
                             .unwrap();
                     }
                 }
@@ -850,6 +888,7 @@ impl Editor {
             root_grid,
             file_selector,
             menu,
+            exit: false
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1055,6 +1094,9 @@ impl Editor {
                 Message::SetInteractionMode(mode_kind) => {
                     self.set_interaction_mode(Some(mode_kind), engine);
                 }
+                Message::Exit => {
+                    self.exit = true;
+                }
             }
         }
 
@@ -1130,6 +1172,10 @@ fn main() {
                 }
 
                 engine.get_window().request_redraw();
+
+                if editor.exit {
+                    *control_flow = ControlFlow::Exit;
+                }
             }
             Event::RedrawRequested(_) => {
                 engine.render(fixed_timestep).unwrap();
