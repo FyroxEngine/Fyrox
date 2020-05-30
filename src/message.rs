@@ -178,7 +178,8 @@ pub enum MenuMessage {
 #[derive(Debug)]
 pub enum MenuItemMessage {
     Open,
-    Close
+    Close,
+    Click
 }
 
 #[derive(Debug)]

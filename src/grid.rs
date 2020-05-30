@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    ops::{Deref, DerefMut}
 };
 use crate::{
     core::{
@@ -23,7 +24,6 @@ use crate::{
     },
     message::UiMessage
 };
-use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum SizeMode {
@@ -177,19 +177,15 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
         self.fit_stretch_sized_columns(ui, available_size, preset_width);
         self.fit_stretch_sized_rows(ui, available_size, preset_height);
 
-        self.arrange_rows();
-        self.arrange_columns();
-
         // Step 3. Re-measure children with new constraints.
         for child_handle in self.widget.children() {
-            let size_for_child = {
-                let child = ui.nodes.borrow(*child_handle);
-                Vec2 {
-                    x: self.columns.borrow()[child.column()].actual_width,
-                    y: self.rows.borrow()[child.row()].actual_height,
+            let child = ui.nodes.borrow(*child_handle);
+            if let Some(column) = self.columns.borrow().get(child.column()) {
+                if let Some(row) = self.rows.borrow().get(child.row()) {
+                    ui.node(*child_handle)
+                        .measure(ui, Vec2::new(column.actual_width,row.actual_height));
                 }
-            };
-            ui.node(*child_handle).measure(ui, size_for_child);
+            }
         }
 
         // Step 4. Calculate desired size of grid.
@@ -212,23 +208,26 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
             return final_size;
         }
 
-        for child_handle in self.widget.children() {
-            let mut final_rect = None;
+        let preset_width = self.calculate_preset_width(ui);
+        let preset_height = self.calculate_preset_height(ui);
 
+        self.fit_stretch_sized_columns(ui, final_size, preset_width);
+        self.fit_stretch_sized_rows(ui, final_size, preset_height);
+
+        self.arrange_rows();
+        self.arrange_columns();
+
+        for child_handle in self.widget.children() {
             let child = ui.nodes.borrow(*child_handle);
             if let Some(column) = self.columns.borrow().get(child.column()) {
                 if let Some(row) = self.rows.borrow().get(child.row()) {
-                    final_rect = Some(Rect::new(
+                    ui.nodes.borrow(*child_handle).arrange(ui, &Rect::new(
                         column.x,
                         row.y,
                         column.actual_width,
                         row.actual_height,
                     ));
                 }
-            }
-
-            if let Some(rect) = final_rect {
-                ui.nodes.borrow(*child_handle).arrange(ui, &rect);
             }
         }
 

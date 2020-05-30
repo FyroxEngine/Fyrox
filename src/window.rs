@@ -39,8 +39,10 @@ use crate::{
     },
     NodeHandleMapping,
 };
-use std::ops::{Deref, DerefMut};
-use std::cell::RefCell;
+use std::{
+    ops::{Deref, DerefMut},
+    cell::RefCell
+};
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
 /// It has scrollable region for content, content can be any desired node or even other window.
@@ -54,6 +56,7 @@ pub struct Window<M: 'static, C: 'static + Control<M, C>> {
     minimized: bool,
     can_minimize: bool,
     can_close: bool,
+    can_resize: bool,
     header: Handle<UINode<M, C>>,
     minimize_button: Handle<UINode<M, C>>,
     close_button: Handle<UINode<M, C>>,
@@ -118,6 +121,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Window<M, C> {
             minimized: self.minimized,
             can_minimize: self.can_minimize,
             can_close: self.can_close,
+            can_resize: self.can_resize,
             header: self.header,
             minimize_button: self.minimize_button,
             close_button: self.close_button,
@@ -209,68 +213,70 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         match &message.data {
             UiMessageData::Widget(msg) => {
                 // Grip interaction have higher priority than other actions.
-                match msg {
-                    &WidgetMessage::MouseDown { pos, .. } => {
-                        self.send_message(UiMessage {
-                            data: UiMessageData::Widget(WidgetMessage::TopMost),
-                            destination: self.handle,
-                            handled: false,
-                        });
+                if self.can_resize {
+                    match msg {
+                        &WidgetMessage::MouseDown { pos, .. } => {
+                            self.send_message(UiMessage {
+                                data: UiMessageData::Widget(WidgetMessage::TopMost),
+                                destination: self.handle,
+                                handled: false,
+                            });
 
-                        // Check grips.
-                        for grip in self.grips.borrow_mut().iter_mut() {
-                            let offset = self.screen_position;
-                            let screen_bounds = grip.bounds.translate(offset.x, offset.y);
-                            if screen_bounds.contains(pos.x, pos.y) {
-                                dbg!(grip.kind);
-                                grip.is_dragging = true;
-                                self.initial_position = self.actual_local_position();
-                                self.initial_size = self.actual_size();
-                                self.mouse_click_pos = pos;
-                                ui.capture_mouse(self.handle);
-                                break;
-                            }
-                        }
-                    }
-                    WidgetMessage::MouseUp { .. } => {
-                        for grip in self.grips.borrow_mut().iter_mut() {
-                            if grip.is_dragging {
-                                ui.release_mouse_capture();
-                                grip.is_dragging = false;
-                                break;
-                            }
-                        }
-                    }
-                    &WidgetMessage::MouseMove { pos, .. } => {
-                        for grip in self.grips.borrow().iter() {
-                            if grip.is_dragging {
-                                let delta = self.mouse_click_pos - pos;
-                                let (dx, dy, dw, dh) = match grip.kind {
-                                    GripKind::Left => (-1.0, 0.0, 1.0, 0.0),
-                                    GripKind::Top => (0.0, -1.0, 0.0, 1.0),
-                                    GripKind::Right => (0.0, 0.0, -1.0, 0.0),
-                                    GripKind::Bottom => (0.0, 0.0, 0.0, -1.0),
-                                    GripKind::LeftTopCorner => (-1.0, -1.0, 1.0, 1.0),
-                                    GripKind::RightTopCorner => (0.0, -1.0, -1.0, 1.0),
-                                    GripKind::RightBottomCorner => (0.0, 0.0, -1.0, -1.0),
-                                    GripKind::LeftBottomCorner => (-1.0, 0.0, 1.0, -1.0),
-                                };
-
-                                let new_pos = self.initial_position + Vec2::new(delta.x * dx, delta.y * dy);
-                                let new_size= self.initial_size + Vec2::new(delta.x * dw, delta.y * dh);
-
-                                if new_size.x > self.min_width() && new_size.x < self.max_width() &&
-                                    new_size.y > self.min_height() && new_size.y < self.max_height() {
-                                    self.set_desired_local_position(new_pos);
-                                    self.set_width(new_size.x);
-                                    self.set_height(new_size.y);
+                            // Check grips.
+                            for grip in self.grips.borrow_mut().iter_mut() {
+                                let offset = self.screen_position;
+                                let screen_bounds = grip.bounds.translate(offset.x, offset.y);
+                                if screen_bounds.contains(pos.x, pos.y) {
+                                    dbg!(grip.kind);
+                                    grip.is_dragging = true;
+                                    self.initial_position = self.actual_local_position();
+                                    self.initial_size = self.actual_size();
+                                    self.mouse_click_pos = pos;
+                                    ui.capture_mouse(self.handle);
+                                    break;
                                 }
-
-                                break;
                             }
                         }
+                        WidgetMessage::MouseUp { .. } => {
+                            for grip in self.grips.borrow_mut().iter_mut() {
+                                if grip.is_dragging {
+                                    ui.release_mouse_capture();
+                                    grip.is_dragging = false;
+                                    break;
+                                }
+                            }
+                        }
+                        &WidgetMessage::MouseMove { pos, .. } => {
+                            for grip in self.grips.borrow().iter() {
+                                if grip.is_dragging {
+                                    let delta = self.mouse_click_pos - pos;
+                                    let (dx, dy, dw, dh) = match grip.kind {
+                                        GripKind::Left => (-1.0, 0.0, 1.0, 0.0),
+                                        GripKind::Top => (0.0, -1.0, 0.0, 1.0),
+                                        GripKind::Right => (0.0, 0.0, -1.0, 0.0),
+                                        GripKind::Bottom => (0.0, 0.0, 0.0, -1.0),
+                                        GripKind::LeftTopCorner => (-1.0, -1.0, 1.0, 1.0),
+                                        GripKind::RightTopCorner => (0.0, -1.0, -1.0, 1.0),
+                                        GripKind::RightBottomCorner => (0.0, 0.0, -1.0, -1.0),
+                                        GripKind::LeftBottomCorner => (-1.0, 0.0, 1.0, -1.0),
+                                    };
+
+                                    let new_pos = self.initial_position + Vec2::new(delta.x * dx, delta.y * dy);
+                                    let new_size = self.initial_size + Vec2::new(delta.x * dw, delta.y * dh);
+
+                                    if new_size.x > self.min_width() && new_size.x < self.max_width() &&
+                                        new_size.y > self.min_height() && new_size.y < self.max_height() {
+                                        self.set_desired_local_position(new_pos);
+                                        self.set_width(new_size.x);
+                                        self.set_height(new_size.y);
+                                    }
+
+                                    break;
+                                }
+                            }
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
 
                 if (message.destination == self.header || ui.node(self.header).has_descendant(message.destination, ui))
@@ -477,7 +483,8 @@ pub struct WindowBuilder<'a, M: 'static, C: 'static + Control<M, C>> {
     open: bool,
     close_button: Option<Handle<UINode<M, C>>>,
     minimize_button: Option<Handle<UINode<M, C>>>,
-    modal: bool
+    modal: bool,
+    can_resize: bool
 }
 
 /// Window title can be either text or node.
@@ -503,7 +510,8 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             open: true,
             close_button: None,
             minimize_button: None,
-            modal: false
+            modal: false,
+            can_resize: true
         }
     }
 
@@ -544,6 +552,11 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
 
     pub fn modal(mut self, modal: bool) -> Self {
         self.modal = modal;
+        self
+    }
+
+    pub fn can_resize(mut self, can_resize: bool) -> Self {
+        self.can_resize = can_resize;
         self
     }
 
@@ -640,6 +653,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
             minimized: false,
             can_minimize: self.can_minimize,
             can_close: self.can_close,
+            can_resize: self.can_resize,
             header,
             minimize_button,
             close_button,
@@ -662,7 +676,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
 
         ui.flush_messages();
 
-        if self.modal {
+        if self.modal && self.open {
             ui.push_picking_restriction(handle);
         }
 

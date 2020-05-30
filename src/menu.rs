@@ -30,6 +30,11 @@ use crate::{
         math::vec2::Vec2,
         color::Color,
     },
+    VerticalAlignment,
+    HorizontalAlignment,
+    Thickness,
+    grid::{GridBuilder, Row, Column},
+    text::TextBuilder
 };
 
 pub struct Menu<M: 'static, C: 'static + Control<M, C>> {
@@ -233,7 +238,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                     WidgetMessage::MouseDown { .. } => {
                         let menu = find_menu(self.parent(), ui);
                         if menu.is_some() {
-
                             // Activate menu so it user will be able to open submenus by
                             // mouse hover.
                             ui.send_message(UiMessage {
@@ -247,6 +251,26 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                                 data: UiMessageData::MenuItem(MenuItemMessage::Open),
                                 destination: self.handle,
                             });
+                        }
+                    }
+                    WidgetMessage::MouseUp { .. } => {
+                        if !message.handled {
+                            ui.send_message(UiMessage {
+                                handled: false,
+                                data: UiMessageData::MenuItem(MenuItemMessage::Click),
+                                destination: self.handle,
+                            });
+                            if self.items.is_empty() {
+                                let menu = find_menu(self.parent(), ui);
+                                if menu.is_some() {
+                                    ui.send_message(UiMessage {
+                                        handled: false,
+                                        data: UiMessageData::Menu(MenuMessage::Deactivate),
+                                        destination: menu,
+                                    });
+                                }
+                            }
+                            message.handled = true;
                         }
                     }
                     WidgetMessage::MouseLeave => {
@@ -306,6 +330,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                             destination: self.popup,
                         });
                     }
+                    MenuItemMessage::Click => {}
                 }
             }
             _ => {}
@@ -396,22 +421,59 @@ impl<M, C: 'static + Control<M, C>> MenuBuilder<M, C> {
     }
 }
 
-pub struct MenuItemBuilder<M: 'static, C: 'static + Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    items: Vec<Handle<UINode<M, C>>>,
-    content: Handle<UINode<M, C>>,
+pub enum MenuItemContent<'a, 'b, M: 'static, C: 'static + Control<M, C>> {
+    /// Empty menu item.
+    None,
+    /// Quick-n-dirty way of building elements. It can cover most of use
+    /// cases - it builds classic menu item:
+    ///   _____________________
+    ///  |    |      |        |
+    ///  |icon| text |shortcut|
+    ///  |____|______|________|
+    Text {
+        text: &'a str,
+        shortcut: &'b str,
+        icon: Handle<UINode<M, C>>,
+    },
+    /// Allows to put any node into menu item. It allows to customize menu
+    /// item how needed - i.e. put image in it, or other user control.
+    Node(Handle<UINode<M, C>>),
 }
 
-impl<M, C: 'static + Control<M, C>> MenuItemBuilder<M, C> {
+impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemContent<'a, 'b, M, C> {
+    pub fn text_with_shortcut(text: &'a str, shortcut: &'b str) -> Self {
+        MenuItemContent::Text {
+            text,
+            shortcut,
+            icon: Default::default()
+        }
+    }
+
+    pub fn text(text: &'a str) -> Self {
+        MenuItemContent::Text {
+            text,
+            shortcut: "",
+            icon: Default::default()
+        }
+    }
+}
+
+pub struct MenuItemBuilder<'a, 'b, M: 'static, C: 'static + Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
+    items: Vec<Handle<UINode<M, C>>>,
+    content: MenuItemContent<'a, 'b, M, C>,
+}
+
+impl<'a, 'b, M, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
             items: Default::default(),
-            content: Default::default(),
+            content: MenuItemContent::None,
         }
     }
 
-    pub fn with_content(mut self, content: Handle<UINode<M, C>>) -> Self {
+    pub fn with_content(mut self, content: MenuItemContent<'a, 'b, M, C>) -> Self {
         self.content = content;
         self
     }
@@ -422,8 +484,35 @@ impl<M, C: 'static + Control<M, C>> MenuItemBuilder<M, C> {
     }
 
     pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        let content = match self.content {
+            MenuItemContent::None => Handle::NONE,
+            MenuItemContent::Text { text, shortcut, icon } => {
+                GridBuilder::new(WidgetBuilder::new()
+                    .with_child(icon)
+                    .with_child(TextBuilder::new(WidgetBuilder::new()
+                        .with_vertical_alignment(VerticalAlignment::Center)
+                        .with_margin(Thickness::uniform(1.0))
+                        .on_column(1))
+                        .with_text(text)
+                        .build(ui))
+                    .with_child(TextBuilder::new(WidgetBuilder::new()
+                        .with_vertical_alignment(VerticalAlignment::Center)
+                        .with_horizontal_alignment(HorizontalAlignment::Right)
+                        .with_margin(Thickness::uniform(1.0))
+                        .on_column(2))
+                        .with_text(shortcut)
+                        .build(ui)))
+                    .add_row(Row::stretch())
+                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .build(ui)
+            }
+            MenuItemContent::Node(node) => node,
+        };
+
         let back = BorderBuilder::new(WidgetBuilder::new()
-            .with_child(self.content))
+            .with_child(content))
             .build(ui);
 
         let popup = PopupBuilder::new(WidgetBuilder::new()
@@ -431,7 +520,7 @@ impl<M, C: 'static + Control<M, C>> MenuItemBuilder<M, C> {
             .with_content(StackPanelBuilder::new(WidgetBuilder::new()
                 .with_children(&self.items))
                 .build(ui))
-            // We'll control if popup is either open or closed manually.
+            // We'll manually control if popup is either open or closed.
             .stays_open(true)
             .build(ui);
 
