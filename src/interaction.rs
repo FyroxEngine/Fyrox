@@ -7,7 +7,7 @@ use crate::{
         MoveNodeCommand,
         ChangeSelectionCommand,
         ScaleNodeCommand,
-        RotateNodeCommand
+        RotateNodeCommand,
     },
     camera::CameraController,
 };
@@ -48,7 +48,7 @@ use std::{
 pub trait InteractionModeTrait {
     fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine, mouse_pos: Vec2);
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
-    fn on_mouse_move(&mut self, mouse_offset: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine);
+    fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine);
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn handle_message(&mut self, message: &Message);
@@ -240,12 +240,12 @@ impl MoveGizmo {
                             editor_scene: &EditorScene,
                             camera: Handle<Node>,
                             mouse_offset: Vec2,
+                            mouse_position: Vec2,
                             node: Handle<Node>,
                             engine: &GameEngine,
     ) -> Vec3 {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
-        let mouse_position = engine.user_interface.cursor_position();
         let screen_size = engine.renderer.get_frame_size();
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
         let node_global_transform = graph[node].global_transform();
@@ -397,9 +397,9 @@ impl InteractionModeTrait for MoveInteractionMode {
         }
     }
 
-    fn on_mouse_move(&mut self, mouse_offset: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
         if self.interacting {
-            let node_offset = self.move_gizmo.calculate_offset(editor_scene, camera, mouse_offset, self.node, engine);
+            let node_offset = self.move_gizmo.calculate_offset(editor_scene, camera, mouse_offset, mouse_position, self.node, engine);
             engine.scenes[editor_scene.scene].graph[self.node].local_transform_mut().offset(node_offset);
         }
     }
@@ -569,11 +569,11 @@ impl ScaleGizmo {
                                  editor_scene: &EditorScene,
                                  camera: Handle<Node>,
                                  mouse_offset: Vec2,
+                                 mouse_position: Vec2,
                                  node: Handle<Node>,
                                  engine: &GameEngine,
     ) -> Vec3 {
         let graph = &engine.scenes[editor_scene.scene].graph;
-        let mouse_position = engine.user_interface.cursor_position();
         let screen_size = engine.renderer.get_frame_size();
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
         let node_global_transform = graph[node].global_transform();
@@ -699,9 +699,9 @@ impl InteractionModeTrait for ScaleInteractionMode {
         }
     }
 
-    fn on_mouse_move(&mut self, mouse_offset: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
         if self.interacting {
-            let scale_delta = self.scale_gizmo.calculate_scale_delta(editor_scene, camera, mouse_offset, self.node, engine);
+            let scale_delta = self.scale_gizmo.calculate_scale_delta(editor_scene, camera, mouse_offset, mouse_position, self.node, engine);
             let transform = engine.scenes[editor_scene.scene].graph[self.node].local_transform_mut();
             let scale = transform.scale();
             transform.set_scale(scale + scale_delta);
@@ -849,11 +849,11 @@ impl RotationGizmo {
                                     editor_scene: &EditorScene,
                                     camera: Handle<Node>,
                                     mouse_offset: Vec2,
+                                    mouse_position: Vec2,
                                     node: Handle<Node>,
                                     engine: &GameEngine,
     ) -> Quat {
         let graph = &engine.scenes[editor_scene.scene].graph;
-        let mouse_position = engine.user_interface.cursor_position();
         let screen_size = engine.renderer.get_frame_size();
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
 
@@ -972,9 +972,9 @@ impl InteractionModeTrait for RotateInteractionMode {
         }
     }
 
-    fn on_mouse_move(&mut self, mouse_offset: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
         if self.interacting {
-            let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(editor_scene, camera, mouse_offset, self.node, engine);
+            let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(editor_scene, camera, mouse_offset, mouse_position, self.node, engine);
             let transform = engine.scenes[editor_scene.scene].graph[self.node].local_transform_mut();
             let rotation = transform.rotation();
             transform.set_rotation(rotation * rotation_delta);
@@ -1032,8 +1032,8 @@ impl InteractionModeTrait for InteractionMode {
         static_dispatch!(self, on_left_mouse_button_up, editor_scene, engine)
     }
 
-    fn on_mouse_move(&mut self, mouse_offset: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        static_dispatch!(self, on_mouse_move, mouse_offset, camera, editor_scene, engine)
+    fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
+        static_dispatch!(self, on_mouse_move, mouse_offset, mouse_position, camera, editor_scene, engine)
     }
 
     fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine) {

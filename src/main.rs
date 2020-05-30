@@ -75,6 +75,7 @@ use rg3d::{
             KeyCode,
             MouseButton,
             Vec3EditorMessage,
+            MenuItemMessage,
         },
         Thickness,
         stack_panel::StackPanelBuilder,
@@ -90,7 +91,7 @@ use rg3d::{
         image::ImageBuilder,
         vec::Vec3EditorBuilder,
         ttf::Font,
-        menu::{MenuBuilder, MenuItemBuilder},
+        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
     },
 };
 use std::{
@@ -281,6 +282,7 @@ impl FileSelector {
         let ok;
         let cancel;
         WindowBuilder::new(WidgetBuilder::new())
+            .open(false)
             .with_title(WindowTitle::Text("Select File"))
             .with_content(GridBuilder::new(WidgetBuilder::new()
                 .with_child({
@@ -334,130 +336,6 @@ impl FileSelector {
             browser,
             ok,
             cancel,
-        }
-    }
-}
-
-struct EntityPanel {
-    window: Handle<UiNode>,
-    create_cube: Handle<UiNode>,
-    create_spot_light: Handle<UiNode>,
-    create_point_light: Handle<UiNode>,
-    message_sender: Sender<Message>,
-    save_scene: Handle<UiNode>,
-    load_scene: Handle<UiNode>,
-}
-
-impl EntityPanel {
-    pub fn new(ui: &mut Ui, message_sender: Sender<Message>) -> Self {
-        let create_cube;
-        let create_spot_light;
-        let create_point_light;
-        let save_scene;
-        let load_scene;
-        let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_content(GridBuilder::new(WidgetBuilder::new()
-                .with_child({
-                    create_cube = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(0)
-                        .on_column(0))
-                        .with_text("Create Cube")
-                        .build(ui);
-                    create_cube
-                })
-                .with_child({
-                    create_spot_light = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(1)
-                        .on_column(0))
-                        .with_text("Create Spot Light")
-                        .build(ui);
-                    create_spot_light
-                })
-                .with_child({
-                    create_point_light = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(2)
-                        .on_column(0))
-                        .with_text("Create Point Light")
-                        .build(ui);
-                    create_point_light
-                })
-                .with_child({
-                    save_scene = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(3)
-                        .on_column(0))
-                        .with_text("Save")
-                        .build(ui);
-                    save_scene
-                })
-                .with_child({
-                    load_scene = ButtonBuilder::new(WidgetBuilder::new()
-                        .on_row(4)
-                        .on_column(0))
-                        .with_text("Load")
-                        .build(ui);
-                    load_scene
-                }))
-                .add_column(Column::stretch())
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .build(ui))
-            .with_title(WindowTitle::Text("Entity Panel"))
-            .build(ui);
-
-        Self {
-            message_sender,
-            window,
-            create_cube,
-            create_spot_light,
-            create_point_light,
-            save_scene,
-            load_scene,
-        }
-    }
-
-    fn handle_message(&mut self, message: &UiMessage) {
-        match &message.data {
-            UiMessageData::Button(button) => {
-                if let ButtonMessage::Click = button {
-                    if message.destination == self.create_cube {
-                        let mut mesh = Mesh::default();
-                        mesh.set_name("Cube");
-                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cube(Default::default())))));
-                        let node = Node::Mesh(mesh);
-                        self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
-                            .unwrap();
-                    } else if message.destination == self.create_spot_light {
-                        let kind = LightKind::Spot(SpotLight::new(10.0, 45.0, 2.0));
-                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
-                        light.set_name("SpotLight");
-                        let node = Node::Light(light);
-                        self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
-                            .unwrap();
-                    } else if message.destination == self.create_point_light {
-                        let kind = LightKind::Point(PointLight::new(10.0));
-                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
-                        light.set_name("PointLight");
-                        let node = Node::Light(light);
-                        self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
-                            .unwrap();
-                    } else if message.destination == self.save_scene {
-                        self.message_sender
-                            .send(Message::SaveScene("test_scene.rgs".into()))
-                            .unwrap();
-                    } else if message.destination == self.load_scene {
-                        self.message_sender
-                            .send(Message::LoadScene("test_scene.rgs".into()))
-                            .unwrap();
-                    }
-                }
-            }
-            _ => ()
         }
     }
 }
@@ -589,7 +467,6 @@ pub struct EditorScene {
 
 struct Editor {
     node_editor: NodeEditor,
-    entity_panel: EntityPanel,
     camera_controller: CameraController,
     scene: EditorScene,
     command_stack: CommandStack,
@@ -601,6 +478,7 @@ struct Editor {
     root_grid: Handle<UiNode>,
     file_selector: FileSelector,
     preview: ScenePreview,
+    menu: Menu,
 }
 
 fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
@@ -680,6 +558,221 @@ fn finalize_command(editor_scene: &EditorScene, engine: &mut GameEngine, command
     }
 }
 
+struct Menu {
+    menu: Handle<UiNode>,
+    save: Handle<UiNode>,
+    save_as: Handle<UiNode>,
+    load: Handle<UiNode>,
+    undo: Handle<UiNode>,
+    redo: Handle<UiNode>,
+    create_cube: Handle<UiNode>,
+    create_cone: Handle<UiNode>,
+    create_sphere: Handle<UiNode>,
+    create_cylinder: Handle<UiNode>,
+    create_point_light: Handle<UiNode>,
+    create_spot_light: Handle<UiNode>,
+    exit: Handle<UiNode>,
+    message_sender: Sender<Message>,
+}
+
+impl Menu {
+    pub fn new(ui: &mut Ui, message_sender: Sender<Message>) -> Self {
+        let min_size = Vec2::new(120.0, 20.0);
+        let min_size_menu = Vec2::new(40.0, 20.0);
+        let save;
+        let save_as;
+        let load;
+        let redo;
+        let undo;
+        let create_cube;
+        let create_cone;
+        let create_sphere;
+        let create_cylinder;
+        let create_point_light;
+        let create_spot_light;
+        let exit;
+        let menu = MenuBuilder::new(WidgetBuilder::new()
+            .on_row(0))
+            .with_items(vec![
+                MenuItemBuilder::new(WidgetBuilder::new()
+                    .with_min_size(min_size_menu))
+                    .with_content(MenuItemContent::text("File"))
+                    .with_items(vec![
+                        {
+                            save = MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(min_size))
+                                .with_content(MenuItemContent::text_with_shortcut("Save Scene", "Ctrl+S"))
+                                .build(ui);
+                            save
+                        },
+                        {
+                            save_as = MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(min_size))
+                                .with_content(MenuItemContent::text_with_shortcut("Save Scene As...", "Ctrl+Shift+S"))
+                                .build(ui);
+                            save_as
+                        },
+                        {
+                            load = MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(min_size))
+                                .with_content(MenuItemContent::text_with_shortcut("Load Scene...", "Ctrl+L"))
+                                .build(ui);
+                            load
+                        },
+                        {
+                            exit = MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(min_size))
+                                .with_content(MenuItemContent::text_with_shortcut("Exit", "Alt+F4"))
+                                .build(ui);
+                            exit
+                        }
+                    ])
+                    .build(ui),
+                MenuItemBuilder::new(WidgetBuilder::new()
+                    .with_min_size(min_size_menu))
+                    .with_content(MenuItemContent::text_with_shortcut("Edit", ""))
+                    .with_items(vec![
+                        {
+                            undo = MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(min_size))
+                                .with_content(MenuItemContent::text_with_shortcut("Undo", "Ctrl+Z"))
+                                .build(ui);
+                            undo
+                        },
+                        {
+                            redo = MenuItemBuilder::new(WidgetBuilder::new()
+                                .with_min_size(min_size))
+                                .with_content(MenuItemContent::text_with_shortcut("Redo", "Ctrl+Y"))
+                                .build(ui);
+                            redo
+                        },
+                    ])
+                    .build(ui),
+                MenuItemBuilder::new(WidgetBuilder::new()
+                    .with_min_size(min_size_menu))
+                    .with_content(MenuItemContent::text_with_shortcut("Create", ""))
+                    .with_items(vec![
+                        MenuItemBuilder::new(WidgetBuilder::new()
+                            .with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Mesh"))
+                            .with_items(vec![
+                                {
+                                    create_cube = MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(min_size))
+                                        .with_content(MenuItemContent::text("Cube"))
+                                        .build(ui);
+                                    create_cube
+                                },
+                                {
+                                    create_sphere = MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(min_size))
+                                        .with_content(MenuItemContent::text("Sphere"))
+                                        .build(ui);
+                                    create_sphere
+                                },
+                                {
+                                    create_cylinder = MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(min_size))
+                                        .with_content(MenuItemContent::text("Cylinder"))
+                                        .build(ui);
+                                    create_cylinder
+                                },
+                                {
+                                    create_cone = MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(min_size))
+                                        .with_content(MenuItemContent::text("Cone"))
+                                        .build(ui);
+                                    create_cone
+                                },
+                            ])
+                            .build(ui),
+                        MenuItemBuilder::new(WidgetBuilder::new()
+                            .with_min_size(min_size))
+                            .with_content(MenuItemContent::text("Light"))
+                            .with_items(vec![
+                                {
+                                    create_spot_light = MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(min_size))
+                                        .with_content(MenuItemContent::text("Spot Light"))
+                                        .build(ui);
+                                    create_spot_light
+                                },
+                                {
+                                    create_point_light = MenuItemBuilder::new(WidgetBuilder::new()
+                                        .with_min_size(min_size))
+                                        .with_content(MenuItemContent::text("Point Light"))
+                                        .build(ui);
+                                    create_point_light
+                                }
+                            ])
+                            .build(ui),
+                    ])
+                    .build(ui)
+            ])
+            .build(ui);
+
+        Self {
+            menu,
+            save,
+            save_as,
+            load,
+            undo,
+            redo,
+            create_cube,
+            create_cone,
+            create_sphere,
+            create_cylinder,
+            create_point_light,
+            create_spot_light,
+            exit,
+            message_sender,
+        }
+    }
+
+    fn handle_message(&mut self, message: &UiMessage) {
+        match &message.data {
+            UiMessageData::MenuItem(msg) => {
+                if let MenuItemMessage::Click = msg {
+                    if message.destination == self.create_cube {
+                        let mut mesh = Mesh::default();
+                        mesh.set_name("Cube");
+                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cube(Default::default())))));
+                        let node = Node::Mesh(mesh);
+                        self.message_sender
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .unwrap();
+                    } else if message.destination == self.create_spot_light {
+                        let kind = LightKind::Spot(SpotLight::new(10.0, 45.0, 2.0));
+                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
+                        light.set_name("SpotLight");
+                        let node = Node::Light(light);
+                        self.message_sender
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .unwrap();
+                    } else if message.destination == self.create_point_light {
+                        let kind = LightKind::Point(PointLight::new(10.0));
+                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
+                        light.set_name("PointLight");
+                        let node = Node::Light(light);
+                        self.message_sender
+                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .unwrap();
+                    } else if message.destination == self.save {
+                        self.message_sender
+                            .send(Message::SaveScene("test_scene.rgs".into()))
+                            .unwrap();
+                    } else if message.destination == self.load {
+                        self.message_sender
+                            .send(Message::LoadScene("test_scene.rgs".into()))
+                            .unwrap();
+                    }
+                }
+            }
+            _ => ()
+        }
+    }
+}
+
 impl Editor {
     fn new(engine: &mut GameEngine) -> Self {
         let (message_sender, message_receiver) = mpsc::channel();
@@ -698,78 +791,25 @@ impl Editor {
         };
 
         let node_editor = NodeEditor::new(ui, message_sender.clone());
-        let entity_panel = EntityPanel::new(ui, message_sender.clone());
         let world_outliner = WorldOutliner::new(ui, message_sender.clone());
+        let menu = Menu::new(ui, message_sender.clone());
 
         let root_grid = GridBuilder::new(WidgetBuilder::new()
             .with_width(engine.renderer.get_frame_size().0 as f32)
             .with_height(engine.renderer.get_frame_size().1 as f32)
-            .with_child(MenuBuilder::new(WidgetBuilder::new()
-                .on_row(0))
-                .with_items(vec![
-                    MenuItemBuilder::new(WidgetBuilder::new()
-                        .with_min_size(Vec2::new(40.0, 20.0)))
-                        .with_content(TextBuilder::new(WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(3.0)))
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .with_text("File")
-                            .build(ui))
-                        .with_items(vec![
-                            MenuItemBuilder::new(WidgetBuilder::new()
-                                .with_min_size(Vec2::new(120.0, 20.0)))
-                                .with_content(TextBuilder::new(WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(3.0)))
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text("Save")
-                                    .build(ui))
-                                .build(ui),
-                            MenuItemBuilder::new(WidgetBuilder::new()
-                                .with_min_size(Vec2::new(120.0, 20.0)))
-                                .with_content(TextBuilder::new(WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(3.0)))
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text("Options")
-                                    .build(ui))
-                                .with_items(vec![
-                                    MenuItemBuilder::new(WidgetBuilder::new()
-                                        .with_min_size(Vec2::new(120.0, 20.0)))
-                                        .with_content(TextBuilder::new(WidgetBuilder::new()
-                                            .with_margin(Thickness::uniform(3.0)))
-                                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                                            .with_text("Foobar")
-                                            .build(ui))
-                                        .build(ui)
-                                ])
-                                .build(ui),
-                            MenuItemBuilder::new(WidgetBuilder::new()
-                                .with_min_size(Vec2::new(120.0, 20.0)))
-                                .with_content(TextBuilder::new(WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(3.0)))
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text("Exit")
-                                    .build(ui))
-                                .build(ui)
-                        ])
-                        .build(ui),
-                    MenuItemBuilder::new(WidgetBuilder::new()
-                        .with_min_size(Vec2::new(40.0, 20.0)))
-                        .with_content(TextBuilder::new(WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(3.0)))
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .with_text("Edit")
-                            .build(ui))
-                        .build(ui)
-                ])
-                .build(ui))
+            .with_child(menu.menu)
             .with_child(DockingManagerBuilder::new(WidgetBuilder::new()
                 .on_row(1)
                 .with_child(TileBuilder::new(WidgetBuilder::new())
-                    .with_content(TileContent::VerticalTiles {
-                        splitter: 0.7,
+                    .with_content(TileContent::HorizontalTiles {
+                        splitter: 0.25,
                         tiles: [
                             TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::Window(world_outliner.window))
+                                .build(ui),
+                            TileBuilder::new(WidgetBuilder::new())
                                 .with_content(TileContent::HorizontalTiles {
-                                    splitter: 0.75,
+                                    splitter: 0.66,
                                     tiles: [
                                         TileBuilder::new(WidgetBuilder::new())
                                             .with_content(TileContent::Window(preview.window))
@@ -780,19 +820,6 @@ impl Editor {
                                     ],
                                 })
                                 .build(ui),
-                            TileBuilder::new(WidgetBuilder::new())
-                                .with_content(TileContent::HorizontalTiles {
-                                    splitter: 0.5,
-                                    tiles: [
-                                        TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(world_outliner.window))
-                                            .build(ui),
-                                        TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(entity_panel.window))
-                                            .build(ui)
-                                    ],
-                                })
-                                .build(ui)
                         ],
                     })
                     .build(ui)))
@@ -812,7 +839,6 @@ impl Editor {
 
         let mut editor = Self {
             node_editor,
-            entity_panel,
             preview,
             camera_controller: CameraController::new(&editor_scene, engine),
             scene: editor_scene,
@@ -824,6 +850,7 @@ impl Editor {
             world_outliner,
             root_grid,
             file_selector,
+            menu,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -854,18 +881,6 @@ impl Editor {
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
     }
 
-    fn handle_raw_input(&mut self, device_event: &DeviceEvent, engine: &mut GameEngine) {
-        match device_event {
-            &DeviceEvent::MouseMotion { delta } => {
-                let mouse_offset = Vec2::new(delta.0 as f32, delta.1 as f32);
-                if let Some(current_im) = self.current_interaction_mode {
-                    self.interaction_modes[current_im as usize].on_mouse_move(mouse_offset, self.camera_controller.camera, &self.scene, engine);
-                }
-            }
-            _ => ()
-        }
-    }
-
     fn set_interaction_mode(&mut self, mode: Option<InteractionModeKind>, engine: &mut GameEngine) {
         if self.current_interaction_mode != mode {
             // Deactivate current first.
@@ -879,7 +894,7 @@ impl Editor {
 
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         self.node_editor.handle_message(message, &self.scene, engine);
-        self.entity_panel.handle_message(message);
+        self.menu.handle_message(message);
 
         let ui = &mut engine.user_interface;
         self.world_outliner.handle_ui_message(message, ui, self.node_editor.node);
@@ -914,7 +929,11 @@ impl Editor {
                         }
                         &WidgetMessage::MouseMove { pos, .. } => {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
-                            self.camera_controller.on_mouse_move(pos - last_pos);
+                            let mouse_offset = pos - last_pos;
+                            self.camera_controller.on_mouse_move(mouse_offset);
+                            if let Some(current_im) = self.current_interaction_mode {
+                                self.interaction_modes[current_im as usize].on_mouse_move(mouse_offset, pos, self.camera_controller.camera, &self.scene, engine);
+                            }
                             self.preview.last_mouse_pos = Some(pos);
                         }
                         &WidgetMessage::KeyUp(key) => {
@@ -1065,7 +1084,14 @@ impl Editor {
 fn main() {
     let event_loop = EventLoop::new();
 
+    let primary_monitor = event_loop.primary_monitor();
+    let mut monitor_dimensions = primary_monitor.size();
+    monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
+    monitor_dimensions.width = (monitor_dimensions.width as f32 * 0.7) as u32;
+    let inner_size = monitor_dimensions.to_logical::<f32>(primary_monitor.scale_factor());
+
     let window_builder = rg3d::window::WindowBuilder::new()
+        .with_inner_size(inner_size)
         .with_title("rusty editor")
         .with_resizable(true);
 
@@ -1121,9 +1147,6 @@ fn main() {
                 if let Some(os_event) = translate_event(&event) {
                     engine.user_interface.process_os_event(&os_event);
                 }
-            }
-            Event::DeviceEvent { event, .. } => {
-                editor.handle_raw_input(&event, &mut engine);
             }
             _ => *control_flow = ControlFlow::Poll,
         }

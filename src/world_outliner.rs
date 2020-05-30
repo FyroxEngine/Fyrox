@@ -61,8 +61,7 @@ fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
 impl WorldOutliner {
     pub fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
         let root;
-        let window = WindowBuilder::new(WidgetBuilder::new()
-            .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
+        let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::Text("World Outliner"))
             .with_content({
                 root = TreeRootBuilder::new(WidgetBuilder::new())
