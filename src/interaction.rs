@@ -45,11 +45,12 @@ use std::{
     }
 };
 
-pub trait InteractionModeTrait {
+pub trait InteractionMode {
     fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine, mouse_pos: Vec2);
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine);
+    fn activate(&mut self, node: Handle<Node>);
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
     fn handle_message(&mut self, message: &Message);
 }
@@ -350,7 +351,7 @@ impl MoveInteractionMode {
     }
 }
 
-impl InteractionModeTrait for MoveInteractionMode {
+impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(&mut self,
                                  editor_scene: &EditorScene,
                                  camera_controller: &mut CameraController,
@@ -415,6 +416,10 @@ impl InteractionModeTrait for MoveInteractionMode {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             self.move_gizmo.set_visible(graph, false);
         }
+    }
+
+    fn activate(&mut self, node: Handle<Node>) {
+        self.node = node;
     }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
@@ -652,7 +657,7 @@ impl ScaleInteractionMode {
     }
 }
 
-impl InteractionModeTrait for ScaleInteractionMode {
+impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_down(&mut self,
                                  editor_scene: &EditorScene,
                                  camera_controller: &mut CameraController,
@@ -703,8 +708,11 @@ impl InteractionModeTrait for ScaleInteractionMode {
         if self.interacting {
             let scale_delta = self.scale_gizmo.calculate_scale_delta(editor_scene, camera, mouse_offset, mouse_position, self.node, engine);
             let transform = engine.scenes[editor_scene.scene].graph[self.node].local_transform_mut();
-            let scale = transform.scale();
-            transform.set_scale(scale + scale_delta);
+            let initial_scale = transform.scale();
+            let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
+            let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
+            let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
+            transform.set_scale(Vec3::new(sx, sy, sz));
         }
     }
 
@@ -719,6 +727,10 @@ impl InteractionModeTrait for ScaleInteractionMode {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             self.scale_gizmo.set_visible(graph, false);
         }
+    }
+
+    fn activate(&mut self, node: Handle<Node>) {
+        self.node = node;
     }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
@@ -925,7 +937,7 @@ impl RotateInteractionMode {
     }
 }
 
-impl InteractionModeTrait for RotateInteractionMode {
+impl InteractionMode for RotateInteractionMode {
     fn on_left_mouse_button_down(&mut self,
                                  editor_scene: &EditorScene,
                                  camera_controller: &mut CameraController,
@@ -994,6 +1006,10 @@ impl InteractionModeTrait for RotateInteractionMode {
         }
     }
 
+    fn activate(&mut self, node: Handle<Node>) {
+        self.node = node;
+    }
+
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.node = Default::default();
@@ -1004,48 +1020,6 @@ impl InteractionModeTrait for RotateInteractionMode {
         if let &Message::SetSelection(selection) = message {
             self.node = selection;
         }
-    }
-}
-
-macro_rules! static_dispatch {
-    ($self:ident, $func:ident, $($args:expr),*) => {
-        match $self {
-            InteractionMode::Move(v) => v.$func($($args),*),
-            InteractionMode::Scale(v) => v.$func($($args),*),
-            InteractionMode::Rotate(v) => v.$func($($args),*),
-        }
-    };
-}
-
-pub enum InteractionMode {
-    Move(MoveInteractionMode),
-    Scale(ScaleInteractionMode),
-    Rotate(RotateInteractionMode),
-}
-
-impl InteractionModeTrait for InteractionMode {
-    fn on_left_mouse_button_down(&mut self, editor_scene: &EditorScene, camera_controller: &mut CameraController, current_selection: Handle<Node>, engine: &mut GameEngine, mouse_pos: Vec2) {
-        static_dispatch!(self, on_left_mouse_button_down, editor_scene, camera_controller, current_selection, engine, mouse_pos)
-    }
-
-    fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        static_dispatch!(self, on_left_mouse_button_up, editor_scene, engine)
-    }
-
-    fn on_mouse_move(&mut self, mouse_offset: Vec2, mouse_position: Vec2, camera: Handle<Node>, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        static_dispatch!(self, on_mouse_move, mouse_offset, mouse_position, camera, editor_scene, engine)
-    }
-
-    fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine) {
-        static_dispatch!(self, update, editor_scene, camera, engine)
-    }
-
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        static_dispatch!(self, deactivate, editor_scene, engine)
-    }
-
-    fn handle_message(&mut self, message: &Message) {
-        static_dispatch!(self, handle_message, message)
     }
 }
 

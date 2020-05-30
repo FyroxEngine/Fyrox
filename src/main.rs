@@ -7,11 +7,10 @@ pub mod world_outliner;
 
 use crate::{
     interaction::{
-        InteractionMode,
         MoveInteractionMode,
         ScaleInteractionMode,
         RotateInteractionMode,
-        InteractionModeTrait,
+        InteractionMode,
         InteractionModeKind,
     },
     camera::CameraController,
@@ -472,7 +471,7 @@ struct Editor {
     command_stack: CommandStack,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
-    interaction_modes: Vec<InteractionMode>,
+    interaction_modes: Vec<Box<dyn InteractionMode>>,
     current_interaction_mode: Option<InteractionModeKind>,
     world_outliner: WorldOutliner,
     root_grid: Handle<UiNode>,
@@ -831,10 +830,10 @@ impl Editor {
 
         let file_selector = FileSelector::new(ui);
 
-        let interaction_modes = vec![
-            InteractionMode::Move(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),
-            InteractionMode::Scale(ScaleInteractionMode::new(&editor_scene, engine, message_sender.clone())),
-            InteractionMode::Rotate(RotateInteractionMode::new(&editor_scene, engine, message_sender.clone())),
+        let interaction_modes: Vec<Box<dyn InteractionMode>> = vec![
+            Box::new(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),
+            Box::new(ScaleInteractionMode::new(&editor_scene, engine, message_sender.clone())),
+            Box::new(RotateInteractionMode::new(&editor_scene, engine, message_sender.clone())),
         ];
 
         let mut editor = Self {
@@ -869,9 +868,9 @@ impl Editor {
         };
 
         self.interaction_modes = vec![
-            InteractionMode::Move(MoveInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
-            InteractionMode::Scale(ScaleInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
-            InteractionMode::Rotate(RotateInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
+            Box::new(MoveInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
+            Box::new(ScaleInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
+            Box::new(RotateInteractionMode::new(&self.scene, engine, self.message_sender.clone())),
         ];
 
         self.world_outliner.clear(&mut engine.user_interface);
@@ -889,6 +888,10 @@ impl Editor {
             }
 
             self.current_interaction_mode = mode;
+
+            if let Some(current_mode) = self.current_interaction_mode {
+                self.interaction_modes[current_mode as usize].activate(self.node_editor.node);
+            }
         }
     }
 
@@ -931,8 +934,10 @@ impl Editor {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
                             let mouse_offset = pos - last_pos;
                             self.camera_controller.on_mouse_move(mouse_offset);
+                            let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                            let rel_pos = Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
                             if let Some(current_im) = self.current_interaction_mode {
-                                self.interaction_modes[current_im as usize].on_mouse_move(mouse_offset, pos, self.camera_controller.camera, &self.scene, engine);
+                                self.interaction_modes[current_im as usize].on_mouse_move(mouse_offset, rel_pos, self.camera_controller.camera, &self.scene, engine);
                             }
                             self.preview.last_mouse_pos = Some(pos);
                         }
