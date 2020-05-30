@@ -12,13 +12,19 @@ use crate::{
     },
 };
 use rg3d::{
+    utils::into_any_arc,
     gui::{
         window::{WindowTitle, WindowBuilder},
         widget::WidgetBuilder,
         tree::{TreeBuilder, TreeRootBuilder},
         text::TextBuilder,
         Thickness,
+        image::ImageBuilder,
+        grid::{GridBuilder, Row, Column},
+        button::ButtonBuilder,
+        HorizontalAlignment,
         message::{UiMessageData, TreeRootMessage, WidgetMessage, TreeMessage},
+        scroll_viewer::ScrollViewerBuilder,
     },
     scene::node::Node,
     core::{
@@ -30,6 +36,8 @@ use std::{
     sync::mpsc::Sender,
     rc::Rc,
 };
+use rg3d::engine::resource_manager::ResourceManager;
+use rg3d::resource::texture::TextureKind;
 
 pub struct WorldOutliner {
     pub window: Handle<UiNode>,
@@ -38,12 +46,26 @@ pub struct WorldOutliner {
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
 }
 
-fn make_tree(node: &Node, handle: Handle<Node>, ui: &mut Ui) -> Handle<UiNode> {
+fn make_tree(node: &Node, handle: Handle<Node>, ui: &mut Ui, resource_manager: &mut ResourceManager) -> Handle<UiNode> {
     TreeBuilder::new(WidgetBuilder::new()
         .with_user_data(Rc::new(handle))
         .with_margin(Thickness::uniform(1.0)))
-        .with_content(TextBuilder::new(WidgetBuilder::new())
-            .with_text(node.name())
+        .with_content(GridBuilder::new(WidgetBuilder::new()
+            .with_child(TextBuilder::new(WidgetBuilder::new())
+                .with_text(node.name())
+                .build(ui))
+            .with_child(ButtonBuilder::new(WidgetBuilder::new()
+                .with_width(22.0)
+                .with_height(16.0)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .on_column(1))
+                .with_content(ImageBuilder::new(WidgetBuilder::new())
+                    .with_opt_texture(into_any_arc(resource_manager.request_texture("resources/visible.png", TextureKind::RGBA8)))
+                    .build(ui))
+                .build(ui)))
+            .add_row(Row::stretch())
+            .add_column(Column::auto())
+            .add_column(Column::stretch())
             .build(ui)
         )
         .build(ui)
@@ -63,11 +85,13 @@ impl WorldOutliner {
         let root;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::Text("World Outliner"))
-            .with_content({
-                root = TreeRootBuilder::new(WidgetBuilder::new())
-                    .build(ui);
-                root
-            })
+            .with_content(ScrollViewerBuilder::new(WidgetBuilder::new())
+                .with_content({
+                    root = TreeRootBuilder::new(WidgetBuilder::new())
+                        .build(ui);
+                    root
+                })
+                .build(ui))
             .build(ui);
 
         Self {
@@ -133,7 +157,7 @@ impl WorldOutliner {
                                 }
                             }
                             if !found {
-                                let tree = make_tree(&graph[child_handle], child_handle, ui);
+                                let tree = make_tree(&graph[child_handle], child_handle, ui, &mut engine.resource_manager.lock().unwrap());
                                 ui.send_message(UiMessage {
                                     data: UiMessageData::Tree(TreeMessage::AddItem(tree)),
                                     destination: tree_handle,
@@ -152,7 +176,7 @@ impl WorldOutliner {
                 }
                 UiNode::TreeRoot(root) => {
                     if root.items().is_empty() {
-                        let tree = make_tree(node, node_handle, ui);
+                        let tree = make_tree(node, node_handle, ui, &mut engine.resource_manager.lock().unwrap());
                         ui.send_message(UiMessage {
                             data: UiMessageData::TreeRoot(TreeRootMessage::AddItem(tree)),
                             destination: tree_handle,
