@@ -1,6 +1,6 @@
 # rg3d-ui
 
-Retained mode, general purpose, graphics API agnostic user interface library.
+Retained mode, general purpose, graphics API agnostic user interface library. Inspired by WPF.
 
 ## Widgets
 - [x] Button
@@ -28,12 +28,25 @@ Retained mode, general purpose, graphics API agnostic user interface library.
 - [x] NumericUpDown
 - [x] Vec3 editor
 - [x] Menu
+- [x] Message box
+
+## Limitations
+
+- Font support is not full yet: size of font is still can't be changed dynamically, it is possible to change font by recreating font with new size. Compound characters are not supported yet, no kerning available, no sub-pixel or hinted rendering. This part of library should be replaced with some other crate, rusttype for example.
+- Since this library is OS-, GAPI-agnostic it cannot create native OS' windows and it cannot render anything on screen. Instead it uses internal draw buffer which holds list of commands, which has to be interpreted in your game/app. This is very flexible way, but it has some limitations: multiwindow (native) configuration is hard to implement, you have to implement your own UI renderer what can be difficult if you not familiar with anything like this.
+
+## Performance
+
+- In general rg3d-ui is fast, however it can be slow if used incorrectly. Since this library uses very complex layout system, it may work slow if there are lots of ui elements being moved (i.e. when scrolling). Hopefully it has built-in layout caching system and it relies on layout invalidation so it won't do layout calculations each frame - only if something significant changed (position, size, etc.).
+- Batching of render commands can be difficult, because the library extensively uses clipping, and each clipping geometry has to be drawn into stencil buffer as separate draw call. Rendering still has to be optimized, it is inefficient for now.
 
 ## Documentation
 
-TODO
+TODO.
 
 ## Samples 
+
+TODO.
 
 There are two projects uses this UI library: 
 

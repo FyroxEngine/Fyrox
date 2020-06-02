@@ -42,6 +42,7 @@ pub mod dock;
 pub mod vec;
 pub mod numeric;
 pub mod menu;
+pub mod messagebox;
 
 use crate::{
     core::{
@@ -971,6 +972,24 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                     WidgetMessage::Remove => {
                         if message.destination.is_some() {
                             self.remove_node(message.destination);
+                        }
+                    }
+                    WidgetMessage::Center => {
+                        if message.destination.is_some() {
+                            let node = self.node(message.destination);
+                            let size = node.actual_size();
+                            let parent = node.parent();
+                            let parent_size = if parent.is_some() {
+                                if parent == self.root_canvas {
+                                    self.screen_size
+                                } else {
+                                    self.node(parent).actual_size()
+                                }
+                            } else {
+                                self.screen_size
+                            };
+                            self.node_mut(message.destination)
+                                .set_desired_local_position((parent_size - size).scale(0.5))
                         }
                     }
                     _ => {}

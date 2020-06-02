@@ -22,8 +22,10 @@ use crate::{
     Control,
     popup::Placement,
     MouseState,
+    messagebox::MessageBoxResult
 };
 use std::path::PathBuf;
+use crate::window::WindowTitle;
 
 #[derive(Debug)]
 pub enum WidgetProperty {
@@ -78,6 +80,9 @@ pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
     DragStarted(Handle<UINode<M, C>>),
     DragOver(Handle<UINode<M, C>>),
     Drop(Handle<UINode<M, C>>),
+
+    /// Set desired position at center in local coordinates.
+    Center,
 }
 
 #[derive(Debug)]
@@ -99,7 +104,7 @@ pub enum CheckBoxMessage {
 }
 
 #[derive(Debug)]
-pub enum WindowMessage {
+pub enum WindowMessage<M: 'static, C: 'static + Control<M, C>> {
     Open,
     OpenModal,
     Close,
@@ -110,6 +115,7 @@ pub enum WindowMessage {
     /// New position is in local coordinates.
     Move(Vec2),
     MoveEnd,
+    Title(WindowTitle<M, C>)
 }
 
 #[derive(Debug)]
@@ -183,12 +189,21 @@ pub enum MenuItemMessage {
 }
 
 #[derive(Debug)]
+pub enum MessageBoxMessage {
+    Open {
+        title: Option<String>,
+        text: Option<String>,
+    },
+    Close(MessageBoxResult),
+}
+
+#[derive(Debug)]
 pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
     ScrollBar(ScrollBarMessage),
     CheckBox(CheckBoxMessage),
-    Window(WindowMessage),
+    Window(WindowMessage<M, C>),
     ListView(ListViewMessage<M, C>),
     Popup(PopupMessage<M, C>),
     ScrollViewer(ScrollViewerMessage<M, C>),
@@ -200,6 +215,7 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Vec3Editor(Vec3EditorMessage),
     Menu(MenuMessage),
     MenuItem(MenuItemMessage),
+    MessageBox(MessageBoxMessage),
     User(M),
 }
 

@@ -42,10 +42,13 @@ use crate::{
     },
     vec::Vec3Editor,
     numeric::NumericUpDown,
-    menu::Menu
+    menu::{
+        Menu,
+        MenuItem
+    },
+    messagebox::MessageBox
 };
 use std::ops::{Deref, DerefMut};
-use crate::menu::MenuItem;
 
 #[allow(clippy::large_enum_variant)]
 pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
@@ -78,6 +81,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     NumericUpDown(NumericUpDown<M, C>),
     Menu(Menu<M, C>),
     MenuItem(MenuItem<M, C>),
+    MessageBox(MessageBox<M, C>),
     User(C)
 }
 
@@ -114,6 +118,7 @@ macro_rules! static_dispatch {
             UINode::NumericUpDown(v) => v.$func($($args),*),
             UINode::Menu(v) => v.$func($($args),*),
             UINode::MenuItem(v) => v.$func($($args),*),
+            UINode::MessageBox(v) => v.$func($($args),*),
         }
     };
 }
@@ -151,6 +156,7 @@ macro_rules! static_dispatch_deref {
             UINode::NumericUpDown(v) => v,
             UINode::Menu(v) => v,
             UINode::MenuItem(v) => v,
+            UINode::MessageBox(v) => v,
         }
     };
 }

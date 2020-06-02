@@ -162,6 +162,7 @@ pub struct TextBuilder<M: 'static, C: 'static + Control<M, C>> {
     font: Option<Arc<Mutex<Font>>>,
     vertical_text_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
+    wrap: bool
 }
 
 impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
@@ -172,6 +173,7 @@ impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
             font: None,
             vertical_text_alignment: VerticalAlignment::Top,
             horizontal_text_alignment: HorizontalAlignment::Left,
+            wrap: false
         }
     }
 
@@ -200,6 +202,11 @@ impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
         self
     }
 
+    pub fn with_wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
+    }
+
     pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
         let font = if let Some(font) = self.font {
             font
@@ -218,6 +225,7 @@ impl<M, C: 'static + Control<M, C>> TextBuilder<M, C> {
                 .with_vertical_alignment(self.vertical_text_alignment)
                 .with_horizontal_alignment(self.horizontal_text_alignment)
                 .with_font(font)
+                .with_wrap(self.wrap)
                 .build()),
         }));
 

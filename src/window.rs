@@ -63,6 +63,8 @@ pub struct Window<M: 'static, C: 'static + Control<M, C>> {
     drag_delta: Vec2,
     content: Handle<UINode<M, C>>,
     grips: RefCell<[Grip; 8]>,
+    title: Handle<UINode<M, C>>,
+    title_grid: Handle<UINode<M, C>>,
 }
 
 const GRIP_SIZE: f32 = 6.0;
@@ -129,6 +131,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Window<M, C> {
             content: self.content,
             grips: self.grips.clone(),
             initial_size: self.initial_size,
+            title: self.title,
+            title_grid: self.title_grid
         }
     }
 }
@@ -142,6 +146,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         self.header = *node_map.get(&self.header).unwrap();
         self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
         self.close_button = *node_map.get(&self.close_button).unwrap();
+        self.title = *node_map.get(&self.title).unwrap();
+        self.title_grid = *node_map.get(&self.title_grid).unwrap();
         if self.content.is_some() {
             self.content = *node_map.get(&self.content).unwrap();
         }
@@ -227,7 +233,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 let offset = self.screen_position;
                                 let screen_bounds = grip.bounds.translate(offset.x, offset.y);
                                 if screen_bounds.contains(pos.x, pos.y) {
-                                    dbg!(grip.kind);
                                     grip.is_dragging = true;
                                     self.initial_position = self.actual_local_position();
                                     self.initial_size = self.actual_size();
@@ -387,6 +392,46 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             ui.release_mouse_capture();
                             self.is_dragging = false;
                         }
+                        WindowMessage::Title(title) => {
+                            match title {
+                                WindowTitle::Text(text) => {
+                                    if let UINode::Text(title) = ui.node_mut(self.title) {
+                                        // Just modify existing text, this is much faster than
+                                        // re-create text everytime.
+                                        title.set_text(text);
+                                    } else {
+                                        ui.send_message(UiMessage {
+                                            handled: false,
+                                            data: UiMessageData::Widget(WidgetMessage::Remove),
+                                            destination: self.title
+                                        });
+
+                                        self.title = make_text_title(ui, text);
+                                    }
+                                },
+                                WindowTitle::Node(node) => {
+                                    if self.title.is_some() {
+                                        // Remove old title.
+                                        ui.send_message(UiMessage {
+                                            handled: false,
+                                            data: UiMessageData::Widget(WidgetMessage::Remove),
+                                            destination: self.title
+                                        });
+                                    }
+
+                                    if node.is_some() {
+                                        self.title = *node;
+
+                                        // Attach new one.
+                                        ui.send_message(UiMessage {
+                                            handled: false,
+                                            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.title_grid)),
+                                            destination: self.title
+                                        });
+                                    }
+                                },
+                            }
+                        }
                     }
                 }
             }
@@ -406,6 +451,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         }
         if self.minimize_button == handle {
             self.minimize_button = Handle::NONE;
+        }
+        if self.title == handle {
+            self.title = Handle::NONE;
+        }
+        if self.title_grid == handle {
+            self.title_grid = Handle::NONE;
         }
     }
 }
@@ -474,17 +525,18 @@ impl<M, C: 'static + Control<M, C>> Window<M, C> {
     }
 }
 
-pub struct WindowBuilder<'a, M: 'static, C: 'static + Control<M, C>> {
-    widget_builder: WidgetBuilder<M, C>,
-    content: Handle<UINode<M, C>>,
-    title: Option<WindowTitle<'a, M, C>>,
-    can_close: bool,
-    can_minimize: bool,
-    open: bool,
-    close_button: Option<Handle<UINode<M, C>>>,
-    minimize_button: Option<Handle<UINode<M, C>>>,
-    modal: bool,
-    can_resize: bool
+pub struct WindowBuilder<M: 'static, C: 'static + Control<M, C>> {
+    pub widget_builder: WidgetBuilder<M, C>,
+    pub content: Handle<UINode<M, C>>,
+    pub title: Option<WindowTitle<M, C>>,
+    pub can_close: bool,
+    pub can_minimize: bool,
+    pub open: bool,
+    pub close_button: Option<Handle<UINode<M, C>>>,
+    pub minimize_button: Option<Handle<UINode<M, C>>>,
+    // Warning: Any dependant builders must take this into account!
+    pub modal: bool,
+    pub can_resize: bool
 }
 
 /// Window title can be either text or node.
@@ -494,12 +546,32 @@ pub struct WindowBuilder<'a, M: 'static, C: 'static + Control<M, C>> {
 ///
 /// If you need more flexibility (i.e. put a picture near text) then `Node` option is for you:
 /// it allows to put any UI node hierarchy you want to.
-pub enum WindowTitle<'a, M: 'static, C: 'static + Control<M, C>> {
-    Text(&'a str),
+#[derive(Debug)]
+pub enum WindowTitle<M: 'static, C: 'static + Control<M, C>> {
+    Text(String),
     Node(Handle<UINode<M, C>>),
 }
 
-impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> WindowTitle<M, C> {
+    pub fn text<P: AsRef<str>>(text: P) -> Self {
+        WindowTitle::Text(text.as_ref().to_owned())
+    }
+
+    pub fn node(node: Handle<UINode<M, C>>) -> Self {
+        WindowTitle::Node(node)
+    }
+}
+
+fn make_text_title<M: 'static, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>, text: &str) -> Handle<UINode<M, C>> {
+    TextBuilder::new(WidgetBuilder::new()
+        .with_margin(Thickness::uniform(5.0))
+        .on_row(0)
+        .on_column(0))
+        .with_text(text)
+        .build(ui)
+}
+
+impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -520,7 +592,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
         self
     }
 
-    pub fn with_title(mut self, title: WindowTitle<'a, M, C>) -> Self {
+    pub fn with_title(mut self, title: WindowTitle<M, C>) -> Self {
         self.title = Some(title);
         self
     }
@@ -560,10 +632,12 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build_node(self, ui: &mut UserInterface<M, C>) -> Window<M, C> {
         let minimize_button;
         let close_button;
 
+        let title;
+        let title_grid;
         let header = BorderBuilder::new(WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Stretch)
             .with_height(30.0)
@@ -576,64 +650,61 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                     GradientPoint { stop: 1.0, color: Color::opaque(75, 75, 75) },
                 ],
             })
-            .with_child(GridBuilder::new(WidgetBuilder::new()
-                .with_child({
-                    match self.title {
-                        None => Handle::NONE,
-                        Some(window_title) => {
-                            match window_title {
-                                WindowTitle::Node(node) => node,
-                                WindowTitle::Text(text) => {
-                                    TextBuilder::new(WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(5.0))
-                                        .on_row(0)
-                                        .on_column(0))
-                                        .with_text(text)
-                                        .build(ui)
+            .with_child({
+                title_grid = GridBuilder::new(WidgetBuilder::new()
+                    .with_child({
+                        title = match self.title {
+                            None => Handle::NONE,
+                            Some(window_title) => {
+                                match window_title {
+                                    WindowTitle::Node(node) => node,
+                                    WindowTitle::Text(text) => make_text_title(ui, &text)
                                 }
                             }
-                        }
-                    }
-                })
-                .with_child({
-                    minimize_button = self.minimize_button.unwrap_or_else(|| {
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(2.0)))
-                            .with_text("_")
-                            .build(ui)
-                    });
-                    ui.node_mut(minimize_button)
-                        .set_visibility(self.can_minimize)
-                        .set_width_mut(30.0)
-                        .set_row(0)
-                        .set_column(1);
-                    minimize_button
-                })
-                .with_child({
-                    close_button = self.close_button.unwrap_or_else(|| {
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(2.0)))
-                            .with_text("X")
-                            .build(ui)
-                    });
-                    ui.node_mut(close_button)
-                        .set_width_mut(30.0)
-                        .set_visibility(self.can_close)
-                        .set_row(0)
-                        .set_column(2);
-                    close_button
-                }))
-                .add_column(Column::stretch())
-                .add_column(Column::auto())
-                .add_column(Column::auto())
-                .add_row(Row::stretch())
-                .build(ui))
+                        };
+                        title
+                    })
+                    .with_child({
+                        minimize_button = self.minimize_button.unwrap_or_else(|| {
+                            ButtonBuilder::new(WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(2.0)))
+                                .with_text("_")
+                                .build(ui)
+                        });
+                        ui.node_mut(minimize_button)
+                            .set_visibility(self.can_minimize)
+                            .set_width_mut(30.0)
+                            .set_row(0)
+                            .set_column(1);
+                        minimize_button
+                    })
+                    .with_child({
+                        close_button = self.close_button.unwrap_or_else(|| {
+                            ButtonBuilder::new(WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(2.0)))
+                                .with_text("X")
+                                .build(ui)
+                        });
+                        ui.node_mut(close_button)
+                            .set_width_mut(30.0)
+                            .set_visibility(self.can_close)
+                            .set_row(0)
+                            .set_column(2);
+                        close_button
+                    }))
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .add_column(Column::auto())
+                    .add_row(Row::stretch())
+                    .build(ui);
+                title_grid
+            })
             .on_row(0)
         ).build(ui);
 
         ui.node_mut(self.content).set_row(1);
 
-        let window = Window {
+        Window {
             widget: self.widget_builder
                 .with_visibility(self.open)
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
@@ -670,13 +741,22 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<'a, M, C> {
                 Grip::new(GripKind::Right),
                 Grip::new(GripKind::Bottom),
             ]),
-        };
+            title,
+            title_grid
+        }
+    }
+
+    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+        let open = self.open;
+        let modal = self.modal;
+
+        let window = self.build_node(ui);
 
         let handle = ui.add_node(UINode::Window(window));
 
         ui.flush_messages();
 
-        if self.modal && self.open {
+        if modal && open {
             ui.push_picking_restriction(handle);
         }
 
