@@ -348,7 +348,12 @@ impl SurfaceSharedData {
             TriangleDefinition([0, 2, 3])
         ];
 
-        Self::new(vertices, indices, true)
+        let mut data = Self::new(vertices, indices, true);
+
+        data.calculate_normals();
+        data.calculate_tangents();
+
+        data
     }
 
     pub fn calculate_normals(&mut self) {

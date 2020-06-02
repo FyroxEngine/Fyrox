@@ -204,7 +204,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
             .add_row(Row::strict(30.0))
             .add_row(Row::strict(30.0))
             .build(ui))
-        .with_title(WindowTitle::Text("Model Options"))
+        .with_title(WindowTitle::text("Model Options"))
         .can_close(false)
         .build(ui);
 
@@ -250,7 +250,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
             .add_column(Column::stretch())
             .add_row(Row::strict(30.0))
             .build(ui))
-        .with_title(WindowTitle::Text("Graphics Options"))
+        .with_title(WindowTitle::text("Graphics Options"))
         .can_close(false)
         .build(ui);
 
