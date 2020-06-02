@@ -76,6 +76,7 @@ use rg3d::{
             Vec3EditorMessage,
             MenuItemMessage,
         },
+        messagebox::{MessageBoxBuilder, MessageBoxButtons},
         Thickness,
         stack_panel::StackPanelBuilder,
         file_browser::FileBrowserBuilder,
@@ -184,7 +185,7 @@ impl NodeEditor {
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
                 .build(ui))
-            .with_title(WindowTitle::Text("Node Properties"))
+            .with_title(WindowTitle::text("Node Properties"))
             .build(ui);
 
         Self {
@@ -282,7 +283,7 @@ impl FileSelector {
         let cancel;
         WindowBuilder::new(WidgetBuilder::new())
             .open(false)
-            .with_title(WindowTitle::Text("Select File"))
+            .with_title(WindowTitle::text("Select File"))
             .with_content(GridBuilder::new(WidgetBuilder::new()
                 .with_child({
                     browser = FileBrowserBuilder::new(WidgetBuilder::new()
@@ -413,7 +414,7 @@ impl ScenePreview {
                 .add_column(Column::auto())
                 .add_column(Column::stretch())
                 .build(ui))
-            .with_title(WindowTitle::Text("Scene Preview"))
+            .with_title(WindowTitle::text("Scene Preview"))
             .build(ui);
 
         Self {
@@ -867,6 +868,27 @@ impl Editor {
             .build(ui);
 
         let file_selector = FileSelector::new(ui);
+
+        let msg = MessageBoxBuilder::new(WindowBuilder::new(WidgetBuilder::new()
+            .with_max_size(Vec2::new(430.0, 220.0)))
+            .with_title(WindowTitle::Text("Welcome".to_owned())))
+            .with_text(
+                "Hello! Welcome to rusty editor - scene editor for rg3d engine.\n\
+                      This editor is far from completion, some parts may (and probably\n\
+                      will) work weird or even not work, currently editor is in active\n\
+                      development as well as the rg3d-ui library it is based on.\n\n\
+                      [W][S][A][D] - move camera\n\
+                      [RMB] - rotate camera\n\
+                      [LMB] - pick entities\n\n\
+                      To start you can use Create menu option to make some basic\n\
+                      objects.")
+            .with_buttons(MessageBoxButtons::Ok)
+            .build(ui);
+        ui.send_message(UiMessage {
+            handled: false,
+            data: UiMessageData::Widget(WidgetMessage::Center),
+            destination: msg
+        });
 
         let interaction_modes: Vec<Box<dyn InteractionMode>> = vec![
             Box::new(MoveInteractionMode::new(&editor_scene, engine, message_sender.clone())),

@@ -84,7 +84,7 @@ impl WorldOutliner {
     pub fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
         let root;
         let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::Text("World Outliner"))
+            .with_title(WindowTitle::text("World Outliner"))
             .with_content(ScrollViewerBuilder::new(WidgetBuilder::new())
                 .with_content({
                     root = TreeRootBuilder::new(WidgetBuilder::new())
