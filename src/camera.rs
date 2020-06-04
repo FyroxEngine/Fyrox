@@ -1,6 +1,6 @@
 use crate::{
     GameEngine,
-    EditorScene
+    scene::EditorScene
 };
 use rg3d::{
     scene::{

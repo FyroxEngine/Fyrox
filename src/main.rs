@@ -4,6 +4,7 @@ pub mod interaction;
 pub mod camera;
 pub mod command;
 pub mod world_outliner;
+pub mod scene;
 
 use crate::{
     interaction::{
@@ -14,9 +15,10 @@ use crate::{
         InteractionModeKind,
     },
     camera::CameraController,
-    command::{
-        CommandStack,
-        Command,
+    command::CommandStack,
+    scene::{
+        SceneContext,
+        SceneCommand,
         AddNodeCommand,
         DeleteNodeCommand,
         ChangeSelectionCommand,
@@ -25,6 +27,7 @@ use crate::{
         ScaleNodeCommand,
     },
     world_outliner::WorldOutliner,
+    scene::EditorScene
 };
 use rg3d::{
     resource::texture::TextureKind,
@@ -42,7 +45,6 @@ use rg3d::{
     event::{
         Event,
         WindowEvent,
-        DeviceEvent,
     },
     event_loop::{
         EventLoop,
@@ -244,21 +246,21 @@ impl NodeEditor {
                             let new_rotation = Quat::from_euler(euler, RotationOrder::XYZ);
                             if !old_rotation.approx_eq(new_rotation, 0.001) {
                                 self.sender
-                                    .send(Message::ExecuteCommand(Command::RotateNode(RotateNodeCommand::new(self.node, old_rotation, new_rotation))))
+                                    .send(Message::DoSceneCommand(SceneCommand::RotateNode(RotateNodeCommand::new(self.node, old_rotation, new_rotation))))
                                     .unwrap();
                             }
                         } else if message.destination == self.position {
                             let old_position = transform.position();
                             if old_position != value {
                                 self.sender
-                                    .send(Message::ExecuteCommand(Command::MoveNode(MoveNodeCommand::new(self.node, old_position, value))))
+                                    .send(Message::DoSceneCommand(SceneCommand::MoveNode(MoveNodeCommand::new(self.node, old_position, value))))
                                     .unwrap();
                             }
                         } else if message.destination == self.scale {
                             let old_scale = transform.scale();
                             if old_scale != value {
                                 self.sender
-                                    .send(Message::ExecuteCommand(Command::ScaleNode(ScaleNodeCommand::new(self.node, old_scale, value))))
+                                    .send(Message::DoSceneCommand(SceneCommand::ScaleNode(ScaleNodeCommand::new(self.node, old_scale, value))))
                                     .unwrap();
                             }
                         }
@@ -450,7 +452,7 @@ impl ScenePreview {
 
 #[derive(Debug)]
 pub enum Message {
-    ExecuteCommand(Command),
+    DoSceneCommand(SceneCommand),
     Undo,
     Redo,
     SetSelection(Handle<Node>),
@@ -460,17 +462,11 @@ pub enum Message {
     Exit,
 }
 
-pub struct EditorScene {
-    scene: Handle<Scene>,
-    // Handle to a root for all editor nodes.
-    root: Handle<Node>,
-}
-
 struct Editor {
     node_editor: NodeEditor,
     camera_controller: CameraController,
     scene: EditorScene,
-    command_stack: CommandStack,
+    command_stack: CommandStack<SceneCommand>,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<Box<dyn InteractionMode>>,
@@ -481,83 +477,6 @@ struct Editor {
     preview: ScenePreview,
     menu: Menu,
     exit: bool,
-}
-
-fn execute_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
-    let scene = &mut engine.scenes[editor_scene.scene];
-    let graph = &mut scene.graph;
-
-    match command {
-        Command::CommandGroup(group) => {
-            for command in group {
-                execute_command(editor_scene, engine, command, message_sender.clone(), current_selection)
-            }
-        }
-        Command::AddNode(command) => command.execute(graph),
-        Command::MoveNode(command) => command.execute(graph),
-        Command::ScaleNode(command) => command.execute(graph),
-        Command::RotateNode(command) => command.execute(graph),
-        Command::ChangeSelection(command) => {
-            let selection = command.execute();
-            if selection != current_selection {
-                // Just re-post message so every system will handle it correctly.
-                message_sender
-                    .send(Message::SetSelection(selection))
-                    .unwrap();
-            }
-        }
-        Command::LinkNodes(command) => command.execute(graph),
-        Command::DeleteNode(command) => command.execute(graph)
-    }
-}
-
-fn revert_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: &mut Command, message_sender: Sender<Message>, current_selection: Handle<Node>) {
-    let scene = &mut engine.scenes[editor_scene.scene];
-    let graph = &mut scene.graph;
-
-    match command {
-        Command::CommandGroup(group) => {
-            for command in group {
-                revert_command(editor_scene, engine, command, message_sender.clone(), current_selection)
-            }
-        }
-        Command::AddNode(command) => command.revert(graph),
-        Command::MoveNode(command) => command.revert(graph),
-        Command::ScaleNode(command) => command.revert(graph),
-        Command::RotateNode(command) => command.revert(graph),
-        Command::ChangeSelection(command) => {
-            let selection = command.revert();
-            if selection != current_selection {
-                // Just re-post message so every system will handle it correctly.
-                message_sender
-                    .send(Message::SetSelection(selection))
-                    .unwrap();
-            }
-        }
-        Command::LinkNodes(command) => command.revert(graph),
-        Command::DeleteNode(command) => command.revert(graph),
-    }
-}
-
-fn finalize_command(editor_scene: &EditorScene, engine: &mut GameEngine, command: Command) {
-    let scene = &mut engine.scenes[editor_scene.scene];
-    let graph = &mut scene.graph;
-
-    match command {
-        Command::CommandGroup(group) => {
-            for command in group {
-                finalize_command(editor_scene, engine, command);
-            }
-        }
-        Command::AddNode(command) => command.finalize(graph),
-        Command::DeleteNode(command) => command.finalize(graph),
-        // Intentionally not using _ => () to be notified about new commands by compiler.
-        Command::ChangeSelection(_) => {}
-        Command::MoveNode(_) => {}
-        Command::ScaleNode(_) => {}
-        Command::RotateNode(_) => {}
-        Command::LinkNodes(_) => {}
-    }
 }
 
 struct Menu {
@@ -741,7 +660,7 @@ impl Menu {
                         mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cube(Default::default())))));
                         let node = Node::Mesh(mesh);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_spot_light {
                         let kind = LightKind::Spot(SpotLight::new(10.0, 45.0, 2.0));
@@ -749,7 +668,7 @@ impl Menu {
                         light.set_name("SpotLight");
                         let node = Node::Light(light);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_point_light {
                         let kind = LightKind::Point(PointLight::new(10.0));
@@ -757,7 +676,7 @@ impl Menu {
                         light.set_name("PointLight");
                         let node = Node::Light(light);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_cone {
                         let mut mesh = Mesh::default();
@@ -765,7 +684,7 @@ impl Menu {
                         mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cone(16, 1.0, 1.0, Default::default())))));
                         let node = Node::Mesh(mesh);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_cylinder {
                         let mut mesh = Mesh::default();
@@ -773,7 +692,7 @@ impl Menu {
                         mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_cylinder(16, 1.0, 1.0, true, Default::default())))));
                         let node = Node::Mesh(mesh);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.create_sphere {
                         let mut mesh = Mesh::default();
@@ -781,7 +700,7 @@ impl Menu {
                         mesh.add_surface(Surface::new(Arc::new(Mutex::new(SurfaceSharedData::make_sphere(16, 16, 1.0)))));
                         let node = Node::Mesh(mesh);
                         self.message_sender
-                            .send(Message::ExecuteCommand(Command::AddNode(AddNodeCommand::new(node))))
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(AddNodeCommand::new(node))))
                             .unwrap();
                     } else if message.destination == self.save {
                         self.message_sender
@@ -887,7 +806,7 @@ impl Editor {
         ui.send_message(UiMessage {
             handled: false,
             data: UiMessageData::Widget(WidgetMessage::Center),
-            destination: msg
+            destination: msg,
         });
 
         let interaction_modes: Vec<Box<dyn InteractionMode>> = vec![
@@ -910,7 +829,7 @@ impl Editor {
             root_grid,
             file_selector,
             menu,
-            exit: false
+            exit: false,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1025,12 +944,12 @@ impl Editor {
                                 }
                                 KeyCode::Delete => {
                                     if self.node_editor.node.is_some() {
-                                        let command = Command::CommandGroup(vec![
-                                            Command::ChangeSelection(ChangeSelectionCommand::new(Handle::NONE, self.node_editor.node)),
-                                            Command::DeleteNode(DeleteNodeCommand::new(self.node_editor.node))
+                                        let command = SceneCommand::CommandGroup(vec![
+                                            SceneCommand::ChangeSelection(ChangeSelectionCommand::new(Handle::NONE, self.node_editor.node)),
+                                            SceneCommand::DeleteNode(DeleteNodeCommand::new(self.node_editor.node))
                                         ]);
                                         self.message_sender
-                                            .send(Message::ExecuteCommand(command))
+                                            .send(Message::DoSceneCommand(command))
                                             .unwrap();
                                     }
                                 }
@@ -1043,32 +962,6 @@ impl Editor {
                 _ => ()
             }
         }
-    }
-
-    fn undo_command(&mut self, engine: &mut GameEngine) {
-        if let Some(command) = self.command_stack.undo() {
-            println!("Undo command {:?}", command);
-            revert_command(&self.scene, engine, command, self.message_sender.clone(), self.node_editor.node);
-        }
-        self.sync_to_model(engine);
-    }
-
-    fn redo_command(&mut self, engine: &mut GameEngine) {
-        if let Some(command) = self.command_stack.redo() {
-            println!("Redo command {:?}", command);
-            execute_command(&self.scene, engine, command, self.message_sender.clone(), self.node_editor.node);
-        }
-        self.sync_to_model(engine);
-    }
-
-    fn add_command(&mut self, engine: &mut GameEngine, mut command: Command) {
-        execute_command(&self.scene, engine, &mut command, self.message_sender.clone(), self.node_editor.node);
-        let dropped_commands = self.command_stack.add_command(command);
-        for command in dropped_commands {
-            println!("Finalizing command {:?}", command);
-            finalize_command(&self.scene, engine, command);
-        }
-        self.sync_to_model(engine);
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
@@ -1084,13 +977,26 @@ impl Editor {
 
             self.world_outliner.handle_message(&message, engine);
 
+            let scene = &mut engine.scenes[self.scene.scene];
+            let context = SceneContext {
+                graph: &mut scene.graph,
+                message_sender: self.message_sender.clone(),
+                current_selection: self.node_editor.node,
+            };
+
             match message {
-                Message::ExecuteCommand(command) => {
-                    println!("Executing command: {:?}", &command);
-                    self.add_command(engine, command)
-                }
-                Message::Undo => self.undo_command(engine),
-                Message::Redo => self.redo_command(engine),
+                Message::DoSceneCommand(command) => {
+                    self.command_stack.do_command(command, context);
+                    self.sync_to_model(engine);
+                },
+                Message::Undo => {
+                    self.command_stack.undo(context);
+                    self.sync_to_model(engine);
+                },
+                Message::Redo => {
+                    self.command_stack.redo(context);
+                    self.sync_to_model(engine);
+                },
                 Message::SetSelection(node) => self.node_editor.node = node,
                 Message::SaveScene(mut path) => {
                     let scene = &mut engine.scenes[self.scene.scene];

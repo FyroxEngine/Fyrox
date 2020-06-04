@@ -1,12 +1,12 @@
 use crate::{
-    EditorScene,
     GameEngine,
     UiNode,
     Ui,
     UiMessage,
     Message,
-    command::{
-        Command,
+    scene::{
+        EditorScene,
+        SceneCommand,
         LinkNodesCommand,
         ChangeSelectionCommand,
     },
@@ -29,15 +29,14 @@ use rg3d::{
     scene::node::Node,
     core::{
         pool::Handle,
-        math::vec2::Vec2,
     },
+    engine::resource_manager::ResourceManager,
+    resource::texture::TextureKind
 };
 use std::{
     sync::mpsc::Sender,
     rc::Rc,
 };
-use rg3d::engine::resource_manager::ResourceManager;
-use rg3d::resource::texture::TextureKind;
 
 pub struct WorldOutliner {
     pub window: Handle<UiNode>,
@@ -209,7 +208,7 @@ impl WorldOutliner {
                         let node = self.map_tree_to_node(selection, ui);
                         if node != current_selection {
                             self.sender
-                                .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(node, current_selection))))
+                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(ChangeSelectionCommand::new(node, current_selection))))
                                 .unwrap();
                         }
                     }
@@ -222,7 +221,7 @@ impl WorldOutliner {
                         let parent = self.map_tree_to_node(message.destination, ui);
                         if child.is_some() && parent.is_some() {
                             self.sender
-                                .send(Message::ExecuteCommand(Command::LinkNodes(LinkNodesCommand::new(child, parent))))
+                                .send(Message::DoSceneCommand(SceneCommand::LinkNodes(LinkNodesCommand::new(child, parent))))
                                 .unwrap();
                         }
                     }
@@ -264,15 +263,11 @@ impl WorldOutliner {
                     if handle == node {
                         return tree_handle;
                     } else {
-                        for &item in tree.items() {
-                            stack.push(item);
-                        }
+                        stack.extend_from_slice(tree.items());
                     }
                 }
                 UiNode::TreeRoot(root) => {
-                    for &item in root.items() {
-                        stack.push(item);
-                    }
+                    stack.extend_from_slice(root.items());
                 }
                 _ => unreachable!()
             }

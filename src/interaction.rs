@@ -1,9 +1,9 @@
 use crate::{
-    EditorScene,
     GameEngine,
     Message,
-    command::{
-        Command,
+    scene::{
+        EditorScene,
+        SceneCommand,
         MoveNodeCommand,
         ChangeSelectionCommand,
         ScaleNodeCommand,
@@ -377,7 +377,7 @@ impl InteractionMode for MoveInteractionMode {
             let new_selection = camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
             if new_selection != current_selection {
                 self.message_sender
-                    .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(new_selection, current_selection))))
+                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(ChangeSelectionCommand::new(new_selection, current_selection))))
                     .unwrap();
             }
         }
@@ -392,7 +392,7 @@ impl InteractionMode for MoveInteractionMode {
                 // Commit changes.
                 let move_command = MoveNodeCommand::new(self.node, self.initial_position, current_position);
                 self.message_sender
-                    .send(Message::ExecuteCommand(Command::MoveNode(move_command)))
+                    .send(Message::DoSceneCommand(SceneCommand::MoveNode(move_command)))
                     .unwrap();
             }
         }
@@ -683,7 +683,7 @@ impl InteractionMode for ScaleInteractionMode {
             let new_selection = camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
             if new_selection != current_selection {
                 self.message_sender
-                    .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(new_selection, current_selection))))
+                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(ChangeSelectionCommand::new(new_selection, current_selection))))
                     .unwrap();
             }
         }
@@ -698,7 +698,7 @@ impl InteractionMode for ScaleInteractionMode {
                 // Commit changes.
                 let scale_command = ScaleNodeCommand::new(self.node, self.initial_scale, current_scale);
                 self.message_sender
-                    .send(Message::ExecuteCommand(Command::ScaleNode(scale_command)))
+                    .send(Message::DoSceneCommand(SceneCommand::ScaleNode(scale_command)))
                     .unwrap();
             }
         }
@@ -963,7 +963,7 @@ impl InteractionMode for RotateInteractionMode {
             let new_selection = camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
             if new_selection != current_selection {
                 self.message_sender
-                    .send(Message::ExecuteCommand(Command::ChangeSelection(ChangeSelectionCommand::new(new_selection, current_selection))))
+                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(ChangeSelectionCommand::new(new_selection, current_selection))))
                     .unwrap();
             }
         }
@@ -978,7 +978,7 @@ impl InteractionMode for RotateInteractionMode {
                 // Commit changes.
                 let rotate_command = RotateNodeCommand::new(self.node, self.initial_rotation, current_rotation);
                 self.message_sender
-                    .send(Message::ExecuteCommand(Command::RotateNode(rotate_command)))
+                    .send(Message::DoSceneCommand(SceneCommand::RotateNode(rotate_command)))
                     .unwrap();
             }
         }
