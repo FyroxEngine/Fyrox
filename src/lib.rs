@@ -435,12 +435,6 @@ lazy_static! {
     };
 }
 
-impl<M, C: 'static + Control<M, C>> Default for UserInterface<M, C> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 fn draw_node<M, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M,C>>, node_handle: Handle<UINode<M, C>>, drawing_context: &mut DrawingContext, nesting: u8) {
     let node = &nodes[node_handle];
     let bounds = node.screen_bounds();
@@ -479,10 +473,10 @@ fn draw_node<M, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M,C>>, node_hand
 }
 
 impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
-    pub fn new() -> UserInterface<M, C> {
+    pub fn new(screen_size: Vec2) -> UserInterface<M, C> {
         let (sender, receiver) = mpsc::channel();
         let mut ui = UserInterface {
-            screen_size: Vec2::new(1000.0, 1000.0),
+            screen_size,
             sender: sender.clone(),
             receiver,
             visual_debug: false,
