@@ -89,7 +89,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
             resource_manager: Arc::new(Mutex::new(ResourceManager::new())),
             sound_context: Context::new()?,
             scenes: SceneContainer::new(),
-            user_interface: UserInterface::new(),
+            user_interface: UserInterface::new(Vec2::new(client_size.width as f32, client_size.height as f32)),
             ui_time: Default::default(),
             context,
         })
