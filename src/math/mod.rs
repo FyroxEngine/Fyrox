@@ -92,6 +92,14 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
             h: self.h
         }
     }
+
+    pub fn size(&self) -> (T, T) {
+        (self.w, self.h)
+    }
+
+    pub fn position(&self) -> (T, T) {
+        (self.x, self.y)
+    }
 }
 
 impl<T> Visit for Rect<T> where T: PartialEq + Copy + Clone + Default + Visit + 'static {

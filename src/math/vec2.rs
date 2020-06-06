@@ -81,6 +81,23 @@ impl Vec2 {
         }
     }
 
+
+    /// Per component min
+    pub fn min(&self, other: Self) -> Self {
+        Self {
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+        }
+    }
+
+    /// Per component max
+    pub fn max(&self, other: Self) -> Self {
+        Self {
+            x: self.x.max(other.x),
+            y: self.y.max(other.y),
+        }
+    }
+
     #[inline]
     pub fn normalized(self) -> Option<Vec2> {
         let len = self.len();
@@ -92,6 +109,15 @@ impl Vec2 {
             });
         }
         None
+    }
+}
+
+impl From<(f32, f32)> for Vec2 {
+    fn from(v: (f32, f32)) -> Self {
+        Self {
+            x: v.0,
+            y: v.1
+        }
     }
 }
 
