@@ -166,23 +166,23 @@ impl UiRenderer {
             let mut is_font_texture = false;
             let mut color_write = true;
 
-            match cmd.get_kind() {
+            match cmd.kind {
                 CommandKind::Clip => {
-                    if cmd.get_nesting() == 1 {
+                    if cmd.nesting == 1 {
                         backbuffer.clear(state, viewport, None, None, Some(0));
                     }
                     state.set_stencil_op(StencilOp { zpass: gl::INCR, ..Default::default() });
                     // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
-                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.get_nesting() - 1), ..Default::default() });
+                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.nesting - 1), ..Default::default() });
                     // Draw clipping geometry to stencil buffers
                     state.set_stencil_mask(0xFF);
                     color_write = false;
                 }
                 CommandKind::Geometry => {
                     // Make sure to draw geometry only on clipping geometry with current nesting level
-                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.get_nesting()), ..Default::default() });
+                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.nesting), ..Default::default() });
 
-                    match cmd.texture() {
+                    match &cmd.texture {
                         CommandTexture::Font(font_arc) => {
                             let mut font = font_arc.lock().unwrap();
                             if font.texture.is_none() {
@@ -221,44 +221,44 @@ impl UiRenderer {
                 (self.shader.diffuse_texture, UniformValue::Sampler { index: 0, texture: diffuse_texture }),
                 (self.shader.wvp_matrix, UniformValue::Mat4(ortho)),
                 (self.shader.resolution, UniformValue::Vec2(Vec2::new(frame_width, frame_height))),
-                (self.shader.bounds_min, UniformValue::Vec2(cmd.min())),
-                (self.shader.bounds_max, UniformValue::Vec2(cmd.max())),
+                (self.shader.bounds_min, UniformValue::Vec2(cmd.bounds.min)),
+                (self.shader.bounds_max, UniformValue::Vec2(cmd.bounds.max)),
                 (self.shader.is_font, UniformValue::Bool(is_font_texture)),
                 (self.shader.brush_type, UniformValue::Integer({
-                    match cmd.brush() {
+                    match cmd.brush {
                         Brush::Solid(_) => 0,
                         Brush::LinearGradient { .. } => 1,
                         Brush::RadialGradient { .. } => 2,
                     }
                 })),
                 (self.shader.solid_color, UniformValue::Color({
-                    match cmd.brush() {
-                        Brush::Solid(color) => *color,
+                    match cmd.brush {
+                        Brush::Solid(color) => color,
                         _ => Color::WHITE,
                     }
                 })),
                 (self.shader.gradient_origin, UniformValue::Vec2({
-                    match cmd.brush() {
+                    match cmd.brush {
                         Brush::Solid(_) => Vec2::ZERO,
-                        Brush::LinearGradient { from, .. } => *from,
-                        Brush::RadialGradient { center, .. } => *center,
+                        Brush::LinearGradient { from, .. } => from,
+                        Brush::RadialGradient { center, .. } => center,
                     }
                 })),
                 (self.shader.gradient_end, UniformValue::Vec2({
-                    match cmd.brush() {
+                    match cmd.brush {
                         Brush::Solid(_) => Vec2::ZERO,
-                        Brush::LinearGradient { to, .. } => *to,
+                        Brush::LinearGradient { to, .. } => to,
                         Brush::RadialGradient { .. } => Vec2::ZERO,
                     }
                 })),
                 (self.shader.gradient_point_count, UniformValue::Integer({
-                    match cmd.brush() {
+                    match &cmd.brush {
                         Brush::Solid(_) => 0,
                         Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => stops.len() as i32,
                     }
                 })),
                 (self.shader.gradient_stops, UniformValue::FloatArray({
-                    match cmd.brush() {
+                    match &cmd.brush {
                         Brush::Solid(_) => &[],
                         Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => {
                             for (i, point) in stops.iter().enumerate() {
@@ -269,7 +269,7 @@ impl UiRenderer {
                     }
                 })),
                 (self.shader.gradient_colors, UniformValue::Vec4Array({
-                    match cmd.brush() {
+                    match &cmd.brush {
                         Brush::Solid(_) => &[],
                         Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => {
                             for (i, point) in stops.iter().enumerate() {
@@ -286,7 +286,7 @@ impl UiRenderer {
                 culling: false,
                 color_write: ColorMask::all(color_write),
                 depth_write: false,
-                stencil_test: cmd.get_nesting() != 0,
+                stencil_test: cmd.nesting != 0,
                 depth_test: false,
                 blend: true,
             };
@@ -299,8 +299,8 @@ impl UiRenderer {
                     program: &mut self.shader.program,
                     params,
                     uniforms: &uniforms,
-                    offset: cmd.get_start_triangle(),
-                    count: cmd.get_triangle_count(),
+                    offset: cmd.triangles.start,
+                    count: cmd.triangles.end - cmd.triangles.start,
                 }
             )?;
         }
