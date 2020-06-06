@@ -111,7 +111,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
                     if message.destination == self.expander {
-                        self.set_expanded(!self.is_expanded);
+                        ui.send_message(TreeMessage::expand(self.handle, !self.is_expanded));
                     }
                 }
             }
@@ -211,41 +211,6 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
 impl<M, C: 'static + Control<M, C>> Tree<M, C> {
     pub fn content(&self) -> Handle<UINode<M, C>> {
         self.content
-    }
-
-    pub fn add_item(&mut self, item: Handle<UINode<M, C>>) {
-        self.send_message(UiMessage {
-            data: UiMessageData::Tree(TreeMessage::AddItem(item)),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    /// Removes specified item from Tree.
-    pub fn remove_item(&mut self, item: Handle<UINode<M, C>>) {
-        self.send_message(UiMessage {
-            data: UiMessageData::Tree(TreeMessage::RemoveItem(item)),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    pub fn set_items(&mut self, items: Vec<Handle<UINode<M, C>>>) {
-        self.send_message(UiMessage {
-            data: UiMessageData::Tree(TreeMessage::SetItems(items)),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    pub fn set_expanded(&mut self, expand: bool) {
-        if self.is_expanded != expand {
-            self.send_message(UiMessage {
-                data: UiMessageData::Tree(TreeMessage::Expand(expand)),
-                destination: self.handle,
-                handled: false,
-            });
-        }
     }
 
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {

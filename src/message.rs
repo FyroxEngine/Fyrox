@@ -146,12 +146,64 @@ pub enum TreeMessage<M: 'static, C: 'static + Control<M, C>> {
     SetItems(Vec<Handle<UINode<M, C>>>),
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> TreeMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: TreeMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::Tree(msg),
+            destination
+        }
+    }
+
+    pub fn add_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeMessage::AddItem(item))
+    }
+
+    pub fn remove_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeMessage::RemoveItem(item))
+    }
+
+    pub fn set_items(destination: Handle<UINode<M, C>>, items: Vec<Handle<UINode<M, C>>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeMessage::SetItems(items))
+    }
+
+    pub fn expand(destination: Handle<UINode<M, C>>, expand: bool) -> UiMessage<M, C> {
+        Self::make(destination, TreeMessage::Expand(expand))
+    }
+}
+
 #[derive(Debug)]
 pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
     SetSelected(Handle<UINode<M, C>>),
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: TreeRootMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::TreeRoot(msg),
+            destination
+        }
+    }
+
+    pub fn add_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeRootMessage::AddItem(item))
+    }
+
+    pub fn remove_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeRootMessage::RemoveItem(item))
+    }
+
+    pub fn set_items(destination: Handle<UINode<M, C>>, items: Vec<Handle<UINode<M, C>>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeRootMessage::SetItems(items))
+    }
+
+    pub fn set_selected(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, TreeRootMessage::SetSelected(item))
+    }
 }
 
 #[derive(Debug)]

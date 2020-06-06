@@ -135,11 +135,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                     } else {
                         // Nuke everything in collapsed item. This also will free some resources
                         // and will speed up layout pass.
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Tree(TreeMessage::SetItems(vec![])),
-                            destination: message.destination,
-                        });
+                        ui.send_message(TreeMessage::set_items(message.destination, vec![]));
                     }
                 }
             }
@@ -217,17 +213,9 @@ fn build_tree<M: 'static, C: 'static + Control<M, C>>(parent: Handle<UINode<M, C
         .build(ui);
 
     if is_parent_root {
-        ui.send_message(UiMessage {
-            handled: false,
-            data: UiMessageData::TreeRoot(TreeRootMessage::AddItem(tree)),
-            destination: parent,
-        });
+        ui.send_message(TreeRootMessage::add_item(parent, tree));
     } else {
-        ui.send_message(UiMessage {
-            handled: false,
-            data: UiMessageData::Tree(TreeMessage::AddItem(tree)),
-            destination: parent,
-        });
+        ui.send_message(TreeMessage::add_item(parent, tree));
     }
 
     tree
