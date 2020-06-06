@@ -23,7 +23,13 @@ use rg3d::{
         grid::{GridBuilder, Row, Column},
         button::ButtonBuilder,
         HorizontalAlignment,
-        message::{UiMessageData, TreeRootMessage, WidgetMessage, TreeMessage},
+        message::{
+            UiMessageData,
+            TreeRootMessage,
+            WidgetMessage,
+            TreeMessage,
+            ButtonMessage
+        },
         scroll_viewer::ScrollViewerBuilder,
     },
     scene::node::Node,
@@ -130,12 +136,7 @@ impl WorldOutliner {
                         for &item in items.iter() {
                             let child_node = tree_node(ui, item);
                             if !node.children().contains(&child_node) {
-                                ui.send_message(UiMessage {
-                                    destination: tree_handle,
-                                    data: UiMessageData::Tree(TreeMessage::RemoveItem(item)),
-                                    handled: false,
-                                });
-                                ui.flush_messages();
+                                ui.send_message(TreeMessage::remove_item(tree_handle, item));
                             } else {
                                 self.stack.push((item, child_node));
                             }
@@ -157,12 +158,7 @@ impl WorldOutliner {
                             }
                             if !found {
                                 let tree = make_tree(&graph[child_handle], child_handle, ui, &mut engine.resource_manager.lock().unwrap());
-                                ui.send_message(UiMessage {
-                                    data: UiMessageData::Tree(TreeMessage::AddItem(tree)),
-                                    destination: tree_handle,
-                                    handled: false,
-                                });
-                                ui.flush_messages();
+                                ui.send_message(TreeMessage::add_item(tree_handle, tree));
                                 self.stack.push((tree, child_handle));
                             }
                         }
@@ -176,12 +172,7 @@ impl WorldOutliner {
                 UiNode::TreeRoot(root) => {
                     if root.items().is_empty() {
                         let tree = make_tree(node, node_handle, ui, &mut engine.resource_manager.lock().unwrap());
-                        ui.send_message(UiMessage {
-                            data: UiMessageData::TreeRoot(TreeRootMessage::AddItem(tree)),
-                            destination: tree_handle,
-                            handled: false,
-                        });
-                        ui.flush_messages();
+                        ui.send_message(TreeRootMessage::add_item(tree_handle, tree));
                         self.stack.push((tree, node_handle));
                     } else {
                         self.stack.push((root.items()[0], node_handle));
@@ -227,17 +218,17 @@ impl WorldOutliner {
                     }
                 }
             }
+            UiMessageData::Button(msg) => {
+                if let ButtonMessage::Click = msg {
+
+                }
+            }
             _ => {}
         }
     }
 
     pub fn clear(&mut self, ui: &mut Ui) {
-        ui.send_message(UiMessage {
-            handled: false,
-            data: UiMessageData::TreeRoot(TreeRootMessage::SetItems(vec![])),
-            destination: self.root,
-        });
-        ui.flush_messages();
+        ui.send_message(TreeRootMessage::set_items(self.root, vec![]));
     }
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {

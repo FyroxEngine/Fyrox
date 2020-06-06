@@ -747,11 +747,9 @@ impl InteractionMode for ScaleInteractionMode {
 }
 
 pub enum RotateGizmoMode {
-    None,
     Pitch,
     Yaw,
     Roll,
-    Arbitrary,
 }
 
 pub struct RotationGizmo {
@@ -782,8 +780,11 @@ impl RotationGizmo {
 
         let origin = graph.add_node(Node::Mesh(MeshBuilder::new(BaseBuilder::new()
             .with_name("Origin")
+            .with_depth_offset(0.5)
             .with_visibility(false))
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(0.1, 0.1, 0.1))))))
+            .with_surfaces(vec![
+                SurfaceBuilder::new(Arc::new(Mutex::new(SurfaceSharedData::make_sphere(10,10,0.1))))
+                    .with_color(Color::opaque(100, 100, 100))
                 .build()])
             .build()));
 
@@ -797,7 +798,7 @@ impl RotationGizmo {
         graph.link_nodes(z_axis, origin);
 
         Self {
-            mode: RotateGizmoMode::None,
+            mode: RotateGizmoMode::Pitch,
             origin,
             x_axis,
             y_axis,
@@ -816,7 +817,6 @@ impl RotationGizmo {
 
         let yellow = Color::opaque(255, 255, 0);
         match self.mode {
-            RotateGizmoMode::None => (),
             RotateGizmoMode::Pitch => {
                 graph[self.x_axis].as_mesh_mut().set_color(yellow);
             }
@@ -825,9 +825,6 @@ impl RotationGizmo {
             }
             RotateGizmoMode::Roll => {
                 graph[self.z_axis].as_mesh_mut().set_color(yellow);
-            }
-            RotateGizmoMode::Arbitrary => {
-                graph[self.origin].as_mesh_mut().set_color(yellow);
             }
         }
     }
@@ -848,11 +845,7 @@ impl RotationGizmo {
         } else if picked == self.z_axis {
             self.set_mode(RotateGizmoMode::Roll, graph);
             true
-        } else if picked == self.origin {
-            self.set_mode(RotateGizmoMode::Arbitrary, graph);
-            true
-        } else {
-            self.set_mode(RotateGizmoMode::None, graph);
+        }else {
             false
         }
     }
@@ -870,31 +863,34 @@ impl RotationGizmo {
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
 
         if let Node::Camera(camera) = &graph[camera] {
-            let node_global_transform = graph[node].global_transform();
+            let transform = graph[node].global_transform();
 
-            // Create two rays in object space.
             let initial_ray = camera.make_ray(mouse_position, screen_size);
             let offset_ray = camera.make_ray(mouse_position + mouse_offset, screen_size);
 
-            let axis = match self.mode {
-                RotateGizmoMode::None => return Quat::default(),
-                RotateGizmoMode::Pitch => Vec3::RIGHT,
-                RotateGizmoMode::Yaw => Vec3::UP,
-                RotateGizmoMode::Roll => Vec3::LOOK,
-                RotateGizmoMode::Arbitrary => Vec3::ZERO,
+            let oriented_axis = match self.mode {
+                RotateGizmoMode::Pitch => transform.side(),
+                RotateGizmoMode::Yaw => transform.up(),
+                RotateGizmoMode::Roll => transform.look(),
             };
 
-            let plane = Plane::from_normal_and_point(&node_global_transform.transform_vector(axis), &node_global_transform.position()).unwrap_or_default();
+            let plane = Plane::from_normal_and_point(&oriented_axis, &transform.position()).unwrap_or_default();
 
-            // Get two intersection points with plane and use delta between them to calculate scale delta.
-            // TODO: Still bugged and sometimes make unpredictable results.
-            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
-                if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
-                    let v_prev = initial_point.normalized().unwrap_or_default();
-                    let v_new = next_point.normalized().unwrap_or_default();
-                    let sign = v_prev.cross(&v_new).dot(&plane.normal).signum();
-                    let angle = v_prev.dot(&v_new).max(-0.999).min(0.999).acos();
-                    return Quat::from_axis_angle(axis, sign * angle);
+            if let Some(old_pos) = initial_ray.plane_intersection_point(&plane) {
+                if let Some(new_pos) = offset_ray.plane_intersection_point(&plane) {
+                    let center = transform.position();
+                    let old = (old_pos - center).normalized().unwrap_or_default();
+                    let new = (new_pos - center).normalized().unwrap_or_default();
+
+                    let angle_delta = old.dot(&new).max(-1.0).min(1.0).acos();
+                    let sign = old.cross(&new).dot(&oriented_axis).signum();
+
+                    let static_axis = match self.mode {
+                        RotateGizmoMode::Pitch => Vec3::RIGHT,
+                        RotateGizmoMode::Yaw => Vec3::UP,
+                        RotateGizmoMode::Roll => Vec3::LOOK,
+                    };
+                    return Quat::from_axis_angle(static_axis, sign * angle_delta);
                 }
             }
         }

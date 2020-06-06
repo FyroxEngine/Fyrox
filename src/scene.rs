@@ -37,6 +37,10 @@ pub enum SceneCommand {
     SetVisible(SetVisibleCommand),
 }
 
+pub struct MutRefLt<'a, T: 'a> {
+    field: &'a mut T
+}
+
 pub struct SceneContext<'a> {
     pub graph: &'a mut Graph,
     pub message_sender: Sender<Message>,

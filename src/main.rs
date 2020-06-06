@@ -453,8 +453,8 @@ impl ScenePreview {
 #[derive(Debug)]
 pub enum Message {
     DoSceneCommand(SceneCommand),
-    Undo,
-    Redo,
+    UndoSceneCommand,
+    RedoSceneCommand,
     SetSelection(Handle<Node>),
     SaveScene(PathBuf),
     LoadScene(PathBuf),
@@ -712,11 +712,11 @@ impl Menu {
                             .unwrap();
                     } else if message.destination == self.undo {
                         self.message_sender
-                            .send(Message::Undo)
+                            .send(Message::UndoSceneCommand)
                             .unwrap();
                     } else if message.destination == self.redo {
                         self.message_sender
-                            .send(Message::Redo)
+                            .send(Message::RedoSceneCommand)
                             .unwrap();
                     } else if message.destination == self.exit {
                         self.message_sender
@@ -857,7 +857,11 @@ impl Editor {
         self.camera_controller = CameraController::new(&self.scene, engine);
         self.command_stack = CommandStack::new();
 
+        // Don't care if any messages is still pending.
+        engine.user_interface.flush_messages();
+
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
+        self.sync_to_model(engine);
     }
 
     fn set_interaction_mode(&mut self, mode: Option<InteractionModeKind>, engine: &mut GameEngine) {
@@ -928,10 +932,10 @@ impl Editor {
                             self.camera_controller.on_key_down(key);
                             match key {
                                 KeyCode::Y => {
-                                    self.message_sender.send(Message::Redo).unwrap();
+                                    self.message_sender.send(Message::RedoSceneCommand).unwrap();
                                 }
                                 KeyCode::Z => {
-                                    self.message_sender.send(Message::Undo).unwrap();
+                                    self.message_sender.send(Message::UndoSceneCommand).unwrap();
                                 }
                                 KeyCode::Key1 => {
                                     self.set_interaction_mode(Some(InteractionModeKind::Move), engine)
@@ -989,11 +993,11 @@ impl Editor {
                     self.command_stack.do_command(command, context);
                     self.sync_to_model(engine);
                 },
-                Message::Undo => {
+                Message::UndoSceneCommand => {
                     self.command_stack.undo(context);
                     self.sync_to_model(engine);
                 },
-                Message::Redo => {
+                Message::RedoSceneCommand => {
                     self.command_stack.redo(context);
                     self.sync_to_model(engine);
                 },
