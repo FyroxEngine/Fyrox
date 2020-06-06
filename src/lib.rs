@@ -147,15 +147,20 @@ impl Thickness {
     pub fn right(v: f32) -> Self {
         Self { left: 0.0, top: 0.0, right: v, bottom: 0.0 }
     }
+
+    pub fn offset(&self) -> Vec2 {
+        Vec2::new(self.left, self.top)
+    }
+
+    /// Returns margin for each axis.
+    pub fn axes_margin(&self) -> Vec2 {
+        Vec2::new(self.left + self.right, self.top + self.bottom)
+    }
 }
 
 pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
 
 /// Trait for all UI controls in library.
-///
-/// Control must provide at least references (shared and mutable) to inner widget,
-/// which means that any control must be based on widget struct.
-/// Any other methods will be auto-implemented.
 pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M, C>> + DerefMut {
     fn raw_copy(&self) -> UINode<M, C>;
 
@@ -177,24 +182,17 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
         if self.visibility() {
             self.prev_arrange.set(*final_rect);
 
-            let margin_x = self.margin().left + self.margin().right;
-            let margin_y = self.margin().top + self.margin().bottom;
+            let margin = self.margin().axes_margin();
 
-            let mut origin_x = final_rect.x + self.margin().left;
-            let mut origin_y = final_rect.y + self.margin().top;
+            let mut size = (Vec2::from(final_rect.size()) - margin).max(Vec2::ZERO);
 
-            let mut size = Vec2 {
-                x: (final_rect.w - margin_x).max(0.0),
-                y: (final_rect.h - margin_y).max(0.0),
-            };
-
-            let size_without_margin = size;
+            let available_size = size;
 
             if self.horizontal_alignment() != HorizontalAlignment::Stretch {
-                size.x = size.x.min(self.desired_size().x - margin_x);
+                size.x = size.x.min(self.desired_size().x - margin.x);
             }
             if self.vertical_alignment() != VerticalAlignment::Stretch {
-                size.y = size.y.min(self.desired_size().y - margin_y);
+                size.y = size.y.min(self.desired_size().y - margin.y);
             }
 
             if self.width() > 0.0 {
@@ -204,36 +202,27 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
                 size.y = self.height();
             }
 
-            size = self.arrange_override(ui, size);
+            size = self.arrange_override(ui, size).min(final_rect.size().into());
 
-            if size.x > final_rect.w {
-                size.x = final_rect.w;
-            }
-            if size.y > final_rect.h {
-                size.y = final_rect.h;
-            }
+            let mut origin = Vec2::from(final_rect.position()) + self.margin().offset();
 
             match self.horizontal_alignment() {
                 HorizontalAlignment::Center | HorizontalAlignment::Stretch => {
-                    origin_x += (size_without_margin.x - size.x) * 0.5;
+                    origin.x += (available_size.x - size.x) * 0.5;
                 }
-                HorizontalAlignment::Right => {
-                    origin_x += size_without_margin.x - size.x;
-                }
+                HorizontalAlignment::Right => origin.x += available_size.x - size.x,
                 _ => ()
             }
 
             match self.vertical_alignment() {
                 VerticalAlignment::Center | VerticalAlignment::Stretch => {
-                    origin_y += (size_without_margin.y - size.y) * 0.5;
+                    origin.y += (available_size.y - size.y) * 0.5;
                 }
-                VerticalAlignment::Bottom => {
-                    origin_y += size_without_margin.y - size.y;
-                }
+                VerticalAlignment::Bottom => origin.y += available_size.y - size.y,
                 _ => ()
             }
 
-            self.commit_arrange(Vec2::new(origin_x, origin_y), size);
+            self.commit_arrange(origin, size);
         }
     }
 
@@ -271,75 +260,26 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
         if self.visibility() {
             self.prev_measure.set(available_size);
 
-            let margin = Vec2 {
-                x: self.margin().left + self.margin().right,
-                y: self.margin().top + self.margin().bottom,
-            };
+            let axes_margin = self.margin().axes_margin();
+            let inner_size = (available_size - axes_margin).max(Vec2::ZERO);
 
-            let size_for_child = Vec2 {
-                x: {
-                    let w = if self.width() > 0.0 {
-                        self.width()
-                    } else {
-                        (available_size.x - margin.x).max(0.0)
-                    };
+            let size =
+                Vec2::new(if self.width() > 0.0 { self.width() } else { inner_size.x },
+                          if self.height() > 0.0 { self.height() } else { inner_size.y })
+                    .min(self.max_size())
+                    .max(self.min_size());
 
-                    if w > self.max_size().x {
-                        self.max_size().x
-                    } else if w < self.min_size().x {
-                        self.min_size().x
-                    } else {
-                        w
-                    }
-                },
-                y: {
-                    let h = if self.height() > 0.0 {
-                        self.height()
-                    } else {
-                        (available_size.y - margin.y).max(0.0)
-                    };
-
-                    if h > self.max_size().y {
-                        self.max_size().y
-                    } else if h < self.min_size().y {
-                        self.min_size().y
-                    } else {
-                        h
-                    }
-                },
-            };
-
-            let mut desired_size = self.measure_override(ui, size_for_child);
+            let mut desired_size = self.measure_override(ui, size);
 
             if !self.width().is_nan() {
                 desired_size.x = self.width();
             }
-
-            if desired_size.x > self.max_size().x {
-                desired_size.x = self.max_size().x;
-            } else if desired_size.x < self.min_size().x {
-                desired_size.x = self.min_size().x;
-            }
-
-            if desired_size.y > self.max_size().y {
-                desired_size.y = self.max_size().y;
-            } else if desired_size.y < self.min_size().y {
-                desired_size.y = self.min_size().y;
-            }
-
             if !self.height().is_nan() {
                 desired_size.y = self.height();
             }
 
-            desired_size += margin;
-
-            // Make sure that node won't go outside of available bounds.
-            if desired_size.x > available_size.x {
-                desired_size.x = available_size.x;
-            }
-            if desired_size.y > available_size.y {
-                desired_size.y = available_size.y;
-            }
+            desired_size = desired_size.min(self.max_size()).max(self.min_size());
+            desired_size = (desired_size + axes_margin).min(available_size);
 
             self.commit_measure(desired_size);
         } else {
@@ -435,7 +375,7 @@ lazy_static! {
     };
 }
 
-fn draw_node<M, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M,C>>, node_handle: Handle<UINode<M, C>>, drawing_context: &mut DrawingContext, nesting: u8) {
+fn draw_node<M, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M, C>>, node_handle: Handle<UINode<M, C>>, drawing_context: &mut DrawingContext, nesting: u8) {
     let node = &nodes[node_handle];
     let bounds = node.screen_bounds();
     let parent = node.parent();
@@ -605,7 +545,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         while let Some(node_handle) = self.stack.pop() {
             let node = &self.nodes[node_handle];
             if node.draw_on_top {
-                draw_node( &self.nodes, node_handle, &mut self.drawing_context, 1);
+                draw_node(&self.nodes, node_handle, &mut self.drawing_context, 1);
             }
             for &child in node.children() {
                 self.stack.push(child);
@@ -642,7 +582,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
 
         for command_index in widget.command_indices.borrow().iter() {
             if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                if *command.get_kind() == CommandKind::Clip && self.drawing_context.is_command_contains_point(command, pt) {
+                if command.kind == CommandKind::Clip && self.drawing_context.is_command_contains_point(command, pt) {
                     clipped = false;
                     break;
                 }
@@ -667,7 +607,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
         if !self.is_node_clipped(node_handle, pt) {
             for command_index in widget.command_indices.borrow().iter() {
                 if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                    if *command.get_kind() == CommandKind::Geometry && self.drawing_context.is_command_contains_point(command, pt) {
+                    if command.kind == CommandKind::Geometry && self.drawing_context.is_command_contains_point(command, pt) {
                         return true;
                     }
                 }
@@ -1125,7 +1065,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         self.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::Widget(WidgetMessage::DragStarted(self.drag_context.drag_node)),
-                            destination: self.picked_node
+                            destination: self.picked_node,
                         })
                     }
                 }
@@ -1168,7 +1108,7 @@ impl<M, C: 'static + Control<M, C>> UserInterface<M, C> {
                         self.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::Widget(WidgetMessage::DragOver(self.drag_context.drag_node)),
-                            destination: self.picked_node
+                            destination: self.picked_node,
                         });
                     }
 

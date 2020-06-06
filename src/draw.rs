@@ -6,15 +6,17 @@ use crate::{
         math::{
             vec2::Vec2,
             Rect,
-        },
+            TriangleDefinition,
+            self
+        }
     },
-    core::math::TriangleDefinition,
     brush::Brush,
-    ttf::Font
+    ttf::Font,
 };
 use std::{
     any::Any,
-    sync::{Arc, Mutex}
+    sync::{Arc, Mutex},
+    ops::Range
 };
 
 #[repr(C)]
@@ -48,57 +50,38 @@ pub enum CommandTexture {
 }
 
 #[derive(Clone)]
-pub struct Command {
-    min: Vec2,
-    max: Vec2,
-    kind: CommandKind,
-    brush: Brush,
-    texture: CommandTexture,
-    start_triangle: usize,
-    triangle_count: usize,
-    nesting: u8,
+pub struct Bounds {
+    pub min: Vec2,
+    pub max: Vec2,
 }
 
-impl Command {
-    #[inline]
-    pub fn get_kind(&self) -> &CommandKind {
-        &self.kind
+impl Default for Bounds {
+    fn default() -> Self {
+        Self {
+            min: Vec2::new(std::f32::MAX, std::f32::MAX),
+            max: Vec2::new(-std::f32::MAX, -std::f32::MAX),
+        }
     }
+}
 
-    #[inline]
-    pub fn brush(&self) -> &Brush {
-        &self.brush
-    }
+impl Bounds {
+    pub fn push(&mut self, p: Vec2) {
+        self.min.x = self.min.x.min(p.x);
+        self.min.y = self.min.y.min(p.y);
 
-    #[inline]
-    pub fn texture(&self) -> &CommandTexture {
-        &self.texture
+        self.max.x = self.max.x.max(p.x);
+        self.max.y = self.max.y.max(p.y);
     }
+}
 
-    #[inline]
-    pub fn min(&self) -> Vec2 {
-        self.min
-    }
-
-    #[inline]
-    pub fn max(&self) -> Vec2 {
-        self.max
-    }
-
-    #[inline]
-    pub fn get_start_triangle(&self) -> usize {
-        self.start_triangle
-    }
-
-    #[inline]
-    pub fn get_triangle_count(&self) -> usize {
-        self.triangle_count
-    }
-
-    #[inline]
-    pub fn get_nesting(&self) -> u8 {
-        self.nesting
-    }
+#[derive(Clone)]
+pub struct Command {
+    pub bounds: Bounds,
+    pub kind: CommandKind,
+    pub brush: Brush,
+    pub texture: CommandTexture,
+    pub triangles: Range<usize>,
+    pub nesting: u8,
 }
 
 pub struct DrawingContext {
@@ -106,7 +89,6 @@ pub struct DrawingContext {
     triangle_buffer: Vec<TriangleDefinition>,
     command_buffer: Vec<Command>,
     clip_cmd_stack: Vec<usize>,
-    opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
     current_nesting: u8,
 }
@@ -132,7 +114,6 @@ impl DrawingContext {
             triangle_buffer: Vec::new(),
             command_buffer: Vec::new(),
             clip_cmd_stack: Vec::new(),
-            opacity_stack: Vec::new(),
             triangles_to_commit: 0,
             current_nesting: 0,
         }
@@ -144,7 +125,6 @@ impl DrawingContext {
         self.triangle_buffer.clear();
         self.command_buffer.clear();
         self.clip_cmd_stack.clear();
-        self.opacity_stack.clear();
         self.triangles_to_commit = 0;
         self.current_nesting = 0;
     }
@@ -188,54 +168,21 @@ impl DrawingContext {
         &self.command_buffer
     }
 
+    pub fn triangle_points(&self, triangle: &TriangleDefinition) -> Option<(&Vertex, &Vertex, &Vertex)> {
+        let a = self.vertex_buffer.get(triangle[0] as usize)?;
+        let b = self.vertex_buffer.get(triangle[1] as usize)?;
+        let c = self.vertex_buffer.get(triangle[2] as usize)?;
+        Some((a, b, c))
+    }
+
     pub fn is_command_contains_point(&self, command: &Command, pos: Vec2) -> bool {
-        let last = command.start_triangle + command.triangle_count;
-
-        // Check each triangle from command for intersection with mouse pointer
-        for j in command.start_triangle..last {
-            let triangle = if let Some(triangle) = self.triangle_buffer.get(j) {
-                triangle
-            } else {
-                return false;
-            };
-
-            let va = match self.vertex_buffer.get(triangle[0] as usize) {
-                Some(v) => v,
-                None => return false
-            };
-            let vb = match self.vertex_buffer.get(triangle[1] as usize) {
-                Some(v) => v,
-                None => return false
-            };
-            let vc = match self.vertex_buffer.get(triangle[2] as usize) {
-                Some(v) => v,
-                None => return false
-            };
-
-            // Check if point is in triangle.
-            let v0 = vc.pos - va.pos;
-            let v1 = vb.pos - va.pos;
-            let v2 = pos - va.pos;
-
-            let dot00 = v0.dot(v0);
-            let dot01 = v0.dot(v1);
-            let dot02 = v0.dot(v2);
-            let dot11 = v1.dot(v1);
-            let dot12 = v1.dot(v2);
-
-            let denom = dot00 * dot11 - dot01 * dot01;
-
-            if denom <= std::f32::EPSILON {
-                // We don't want floating-point exceptions
-                return false;
-            }
-
-            let inv_denom = 1.0 / denom;
-            let u = (dot11 * dot02 - dot01 * dot12) * inv_denom;
-            let v = (dot00 * dot12 - dot01 * dot02) * inv_denom;
-
-            if (u >= 0.0) && (v >= 0.0) && (u + v < 1.0) {
-                return true;
+        for i in command.triangles.clone() {
+            if let Some(triangle) = self.triangle_buffer.get(i) {
+                if let Some((va, vb, vc)) = self.triangle_points(triangle) {
+                    if math::is_point_inside_2d_triangle(pos, va.pos, vb.pos, vc.pos) {
+                        return true;
+                    }
+                }
             }
         }
 
@@ -326,42 +273,36 @@ impl DrawingContext {
         }
     }
 
+    fn pending_range(&self) -> Range<usize> {
+        if self.triangle_buffer.is_empty() {
+            0..self.triangles_to_commit
+        } else {
+            (self.triangle_buffer.len() - self.triangles_to_commit)..self.triangle_buffer.len()
+        }
+    }
+
+    fn bounds_of(&self, range: Range<usize>) -> Bounds {
+        let mut bounds = Bounds::default();
+        for i in range {
+            for &k in self.triangle_buffer[i].as_ref() {
+                bounds.push(self.vertex_buffer[k as usize].pos);
+            }
+        }
+        bounds
+    }
+
     pub fn commit(&mut self, kind: CommandKind, brush: Brush, texture: CommandTexture) {
         if self.triangles_to_commit > 0 {
-            let start_triangle = if !self.triangle_buffer.is_empty() {
-                self.triangle_buffer.len() - self.triangles_to_commit
-            } else {
-                0
-            };
-
-            // Calculate bounds
-            let mut min = Vec2::new(std::f32::MAX, std::f32::MAX);
-            let mut max = Vec2::new(-std::f32::MAX, -std::f32::MAX);
-            for i in start_triangle..(start_triangle + self.triangles_to_commit) {
-                let triangle = &self.triangle_buffer[i];
-                for &k in triangle.as_ref() {
-                    let vertex = &self.vertex_buffer[k as usize];
-
-                    min.x = min.x.min(vertex.pos.x);
-                    min.y = min.y.min(vertex.pos.y);
-
-                    max.x = max.x.max(vertex.pos.x);
-                    max.y = max.y.max(vertex.pos.y);
-                }
-            }
-
-            let command = Command {
-                min,
-                max,
+            let triangles = self.pending_range();
+            let bounds = self.bounds_of(triangles.clone());
+            self.command_buffer.push(Command {
+                bounds,
                 kind,
                 brush,
                 texture,
+                triangles,
                 nesting: self.current_nesting,
-                start_triangle,
-                triangle_count: self.triangles_to_commit,
-            };
-
-            self.command_buffer.push(command);
+            });
             self.triangles_to_commit = 0;
         }
     }
@@ -392,10 +333,6 @@ impl DrawingContext {
         let index = self.command_buffer.len();
         self.commit(CommandKind::Clip, Brush::Solid(Color::WHITE), CommandTexture::None);
         self.clip_cmd_stack.push(index);
-    }
-
-    pub fn ready_to_draw(&self) -> bool {
-        self.clip_cmd_stack.is_empty() && self.triangles_to_commit == 0 && self.opacity_stack.is_empty()
     }
 
     pub fn revert_clip_geom(&mut self) {
