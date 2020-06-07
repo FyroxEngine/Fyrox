@@ -5,6 +5,8 @@ pub mod camera;
 pub mod command;
 pub mod world_outliner;
 pub mod scene;
+pub mod asset;
+pub mod gui;
 
 use crate::{
     interaction::{
@@ -27,7 +29,8 @@ use crate::{
         ScaleNodeCommand,
     },
     world_outliner::WorldOutliner,
-    scene::EditorScene
+    scene::EditorScene,
+    asset::{AssetBrowser}
 };
 use rg3d::{
     resource::texture::TextureKind,
@@ -84,7 +87,6 @@ use rg3d::{
         file_browser::FileBrowserBuilder,
         widget::WidgetBuilder,
         text::TextBuilder,
-        node::StubNode,
         text_box::TextBoxBuilder,
         Orientation,
         HorizontalAlignment,
@@ -113,11 +115,9 @@ use std::{
     fs::File,
     io::Write,
 };
+use crate::gui::{CustomUiNode, UiNode, UiMessage, Ui};
 
-type GameEngine = rg3d::engine::Engine<(), StubNode>;
-type UiNode = rg3d::gui::node::UINode<(), StubNode>;
-type Ui = rg3d::gui::UserInterface<(), StubNode>;
-type UiMessage = rg3d::gui::message::UiMessage<(), StubNode>;
+type GameEngine = rg3d::engine::Engine<(), CustomUiNode>;
 
 struct NodeEditor {
     window: Handle<UiNode>,
@@ -475,6 +475,7 @@ struct Editor {
     root_grid: Handle<UiNode>,
     file_selector: FileSelector,
     preview: ScenePreview,
+    asset_browser: AssetBrowser,
     menu: Menu,
     exit: bool,
 }
@@ -750,6 +751,7 @@ impl Editor {
         let node_editor = NodeEditor::new(ui, message_sender.clone());
         let world_outliner = WorldOutliner::new(ui, message_sender.clone());
         let menu = Menu::new(ui, message_sender.clone());
+        let asset_browser = AssetBrowser::new(ui);
 
         let root_grid = GridBuilder::new(WidgetBuilder::new()
             .with_width(engine.renderer.get_frame_size().0 as f32)
@@ -757,29 +759,41 @@ impl Editor {
             .with_child(menu.menu)
             .with_child(DockingManagerBuilder::new(WidgetBuilder::new()
                 .on_row(1)
-                .with_child(TileBuilder::new(WidgetBuilder::new())
-                    .with_content(TileContent::HorizontalTiles {
-                        splitter: 0.25,
-                        tiles: [
-                            TileBuilder::new(WidgetBuilder::new())
-                                .with_content(TileContent::Window(world_outliner.window))
-                                .build(ui),
-                            TileBuilder::new(WidgetBuilder::new())
-                                .with_content(TileContent::HorizontalTiles {
-                                    splitter: 0.66,
-                                    tiles: [
-                                        TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(preview.window))
-                                            .build(ui),
-                                        TileBuilder::new(WidgetBuilder::new())
-                                            .with_content(TileContent::Window(node_editor.window))
-                                            .build(ui)
-                                    ],
-                                })
-                                .build(ui),
-                        ],
-                    })
-                    .build(ui)))
+                .with_child({
+                    TileBuilder::new(WidgetBuilder::new())
+                        .with_content(TileContent::VerticalTiles {
+                            splitter: 0.75,
+                            tiles: [
+                                TileBuilder::new(WidgetBuilder::new())
+                                    .with_content(TileContent::HorizontalTiles {
+                                        splitter: 0.25,
+                                        tiles: [
+                                            TileBuilder::new(WidgetBuilder::new())
+                                                .with_content(TileContent::Window(world_outliner.window))
+                                                .build(ui),
+                                            TileBuilder::new(WidgetBuilder::new())
+                                                .with_content(TileContent::HorizontalTiles {
+                                                    splitter: 0.66,
+                                                    tiles: [
+                                                        TileBuilder::new(WidgetBuilder::new())
+                                                            .with_content(TileContent::Window(preview.window))
+                                                            .build(ui),
+                                                        TileBuilder::new(WidgetBuilder::new())
+                                                            .with_content(TileContent::Window(node_editor.window))
+                                                            .build(ui)
+                                                    ],
+                                                })
+                                                .build(ui),
+                                        ],
+                                    })
+                                    .build(ui),
+                                TileBuilder::new(WidgetBuilder::new())
+                                    .with_content(TileContent::Window(asset_browser.window))
+                                    .build(ui)
+                            ],
+                        })
+                        .build(ui)
+                }))
                 .build(ui)))
             .add_row(Row::strict(25.0))
             .add_row(Row::stretch())
@@ -830,6 +844,7 @@ impl Editor {
             file_selector,
             menu,
             exit: false,
+            asset_browser,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -882,6 +897,7 @@ impl Editor {
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         self.node_editor.handle_message(message, &self.scene, engine);
         self.menu.handle_message(message);
+        self.asset_browser.handle_ui_message(message, engine);
 
         let ui = &mut engine.user_interface;
         self.world_outliner.handle_ui_message(message, ui, self.node_editor.node);
@@ -992,15 +1008,15 @@ impl Editor {
                 Message::DoSceneCommand(command) => {
                     self.command_stack.do_command(command, context);
                     self.sync_to_model(engine);
-                },
+                }
                 Message::UndoSceneCommand => {
                     self.command_stack.undo(context);
                     self.sync_to_model(engine);
-                },
+                }
                 Message::RedoSceneCommand => {
                     self.command_stack.redo(context);
                     self.sync_to_model(engine);
-                },
+                }
                 Message::SetSelection(node) => self.node_editor.node = node,
                 Message::SaveScene(mut path) => {
                     let scene = &mut engine.scenes[self.scene.scene];

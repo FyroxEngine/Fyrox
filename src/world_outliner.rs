@@ -1,8 +1,8 @@
 use crate::{
     GameEngine,
-    UiNode,
-    Ui,
-    UiMessage,
+    gui::UiNode,
+    gui::Ui,
+    gui::UiMessage,
     Message,
     scene::{
         EditorScene,
