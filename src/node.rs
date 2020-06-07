@@ -30,11 +30,17 @@ use crate::{
         pool::Handle,
     },
     dropdown_list::DropdownList,
-    list_view::{ListView, ListViewItem},
+    list_view::{
+        ListView,
+        ListViewItem
+    },
     decorator::Decorator,
     NodeHandleMapping,
     progress_bar::ProgressBar,
-    tree::{Tree, TreeRoot},
+    tree::{
+        Tree,
+        TreeRoot
+    },
     file_browser::FileBrowser,
     dock::{
         DockingManager,
@@ -46,7 +52,8 @@ use crate::{
         Menu,
         MenuItem
     },
-    messagebox::MessageBox
+    messagebox::MessageBox,
+    wrap_panel::WrapPanel
 };
 use std::ops::{Deref, DerefMut};
 
@@ -82,6 +89,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Menu(Menu<M, C>),
     MenuItem(MenuItem<M, C>),
     MessageBox(MessageBox<M, C>),
+    WrapPanel(WrapPanel<M, C>),
     User(C)
 }
 
@@ -119,6 +127,7 @@ macro_rules! static_dispatch {
             UINode::Menu(v) => v.$func($($args),*),
             UINode::MenuItem(v) => v.$func($($args),*),
             UINode::MessageBox(v) => v.$func($($args),*),
+            UINode::WrapPanel(v) => v.$func($($args),*),
         }
     };
 }
@@ -157,6 +166,7 @@ macro_rules! static_dispatch_deref {
             UINode::Menu(v) => v,
             UINode::MenuItem(v) => v,
             UINode::MessageBox(v) => v,
+            UINode::WrapPanel(v) => v,
         }
     };
 }

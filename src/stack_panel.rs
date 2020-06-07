@@ -76,12 +76,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
                     child_constraint.x = self.widget.width();
                 }
 
-                if child_constraint.x < self.widget.min_size().x {
-                    child_constraint.x = self.widget.min_size().x;
-                }
-                if child_constraint.x > self.widget.max_size().x {
-                    child_constraint.x = self.widget.max_size().x;
-                }
+                child_constraint.x = child_constraint.x.min(self.max_width()).max(self.min_width());
             }
             Orientation::Horizontal => {
                 child_constraint.y = available_size.y;
@@ -90,12 +85,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
                     child_constraint.y = self.widget.height();
                 }
 
-                if child_constraint.y < self.widget.min_size().y {
-                    child_constraint.y = self.widget.min_size().y;
-                }
-                if child_constraint.y > self.widget.max_size().y {
-                    child_constraint.y = self.widget.max_size().y;
-                }
+                child_constraint.y = child_constraint.y.min(self.max_height()).max(self.min_height());
             }
         }
 

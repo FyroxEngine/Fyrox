@@ -29,11 +29,13 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 - [x] Vec3 editor
 - [x] Menu
 - [x] Message box
+- [x] Wrap panel
 
 ## Limitations
 
 - Font support is not full yet: size of font is still can't be changed dynamically, it is possible to change font by recreating font with new size. Compound characters are not supported yet, no kerning available, no sub-pixel or hinted rendering. This part of library should be replaced with some other crate, rusttype for example.
 - Since this library is OS-, GAPI-agnostic it cannot create native OS' windows and it cannot render anything on screen. Instead it uses internal draw buffer which holds list of commands, which has to be interpreted in your game/app. This is very flexible way, but it has some limitations: multiwindow (native) configuration is hard to implement, you have to implement your own UI renderer what can be difficult if you not familiar with anything like this.
+- There is still no keyboard navigation, it is planned but not with high priority.
 
 ## Performance
 

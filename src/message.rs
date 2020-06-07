@@ -85,6 +85,33 @@ pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
     Center,
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> WidgetMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: WidgetMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::Widget(msg),
+            destination
+        }
+    }
+
+    /// Creates a message to remove `destination` node.
+    pub fn remove(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, WidgetMessage::Remove)
+    }
+
+    /// Creates a message to unlink `destination` node from its current parent.
+    pub fn unlink(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, WidgetMessage::Unlink)
+    }
+
+    /// Creates message to link `destination` node with specified `parent` node.
+    pub fn link(destination: Handle<UINode<M, C>>, parent: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, WidgetMessage::LinkWith(parent))
+    }
+
+    // TODO: Add rest items.
+}
+
 #[derive(Debug)]
 pub enum ButtonMessage<M: 'static, C: 'static + Control<M, C>> {
     Click,

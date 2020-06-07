@@ -43,6 +43,7 @@ pub mod vec;
 pub mod numeric;
 pub mod menu;
 pub mod messagebox;
+pub mod wrap_panel;
 
 use crate::{
     core::{
@@ -377,15 +378,22 @@ lazy_static! {
 
 fn draw_node<M, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M, C>>, node_handle: Handle<UINode<M, C>>, drawing_context: &mut DrawingContext, nesting: u8) {
     let node = &nodes[node_handle];
-    let bounds = node.screen_bounds();
-    let parent = node.parent();
-
-    if parent.is_some() && !nodes.borrow(parent).screen_bounds().intersects(bounds) {
+    if !node.is_globally_visible() {
         return;
     }
 
-    if !node.is_globally_visible() {
-        return;
+    // Crawl up on tree and check if current bounds are intersects with every screen bound
+    // of parents chain. This is needed because some control can move their children outside of
+    // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
+    // current bounds is not enough.
+    let bounds = node.screen_bounds();
+    let mut parent = node.parent();
+    while parent.is_some() {
+        let parent_node= nodes.borrow(parent);
+        if !parent_node.screen_bounds().intersects(bounds) {
+            return;
+        }
+        parent = parent_node.parent();
     }
 
     let start_index = drawing_context.get_commands().len();
