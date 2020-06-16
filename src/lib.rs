@@ -91,6 +91,16 @@ impl Default for Physics {
     }
 }
 
+impl Clone for Physics {
+    fn clone(&self) -> Self {
+        Self {
+            bodies: self.bodies.clone(),
+            static_geoms: self.static_geoms.clone(),
+            query_buffer: Default::default()
+        }
+    }
+}
+
 impl Physics {
     pub fn new() -> Physics {
         Physics {
@@ -126,14 +136,6 @@ impl Physics {
 
     pub fn is_valid_body_handle(&self, handle: Handle<RigidBody>) -> bool {
         self.bodies.is_valid_handle(handle)
-    }
-
-    pub fn clone(&self) -> Self {
-        Self {
-            bodies: self.bodies.clone(),
-            static_geoms: self.static_geoms.clone(),
-            query_buffer: Default::default()
-        }
     }
 
     pub fn step(&mut self, delta_time: f32) {
