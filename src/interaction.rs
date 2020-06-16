@@ -384,7 +384,7 @@ impl InteractionMode for MoveInteractionMode {
     }
 
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() {
+        if self.node.is_some() && self.interacting {
             self.interacting = false;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             let current_position = graph[self.node].local_transform().position();
@@ -690,7 +690,7 @@ impl InteractionMode for ScaleInteractionMode {
     }
 
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() {
+        if self.node.is_some() && self.interacting {
             self.interacting = false;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             let current_scale = graph[self.node].local_transform().scale();
@@ -966,7 +966,7 @@ impl InteractionMode for RotateInteractionMode {
     }
 
     fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() {
+        if self.node.is_some() && self.interacting {
             self.interacting = false;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             let current_rotation = graph[self.node].local_transform().rotation();

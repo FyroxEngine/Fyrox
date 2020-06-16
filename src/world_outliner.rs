@@ -28,7 +28,7 @@ use rg3d::{
             TreeRootMessage,
             WidgetMessage,
             TreeMessage,
-            ButtonMessage
+            ButtonMessage,
         },
         scroll_viewer::ScrollViewerBuilder,
     },
@@ -37,12 +37,13 @@ use rg3d::{
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    resource::texture::TextureKind
+    resource::texture::TextureKind,
 };
 use std::{
     sync::mpsc::Sender,
     rc::Rc,
 };
+use crate::gui::BuildContext;
 
 pub struct WorldOutliner {
     pub window: Handle<UiNode>,
@@ -51,14 +52,14 @@ pub struct WorldOutliner {
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
 }
 
-fn make_tree(node: &Node, handle: Handle<Node>, ui: &mut Ui, resource_manager: &mut ResourceManager) -> Handle<UiNode> {
+fn make_tree(node: &Node, handle: Handle<Node>, ctx: &mut BuildContext, resource_manager: &mut ResourceManager) -> Handle<UiNode> {
     TreeBuilder::new(WidgetBuilder::new()
         .with_user_data(Rc::new(handle))
         .with_margin(Thickness::uniform(1.0)))
         .with_content(GridBuilder::new(WidgetBuilder::new()
             .with_child(TextBuilder::new(WidgetBuilder::new())
                 .with_text(node.name())
-                .build(ui))
+                .build(ctx))
             .with_child(ButtonBuilder::new(WidgetBuilder::new()
                 .with_width(22.0)
                 .with_height(16.0)
@@ -66,14 +67,14 @@ fn make_tree(node: &Node, handle: Handle<Node>, ui: &mut Ui, resource_manager: &
                 .on_column(1))
                 .with_content(ImageBuilder::new(WidgetBuilder::new())
                     .with_opt_texture(into_any_arc(resource_manager.request_texture("resources/visible.png", TextureKind::RGBA8)))
-                    .build(ui))
-                .build(ui)))
+                    .build(ctx))
+                .build(ctx)))
             .add_row(Row::stretch())
             .add_column(Column::auto())
             .add_column(Column::stretch())
-            .build(ui)
+            .build(ctx)
         )
-        .build(ui)
+        .build(ctx)
 }
 
 fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
@@ -86,18 +87,21 @@ fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
 }
 
 impl WorldOutliner {
-    pub fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let root;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("World Outliner"))
-            .with_content(ScrollViewerBuilder::new(WidgetBuilder::new())
-                .with_content({
-                    root = TreeRootBuilder::new(WidgetBuilder::new())
-                        .build(ui);
-                    root
-                })
-                .build(ui))
-            .build(ui);
+            .with_content({
+                ScrollViewerBuilder::new(WidgetBuilder::new())
+                    .with_content({
+                        root = TreeRootBuilder::new(WidgetBuilder::new())
+                            .build(ctx);
+                        root
+                    })
+                    .build(ctx)
+
+            })
+            .build(ctx);
 
         Self {
             window,
@@ -107,7 +111,7 @@ impl WorldOutliner {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine, current_selection: Handle<Node>) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
@@ -121,7 +125,7 @@ impl WorldOutliner {
                 continue;
             }
             let node = &graph[node_handle];
-            match ui.node_mut(tree_handle) {
+            match ui.node(tree_handle) {
                 UiNode::Tree(tree) => {
                     // Since we are filtering out editor stuff from world outliner, we must
                     // correctly count children, excluding editor nodes.
@@ -157,8 +161,11 @@ impl WorldOutliner {
                                 }
                             }
                             if !found {
-                                let tree = make_tree(&graph[child_handle], child_handle, ui, &mut engine.resource_manager.lock().unwrap());
+                                let tree = make_tree(&graph[child_handle], child_handle, &mut ui.build_ctx(), &mut engine.resource_manager.lock().unwrap());
                                 ui.send_message(TreeMessage::add_item(tree_handle, tree));
+                                if child_handle == current_selection {
+                                    ui.send_message(TreeRootMessage::select(self.root, tree));
+                                }
                                 self.stack.push((tree, child_handle));
                             }
                         }
@@ -171,7 +178,7 @@ impl WorldOutliner {
                 }
                 UiNode::TreeRoot(root) => {
                     if root.items().is_empty() {
-                        let tree = make_tree(node, node_handle, ui, &mut engine.resource_manager.lock().unwrap());
+                        let tree = make_tree(node, node_handle, &mut ui.build_ctx(), &mut engine.resource_manager.lock().unwrap());
                         ui.send_message(TreeRootMessage::add_item(tree_handle, tree));
                         self.stack.push((tree, node_handle));
                     } else {
@@ -195,7 +202,7 @@ impl WorldOutliner {
         match &message.data {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination == self.root {
-                    if let &TreeRootMessage::SetSelected(selection) = msg {
+                    if let &TreeRootMessage::Selected(selection) = msg {
                         let node = self.map_tree_to_node(selection, ui);
                         if node != current_selection {
                             self.sender
@@ -219,16 +226,14 @@ impl WorldOutliner {
                 }
             }
             UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-
-                }
+                if let ButtonMessage::Click = msg {}
             }
             _ => {}
         }
     }
 
     pub fn clear(&mut self, ui: &mut Ui) {
-        ui.send_message(TreeRootMessage::set_items(self.root, vec![]));
+        ui.send_message(TreeRootMessage::items(self.root, vec![]));
     }
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {
@@ -237,9 +242,7 @@ impl WorldOutliner {
         match message {
             &Message::SetSelection(selection) => {
                 let tree = self.map_node_to_tree(ui, selection);
-                if let UiNode::TreeRoot(root) = engine.user_interface.node_mut(self.root) {
-                    root.set_selected(tree);
-                }
+                ui.send_message(TreeRootMessage::select(self.root, tree));
             }
             _ => ()
         }

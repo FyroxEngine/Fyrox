@@ -5,7 +5,7 @@ use rg3d::{
     core::{
         math::Rect,
         math::vec2::Vec2,
-        pool::Handle
+        pool::Handle,
     },
     gui::{
         Control,
@@ -22,7 +22,9 @@ pub type CustomWidget = rg3d::gui::widget::Widget<CustomMessage, CustomUiNode>;
 pub type UiNode = rg3d::gui::node::UINode<CustomMessage, CustomUiNode>;
 pub type Ui = rg3d::gui::UserInterface<CustomMessage, CustomUiNode>;
 pub type UiMessage = rg3d::gui::message::UiMessage<CustomMessage, CustomUiNode>;
+pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, CustomMessage, CustomUiNode>;
 
+#[derive(Debug)]
 pub enum CustomUiNode {
     AssetItem(AssetItem)
 }
@@ -57,7 +59,7 @@ impl DerefMut for CustomUiNode {
     }
 }
 
-impl Control<(), CustomUiNode> for CustomUiNode {
+impl Control<CustomMessage, CustomUiNode> for CustomUiNode {
     fn raw_copy(&self) -> UiNode {
         static_dispatch!(self, raw_copy,)
     }

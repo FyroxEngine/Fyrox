@@ -80,6 +80,7 @@ use rg3d::{
             MouseButton,
             Vec3EditorMessage,
             MenuItemMessage,
+            TextMessage
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons},
         Thickness,
@@ -115,7 +116,7 @@ use std::{
     fs::File,
     io::Write,
 };
-use crate::gui::{CustomUiNode, UiNode, UiMessage, Ui};
+use crate::gui::{CustomUiNode, UiNode, UiMessage, BuildContext};
 
 type GameEngine = rg3d::engine::Engine<(), CustomUiNode>;
 
@@ -129,54 +130,57 @@ struct NodeEditor {
     sender: Sender<Message>,
 }
 
-fn make_text_mark(ui: &mut Ui, text: &str, row: usize) -> Handle<UiNode> {
+fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()
         .with_vertical_alignment(VerticalAlignment::Center)
         .with_margin(Thickness::left(4.0))
         .on_row(row)
         .on_column(0))
         .with_text(text)
-        .build(ui)
+        .build(ctx)
 }
 
-fn make_vec3_input_field(ui: &mut Ui, row: usize) -> Handle<UiNode> {
+fn make_vec3_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     Vec3EditorBuilder::new(WidgetBuilder::new()
         .with_margin(Thickness::uniform(1.0))
         .on_row(row)
         .on_column(1))
-        .build(ui)
+        .build(ctx)
 }
 
+// Hardcoded for now. Will be fixed when I'll finish scene selector.
+pub const SCENE_PATH: &'static str = "test_scene.rgs";
+
 impl NodeEditor {
-    fn new(ui: &mut Ui, sender: Sender<Message>) -> Self {
+    fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let node_name;
         let position;
         let rotation;
         let scale;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(GridBuilder::new(WidgetBuilder::new()
-                .with_child(make_text_mark(ui, "Name", 0))
+                .with_child(make_text_mark(ctx, "Name", 0))
                 .with_child({
                     node_name = TextBoxBuilder::new(WidgetBuilder::new()
                         .on_row(0)
                         .on_column(1)
                         .with_margin(Thickness::uniform(1.0)))
-                        .build(ui);
+                        .build(ctx);
                     node_name
                 })
-                .with_child(make_text_mark(ui, "Position", 1))
+                .with_child(make_text_mark(ctx, "Position", 1))
                 .with_child({
-                    position = make_vec3_input_field(ui, 1);
+                    position = make_vec3_input_field(ctx, 1);
                     position
                 })
-                .with_child(make_text_mark(ui, "Rotation", 2))
+                .with_child(make_text_mark(ctx, "Rotation", 2))
                 .with_child({
-                    rotation = make_vec3_input_field(ui, 2);
+                    rotation = make_vec3_input_field(ctx, 2);
                     rotation
                 })
-                .with_child(make_text_mark(ui, "Scale", 3))
+                .with_child(make_text_mark(ctx, "Scale", 3))
                 .with_child({
-                    scale = make_vec3_input_field(ui, 3);
+                    scale = make_vec3_input_field(ctx, 3);
                     scale
                 }))
                 .add_column(Column::strict(70.0))
@@ -186,9 +190,9 @@ impl NodeEditor {
                 .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
-                .build(ui))
+                .build(ctx))
             .with_title(WindowTitle::text("Node Properties"))
-            .build(ui);
+            .build(ctx);
 
         Self {
             window,
@@ -208,9 +212,7 @@ impl NodeEditor {
 
             let ui = &mut engine.user_interface;
 
-            if let UiNode::TextBox(node_name) = ui.node_mut(self.node_name) {
-                node_name.set_text(node.name());
-            }
+            ui.send_message(TextMessage::text(self.node_name, node.name().to_owned()));
             ui.send_message(UiMessage {
                 handled: true,
                 data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(node.local_transform().position())),
@@ -279,7 +281,7 @@ pub struct FileSelector {
 }
 
 impl FileSelector {
-    pub fn new(ui: &mut Ui) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let browser;
         let ok;
         let cancel;
@@ -301,7 +303,7 @@ impl FileSelector {
                                 })
                         })))
                         .with_path("./data")
-                        .build(ui);
+                        .build(ctx);
                     browser
                 })
                 .with_child(StackPanelBuilder::new(WidgetBuilder::new()
@@ -314,7 +316,7 @@ impl FileSelector {
                             .with_width(100.0)
                             .with_height(30.0))
                             .with_text("OK")
-                            .build(ui);
+                            .build(ctx);
                         ok
                     })
                     .with_child({
@@ -323,16 +325,16 @@ impl FileSelector {
                             .with_width(100.0)
                             .with_height(30.0))
                             .with_text("Cancel")
-                            .build(ui);
+                            .build(ctx);
                         cancel
                     }))
                     .with_orientation(Orientation::Horizontal)
-                    .build(ui)))
+                    .build(ctx)))
                 .add_column(Column::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
-                .build(ui))
-            .build(ui);
+                .build(ctx))
+            .build(ctx);
 
         Self {
             browser,
@@ -355,7 +357,7 @@ pub struct ScenePreview {
 
 impl ScenePreview {
     pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
-        let ui = &mut engine.user_interface;
+        let ctx = &mut engine.user_interface.build_ctx();
 
         let frame;
         let move_mode;
@@ -371,7 +373,7 @@ impl ScenePreview {
                         .on_column(1))
                         .with_flip(true)
                         .with_texture(engine.renderer.frame_texture())
-                        .build(ui);
+                        .build(ctx);
                     frame
                 })
                 .with_child(StackPanelBuilder::new(WidgetBuilder::new()
@@ -385,8 +387,8 @@ impl ScenePreview {
                                 .with_width(32.0)
                                 .with_height(32.0))
                                 .with_opt_texture(into_any_arc(engine.resource_manager.lock().unwrap().request_texture("resources/move_arrow.png", TextureKind::RGBA8)))
-                                .build(ui))
-                            .build(ui);
+                                .build(ctx))
+                            .build(ctx);
                         move_mode
                     })
                     .with_child({
@@ -396,8 +398,8 @@ impl ScenePreview {
                                 .with_width(32.0)
                                 .with_height(32.0))
                                 .with_opt_texture(into_any_arc(engine.resource_manager.lock().unwrap().request_texture("resources/rotate_arrow.png", TextureKind::RGBA8)))
-                                .build(ui))
-                            .build(ui);
+                                .build(ctx))
+                            .build(ctx);
                         rotate_mode
                     })
                     .with_child({
@@ -407,17 +409,17 @@ impl ScenePreview {
                                 .with_width(32.0)
                                 .with_height(32.0))
                                 .with_opt_texture(into_any_arc(engine.resource_manager.lock().unwrap().request_texture("resources/scale_arrow.png", TextureKind::RGBA8)))
-                                .build(ui))
-                            .build(ui);
+                                .build(ctx))
+                            .build(ctx);
                         scale_mode
                     }))
-                    .build(ui)))
+                    .build(ctx)))
                 .add_row(Row::stretch())
                 .add_column(Column::auto())
                 .add_column(Column::stretch())
-                .build(ui))
+                .build(ctx))
             .with_title(WindowTitle::text("Scene Preview"))
-            .build(ui);
+            .build(ctx);
 
         Self {
             sender,
@@ -498,7 +500,7 @@ struct Menu {
 }
 
 impl Menu {
-    pub fn new(ui: &mut Ui, message_sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, message_sender: Sender<Message>) -> Self {
         let min_size = Vec2::new(120.0, 20.0);
         let min_size_menu = Vec2::new(40.0, 20.0);
         let save;
@@ -524,32 +526,32 @@ impl Menu {
                             save = MenuItemBuilder::new(WidgetBuilder::new()
                                 .with_min_size(min_size))
                                 .with_content(MenuItemContent::text_with_shortcut("Save Scene", "Ctrl+S"))
-                                .build(ui);
+                                .build(ctx);
                             save
                         },
                         {
                             save_as = MenuItemBuilder::new(WidgetBuilder::new()
                                 .with_min_size(min_size))
                                 .with_content(MenuItemContent::text_with_shortcut("Save Scene As...", "Ctrl+Shift+S"))
-                                .build(ui);
+                                .build(ctx);
                             save_as
                         },
                         {
                             load = MenuItemBuilder::new(WidgetBuilder::new()
                                 .with_min_size(min_size))
                                 .with_content(MenuItemContent::text_with_shortcut("Load Scene...", "Ctrl+L"))
-                                .build(ui);
+                                .build(ctx);
                             load
                         },
                         {
                             exit = MenuItemBuilder::new(WidgetBuilder::new()
                                 .with_min_size(min_size))
                                 .with_content(MenuItemContent::text_with_shortcut("Exit", "Alt+F4"))
-                                .build(ui);
+                                .build(ctx);
                             exit
                         }
                     ])
-                    .build(ui),
+                    .build(ctx),
                 MenuItemBuilder::new(WidgetBuilder::new()
                     .with_min_size(min_size_menu))
                     .with_content(MenuItemContent::text_with_shortcut("Edit", ""))
@@ -558,18 +560,18 @@ impl Menu {
                             undo = MenuItemBuilder::new(WidgetBuilder::new()
                                 .with_min_size(min_size))
                                 .with_content(MenuItemContent::text_with_shortcut("Undo", "Ctrl+Z"))
-                                .build(ui);
+                                .build(ctx);
                             undo
                         },
                         {
                             redo = MenuItemBuilder::new(WidgetBuilder::new()
                                 .with_min_size(min_size))
                                 .with_content(MenuItemContent::text_with_shortcut("Redo", "Ctrl+Y"))
-                                .build(ui);
+                                .build(ctx);
                             redo
                         },
                     ])
-                    .build(ui),
+                    .build(ctx),
                 MenuItemBuilder::new(WidgetBuilder::new()
                     .with_min_size(min_size_menu))
                     .with_content(MenuItemContent::text_with_shortcut("Create", ""))
@@ -582,32 +584,32 @@ impl Menu {
                                     create_cube = MenuItemBuilder::new(WidgetBuilder::new()
                                         .with_min_size(min_size))
                                         .with_content(MenuItemContent::text("Cube"))
-                                        .build(ui);
+                                        .build(ctx);
                                     create_cube
                                 },
                                 {
                                     create_sphere = MenuItemBuilder::new(WidgetBuilder::new()
                                         .with_min_size(min_size))
                                         .with_content(MenuItemContent::text("Sphere"))
-                                        .build(ui);
+                                        .build(ctx);
                                     create_sphere
                                 },
                                 {
                                     create_cylinder = MenuItemBuilder::new(WidgetBuilder::new()
                                         .with_min_size(min_size))
                                         .with_content(MenuItemContent::text("Cylinder"))
-                                        .build(ui);
+                                        .build(ctx);
                                     create_cylinder
                                 },
                                 {
                                     create_cone = MenuItemBuilder::new(WidgetBuilder::new()
                                         .with_min_size(min_size))
                                         .with_content(MenuItemContent::text("Cone"))
-                                        .build(ui);
+                                        .build(ctx);
                                     create_cone
                                 },
                             ])
-                            .build(ui),
+                            .build(ctx),
                         MenuItemBuilder::new(WidgetBuilder::new()
                             .with_min_size(min_size))
                             .with_content(MenuItemContent::text("Light"))
@@ -616,22 +618,22 @@ impl Menu {
                                     create_spot_light = MenuItemBuilder::new(WidgetBuilder::new()
                                         .with_min_size(min_size))
                                         .with_content(MenuItemContent::text("Spot Light"))
-                                        .build(ui);
+                                        .build(ctx);
                                     create_spot_light
                                 },
                                 {
                                     create_point_light = MenuItemBuilder::new(WidgetBuilder::new()
                                         .with_min_size(min_size))
                                         .with_content(MenuItemContent::text("Point Light"))
-                                        .build(ui);
+                                        .build(ctx);
                                     create_point_light
                                 }
                             ])
-                            .build(ui),
+                            .build(ctx),
                     ])
-                    .build(ui)
+                    .build(ctx)
             ])
-            .build(ui);
+            .build(ctx);
 
         Self {
             menu,
@@ -705,11 +707,11 @@ impl Menu {
                             .unwrap();
                     } else if message.destination == self.save {
                         self.message_sender
-                            .send(Message::SaveScene("test_scene.rgs".into()))
+                            .send(Message::SaveScene(SCENE_PATH.into()))
                             .unwrap();
                     } else if message.destination == self.load {
                         self.message_sender
-                            .send(Message::LoadScene("test_scene.rgs".into()))
+                            .send(Message::LoadScene(SCENE_PATH.into()))
                             .unwrap();
                     } else if message.destination == self.undo {
                         self.message_sender
@@ -737,7 +739,7 @@ impl Editor {
 
         let preview = ScenePreview::new(engine, message_sender.clone());
 
-        let ui = &mut engine.user_interface;
+        let ctx = &mut engine.user_interface.build_ctx();
         *rg3d::gui::DEFAULT_FONT.lock().unwrap() = Font::from_file("resources/arial.ttf", 14.0, Font::default_char_set()).unwrap();
 
         let mut scene = Scene::new();
@@ -748,10 +750,10 @@ impl Editor {
             scene: engine.scenes.add(scene),
         };
 
-        let node_editor = NodeEditor::new(ui, message_sender.clone());
-        let world_outliner = WorldOutliner::new(ui, message_sender.clone());
-        let menu = Menu::new(ui, message_sender.clone());
-        let asset_browser = AssetBrowser::new(ui);
+        let node_editor = NodeEditor::new(ctx, message_sender.clone());
+        let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
+        let menu = Menu::new(ctx, message_sender.clone());
+        let asset_browser = AssetBrowser::new(ctx);
 
         let root_grid = GridBuilder::new(WidgetBuilder::new()
             .with_width(engine.renderer.get_frame_size().0 as f32)
@@ -770,37 +772,37 @@ impl Editor {
                                         tiles: [
                                             TileBuilder::new(WidgetBuilder::new())
                                                 .with_content(TileContent::Window(world_outliner.window))
-                                                .build(ui),
+                                                .build(ctx),
                                             TileBuilder::new(WidgetBuilder::new())
                                                 .with_content(TileContent::HorizontalTiles {
                                                     splitter: 0.66,
                                                     tiles: [
                                                         TileBuilder::new(WidgetBuilder::new())
                                                             .with_content(TileContent::Window(preview.window))
-                                                            .build(ui),
+                                                            .build(ctx),
                                                         TileBuilder::new(WidgetBuilder::new())
                                                             .with_content(TileContent::Window(node_editor.window))
-                                                            .build(ui)
+                                                            .build(ctx)
                                                     ],
                                                 })
-                                                .build(ui),
+                                                .build(ctx),
                                         ],
                                     })
-                                    .build(ui),
+                                    .build(ctx),
                                 TileBuilder::new(WidgetBuilder::new())
                                     .with_content(TileContent::Window(asset_browser.window))
-                                    .build(ui)
+                                    .build(ctx)
                             ],
                         })
-                        .build(ui)
+                        .build(ctx)
                 }))
-                .build(ui)))
+                .build(ctx)))
             .add_row(Row::strict(25.0))
             .add_row(Row::stretch())
             .add_column(Column::stretch())
-            .build(ui);
+            .build(ctx);
 
-        let file_selector = FileSelector::new(ui);
+        let file_selector = FileSelector::new(ctx);
 
         let msg = MessageBoxBuilder::new(WindowBuilder::new(WidgetBuilder::new()
             .with_max_size(Vec2::new(430.0, 220.0)))
@@ -816,8 +818,8 @@ impl Editor {
                       To start you can use Create menu option to make some basic\n\
                       objects.")
             .with_buttons(MessageBoxButtons::Ok)
-            .build(ui);
-        ui.send_message(UiMessage {
+            .build(ctx);
+        engine.user_interface.send_message(UiMessage {
             handled: false,
             data: UiMessageData::Widget(WidgetMessage::Center),
             destination: msg,
@@ -871,9 +873,6 @@ impl Editor {
         self.world_outliner.clear(&mut engine.user_interface);
         self.camera_controller = CameraController::new(&self.scene, engine);
         self.command_stack = CommandStack::new();
-
-        // Don't care if any messages is still pending.
-        engine.user_interface.flush_messages();
 
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
         self.sync_to_model(engine);
@@ -948,10 +947,14 @@ impl Editor {
                             self.camera_controller.on_key_down(key);
                             match key {
                                 KeyCode::Y => {
-                                    self.message_sender.send(Message::RedoSceneCommand).unwrap();
+                                    if ui.keyboard_modifiers().control {
+                                        self.message_sender.send(Message::RedoSceneCommand).unwrap();
+                                    }
                                 }
                                 KeyCode::Z => {
-                                    self.message_sender.send(Message::UndoSceneCommand).unwrap();
+                                    if ui.keyboard_modifiers().control {
+                                        self.message_sender.send(Message::UndoSceneCommand).unwrap();
+                                    }
                                 }
                                 KeyCode::Key1 => {
                                     self.set_interaction_mode(Some(InteractionModeKind::Move), engine)
@@ -962,6 +965,11 @@ impl Editor {
                                 KeyCode::Key3 => {
                                     self.set_interaction_mode(Some(InteractionModeKind::Scale), engine)
                                 }
+                                KeyCode::L => {
+                                    if ui.keyboard_modifiers().control {
+                                        self.message_sender.send(Message::LoadScene(SCENE_PATH.into())).unwrap();
+                                    }
+                                },
                                 KeyCode::Delete => {
                                     if self.node_editor.node.is_some() {
                                         let command = SceneCommand::CommandGroup(vec![
@@ -985,7 +993,7 @@ impl Editor {
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
-        self.world_outliner.sync_to_model(&self.scene, engine);
+        self.world_outliner.sync_to_model(&self.scene, engine, self.node_editor.node);
         self.node_editor.sync_to_model(&self.scene, engine);
     }
 
@@ -1111,13 +1119,14 @@ fn main() {
                     dt -= fixed_timestep;
                     elapsed_time += fixed_timestep;
                     engine.update(fixed_timestep);
+                    editor.update(&mut engine, fixed_timestep);
 
-                    editor.update(&mut engine, dt);
+                    while let Some(ui_message) = engine.user_interface.poll_message() {
+                        editor.handle_message(&ui_message, &mut engine);
+                    }
                 }
 
-                while let Some(ui_message) = engine.user_interface.poll_message() {
-                    editor.handle_message(&ui_message, &mut engine);
-                }
+               // dbg!("Update");
 
                 engine.get_window().request_redraw();
 
@@ -1126,19 +1135,21 @@ fn main() {
                 }
             }
             Event::RedrawRequested(_) => {
+               // dbg!("Draw");
+
                 engine.render(fixed_timestep).unwrap();
             }
             Event::WindowEvent { event, .. } => {
+             //   dbg!("Window");
+
                 match event {
                     WindowEvent::CloseRequested => {
                         *control_flow = ControlFlow::Exit
                     }
                     WindowEvent::Resized(size) => {
                         engine.renderer.set_frame_size(size.into());
-                        engine.user_interface
-                            .node_mut(editor.root_grid)
-                            .set_width_mut(size.width as f32)
-                            .set_height_mut(size.height as f32);
+                        engine.user_interface.send_message(WidgetMessage::width(editor.root_grid, size.width as f32));
+                        engine.user_interface.send_message(WidgetMessage::height(editor.root_grid, size.height as f32));
                     }
                     _ => ()
                 }

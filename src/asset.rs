@@ -40,7 +40,9 @@ use rg3d::{
     utils::into_any_arc,
 };
 use std::path::PathBuf;
+use crate::gui::{CustomMessage, BuildContext};
 
+#[derive(Debug)]
 pub struct AssetItem {
     widget: CustomWidget
 }
@@ -67,7 +69,7 @@ impl Clone for AssetItem {
     }
 }
 
-impl Control<(), CustomUiNode> for AssetItem {
+impl Control<CustomMessage, CustomUiNode> for AssetItem {
     fn raw_copy(&self) -> UiNode {
         UiNode::User(CustomUiNode::AssetItem(self.clone()))
     }
@@ -85,7 +87,7 @@ pub struct AssetBrowser {
 }
 
 impl AssetBrowser {
-    pub fn new(ui: &mut Ui) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let path = PathBuf::from("./data");
         let content_panel;
         let folder_browser;
@@ -97,30 +99,32 @@ impl AssetBrowser {
                         .on_column(0))
                         .with_path(&path) // TODO: Bind to project when it will be available.
                         .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
-                        .build(ui);
+                        .build(ctx);
                     folder_browser
                 })
-                .with_child(ScrollViewerBuilder::new(WidgetBuilder::new()
-                    .on_column(1))
-                    .with_content({
-                        content_panel = WrapPanelBuilder::new(WidgetBuilder::new())
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ui);
-                        content_panel
-                    })
-                    .build(ui)
-                ))
+                .with_child({
+                    ScrollViewerBuilder::new(WidgetBuilder::new()
+                        .on_column(1))
+                        .with_content( {
+                            content_panel = WrapPanelBuilder::new(WidgetBuilder::new())
+                                .with_orientation(Orientation::Horizontal)
+                                .build(ctx);
+                            content_panel
+                        })
+                        .build(ctx)
+                }))
                 .add_column(Column::strict(250.0))
                 .add_column(Column::stretch())
                 .add_row(Row::stretch())
-                .build(ui))
-            .build(ui);
+                .build(ctx))
+            .build(ctx);
 
+        /*
         ui.send_message(UiMessage {
             data: UiMessageData::FileBrowser(FileBrowserMessage::SelectionChanged(path)),
             handled: false,
             destination: folder_browser
-        });
+        });*/
 
         Self {
             window,
@@ -132,7 +136,7 @@ impl AssetBrowser {
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         let ui = &mut engine.user_interface;
-        let mut resource_manager = &mut engine.resource_manager.lock().unwrap();
+        let resource_manager = &mut engine.resource_manager.lock().unwrap();
         if message.destination == self.folder_browser {
             if let UiMessageData::FileBrowser(msg) = &message.data {
                 if let FileBrowserMessage::SelectionChanged(path) = msg {
@@ -160,7 +164,7 @@ impl AssetBrowser {
                                         .with_width(64.0)
                                         .with_height(64.0))
                                         .with_opt_texture(texture)
-                                        .build(ui);
+                                        .build(&mut ui.build_ctx());
                                     ui.send_message(WidgetMessage::link(content, self.content_panel));
                                 }
                             }
