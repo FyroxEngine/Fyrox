@@ -11,9 +11,10 @@ use crate::{
         Widget,
         WidgetBuilder,
     },
-    UserInterface,
     Control,
-    message::UiMessage
+    message::UiMessage,
+    BuildContext,
+    UserInterface
 };
 use std::ops::{Deref, DerefMut};
 
@@ -36,7 +37,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Canvas<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Canvas(Self {
             widget: self.widget.raw_copy()
@@ -74,7 +75,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Canvas<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Canvas<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget
@@ -86,20 +87,17 @@ pub struct CanvasBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
 }
 
-impl<M, C: 'static + Control<M, C>> CanvasBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> CanvasBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
         }
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let handle = ui.add_node(UINode::Canvas(Canvas {
-            widget: self.widget_builder.build(ui.sender())
-        }));
-
-        ui.flush_messages();
-
-        handle
+    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let canvas = Canvas {
+            widget: self.widget_builder.build()
+        };
+        ui.add_node(UINode::Canvas(canvas))
     }
 }

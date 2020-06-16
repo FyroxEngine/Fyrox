@@ -1,5 +1,6 @@
 use std::{
     sync::Arc,
+    ops::{Deref, DerefMut}
 };
 use crate::{
     brush::Brush,
@@ -20,9 +21,9 @@ use crate::{
     draw::{Texture, CommandTexture},
     UserInterface,
     message::UiMessage,
+    BuildContext,
+    core::math::vec2::Vec2
 };
-use std::ops::{Deref, DerefMut};
-use rg3d_core::math::vec2::Vec2;
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -44,7 +45,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Image<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Image<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Image<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -58,7 +59,7 @@ impl<M, C: 'static + Control<M, C>> Image<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Clone for Image<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Clone for Image<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -68,7 +69,7 @@ impl<M, C: 'static + Control<M, C>> Clone for Image<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Image(self.clone())
     }
@@ -103,7 +104,7 @@ pub struct ImageBuilder<M: 'static, C: 'static + Control<M, C>> {
     flip: bool
 }
 
-impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ImageBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -127,21 +128,20 @@ impl<M, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build_node(mut self) -> UINode<M, C> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
 
         let image = Image {
-            widget: self.widget_builder.build(ui.sender()),
+            widget: self.widget_builder.build(),
             texture: self.texture,
             flip: self.flip
         };
+        UINode::Image(image)
+    }
 
-        let handle = ui.add_node(UINode::Image(image));
-
-        ui.flush_messages();
-
-        handle
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        ctx.add_node(self.build_node())
     }
 }

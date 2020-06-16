@@ -24,6 +24,8 @@ use crate::{
     },
     border::BorderBuilder,
     NodeHandleMapping,
+    BuildContext,
+    message::DecoratorMessage
 };
 use std::ops::{Deref, DerefMut};
 
@@ -115,27 +117,41 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.handle_routed_message(ui, message);
 
         match &message.data {
+            UiMessageData::Decorator(msg) => {
+                match *msg {
+                    DecoratorMessage::Select(value) => {
+                        if self.is_selected != value {
+                            self.is_selected = value;
+                            if self.is_selected {
+                                ui.send_message(WidgetMessage::background(self.handle(), self.selected_brush.clone()));
+                            } else {
+                                ui.send_message(WidgetMessage::background(self.handle(), self.normal_brush.clone()));
+                            }
+                        }
+                    },
+                }
+            }
             UiMessageData::Widget(msg) => {
-                if message.destination == self.handle || self.has_descendant(message.destination, ui) {
+                if message.destination == self.handle() || self.has_descendant(message.destination, ui) {
                     match msg {
                         WidgetMessage::MouseLeave => {
                             if self.is_selected {
-                                self.border.set_background(self.selected_brush.clone());
+                                ui.send_message(WidgetMessage::background(self.handle(), self.selected_brush.clone()));
                             } else {
-                                self.border.set_background(self.normal_brush.clone());
+                                ui.send_message(WidgetMessage::background(self.handle(), self.normal_brush.clone()));
                             }
                         }
                         WidgetMessage::MouseEnter => {
-                            self.border.set_background(self.hover_brush.clone());
+                            ui.send_message(WidgetMessage::background(self.handle(), self.hover_brush.clone()));
                         }
                         WidgetMessage::MouseDown { .. } => {
-                            self.border.set_background(self.pressed_brush.clone());
+                            ui.send_message(WidgetMessage::background(self.handle(), self.pressed_brush.clone()));
                         }
                         WidgetMessage::MouseUp { .. } => {
                             if self.is_selected {
-                                self.border.set_background(self.selected_brush.clone());
+                                ui.send_message(WidgetMessage::background(self.handle(), self.selected_brush.clone()));
                             } else {
-                                self.border.set_background(self.normal_brush.clone());
+                                ui.send_message(WidgetMessage::background(self.handle(), self.normal_brush.clone()));
                             }
                         }
                         _ => {}
@@ -148,19 +164,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
 
     fn remove_ref(&mut self, handle: Handle<UINode<M, C>>) {
         self.border.remove_ref(handle)
-    }
-}
-
-impl<M: 'static, C: 'static + Control<M, C>> Decorator<M, C> {
-    pub fn set_selected(&mut self, selected: bool) {
-        if self.is_selected != selected {
-            self.is_selected = selected;
-            if self.is_selected {
-                self.border.set_background(self.selected_brush.clone());
-            } else {
-                self.border.set_background(self.normal_brush.clone());
-            }
-        }
     }
 }
 
@@ -203,7 +206,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let normal_brush = self.normal_brush.unwrap_or_else(|| {
             Brush::LinearGradient {
                 from: Vec2::new(0.5, 0.0),
@@ -218,11 +221,11 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
             }
         });
 
-        let mut border = self.border_builder.build_node(ui.sender());
+        let mut border = self.border_builder.build_border();
 
         border.set_background(normal_brush.clone());
 
-        let decorator = UINode::Decorator(Decorator {
+        let node = UINode::Decorator( Decorator {
             border,
             normal_brush,
             hover_brush: self.hover_brush.unwrap_or_else(|| {
@@ -266,11 +269,6 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
             }),
             is_selected: false,
         });
-
-        let handle = ui.add_node(decorator);
-
-        ui.flush_messages();
-
-        handle
+        ui.add_node(node)
     }
 }

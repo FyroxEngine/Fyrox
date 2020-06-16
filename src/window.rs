@@ -38,10 +38,12 @@ use crate::{
         GradientPoint,
     },
     NodeHandleMapping,
+    BuildContext,
+    message::TextMessage,
 };
 use std::{
     ops::{Deref, DerefMut},
-    cell::RefCell
+    cell::RefCell,
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -132,12 +134,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Window<M, C> {
             grips: self.grips.clone(),
             initial_size: self.initial_size,
             title: self.title,
-            title_grid: self.title_grid
+            title_grid: self.title_grid,
         }
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Window(self.clone())
     }
@@ -222,9 +224,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                 if self.can_resize {
                     match msg {
                         &WidgetMessage::MouseDown { pos, .. } => {
-                            self.send_message(UiMessage {
+                            ui.send_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::TopMost),
-                                destination: self.handle,
+                                destination: self.handle(),
                                 handled: false,
                             });
 
@@ -237,7 +239,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                     self.initial_position = self.actual_local_position();
                                     self.initial_size = self.actual_size();
                                     self.mouse_click_pos = pos;
-                                    ui.capture_mouse(self.handle);
+                                    ui.capture_mouse(self.handle());
                                     break;
                                 }
                             }
@@ -271,9 +273,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
 
                                     if new_size.x > self.min_width() && new_size.x < self.max_width() &&
                                         new_size.y > self.min_height() && new_size.y < self.max_height() {
-                                        self.set_desired_local_position(new_pos);
-                                        self.set_width(new_size.x);
-                                        self.set_height(new_size.y);
+                                        ui.send_message(WidgetMessage::desired_position(self.handle(), new_pos));
+                                        ui.send_message(WidgetMessage::width(self.handle(), new_size.x));
+                                        ui.send_message(WidgetMessage::height(self.handle(), new_size.y));
                                     }
 
                                     break;
@@ -293,7 +295,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Window(WindowMessage::MoveStart),
-                                destination: self.handle,
+                                destination: self.handle(),
                             });
                         }
                         WidgetMessage::MouseUp { .. } => {
@@ -301,7 +303,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Window(WindowMessage::MoveEnd),
-                                destination: self.handle,
+                                destination: self.handle(),
                             });
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
@@ -311,7 +313,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 ui.send_message(UiMessage {
                                     handled: false,
                                     data: UiMessageData::Window(WindowMessage::Move(new_pos)),
-                                    destination: self.handle,
+                                    destination: self.handle(),
                                 });
                             }
                             message.handled = true;
@@ -320,7 +322,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                     }
                 }
                 if let WidgetMessage::Unlink = msg {
-                    if message.destination == self.handle {
+                    if message.destination == self.handle() {
                         self.initial_position = self.screen_position;
                     }
                 }
@@ -328,58 +330,66 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
                     if message.destination == self.minimize_button {
-                        self.minimize(!self.minimized);
+                        ui.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Window(WindowMessage::Minimize(!self.minimized)),
+                            destination: self.handle(),
+                        });
                     } else if message.destination == self.close_button {
-                        self.close();
+                        ui.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Window(WindowMessage::Close),
+                            destination: self.handle(),
+                        });
                     }
                 }
             }
             UiMessageData::Window(msg) => {
-                if message.destination == self.handle {
+                if message.destination == self.handle() {
                     match msg {
                         WindowMessage::Open => {
-                            self.set_visibility(true);
+                            ui.send_message(WidgetMessage::visibility(self.handle(), true));
                         }
                         WindowMessage::OpenModal => {
                             if !self.visibility() {
-                                self.set_visibility(true);
-                                ui.push_picking_restriction(self.handle);
+                                ui.send_message(WidgetMessage::visibility(self.handle(), true));
+                                ui.push_picking_restriction(self.handle());
                             }
                         }
                         WindowMessage::Close => {
-                            self.set_visibility(false);
-                            ui.remove_picking_restriction(self.handle);
+                            ui.send_message(WidgetMessage::visibility(self.handle(), false));
+                            ui.remove_picking_restriction(self.handle());
                         }
-                        WindowMessage::Minimize(minimized) => {
-                            if self.minimized != *minimized {
-                                self.minimized = *minimized;
+                        &WindowMessage::Minimize(minimized) => {
+                            if self.minimized != minimized {
+                                self.minimized = minimized;
                                 self.invalidate_layout();
                                 if self.content.is_some() {
-                                    ui.node_mut(self.content).set_visibility(!*minimized);
+                                    ui.send_message(WidgetMessage::visibility(self.content, !minimized));
                                 }
                             }
                         }
-                        WindowMessage::CanMinimize(value) => {
-                            if self.can_minimize != *value {
-                                self.can_minimize = *value;
+                        &WindowMessage::CanMinimize(value) => {
+                            if self.can_minimize != value {
+                                self.can_minimize = value;
                                 self.invalidate_layout();
                                 if self.minimize_button.is_some() {
-                                    ui.node_mut(self.minimize_button).set_visibility(*value);
+                                    ui.send_message(WidgetMessage::visibility(self.minimize_button, value));
                                 }
                             }
                         }
-                        WindowMessage::CanClose(value) => {
-                            if self.can_close != *value {
-                                self.can_close = *value;
+                        &WindowMessage::CanClose(value) => {
+                            if self.can_close != value {
+                                self.can_close = value;
                                 self.invalidate_layout();
                                 if self.close_button.is_some() {
-                                    ui.node_mut(self.close_button).set_visibility(*value);
+                                    ui.send_message(WidgetMessage::visibility(self.close_button, value));
                                 }
                             }
                         }
                         &WindowMessage::Move(new_pos) => {
                             if self.desired_local_position() != new_pos {
-                                self.set_desired_local_position(new_pos);
+                                ui.send_message(WidgetMessage::desired_position(self.handle(), new_pos));
                             }
                         }
                         WindowMessage::MoveStart => {
@@ -395,28 +405,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                         WindowMessage::Title(title) => {
                             match title {
                                 WindowTitle::Text(text) => {
-                                    if let UINode::Text(title) = ui.node_mut(self.title) {
+                                    if let UINode::Text(_) = ui.node(self.title) {
                                         // Just modify existing text, this is much faster than
                                         // re-create text everytime.
-                                        title.set_text(text);
+                                        ui.send_message(TextMessage::text(self.title, text.clone()));
                                     } else {
-                                        ui.send_message(UiMessage {
-                                            handled: false,
-                                            data: UiMessageData::Widget(WidgetMessage::Remove),
-                                            destination: self.title
-                                        });
-
-                                        self.title = make_text_title(ui, text);
+                                        ui.send_message(WidgetMessage::remove(self.title));
+                                        self.title = make_text_title(&mut ui.build_ctx(), text);
                                     }
-                                },
+                                }
                                 WindowTitle::Node(node) => {
                                     if self.title.is_some() {
                                         // Remove old title.
-                                        ui.send_message(UiMessage {
-                                            handled: false,
-                                            data: UiMessageData::Widget(WidgetMessage::Remove),
-                                            destination: self.title
-                                        });
+                                        ui.send_message(WidgetMessage::remove(self.title));
                                     }
 
                                     if node.is_some() {
@@ -426,10 +427,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                         ui.send_message(UiMessage {
                                             handled: false,
                                             data: UiMessageData::Widget(WidgetMessage::LinkWith(self.title_grid)),
-                                            destination: self.title
+                                            destination: self.title,
                                         });
                                     }
-                                },
+                                }
                             }
                         }
                     }
@@ -461,52 +462,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Window<M, C> {
-    pub fn close(&mut self) {
-        self.invalidate_layout();
-        self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::Close),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    pub fn open(&mut self) {
-        self.invalidate_layout();
-        self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::Open),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    pub fn minimize(&mut self, state: bool) {
-        self.invalidate_layout();
-        self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::Minimize(state)),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    pub fn set_can_close(&mut self, state: bool) {
-        self.invalidate_layout();
-        self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::CanClose(state)),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
-    pub fn set_can_minimize(&mut self, state: bool) {
-        self.invalidate_layout();
-        self.send_message(UiMessage {
-            data: UiMessageData::Window(WindowMessage::CanMinimize(state)),
-            destination: self.handle,
-            handled: false,
-        });
-    }
-
+impl<M: 'static, C: 'static + Control<M, C>> Window<M, C> {
     pub fn is_dragging(&self) -> bool {
         self.is_dragging
     }
@@ -536,7 +492,7 @@ pub struct WindowBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub minimize_button: Option<Handle<UINode<M, C>>>,
     // Warning: Any dependant builders must take this into account!
     pub modal: bool,
-    pub can_resize: bool
+    pub can_resize: bool,
 }
 
 /// Window title can be either text or node.
@@ -562,16 +518,16 @@ impl<M: 'static, C: 'static + Control<M, C>> WindowTitle<M, C> {
     }
 }
 
-fn make_text_title<M: 'static, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>, text: &str) -> Handle<UINode<M, C>> {
+fn make_text_title<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, text: &str) -> Handle<UINode<M, C>> {
     TextBuilder::new(WidgetBuilder::new()
         .with_margin(Thickness::uniform(5.0))
         .on_row(0)
         .on_column(0))
         .with_text(text)
-        .build(ui)
+        .build(ctx)
 }
 
-impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
+impl<'a, M: 'static, C: 'static + Control<M, C>> WindowBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -583,7 +539,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
             close_button: None,
             minimize_button: None,
             modal: false,
-            can_resize: true
+            can_resize: true,
         }
     }
 
@@ -632,7 +588,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
         self
     }
 
-    pub fn build_node(self, ui: &mut UserInterface<M, C>) -> Window<M, C> {
+    pub fn build_window(self, ctx: &mut BuildContext<M, C>) -> Window<M, C> {
         let minimize_button;
         let close_button;
 
@@ -658,7 +614,7 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
                             Some(window_title) => {
                                 match window_title {
                                     WindowTitle::Node(node) => node,
-                                    WindowTitle::Text(text) => make_text_title(ui, &text)
+                                    WindowTitle::Text(text) => make_text_title(ctx, &text)
                                 }
                             }
                         };
@@ -669,11 +625,11 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
                             ButtonBuilder::new(WidgetBuilder::new()
                                 .with_margin(Thickness::uniform(2.0)))
                                 .with_text("_")
-                                .build(ui)
+                                .build(ctx)
                         });
-                        ui.node_mut(minimize_button)
+                        ctx[minimize_button]
                             .set_visibility(self.can_minimize)
-                            .set_width_mut(30.0)
+                            .set_width(30.0)
                             .set_row(0)
                             .set_column(1);
                         minimize_button
@@ -683,10 +639,10 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
                             ButtonBuilder::new(WidgetBuilder::new()
                                 .with_margin(Thickness::uniform(2.0)))
                                 .with_text("X")
-                                .build(ui)
+                                .build(ctx)
                         });
-                        ui.node_mut(close_button)
-                            .set_width_mut(30.0)
+                        ctx[close_button]
+                            .set_width(30.0)
                             .set_visibility(self.can_close)
                             .set_row(0)
                             .set_column(2);
@@ -696,14 +652,15 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
                     .add_column(Column::auto())
                     .add_column(Column::auto())
                     .add_row(Row::stretch())
-                    .build(ui);
+                    .build(ctx);
                 title_grid
             })
             .on_row(0)
-        ).build(ui);
+        ).build(ctx);
 
-        ui.node_mut(self.content).set_row(1);
-
+        if self.content.is_some() {
+            ctx[self.content].set_row(1);
+        }
         Window {
             widget: self.widget_builder
                 .with_visibility(self.open)
@@ -714,9 +671,9 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
                         .add_column(Column::stretch())
                         .add_row(Row::auto())
                         .add_row(Row::stretch())
-                        .build(ui)))
-                    .build(ui))
-                .build(ui.sender()),
+                        .build(ctx)))
+                    .build(ctx))
+                .build(),
             mouse_click_pos: Vec2::ZERO,
             initial_position: Vec2::ZERO,
             initial_size: Default::default(),
@@ -742,22 +699,19 @@ impl<'a, M, C: 'static + Control<M, C>> WindowBuilder<M, C> {
                 Grip::new(GripKind::Bottom),
             ]),
             title,
-            title_grid
+            title_grid,
         }
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let open = self.open;
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let modal = self.modal;
+        let open = self.open;
 
-        let window = self.build_node(ui);
-
-        let handle = ui.add_node(UINode::Window(window));
-
-        ui.flush_messages();
+        let node = self.build_window(ctx);
+        let handle = ctx.add_node(UINode::Window(node));
 
         if modal && open {
-            ui.push_picking_restriction(handle);
+            ctx.ui.push_picking_restriction(handle);
         }
 
         handle

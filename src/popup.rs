@@ -1,7 +1,6 @@
 use crate::{
     node::UINode,
     Control,
-    UserInterface,
     widget::{
         Widget,
         WidgetBuilder,
@@ -20,6 +19,8 @@ use crate::{
     },
     border::BorderBuilder,
     NodeHandleMapping,
+    BuildContext,
+    UserInterface
 };
 use std::ops::{Deref, DerefMut};
 
@@ -57,7 +58,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Popup<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Popup(Self {
             widget: self.widget.raw_copy(),
@@ -77,73 +78,62 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+        self.widget.handle_routed_message(ui, message);
+
         match &message.data {
-            UiMessageData::Popup(msg) if message.destination == self.handle => {
+            UiMessageData::Popup(msg) if message.destination == self.handle() => {
                 match msg {
                     PopupMessage::Open => {
                         if !self.is_open {
                             self.is_open = true;
-                            self.set_visibility(true);
-                            ui.push_picking_restriction(self.handle);
-
-                            self.send_message(UiMessage {
+                            ui.send_message(WidgetMessage::visibility(self.handle(), true));
+                            ui.push_picking_restriction(self.handle());
+                            ui.send_message(UiMessage {
                                 data: UiMessageData::Widget(WidgetMessage::TopMost),
-                                destination: self.handle,
+                                destination: self.handle(),
                                 handled: false,
                             });
-                            match self.placement {
-                                Placement::LeftTop => {
-                                    self.set_desired_local_position(Vec2::ZERO);
-                                }
+                            let position = match self.placement {
+                                Placement::LeftTop => Vec2::ZERO,
                                 Placement::RightTop => {
                                     let width = self.widget.actual_size().x;
                                     let screen_width = ui.screen_size().x;
-                                    self.set_desired_local_position(
-                                        Vec2::new(screen_width - width, 0.0));
+                                    Vec2::new(screen_width - width, 0.0)
                                 }
                                 Placement::Center => {
                                     let size = self.widget.actual_size();
                                     let screen_size = ui.screen_size;
-                                    self.set_desired_local_position(
-                                        (screen_size - size).scale(0.5));
+                                    (screen_size - size).scale(0.5)
                                 }
                                 Placement::LeftBottom => {
                                     let height = self.widget.actual_size().y;
                                     let screen_height = ui.screen_size().y;
-                                    self.set_desired_local_position(
-                                        Vec2::new(0.0, screen_height - height));
+                                    Vec2::new(0.0, screen_height - height)
                                 }
                                 Placement::RightBottom => {
                                     let size = self.widget.actual_size();
                                     let screen_size = ui.screen_size;
-                                    self.set_desired_local_position(
-                                        screen_size - size);
+                                    screen_size - size
                                 }
-                                Placement::Cursor => {
-                                    self.set_desired_local_position(
-                                        ui.cursor_position())
-                                }
-                                Placement::Position(position) => {
-                                    self
-                                        .set_desired_local_position(
-                                            position)
-                                }
-                            }
+                                Placement::Cursor => ui.cursor_position(),
+                                Placement::Position(position) => position
+                            };
+                            ui.send_message(WidgetMessage::desired_position(self.handle(), position));
                         }
                     }
                     PopupMessage::Close => {
                         if self.is_open {
                             self.is_open = false;
-                            self.set_visibility(false);
-                            ui.remove_picking_restriction(self.handle);
-                            if ui.captured_node() == self.handle {
+                            ui.send_message(WidgetMessage::visibility(self.handle(), false));
+                            ui.remove_picking_restriction(self.handle());
+                            if ui.captured_node() == self.handle() {
                                 ui.release_mouse_capture();
                             }
                         }
                     }
                     PopupMessage::Content(content) => {
                         if self.content.is_some() {
-                            ui.remove_node(self.content);
+                            ui.send_message(WidgetMessage::remove(self.content));
                         }
                         self.content = *content;
                         ui.link_nodes(self.content, self.body);
@@ -163,45 +153,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
             if *state == ButtonState::Pressed && ui.top_picking_restriction() == self_handle && self.is_open {
                 let pos = ui.cursor_position();
                 if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
-                    self.close();
+                    ui.send_message(UiMessage {
+                        data: UiMessageData::Popup(PopupMessage::Close),
+                        destination: self.handle(),
+                        handled: false,
+                    });
                 }
             }
-        }
-    }
-}
-
-impl<M, C: 'static + Control<M, C>> Popup<M, C> {
-    pub fn open(&mut self) {
-        if !self.is_open {
-            self.invalidate_layout();
-            self.send_message(UiMessage {
-                data: UiMessageData::Popup(PopupMessage::Open),
-                destination: self.handle,
-                handled: false,
-            });
-        }
-    }
-
-    pub fn close(&mut self) {
-        if self.is_open {
-            self.invalidate_layout();
-            self.send_message(UiMessage {
-                data: UiMessageData::Popup(PopupMessage::Close),
-                destination: self.handle,
-                handled: false,
-            });
-        }
-    }
-
-    pub fn set_placement(&mut self, placement: Placement) {
-        if self.placement != placement {
-            self.placement = placement;
-            self.invalidate_layout();
-            self.send_message(UiMessage {
-                data: UiMessageData::Popup(PopupMessage::Placement(placement)),
-                destination: self.handle,
-                handled: false,
-            });
         }
     }
 }
@@ -213,7 +171,7 @@ pub struct PopupBuilder<M: 'static, C: 'static + Control<M, C>> {
     content: Handle<UINode<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> PopupBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> PopupBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -238,16 +196,16 @@ impl<M, C: 'static + Control<M, C>> PopupBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> where Self: Sized {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let body = BorderBuilder::new(WidgetBuilder::new()
             .with_child(self.content))
-            .build(ui);
+            .build(ctx);
 
         let popup = Popup {
             widget: self.widget_builder
                 .with_child(body)
                 .with_visibility(false)
-                .build(ui.sender()),
+                .build(),
             placement: self.placement,
             stays_open: self.stays_open,
             is_open: false,
@@ -255,10 +213,6 @@ impl<M, C: 'static + Control<M, C>> PopupBuilder<M, C> {
             body,
         };
 
-        let handle = ui.add_node(UINode::Popup(popup));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::Popup(popup))
     }
 }

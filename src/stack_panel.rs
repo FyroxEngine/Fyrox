@@ -1,5 +1,4 @@
 use crate::{
-    UserInterface,
     widget::{
         Widget,
         WidgetBuilder,
@@ -14,7 +13,9 @@ use crate::{
         pool::Handle,
     },
     message::UiMessage,
-    Orientation
+    Orientation,
+    BuildContext,
+    UserInterface
 };
 use std::ops::{Deref, DerefMut};
 
@@ -37,7 +38,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for StackPanel<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> StackPanel<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> StackPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -57,7 +58,7 @@ impl<M, C: 'static + Control<M, C>> StackPanel<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::StackPanel(Self {
             widget: self.widget.raw_copy(),
@@ -174,7 +175,7 @@ pub struct StackPanelBuilder<M: 'static, C: 'static + Control<M, C>> {
     orientation: Option<Orientation>,
 }
 
-impl<M, C: 'static + Control<M, C>> StackPanelBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> StackPanelBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -187,16 +188,12 @@ impl<M, C: 'static + Control<M, C>> StackPanelBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let stack_panel = StackPanel {
-            widget: self.widget_builder.build(ui.sender()),
+            widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
         };
 
-        let handle = ui.add_node(UINode::StackPanel(stack_panel));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::StackPanel(stack_panel))
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     popup::Popup,
     message::{
         UiMessage,
-        OsEvent
+        OsEvent,
     },
     draw::DrawingContext,
     image::Image,
@@ -12,7 +12,7 @@ use crate::{
     button::Button,
     border::Border,
     scroll_bar::ScrollBar,
-    scroll_content_presenter::ScrollContentPresenter,
+    scroll_panel::ScrollPanel,
     scroll_viewer::ScrollViewer,
     stack_panel::StackPanel,
     tab_control::TabControl,
@@ -25,35 +25,35 @@ use crate::{
     core::{
         math::{
             Rect,
-            vec2::Vec2
+            vec2::Vec2,
         },
         pool::Handle,
     },
     dropdown_list::DropdownList,
     list_view::{
         ListView,
-        ListViewItem
+        ListViewItem,
     },
     decorator::Decorator,
     NodeHandleMapping,
     progress_bar::ProgressBar,
     tree::{
         Tree,
-        TreeRoot
+        TreeRoot,
     },
     file_browser::FileBrowser,
     dock::{
         DockingManager,
-        Tile
+        Tile,
     },
     vec::Vec3Editor,
     numeric::NumericUpDown,
     menu::{
         Menu,
-        MenuItem
+        MenuItem,
     },
     messagebox::MessageBox,
-    wrap_panel::WrapPanel
+    wrap_panel::WrapPanel,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -68,7 +68,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     ListView(ListView<M, C>),
     ListViewItem(ListViewItem<M, C>),
     ScrollBar(ScrollBar<M, C>),
-    ScrollContentPresenter(ScrollContentPresenter<M, C>),
+    ScrollContentPresenter(ScrollPanel<M, C>),
     ScrollViewer(ScrollViewer<M, C>),
     StackPanel(StackPanel<M, C>),
     TabControl(TabControl<M, C>),
@@ -90,7 +90,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     MenuItem(MenuItem<M, C>),
     MessageBox(MessageBox<M, C>),
     WrapPanel(WrapPanel<M, C>),
-    User(C)
+    User(C),
 }
 
 macro_rules! static_dispatch {
@@ -171,7 +171,7 @@ macro_rules! static_dispatch_deref {
     };
 }
 
-impl<M, C: 'static + Control<M, C>> Deref for UINode<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for UINode<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -179,13 +179,13 @@ impl<M, C: 'static + Control<M, C>> Deref for UINode<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> DerefMut for UINode<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for UINode<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         static_dispatch_deref!(self)
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         static_dispatch!(self, raw_copy,)
     }
@@ -256,7 +256,7 @@ impl Deref for StubNode {
     }
 }
 
-impl DerefMut for StubNode{
+impl DerefMut for StubNode {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unimplemented!()
     }

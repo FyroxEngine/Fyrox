@@ -17,13 +17,15 @@ use crate::{
         Column,
         Row,
     },
+    brush::Brush,
     message::{
+        ButtonMessage,
         UiMessage,
         UiMessageData,
+        WidgetMessage
     },
-    brush::Brush,
-    message::ButtonMessage,
     NodeHandleMapping,
+    BuildContext,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -51,7 +53,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for TabControl<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::TabControl(Self {
             widget: self.widget.raw_copy(),
@@ -67,14 +69,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message( ui, message);
+        self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Button(msg) = &message.data {
             if let ButtonMessage::Click = msg {
                 for (i, tab) in self.tabs.iter().enumerate() {
                     if message.destination == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
-                            ui.node_mut(other_tab.content).set_visibility(j == i);
+                            ui.send_message(WidgetMessage::visibility(other_tab.content, j == i));
                         }
                         break;
                     }
@@ -105,7 +107,7 @@ pub struct TabDefinition<M: 'static, C: 'static + Control<M, C>> {
     pub content: Handle<UINode<M, C>>,
 }
 
-impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -118,38 +120,42 @@ impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let tab_buttons = self.tabs
-            .iter()
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let mut headers = Vec::new();
+        let mut content = Vec::new();
+        let tab_count = self.tabs.len();
+        for (i, tab) in self.tabs.into_iter().enumerate() {
+            headers.push(tab.header);
+            // Hide everything but first tab content.
+            if i > 0 {
+                ctx[tab.content].set_visibility(false);
+            }
+            content.push(tab.content);
+        }
+
+        let tab_buttons = headers
+            .into_iter()
             .enumerate()
-            .map(|(i, tab)| {
+            .map(|(i, header)| {
                 ButtonBuilder::new(WidgetBuilder::new()
                     .on_column(i))
-                    .with_content(tab.header)
-                    .build(ui)
+                    .with_content(header)
+                    .build(ctx)
             }).collect::<Vec<Handle<UINode<M, C>>>>();
-
-        // Hide everything but first tab content.
-        for tab_def in self.tabs.iter().skip(1) {
-            ui.node_mut(tab_def.content).set_visibility(false);
-        }
 
         let headers_grid = GridBuilder::new(WidgetBuilder::new()
             .with_children(&tab_buttons)
             .on_row(0))
             .add_row(Row::auto())
-            .add_columns((0..self.tabs.len())
+            .add_columns((0..tab_count)
                 .map(|_| Column::auto())
                 .collect())
-            .build(ui);
+            .build(ctx);
 
         let content_grid = GridBuilder::new(WidgetBuilder::new()
-            .with_children(&self.tabs
-                .iter()
-                .map(|tab| tab.content)
-                .collect::<Vec<Handle<UINode<M, C>>>>())
+            .with_children(&content)
             .on_row(1))
-            .build(ui);
+            .build(ctx);
 
         let grid = GridBuilder::new(WidgetBuilder::new()
             .with_child(headers_grid)
@@ -157,30 +163,26 @@ impl<M, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
             .add_column(Column::auto())
             .add_row(Row::strict(30.0))
             .add_row(Row::auto())
-            .build(ui);
+            .build(ctx);
 
-        let tab_control = TabControl {
+        let tc = TabControl {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_background(Brush::Solid(Color::from_rgba(0, 0, 0, 0)))
                     .with_child(grid))
-                    .build(ui))
-                .build(ui.sender()),
+                    .build(ctx))
+                .build(),
             tabs: tab_buttons.iter()
-                .zip(self.tabs.iter())
-                .map(|(tab_button, tab_definition)| {
+                .zip(content)
+                .map(|(tab_button, content)| {
                     Tab {
                         header_button: *tab_button,
-                        content: tab_definition.content,
+                        content,
                     }
                 })
                 .collect(),
         };
 
-        let handle = ui.add_node(UINode::TabControl(tab_control));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::TabControl(tc))
     }
 }

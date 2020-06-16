@@ -34,8 +34,11 @@ use crate::{
     UserInterface,
     Thickness,
     message::WidgetMessage,
+    BuildContext,
+    message::TileMessage
 };
 
+#[derive(Debug)]
 pub enum TileContent<M: 'static, C: 'static + Control<M, C>> {
     Empty,
     Window(Handle<UINode<M, C>>),
@@ -227,9 +230,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
             // Main difference between tile arrangement and other arrangement methods in
             // library is that tile has to explicitly set width of child windows, otherwise
             // layout will be weird - window will most likely will stay at its previous size.
-            if let UINode::Window(window) = ui.node(child_handle) {
-                window.set_width(bounds.w);
-                window.set_height(bounds.h);
+            if child_handle != self.splitter {
+                ui.send_message(WidgetMessage::width(child_handle, bounds.w));
+                ui.send_message(WidgetMessage::height(child_handle, bounds.h));
             }
         }
 
@@ -240,6 +243,26 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
+            UiMessageData::Tile(msg) => {
+                if message.destination == self.handle() {
+                    match msg {
+                        TileMessage::Content(content) => {
+                            self.content = content.clone();
+                            match content {
+                                TileContent::Empty => {},
+                                &TileContent::Window(window) => {
+                                    ui.send_message(WidgetMessage::link(window, self.handle()));
+                                },
+                                TileContent::VerticalTiles { tiles, .. } | TileContent::HorizontalTiles { tiles, .. } => {
+                                    for &tile in tiles {
+                                        ui.send_message(WidgetMessage::link(tile, self.handle()));
+                                    }
+                                },
+                            }
+                        },
+                    }
+                }
+            }
             UiMessageData::Widget(msg) => {
                 match msg {
                     &WidgetMessage::MouseDown { .. } => {
@@ -288,7 +311,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                                 if empty_count == 2 {
                                     self.content = TileContent::Empty;
 
-                                    ui.node_mut(self.splitter).set_visibility(false);
+                                    ui.send_message(WidgetMessage::visibility(self.splitter, false));
 
                                     for &tile in &tiles {
                                         // Remove sub-tiles.
@@ -352,7 +375,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                     if let TileContent::Empty | TileContent::Window(_) = self.content {
                         // Show anchors.
                         for &anchor in &self.anchors() {
-                            ui.node_mut(anchor).set_visibility(true);
+                            ui.send_message(WidgetMessage::visibility(anchor, true));
                         }
                     }
                 }
@@ -373,22 +396,22 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                                     // When window is being dragged, we should check which tile can accept it.
                                     let pos = ui.cursor_position;
                                     for &anchor in &self.anchors() {
-                                        ui.node_mut(anchor).set_background(Brush::Solid(DEFAULT_ANCHOR_COLOR));
+                                        ui.send_message(WidgetMessage::background(anchor, Brush::Solid(DEFAULT_ANCHOR_COLOR)))
                                     }
                                     if ui.node(self.left_anchor).screen_bounds().contains(pos.x, pos.y) {
-                                        ui.node_mut(self.left_anchor).set_background(Brush::Solid(Color::WHITE));
+                                        ui.send_message(WidgetMessage::background(self.left_anchor, Brush::Solid(Color::WHITE)));
                                         self.drop_anchor = self.left_anchor;
                                     } else if ui.node(self.right_anchor).screen_bounds().contains(pos.x, pos.y) {
-                                        ui.node_mut(self.right_anchor).set_background(Brush::Solid(Color::WHITE));
+                                        ui.send_message(WidgetMessage::background(self.right_anchor, Brush::Solid(Color::WHITE)));
                                         self.drop_anchor = self.right_anchor;
                                     } else if ui.node(self.top_anchor).screen_bounds().contains(pos.x, pos.y) {
-                                        ui.node_mut(self.top_anchor).set_background(Brush::Solid(Color::WHITE));
+                                        ui.send_message(WidgetMessage::background(self.top_anchor, Brush::Solid(Color::WHITE)));
                                         self.drop_anchor = self.top_anchor;
                                     } else if ui.node(self.bottom_anchor).screen_bounds().contains(pos.x, pos.y) {
-                                        ui.node_mut(self.bottom_anchor).set_background(Brush::Solid(Color::WHITE));
+                                        ui.send_message(WidgetMessage::background(self.bottom_anchor, Brush::Solid(Color::WHITE)));
                                         self.drop_anchor = self.bottom_anchor;
                                     } else if ui.node(self.center_anchor).screen_bounds().contains(pos.x, pos.y) {
-                                        ui.node_mut(self.center_anchor).set_background(Brush::Solid(Color::WHITE));
+                                        ui.send_message(WidgetMessage::background(self.center_anchor, Brush::Solid(Color::WHITE)));
                                         self.drop_anchor = self.center_anchor;
                                     } else {
                                         self.drop_anchor = Handle::NONE;
@@ -399,14 +422,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                                 if let TileContent::Empty | TileContent::Window(_) = self.content {
                                     // Show anchors.
                                     for &anchor in &self.anchors() {
-                                        ui.node_mut(anchor).set_visibility(true);
+                                        ui.send_message(WidgetMessage::visibility(anchor, true));
                                     }
                                 }
                             }
                             WindowMessage::MoveEnd => {
                                 // Hide anchors.
                                 for &anchor in &self.anchors() {
-                                    ui.node_mut(anchor).set_visibility(false);
+                                    ui.send_message(WidgetMessage::visibility(anchor, false));
                                 }
 
                                 // Drop if has any drop anchor.
@@ -421,7 +444,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                                                     self.content = TileContent::Window(message.destination);
                                                     ui.send_message(UiMessage {
                                                         handled: false,
-                                                        data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle)),
+                                                        data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle())),
                                                         destination: message.destination,
                                                     });
                                                 }
@@ -478,7 +501,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
                     TileContent::Empty
                 }
             })
-            .build(ui);
+            .build(&mut ui.build_ctx());
 
         let second_tile = TileBuilder::new(WidgetBuilder::new())
             .with_content({
@@ -488,30 +511,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
                     TileContent::Window(window)
                 }
             })
-            .build(ui);
+            .build(&mut ui.build_ctx());
 
         if !first && existing_content.is_some() {
-            // We can't set content directly, so use deferred call.
-            if let UINode::Tile(first_tile) = ui.node_mut(first_tile) {
-                first_tile.content = TileContent::Window(existing_content);
-            }
-            ui.send_message(UiMessage {
-                handled: false,
-                data: UiMessageData::Widget(WidgetMessage::LinkWith(first_tile)),
-                destination: existing_content,
-            });
+            ui.send_message(TileMessage::content(first_tile, TileContent::Window(existing_content)));
         }
 
         if first && existing_content.is_some() {
-            // We can't set content directly, so use deferred call.
-            if let UINode::Tile(second_tile) = ui.node_mut(second_tile) {
-                second_tile.content = TileContent::Window(existing_content);
-            }
-            ui.send_message(UiMessage {
-                handled: false,
-                data: UiMessageData::Widget(WidgetMessage::LinkWith(second_tile)),
-                destination: existing_content,
-            });
+            ui.send_message(TileMessage::content(second_tile, TileContent::Window(existing_content)));
         }
 
         self.content = match direction {
@@ -532,26 +539,25 @@ impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
         // All messages must be sent *after* all nodes are created, otherwise it will panic!
         ui.send_message(UiMessage {
             handled: false,
-            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle)),
+            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle())),
             destination: first_tile,
         });
         ui.send_message(UiMessage {
             handled: false,
-            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle)),
+            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle())),
             destination: second_tile,
         });
 
-        let splitter = ui.node_mut(self.splitter);
+        ui.send_message(WidgetMessage::visibility(self.splitter, true));
 
-        splitter.set_visibility(true);
         match direction {
             SplitDirection::Horizontal => {
-                splitter.set_width_mut(DEFAULT_SPLITTER_SIZE)
-                    .set_height(std::f32::INFINITY);
+                ui.send_message(WidgetMessage::width(self.splitter, DEFAULT_SPLITTER_SIZE));
+                ui.send_message(WidgetMessage::height(self.splitter, std::f32::INFINITY));
             }
             SplitDirection::Vertical => {
-                splitter.set_height_mut(DEFAULT_SPLITTER_SIZE)
-                    .set_width(std::f32::INFINITY);
+                ui.send_message(WidgetMessage::width(self.splitter, std::f32::INFINITY));
+                ui.send_message(WidgetMessage::height(self.splitter, DEFAULT_SPLITTER_SIZE));
             }
         }
     }
@@ -585,7 +591,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for DockingManager<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for DockingManager<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DockingManager<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::DockingManager(self.clone())
     }
@@ -610,7 +616,7 @@ pub struct DockingManagerBuilder<M: 'static, C: 'static + Control<M, C>> {
     floating_windows: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -623,18 +629,14 @@ impl<M, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let docking_manager = DockingManager {
             widget: self.widget_builder
-                .build(ui.sender()),
+                .build(),
             floating_windows: self.floating_windows,
         };
 
-        let handle = ui.add_node(UINode::DockingManager(docking_manager));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::DockingManager(docking_manager))
     }
 }
 
@@ -646,20 +648,20 @@ pub struct TileBuilder<M: 'static, C: 'static + Control<M, C>> {
 pub const DEFAULT_SPLITTER_SIZE: f32 = 6.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
-pub fn make_default_anchor<M, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+pub fn make_default_anchor<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, row: usize, column: usize) -> Handle<UINode<M, C>> {
     let default_anchor_size = 30.0;
     BorderBuilder::new(WidgetBuilder::new()
         .with_width(default_anchor_size)
         .with_height(default_anchor_size)
         .with_visibility(false)
-        .on_row(2)
-        .on_column(1)
+        .on_row(row)
+        .on_column(column)
         .with_draw_on_top(true)
         .with_background(Brush::Solid(DEFAULT_ANCHOR_COLOR)))
-        .build(ui)
+        .build(ctx)
 }
 
-impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> TileBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -672,21 +674,12 @@ impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let left_anchor = make_default_anchor(ui);
-        ui.node_mut(left_anchor).set_row(2).set_column(1);
-
-        let right_anchor = make_default_anchor(ui);
-        ui.node_mut(right_anchor).set_row(2).set_column(3);
-
-        let dock_anchor = make_default_anchor(ui);
-        ui.node_mut(dock_anchor).set_row(2).set_column(2);
-
-        let top_anchor = make_default_anchor(ui);
-        ui.node_mut(top_anchor).set_row(1).set_column(2);
-
-        let bottom_anchor = make_default_anchor(ui);
-        ui.node_mut(bottom_anchor).set_row(3).set_column(2);
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let left_anchor = make_default_anchor(ctx, 2, 1);
+        let right_anchor = make_default_anchor(ctx, 2, 3);
+        let dock_anchor = make_default_anchor(ctx, 2, 2);
+        let top_anchor = make_default_anchor(ctx, 1, 2);
+        let bottom_anchor = make_default_anchor(ctx, 3, 2);
 
         let grid = GridBuilder::new(WidgetBuilder::new()
             .with_child(left_anchor)
@@ -704,7 +697,7 @@ impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
             .add_column(Column::auto())
             .add_column(Column::auto())
             .add_column(Column::stretch())
-            .build(ui);
+            .build(ctx);
 
         let splitter = BorderBuilder::new(WidgetBuilder::new()
             .with_width({
@@ -726,7 +719,7 @@ impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
                 _ => false
             })
             .with_margin(Thickness::uniform(1.0)))
-            .build(ui);
+            .build(ctx);
 
         let children = match self.content {
             TileContent::Window(window) => vec![window],
@@ -740,7 +733,7 @@ impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
                 .with_child(grid)
                 .with_child(splitter)
                 .with_children(&children)
-                .build(ui.sender()),
+                .build(),
             left_anchor,
             right_anchor,
             top_anchor,
@@ -752,10 +745,6 @@ impl<M, C: 'static + Control<M, C>> TileBuilder<M, C> {
             drop_anchor: Default::default(),
         };
 
-        let handle = ui.add_node(UINode::Tile(tile));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::Tile(tile))
     }
 }

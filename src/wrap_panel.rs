@@ -1,5 +1,4 @@
 use crate::{
-    UserInterface,
     widget::{
         Widget,
         WidgetBuilder,
@@ -15,6 +14,8 @@ use crate::{
     },
     message::UiMessage,
     Orientation,
+    BuildContext,
+    UserInterface
 };
 use std::{
     ops::{Deref, DerefMut, Range},
@@ -41,12 +42,12 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for WrapPanel<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> WrapPanel<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> WrapPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             orientation: Orientation::Vertical,
-            lines: Default::default()
+            lines: Default::default(),
         }
     }
 
@@ -77,7 +78,7 @@ impl Default for Line {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Clone for WrapPanel<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Clone for WrapPanel<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -87,7 +88,7 @@ impl<M, C: 'static + Control<M, C>> Clone for WrapPanel<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::WrapPanel(self.clone())
     }
@@ -124,6 +125,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                 }
             }
         }
+
+        // Commit rest.
+        match self.orientation {
+            Orientation::Vertical => {
+                measured_size.y = measured_size.y.max(line_size.y);
+                measured_size.x += line_size.x;
+            }
+            Orientation::Horizontal => {
+                measured_size.x = measured_size.x.max(line_size.x);
+                measured_size.y += line_size.y;
+            }
+        }
+
         measured_size
     }
 
@@ -143,11 +157,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         // Advance column.
                         line.bounds.x += line.bounds.w;
                         line.bounds.y = 0.0;
-                        line.bounds.w = 0.0;
-                        line.bounds.h = 0.0;
+                        line.bounds.w = desired.x;
+                        line.bounds.h = desired.y;
                         // Reset children.
                         line.children.start = line.children.end;
-                        line.children.end = line.children.start;
+                        line.children.end = line.children.start + 1;
                     } else {
                         line.bounds.h += desired.y;
                         line.bounds.w = line.bounds.w.max(desired.x);
@@ -161,11 +175,11 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                         // Advance row.
                         line.bounds.x = 0.0;
                         line.bounds.y += line.bounds.h;
-                        line.bounds.w = 0.0;
-                        line.bounds.h = 0.0;
+                        line.bounds.w = desired.x;
+                        line.bounds.h = desired.y;
                         // Reset children.
                         line.children.start = line.children.end;
-                        line.children.end = line.children.start;
+                        line.children.end = line.children.start + 1;
                     } else {
                         line.bounds.w += desired.x;
                         line.bounds.h = line.bounds.h.max(desired.y);
@@ -174,6 +188,9 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                 }
             }
         }
+
+        // Commit rest.
+        lines.push(line);
 
         // Second pass - arrange children of lines.
         let mut full_size = Vec2::ZERO;
@@ -189,7 +206,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                             x: line.bounds.x,
                             y: cursor.y,
                             w: line.bounds.w,
-                            h: desired.y
+                            h: desired.y,
                         };
                         child.arrange(ui, &child_bounds);
                         cursor.y += desired.y;
@@ -206,8 +223,16 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
                     }
                 }
             }
-            full_size.x = final_size.x.max(line.bounds.w);
-            full_size.y = final_size.y.max(line.bounds.h);
+            match self.orientation {
+                Orientation::Vertical => {
+                    full_size.x += line.bounds.w;
+                    full_size.y = final_size.y.max(line.bounds.h);
+                }
+                Orientation::Horizontal => {
+                    full_size.x = final_size.x.max(line.bounds.w);
+                    full_size.y += line.bounds.h;
+                }
+            }
         }
 
         full_size
@@ -223,7 +248,7 @@ pub struct WrapPanelBuilder<M: 'static, C: 'static + Control<M, C>> {
     orientation: Option<Orientation>,
 }
 
-impl<M, C: 'static + Control<M, C>> WrapPanelBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> WrapPanelBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -236,17 +261,17 @@ impl<M, C: 'static + Control<M, C>> WrapPanelBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build_node(self) -> UINode<M, C> {
         let stack_panel = WrapPanel {
-            widget: self.widget_builder.build(ui.sender()),
+            widget: self.widget_builder.build(),
             orientation: self.orientation.unwrap_or(Orientation::Vertical),
             lines: Default::default(),
         };
 
-        let handle = ui.add_node(UINode::WrapPanel(stack_panel));
+        UINode::WrapPanel(stack_panel)
+    }
 
-        ui.flush_messages();
-
-        handle
+    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        ui.add_node(self.build_node())
     }
 }

@@ -22,6 +22,7 @@ use std::{
     ops::Range,
     sync::Arc
 };
+use std::fmt::{Debug, Formatter};
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -99,6 +100,12 @@ pub struct Font {
     atlas: Vec<u8>,
     atlas_size: i32,
     pub texture: Option<Arc<Texture>>,
+}
+
+impl Debug for Font {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "Font")
+    }
 }
 
 struct RectPackNode {

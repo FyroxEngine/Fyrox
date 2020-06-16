@@ -24,6 +24,8 @@ use crate::{
     },
     border::BorderBuilder,
     NodeHandleMapping,
+    BuildContext,
+    message::PopupMessage
 };
 use std::ops::{Deref, DerefMut};
 
@@ -75,34 +77,40 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
         match &message.data {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::MouseDown { .. } = msg {
-                    if message.destination == self.handle || self.widget.has_descendant(message.destination, ui) {
-                        if let UINode::Popup(popup) = ui.node_mut(self.popup) {
-                            popup.set_width_mut(self.widget.actual_size().x);
-                            let placement_position = self.widget.screen_position + Vec2::new(0.0, self.widget.actual_size().y);
-                            popup.set_placement(Placement::Position(placement_position));
-                            popup.open();
-                        }
+                    if message.destination == self.handle() || self.widget.has_descendant(message.destination, ui) {
+                        ui.send_message(WidgetMessage::width(self.popup, self.actual_size().x));
+                        let placement_position = self.widget.screen_position + Vec2::new(0.0, self.widget.actual_size().y);
+                        ui.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Popup(PopupMessage::Placement(Placement::Position(placement_position))),
+                            destination: self.popup,
+                        });
+                        ui.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Popup(PopupMessage::Open),
+                            destination: self.popup,
+                        });
                     }
                 }
             }
             UiMessageData::ListView(msg) => {
                 match msg {
                     ListViewMessage::Items(items) => {
-                        if message.destination == self.handle {
+                        if message.destination == self.handle() {
                             ui.send_message(UiMessage {
                                 destination: self.list_view,
                                 data: UiMessageData::ListView(ListViewMessage::Items(items.clone())),
-                                handled: false
+                                handled: false,
                             });
                             self.items = items.clone();
                         }
                     }
                     &ListViewMessage::AddItem(item) => {
-                        if message.destination == self.handle {
+                        if message.destination == self.handle() {
                             ui.send_message(UiMessage {
                                 destination: self.list_view,
                                 data: UiMessageData::ListView(ListViewMessage::AddItem(item)),
-                                handled: false
+                                handled: false,
                             });
                             self.items.push(item);
                         }
@@ -123,7 +131,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
                     // (change color on mouse hover, change something on click, etc)
                     // it will be also reflected in selected item.
                     if self.current.is_some() {
-                        ui.remove_node(self.current)
+                        ui.send_message(WidgetMessage::remove(self.current));
                     }
                     if let Some(index) = selection {
                         if let Some(item) = self.items.get(*index) {
@@ -138,24 +146,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
                     }
                     // Post message again but from name of this drop-down list so user can catch
                     // message and respond properly.
-                    self.send_message(UiMessage {
+                    ui.send_message(UiMessage {
                         data: UiMessageData::ListView(ListViewMessage::SelectionChanged(*selection)),
-                        destination: self.handle,
-                        handled: false
+                        destination: self.handle(),
+                        handled: false,
                     })
                 }
             }
         }
-    }
-}
-
-impl<M: 'static, C: 'static + Control<M, C>> DropdownList<M, C> {
-    pub fn set_items(&mut self, items: Vec<Handle<UINode<M, C>>>) {
-        self.send_message(UiMessage {
-            destination: self.list_view,
-            data: UiMessageData::ListView(ListViewMessage::Items(items)),
-            handled: false
-        })
     }
 }
 
@@ -177,19 +175,19 @@ impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> where Self: Sized {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> where Self: Sized {
         let items_control = ListViewBuilder::new(WidgetBuilder::new()
             .with_max_size(Vec2::new(std::f32::INFINITY, 300.0)))
             .with_items(self.items.clone())
-            .build(ui);
+            .build(ctx);
 
         let popup = PopupBuilder::new(WidgetBuilder::new())
             .with_content(items_control)
-            .build(ui);
+            .build(ctx);
 
         let current =
             if let Some(first) = self.items.get(0) {
-                ui.copy_node(*first)
+                ctx.copy(*first)
             } else {
                 Handle::NONE
             };
@@ -198,18 +196,14 @@ impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
             widget: self.widget_builder
                 .with_child(BorderBuilder::new(WidgetBuilder::new()
                     .with_child(current))
-                    .build(ui))
-                .build(ui.sender()),
+                    .build(ctx))
+                .build(),
             popup,
             items: self.items,
             list_view: items_control,
             current,
         });
 
-        let handle = ui.add_node(dropdown_list);
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(dropdown_list)
     }
 }

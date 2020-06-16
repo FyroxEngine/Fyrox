@@ -10,7 +10,6 @@ use crate::{
             Rect,
         },
     },
-    UserInterface,
     widget::{
         WidgetBuilder,
         Widget,
@@ -22,7 +21,9 @@ use crate::{
         CommandKind,
         CommandTexture
     },
-    message::UiMessage
+    message::UiMessage,
+    BuildContext,
+    UserInterface
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -147,7 +148,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Grid<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Grid(Self {
             widget: self.widget.raw_copy(),
@@ -276,7 +277,7 @@ pub struct GridBuilder<M: 'static, C: 'static + Control<M, C>> {
     border_thickness: f32,
 }
 
-impl<M, C: 'static + Control<M, C>> GridBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> GridBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         GridBuilder {
             widget_builder,
@@ -317,22 +318,19 @@ impl<M, C: 'static + Control<M, C>> GridBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let handle = ui.add_node(UINode::Grid(Grid {
-            widget: self.widget_builder.build(ui.sender()),
+    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let grid = Grid {
+            widget: self.widget_builder.build(),
             rows: RefCell::new(self.rows),
             columns: RefCell::new(self.columns),
             draw_border: self.draw_border,
             border_thickness: self.border_thickness,
-        }));
-
-        ui.flush_messages();
-
-        handle
+        };
+        ui.add_node(UINode::Grid(grid))
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Grid<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Grid<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,

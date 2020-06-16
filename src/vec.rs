@@ -4,12 +4,11 @@ use crate::{
         UiMessageData,
         NumericUpDownMessage,
         UiMessage,
-        Vec3EditorMessage
+        Vec3EditorMessage,
     },
     border::BorderBuilder,
     node::UINode,
     Control,
-    UserInterface,
     Widget,
     WidgetBuilder,
     Thickness,
@@ -22,9 +21,11 @@ use crate::{
     core::{
         color::Color,
         pool::Handle,
-        math::vec3::Vec3
+        math::vec3::Vec3,
     },
     brush::Brush,
+    BuildContext,
+    UserInterface,
 };
 
 pub struct Vec3Editor<M: 'static, C: 'static + Control<M, C>> {
@@ -32,7 +33,7 @@ pub struct Vec3Editor<M: 'static, C: 'static + Control<M, C>> {
     x_field: Handle<UINode<M, C>>,
     y_field: Handle<UINode<M, C>>,
     z_field: Handle<UINode<M, C>>,
-    value: Vec3
+    value: Vec3,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for Vec3Editor<M, C> {
@@ -56,12 +57,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Vec3Editor<M, C> {
             x_field: self.x_field,
             y_field: self.y_field,
             z_field: self.z_field,
-            value: self.value
+            value: self.value,
         }
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Vec3Editor(self.clone())
     }
@@ -77,13 +78,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
 
         match &message.data {
             UiMessageData::NumericUpDown(msg) => {
-                if let &NumericUpDownMessage::Value(value) = msg {
+                if let NumericUpDownMessage::Value(value) = *msg {
                     if message.destination == self.x_field {
                         if self.value.x != value {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(Vec3::new(value, self.value.y, self.value.z))),
-                                destination: self.handle
+                                destination: self.handle(),
                             });
                         }
                     } else if message.destination == self.y_field {
@@ -91,22 +92,20 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(Vec3::new(self.value.x, value, self.value.z))),
-                                destination: self.handle
+                                destination: self.handle(),
                             });
                         }
-                    } else if message.destination == self.z_field {
-                        if self.value.z != value {
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(Vec3::new(self.value.x, self.value.y, value))),
-                                destination: self.handle
-                            });
-                        }
+                    } else if message.destination == self.z_field && self.value.z != value {
+                        ui.send_message(UiMessage {
+                            handled: false,
+                            data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(Vec3::new(self.value.x, self.value.y, value))),
+                            destination: self.handle(),
+                        });
                     }
                 }
             }
             UiMessageData::Vec3Editor(msg) => {
-                if let &Vec3EditorMessage::Value(value) = msg {
+                if let Vec3EditorMessage::Value(value) = *msg {
                     if self.value != value {
                         self.value = value;
                         self.invalidate_layout();
@@ -114,17 +113,17 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value.x)),
-                            destination: self.x_field
+                            destination: self.x_field,
                         });
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value.y)),
-                            destination: self.y_field
+                            destination: self.y_field,
                         });
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value.z)),
-                            destination: self.z_field
+                            destination: self.z_field,
                         });
                     }
                 }
@@ -136,23 +135,23 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
 
 pub struct Vec3EditorBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
-    value: Vec3
+    value: Vec3,
 }
 
-pub fn make_numeric_input<M, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>, column: usize) -> Handle<UINode<M, C>> {
+pub fn make_numeric_input<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, column: usize) -> Handle<UINode<M, C>> {
     NumericUpDownBuilder::new(WidgetBuilder::new()
         .on_row(0)
         .on_column(column)
-        .with_margin(Thickness{
+        .with_margin(Thickness {
             left: 1.0,
             top: 0.0,
             right: 1.0,
-            bottom: 0.0
+            bottom: 0.0,
         }))
-        .build(ui)
+        .build(ctx)
 }
 
-pub fn make_mark<M, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>, text: &str, column: usize, color: Color) -> Handle<UINode<M, C>> {
+pub fn make_mark<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, text: &str, column: usize, color: Color) -> Handle<UINode<M, C>> {
     BorderBuilder::new(WidgetBuilder::new()
         .on_row(0)
         .on_column(column)
@@ -163,15 +162,15 @@ pub fn make_mark<M, C: 'static + Control<M, C>>(ui: &mut UserInterface<M, C>, te
             .with_horizontal_text_alignment(HorizontalAlignment::Center)
             .with_vertical_text_alignment(VerticalAlignment::Center)
             .with_text(text)
-            .build(ui)))
-        .build(ui)
+            .build(ctx)))
+        .build(ctx)
 }
 
-impl<M, C: 'static + Control<M, C>> Vec3EditorBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Vec3EditorBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
-            value: Default::default()
+            value: Default::default(),
         }
     }
 
@@ -180,24 +179,24 @@ impl<M, C: 'static + Control<M, C>> Vec3EditorBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let x_field;
         let y_field;
         let z_field;
         let grid = GridBuilder::new(WidgetBuilder::new()
-            .with_child(make_mark(ui, "X", 0, Color::opaque(120, 0, 0)))
+            .with_child(make_mark(ctx, "X", 0, Color::opaque(120, 0, 0)))
             .with_child({
-                x_field = make_numeric_input(ui, 1);
+                x_field = make_numeric_input(ctx, 1);
                 x_field
             })
-            .with_child(make_mark(ui, "Y", 2, Color::opaque(0, 120, 0)))
+            .with_child(make_mark(ctx, "Y", 2, Color::opaque(0, 120, 0)))
             .with_child({
-                y_field = make_numeric_input(ui, 3);
+                y_field = make_numeric_input(ctx, 3);
                 y_field
             })
-            .with_child(make_mark(ui, "Z", 4, Color::opaque(0, 0, 120)))
+            .with_child(make_mark(ctx, "Z", 4, Color::opaque(0, 0, 120)))
             .with_child({
-                z_field = make_numeric_input(ui, 5);
+                z_field = make_numeric_input(ctx, 5);
                 z_field
             }))
             .add_row(Row::stretch())
@@ -207,22 +206,18 @@ impl<M, C: 'static + Control<M, C>> Vec3EditorBuilder<M, C> {
             .add_column(Column::stretch())
             .add_column(Column::auto())
             .add_column(Column::stretch())
-            .build(ui);
+            .build(ctx);
 
         let node = Vec3Editor {
             widget: self.widget_builder
                 .with_child(grid)
-                .build(ui.sender()),
+                .build(),
             x_field,
             y_field,
             z_field,
-            value: self.value
+            value: self.value,
         };
 
-        let handle = ui.add_node(UINode::Vec3Editor(node));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::Vec3Editor(node))
     }
 }

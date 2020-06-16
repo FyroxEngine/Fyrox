@@ -18,7 +18,6 @@ use crate::{
         WidgetBuilder,
         Widget,
     },
-    UserInterface,
     draw::{
         DrawingContext,
         CommandKind,
@@ -41,6 +40,8 @@ use crate::{
     VerticalAlignment,
     HorizontalAlignment,
     draw::CommandTexture,
+    BuildContext,
+    UserInterface
 };
 use std::rc::Rc;
 
@@ -100,7 +101,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for TextBox<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -207,7 +208,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 
     /// Inserts given character at current caret position.
-    pub fn insert_char(&mut self, c: char) {
+    fn insert_char(&mut self, c: char, ui: &UserInterface<M, C>) {
         if !c.is_control() {
             let position = self.get_absolute_position().unwrap_or(0);
             self.formatted_text
@@ -215,10 +216,10 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
                 .insert_char(c, position)
                 .build();
             self.move_caret_x(1, HorizontalDirection::Right);
-            self.send_message(UiMessage {
+            ui.send_message(UiMessage {
                 handled: false,
                 data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
-                destination: self.handle,
+                destination: self.handle(),
             });
         }
     }
@@ -227,7 +228,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
         self.formatted_text.borrow_mut().get_raw_text().len()
     }
 
-    pub fn remove_char(&mut self, direction: HorizontalDirection) {
+    fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface<M, C>) {
         if let Some(position) = self.get_absolute_position() {
             let text_len = self.get_text_len();
             if text_len != 0 {
@@ -248,10 +249,10 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
                 self.formatted_text.borrow_mut().remove_at(position);
                 self.formatted_text.borrow_mut().build();
 
-                self.send_message(UiMessage {
+                ui.send_message(UiMessage {
                     handled: false,
                     data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
-                    destination: self.handle,
+                    destination: self.handle(),
                 });
 
                 if direction == HorizontalDirection::Left {
@@ -370,7 +371,7 @@ impl<M, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::TextBox(Self {
             widget: self.widget.raw_copy(),
@@ -502,23 +503,19 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination == self.handle {
+        if message.destination == self.handle() {
             match &message.data {
                 UiMessageData::Widget(msg) => {
                     match msg {
                         &WidgetMessage::Text(symbol) => {
-                            let insert =  if let Some(filter) = self.filter.as_ref() {
+                            let insert = if let Some(filter) = self.filter.as_ref() {
                                 let filter = &mut *filter.borrow_mut();
-                                if filter(symbol) {
-                                    true
-                                } else {
-                                    false
-                                }
+                                filter(symbol)
                             } else {
                                 true
                             };
                             if insert {
-                                self.insert_char(symbol);
+                                self.insert_char(symbol, ui);
                             }
                         }
                         WidgetMessage::KeyDown(code) => {
@@ -536,10 +533,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                                     self.move_caret_x(1, HorizontalDirection::Left);
                                 }
                                 KeyCode::Delete => {
-                                    self.remove_char(HorizontalDirection::Right);
+                                    self.remove_char(HorizontalDirection::Right, ui);
                                 }
                                 KeyCode::Backspace => {
-                                    self.remove_char(HorizontalDirection::Left);
+                                    self.remove_char(HorizontalDirection::Left, ui);
                                 }
                                 _ => ()
                             }
@@ -566,7 +563,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                                     })
                                 }
 
-                                ui.capture_mouse(self.handle);
+                                ui.capture_mouse(self.handle());
                             }
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
@@ -606,10 +603,10 @@ pub struct TextBoxBuilder<M: 'static, C: 'static + Control<M, C>> {
     filter: Option<Rc<RefCell<FilterCallback>>>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
-    wrap: bool
+    wrap: bool,
 }
 
-impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -620,7 +617,7 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             filter: None,
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,
-            wrap: false
+            wrap: false,
         }
     }
 
@@ -664,7 +661,7 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
         }
@@ -673,7 +670,7 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
         }
 
         let text_box = TextBox {
-            widget: self.widget_builder.build(ui.sender()),
+            widget: self.widget_builder.build(),
             caret_line: 0,
             caret_offset: 0,
             caret_visible: false,
@@ -694,10 +691,6 @@ impl<M, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             filter: self.filter,
         };
 
-        let handle = ui.add_node(UINode::TextBox(text_box));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::TextBox(text_box))
     }
 }

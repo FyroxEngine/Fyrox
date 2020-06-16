@@ -18,7 +18,6 @@ use crate::{
         UiMessageData,
         WidgetMessage,
         UiMessage,
-        WidgetProperty,
     },
 };
 use std::{
@@ -26,28 +25,23 @@ use std::{
         RefCell,
         Cell,
     },
-    sync::mpsc::Sender,
     any::Any,
-    rc::Rc
+    rc::Rc,
+    marker::PhantomData,
 };
 
+#[derive(Debug)]
 pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub(in crate) handle: Handle<UINode<M, C>>,
     name: String,
     /// Desired position relative to parent node
-    desired_local_position: Cell<Vec2>,
+    desired_local_position: Vec2,
     /// Explicit width for node or automatic if NaN (means value is undefined). Default is NaN
-    width: Cell<f32>,
+    width: f32,
     /// Explicit height for node or automatic if NaN (means value is undefined). Default is NaN
-    height: Cell<f32>,
+    height: f32,
     /// Screen position of the node
     pub(in crate) screen_position: Vec2,
-    /// Desired size of the node after Measure pass.
-    desired_size: Cell<Vec2>,
-    /// Actual node local position after Arrange pass.
-    actual_local_position: Cell<Vec2>,
-    /// Actual size of the node after Arrange pass.
-    actual_size: Cell<Vec2>,
     /// Minimum width and height
     min_size: Vec2,
     /// Maximum width and height
@@ -67,50 +61,48 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     /// Current visibility state
     visibility: bool,
     global_visibility: bool,
-    pub(in crate) prev_global_visibility: bool,
     children: Vec<Handle<UINode<M, C>>>,
     parent: Handle<UINode<M, C>>,
     /// Indices of commands in command buffer emitted by the node.
     pub(in crate) command_indices: RefCell<Vec<usize>>,
     pub(in crate) is_mouse_directly_over: bool,
-    measure_valid: Cell<bool>,
-    arrange_valid: Cell<bool>,
     hit_test_visibility: bool,
-    pub(in crate) prev_measure: Cell<Vec2>,
-    pub(in crate) prev_arrange: Cell<Rect<f32>>,
     z_index: usize,
-    pub sender: Sender<UiMessage<M, C>>,
     allow_drag: bool,
     allow_drop: bool,
     pub user_data: Option<Rc<dyn Any>>,
-    pub(in crate) draw_on_top: bool
+    draw_on_top: bool,
+    marker: PhantomData<M>,
+
+    /// Layout. Interior mutability is a must here because layout performed in
+    /// a series of recursive calls.
+    pub(in crate) measure_valid: Cell<bool>,
+    pub(in crate) arrange_valid: Cell<bool>,
+    pub(in crate) prev_measure: Cell<Vec2>,
+    pub(in crate) prev_arrange: Cell<Rect<f32>>,
+    /// Desired size of the node after Measure pass.
+    pub(in crate) desired_size: Cell<Vec2>,
+    /// Actual node local position after Arrange pass.
+    pub(in crate) actual_local_position: Cell<Vec2>,
+    /// Actual size of the node after Arrange pass.
+    pub(in crate) actual_size: Cell<Vec2>,
+    pub(in crate) prev_global_visibility: bool,
 }
 
-impl<M, C: 'static + Control<M, C>> Widget<M, C> {
-    #[inline]
-    pub fn send_message(&self, message: UiMessage<M, C>) {
-        self.sender.send(message).unwrap();
-    }
-
-    #[inline]
-    fn post_property_changed_message(&self, property: WidgetProperty) {
-        self.send_message(UiMessage {
-            destination: self.handle,
-            data: UiMessageData::Widget(WidgetMessage::Property(property)),
-            handled: false
-        });
-    }
-
-    #[inline]
-    pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
-        self.name = name.as_ref().to_owned();
-        self.post_property_changed_message(WidgetProperty::Name(self.name.clone()));
-        self
+impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
+    pub fn handle(&self) -> Handle<UINode<M, C>> {
+        self.handle
     }
 
     #[inline]
     pub fn name(&self) -> &str {
         self.name.as_str()
+    }
+
+    #[inline]
+    pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
+        self.name = name.as_ref().to_owned();
+        self
     }
 
     #[inline]
@@ -120,11 +112,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_min_size(&mut self, value: Vec2) -> &mut Self {
-        if self.min_size != value {
-            self.min_size = value;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::MinSize(value));
-        }
+        self.min_size = value;
         self
     }
 
@@ -143,19 +131,27 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         self.min_size.y
     }
 
+    pub fn is_drag_allowed(&self) -> bool {
+        self.allow_drag
+    }
+
+    pub fn is_drop_allowed(&self) -> bool {
+        self.allow_drop
+    }
+
     #[inline]
     pub fn invalidate_layout(&self) {
         self.measure_valid.set(false);
         self.arrange_valid.set(false);
     }
 
+    pub fn is_hit_test_visible(&self) -> bool {
+        self.hit_test_visibility
+    }
+
     #[inline]
     pub fn set_max_size(&mut self, value: Vec2) -> &mut Self {
-        if self.max_size != value {
-            self.max_size = value;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::MaxSize(value));
-        }
+        self.max_size = value;
         self
     }
 
@@ -176,11 +172,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_z_index(&mut self, z_index: usize) -> &mut Self {
-        if self.z_index != z_index {
-            self.z_index = z_index;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::ZIndex(z_index));
-        }
+        self.z_index = z_index;
         self
     }
 
@@ -191,8 +183,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_background(&mut self, brush: Brush) -> &mut Self {
-        self.background = brush.clone();
-        self.post_property_changed_message(WidgetProperty::Background(brush));
+        self.background = brush;
         self
     }
 
@@ -203,8 +194,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_foreground(&mut self, brush: Brush) -> &mut Self {
-        self.foreground = brush.clone();
-        self.post_property_changed_message(WidgetProperty::Foreground(brush));
+        self.foreground = brush;
         self
     }
 
@@ -214,69 +204,49 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn set_width_mut(&mut self, width: f32) -> &mut Self {
-        self.set_width(width);
+    pub fn set_width(&mut self, width: f32) -> &mut Self {
+        self.width = width.max(self.min_size.x).min(self.max_size.x);
         self
-    }
-
-    #[inline]
-    pub fn set_width(&self, width: f32) {
-        if self.width.get() != width {
-            self.width.set(width.max(self.min_size.x).min(self.max_size.x));
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Width(self.width.get()));
-        }
     }
 
     #[inline]
     pub fn width(&self) -> f32 {
-        self.width.get()
+        self.width
+    }
+
+    pub fn is_draw_on_top(&self) -> bool {
+        self.draw_on_top
     }
 
     #[inline]
-    pub fn set_height_mut(&mut self, height: f32) -> &mut Self {
-        self.set_height(height);
+    pub fn set_height(&mut self, height: f32) -> &mut Self {
+        self.height = height.max(self.min_size.y).min(self.max_size.y);
         self
-    }
-
-    #[inline]
-    pub fn set_height(&self, height: f32) {
-        if self.height.get() != height {
-            self.height.set(height.max(self.min_size.y).min(self.max_size.y));
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Height(self.height.get()));
-        }
     }
 
     #[inline]
     pub fn height(&self) -> f32 {
-        self.height.get()
+        self.height
     }
 
     #[inline]
-    pub fn set_desired_local_position_mut(&mut self, pos: Vec2) -> &mut Self {
-        if self.desired_local_position.get() != pos {
-            self.desired_local_position.set(pos);
-            self.invalidate_layout();
-        }
+    pub fn set_desired_local_position(&mut self, pos: Vec2) -> &mut Self {
+        self.desired_local_position = pos;
         self
     }
 
     #[inline]
-    pub fn set_desired_local_position(&self, pos: Vec2) {
-        if self.desired_local_position.get() != pos {
-            self.desired_local_position.set(pos);
-            self.invalidate_layout();
-        }
+    pub fn screen_position(&self) -> Vec2 {
+        self.screen_position
     }
 
     pub fn raw_copy(&self) -> Self {
         Self {
             handle: Default::default(),
             name: self.name.clone(),
-            desired_local_position: self.desired_local_position.clone(),
-            width: self.width.clone(),
-            height: self.height.clone(),
+            desired_local_position: self.desired_local_position,
+            width: self.width,
+            height: self.height,
             screen_position: self.screen_position,
             desired_size: self.desired_size.clone(),
             actual_local_position: self.actual_local_position.clone(),
@@ -303,70 +273,12 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
-            sender: self.sender.clone(),
             allow_drop: self.allow_drop,
             allow_drag: self.allow_drag,
             user_data: self.user_data.clone(),
-            draw_on_top: self.draw_on_top
+            draw_on_top: self.draw_on_top,
+            marker: PhantomData,
         }
-    }
-
-    #[inline]
-    pub fn desired_local_position(&self) -> Vec2 {
-        self.desired_local_position.get()
-    }
-
-    #[inline]
-    pub fn set_vertical_alignment(&mut self, vertical_alignment: VerticalAlignment) -> &mut Self {
-        if self.vertical_alignment != vertical_alignment {
-            self.vertical_alignment = vertical_alignment;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::VerticalAlignment(vertical_alignment));
-        }
-        self
-    }
-
-    #[inline]
-    pub fn vertical_alignment(&self) -> VerticalAlignment {
-        self.vertical_alignment
-    }
-
-    #[inline]
-    pub fn set_horizontal_alignment(&mut self, horizontal_alignment: HorizontalAlignment) -> &mut Self {
-        self.horizontal_alignment = horizontal_alignment;
-        self.invalidate_layout();
-        self.post_property_changed_message(WidgetProperty::HorizontalAlignment(horizontal_alignment));
-        self
-    }
-
-    #[inline]
-    pub fn horizontal_alignment(&self) -> HorizontalAlignment {
-        self.horizontal_alignment
-    }
-
-    #[inline]
-    pub fn set_column(&mut self, column: usize) -> &mut Self {
-        if self.column != column {
-            self.column = column;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Column(column));
-        }
-        self
-    }
-
-    #[inline]
-    pub fn set_margin(&mut self, margin: Thickness) -> &mut Self {
-        if self.margin != margin {
-            self.margin = margin;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Margin(margin));
-        }
-        self
-    }
-
-    #[inline]
-    pub fn margin(&self) -> Thickness {
-        self.margin
     }
 
     #[inline]
@@ -401,7 +313,6 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_parent(&mut self, parent: Handle<UINode<M, C>>) {
-        self.invalidate_layout();
         self.parent = parent;
     }
 
@@ -412,11 +323,7 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
 
     #[inline]
     pub fn set_row(&mut self, row: usize) -> &mut Self {
-        if self.row != row {
-            self.row = row;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Row(row));
-        }
+        self.row = row;
         self
     }
 
@@ -430,6 +337,15 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         self.desired_size.get()
     }
 
+    pub fn desired_local_position(&self) -> Vec2 {
+        self.desired_local_position
+    }
+
+    pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
+        self.visibility = visibility;
+        self
+    }
+
     #[inline]
     pub fn screen_bounds(&self) -> Rect<f32> {
         Rect::new(
@@ -438,21 +354,6 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
             self.actual_size.get().x,
             self.actual_size.get().y,
         )
-    }
-
-    #[inline]
-    pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
-        if self.visibility != visibility {
-            self.visibility = visibility;
-            self.invalidate_layout();
-            self.post_property_changed_message(WidgetProperty::Visibility(visibility));
-        }
-        self
-    }
-
-    #[inline]
-    pub fn visibility(&self) -> bool {
-        self.visibility
     }
 
     pub fn has_descendant(&self, node_handle: Handle<UINode<M, C>>, ui: &UserInterface<M, C>) -> bool {
@@ -484,93 +385,130 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     pub fn handle_routed_message(&mut self, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
-        if msg.destination == self.handle {
+        if msg.destination == self.handle() {
             if let UiMessageData::Widget(msg) = &msg.data {
-                if let WidgetMessage::Property(property) = msg {
-                    match property {
-                        WidgetProperty::Background(background) => {
-                            self.background = background.clone()
-                        }
-                        WidgetProperty::Foreground(foreground) => {
-                            self.foreground = foreground.clone()
-                        }
-                        WidgetProperty::Name(name) => {
-                            self.name = name.clone()
-                        }
-                        WidgetProperty::Width(width) => {
-                            if self.width.get() != *width {
-                                self.width.set(*width);
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::Height(height) => {
-                            if self.height.get() != *height {
-                                self.height.set(*height);
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::VerticalAlignment(vertical_alignment) => {
-                            if self.vertical_alignment != *vertical_alignment {
-                                self.vertical_alignment = *vertical_alignment;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::HorizontalAlignment(horizontal_alignment) => {
-                            if self.horizontal_alignment != *horizontal_alignment {
-                                self.horizontal_alignment = *horizontal_alignment;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::MaxSize(max_size) => {
-                            if self.max_size != *max_size {
-                                self.max_size = *max_size;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::MinSize(min_size) => {
-                            if self.min_size != *min_size {
-                                self.min_size = *min_size;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::Row(row) => {
-                            if self.row != *row {
-                                self.row = *row;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::Column(column) => {
-                            if self.column != *column {
-                                self.column = *column;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::Margin(margin) => {
-                            if self.margin != *margin {
-                                self.margin = *margin;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::HitTestVisibility(hit_test_visibility) => {
-                            self.hit_test_visibility = *hit_test_visibility
-                        }
-                        WidgetProperty::Visibility(visibility) => {
-                            if self.visibility != *visibility {
-                                self.visibility = *visibility;
-                                self.invalidate_layout();
-                            }
-                        }
-                        WidgetProperty::DesiredPosition(pos) => {
-                            if self.desired_local_position.get() != *pos {
-                                self.desired_local_position.set(*pos);
-                                self.invalidate_layout();
-                            }
-                        }
-                        _ => ()
+                match msg {
+                    WidgetMessage::Background(background) => {
+                        self.background = background.clone()
                     }
+                    WidgetMessage::Foreground(foreground) => {
+                        self.foreground = foreground.clone()
+                    }
+                    WidgetMessage::Name(name) => {
+                        self.name = name.clone()
+                    }
+                    &WidgetMessage::Width(width) => {
+                        if self.width != width {
+                            self.width = width;
+                            self.invalidate_layout();
+                        }
+                    }
+                    &WidgetMessage::Height(height) => {
+                        if self.height != height {
+                            self.height = height;
+                            self.invalidate_layout();
+                        }
+                    }
+                    WidgetMessage::VerticalAlignment(vertical_alignment) => {
+                        if self.vertical_alignment != *vertical_alignment {
+                            self.vertical_alignment = *vertical_alignment;
+                            self.invalidate_layout();
+                        }
+                    }
+                    WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
+                        if self.horizontal_alignment != *horizontal_alignment {
+                            self.horizontal_alignment = *horizontal_alignment;
+                            self.invalidate_layout();
+                        }
+                    }
+                    WidgetMessage::MaxSize(max_size) => {
+                        if self.max_size != *max_size {
+                            self.max_size = *max_size;
+                            self.invalidate_layout();
+                        }
+                    }
+                    WidgetMessage::MinSize(min_size) => {
+                        if self.min_size != *min_size {
+                            self.min_size = *min_size;
+                            self.invalidate_layout();
+                        }
+                    }
+                    &WidgetMessage::Row(row) => {
+                        if self.row != row {
+                            self.row = row;
+                            self.invalidate_layout();
+                        }
+                    }
+                    &WidgetMessage::Column(column) => {
+                        if self.column != column {
+                            self.column = column;
+                            self.invalidate_layout();
+                        }
+                    }
+                    &WidgetMessage::Margin(margin) => {
+                        if self.margin != margin {
+                            self.margin = margin;
+                            self.invalidate_layout();
+                        }
+                    }
+                    WidgetMessage::HitTestVisibility(hit_test_visibility) => {
+                        self.hit_test_visibility = *hit_test_visibility
+                    }
+                    &WidgetMessage::Visibility(visibility) => {
+                        if self.visibility != visibility {
+                            self.visibility = visibility;
+                            self.invalidate_layout();
+                        }
+                    }
+                    &WidgetMessage::DesiredPosition(pos) => {
+                        if self.desired_local_position != pos {
+                            self.desired_local_position = pos;
+                            self.invalidate_layout();
+                        }
+                    }
+                    _ => ()
                 }
             }
         }
+    }
+
+    #[inline]
+    pub fn set_vertical_alignment(&mut self, vertical_alignment: VerticalAlignment) -> &mut Self {
+        self.vertical_alignment = vertical_alignment;
+        self
+    }
+
+    #[inline]
+    pub fn vertical_alignment(&self) -> VerticalAlignment {
+        self.vertical_alignment
+    }
+
+    #[inline]
+    pub fn set_horizontal_alignment(&mut self, horizontal_alignment: HorizontalAlignment) -> &mut Self {
+        self.horizontal_alignment = horizontal_alignment;
+        self
+    }
+
+    #[inline]
+    pub fn horizontal_alignment(&self) -> HorizontalAlignment {
+        self.horizontal_alignment
+    }
+
+    #[inline]
+    pub fn set_column(&mut self, column: usize) -> &mut Self {
+        self.column = column;
+        self
+    }
+
+    #[inline]
+    pub fn set_margin(&mut self, margin: Thickness) -> &mut Self {
+        self.margin = margin;
+        self
+    }
+
+    #[inline]
+    pub fn margin(&self) -> Thickness {
+        self.margin
     }
 
     #[inline]
@@ -639,8 +577,9 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn is_hit_test_visible(&self) -> bool {
-        self.hit_test_visibility
+    pub(in crate) fn set_global_visibility(&mut self, value: bool) {
+        self.prev_global_visibility = self.global_visibility;
+        self.global_visibility = value;
     }
 
     #[inline]
@@ -648,30 +587,8 @@ impl<M, C: 'static + Control<M, C>> Widget<M, C> {
         self.global_visibility
     }
 
-    #[inline]
-    pub(in crate) fn set_global_visibility(&mut self, value: bool) {
-        self.prev_global_visibility = self.global_visibility;
-        self.global_visibility = value;
-    }
-
-    #[inline]
-    pub fn handle(&self) -> Handle<UINode<M, C>> {
-        self.handle
-    }
-
-    #[inline]
-    pub fn sender(&self) -> Sender<UiMessage<M, C>> {
-        self.sender.clone()
-    }
-
-    #[inline]
-    pub fn is_drag_allowed(&self) -> bool {
-        self.allow_drag
-    }
-
-    #[inline]
-    pub fn is_drop_allowed(&self) -> bool {
-        self.allow_drop
+    pub fn visibility(&self) -> bool {
+        self.visibility
     }
 
     #[inline]
@@ -708,7 +625,7 @@ pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub draw_on_top: bool,
 }
 
-impl<M, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
     fn default() -> Self {
         Self::new()
     }
@@ -737,7 +654,7 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             allow_drag: false,
             allow_drop: false,
             user_data: None,
-            draw_on_top: false
+            draw_on_top: false,
         }
     }
 
@@ -818,7 +735,7 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<UINode<M, C>>>>(mut self, children: I) -> Self {
+    pub fn with_children<'a, I: IntoIterator<Item=&'a Handle<UINode<M, C>>>>(mut self, children: I) -> Self {
         for &child in children.into_iter() {
             if child.is_some() {
                 self.children.push(child)
@@ -857,13 +774,13 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn build(self, sender: Sender<UiMessage<M, C>>) -> Widget<M, C> {
+    pub fn build(self) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
             name: self.name,
-            desired_local_position: Cell::new(self.desired_position),
-            width: Cell::new(self.width),
-            height: Cell::new(self.height),
+            desired_local_position: self.desired_position,
+            width: self.width,
+            height: self.height,
             screen_position: Vec2::ZERO,
             desired_size: Cell::new(Vec2::ZERO),
             actual_local_position: Cell::new(Vec2::ZERO),
@@ -890,11 +807,11 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
             z_index: self.z_index,
-            sender,
             allow_drag: self.allow_drag,
             allow_drop: self.allow_drop,
-            user_data: self.user_data,
-            draw_on_top: self.draw_on_top
+            user_data: self.user_data.clone(),
+            draw_on_top: self.draw_on_top,
+            marker: PhantomData,
         }
     }
 }

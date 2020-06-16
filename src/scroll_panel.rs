@@ -13,19 +13,24 @@ use crate::{
     UserInterface,
     Control,
     UINode,
-    message::UiMessage
+    message::{
+        UiMessage,
+        UiMessageData,
+        ScrollPanelMessage
+    },
+    BuildContext,
 };
 use std::ops::{Deref, DerefMut};
 
 /// Allows user to scroll content
-pub struct ScrollContentPresenter<M: 'static, C: 'static + Control<M, C>> {
+pub struct ScrollPanel<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     scroll: Vec2,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollContentPresenter<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollPanel<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -33,13 +38,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollContentPresenter<M,
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ScrollContentPresenter<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ScrollPanel<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ScrollContentPresenter(Self {
             widget: self.widget.raw_copy(),
@@ -98,37 +103,31 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollContentPresenter<M, 
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_routed_message( ui, message);
+
+        if message.destination == self.handle() {
+            if let UiMessageData::ScrollPanel(msg) = &message.data {
+                match *msg {
+                    ScrollPanelMessage::VerticalScroll(scroll) => {
+                        self.scroll.y = scroll;
+                        self.invalidate_layout();
+                    },
+                    ScrollPanelMessage::HorizontalScroll(scroll) => {
+                        self.scroll.x = scroll;
+                        self.invalidate_layout();
+                    },
+                }
+            }
+        }
     }
 }
 
-impl<M, C: 'static + Control<M, C>> ScrollContentPresenter<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ScrollPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
             scroll: Default::default(),
             vertical_scroll_allowed: true,
             horizontal_scroll_allowed: false,
-        }
-    }
-
-    pub fn set_scroll(&mut self, scroll: Vec2) {
-        if self.scroll != scroll {
-            self.scroll = scroll;
-            self.widget.invalidate_layout();
-        }
-    }
-
-    pub fn set_vertical_scroll(&mut self, scroll: f32) {
-        if self.scroll.y != scroll {
-            self.scroll.y = scroll;
-            self.widget.invalidate_layout();
-        }
-    }
-
-    pub fn set_horizontal_scroll(&mut self, scroll: f32) {
-        if self.scroll.x != scroll {
-            self.scroll.x = scroll;
-            self.widget.invalidate_layout();
         }
     }
 
@@ -147,13 +146,13 @@ impl<M, C: 'static + Control<M, C>> ScrollContentPresenter<M, C> {
     }
 }
 
-pub struct ScrollContentPresenterBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct ScrollPanelBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     vertical_scroll_allowed: Option<bool>,
     horizontal_scroll_allowed: Option<bool>,
 }
 
-impl<M, C: 'static + Control<M, C>> ScrollContentPresenterBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ScrollPanelBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -172,16 +171,12 @@ impl<M, C: 'static + Control<M, C>> ScrollContentPresenterBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let handle = ui.add_node(UINode::ScrollContentPresenter(ScrollContentPresenter {
-            widget: self.widget_builder.build(ui.sender()),
+    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        ui.add_node(UINode::ScrollContentPresenter(ScrollPanel {
+            widget: self.widget_builder.build(),
             scroll: Vec2::ZERO,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),
-        }));
-
-        ui.flush_messages();
-
-        handle
+        }))
     }
 }

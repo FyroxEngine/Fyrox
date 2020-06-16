@@ -1,17 +1,32 @@
 use std::ops::{Deref, DerefMut};
-use crate::{message::{
-    UiMessage,
-    UiMessageData,
-    TextBoxMessage,
-    WidgetMessage,
-    NumericUpDownMessage,
-    KeyCode,
-}, node::UINode, Control, UserInterface, widget::{Widget, WidgetBuilder}, core::pool::Handle, NodeHandleMapping, grid::{
-    GridBuilder,
-    Row,
-    Column,
-}, text_box::TextBoxBuilder, button::ButtonBuilder, VerticalAlignment, HorizontalAlignment, Thickness};
-use crate::message::ButtonMessage;
+use crate::{
+    message::{
+        UiMessage,
+        UiMessageData,
+        TextBoxMessage,
+        WidgetMessage,
+        NumericUpDownMessage,
+        KeyCode,
+    },
+    node::UINode,
+    Control,
+    UserInterface,
+    widget::{Widget, WidgetBuilder},
+    core::pool::Handle,
+    NodeHandleMapping,
+    grid::{
+        GridBuilder,
+        Row,
+        Column,
+    },
+    text_box::TextBoxBuilder,
+    button::ButtonBuilder,
+    VerticalAlignment,
+    HorizontalAlignment,
+    Thickness,
+    BuildContext,
+    message::ButtonMessage
+};
 
 pub struct NumericUpDown<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -62,14 +77,14 @@ impl<M: 'static, C: 'static + Control<M, C>> NumericUpDown<M, C> {
                 ui.send_message(UiMessage {
                     handled: false,
                     data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
-                    destination: self.handle,
+                    destination: self.handle(),
                 });
             }
         }
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::NumericUpDown(self.clone())
     }
@@ -101,8 +116,8 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                 }
             }
             UiMessageData::NumericUpDown(msg) => {
-                if message.destination == self.handle {
-                    if let &NumericUpDownMessage::Value(value) = msg {
+                if message.destination == self.handle() {
+                    if let NumericUpDownMessage::Value(value) = *msg {
                         if value != self.value {
                             self.value = value;
 
@@ -123,14 +138,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     } else if message.destination == self.increase {
                         let value = (self.value + self.step).min(self.max_value).max(self.min_value);
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     }
                 }
@@ -148,7 +163,7 @@ pub struct NumericUpDownBuilder<M: 'static, C: 'static + Control<M, C>> {
     max_value: f32,
 }
 
-impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -186,7 +201,7 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let increase;
         let decrease;
         let field;
@@ -199,7 +214,7 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
                     .with_horizontal_text_alignment(HorizontalAlignment::Left)
                     .with_wrap(true)
                     .with_text(self.value.to_string())
-                    .build(ui);
+                    .build(ctx);
                 field
             })
             .with_child(GridBuilder::new(WidgetBuilder::new()
@@ -209,7 +224,7 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
                         .with_margin(Thickness::right(1.0))
                         .on_row(0))
                         .with_text("^")
-                        .build(ui);
+                        .build(ctx);
                     increase
                 })
                 .with_child({
@@ -217,22 +232,22 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
                         .with_margin(Thickness::right(1.0))
                         .on_row(1))
                         .with_text("v")
-                        .build(ui);
+                        .build(ctx);
                     decrease
                 }))
                 .add_column(Column::auto())
                 .add_row(Row::stretch())
                 .add_row(Row::stretch())
-                .build(ui)))
+                .build(ctx)))
             .add_row(Row::stretch())
             .add_column(Column::stretch())
             .add_column(Column::auto())
-            .build(ui);
+            .build(ctx);
 
         let node = NumericUpDown {
             widget: self.widget_builder
                 .with_child(grid)
-                .build(ui.sender()),
+                .build(),
             increase,
             decrease,
             field,
@@ -242,10 +257,6 @@ impl<M, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
             max_value: self.max_value,
         };
 
-        let handle = ui.add_node(UINode::NumericUpDown(node));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::NumericUpDown(node))
     }
 }

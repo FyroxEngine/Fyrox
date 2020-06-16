@@ -21,10 +21,10 @@ use crate::{
     Control,
     draw::CommandTexture,
     brush::Brush,
-    message::UiMessage,
+    BuildContext,
+    message::UiMessage
 };
 use std::ops::{Deref, DerefMut};
-use std::sync::mpsc::Sender;
 
 pub struct Border<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -54,7 +54,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Border<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Border(self.clone())
     }
@@ -115,7 +115,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Border<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Border<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -137,7 +137,7 @@ pub struct BorderBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub stroke_thickness: Option<Thickness>,
 }
 
-impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> BorderBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -150,22 +150,17 @@ impl<M, C: 'static + Control<M, C>> BorderBuilder<M, C> {
         self
     }
 
-    pub fn build_node(mut self, sender: Sender<UiMessage<M, C>>) -> Border<M, C> {
+    pub fn build_border(mut self ) -> Border<M, C> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(100, 100, 100)));
         }
-
         Border {
-            widget: self.widget_builder.build(sender),
+            widget: self.widget_builder.build(),
             stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
         }
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let handle = ui.add_node(UINode::Border(self.build_node(ui.sender())));
-
-        ui.flush_messages();
-
-        handle
+    pub fn build(self, ctx: &mut BuildContext<'_, M, C>) -> Handle<UINode<M, C>> {
+        ctx.add_node(UINode::Border(self.build_border()))
     }
 }

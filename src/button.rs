@@ -12,7 +12,6 @@ use crate::{
         Widget,
         WidgetBuilder,
     },
-    UserInterface,
     HorizontalAlignment,
     VerticalAlignment,
     text::TextBuilder,
@@ -27,6 +26,8 @@ use crate::{
     },
     NodeHandleMapping,
     decorator::DecoratorBuilder,
+    BuildContext,
+    UserInterface
 };
 use std::ops::{Deref, DerefMut};
 
@@ -60,7 +61,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Button<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Button<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Button<M, C> {
     pub fn new(
         widget: Widget<M, C>,
         body: Handle<UINode<M, C>>,
@@ -83,7 +84,7 @@ impl<M, C: 'static + Control<M, C>> Button<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Button(self.clone())
     }
@@ -100,13 +101,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.destination == self.handle || self.has_descendant(message.destination, ui) {
+                if message.destination == self.handle() || self.has_descendant(message.destination, ui) {
                     match msg {
                         WidgetMessage::MouseUp { .. } => {
-                            self.send_message(UiMessage {
-                                destination: self.handle,
+                            ui.send_message(UiMessage {
+                                destination: self.handle(),
                                 data: UiMessageData::Button(ButtonMessage::Click),
-                                handled: false
+                                handled: false,
                             });
                             ui.release_mouse_capture();
                             message.handled = true;
@@ -120,12 +121,12 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
                 }
             }
             UiMessageData::Button(msg) => {
-                if message.destination == self.handle {
+                if message.destination == self.handle() {
                     match msg {
                         ButtonMessage::Click => (),
                         ButtonMessage::Content(content) => {
                             if self.content.is_some() {
-                                ui.remove_node(self.content);
+                                ui.send_message(WidgetMessage::remove(self.content));
                             }
                             self.content = *content;
                             ui.link_nodes(self.content, self.decorator);
@@ -158,7 +159,7 @@ pub struct ButtonBuilder<M: 'static, C: 'static + Control<M, C>> {
     decorator: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -200,7 +201,7 @@ impl<M, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let content = if let Some(content) = self.content {
             match content {
                 ButtonContent::Text(txt) => {
@@ -209,7 +210,7 @@ impl<M, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
                         .with_opt_font(self.font)
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
                         .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .build(ui)
+                        .build(ctx)
                 }
                 ButtonContent::Node(node) => node
             }
@@ -217,27 +218,20 @@ impl<M, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
             Handle::NONE
         };
 
-        let decorator = self.decorator.unwrap_or_else(|| {
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-                .build(ui)
+        let decorator = self.decorator.unwrap_or_else(||{
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()
+                .with_child(content)))
+                .build(ctx)
         });
-
-        if content.is_some() {
-            ui.link_nodes(content, decorator);
-        }
+        ctx.link(content, decorator);
 
         let button = Button {
             widget: self.widget_builder
                 .with_child(decorator)
-                .build(ui.sender()),
+                .build(),
             decorator,
             content,
         };
-
-        let handle = ui.add_node(UINode::Button(button));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::Button(button))
     }
 }

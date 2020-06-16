@@ -4,7 +4,7 @@ use crate::{
     window::{
         Window,
         WindowBuilder,
-        WindowTitle
+        WindowTitle,
     },
     grid::{GridBuilder, Row, Column},
     node::UINode,
@@ -17,12 +17,12 @@ use crate::{
         UiMessageData,
         ButtonMessage,
         MessageBoxMessage,
-        WindowMessage
+        WindowMessage,
     },
     core::{
         pool::Handle,
         math::vec2::Vec2,
-        math::Rect
+        math::Rect,
     },
     text::TextBuilder,
     button::ButtonBuilder,
@@ -31,6 +31,8 @@ use crate::{
     Thickness,
     HorizontalAlignment,
     NodeHandleMapping,
+    BuildContext,
+    message::TextMessage
 };
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
@@ -54,7 +56,7 @@ pub struct MessageBox<M: 'static, C: 'static + Control<M, C>> {
     ok_yes: Handle<UINode<M, C>>,
     no: Handle<UINode<M, C>>,
     cancel: Handle<UINode<M, C>>,
-    text: Handle<UINode<M, C>>
+    text: Handle<UINode<M, C>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for MessageBox<M, C> {
@@ -79,14 +81,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for MessageBox<M, C> {
             ok_yes: self.ok_yes,
             no: self.no,
             cancel: self.cancel,
-            text: self.text
+            text: self.text,
         }
     }
 }
 
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
-impl<M, C: 'static + Control<M, C>> Control<M, C> for MessageBox<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MessageBox<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::MessageBox(self.clone())
     }
@@ -146,52 +148,46 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MessageBox<M, C> {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::MessageBox(MessageBoxMessage::Close(result)),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     } else if message.destination == self.cancel {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::MessageBox(MessageBoxMessage::Close(MessageBoxResult::Cancel)),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     } else if message.destination == self.no {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::MessageBox(MessageBoxMessage::Close(MessageBoxResult::No)),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     }
                 }
             }
             UiMessageData::MessageBox(msg) => {
                 match msg {
-                    MessageBoxMessage::Open{ title, text } => {
+                    MessageBoxMessage::Open { title, text } => {
                         if let Some(title) = title {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::Window(WindowMessage::Title(WindowTitle::Text(title.clone()))),
-                                destination: self.handle
+                                destination: self.handle(),
                             });
                         }
 
                         if let Some(text) = text {
-                            if let UINode::Text(text_node) = ui.node_mut(self.text) {
-                                text_node.set_text(text);
-                            }
+                            ui.send_message(TextMessage::text(self.text, text.clone()));
                         }
 
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Window(WindowMessage::OpenModal),
-                            destination: self.handle,
-                        });
+                        ui.send_message(WindowMessage::open_modal(self.handle()));
                     }
                     MessageBoxMessage::Close(_) => {
                         // Translate message box message into window message.
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::Window(WindowMessage::Close),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     }
                 }
@@ -219,7 +215,7 @@ pub struct MessageBoxBuilder<'b, M: 'static, C: 'static + Control<M, C>> {
     text: &'b str,
 }
 
-impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
+impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
     pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
         Self {
             window_builder,
@@ -238,8 +234,8 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
         self
     }
 
-    pub fn build(mut self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        let ok_yes ;
+    pub fn build(mut self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let ok_yes;
         let mut no = Default::default();
         let mut cancel = Default::default();
         let text;
@@ -251,7 +247,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                             .with_margin(Thickness::uniform(4.0)))
                             .with_text(self.text)
                             .with_wrap(true)
-                            .build(ui);
+                            .build(ctx);
                         text
                     })
                     .with_child({
@@ -261,13 +257,13 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                             .on_row(1)
                             .with_horizontal_alignment(HorizontalAlignment::Center))
                             .with_text("OK")
-                            .build(ui);
+                            .build(ctx);
                         ok_yes
                     }))
                     .add_row(Row::stretch())
                     .add_row(Row::strict(25.0))
                     .add_column(Column::stretch())
-                    .build(ui)
+                    .build(ctx)
             }
             MessageBoxButtons::YesNo => {
                 GridBuilder::new(WidgetBuilder::new()
@@ -275,7 +271,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                         text = TextBuilder::new(WidgetBuilder::new())
                             .with_text(self.text)
                             .with_wrap(true)
-                            .build(ui);
+                            .build(ctx);
                         text
                     })
                     .with_child(StackPanelBuilder::new(WidgetBuilder::new()
@@ -286,7 +282,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                                 .with_width(80.0)
                                 .with_margin(Thickness::uniform(1.0)))
                                 .with_text("Yes")
-                                .build(ui);
+                                .build(ctx);
                             ok_yes
                         })
                         .with_child({
@@ -294,15 +290,15 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                                 .with_width(80.0)
                                 .with_margin(Thickness::uniform(1.0)))
                                 .with_text("No")
-                                .build(ui);
+                                .build(ctx);
                             no
                         }))
                         .with_orientation(Orientation::Horizontal)
-                        .build(ui)))
+                        .build(ctx)))
                     .add_row(Row::stretch())
                     .add_row(Row::strict(25.0))
                     .add_column(Column::stretch())
-                    .build(ui)
+                    .build(ctx)
             }
             MessageBoxButtons::YesNoCancel => {
                 GridBuilder::new(WidgetBuilder::new()
@@ -310,7 +306,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                         text = TextBuilder::new(WidgetBuilder::new())
                             .with_text(self.text)
                             .with_wrap(true)
-                            .build(ui);
+                            .build(ctx);
                         text
                     })
                     .with_child(StackPanelBuilder::new(WidgetBuilder::new()
@@ -321,7 +317,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                                 .with_width(80.0)
                                 .with_margin(Thickness::uniform(1.0)))
                                 .with_text("Yes")
-                                .build(ui);
+                                .build(ctx);
                             ok_yes
                         })
                         .with_child({
@@ -329,7 +325,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                                 .with_width(80.0)
                                 .with_margin(Thickness::uniform(1.0)))
                                 .with_text("No")
-                                .build(ui);
+                                .build(ctx);
                             no
                         })
                         .with_child({
@@ -337,15 +333,15 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
                                 .with_width(80.0)
                                 .with_margin(Thickness::uniform(1.0)))
                                 .with_text("Cancel")
-                                .build(ui);
+                                .build(ctx);
                             cancel
                         }))
                         .with_orientation(Orientation::Horizontal)
-                        .build(ui)))
+                        .build(ctx)))
                     .add_row(Row::stretch())
                     .add_row(Row::strict(25.0))
                     .add_column(Column::stretch())
-                    .build(ui)
+                    .build(ctx)
             }
         };
 
@@ -357,19 +353,17 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
             buttons: self.buttons,
             window: self.window_builder
                 .with_content(content)
-                .build_node(ui),
+                .build_window(ctx),
             ok_yes,
             no,
             cancel,
-            text
+            text,
         };
 
-        let handle = ui.add_node(UINode::MessageBox(message_box));
-
-        ui.flush_messages();
+        let handle = ctx.add_node(UINode::MessageBox(message_box));
 
         // We must restrict picking because message box is modal.
-        ui.push_picking_restriction(handle);
+        ctx.ui.push_picking_restriction(handle);
 
         handle
     }

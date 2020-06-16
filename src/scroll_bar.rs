@@ -2,7 +2,6 @@ use crate::{
     border::BorderBuilder,
     canvas::CanvasBuilder,
     button::ButtonBuilder,
-    UserInterface,
     Thickness,
     grid::{
         GridBuilder,
@@ -34,27 +33,30 @@ use crate::{
         UiMessage,
         ScrollBarMessage,
         WidgetMessage,
+        TextMessage
     },
     NodeHandleMapping,
-    Orientation
+    Orientation,
+    BuildContext,
+    UserInterface
 };
 use std::ops::{Deref, DerefMut};
 
 pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
-    widget: Widget<M, C>,
-    min: f32,
-    max: f32,
-    value: f32,
-    step: f32,
-    orientation: Orientation,
-    is_dragging: bool,
-    offset: Vec2,
-    increase: Handle<UINode<M, C>>,
-    decrease: Handle<UINode<M, C>>,
-    indicator: Handle<UINode<M, C>>,
-    field: Handle<UINode<M, C>>,
-    value_text: Handle<UINode<M, C>>,
-    value_precision: usize,
+    pub widget: Widget<M, C>,
+    pub min: f32,
+    pub max: f32,
+    pub value: f32,
+    pub step: f32,
+    pub orientation: Orientation,
+    pub is_dragging: bool,
+    pub offset: Vec2,
+    pub increase: Handle<UINode<M, C>>,
+    pub decrease: Handle<UINode<M, C>>,
+    pub indicator: Handle<UINode<M, C>>,
+    pub field: Handle<UINode<M, C>>,
+    pub value_text: Handle<UINode<M, C>>,
+    pub value_precision: usize,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollBar<M, C> {
@@ -71,7 +73,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ScrollBar<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ScrollBar(Self {
             widget: self.widget.raw_copy(),
@@ -110,17 +112,14 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         let indicator = ui.node(self.indicator);
         match self.orientation {
             Orientation::Horizontal => {
-                indicator.set_desired_local_position(Vec2::new(
-                    percent * (field_size.x - indicator.actual_size().x).max(0.0),
-                    0.0));
-                indicator.set_height(field_size.y);
+                ui.send_message(WidgetMessage::height(self.indicator, field_size.y));
+                let position = Vec2::new(percent * (field_size.x - indicator.actual_size().x).max(0.0), 0.0);
+                ui.send_message(WidgetMessage::desired_position(self.indicator, position));
             }
             Orientation::Vertical => {
-                indicator.set_desired_local_position(Vec2::new(
-                    0.0,
-                    percent * (field_size.y - indicator.actual_size().y).max(0.0))
-                );
-                indicator.set_width(field_size.x);
+                ui.send_message(WidgetMessage::width(self.indicator, field_size.x));
+                let position = Vec2::new(0.0, percent * (field_size.y - indicator.actual_size().y).max(0.0));
+                ui.send_message(WidgetMessage::desired_position(self.indicator, position));
             }
         }
 
@@ -134,18 +133,51 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
                     if message.destination == self.increase {
-                        self.set_value(self.value + self.step);
+                        ui.send_message(ScrollBarMessage::value(self.handle(), self.value + self.step));
                     } else if message.destination == self.decrease {
-                        self.set_value(self.value - self.step);
+                        ui.send_message(ScrollBarMessage::value(self.handle(), self.value - self.step));
                     }
                 }
             }
-            UiMessageData::ScrollBar(ref prop) => {
-                if message.destination == self.handle {
-                    if let ScrollBarMessage::Value(value) = prop {
-                        if self.value_text.is_some() {
-                            if let UINode::Text(text) = ui.node_mut(self.value_text) {
-                                text.set_text(format!("{:.1$}", value, self.value_precision));
+            UiMessageData::ScrollBar(msg) => {
+                if message.destination == self.handle() {
+                    match *msg {
+                        ScrollBarMessage::Value(value) => {
+                            let old_value = self.value;
+                            let new_value = math::clampf(value, self.min, self.max);
+                            if (new_value - old_value).abs() > std::f32::EPSILON {
+                                self.value = new_value;
+                                self.invalidate_layout();
+
+                                if self.value_text.is_some() {
+                                    ui.send_message(TextMessage::text(self.value_text, format!("{:.1$}", value, self.value_precision)));
+                                }
+                            }
+                        }
+                        ScrollBarMessage::MinValue(min) => {
+                            if self.min != min {
+                                self.min = min;
+                                if self.min > self.max {
+                                    std::mem::swap(&mut self.min, &mut self.max);
+                                }
+                                let old_value = self.value;
+                                let clamped_new_value = math::clampf(self.value, self.min, self.max);
+                                if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
+                                    ui.send_message(ScrollBarMessage::value(self.handle(), clamped_new_value));
+                                }
+                            }
+                        }
+                        ScrollBarMessage::MaxValue(max) => {
+                            if self.max != max {
+                                self.max = max;
+                                if self.max < self.min {
+                                    std::mem::swap(&mut self.min, &mut self.max);
+                                }
+                                let old_value = self.value;
+                                let clamped_new_value = math::clampf(self.value, self.min, self.max);
+                                if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
+                                    ui.send_message(ScrollBarMessage::value(self.handle(), clamped_new_value));
+                                }
                             }
                         }
                     }
@@ -197,7 +229,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                             }
                                         }
                                     };
-                                    self.set_value(percent * (self.max - self.min));
+                                    ui.send_message(ScrollBarMessage::value(self.handle(), percent * (self.max - self.min)));
                                     message.handled = true;
                                 }
                             }
@@ -229,7 +261,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ScrollBar<M, C> {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
     pub fn new(
@@ -258,55 +290,12 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
         }
     }
 
-    pub fn set_value(&mut self, value: f32) -> &mut Self {
-        let old_value = self.value;
-        let new_value = math::clampf(value, self.min, self.max);
-        if (new_value - old_value).abs() > std::f32::EPSILON {
-            self.value = new_value;
-            self.send_message(UiMessage {
-                data: UiMessageData::ScrollBar(ScrollBarMessage::Value(new_value)),
-                destination: self.handle,
-                handled: false,
-            });
-            self.invalidate_layout();
-        }
-        self
-    }
-
     pub fn value(&self) -> f32 {
         self.value
     }
 
-    pub fn set_max_value(&mut self, max: f32) -> &mut Self {
-        self.max = max;
-        if self.max < self.min {
-            std::mem::swap(&mut self.min, &mut self.max);
-        }
-        let old_value = self.value;
-        let clamped_new_value = math::clampf(self.value, self.min, self.max);
-        if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
-            self.set_value(clamped_new_value);
-            self.widget.invalidate_layout();
-        }
-        self
-    }
-
     pub fn max_value(&self) -> f32 {
         self.max
-    }
-
-    pub fn set_min_value(&mut self, min: f32) -> &mut Self {
-        self.min = min;
-        if self.min > self.max {
-            std::mem::swap(&mut self.min, &mut self.max);
-        }
-        let old_value = self.value;
-        let clamped_new_value = math::clampf(self.value, self.min, self.max);
-        if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
-            self.set_value(clamped_new_value);
-            self.widget.invalidate_layout();
-        }
-        self
     }
 
     pub fn min_value(&self) -> f32 {
@@ -320,12 +309,6 @@ impl<M, C: 'static + Control<M, C>> ScrollBar<M, C> {
 
     pub fn step(&self) -> f32 {
         self.step
-    }
-
-    pub fn scroll(&mut self, amount: f32) -> bool {
-        let old_value = self.value;
-        self.set_value(self.value + amount);
-        (old_value - self.value).abs() > std::f32::EPSILON
     }
 }
 
@@ -344,9 +327,7 @@ pub struct ScrollBarBuilder<M: 'static, C: 'static + Control<M, C>> {
     value_precision: usize,
 }
 
-
-
-impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -419,7 +400,7 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
         let increase = self.increase.unwrap_or_else(|| {
@@ -428,26 +409,23 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
                     Orientation::Horizontal => ">",
                     Orientation::Vertical => "v"
                 })
-                .build(ui)
+                .build(ctx)
         });
 
-        ui.node_mut(increase)
-            .set_width_mut(match orientation {
-                Orientation::Horizontal => 30.0,
-                Orientation::Vertical => std::f32::NAN
-            })
-            .set_height_mut(match orientation {
-                Orientation::Horizontal => std::f32::NAN,
-                Orientation::Vertical => 30.0
-            })
-            .set_column(match orientation {
-                Orientation::Horizontal => 2,
-                Orientation::Vertical => 0
-            })
-            .set_row(match orientation {
-                Orientation::Horizontal => 0,
-                Orientation::Vertical => 2
-            });
+        match orientation {
+            Orientation::Vertical => {
+                ctx[increase]
+                    .set_height(30.0)
+                    .set_row(2)
+                    .set_column(0);
+            }
+            Orientation::Horizontal => {
+                ctx[increase]
+                    .set_width(30.0)
+                    .set_row(0)
+                    .set_column(2);
+            }
+        }
 
         let decrease = self.decrease.unwrap_or_else(|| {
             ButtonBuilder::new(WidgetBuilder::new())
@@ -455,52 +433,35 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
                     Orientation::Horizontal => "<",
                     Orientation::Vertical => "^"
                 })
-                .build(ui)
+                .build(ctx)
         });
 
-        ui.node_mut(decrease)
-            .set_column(0)
+        ctx[decrease]
             .set_row(0)
-            .set_width_mut(match orientation {
-                Orientation::Horizontal => 30.0,
-                Orientation::Vertical => std::f32::NAN
-            })
-            .set_height_mut(match orientation {
-                Orientation::Horizontal => std::f32::NAN,
-                Orientation::Vertical => 30.0
-            });
+            .set_column(0);
+
+        match orientation {
+            Orientation::Vertical => ctx[decrease].set_height(30.0),
+            Orientation::Horizontal => ctx[decrease].set_width(30.0),
+        };
 
         let indicator = self.indicator.unwrap_or_else(|| {
             DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-                .build(ui)
+                .build(ctx)
         });
 
-        ui.node_mut(indicator)
-            .set_min_size(match orientation {
-                Orientation::Vertical => Vec2::new(0.0, 30.0),
-                Orientation::Horizontal => Vec2::new(30.0, 0.0),
-            })
-            .set_width_mut(match orientation {
-                Orientation::Vertical => 30.0,
-                Orientation::Horizontal => std::f32::NAN,
-            })
-            .set_height_mut(match orientation {
-                Orientation::Vertical => std::f32::NAN,
-                Orientation::Horizontal => 30.0,
-            });
-
-        let field = CanvasBuilder::new(WidgetBuilder::new()
-            .with_name(ScrollBar::<M, C>::PART_CANVAS)
-            .on_column(match orientation {
-                Orientation::Horizontal => 1,
-                Orientation::Vertical => 0
-            })
-            .on_row(match orientation {
-                Orientation::Horizontal => 0,
-                Orientation::Vertical => 1
-            })
-            .with_child(indicator)
-        ).build(ui);
+        match orientation {
+            Orientation::Vertical => {
+                ctx[indicator]
+                    .set_min_size(Vec2::new(0.0, 30.0))
+                    .set_width(30.0);
+            }
+            Orientation::Horizontal => {
+                ctx[indicator]
+                    .set_min_size(Vec2::new(30.0, 0.0))
+                    .set_height(30.0);
+            }
+        }
 
         let min = self.min.unwrap_or(0.0);
         let max = self.max.unwrap_or(100.0);
@@ -521,9 +482,22 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
                 Orientation::Vertical => 1
             }))
             .with_text(format!("{:.1$}", value, self.value_precision))
-            .build(ui);
+            .build(ctx);
 
-        ui.link_nodes(value_text, indicator);
+        ctx.link(value_text, indicator);
+
+        let field = CanvasBuilder::new(WidgetBuilder::new()
+            .with_name(ScrollBar::<M, C>::PART_CANVAS)
+            .on_column(match orientation {
+                Orientation::Horizontal => 1,
+                Orientation::Vertical => 0
+            })
+            .on_row(match orientation {
+                Orientation::Horizontal => 0,
+                Orientation::Vertical => 1
+            })
+            .with_child(indicator)
+        ).build(ctx);
 
         let grid = GridBuilder::new(WidgetBuilder::new()
             .with_child(decrease)
@@ -541,21 +515,20 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
                                                 Column::auto()],
                 Orientation::Vertical => vec![Column::stretch()]
             })
-            .build(ui);
+            .build(ctx);
 
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(120, 120, 120))))
                 .with_stroke_thickness(Thickness::uniform(1.0))
-                .build(ui)
+                .build(ctx)
         });
+        ctx.link(grid, body);
 
-        ui.link_nodes(grid, body);
-
-        let scroll_bar = ScrollBar {
+        let node = UINode::ScrollBar(ScrollBar {
             widget: self.widget_builder
                 .with_child(body)
-                .build(ui.sender()),
+                .build(),
             min,
             max,
             value,
@@ -569,12 +542,7 @@ impl<M, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
             field,
             value_text,
             value_precision: self.value_precision,
-        };
-
-        let handle = ui.add_node(UINode::ScrollBar(scroll_bar));
-
-        ui.flush_messages();
-
-        handle
+        });
+        ctx.add_node(node)
     }
 }

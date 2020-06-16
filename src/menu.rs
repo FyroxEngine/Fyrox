@@ -22,7 +22,6 @@ use crate::{
     stack_panel::StackPanelBuilder,
     node::UINode,
     Control,
-    UserInterface,
     Orientation,
     widget::{Widget, WidgetBuilder},
     core::{
@@ -34,7 +33,9 @@ use crate::{
     HorizontalAlignment,
     Thickness,
     grid::{GridBuilder, Row, Column},
-    text::TextBuilder
+    text::TextBuilder,
+    BuildContext,
+    UserInterface
 };
 
 pub struct Menu<M: 'static, C: 'static + Control<M, C>> {
@@ -65,7 +66,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Menu<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Menu(self.clone())
     }
@@ -73,42 +74,39 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
-            UiMessageData::Menu(msg) => {
-                match msg {
-                    MenuMessage::Activate => {
-                        if !self.active {
-                            ui.push_picking_restriction(self.handle);
-                            self.active = true;
-                        }
+        if let UiMessageData::Menu(msg) = &message.data {
+            match msg {
+                MenuMessage::Activate => {
+                    if !self.active {
+                        ui.push_picking_restriction(self.handle());
+                        self.active = true;
                     }
-                    MenuMessage::Deactivate => {
-                        if self.active {
-                            self.active = false;
-                            ui.remove_picking_restriction(self.handle);
+                }
+                MenuMessage::Deactivate => {
+                    if self.active {
+                        self.active = false;
+                        ui.remove_picking_restriction(self.handle());
 
-                            // Close descendant menu items.
-                            let mut stack = self.children().to_vec();
-                            while let Some(handle) = stack.pop() {
-                                let node = ui.node(handle);
-                                if let UINode::MenuItem(item) = node {
-                                    ui.send_message(UiMessage {
-                                        handled: false,
-                                        data: UiMessageData::MenuItem(MenuItemMessage::Close),
-                                        destination: handle,
-                                    });
-                                    // We have to search in popup content too because menu shows its content
-                                    // in popup and content could be another menu item.
-                                    stack.push(item.popup);
-                                }
-                                // Continue depth search.
-                                stack.extend_from_slice(node.children());
+                        // Close descendant menu items.
+                        let mut stack = self.children().to_vec();
+                        while let Some(handle) = stack.pop() {
+                            let node = ui.node(handle);
+                            if let UINode::MenuItem(item) = node {
+                                ui.send_message(UiMessage {
+                                    handled: false,
+                                    data: UiMessageData::MenuItem(MenuItemMessage::Close),
+                                    destination: handle,
+                                });
+                                // We have to search in popup content too because menu shows its content
+                                // in popup and content could be another menu item.
+                                stack.push(item.popup);
                             }
+                            // Continue depth search.
+                            stack.extend_from_slice(node.children());
                         }
                     }
                 }
             }
-            _ => {}
         }
     }
 
@@ -148,7 +146,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::Menu(MenuMessage::Deactivate),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     }
                 }
@@ -192,7 +190,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for MenuItem<M, C> {
             items: self.items.clone(),
             popup: self.popup,
             back: self.back,
-            placement: MenuItemPlacement::Right,
+            placement: self.placement,
         }
     }
 }
@@ -202,7 +200,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for MenuItem<M, C> {
 // of parent menu - we can't just traverse the tree because popup is not a child
 // of menu item, instead we trying to fetch handle to parent menu item from popup's
 // user data and continue up-search until we find menu.
-fn find_menu<M, C: 'static + Control<M, C>>(from: Handle<UINode<M, C>>, ui: &UserInterface<M, C>) -> Handle<UINode<M, C>> {
+fn find_menu<M: 'static, C: 'static + Control<M, C>>(from: Handle<UINode<M, C>>, ui: &UserInterface<M, C>) -> Handle<UINode<M, C>> {
     let mut handle = from;
     loop {
         let popup = ui.find_by_criteria_up(handle, |n| {
@@ -224,7 +222,7 @@ fn find_menu<M, C: 'static + Control<M, C>>(from: Handle<UINode<M, C>>, ui: &Use
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::MenuItem(self.clone())
     }
@@ -249,7 +247,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::MenuItem(MenuItemMessage::Open),
-                                destination: self.handle,
+                                destination: self.handle(),
                             });
                         }
                     }
@@ -258,7 +256,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                             ui.send_message(UiMessage {
                                 handled: false,
                                 data: UiMessageData::MenuItem(MenuItemMessage::Click),
-                                destination: self.handle,
+                                destination: self.handle(),
                             });
                             if self.items.is_empty() {
                                 let menu = find_menu(self.parent(), ui);
@@ -274,10 +272,10 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         }
                     }
                     WidgetMessage::MouseLeave => {
-                        ui.node_mut(self.back).set_background(Brush::Solid(Color::opaque(50, 50, 50)));
+                        ui.send_message(WidgetMessage::background(self.back, Brush::Solid(Color::opaque(50, 50, 50))));
                     }
                     WidgetMessage::MouseEnter => {
-                        ui.node_mut(self.back).set_background(Brush::Solid(Color::opaque(130, 130, 130)));
+                        ui.send_message(WidgetMessage::background(self.back, Brush::Solid(Color::opaque(130, 130, 130))));
 
                         // While parent menu active it is possible to open submenus
                         // by simple mouse hover.
@@ -288,7 +286,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                                     ui.send_message(UiMessage {
                                         handled: false,
                                         data: UiMessageData::MenuItem(MenuItemMessage::Open),
-                                        destination: self.handle,
+                                        destination: self.handle(),
                                     });
                                 }
                             }
@@ -340,13 +338,13 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
     fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
-        if message.destination != self.handle {
+        if message.destination != self.handle() {
             if let UiMessageData::MenuItem(msg) = &message.data {
                 if let MenuItemMessage::Open = msg {
                     let mut found = false;
                     let mut handle = message.destination;
                     while handle.is_some() {
-                        if handle == self.handle {
+                        if handle == self.handle() {
                             found = true;
                             break;
                         } else {
@@ -365,7 +363,7 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::MenuItem(MenuItemMessage::Close),
-                            destination: self.handle,
+                            destination: self.handle(),
                         });
                     }
                 }
@@ -379,7 +377,7 @@ pub struct MenuBuilder<M: 'static, C: 'static + Control<M, C>> {
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M, C: 'static + Control<M, C>> MenuBuilder<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> MenuBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -392,9 +390,9 @@ impl<M, C: 'static + Control<M, C>> MenuBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
-        for &item in &self.items {
-            if let UINode::MenuItem(item) = ui.node_mut(item) {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        for &item in self.items.iter() {
+            if let UINode::MenuItem(item) = &mut ctx[item] {
                 item.placement = MenuItemPlacement::Bottom;
             }
         }
@@ -403,21 +401,17 @@ impl<M, C: 'static + Control<M, C>> MenuBuilder<M, C> {
             .with_child(StackPanelBuilder::new(WidgetBuilder::new()
                 .with_children(&self.items))
                 .with_orientation(Orientation::Horizontal)
-                .build(ui)))
-            .build(ui);
+                .build(ctx)))
+            .build(ctx);
 
         let menu = Menu {
             widget: self.widget_builder
                 .with_child(back)
-                .build(ui.sender()),
+                .build(),
             active: false,
         };
 
-        let handle = ui.add_node(UINode::Menu(menu));
-
-        ui.flush_messages();
-
-        handle
+        ctx.add_node(UINode::Menu(menu))
     }
 }
 
@@ -445,7 +439,7 @@ impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemContent<'a, 'b, M, 
         MenuItemContent::Text {
             text,
             shortcut,
-            icon: Default::default()
+            icon: Default::default(),
         }
     }
 
@@ -453,7 +447,7 @@ impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemContent<'a, 'b, M, 
         MenuItemContent::Text {
             text,
             shortcut: "",
-            icon: Default::default()
+            icon: Default::default(),
         }
     }
 }
@@ -464,7 +458,7 @@ pub struct MenuItemBuilder<'a, 'b, M: 'static, C: 'static + Control<M, C>> {
     content: MenuItemContent<'a, 'b, M, C>,
 }
 
-impl<'a, 'b, M, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
+impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -483,7 +477,7 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let content = match self.content {
             MenuItemContent::None => Handle::NONE,
             MenuItemContent::Text { text, shortcut, icon } => {
@@ -494,52 +488,50 @@ impl<'a, 'b, M, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
                         .with_margin(Thickness::uniform(1.0))
                         .on_column(1))
                         .with_text(text)
-                        .build(ui))
+                        .build(ctx))
                     .with_child(TextBuilder::new(WidgetBuilder::new()
                         .with_vertical_alignment(VerticalAlignment::Center)
                         .with_horizontal_alignment(HorizontalAlignment::Right)
                         .with_margin(Thickness::uniform(1.0))
                         .on_column(2))
                         .with_text(shortcut)
-                        .build(ui)))
+                        .build(ctx)))
                     .add_row(Row::stretch())
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
-                    .build(ui)
+                    .build(ctx)
             }
             MenuItemContent::Node(node) => node,
         };
 
         let back = BorderBuilder::new(WidgetBuilder::new()
             .with_child(content))
-            .build(ui);
+            .build(ctx);
 
         let popup = PopupBuilder::new(WidgetBuilder::new()
             .with_min_size(Vec2::new(10.0, 10.0)))
             .with_content(StackPanelBuilder::new(WidgetBuilder::new()
                 .with_children(&self.items))
-                .build(ui))
+                .build(ctx))
             // We'll manually control if popup is either open or closed.
             .stays_open(true)
-            .build(ui);
+            .build(ctx);
 
         let menu = MenuItem {
             widget: self.widget_builder
                 .with_child(back)
-                .build(ui.sender()),
+                .build(),
             popup,
             items: self.items,
             back,
             placement: MenuItemPlacement::Right,
         };
 
-        let handle = ui.add_node(UINode::MenuItem(menu));
-
-        ui.flush_messages();
+        let handle = ctx.add_node(UINode::MenuItem(menu));
 
         // "Link" popup with its parent menu item.
-        if let UINode::Popup(popup) = ui.node_mut(popup) {
+        if let UINode::Popup(popup) = &mut ctx[popup] {
             popup.user_data = Some(Rc::new(handle));
         }
 

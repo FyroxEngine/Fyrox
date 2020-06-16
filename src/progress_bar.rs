@@ -5,7 +5,7 @@ use crate::{
         UiMessage,
         UiMessageData,
         WidgetMessage,
-        WidgetProperty,
+        ProgressBarMessage
     },
     node::UINode,
     widget::{
@@ -13,13 +13,14 @@ use crate::{
         WidgetBuilder,
     },
     Control,
-    UserInterface,
     core::{
         pool::Handle,
         math::vec2::Vec2,
         color::Color,
     },
     brush::Brush,
+    BuildContext,
+    UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -44,7 +45,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ProgressBar<M, C> {
     }
 }
 
-impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ProgressBar(Self {
             widget: self.widget.raw_copy(),
@@ -57,30 +58,42 @@ impl<M, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 
-        self.send_message(UiMessage {
+        ui.send_message(UiMessage {
             destination: self.indicator,
-            data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Width(size.x * self.progress))),
-            handled: false
+            data: UiMessageData::Widget(WidgetMessage::Width(size.x * self.progress)),
+            handled: false,
         });
 
-        self.send_message(UiMessage {
+        ui.send_message(UiMessage {
             destination: self.indicator,
-            data: UiMessageData::Widget(WidgetMessage::Property(WidgetProperty::Height(size.y))),
-            handled: false
+            data: UiMessageData::Widget(WidgetMessage::Height(size.y)),
+            handled: false,
         });
 
         size
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message( ui, message);
+        self.widget.handle_routed_message(ui, message);
+
+        if message.destination == self.handle {
+            if let UiMessageData::ProgressBar(msg) = &message.data {
+                match *msg {
+                    ProgressBarMessage::Progress(progress) => {
+                        if progress != self.progress {
+                            self.set_progress(progress);
+                            self.invalidate_layout();
+                        }
+                    },
+                }
+            }
+        }
     }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> ProgressBar<M, C> {
     pub fn set_progress(&mut self, progress: f32) {
         self.progress = progress.min(1.0).max(0.0);
-        self.invalidate_layout();
     }
 
     pub fn progress(&self) -> f32 {
@@ -120,34 +133,34 @@ impl<M: 'static, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ui: &mut UserInterface<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new())
-                .build(ui)
+                .build(ctx)
         });
 
         let indicator = self.indicator.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(180, 180, 180))))
-                .build(ui)
+                .build(ctx)
         });
 
         let canvas = CanvasBuilder::new(WidgetBuilder::new()
             .with_child(indicator))
-            .build(ui);
+            .build(ctx);
 
-        ui.link_nodes(canvas, body);
+        ctx.link(canvas, body);
 
         let progress_bar = ProgressBar {
             widget: self.widget_builder
                 .with_child(body)
-                .build(ui.sender()),
+                .build(),
             progress: self.progress,
             indicator,
             body,
         };
 
-        ui.add_node(UINode::ProgressBar(progress_bar))
+        ctx.add_node(UINode::ProgressBar(progress_bar))
     }
 }
 
