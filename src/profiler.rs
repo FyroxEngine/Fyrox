@@ -93,7 +93,7 @@ impl Profiler {
     fn enter_scope(&mut self, scope: &mut ScopeMark) {
         let parent_scope_mark = *self.scope_stack.last().unwrap();
         scope.parent_scope_hash = calculate_hash(&parent_scope_mark);
-        self.scope_stack.push(scope.clone());
+        self.scope_stack.push(*scope);
         self.samples.entry(*scope).or_default();
         self.samples.get_mut(&parent_scope_mark).unwrap().children.insert(*scope);
     }

@@ -604,9 +604,7 @@ impl Visitor {
             }
 
             writer.write_u32::<LittleEndian>(node.children.len() as u32)?;
-            for child_handle in node.children.iter() {
-                stack.push(child_handle.clone());
-            }
+            stack.extend_from_slice(&node.children);
         }
         Ok(())
     }

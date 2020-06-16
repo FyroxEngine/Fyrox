@@ -42,10 +42,10 @@ impl Plane {
         if len == 0.0 {
             Err(())
         } else {
-            let k = 1.0 / len;
+            let coeff = 1.0 / len;
             Ok(Self {
-                normal: normal.scale(k),
-                d: d * k,
+                normal: normal.scale(coeff),
+                d: d * coeff,
             })
         }
     }
