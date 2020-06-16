@@ -79,10 +79,6 @@ impl Visit for Mesh {
         // recreated on resolve stage! Serialization of surfaces needed for procedural surfaces.
         self.surfaces.visit("Surfaces", visitor)?;
 
-        if visitor.is_reading() {
-            dbg!(&self.surfaces);
-        }
-
         visitor.leave_region()
     }
 }

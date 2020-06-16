@@ -23,6 +23,7 @@ use rg3d::{
         widget::WidgetBuilder,
         text::TextBuilder,
         node::StubNode,
+        message::TextMessage
     },
     event::{
         Event,
@@ -50,12 +51,12 @@ use rg3d::{
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
-type UserInterface = rg3d::gui::UserInterface<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
+type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
-fn create_ui(ui: &mut UserInterface) -> Handle<UiNode> {
+fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new())
-        .build(ui)
+        .build(ctx)
 }
 
 struct GameScene {
@@ -142,7 +143,7 @@ fn main() {
     engine.resource_manager.lock().unwrap().set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
-    let debug_text = create_ui(&mut engine.user_interface);
+    let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
     // Create test scene.
     let GameScene { scene, model_handle, walk_animation } = create_scene(engine.resource_manager.clone());
@@ -205,10 +206,10 @@ fn main() {
                         .local_transform_mut()
                         .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
 
-                    if let UiNode::Text(text) = engine.user_interface.node_mut(debug_text) {
-                        let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
-                    }
+
+                    let fps = engine.renderer.get_statistics().frames_per_second;
+                    let text = format!("Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}", fps);
+                    engine.user_interface.send_message(TextMessage::text(debug_text, text));
 
                     engine.update(fixed_timestep);
                 }

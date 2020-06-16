@@ -4,10 +4,23 @@ pub mod navmesh;
 pub mod raw_mesh;
 
 use crate::{
-    scene::{mesh::Mesh},
-    physics::static_geometry::{StaticGeometry, StaticTriangle},
-    event::{ElementState, VirtualKeyCode, WindowEvent, MouseScrollDelta},
-    gui::message::{KeyCode, OsEvent, ButtonState},
+    scene::mesh::Mesh,
+    physics::static_geometry::{
+        StaticGeometry,
+        StaticTriangle,
+    },
+    event::{
+        ElementState,
+        VirtualKeyCode, WindowEvent,
+        MouseScrollDelta,
+        ModifiersState,
+    },
+    gui::message::{
+        KeyCode,
+        OsEvent,
+        ButtonState,
+        KeyboardModifiers,
+    },
     core::{
         math::vec2::Vec2,
     },
@@ -263,7 +276,19 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
                 state: translate_state(*state),
             })
         }
+        &WindowEvent::ModifiersChanged(modifiers) => {
+            Some(OsEvent::KeyboardModifiers(translate_keyboard_modifiers(modifiers)))
+        }
         _ => None
+    }
+}
+
+pub fn translate_keyboard_modifiers(modifiers: ModifiersState) -> KeyboardModifiers {
+    KeyboardModifiers {
+        alt: modifiers.alt(),
+        shift: modifiers.shift(),
+        control: modifiers.ctrl(),
+        system: modifiers.logo()
     }
 }
 

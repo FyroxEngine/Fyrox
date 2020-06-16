@@ -29,6 +29,11 @@ use rg3d::{
         VerticalAlignment,
         Thickness,
         HorizontalAlignment,
+        message::{
+            ProgressBarMessage,
+            WidgetMessage,
+            TextMessage
+        }
     },
     event::{
         Event,
@@ -57,8 +62,8 @@ use rg3d::{
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
 type GameEngine = rg3d::engine::Engine<(), StubNode>;
-type UserInterface = rg3d::gui::UserInterface<(), StubNode>;
 type UiNode = rg3d::gui::node::UINode<(), StubNode>;
+type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
 struct Interface {
     root: Handle<UiNode>,
@@ -67,7 +72,7 @@ struct Interface {
     progress_text: Handle<UiNode>,
 }
 
-fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
+fn create_ui(ctx: &mut BuildContext, screen_size: Vec2) -> Interface {
     let debug_text;
     let progress_bar;
     let progress_text;
@@ -78,14 +83,14 @@ fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
             debug_text = TextBuilder::new(WidgetBuilder::new()
                 .on_row(0)
                 .on_column(0))
-                .build(ui);
+                .build(ctx);
             debug_text
         })
         .with_child({
             progress_bar = ProgressBarBuilder::new(WidgetBuilder::new()
                 .on_row(1)
                 .on_column(1))
-                .build(ui);
+                .build(ctx);
             progress_bar
         })
         .with_child({
@@ -95,7 +100,7 @@ fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
                 .with_margin(Thickness::bottom(20.0))
                 .with_vertical_alignment(VerticalAlignment::Bottom))
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .build(ui);
+                .build(ctx);
             progress_text
         }))
         .add_row(Row::stretch())
@@ -104,7 +109,7 @@ fn create_ui(ui: &mut UserInterface, screen_size: Vec2) -> Interface {
         .add_column(Column::stretch())
         .add_column(Column::strict(200.0))
         .add_column(Column::stretch())
-        .build(ui);
+        .build(ctx);
 
     Interface {
         root,
@@ -238,7 +243,7 @@ fn main() {
     // Create simple user interface that will show some useful info.
     let window = engine.get_window();
     let screen_size = window.inner_size().to_logical(window.scale_factor());
-    let interface = create_ui(&mut engine.user_interface, Vec2::new(screen_size.width, screen_size.height));
+    let interface = create_ui(&mut engine.user_interface.build_ctx(), Vec2::new(screen_size.width, screen_size.height));
 
     // Create scene asynchronously - this method immediately returns empty load context
     // which will be filled with data over time.
@@ -293,23 +298,15 @@ fn main() {
                             walk_animation = game_scene.walk_animation;
 
                             // Once scene is loaded, we should hide progress bar and text.
-                            if let UiNode::ProgressBar(progress_bar) = engine.user_interface.node_mut(interface.progress_bar) {
-                                progress_bar.set_visibility(false);
-                            }
-
-                            if let UiNode::Text(progress_text) = engine.user_interface.node_mut(interface.progress_text) {
-                                progress_text.set_visibility(false);
-                            }
+                            engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_bar, false));
+                            engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_text, false));
                         }
 
                         // Report progress in UI.
-                        if let UiNode::ProgressBar(progress_bar) = engine.user_interface.node_mut(interface.progress_bar) {
-                            progress_bar.set_progress(load_context.progress);
-                        }
-
-                        if let UiNode::Text(progress_text) = engine.user_interface.node_mut(interface.progress_text) {
-                            progress_text.set_text(format!("Loading scene: {}%\n{}", load_context.progress * 100.0, load_context.message));
-                        }
+                        engine.user_interface.send_message(ProgressBarMessage::progress(interface.progress_bar, load_context.progress));
+                        engine.user_interface.send_message(
+                            TextMessage::text(interface.progress_text,
+                                              format!("Loading scene: {}%\n{}", load_context.progress * 100.0, load_context.message)));
                     }
 
                     // Update scene only if it is loaded.
@@ -338,10 +335,9 @@ fn main() {
                     }
 
                     // While scene is loading, we will update progress bar.
-                    if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text) {
-                        let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}", fps));
-                    }
+                    let fps = engine.renderer.get_statistics().frames_per_second;
+                    let debug_text = format!("Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}", fps);
+                    engine.user_interface.send_message(TextMessage::text(interface.debug_text, debug_text));
 
                     // It is very important to "pump" messages from UI. Even if don't need to
                     // respond to such message, you should call this method, otherwise UI
@@ -378,10 +374,8 @@ fn main() {
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
                         let size = size.to_logical(engine.get_window().scale_factor());
-                        if let UiNode::Grid(root) = engine.user_interface.node_mut(interface.root) {
-                            root.set_width_mut(size.width)
-                                .set_height_mut(size.height);
-                        }
+                        engine.user_interface.send_message(WidgetMessage::width(interface.root, size.width));
+                        engine.user_interface.send_message(WidgetMessage::height(interface.root, size.height));
                     }
                     _ => ()
                 }

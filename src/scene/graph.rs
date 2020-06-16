@@ -392,9 +392,7 @@ impl Graph {
             node.global_visibility = parent_visibility && node.visibility();
 
             // Queue children and continue traversal on them
-            for child_handle in node.children() {
-                self.stack.push(child_handle.clone());
-            }
+            self.stack.extend_from_slice(node.children());
         }
     }
 

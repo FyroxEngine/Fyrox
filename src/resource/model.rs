@@ -107,9 +107,7 @@ impl Model {
             node.resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
 
             // Continue on children.
-            for child_handle in node.children() {
-                stack.push(child_handle.clone());
-            }
+            stack.extend_from_slice(node.children());
         }
 
         root

@@ -59,6 +59,7 @@ use rg3d::{
             ScrollBarMessage,
             ButtonMessage,
             ListViewMessage,
+            TextMessage,
         },
         widget::WidgetBuilder,
         text::TextBuilder,
@@ -66,8 +67,8 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         decorator::DecoratorBuilder,
         border::BorderBuilder,
-        Orientation
-    }
+        Orientation,
+    },
 };
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -113,11 +114,11 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
             })
             .collect::<Vec<_>>();
 
-    let ui = &mut engine.user_interface;
+    let ctx = &mut engine.user_interface.build_ctx();
 
     // First of all create debug text that will show title of example and current FPS.
     let debug_text = TextBuilder::new(WidgetBuilder::new())
-        .build(ui);
+        .build(ctx);
 
     // Then create model options window.
     let yaw;
@@ -143,7 +144,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                 .on_column(0)
                 .with_vertical_alignment(VerticalAlignment::Center))
                 .with_text("Yaw")
-                .build(ui))
+                .build(ctx))
             .with_child({
                 yaw = ScrollBarBuilder::new(WidgetBuilder::new()
                     .on_row(0)
@@ -163,7 +164,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                     .show_value(true)
                     // Turn off all decimal places.
                     .with_value_precision(0)
-                    .build(ui);
+                    .build(ctx);
                 yaw
             })
             .with_child(TextBuilder::new(WidgetBuilder::new()
@@ -171,7 +172,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                 .on_column(0)
                 .with_vertical_alignment(VerticalAlignment::Center))
                 .with_text("Scale")
-                .build(ui))
+                .build(ctx))
             .with_child({
                 scale = ScrollBarBuilder::new(WidgetBuilder::new()
                     .on_row(1)
@@ -183,7 +184,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                     .with_step(0.01)
                     .with_value(DEFAULT_MODEL_SCALE)
                     .show_value(true)
-                    .build(ui);
+                    .build(ctx);
                 scale
             })
             .with_child(StackPanelBuilder::new(WidgetBuilder::new()
@@ -193,20 +194,20 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                 .with_child({
                     reset = ButtonBuilder::new(WidgetBuilder::new())
                         .with_text("Reset")
-                        .build(ui);
+                        .build(ctx);
                     reset
                 }))
                 .with_orientation(Orientation::Horizontal)
-                .build(ui)))
+                .build(ctx)))
             .add_column(Column::strict(100.0))
             .add_column(Column::stretch())
             .add_row(Row::strict(30.0))
             .add_row(Row::strict(30.0))
             .add_row(Row::strict(30.0))
-            .build(ui))
+            .build(ctx))
         .with_title(WindowTitle::text("Model Options"))
         .can_close(false)
-        .build(ui);
+        .build(ctx);
 
     // Create another window which will show some graphics options.
     let resolutions;
@@ -218,7 +219,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                 .on_column(0)
                 .on_row(0))
                 .with_text("Resolution")
-                .build(ui))
+                .build(ctx))
             .with_child({
                 resolutions = DropdownListBuilder::new(WidgetBuilder::new()
                     .on_row(0)
@@ -237,22 +238,22 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
                                 .with_child(TextBuilder::new(WidgetBuilder::new()
                                     .with_horizontal_alignment(HorizontalAlignment::Center))
                                     .with_text(format!("{}x{}@{}Hz", size.width, size.height, rate))
-                                    .build(ui))))
-                                .build(ui);
+                                    .build(ctx))))
+                                .build(ctx);
                             items.push(item);
                         }
                         items
                     })
-                    .build(ui);
+                    .build(ctx);
                 resolutions
             }))
             .add_column(Column::strict(120.0))
             .add_column(Column::stretch())
             .add_row(Row::strict(30.0))
-            .build(ui))
+            .build(ctx))
         .with_title(WindowTitle::text("Graphics Options"))
         .can_close(false)
-        .build(ui);
+        .build(ctx);
 
     Interface {
         debug_text,
@@ -392,10 +393,8 @@ fn main() {
                         .set_scale(Vec3::new(model_scale, model_scale, model_scale))
                         .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle.to_radians()));
 
-                    if let UiNode::Text(text) = engine.user_interface.node_mut(interface.debug_text) {
-                        let fps = engine.renderer.get_statistics().frames_per_second;
-                        text.set_text(format!("Example 04 - User Interface\nFPS: {}", fps));
-                    }
+                    let fps = engine.renderer.get_statistics().frames_per_second;
+                    engine.user_interface.send_message(TextMessage::text(interface.debug_text, format!("Example 04 - User Interface\nFPS: {}", fps)));
 
                     engine.update(fixed_timestep);
                 }
@@ -425,12 +424,8 @@ fn main() {
                                 // This is not ideal because there is tight coupling between UI code and model values,
                                 // but still good enough for example.
                                 if ui_message.destination == interface.reset {
-                                    if let UiNode::ScrollBar(scale_sb) = engine.user_interface.node_mut(interface.scale) {
-                                        scale_sb.set_value(DEFAULT_MODEL_SCALE);
-                                    }
-                                    if let UiNode::ScrollBar(rotation_sb) = engine.user_interface.node_mut(interface.yaw) {
-                                        rotation_sb.set_value(DEFAULT_MODEL_ROTATION);
-                                    }
+                                    engine.user_interface.send_message(ScrollBarMessage::value(interface.scale, DEFAULT_MODEL_SCALE));
+                                    engine.user_interface.send_message(ScrollBarMessage::value(interface.yaw, DEFAULT_MODEL_ROTATION));
                                 }
                             }
                         }

@@ -637,7 +637,7 @@ impl Visit for Animation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnimationContainer {
     pool: Pool<Animation>
 }
@@ -716,12 +716,6 @@ impl AnimationContainer {
     pub fn update_animations(&mut self, dt: f32) {
         for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
             animation.tick(dt);
-        }
-    }
-
-    pub fn clone(&self) -> Self {
-        Self {
-            pool: self.pool.clone()
         }
     }
 }
