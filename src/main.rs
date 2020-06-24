@@ -1,3 +1,5 @@
+#![allow(irrefutable_let_patterns)]
+
 extern crate rg3d;
 
 pub mod interaction;
@@ -116,9 +118,9 @@ use std::{
     fs::File,
     io::Write,
 };
-use crate::gui::{CustomUiNode, UiNode, UiMessage, BuildContext};
+use crate::gui::{EditorUiNode, UiNode, UiMessage, BuildContext, EditorUiMessage};
 
-type GameEngine = rg3d::engine::Engine<(), CustomUiNode>;
+type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
 struct NodeEditor {
     window: Handle<UiNode>,

@@ -1,5 +1,11 @@
-use crate::asset::AssetItem;
-use std::ops::{Deref, DerefMut};
+use crate::{
+    asset::AssetItem,
+    world_outliner::SceneItem
+};
+use std::ops::{
+    Deref,
+    DerefMut
+};
 
 use rg3d::{
     core::{
@@ -10,6 +16,7 @@ use rg3d::{
     gui::{
         Control,
         message::{
+            UiMessageData,
             OsEvent,
         },
         draw::DrawingContext,
@@ -17,22 +24,60 @@ use rg3d::{
     },
 };
 
-pub type CustomMessage = ();
-pub type CustomWidget = rg3d::gui::widget::Widget<CustomMessage, CustomUiNode>;
-pub type UiNode = rg3d::gui::node::UINode<CustomMessage, CustomUiNode>;
-pub type Ui = rg3d::gui::UserInterface<CustomMessage, CustomUiNode>;
-pub type UiMessage = rg3d::gui::message::UiMessage<CustomMessage, CustomUiNode>;
-pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, CustomMessage, CustomUiNode>;
+#[derive(Debug)]
+pub enum AssetItemMessage {
+    Select(bool)
+}
 
 #[derive(Debug)]
-pub enum CustomUiNode {
-    AssetItem(AssetItem)
+pub enum SceneItemMessage {
+    NodeVisibility(bool)
+}
+
+#[derive(Debug)]
+pub enum EditorUiMessage {
+    AssetItem(AssetItemMessage),
+    SceneItem(SceneItemMessage)
+}
+
+impl SceneItemMessage {
+    pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::User(EditorUiMessage::SceneItem(SceneItemMessage::NodeVisibility(visibility))),
+            destination
+        }
+    }
+}
+
+impl AssetItemMessage {
+    pub fn select(destination: Handle<UiNode>, select: bool) -> UiMessage {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(select))),
+            destination
+        }
+    }
+}
+
+pub type CustomWidget = rg3d::gui::widget::Widget<EditorUiMessage, EditorUiNode>;
+pub type UiNode = rg3d::gui::node::UINode<EditorUiMessage, EditorUiNode>;
+pub type Ui = rg3d::gui::UserInterface<EditorUiMessage, EditorUiNode>;
+pub type UiMessage = rg3d::gui::message::UiMessage<EditorUiMessage, EditorUiNode>;
+pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, EditorUiMessage, EditorUiNode>;
+pub type UiWidgetBuilder = rg3d::gui::widget::WidgetBuilder<EditorUiMessage, EditorUiNode>;
+
+#[derive(Debug)]
+pub enum EditorUiNode {
+    AssetItem(AssetItem),
+    SceneItem(SceneItem)
 }
 
 macro_rules! static_dispatch {
     ($self:ident, $func:ident, $($args:expr),*) => {
         match $self {
-            CustomUiNode::AssetItem(v) => v.$func($($args),*),
+            EditorUiNode::AssetItem(v) => v.$func($($args),*),
+            EditorUiNode::SceneItem(v) => v.$func($($args),*),
         }
     }
 }
@@ -40,12 +85,13 @@ macro_rules! static_dispatch {
 macro_rules! static_dispatch_deref {
     ($self:ident) => {
         match $self {
-            CustomUiNode::AssetItem(v) => v,
+            EditorUiNode::AssetItem(v) => v,
+            EditorUiNode::SceneItem(v) => v
         }
     }
 }
 
-impl Deref for CustomUiNode {
+impl Deref for EditorUiNode {
     type Target = CustomWidget;
 
     fn deref(&self) -> &Self::Target {
@@ -53,18 +99,18 @@ impl Deref for CustomUiNode {
     }
 }
 
-impl DerefMut for CustomUiNode {
+impl DerefMut for EditorUiNode {
     fn deref_mut(&mut self) -> &mut Self::Target {
         static_dispatch_deref!(self)
     }
 }
 
-impl Control<CustomMessage, CustomUiNode> for CustomUiNode {
+impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
     fn raw_copy(&self) -> UiNode {
         static_dispatch!(self, raw_copy,)
     }
 
-    fn resolve(&mut self, node_map: &NodeHandleMapping<CustomMessage, CustomUiNode>) {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
         static_dispatch!(self, resolve, node_map);
     }
 

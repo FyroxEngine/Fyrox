@@ -3,26 +3,41 @@ use crate::{
         UiMessage,
         Ui,
         UiNode,
-        CustomUiNode,
-        CustomWidget
+        EditorUiNode,
+        CustomWidget,
+        EditorUiMessage,
+        BuildContext,
+        UiWidgetBuilder,
+        AssetItemMessage
     },
     GameEngine,
 };
 use std::{
     rc::Rc,
     cell::RefCell,
-    path::Path,
-    ops::{Deref, DerefMut}
+    path::{
+        Path,
+        PathBuf
+    },
+    ops::{Deref, DerefMut},
 };
 use rg3d::{
     resource::texture::TextureKind,
-    core::pool::Handle,
+    core::{
+        pool::Handle,
+        color::Color
+    },
     gui::{
         widget::{WidgetBuilder},
         Control,
         window::{
             WindowBuilder,
             WindowTitle,
+        },
+        draw::{
+            CommandKind,
+            DrawingContext,
+            CommandTexture
         },
         grid::{GridBuilder, Column, Row},
         wrap_panel::WrapPanelBuilder,
@@ -36,15 +51,18 @@ use rg3d::{
         image::ImageBuilder,
         Orientation,
         Thickness,
+        brush::Brush,
     },
     utils::into_any_arc,
+    engine::resource_manager::ResourceManager
 };
-use std::path::PathBuf;
-use crate::gui::{CustomMessage, BuildContext};
 
 #[derive(Debug)]
 pub struct AssetItem {
-    widget: CustomWidget
+    widget: CustomWidget,
+    path: PathBuf,
+    preview: Handle<UiNode>,
+    selected: bool,
 }
 
 impl Deref for AssetItem {
@@ -64,18 +82,103 @@ impl DerefMut for AssetItem {
 impl Clone for AssetItem {
     fn clone(&self) -> Self {
         Self {
-            widget: self.widget.raw_copy()
+            widget: self.widget.raw_copy(),
+            path: self.path.clone(),
+            preview: self.preview,
+            selected: self.selected
         }
     }
 }
 
-impl Control<CustomMessage, CustomUiNode> for AssetItem {
+impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
     fn raw_copy(&self) -> UiNode {
-        UiNode::User(CustomUiNode::AssetItem(self.clone()))
+        UiNode::User(EditorUiNode::AssetItem(self.clone()))
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        let bounds = self.screen_bounds();
+        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.commit(CommandKind::Geometry, self.background(), CommandTexture::None);
     }
 
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        match &message.data {
+            UiMessageData::Widget(msg) => {
+                if let WidgetMessage::MouseDown { .. } = msg {
+                    if !message.handled {
+                        message.handled = true;
+                        ui.send_message(AssetItemMessage::select(self.handle(), !self.selected));
+                    }
+                }
+            }
+            UiMessageData::User(msg) => {
+                if let EditorUiMessage::AssetItem(msg) = msg {
+                    if let &AssetItemMessage::Select(select) = msg {
+                        if self.selected != select && message.destination == self.handle() {
+                            self.selected = select;
+                            let brush = if select {
+                                Brush::Solid(Color::WHITE)
+                            } else {
+                                Brush::Solid(Color::RED)
+                            };
+                            ui.send_message(WidgetMessage::background(self.handle(), brush));
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+pub struct AssetItemBuilder {
+    widget_builder: UiWidgetBuilder,
+    path: Option<PathBuf>
+}
+
+impl AssetItemBuilder {
+    pub fn new(widget_builder: UiWidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            path: None
+        }
+    }
+
+    pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.path = Some(path.as_ref().to_owned());
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext, resource_manager: &mut ResourceManager) -> Handle<UiNode> {
+        let path = self.path.unwrap_or_default();
+        let texture = path.extension().map(|ext| {
+            match ext.to_string_lossy().as_ref() {
+                "jpg" | "tga" | "png" | "bmp" => {
+                    into_any_arc(resource_manager.request_texture(&path, TextureKind::RGBA8))
+                }
+                _ => None
+            }
+        }).flatten();
+
+        let preview = ImageBuilder::new(WidgetBuilder::new()
+            .with_margin(Thickness::uniform(2.0))
+            .with_width(64.0)
+            .with_height(64.0))
+            .with_opt_texture(texture)
+            .build(ctx);
+
+        let item = AssetItem {
+            widget: self.widget_builder
+                .with_foreground(Brush::Solid(Color::opaque(50, 50, 50)))
+                .with_child(preview)
+                .build(),
+            path,
+            preview,
+            selected: false
+        };
+        ctx.add_node(UiNode::User(EditorUiNode::AssetItem(item)))
     }
 }
 
@@ -119,13 +222,6 @@ impl AssetBrowser {
                 .build(ctx))
             .build(ctx);
 
-        /*
-        ui.send_message(UiMessage {
-            data: UiMessageData::FileBrowser(FileBrowserMessage::SelectionChanged(path)),
-            handled: false,
-            destination: folder_browser
-        });*/
-
         Self {
             window,
             content_panel,
@@ -150,21 +246,9 @@ impl AssetBrowser {
                             if let Ok(entry) = p {
                                 let entry_path = entry.path();
                                 if !entry_path.is_dir() {
-                                    let texture = entry_path.extension().map(|ext| {
-                                        match ext.to_string_lossy().as_ref() {
-                                            "jpg" | "tga" | "png" | "bmp" => {
-                                                into_any_arc(resource_manager.request_texture(&entry_path, TextureKind::RGBA8))
-                                            }
-                                            _ => None
-                                        }
-                                    }).flatten();
-
-                                    let content = ImageBuilder::new(WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_width(64.0)
-                                        .with_height(64.0))
-                                        .with_opt_texture(texture)
-                                        .build(&mut ui.build_ctx());
+                                    let content = AssetItemBuilder::new(WidgetBuilder::new())
+                                        .with_path(entry_path)
+                                        .build(&mut ui.build_ctx(), resource_manager);
                                     ui.send_message(WidgetMessage::link(content, self.content_panel));
                                 }
                             }
