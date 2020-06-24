@@ -72,7 +72,7 @@ impl TextLine {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FormattedText {
     font: Option<Arc<Mutex<Font>>>,
     /// Text in UTF32 format.

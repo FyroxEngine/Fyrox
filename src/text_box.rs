@@ -44,6 +44,7 @@ use crate::{
     UserInterface
 };
 use std::rc::Rc;
+use std::fmt::{Debug, Formatter};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -57,13 +58,13 @@ pub enum VerticalDirection {
     Up,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Position {
     line: usize,
     offset: usize,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SelectionRange {
     begin: Position,
     end: Position,
@@ -85,6 +86,12 @@ pub struct TextBox<M: 'static, C: 'static + Control<M, C>> {
     caret_brush: Brush,
     selection_brush: Brush,
     filter: Option<Rc<RefCell<FilterCallback>>>,
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> Debug for TextBox<M, C> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("TextBox")
+    }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for TextBox<M, C> {

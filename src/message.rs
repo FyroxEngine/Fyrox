@@ -146,6 +146,24 @@ pub enum ButtonMessage<M: 'static, C: 'static + Control<M, C>> {
     Content(Handle<UINode<M, C>>),
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> ButtonMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: ButtonMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::Button(msg),
+            destination,
+        }
+    }
+
+    pub fn click(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, ButtonMessage::Click)
+    }
+
+    pub fn content(destination: Handle<UINode<M, C>>, content: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, ButtonMessage::Content(content))
+    }
+}
+
 #[derive(Debug)]
 pub enum ScrollBarMessage {
     Value(f32),
@@ -251,12 +269,17 @@ pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
     Placement(Placement),
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct SelectionState(pub(in crate) bool);
+
 #[derive(Debug)]
 pub enum TreeMessage<M: 'static, C: 'static + Control<M, C>> {
     Expand(bool),
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
+    // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
+    Select(SelectionState)
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> TreeMessage<M, C> {
@@ -282,6 +305,10 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeMessage<M, C> {
 
     pub fn expand(destination: Handle<UINode<M, C>>, expand: bool) -> UiMessage<M, C> {
         Self::make(destination, TreeMessage::Expand(expand))
+    }
+
+    pub(in crate) fn select(destination: Handle<UINode<M, C>>, select: bool) -> UiMessage<M, C> {
+        Self::make(destination, TreeMessage::Select(SelectionState(select)))
     }
 }
 

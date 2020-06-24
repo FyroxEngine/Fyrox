@@ -1,4 +1,6 @@
-use std::ops::{DerefMut, Deref};
+use std::{
+    ops::{DerefMut, Deref},
+};
 use crate::{
     core::{
         pool::Handle,
@@ -25,10 +27,10 @@ use crate::{
     brush::Brush,
     stack_panel::StackPanelBuilder,
     BuildContext,
-    message::TextMessage
+    message::TextMessage,
 };
-use std::cell::Cell;
 
+#[derive(Debug)]
 pub struct Tree<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     expander: Handle<UINode<M, C>>,
@@ -37,8 +39,7 @@ pub struct Tree<M: 'static, C: 'static + Control<M, C>> {
     is_expanded: bool,
     background: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
-    // Hack: Interior mutability should be replaced with message.
-    is_selected: Cell<bool>,
+    is_selected: bool,
     selected_brush: Brush,
     hovered_brush: Brush,
     normal_brush: Brush,
@@ -69,7 +70,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Tree<M, C> {
             is_expanded: self.is_expanded,
             background: self.background,
             items: self.items.to_vec(),
-            is_selected: self.is_selected.clone(),
+            is_selected: self.is_selected,
             selected_brush: self.selected_brush.clone(),
             hovered_brush: self.hovered_brush.clone(),
             normal_brush: self.normal_brush.clone(),
@@ -97,11 +98,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
 
         if !self.always_show_expander {
             let expander_visibility = !self.items.is_empty();
-            ui.send_message(UiMessage {
-                destination: self.expander,
-                data: UiMessageData::Widget(WidgetMessage::Visibility(expander_visibility)),
-                handled: false,
-            });
+            ui.send_message(WidgetMessage::visibility(self.expander, expander_visibility));
         }
 
         size
@@ -133,7 +130,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                     }
                     WidgetMessage::MouseEnter => {
                         if !message.handled {
-                            if !self.is_selected.get() {
+                            if !self.is_selected {
                                 ui.send_message(WidgetMessage::background(self.background, self.hovered_brush.clone()));
                             }
                             message.handled = true;
@@ -141,7 +138,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                     }
                     WidgetMessage::MouseLeave => {
                         if !message.handled {
-                            if !self.is_selected.get() {
+                            if !self.is_selected {
                                 ui.send_message(WidgetMessage::background(self.background, self.normal_brush.clone()));
                             }
                             message.handled = true;
@@ -180,6 +177,17 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                                 ui.link_nodes(item, self.panel);
                             }
                             self.items = items.clone();
+                        }
+                        &TreeMessage::Select(state) => {
+                            if self.is_selected != state.0 {
+                                self.is_selected = state.0;
+                                let brush = if self.is_selected {
+                                    self.selected_brush.clone()
+                                } else {
+                                    self.normal_brush.clone()
+                                };
+                                ui.send_message(WidgetMessage::background(self.background, brush));
+                            }
                         }
                     }
                 }
@@ -259,7 +267,7 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+    pub fn build_tree(self, ctx: &mut BuildContext<M, C>) -> Tree<M, C> {
         let expander = ButtonBuilder::new(WidgetBuilder::new()
             .with_width(20.0)
             .with_visibility(self.always_show_expander || !self.items.is_empty())
@@ -310,7 +318,7 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
             .add_row(Row::stretch())
             .build(ctx);
 
-        let tree = Tree {
+        Tree {
             widget: self.widget_builder
                 .with_allow_drag(true)
                 .with_allow_drop(true)
@@ -322,17 +330,21 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
             expander,
             background: item_background,
             items: self.items,
-            is_selected: Cell::new(false),
+            is_selected: false,
             selected_brush: self.selected_brush,
             hovered_brush: self.hovered_brush,
             normal_brush: self.normal_brush,
             always_show_expander: self.always_show_expander,
-        };
+        }
+    }
 
+    pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let tree = self.build_tree(ctx);
         ctx.add_node(UINode::Tree(tree))
     }
 }
 
+#[derive(Debug)]
 pub struct TreeRoot<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     panel: Handle<UINode<M, C>>,
@@ -408,19 +420,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
                             while let Some(handle) = stack.pop() {
                                 let node = ui.node(handle);
                                 stack.extend_from_slice(node.children());
-                                if let UINode::Tree(tree) = node {
-                                    let (select, brush) = if handle == selected {
-                                        (true, tree.selected_brush.clone())
-                                    } else {
-                                        (false, tree.normal_brush.clone())
-                                    };
-                                    tree.is_selected.set(select);
-                                    if select {
-                                        self.selected = selected;
-                                    }
-                                    let background_handle = tree.background;
-
-                                    ui.send_message(WidgetMessage::background(background_handle, brush));
+                                if handle == selected {
+                                    self.selected = selected;
+                                    ui.send_message(TreeMessage::select(handle, true));
+                                } else {
+                                    ui.send_message(TreeMessage::select(handle, false));
                                 }
                             }
                         }
