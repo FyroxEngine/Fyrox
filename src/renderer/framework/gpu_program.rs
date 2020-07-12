@@ -11,6 +11,7 @@ use crate::{
             mat4::Mat4,
             vec3::Vec3,
             vec2::Vec2,
+            mat3::Mat3
         },
         color::Color
     },
@@ -30,7 +31,6 @@ use crate::{
     },
     utils::log::Log,
 };
-use rg3d_core::math::mat3::Mat3;
 
 pub struct GpuProgram {
     id: GLuint,

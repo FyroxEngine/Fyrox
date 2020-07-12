@@ -33,7 +33,9 @@ use std::{
     cell::RefCell,
 };
 use crate::{
-    resource::texture::Texture,
+    resource::texture::{
+        Texture,
+    },
     renderer::{
         ui_renderer::{
             UiRenderer,
@@ -253,19 +255,11 @@ impl Default for Statistics {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum RenderTarget {
-    BackBuffer,
-    Texture,
-}
-
 pub struct Renderer {
     state: State,
     backbuffer: BackBuffer,
-    target: RenderTarget,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
-    frame_texture: Arc<Mutex<Texture>>,
     sprite_renderer: SpriteRenderer,
     particle_system_renderer: ParticleSystemRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
@@ -281,6 +275,7 @@ pub struct Renderer {
     ambient_color: Color,
     quality_settings: QualitySettings,
     pub debug_renderer: DebugRenderer,
+    /// Camera to G-buffer mapping.
     gbuffers: HashMap<Handle<Node>, GBuffer>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
@@ -414,15 +409,6 @@ impl Renderer {
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             state,
-            target: RenderTarget::BackBuffer,
-            frame_texture: Arc::new(Mutex::new(Texture {
-                path: Default::default(),
-                width: 0,
-                height: 0,
-                bytes: vec![],
-                kind: TextureKind::RGBA8,
-                loaded: true
-            })),
         })
     }
 
@@ -440,15 +426,6 @@ impl Renderer {
 
     pub fn set_backbuffer_clear_color(&mut self, color: Color) {
         self.backbuffer_clear_color = color;
-    }
-
-    pub fn set_render_target(&mut self, target: RenderTarget) {
-        self.target = target;
-    }
-
-    /// Returns frame texture without UI drawn on it.
-    pub fn frame_texture(&self) -> Arc<Mutex<Texture>> {
-        self.frame_texture.clone()
     }
 
     /// Sets new frame size, should be called when received a Resize event.
@@ -534,6 +511,27 @@ impl Renderer {
                     })
                     .or_insert_with(|| GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap());
 
+                // If we specified a texture to draw to, we have to register it in texture cache
+                // so it can be used in later on as texture. This is useful in case if you need
+                // to draw something on offscreen and then draw it on some mesh.
+                // TODO: However it can be dangerous to use frame texture as it may be bound to
+                //  pipeline.
+                if let Some(rt) = scene.render_target.clone() {
+                    let key = (&*rt as *const _) as usize;
+                    self.texture_cache.map.insert(key, TimedEntry {
+                        value: gbuffer.frame_texture(),
+                        time_to_live: std::f32::INFINITY,
+                    });
+
+                    // Make sure to sync texture info with actual render target.
+                    if let Ok(mut rt) = rt.lock() {
+                        rt.width = gbuffer.width as u32;
+                        rt.height = gbuffer.height as u32;
+                        // TODO: For now only RGBA8 textures are supported.
+                        rt.kind = TextureKind::RGBA8;
+                    }
+                }
+
                 self.statistics += gbuffer.fill(
                     GBufferRenderContext {
                         state,
@@ -589,44 +587,32 @@ impl Renderer {
                 self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.final_frame, camera);
 
                 // Finally render everything into back buffer.
-                match self.target {
-                    RenderTarget::BackBuffer => {
-                        self.statistics.geometry += self.backbuffer.draw(
-                            self.geometry_cache.get(state, &self.quad),
-                            state,
-                            viewport,
-                            &self.flat_shader.program,
-                            DrawParameters {
-                                cull_face: CullFace::Back,
-                                culling: false,
-                                color_write: Default::default(),
-                                depth_write: true,
-                                stencil_test: false,
-                                depth_test: false,
-                                blend: false,
-                            },
-                            &[
-                                (self.flat_shader.wvp_matrix, UniformValue::Mat4({
-                                    Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
-                                        Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
-                                })),
-                                (self.flat_shader.diffuse_texture, UniformValue::Sampler {
-                                    index: 0,
-                                    texture: gbuffer.frame_texture(),
-                                })
-                            ],
-                        );
-                    }
-                    RenderTarget::Texture => {
-                        // Register frame texture in cache, so on attempt to draw using
-                        // frame texture framebuffer's texture will be bound.
-                        // TODO: It is dangerous to use texture which may be bound to FBO!
-                        let key = (&*self.frame_texture as *const _) as usize;
-                        self.texture_cache.map.insert(key, TimedEntry {
-                            value: gbuffer.frame_texture(),
-                            time_to_live: std::f32::INFINITY,
-                        });
-                    }
+                if scene.render_target.is_none() {
+                    self.statistics.geometry += self.backbuffer.draw(
+                        self.geometry_cache.get(state, &self.quad),
+                        state,
+                        viewport,
+                        &self.flat_shader.program,
+                        DrawParameters {
+                            cull_face: CullFace::Back,
+                            culling: false,
+                            color_write: Default::default(),
+                            depth_write: true,
+                            stencil_test: false,
+                            depth_test: false,
+                            blend: false,
+                        },
+                        &[
+                            (self.flat_shader.wvp_matrix, UniformValue::Mat4({
+                                Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
+                                    Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
+                            })),
+                            (self.flat_shader.diffuse_texture, UniformValue::Sampler {
+                                index: 0,
+                                texture: gbuffer.frame_texture(),
+                            })
+                        ],
+                    );
                 }
             }
         }

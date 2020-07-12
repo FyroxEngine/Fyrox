@@ -1,12 +1,15 @@
-use std::path::*;
+use image::GenericImageView;
 use crate::{
     core::visitor::{
         Visit,
         VisitResult,
-        Visitor
+        Visitor,
     }
 };
-use image::GenericImageView;
+use std::path::{
+    PathBuf,
+    Path,
+};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -15,7 +18,7 @@ pub struct Texture {
     pub(in crate) height: u32,
     pub(in crate) bytes: Vec<u8>,
     pub(in crate) kind: TextureKind,
-    pub(in crate) loaded: bool
+    pub(in crate) loaded: bool,
 }
 
 impl Default for Texture {
@@ -26,7 +29,7 @@ impl Default for Texture {
             height: 0,
             bytes: Vec::new(),
             kind: TextureKind::RGBA8,
-            loaded: false
+            loaded: true,
         }
     }
 }
@@ -96,14 +99,25 @@ impl Texture {
         })
     }
 
-    pub(in crate) fn from_bytes(width: u32, height: u32, kind: TextureKind, bytes: Vec<u8>) -> Self {
-        Self {
-            path: Default::default(),
-            width,
-            height,
-            bytes,
-            kind,
-            loaded: true
+    pub fn from_bytes(width: u32, height: u32, kind: TextureKind, bytes: Vec<u8>) -> Result<Self, ()> {
+        let bpp = match kind {
+            TextureKind::R8 => 1,
+            TextureKind::RGB8 => 3,
+            TextureKind::RGBA8 => 4,
+        };
+
+        let required_bytes = width * height * bpp;
+        if required_bytes != bytes.len() as u32 {
+            Err(())
+        } else {
+            Ok(Self {
+                path: Default::default(),
+                width,
+                height,
+                bytes,
+                kind,
+                loaded: true,
+            })
         }
     }
 

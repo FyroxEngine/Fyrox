@@ -263,7 +263,10 @@ impl GpuTexture {
 
         if let Some(data) = data {
             if data.len() != desired_byte_count {
-                return Err(RendererError::InvalidTextureData);
+                return Err(RendererError::InvalidTextureData {
+                    expected_data_size: desired_byte_count,
+                    actual_data_size: data.len()
+                });
             }
         }
 

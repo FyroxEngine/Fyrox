@@ -15,7 +15,10 @@ pub enum RendererError {
     },
     FaultyShaderSource,
     UnableToFindShaderUniform(String),
-    InvalidTextureData,
+    InvalidTextureData {
+        expected_data_size: usize,
+        actual_data_size: usize
+    },
 
     /// Means that you tried to draw element range from GeometryBuffer that
     /// does not have enough elements.

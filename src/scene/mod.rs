@@ -34,6 +34,8 @@ use crate::{
 };
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
+use std::sync::{Arc, Mutex};
+use crate::resource::texture::Texture;
 
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder {
@@ -86,6 +88,10 @@ pub struct Scene {
     /// Physics binder is a bridge between physics world and scene graph. If a rigid body is linked
     /// to a graph node, then rigid body will control local transform of node.
     pub physics_binder: PhysicsBinder,
+
+    /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
+    ///
+    pub render_target: Option<Arc<Mutex<Texture>>>
 }
 
 impl Default for Scene {
@@ -95,6 +101,7 @@ impl Default for Scene {
             animations: Default::default(),
             physics: Default::default(),
             physics_binder: Default::default(),
+            render_target: None
         }
     }
 }
@@ -108,6 +115,7 @@ impl Scene {
             physics: Default::default(),
             animations: Default::default(),
             physics_binder: Default::default(),
+            render_target: None
         }
     }
 
@@ -188,7 +196,8 @@ impl Scene {
             graph,
             animations,
             physics,
-            physics_binder
+            physics_binder,
+            render_target: Default::default()
         }
     }
 }

@@ -1,23 +1,3 @@
-use crate::{
-    core::{
-        math::{
-            vec2::Vec2,
-            vec3::Vec3,
-            vec4::Vec4,
-            TriangleDefinition,
-        },
-        pool::{
-            Handle,
-            ErasedHandle,
-        },
-    },
-    scene::node::Node,
-    resource::texture::Texture,
-    utils::raw_mesh::{
-        RawMesh,
-        RawMeshBuilder,
-    },
-};
 use std::{
     sync::{
         Mutex,
@@ -28,9 +8,29 @@ use std::{
         Hasher,
     },
 };
-use rg3d_core::math::mat4::Mat4;
-use rg3d_core::color::Color;
-use rg3d_core::visitor::{Visit, Visitor, VisitResult};
+use crate::{
+    core::{
+        math::{
+            vec2::Vec2,
+            vec3::Vec3,
+            vec4::Vec4,
+            TriangleDefinition,
+            mat4::Mat4
+        },
+        pool::{
+            Handle,
+            ErasedHandle,
+        },
+        color::Color,
+        visitor::{Visit, Visitor, VisitResult}
+    },
+    scene::node::Node,
+    resource::texture::Texture,
+    utils::raw_mesh::{
+        RawMesh,
+        RawMeshBuilder,
+    },
+};
 
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)] // OpenGL expects this structure packed as in C

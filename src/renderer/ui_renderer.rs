@@ -35,6 +35,7 @@ use crate::{
                 FrameBufferTrait,
                 DrawParameters,
                 CullFace,
+                DrawPartContext,
             },
         },
         error::RendererError,
@@ -64,7 +65,6 @@ use crate::{
         color::Color,
     },
 };
-use crate::renderer::framework::framebuffer::DrawPartContext;
 
 struct UiShader {
     program: GpuProgram,
@@ -186,13 +186,10 @@ impl UiRenderer {
                         CommandTexture::Font(font_arc) => {
                             let mut font = font_arc.lock().unwrap();
                             if font.texture.is_none() {
-                                let tex = Texture::from_bytes(
-                                    font.get_atlas_size() as u32,
-                                    font.get_atlas_size() as u32,
-                                    TextureKind::R8,
-                                    font.get_atlas_pixels().to_vec(),
-                                );
-                                font.texture = Some(Arc::new(Mutex::new(tex)));
+                                let size = font.get_atlas_size() as u32;
+                                if let Ok(tex) = Texture::from_bytes(size, size, TextureKind::R8, font.get_atlas_pixels().to_vec()) {
+                                    font.texture = Some(Arc::new(Mutex::new(tex)));
+                                }
                             }
                             if let Some(texture) = texture_cache.get(state, font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
                                 diffuse_texture = texture;

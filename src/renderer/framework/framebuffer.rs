@@ -11,7 +11,10 @@ use crate::{
     renderer::{
         error::RendererError,
         framework::{
-            geometry_buffer::GeometryBuffer,
+            geometry_buffer::{
+                GeometryBuffer,
+                DrawCallStatistics,
+            },
             gpu_texture::{
                 GpuTexture,
                 GpuTextureKind,
@@ -21,13 +24,18 @@ use crate::{
                 types::GLuint,
                 self,
             },
-            gpu_program::{UniformLocation, GpuProgram, UniformValue},
-            state::State,
-            state::ColorMask
-        }
-    }
+            gpu_program::{
+                UniformLocation,
+                GpuProgram,
+                UniformValue
+            },
+            state::{
+                State,
+                ColorMask
+            }
+        },
+    },
 };
-use crate::renderer::framework::geometry_buffer::DrawCallStatistics;
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 pub enum AttachmentKind {
@@ -199,7 +207,7 @@ pub struct DrawPartContext<'a, 'b, 'c, 'd, T> {
     pub params: DrawParameters,
     pub uniforms: &'c [(UniformLocation, UniformValue<'d>)],
     pub offset: usize,
-    pub count: usize
+    pub count: usize,
 }
 
 pub trait FrameBufferTrait {
@@ -257,7 +265,7 @@ pub trait FrameBufferTrait {
             args.viewport,
             args.program,
             args.params,
-            args.uniforms
+            args.uniforms,
         );
         args.geometry
             .bind(args.state)
