@@ -22,7 +22,9 @@ impl<C> CommandStack<C> {
     }
 
     pub fn do_command<'a, Ctx>(&mut self, mut command: C, mut context: Ctx)
-        where C: Command<'a, Context=Ctx> + Debug {
+    where
+        C: Command<'a, Context = Ctx> + Debug,
+    {
         if self.commands.is_empty() {
             self.top = Some(0);
         } else {
@@ -49,7 +51,9 @@ impl<C> CommandStack<C> {
     }
 
     pub fn undo<'a, Ctx>(&mut self, mut context: Ctx)
-        where C: Command<'a, Context=Ctx> + Debug {
+    where
+        C: Command<'a, Context = Ctx> + Debug,
+    {
         if !self.commands.is_empty() {
             if let Some(top) = self.top.as_mut() {
                 if let Some(command) = self.commands.get_mut(*top) {
@@ -66,7 +70,9 @@ impl<C> CommandStack<C> {
     }
 
     pub fn redo<'a, Ctx>(&mut self, mut context: Ctx)
-        where C: Command<'a, Context=Ctx> + Debug {
+    where
+        C: Command<'a, Context = Ctx> + Debug,
+    {
         if !self.commands.is_empty() {
             let command = match self.top.as_mut() {
                 None => {

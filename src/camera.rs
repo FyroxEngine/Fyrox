@@ -1,26 +1,15 @@
-use crate::{
-    GameEngine,
-    scene::EditorScene
-};
+use crate::{scene::EditorScene, GameEngine};
 use rg3d::{
-    scene::{
-        base::BaseBuilder,
-        transform::TransformBuilder,
-        camera::CameraBuilder,
-        node::Node
+    core::{
+        math::{aabb::AxisAlignedBoundingBox, quat::Quat, vec2::Vec2, vec3::Vec3},
+        pool::Handle,
     },
-    core::math::{
-        vec3::Vec3,
-        quat::Quat,
-        vec2::Vec2,
-        aabb::AxisAlignedBoundingBox
-    },
-    core::pool::Handle,
-    gui::message::{MouseButton, KeyCode},
+    gui::message::{KeyCode, MouseButton},
+    scene::{base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder},
 };
 use std::{
     collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher}
+    hash::{Hash, Hasher},
 };
 
 pub struct CameraController {
@@ -44,15 +33,15 @@ impl CameraController {
     pub fn new(editor_scene: &EditorScene, engine: &mut GameEngine) -> Self {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
-        let camera = CameraBuilder::new(BaseBuilder::new()
-            .with_name("EditorCamera"))
-            .build();
+        let camera = CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera")).build();
 
         let pivot = BaseBuilder::new()
             .with_name("EditorCameraPivot")
-            .with_local_transform(TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 1.0, -3.0))
-                .build())
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vec3::new(0.0, 1.0, -3.0))
+                    .build(),
+            )
             .build();
 
         let pivot = graph.add_node(Node::Base(pivot));
@@ -86,15 +75,19 @@ impl CameraController {
         }
     }
 
-    pub fn on_mouse_wheel(&mut self, delta: f32, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    pub fn on_mouse_wheel(
+        &mut self,
+        delta: f32,
+        editor_scene: &EditorScene,
+        engine: &mut GameEngine,
+    ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let camera = &mut scene.graph[self.camera];
 
         let look = camera.global_transform().look();
 
         if let Node::Base(pivot) = &mut scene.graph[self.pivot] {
-            pivot.local_transform_mut()
-                .offset(look.scale(delta));
+            pivot.local_transform_mut().offset(look.scale(delta));
         }
     }
 
@@ -116,7 +109,7 @@ impl CameraController {
             KeyCode::S => self.move_backward = false,
             KeyCode::A => self.move_left = false,
             KeyCode::D => self.move_right = false,
-            _ => ()
+            _ => (),
         }
     }
 
@@ -126,7 +119,7 @@ impl CameraController {
             KeyCode::S => self.move_backward = true,
             KeyCode::A => self.move_left = true,
             KeyCode::D => self.move_right = true,
-            _ => ()
+            _ => (),
         }
     }
 
@@ -161,19 +154,32 @@ impl CameraController {
         }
         if let Node::Base(pivot) = &mut scene.graph[self.pivot] {
             let yaw = Quat::from_axis_angle(Vec3::UP, self.yaw);
-            pivot.local_transform_mut()
+            pivot
+                .local_transform_mut()
                 .set_rotation(yaw)
                 .offset(move_vec);
         }
     }
 
-    pub fn pick<F>(&mut self, cursor_pos: Vec2, editor_scene: &EditorScene, engine: &GameEngine, editor_only: bool, mut filter: F) -> Handle<Node>
-        where F: FnMut(Handle<Node>, &Node) -> bool {
+    pub fn pick<F>(
+        &mut self,
+        cursor_pos: Vec2,
+        editor_scene: &EditorScene,
+        engine: &GameEngine,
+        editor_only: bool,
+        mut filter: F,
+    ) -> Handle<Node>
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
         let scene = &engine.scenes[editor_scene.scene];
         let camera = &scene.graph[self.camera];
         if let Node::Camera(camera) = camera {
             let screen_size = engine.renderer.get_frame_size();
-            let ray = camera.make_ray(cursor_pos, Vec2::new(screen_size.0 as f32, screen_size.1 as f32));
+            let ray = camera.make_ray(
+                cursor_pos,
+                Vec2::new(screen_size.0 as f32, screen_size.1 as f32),
+            );
 
             self.pick_list.clear();
 
@@ -207,7 +213,8 @@ impl CameraController {
                 };
 
                 if handle != scene.graph.get_root() {
-                    let object_space_ray = ray.transform(node.global_transform().inverse().unwrap_or_default());
+                    let object_space_ray =
+                        ray.transform(node.global_transform().inverse().unwrap_or_default());
                     // Do coarse intersection test with bounding box.
                     if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         // Do fine intersection test with surfaces if any
@@ -228,7 +235,8 @@ impl CameraController {
             }
 
             // Make sure closest will be selected first.
-            self.pick_list.sort_by(|&(_, a), (_, b)| a.partial_cmp(b).unwrap());
+            self.pick_list
+                .sort_by(|&(_, a), (_, b)| a.partial_cmp(b).unwrap());
 
             let mut hasher = DefaultHasher::new();
             for (handle, _) in self.pick_list.iter() {

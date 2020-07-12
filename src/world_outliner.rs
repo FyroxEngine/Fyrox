@@ -1,66 +1,38 @@
 use crate::{
-    GameEngine,
     gui::{
-        UiMessage,
-        Ui,
+        BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
         UiNode,
-        BuildContext,
-        EditorUiMessage,
-        EditorUiNode,
-        CustomWidget,
-        SceneItemMessage
-    },
-    Message,
-    scene::{
-        EditorScene,
-        SceneCommand,
-        LinkNodesCommand,
-        ChangeSelectionCommand,
     },
     scene::SetVisibleCommand,
+    scene::{ChangeSelectionCommand, EditorScene, LinkNodesCommand, SceneCommand},
+    GameEngine, Message,
 };
 use rg3d::{
-    utils::into_any_arc,
-    gui::{
-        window::{WindowTitle, WindowBuilder},
-        widget::WidgetBuilder,
-        tree::{TreeBuilder, Tree, TreeRootBuilder},
-        text::TextBuilder,
-        Thickness,
-        image::ImageBuilder,
-        grid::{GridBuilder, Row, Column},
-        button::ButtonBuilder,
-        HorizontalAlignment,
-        message::{
-            UiMessageData,
-            TreeRootMessage,
-            WidgetMessage,
-            TreeMessage,
-            ButtonMessage,
-            OsEvent
-        },
-        draw::DrawingContext,
-        Control,
-        scroll_viewer::ScrollViewerBuilder,
-        NodeHandleMapping
-    },
-    scene::node::Node,
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-        math::Rect
-    },
+    core::{math::vec2::Vec2, math::Rect, pool::Handle},
     engine::resource_manager::ResourceManager,
+    gui::{
+        button::ButtonBuilder,
+        draw::DrawingContext,
+        grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
+        message::{
+            ButtonMessage, OsEvent, TreeMessage, TreeRootMessage, UiMessageData, WidgetMessage,
+        },
+        scroll_viewer::ScrollViewerBuilder,
+        text::TextBuilder,
+        tree::{Tree, TreeBuilder, TreeRootBuilder},
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
+        Control, HorizontalAlignment, NodeHandleMapping, Thickness,
+    },
     resource::texture::TextureKind,
+    scene::node::Node,
+    utils::into_any_arc,
 };
 use std::{
-    sync::{
-        Arc,
-        Mutex,
-        mpsc::Sender
-    },
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    fmt::{Debug, Formatter}
+    sync::{mpsc::Sender, Arc, Mutex},
 };
 
 pub struct WorldOutliner {
@@ -76,7 +48,7 @@ pub struct SceneItem {
     visibility_toggle: Handle<UiNode>,
     sender: Sender<Message>,
     visibility: bool,
-    resource_manager: Arc<Mutex<ResourceManager>>
+    resource_manager: Arc<Mutex<ResourceManager>>,
 }
 
 impl Debug for SceneItem {
@@ -93,7 +65,7 @@ impl Clone for SceneItem {
             visibility_toggle: self.visibility_toggle,
             sender: self.sender.clone(),
             visibility: self.visibility,
-            resource_manager: self.resource_manager.clone()
+            resource_manager: self.resource_manager.clone(),
         }
     }
 }
@@ -152,7 +124,10 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
             UiMessageData::Button(msg) => {
                 if message.destination == self.visibility_toggle {
                     if let ButtonMessage::Click = msg {
-                        let command = SceneCommand::SetVisible(SetVisibleCommand::new(self.node, !self.visibility));
+                        let command = SceneCommand::SetVisible(SetVisibleCommand::new(
+                            self.node,
+                            !self.visibility,
+                        ));
                         self.sender.send(Message::DoSceneCommand(command)).unwrap();
                     }
                 }
@@ -169,7 +144,12 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                                 "resources/invisible.png"
                             };
                             let image = ImageBuilder::new(WidgetBuilder::new())
-                                .with_opt_texture(into_any_arc(self.resource_manager.lock().unwrap().request_texture(path, TextureKind::RGBA8)))
+                                .with_opt_texture(into_any_arc(
+                                    self.resource_manager
+                                        .lock()
+                                        .unwrap()
+                                        .request_texture(path, TextureKind::RGBA8),
+                                ))
                                 .build(&mut ui.build_ctx());
                             ui.send_message(ButtonMessage::content(self.visibility_toggle, image));
                         }
@@ -196,7 +176,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
 pub struct SceneItemBuilder {
     node: Handle<Node>,
     name: String,
-    visibility: bool
+    visibility: bool,
 }
 
 impl SceneItemBuilder {
@@ -204,7 +184,7 @@ impl SceneItemBuilder {
         Self {
             node: Default::default(),
             name: Default::default(),
-            visibility: true
+            visibility: true,
         }
     }
 
@@ -223,44 +203,69 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext, sender: Sender<Message>, resource_manager: Arc<Mutex<ResourceManager>>) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        ctx: &mut BuildContext,
+        sender: Sender<Message>,
+        resource_manager: Arc<Mutex<ResourceManager>>,
+    ) -> Handle<UiNode> {
         let visibility_toggle;
         let item = SceneItem {
-            tree: TreeBuilder::new(WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0)))
-                .with_content(GridBuilder::new(WidgetBuilder::new()
-                    .with_child(TextBuilder::new(WidgetBuilder::new())
-                        .with_text(self.name)
-                        .build(ctx))
-                    .with_child({
-                        visibility_toggle = ButtonBuilder::new(WidgetBuilder::new()
-                            .with_width(22.0)
-                            .with_height(16.0)
-                            .with_horizontal_alignment(HorizontalAlignment::Right)
-                            .on_column(1))
-                            .with_content(ImageBuilder::new(WidgetBuilder::new())
-                                .with_opt_texture(into_any_arc(resource_manager.lock().unwrap().request_texture("resources/visible.png", TextureKind::RGBA8)))
-                                .build(ctx))
-                            .build(ctx);
-                        visibility_toggle
-                    }))
+            tree: TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_content(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(
+                                TextBuilder::new(WidgetBuilder::new())
+                                    .with_text(self.name)
+                                    .build(ctx),
+                            )
+                            .with_child({
+                                visibility_toggle = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(22.0)
+                                        .with_height(16.0)
+                                        .with_horizontal_alignment(HorizontalAlignment::Right)
+                                        .on_column(1),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(WidgetBuilder::new())
+                                        .with_opt_texture(into_any_arc(
+                                            resource_manager.lock().unwrap().request_texture(
+                                                "resources/visible.png",
+                                                TextureKind::RGBA8,
+                                            ),
+                                        ))
+                                        .build(ctx),
+                                )
+                                .build(ctx);
+                                visibility_toggle
+                            }),
+                    )
                     .add_row(Row::stretch())
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
-                    .build(ctx)
-                ).build_tree(ctx),
+                    .build(ctx),
+                )
+                .build_tree(ctx),
             node: self.node,
             visibility_toggle,
             sender,
             visibility: self.visibility,
-            resource_manager
+            resource_manager,
         };
 
         ctx.add_node(UiNode::User(EditorUiNode::SceneItem(item)))
     }
 }
 
-fn make_tree(node: &Node, handle: Handle<Node>, ctx: &mut BuildContext, sender: Sender<Message>, resource_manager: Arc<Mutex<ResourceManager>>) -> Handle<UiNode> {
+fn make_tree(
+    node: &Node,
+    handle: Handle<Node>,
+    ctx: &mut BuildContext,
+    sender: Sender<Message>,
+    resource_manager: Arc<Mutex<ResourceManager>>,
+) -> Handle<UiNode> {
     SceneItemBuilder::new()
         .with_name(node.name().to_owned())
         .with_node(handle)
@@ -285,12 +290,10 @@ impl WorldOutliner {
             .with_content({
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content({
-                        root = TreeRootBuilder::new(WidgetBuilder::new())
-                            .build(ctx);
+                        root = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
                         root
                     })
                     .build(ctx)
-
             })
             .build(ctx);
 
@@ -302,7 +305,12 @@ impl WorldOutliner {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine, current_selection: Handle<Node>) {
+    pub fn sync_to_model(
+        &mut self,
+        editor_scene: &EditorScene,
+        engine: &mut GameEngine,
+        current_selection: Handle<Node>,
+    ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
@@ -353,7 +361,13 @@ impl WorldOutliner {
                                     }
                                 }
                                 if !found {
-                                    let tree = make_tree(&graph[child_handle], child_handle, &mut ui.build_ctx(), self.sender.clone(), engine.resource_manager.clone());
+                                    let tree = make_tree(
+                                        &graph[child_handle],
+                                        child_handle,
+                                        &mut ui.build_ctx(),
+                                        self.sender.clone(),
+                                        engine.resource_manager.clone(),
+                                    );
                                     ui.send_message(TreeMessage::add_item(tree_handle, tree));
                                     if child_handle == current_selection {
                                         ui.send_message(TreeRootMessage::select(self.root, tree));
@@ -371,14 +385,20 @@ impl WorldOutliner {
                 }
                 UiNode::TreeRoot(root) => {
                     if root.items().is_empty() {
-                        let tree = make_tree(node, node_handle, &mut ui.build_ctx(), self.sender.clone(), engine.resource_manager.clone());
+                        let tree = make_tree(
+                            node,
+                            node_handle,
+                            &mut ui.build_ctx(),
+                            self.sender.clone(),
+                            engine.resource_manager.clone(),
+                        );
                         ui.send_message(TreeRootMessage::add_item(tree_handle, tree));
                         self.stack.push((tree, node_handle));
                     } else {
                         self.stack.push((root.items()[0], node_handle));
                     }
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
 
@@ -389,14 +409,15 @@ impl WorldOutliner {
                 UiNode::User(usr) => {
                     if let EditorUiNode::SceneItem(item) = usr {
                         let node = &graph[item.node];
-                        ui.send_message(SceneItemMessage::node_visibility(handle, node.visibility()));
+                        ui.send_message(SceneItemMessage::node_visibility(
+                            handle,
+                            node.visibility(),
+                        ));
                         stack.extend_from_slice(item.tree.items());
                     }
                 }
-                UiNode::TreeRoot(root) => {
-                    stack.extend_from_slice(root.items())
-                }
-                _ => unreachable!()
+                UiNode::TreeRoot(root) => stack.extend_from_slice(root.items()),
+                _ => unreachable!(),
             }
         }
     }
@@ -409,7 +430,12 @@ impl WorldOutliner {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &Ui, current_selection: Handle<Node>) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &Ui,
+        current_selection: Handle<Node>,
+    ) {
         match &message.data {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination == self.root {
@@ -417,7 +443,9 @@ impl WorldOutliner {
                         let node = self.map_tree_to_node(selection, ui);
                         if node != current_selection {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(ChangeSelectionCommand::new(node, current_selection))))
+                                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                                    ChangeSelectionCommand::new(node, current_selection),
+                                )))
                                 .unwrap();
                         }
                     }
@@ -425,12 +453,17 @@ impl WorldOutliner {
             }
             UiMessageData::Widget(msg) => {
                 if let &WidgetMessage::Drop(node) = msg {
-                    if ui.is_node_child_of(node, self.root) && ui.is_node_child_of(message.destination, self.root) && node != message.destination {
+                    if ui.is_node_child_of(node, self.root)
+                        && ui.is_node_child_of(message.destination, self.root)
+                        && node != message.destination
+                    {
                         let child = self.map_tree_to_node(node, ui);
                         let parent = self.map_tree_to_node(message.destination, ui);
                         if child.is_some() && parent.is_some() {
                             self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::LinkNodes(LinkNodesCommand::new(child, parent))))
+                                .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
+                                    LinkNodesCommand::new(child, parent),
+                                )))
                                 .unwrap();
                         }
                     }
@@ -452,7 +485,7 @@ impl WorldOutliner {
                 let tree = self.map_node_to_tree(ui, selection);
                 ui.send_message(TreeRootMessage::select(self.root, tree));
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -471,7 +504,7 @@ impl WorldOutliner {
                 UiNode::TreeRoot(root) => {
                     stack.extend_from_slice(root.items());
                 }
-                _ => unreachable!()
+                _ => unreachable!(),
             }
         }
         Handle::NONE

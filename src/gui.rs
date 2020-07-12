@@ -1,51 +1,39 @@
-use crate::{
-    asset::AssetItem,
-    world_outliner::SceneItem
-};
-use std::ops::{
-    Deref,
-    DerefMut
-};
+use crate::{asset::AssetItem, world_outliner::SceneItem};
+use std::ops::{Deref, DerefMut};
 
 use rg3d::{
-    core::{
-        math::Rect,
-        math::vec2::Vec2,
-        pool::Handle,
-    },
+    core::{math::vec2::Vec2, math::Rect, pool::Handle},
     gui::{
-        Control,
-        message::{
-            UiMessageData,
-            OsEvent,
-        },
         draw::DrawingContext,
-        NodeHandleMapping,
+        message::{OsEvent, UiMessageData},
+        Control, NodeHandleMapping,
     },
 };
 
 #[derive(Debug)]
 pub enum AssetItemMessage {
-    Select(bool)
+    Select(bool),
 }
 
 #[derive(Debug)]
 pub enum SceneItemMessage {
-    NodeVisibility(bool)
+    NodeVisibility(bool),
 }
 
 #[derive(Debug)]
 pub enum EditorUiMessage {
     AssetItem(AssetItemMessage),
-    SceneItem(SceneItemMessage)
+    SceneItem(SceneItemMessage),
 }
 
 impl SceneItemMessage {
     pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
         UiMessage {
             handled: false,
-            data: UiMessageData::User(EditorUiMessage::SceneItem(SceneItemMessage::NodeVisibility(visibility))),
-            destination
+            data: UiMessageData::User(EditorUiMessage::SceneItem(
+                SceneItemMessage::NodeVisibility(visibility),
+            )),
+            destination,
         }
     }
 }
@@ -55,7 +43,7 @@ impl AssetItemMessage {
         UiMessage {
             handled: false,
             data: UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(select))),
-            destination
+            destination,
         }
     }
 }
@@ -70,7 +58,7 @@ pub type UiWidgetBuilder = rg3d::gui::widget::WidgetBuilder<EditorUiMessage, Edi
 #[derive(Debug)]
 pub enum EditorUiNode {
     AssetItem(AssetItem),
-    SceneItem(SceneItem)
+    SceneItem(SceneItem),
 }
 
 macro_rules! static_dispatch {
@@ -86,9 +74,9 @@ macro_rules! static_dispatch_deref {
     ($self:ident) => {
         match $self {
             EditorUiNode::AssetItem(v) => v,
-            EditorUiNode::SceneItem(v) => v
+            EditorUiNode::SceneItem(v) => v,
         }
-    }
+    };
 }
 
 impl Deref for EditorUiNode {
@@ -154,4 +142,3 @@ impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
         static_dispatch!(self, remove_ref, handle)
     }
 }
-

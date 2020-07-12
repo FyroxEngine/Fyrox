@@ -1,22 +1,12 @@
+use crate::{command::Command, Message};
 use rg3d::{
-    scene::{
-        node::Node,
-        Scene,
-        graph::Graph,
-    },
     core::{
+        math::{quat::Quat, vec3::Vec3},
         pool::{Handle, Ticket},
-        math::{
-            vec3::Vec3,
-            quat::Quat,
-        },
     },
+    scene::{graph::Graph, node::Node, Scene},
 };
 use std::sync::mpsc::Sender;
-use crate::{
-    Message,
-    command::Command,
-};
 
 pub struct EditorScene {
     pub scene: Handle<Scene>,
@@ -38,7 +28,7 @@ pub enum SceneCommand {
 }
 
 pub struct MutRefLt<'a, T: 'a> {
-    field: &'a mut T
+    field: &'a mut T,
 }
 
 pub struct SceneContext<'a> {
@@ -154,14 +144,20 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         let new_selection = self.swap();
         if new_selection != context.current_selection {
-            context.message_sender.send(Message::SetSelection(new_selection)).unwrap();
+            context
+                .message_sender
+                .send(Message::SetSelection(new_selection))
+                .unwrap();
         }
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let new_selection = self.swap();
         if new_selection != context.current_selection {
-            context.message_sender.send(Message::SetSelection(new_selection)).unwrap();
+            context
+                .message_sender
+                .send(Message::SetSelection(new_selection))
+                .unwrap();
         }
     }
 }
@@ -189,7 +185,9 @@ impl MoveNodeCommand {
     }
 
     fn set_position(&self, graph: &mut Graph, position: Vec3) {
-        graph[self.node].local_transform_mut().set_position(position);
+        graph[self.node]
+            .local_transform_mut()
+            .set_position(position);
     }
 }
 
@@ -271,7 +269,9 @@ impl RotateNodeCommand {
     }
 
     fn set_scale(&self, graph: &mut Graph, rotation: Quat) {
-        graph[self.node].local_transform_mut().set_rotation(rotation);
+        graph[self.node]
+            .local_transform_mut()
+            .set_rotation(rotation);
     }
 }
 
@@ -297,10 +297,7 @@ pub struct LinkNodesCommand {
 
 impl LinkNodesCommand {
     pub fn new(child: Handle<Node>, parent: Handle<Node>) -> Self {
-        Self {
-            child,
-            parent,
-        }
+        Self { child, parent }
     }
 
     fn link(&mut self, graph: &mut Graph) {
@@ -349,7 +346,9 @@ impl<'a> Command<'a> for DeleteNodeCommand {
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        self.handle = context.graph.put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
+        self.handle = context
+            .graph
+            .put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
