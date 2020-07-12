@@ -30,6 +30,7 @@ use crate::{
     window::WindowTitle,
     dock::TileContent
 };
+use crate::draw::Texture;
 
 #[derive(Debug)]
 pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
@@ -366,6 +367,30 @@ pub enum TextMessage {
     HorizontalAlignment(HorizontalAlignment),
 }
 
+#[derive(Debug)]
+pub enum ImageMessage {
+    Texture(Arc<Texture>),
+    Flip(bool)
+}
+
+impl ImageMessage {
+    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: ImageMessage) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::Image(msg),
+            destination,
+        }
+    }
+
+    pub fn texture<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: Arc<Texture>) -> UiMessage<M, C> {
+        Self::make(destination, ImageMessage::Texture(value))
+    }
+
+    pub fn flip<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: bool) -> UiMessage<M, C> {
+        Self::make(destination, ImageMessage::Flip(value))
+    }
+}
+
 impl TextMessage {
     fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: TextMessage) -> UiMessage<M, C> {
         UiMessage {
@@ -533,6 +558,7 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     ScrollPanel(ScrollPanelMessage),
     Tile(TileMessage<M, C>),
     ProgressBar(ProgressBarMessage),
+    Image(ImageMessage),
     User(M),
 }
 

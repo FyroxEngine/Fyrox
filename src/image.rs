@@ -1,12 +1,12 @@
 use std::{
     sync::Arc,
-    ops::{Deref, DerefMut}
+    ops::{Deref, DerefMut},
 };
 use crate::{
     brush::Brush,
     core::{
         pool::Handle,
-        color::Color
+        color::Color,
     },
     UINode,
     draw::{
@@ -15,20 +15,21 @@ use crate::{
     },
     widget::{
         WidgetBuilder,
-        Widget
+        Widget,
     },
     Control,
     draw::{Texture, CommandTexture},
     UserInterface,
     message::UiMessage,
     BuildContext,
-    core::math::vec2::Vec2
+    core::math::vec2::Vec2,
 };
+use crate::message::{UiMessageData, ImageMessage};
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     texture: Option<Arc<Texture>>,
-    flip: bool
+    flip: bool,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for Image<M, C> {
@@ -50,7 +51,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Image<M, C> {
         Self {
             widget,
             texture: None,
-            flip: false
+            flip: false,
         }
     }
 
@@ -64,7 +65,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Image<M, C> {
         Self {
             widget: self.widget.raw_copy(),
             texture: self.texture.clone(),
-            flip: false
+            flip: false,
         }
     }
 }
@@ -95,13 +96,26 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.widget.handle_routed_message(ui, message);
+
+        if message.destination == self.handle {
+            if let UiMessageData::Image(msg) = &message.data {
+                match msg {
+                    ImageMessage::Texture(tex) => {
+                        self.texture = Some(tex.clone());
+                    },
+                    &ImageMessage::Flip(flip) => {
+                        self.flip = flip;
+                    },
+                }
+            }
+        }
     }
 }
 
 pub struct ImageBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     texture: Option<Arc<Texture>>,
-    flip: bool
+    flip: bool,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> ImageBuilder<M, C> {
@@ -109,7 +123,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         Self {
             widget_builder,
             texture: None,
-            flip: false
+            flip: false,
         }
     }
 
@@ -136,7 +150,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ImageBuilder<M, C> {
         let image = Image {
             widget: self.widget_builder.build(),
             texture: self.texture,
-            flip: self.flip
+            flip: self.flip,
         };
         UINode::Image(image)
     }
