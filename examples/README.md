@@ -71,14 +71,20 @@ This example shows how to use user interface system of engine. It is based on si
 
 ![Example 04](screenshots/ui.png?raw=true "Example 04")
 
-## Example 05 - Save/load
+## Example 05 - Scene
+
+This example shows how to load simple scene made in [rusty-editor](https://github.com/mrDIMAS/rusty-editor)
+
+![Example 05](screenshots/scene.png?raw=true "Example 05")
+
+## Example 06 - Save/load
 
 - TODO
 
-## Example 06 - Sound
+## Example 07 - Sound
 
 - TODO
 
-## Example 07 - Simple game
+## Example 08 - Simple game
 
 - TODO

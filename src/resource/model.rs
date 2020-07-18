@@ -1,24 +1,17 @@
 use crate::{
-    scene::{
-        Scene,
-        node::Node,
-    },
     animation::Animation,
-    resource::{fbx, fbx::error::FbxError},
-    engine::resource_manager::ResourceManager,
     core::{
         pool::Handle,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    utils::log::Log
+    engine::resource_manager::ResourceManager,
+    resource::{fbx, fbx::error::FbxError},
+    scene::{node::Node, Scene},
+    utils::log::Log,
 };
 use std::{
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        Mutex,
-        Weak
-    }
+    sync::{Arc, Mutex, Weak},
 };
 
 /// Model is an isolated scene that is used to create copies of its data - this
@@ -81,13 +74,64 @@ fn upgrade_self_weak_ref(self_weak_ref: &Option<Weak<Mutex<Model>>>) -> Arc<Mute
         .expect("Model self weak ref must be valid!")
 }
 
+#[derive(Debug)]
+pub enum ModelLoadError {
+    Visit(VisitError),
+    Generic(String),
+    Fbx(FbxError),
+}
+
+impl From<FbxError> for ModelLoadError {
+    fn from(fbx: FbxError) -> Self {
+        ModelLoadError::Fbx(fbx)
+    }
+}
+
+impl From<VisitError> for ModelLoadError {
+    fn from(e: VisitError) -> Self {
+        ModelLoadError::Visit(e)
+    }
+}
+
 impl Model {
-    pub(in crate) fn load<P: AsRef<Path>>(path: P, resource_manager: &mut ResourceManager) -> Result<Model, FbxError> {
-        let mut scene = Scene::new();
-        fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
+    pub(in crate) fn load<P: AsRef<Path>>(
+        path: P,
+        resource_manager: &mut ResourceManager,
+    ) -> Result<Model, ModelLoadError> {
+        let extension = path
+            .as_ref()
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .as_ref()
+            .to_lowercase();
+        let scene = match extension.as_ref() {
+            "fbx" => {
+                let mut scene = Scene::new();
+                fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
+                scene
+            }
+            // Scene can be used directly as model resource. Such scenes can be created from
+            // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
+            "rgs" => {
+                // Just try to deserialize scene from file.
+                let mut scene = Scene::default();
+                let mut visitor = Visitor::load_binary(path.as_ref())?;
+                scene.visit("Scene", &mut visitor)?;
+                scene
+            }
+            // TODO: Add more formats.
+            _ => {
+                return Err(ModelLoadError::Generic(format!(
+                    "Unsupported model resource format: {}",
+                    extension
+                )))
+            }
+        };
+
         Ok(Model {
             self_weak_ref: None,
-            path: path.as_ref().to_path_buf(),
+            path: path.as_ref().to_owned(),
             scene,
         })
     }
@@ -95,7 +139,11 @@ impl Model {
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let (root, _) = self.scene.graph.copy_node(self.scene.graph.get_root(), &mut dest_scene.graph, &mut |_,_| true);
+        let (root, _) = self.scene.graph.copy_node(
+            self.scene.graph.get_root(),
+            &mut dest_scene.graph,
+            &mut |_, _| true,
+        );
         dest_scene.graph[root].is_resource_instance = true;
 
         // Notify instantiated nodes about resource they were created from.
@@ -144,7 +192,11 @@ impl Model {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    pub fn retarget_animations(&self, root: Handle<Node>, dest_scene: &mut Scene) -> Vec<Handle<Animation>> {
+    pub fn retarget_animations(
+        &self,
+        root: Handle<Node>,
+        dest_scene: &mut Scene,
+    ) -> Vec<Handle<Animation>> {
         let mut animation_handles = Vec::new();
 
         for ref_anim in self.scene.animations.iter() {
@@ -162,7 +214,11 @@ impl Model {
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = dest_scene.graph.find_by_name(root, ref_node.name());
                 if instance_node.is_none() {
-                    Log::writeln(format!("Failed to retarget animation {:?} for node {}", self.path, ref_node.name()));
+                    Log::writeln(format!(
+                        "Failed to retarget animation {:?} for node {}",
+                        self.path,
+                        ref_node.name()
+                    ));
                 }
                 // One-to-one track mapping so there is [i] indexing.
                 anim_copy.get_tracks_mut()[i].set_node(instance_node);

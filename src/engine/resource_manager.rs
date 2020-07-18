@@ -1,21 +1,15 @@
-use std::{
-    path::{PathBuf, Path},
-    sync::{Arc, Mutex},
-    time,
-};
 use crate::{
-    sound::buffer::{SoundBuffer, DataSource},
-    core::{
-        visitor::{Visitor, VisitResult, Visit}
-    },
-    resource::{
-        texture::Texture,
-        model::Model,
-        texture::TextureKind,
-    },
+    core::visitor::{Visit, VisitResult, Visitor},
+    resource::{model::Model, texture::Texture, texture::TextureKind},
+    sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
 };
 use std::ops::{Deref, DerefMut};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+    time,
+};
 
 /// Resource container with fixed TTL (time-to-live). Resource will be removed
 /// (and unloaded) if there were no other strong references to it in given time
@@ -39,7 +33,10 @@ impl<T> DerefMut for TimedEntry<T> {
     }
 }
 
-impl<T> Default for TimedEntry<T> where T: Default {
+impl<T> Default for TimedEntry<T>
+where
+    T: Default,
+{
     fn default() -> Self {
         Self {
             value: Default::default(),
@@ -48,7 +45,10 @@ impl<T> Default for TimedEntry<T> where T: Default {
     }
 }
 
-impl<T> Clone for TimedEntry<T> where T: Clone {
+impl<T> Clone for TimedEntry<T>
+where
+    T: Clone,
+{
     fn clone(&self) -> Self {
         Self {
             value: self.value.clone(),
@@ -57,7 +57,10 @@ impl<T> Clone for TimedEntry<T> where T: Clone {
     }
 }
 
-impl<T> Visit for TimedEntry<T> where T: Default + Visit {
+impl<T> Visit for TimedEntry<T>
+where
+    T: Default + Visit,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -98,7 +101,11 @@ impl ResourceManager {
     /// be not loaded, you should check is_loaded flag to ensure.
     ///
     /// It extensively used in model loader to speed up loading.
-    pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> SharedTexture {
+    pub fn request_texture_async<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        kind: TextureKind,
+    ) -> SharedTexture {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return texture;
         }
@@ -117,7 +124,11 @@ impl ResourceManager {
                 match Texture::load_from_file(&path, kind) {
                     Ok(raw_texture) => {
                         *texture = raw_texture;
-                        Log::writeln(format!("Texture {:?} is loaded in {:?}!", path, time.elapsed()));
+                        Log::writeln(format!(
+                            "Texture {:?} is loaded in {:?}!",
+                            path,
+                            time.elapsed()
+                        ));
                     }
                     Err(e) => {
                         Log::writeln(format!("Unable to load texture {:?}! Reason {}", path, e));
@@ -129,7 +140,11 @@ impl ResourceManager {
         result
     }
 
-    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P, kind: TextureKind) -> Option<SharedTexture> {
+    pub fn request_texture<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        kind: TextureKind,
+    ) -> Option<SharedTexture> {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return Some(texture);
         }
@@ -145,7 +160,11 @@ impl ResourceManager {
                 Some(shared_texture)
             }
             Err(e) => {
-                Log::writeln(format!("Unable to load texture {}! Reason {}", path.as_ref().display(), e));
+                Log::writeln(format!(
+                    "Unable to load texture {}! Reason {}",
+                    path.as_ref().display(),
+                    e
+                ));
                 None
             }
         }
@@ -168,13 +187,21 @@ impl ResourceManager {
                 Some(model)
             }
             Err(e) => {
-                Log::writeln(format!("Unable to load model from {}! Reason {}", path.as_ref().display(), e));
+                Log::writeln(format!(
+                    "Unable to load model from {:?}! Reason {:?}",
+                    path.as_ref(),
+                    e
+                ));
                 None
             }
         }
     }
 
-    pub fn request_sound_buffer<P: AsRef<Path>>(&mut self, path: P, stream: bool) -> Option<SharedSoundBuffer> {
+    pub fn request_sound_buffer<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+        stream: bool,
+    ) -> Option<SharedSoundBuffer> {
         if let Some(sound_buffer) = self.find_sound_buffer(path.as_ref()) {
             return Some(sound_buffer);
         }
@@ -192,11 +219,17 @@ impl ResourceManager {
                             value: sound_buffer.clone(),
                             time_to_live: Self::MAX_RESOURCE_TTL,
                         });
-                        Log::writeln(format!("Sound buffer {} is loaded!", path.as_ref().display()));
+                        Log::writeln(format!(
+                            "Sound buffer {} is loaded!",
+                            path.as_ref().display()
+                        ));
                         Some(sound_buffer)
                     }
                     Err(_) => {
-                        Log::writeln(format!("Unable to load sound buffer from {}!", path.as_ref().display()));
+                        Log::writeln(format!(
+                            "Unable to load sound buffer from {}!",
+                            path.as_ref().display()
+                        ));
                         None
                     }
                 }
@@ -272,7 +305,10 @@ impl ResourceManager {
         self.textures.retain(|texture| {
             let retain = texture.time_to_live > 0.0;
             if !retain && texture.lock().unwrap().path.exists() {
-                Log::writeln(format!("Texture resource {:?} destroyed because it not used anymore!", texture.lock().unwrap().path));
+                Log::writeln(format!(
+                    "Texture resource {:?} destroyed because it not used anymore!",
+                    texture.lock().unwrap().path
+                ));
             }
             retain
         });
@@ -288,7 +324,10 @@ impl ResourceManager {
         self.models.retain(|model| {
             let retain = model.time_to_live > 0.0;
             if !retain && model.lock().unwrap().path.exists() {
-                Log::writeln(format!("Model resource {:?} destroyed because it not used anymore!", model.lock().unwrap().path.exists()));
+                Log::writeln(format!(
+                    "Model resource {:?} destroyed because it not used anymore!",
+                    model.lock().unwrap().path.exists()
+                ));
             }
             retain
         });
@@ -305,7 +344,10 @@ impl ResourceManager {
             let retain = buffer.time_to_live > 0.0;
             if !retain {
                 if let Some(path) = buffer.lock().unwrap().external_data_path().as_ref() {
-                    Log::writeln(format!("Sound resource {:?} destroyed because it not used anymore!", path));
+                    Log::writeln(format!(
+                        "Sound resource {:?} destroyed because it not used anymore!",
+                        path
+                    ));
                 }
             }
             retain
@@ -321,13 +363,17 @@ impl ResourceManager {
     fn reload_textures(&mut self) {
         for old_texture in self.textures.iter() {
             let mut old_texture = old_texture.lock().unwrap();
-            let new_texture = match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
-                Ok(texture) => texture,
-                Err(e) => {
-                    Log::writeln(format!("Unable to reload {:?} texture! Reason: {}", old_texture.path, e));
-                    continue;
-                }
-            };
+            let new_texture =
+                match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
+                    Ok(texture) => texture,
+                    Err(e) => {
+                        Log::writeln(format!(
+                            "Unable to reload {:?} texture! Reason: {}",
+                            old_texture.path, e
+                        ));
+                        continue;
+                    }
+                };
             old_texture.path = Default::default();
             *old_texture = new_texture;
         }
@@ -340,7 +386,10 @@ impl ResourceManager {
             let mut new_model = match Model::load(old_model.path.as_path(), self) {
                 Ok(new_model) => new_model,
                 Err(e) => {
-                    Log::writeln(format!("Unable to reload {:?} model! Reason: {}", old_model.path, e));
+                    Log::writeln(format!(
+                        "Unable to reload {:?} model! Reason: {:?}",
+                        old_model.path, e
+                    ));
                     continue;
                 }
             };
