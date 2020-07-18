@@ -641,7 +641,7 @@ impl Visitor {
         Ok(handle)
     }
 
-    pub fn load_binary(path: &Path) -> Result<Self, VisitError> {
+    pub fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
         let mut reader = BufReader::new(File::open(path)?);
         let mut magic: [u8; 4] = Default::default();
         reader.read_exact(&mut magic)?;
