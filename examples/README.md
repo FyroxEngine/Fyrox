@@ -5,7 +5,7 @@ It is better to run examples with `--release` flag, because Debug version is too
 
 ## How to build
 
-Make sure you have latest `rg3d` dependecies near `rg3d` crate: this is needed because engine split into multiple crates which are decoupled from each other. You need to get `rg3d-ui` `rg3d-sound` `rg3d-core` and `rg3d-physics` crates. So typical build script can be:
+Make sure you have latest `rg3d` dependencies near `rg3d` crate: this is needed because engine split into multiple crates which are decoupled from each other. You need to get `rg3d-ui` `rg3d-sound` `rg3d-core` and `rg3d-physics` crates. So typical build script can be:
 
 ```
 git clone https://github.com/mrDIMAS/rg3d
