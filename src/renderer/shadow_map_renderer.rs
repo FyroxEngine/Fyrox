@@ -1,55 +1,27 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
 use crate::{
-    scene::{
-        node::Node,
-        graph::Graph,
-    },
     core::{
-        scope_profile,
-        math::{
-            mat4::Mat4,
-            vec3::Vec3,
-            frustum::Frustum,
-            Rect,
-        },
         color::Color,
+        math::{frustum::Frustum, mat4::Mat4, vec3::Vec3, Rect},
+        scope_profile,
     },
     renderer::{
+        error::RendererError,
         framework::{
             framebuffer::{
-                DrawParameters,
-                CullFace,
-                FrameBufferTrait,
-                FrameBuffer,
-                Attachment,
-                AttachmentKind,
+                Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
             },
-            gpu_program::{
-                UniformValue,
-                GpuProgram,
-                UniformLocation,
-            },
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{
-                GpuTextureKind,
-                PixelKind,
-                MagnificationFilter,
-                MininificationFilter,
-                Coordinate,
-                WrapMode,
-                CubeMapFace,
-                GpuTexture,
+                Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
+                MininificationFilter, PixelKind, WrapMode,
             },
-            state::{State, ColorMask},
+            state::{ColorMask, State},
         },
-        TextureCache,
-        GeometryCache,
-        RenderPassStatistics,
-        error::RendererError,
+        GeometryCache, RenderPassStatistics, TextureCache,
     },
+    scene::{graph::Graph, node::Node},
 };
+use std::{cell::RefCell, rc::Rc};
 
 struct SpotShadowMapShader {
     program: GpuProgram,
@@ -63,7 +35,8 @@ impl SpotShadowMapShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/spot_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/spot_shadow_map_vs.glsl");
-        let program = GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source("SpotShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
             bone_matrices: program.uniform_location("boneMatrices")?,
             world_view_projection_matrix: program.uniform_location("worldViewProjection")?,
@@ -85,9 +58,13 @@ pub struct SpotShadowMapRenderer {
 impl SpotShadowMapRenderer {
     pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
         let depth = {
-            let kind = GpuTextureKind::Rectangle { width: size, height: size };
+            let kind = GpuTextureKind::Rectangle {
+                width: size,
+                height: size,
+            };
             let mut texture = GpuTexture::new(state, kind, PixelKind::D32, None)?;
-            texture.bind_mut(state, 0)
+            texture
+                .bind_mut(state, 0)
                 .set_magnification_filter(MagnificationFilter::Linear)
                 .set_minification_filter(MininificationFilter::Linear)
                 .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
@@ -102,7 +79,8 @@ impl SpotShadowMapRenderer {
                 kind: AttachmentKind::Depth,
                 texture: Rc::new(RefCell::new(depth)),
             }),
-            vec![])?;
+            vec![],
+        )?;
 
         Ok(Self {
             size,
@@ -116,13 +94,14 @@ impl SpotShadowMapRenderer {
         self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
-    pub fn render(&mut self,
-                  state: &mut State,
-                  graph: &Graph,
-                  light_view_projection: &Mat4,
-                  white_dummy: Rc<RefCell<GpuTexture>>,
-                  textures: &mut TextureCache,
-                  geom_map: &mut GeometryCache,
+    pub fn render(
+        &mut self,
+        state: &mut State,
+        graph: &Graph,
+        light_view_projection: &Mat4,
+        white_dummy: Rc<RefCell<GpuTexture>>,
+        textures: &mut TextureCache,
+        geom_map: &mut GeometryCache,
     ) -> RenderPassStatistics {
         scope_profile!();
 
@@ -130,7 +109,8 @@ impl SpotShadowMapRenderer {
 
         let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
 
-        self.framebuffer.clear(state, viewport, None, Some(1.0), None);
+        self.framebuffer
+            .clear(state, viewport, None, Some(1.0), None);
         let frustum = Frustum::from(*light_view_projection).unwrap();
 
         for node in graph.linear_iter() {
@@ -180,24 +160,37 @@ impl SpotShadowMapRenderer {
                             blend: false,
                         },
                         &[
-                            (self.shader.world_view_projection_matrix, UniformValue::Mat4(mvp)),
-                            (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
-                            (self.shader.bone_matrices, UniformValue::Mat4Array({
-                                self.bone_matrices.clear();
+                            (
+                                self.shader.world_view_projection_matrix,
+                                UniformValue::Mat4(mvp),
+                            ),
+                            (
+                                self.shader.use_skeletal_animation,
+                                UniformValue::Bool(is_skinned),
+                            ),
+                            (
+                                self.shader.bone_matrices,
+                                UniformValue::Mat4Array({
+                                    self.bone_matrices.clear();
 
-                                for &bone_handle in surface.bones.iter() {
-                                    let bone = &graph[bone_handle];
-                                    self.bone_matrices.push(
-                                        bone.global_transform() *
-                                            bone.inv_bind_pose_transform());
-                                }
+                                    for &bone_handle in surface.bones.iter() {
+                                        let bone = &graph[bone_handle];
+                                        self.bone_matrices.push(
+                                            bone.global_transform()
+                                                * bone.inv_bind_pose_transform(),
+                                        );
+                                    }
 
-                                &self.bone_matrices
-                            })),
-                            (self.shader.diffuse_texture, UniformValue::Sampler {
-                                index: 0,
-                                texture: diffuse_texture,
-                            })
+                                    &self.bone_matrices
+                                }),
+                            ),
+                            (
+                                self.shader.diffuse_texture,
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: diffuse_texture,
+                                },
+                            ),
                         ],
                     );
                 }
@@ -222,7 +215,8 @@ impl PointShadowMapShader {
     pub fn new() -> Result<Self, RendererError> {
         let fragment_source = include_str!("shaders/point_shadow_map_fs.glsl");
         let vertex_source = include_str!("shaders/point_shadow_map_vs.glsl");
-        let program = GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
+        let program =
+            GpuProgram::from_source("PointShadowMapShader", vertex_source, fragment_source)?;
         Ok(Self {
             world_matrix: program.uniform_location("worldMatrix")?,
             bone_matrices: program.uniform_location("boneMatrices")?,
@@ -262,41 +256,93 @@ impl PointShadowMapRenderer {
     const FACES: [PointShadowCubeMapFace; 6] = [
         PointShadowCubeMapFace {
             face: CubeMapFace::PositiveX,
-            look: Vec3 { x: 1.0, y: 0.0, z: 0.0 },
-            up: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+            look: Vec3 {
+                x: 1.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            up: Vec3 {
+                x: 0.0,
+                y: -1.0,
+                z: 0.0,
+            },
         },
         PointShadowCubeMapFace {
             face: CubeMapFace::NegativeX,
-            look: Vec3 { x: -1.0, y: 0.0, z: 0.0 },
-            up: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+            look: Vec3 {
+                x: -1.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            up: Vec3 {
+                x: 0.0,
+                y: -1.0,
+                z: 0.0,
+            },
         },
         PointShadowCubeMapFace {
             face: CubeMapFace::PositiveY,
-            look: Vec3 { x: 0.0, y: 1.0, z: 0.0 },
-            up: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+            look: Vec3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
+            },
+            up: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
         },
         PointShadowCubeMapFace {
             face: CubeMapFace::NegativeY,
-            look: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
-            up: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
+            look: Vec3 {
+                x: 0.0,
+                y: -1.0,
+                z: 0.0,
+            },
+            up: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: -1.0,
+            },
         },
         PointShadowCubeMapFace {
             face: CubeMapFace::PositiveZ,
-            look: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
-            up: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+            look: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: 1.0,
+            },
+            up: Vec3 {
+                x: 0.0,
+                y: -1.0,
+                z: 0.0,
+            },
         },
         PointShadowCubeMapFace {
             face: CubeMapFace::NegativeZ,
-            look: Vec3 { x: 0.0, y: 0.0, z: -1.0 },
-            up: Vec3 { x: 0.0, y: -1.0, z: 0.0 },
+            look: Vec3 {
+                x: 0.0,
+                y: 0.0,
+                z: -1.0,
+            },
+            up: Vec3 {
+                x: 0.0,
+                y: -1.0,
+                z: 0.0,
+            },
         },
     ];
 
     pub fn new(state: &mut State, size: usize) -> Result<PointShadowMapRenderer, RendererError> {
         let depth = {
-            let kind = GpuTextureKind::Rectangle { width: size, height: size };
+            let kind = GpuTextureKind::Rectangle {
+                width: size,
+                height: size,
+            };
             let mut texture = GpuTexture::new(state, kind, PixelKind::D32, None)?;
-            texture.bind_mut(state, 0)
+            texture
+                .bind_mut(state, 0)
                 .set_minification_filter(MininificationFilter::Nearest)
                 .set_magnification_filter(MagnificationFilter::Nearest)
                 .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
@@ -305,9 +351,13 @@ impl PointShadowMapRenderer {
         };
 
         let cube_map = {
-            let kind = GpuTextureKind::Cube { width: size, height: size };
+            let kind = GpuTextureKind::Cube {
+                width: size,
+                height: size,
+            };
             let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
-            texture.bind_mut(state, 0)
+            texture
+                .bind_mut(state, 0)
                 .set_minification_filter(MininificationFilter::Linear)
                 .set_magnification_filter(MagnificationFilter::Linear)
                 .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
@@ -322,12 +372,11 @@ impl PointShadowMapRenderer {
                 kind: AttachmentKind::Depth,
                 texture: Rc::new(RefCell::new(depth)),
             }),
-            vec![
-                Attachment {
-                    kind: AttachmentKind::Color,
-                    texture: Rc::new(RefCell::new(cube_map)),
-                }
-            ])?;
+            vec![Attachment {
+                kind: AttachmentKind::Color,
+                texture: Rc::new(RefCell::new(cube_map)),
+            }],
+        )?;
 
         Ok(Self {
             framebuffer,
@@ -347,13 +396,19 @@ impl PointShadowMapRenderer {
         let mut statistics = RenderPassStatistics::default();
 
         let PointShadowMapRenderContext {
-            state, graph, white_dummy
-            , light_pos, light_radius, texture_cache, geom_cache
+            state,
+            graph,
+            white_dummy,
+            light_pos,
+            light_radius,
+            texture_cache,
+            geom_cache,
         } = args;
 
         let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
 
-        let light_projection_matrix = Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
+        let light_projection_matrix =
+            Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
 
         for face in Self::FACES.iter() {
             self.framebuffer
@@ -361,7 +416,8 @@ impl PointShadowMapRenderer {
                 .clear(state, viewport, Some(Color::WHITE), Some(1.0), None);
 
             let light_look_at = light_pos + face.look;
-            let light_view_matrix = Mat4::look_at(light_pos, light_look_at, face.up).unwrap_or_default();
+            let light_view_matrix =
+                Mat4::look_at(light_pos, light_look_at, face.up).unwrap_or_default();
             let light_view_projection_matrix = light_projection_matrix * light_view_matrix;
 
             let frustum = Frustum::from(light_view_projection_matrix).unwrap();
@@ -415,24 +471,37 @@ impl PointShadowMapRenderer {
                             &[
                                 (self.shader.light_position, UniformValue::Vec3(light_pos)),
                                 (self.shader.world_matrix, UniformValue::Mat4(world)),
-                                (self.shader.world_view_projection_matrix, UniformValue::Mat4(mvp)),
-                                (self.shader.use_skeletal_animation, UniformValue::Bool(is_skinned)),
-                                (self.shader.bone_matrices, UniformValue::Mat4Array({
-                                    self.bone_matrices.clear();
+                                (
+                                    self.shader.world_view_projection_matrix,
+                                    UniformValue::Mat4(mvp),
+                                ),
+                                (
+                                    self.shader.use_skeletal_animation,
+                                    UniformValue::Bool(is_skinned),
+                                ),
+                                (
+                                    self.shader.bone_matrices,
+                                    UniformValue::Mat4Array({
+                                        self.bone_matrices.clear();
 
-                                    for &bone_handle in surface.bones.iter() {
-                                        let bone = &graph[bone_handle];
-                                        self.bone_matrices.push(
-                                            bone.global_transform() *
-                                                bone.inv_bind_pose_transform());
-                                    }
+                                        for &bone_handle in surface.bones.iter() {
+                                            let bone = &graph[bone_handle];
+                                            self.bone_matrices.push(
+                                                bone.global_transform()
+                                                    * bone.inv_bind_pose_transform(),
+                                            );
+                                        }
 
-                                    &self.bone_matrices
-                                })),
-                                (self.shader.diffuse_texture, UniformValue::Sampler {
-                                    index: 0,
-                                    texture: diffuse_texture,
-                                })
+                                        &self.bone_matrices
+                                    }),
+                                ),
+                                (
+                                    self.shader.diffuse_texture,
+                                    UniformValue::Sampler {
+                                        index: 0,
+                                        texture: diffuse_texture,
+                                    },
+                                ),
                             ],
                         );
                     }

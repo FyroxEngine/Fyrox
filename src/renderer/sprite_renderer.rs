@@ -1,41 +1,20 @@
 use crate::{
-    scene::{
-        node::Node,
-        graph::Graph,
-        camera::Camera,
-    },
-    core::{
-        scope_profile,
-        math::Rect,
-    },
+    core::{math::Rect, scope_profile},
     renderer::{
-        TextureCache,
-        GeometryCache,
-        surface::SurfaceSharedData,
         error::RendererError,
         framework::{
-            gpu_texture::GpuTexture,
+            framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
             gl,
-            gpu_program::{
-                UniformValue,
-                GpuProgram,
-                UniformLocation,
-            },
-            framebuffer::{
-                FrameBuffer,
-                DrawParameters,
-                CullFace,
-                FrameBufferTrait,
-            },
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            gpu_texture::GpuTexture,
             state::State,
         },
-        RenderPassStatistics,
+        surface::SurfaceSharedData,
+        GeometryCache, RenderPassStatistics, TextureCache,
     },
+    scene::{camera::Camera, graph::Graph, node::Node},
 };
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
+use std::{cell::RefCell, rc::Rc};
 
 struct SpriteShader {
     program: GpuProgram,
@@ -101,9 +80,14 @@ impl SpriteRenderer {
         let mut statistics = RenderPassStatistics::default();
 
         let SpriteRenderContext {
-            state, framebuffer, graph,
-            camera, white_dummy, viewport,
-            textures, geom_map
+            state,
+            framebuffer,
+            graph,
+            camera,
+            white_dummy,
+            viewport,
+            textures,
+            geom_map,
         } = args;
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -145,17 +129,29 @@ impl SpriteRenderer {
                     blend: true,
                 },
                 &[
-                    (self.shader.diffuse_texture, UniformValue::Sampler {
-                        index: 0,
-                        texture: diffuse_texture,
-                    }),
-                    (self.shader.view_projection_matrix, UniformValue::Mat4(camera.view_projection_matrix())),
-                    (self.shader.world_matrix, UniformValue::Mat4(node.global_transform())),
+                    (
+                        self.shader.diffuse_texture,
+                        UniformValue::Sampler {
+                            index: 0,
+                            texture: diffuse_texture,
+                        },
+                    ),
+                    (
+                        self.shader.view_projection_matrix,
+                        UniformValue::Mat4(camera.view_projection_matrix()),
+                    ),
+                    (
+                        self.shader.world_matrix,
+                        UniformValue::Mat4(node.global_transform()),
+                    ),
                     (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
-                    (self.shader.camera_side_vector, UniformValue::Vec3(camera_side)),
+                    (
+                        self.shader.camera_side_vector,
+                        UniformValue::Vec3(camera_side),
+                    ),
                     (self.shader.size, UniformValue::Float(sprite.size())),
                     (self.shader.color, UniformValue::Color(sprite.color())),
-                    (self.shader.rotation, UniformValue::Float(sprite.rotation()))
+                    (self.shader.rotation, UniformValue::Float(sprite.rotation())),
                 ],
             );
         }

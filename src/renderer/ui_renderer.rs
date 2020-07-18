@@ -1,69 +1,36 @@
-use std::{
-    rc::Rc,
-    sync::{
-        Mutex,
-        Arc,
-    },
-    cell::RefCell,
-};
 use crate::{
-    renderer::{
-        RenderPassStatistics,
-        framework::{
-            gl,
-            geometry_buffer::{
-                ElementKind,
-                GeometryBuffer,
-                AttributeDefinition,
-                AttributeKind,
-                GeometryBufferKind,
-            },
-            gpu_texture::GpuTexture,
-            gpu_program::{
-                UniformValue,
-                GpuProgram,
-                UniformLocation,
-            },
-            state::{
-                State,
-                ColorMask,
-                StencilFunc,
-                StencilOp,
-            },
-            framebuffer::{
-                BackBuffer,
-                FrameBufferTrait,
-                DrawParameters,
-                CullFace,
-                DrawPartContext,
-            },
-        },
-        error::RendererError,
-        TextureCache,
+    core::{
+        color::Color,
+        math::{mat4::Mat4, vec2::Vec2, vec4::Vec4, Rect},
+        scope_profile,
     },
     gui::{
-        brush::Brush,
-        draw::{
-            DrawingContext,
-            CommandKind,
-            CommandTexture,
-        },
         self,
+        brush::Brush,
+        draw::{CommandKind, CommandTexture, DrawingContext},
     },
-    resource::texture::{
-        Texture,
-        TextureKind,
-    },
-    core::{
-        scope_profile,
-        math::{
-            Rect,
-            mat4::Mat4,
-            vec4::Vec4,
-            vec2::Vec2,
+    renderer::{
+        error::RendererError,
+        framework::{
+            framebuffer::{
+                BackBuffer, CullFace, DrawParameters, DrawPartContext, FrameBufferTrait,
+            },
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, ElementKind, GeometryBuffer, GeometryBufferKind,
+            },
+            gl,
+            gpu_program::{GpuProgram, UniformLocation, UniformValue},
+            gpu_texture::GpuTexture,
+            state::{ColorMask, State, StencilFunc, StencilOp},
         },
-        color::Color,
+        RenderPassStatistics, TextureCache,
     },
+    resource::texture::{Texture, TextureKind},
+};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
 };
 
 struct UiShader {
@@ -125,13 +92,19 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 
 impl UiRenderer {
     pub(in crate::renderer) fn new(state: &mut State) -> Result<Self, RendererError> {
-        let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
+        let geometry_buffer =
+            GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
 
-        geometry_buffer.bind(state)
-            .describe_attributes(vec![
-                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-                AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-            ])?;
+        geometry_buffer.bind(state).describe_attributes(vec![
+            AttributeDefinition {
+                kind: AttributeKind::Float2,
+                normalized: false,
+            },
+            AttributeDefinition {
+                kind: AttributeKind::Float2,
+                normalized: false,
+            },
+        ])?;
 
         Ok(Self {
             geometry_buffer,
@@ -139,13 +112,21 @@ impl UiRenderer {
         })
     }
 
-    pub(in crate::renderer) fn render(&mut self, args: UiRenderContext) -> Result<RenderPassStatistics, RendererError> {
+    pub(in crate::renderer) fn render(
+        &mut self,
+        args: UiRenderContext,
+    ) -> Result<RenderPassStatistics, RendererError> {
         scope_profile!();
 
         let UiRenderContext {
-            state, viewport, backbuffer,
-            frame_width, frame_height, drawing_context, white_dummy
-            , texture_cache
+            state,
+            viewport,
+            backbuffer,
+            frame_width,
+            frame_height,
+            drawing_context,
+            white_dummy,
+            texture_cache,
         } = args;
 
         let mut statistics = RenderPassStatistics::default();
@@ -158,8 +139,7 @@ impl UiRenderer {
             .set_triangles(drawing_context.get_triangles())
             .set_vertices(drawing_context.get_vertices());
 
-        let ortho = Mat4::ortho(0.0, frame_width, frame_height,
-                                0.0, -1.0, 1.0);
+        let ortho = Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
 
         for cmd in drawing_context.get_commands() {
             let mut diffuse_texture = white_dummy.clone();
@@ -171,27 +151,50 @@ impl UiRenderer {
                     if cmd.nesting == 1 {
                         backbuffer.clear(state, viewport, None, None, Some(0));
                     }
-                    state.set_stencil_op(StencilOp { zpass: gl::INCR, ..Default::default() });
+                    state.set_stencil_op(StencilOp {
+                        zpass: gl::INCR,
+                        ..Default::default()
+                    });
                     // Make sure that clipping rect will be drawn at previous nesting level only (clip to parent)
-                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.nesting - 1), ..Default::default() });
+                    state.set_stencil_func(StencilFunc {
+                        func: gl::EQUAL,
+                        ref_value: i32::from(cmd.nesting - 1),
+                        ..Default::default()
+                    });
                     // Draw clipping geometry to stencil buffers
                     state.set_stencil_mask(0xFF);
                     color_write = false;
                 }
                 CommandKind::Geometry => {
                     // Make sure to draw geometry only on clipping geometry with current nesting level
-                    state.set_stencil_func(StencilFunc { func: gl::EQUAL, ref_value: i32::from(cmd.nesting), ..Default::default() });
+                    state.set_stencil_func(StencilFunc {
+                        func: gl::EQUAL,
+                        ref_value: i32::from(cmd.nesting),
+                        ..Default::default()
+                    });
 
                     match &cmd.texture {
                         CommandTexture::Font(font_arc) => {
                             let mut font = font_arc.lock().unwrap();
                             if font.texture.is_none() {
                                 let size = font.get_atlas_size() as u32;
-                                if let Ok(tex) = Texture::from_bytes(size, size, TextureKind::R8, font.get_atlas_pixels().to_vec()) {
+                                if let Ok(tex) = Texture::from_bytes(
+                                    size,
+                                    size,
+                                    TextureKind::R8,
+                                    font.get_atlas_pixels().to_vec(),
+                                ) {
                                     font.texture = Some(Arc::new(Mutex::new(tex)));
                                 }
                             }
-                            if let Some(texture) = texture_cache.get(state, font.texture.clone().unwrap().downcast::<Mutex<Texture>>().unwrap()) {
+                            if let Some(texture) = texture_cache.get(
+                                state,
+                                font.texture
+                                    .clone()
+                                    .unwrap()
+                                    .downcast::<Mutex<Texture>>()
+                                    .unwrap(),
+                            ) {
                                 diffuse_texture = texture;
                             }
                             is_font_texture = true;
@@ -203,7 +206,7 @@ impl UiRenderer {
                                 }
                             }
                         }
-                        _ => ()
+                        _ => (),
                     }
 
                     // Do not draw geometry to stencil buffer
@@ -215,67 +218,100 @@ impl UiRenderer {
             let mut raw_colors = [Vec4::default(); 16];
 
             let uniforms = [
-                (self.shader.diffuse_texture, UniformValue::Sampler { index: 0, texture: diffuse_texture }),
+                (
+                    self.shader.diffuse_texture,
+                    UniformValue::Sampler {
+                        index: 0,
+                        texture: diffuse_texture,
+                    },
+                ),
                 (self.shader.wvp_matrix, UniformValue::Mat4(ortho)),
-                (self.shader.resolution, UniformValue::Vec2(Vec2::new(frame_width, frame_height))),
+                (
+                    self.shader.resolution,
+                    UniformValue::Vec2(Vec2::new(frame_width, frame_height)),
+                ),
                 (self.shader.bounds_min, UniformValue::Vec2(cmd.bounds.min)),
                 (self.shader.bounds_max, UniformValue::Vec2(cmd.bounds.max)),
                 (self.shader.is_font, UniformValue::Bool(is_font_texture)),
-                (self.shader.brush_type, UniformValue::Integer({
-                    match cmd.brush {
-                        Brush::Solid(_) => 0,
-                        Brush::LinearGradient { .. } => 1,
-                        Brush::RadialGradient { .. } => 2,
-                    }
-                })),
-                (self.shader.solid_color, UniformValue::Color({
-                    match cmd.brush {
-                        Brush::Solid(color) => color,
-                        _ => Color::WHITE,
-                    }
-                })),
-                (self.shader.gradient_origin, UniformValue::Vec2({
-                    match cmd.brush {
-                        Brush::Solid(_) => Vec2::ZERO,
-                        Brush::LinearGradient { from, .. } => from,
-                        Brush::RadialGradient { center, .. } => center,
-                    }
-                })),
-                (self.shader.gradient_end, UniformValue::Vec2({
-                    match cmd.brush {
-                        Brush::Solid(_) => Vec2::ZERO,
-                        Brush::LinearGradient { to, .. } => to,
-                        Brush::RadialGradient { .. } => Vec2::ZERO,
-                    }
-                })),
-                (self.shader.gradient_point_count, UniformValue::Integer({
-                    match &cmd.brush {
-                        Brush::Solid(_) => 0,
-                        Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => stops.len() as i32,
-                    }
-                })),
-                (self.shader.gradient_stops, UniformValue::FloatArray({
-                    match &cmd.brush {
-                        Brush::Solid(_) => &[],
-                        Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => {
-                            for (i, point) in stops.iter().enumerate() {
-                                raw_stops[i] = point.stop;
-                            }
-                            &raw_stops
+                (
+                    self.shader.brush_type,
+                    UniformValue::Integer({
+                        match cmd.brush {
+                            Brush::Solid(_) => 0,
+                            Brush::LinearGradient { .. } => 1,
+                            Brush::RadialGradient { .. } => 2,
                         }
-                    }
-                })),
-                (self.shader.gradient_colors, UniformValue::Vec4Array({
-                    match &cmd.brush {
-                        Brush::Solid(_) => &[],
-                        Brush::LinearGradient { stops, .. } | Brush::RadialGradient { stops, .. } => {
-                            for (i, point) in stops.iter().enumerate() {
-                                raw_colors[i] = point.color.as_frgba();
-                            }
-                            &raw_colors
+                    }),
+                ),
+                (
+                    self.shader.solid_color,
+                    UniformValue::Color({
+                        match cmd.brush {
+                            Brush::Solid(color) => color,
+                            _ => Color::WHITE,
                         }
-                    }
-                }))
+                    }),
+                ),
+                (
+                    self.shader.gradient_origin,
+                    UniformValue::Vec2({
+                        match cmd.brush {
+                            Brush::Solid(_) => Vec2::ZERO,
+                            Brush::LinearGradient { from, .. } => from,
+                            Brush::RadialGradient { center, .. } => center,
+                        }
+                    }),
+                ),
+                (
+                    self.shader.gradient_end,
+                    UniformValue::Vec2({
+                        match cmd.brush {
+                            Brush::Solid(_) => Vec2::ZERO,
+                            Brush::LinearGradient { to, .. } => to,
+                            Brush::RadialGradient { .. } => Vec2::ZERO,
+                        }
+                    }),
+                ),
+                (
+                    self.shader.gradient_point_count,
+                    UniformValue::Integer({
+                        match &cmd.brush {
+                            Brush::Solid(_) => 0,
+                            Brush::LinearGradient { stops, .. }
+                            | Brush::RadialGradient { stops, .. } => stops.len() as i32,
+                        }
+                    }),
+                ),
+                (
+                    self.shader.gradient_stops,
+                    UniformValue::FloatArray({
+                        match &cmd.brush {
+                            Brush::Solid(_) => &[],
+                            Brush::LinearGradient { stops, .. }
+                            | Brush::RadialGradient { stops, .. } => {
+                                for (i, point) in stops.iter().enumerate() {
+                                    raw_stops[i] = point.stop;
+                                }
+                                &raw_stops
+                            }
+                        }
+                    }),
+                ),
+                (
+                    self.shader.gradient_colors,
+                    UniformValue::Vec4Array({
+                        match &cmd.brush {
+                            Brush::Solid(_) => &[],
+                            Brush::LinearGradient { stops, .. }
+                            | Brush::RadialGradient { stops, .. } => {
+                                for (i, point) in stops.iter().enumerate() {
+                                    raw_colors[i] = point.color.as_frgba();
+                                }
+                                &raw_colors
+                            }
+                        }
+                    }),
+                ),
             ];
 
             let params = DrawParameters {
@@ -288,18 +324,16 @@ impl UiRenderer {
                 blend: true,
             };
 
-            statistics += backbuffer.draw_part(
-                DrawPartContext {
-                    state,
-                    viewport,
-                    geometry: &mut self.geometry_buffer,
-                    program: &mut self.shader.program,
-                    params,
-                    uniforms: &uniforms,
-                    offset: cmd.triangles.start,
-                    count: cmd.triangles.end - cmd.triangles.start,
-                }
-            )?;
+            statistics += backbuffer.draw_part(DrawPartContext {
+                state,
+                viewport,
+                geometry: &mut self.geometry_buffer,
+                program: &mut self.shader.program,
+                params,
+                uniforms: &uniforms,
+                offset: cmd.triangles.start,
+                count: cmd.triangles.end - cmd.triangles.start,
+            })?;
         }
         Ok(statistics)
     }

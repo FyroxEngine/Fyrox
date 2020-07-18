@@ -8,19 +8,16 @@
 
 #![warn(missing_docs)]
 
-use std::sync::{Arc, Mutex};
 use crate::{
-    resource::model::Model,
-    scene::{
-        node::Node,
-        transform::Transform
-    },
     core::{
-        math::{vec3::Vec3, mat4::Mat4},
-        visitor::{Visit, VisitResult, Visitor},
+        math::{mat4::Mat4, vec3::Vec3},
         pool::Handle,
-    }
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    resource::model::Model,
+    scene::{node::Node, transform::Transform},
 };
+use std::sync::{Arc, Mutex};
 
 /// See module docs.
 #[derive(Debug)]
@@ -47,7 +44,7 @@ pub struct Base {
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
     lifetime: Option<f32>,
-    depth_offset: f32
+    depth_offset: f32,
 }
 
 impl Base {
@@ -241,7 +238,8 @@ impl Visit for Base {
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;
         self.resource.visit("Resource", visitor)?;
-        self.is_resource_instance.visit("IsResourceInstance", visitor)?;
+        self.is_resource_instance
+            .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
 
@@ -274,7 +272,7 @@ impl BaseBuilder {
             local_transform: None,
             children: None,
             lifetime: None,
-            depth_offset: 0.0
+            depth_offset: 0.0,
         }
     }
 
@@ -330,7 +328,7 @@ impl BaseBuilder {
             resource: None,
             original: Handle::NONE,
             is_resource_instance: false,
-            depth_offset: self.depth_offset
+            depth_offset: self.depth_offset,
         }
     }
 }

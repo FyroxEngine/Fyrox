@@ -1,46 +1,34 @@
-use std::{
-    io::{
-        Read,
-        Cursor,
-        Seek,
-        SeekFrom,
-    },
-};
-use byteorder::{
-    LittleEndian,
-    ReadBytesExt,
-};
 use crate::{
+    core::pool::{Handle, Pool},
     resource::fbx::{
-        document::{
-            FbxNodeContainer,
-            FbxDocument,
-            FbxNode,
-            attribute::FbxAttribute,
-        },
+        document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
         error::FbxError,
     },
-    core::pool::{
-        Handle,
-        Pool,
-    },
 };
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::io::{Cursor, Read, Seek, SeekFrom};
 
 fn read_attribute<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxError>
-    where R: Read {
+where
+    R: Read,
+{
     match type_code {
         b'f' | b'F' => Ok(FbxAttribute::Float(file.read_f32::<LittleEndian>()?)),
         b'd' | b'D' => Ok(FbxAttribute::Double(file.read_f64::<LittleEndian>()?)),
         b'l' | b'L' => Ok(FbxAttribute::Long(file.read_i64::<LittleEndian>()?)),
         b'i' | b'I' => Ok(FbxAttribute::Integer(file.read_i32::<LittleEndian>()?)),
-        b'Y' => Ok(FbxAttribute::Integer(i32::from(file.read_i16::<LittleEndian>()?))),
+        b'Y' => Ok(FbxAttribute::Integer(i32::from(
+            file.read_i16::<LittleEndian>()?,
+        ))),
         b'b' | b'C' => Ok(FbxAttribute::Bool(file.read_u8()? != 0)),
-        _ => Err(FbxError::UnknownAttributeType(type_code))
+        _ => Err(FbxError::UnknownAttributeType(type_code)),
     }
 }
 
 fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxError>
-    where R: Read {
+where
+    R: Read,
+{
     let length = file.read_u32::<LittleEndian>()? as usize;
     let encoding = file.read_u32::<LittleEndian>()?;
     let compressed_length = file.read_u32::<LittleEndian>()? as usize;
@@ -64,10 +52,15 @@ fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxEr
     Ok(array)
 }
 
-fn read_string<R>(file: &mut R) -> Result<FbxAttribute, FbxError> where R: Read {
+fn read_string<R>(file: &mut R) -> Result<FbxAttribute, FbxError>
+where
+    R: Read,
+{
     let length = file.read_u32::<LittleEndian>()? as usize;
     let mut raw_string = Vec::with_capacity(length);
-    unsafe { raw_string.set_len(length); };
+    unsafe {
+        raw_string.set_len(length);
+    };
     file.read_exact(raw_string.as_mut_slice())?;
     // Find null terminator. It is required because for some reason some strings
     // have additional data after null terminator like this: Omni004\x0\x1Model, but
@@ -84,7 +77,9 @@ fn read_string<R>(file: &mut R) -> Result<FbxAttribute, FbxError> where R: Read 
 /// In case of success returns Ok(valid_handle), in case if no more nodes
 /// are present returns Ok(none_handle), in case of error returns some FbxError.
 fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<FbxNode>, FbxError>
-    where R: Read + Seek {
+where
+    R: Read + Seek,
+{
     let end_offset = u64::from(file.read_u32::<LittleEndian>()?);
     if end_offset == 0 {
         // Footer found. We're done.
@@ -121,13 +116,16 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
                 let node = pool.borrow_mut(node_handle);
                 node.children.push(a_handle);
             }
-            b'S' => pool.borrow_mut(node_handle).attributes.push(read_string(file)?),
+            b'S' => pool
+                .borrow_mut(node_handle)
+                .attributes
+                .push(read_string(file)?),
             b'R' => {
                 // Ignore Raw data
                 let length = i64::from(file.read_u32::<LittleEndian>()?);
                 file.seek(SeekFrom::Current(length))?;
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -154,7 +152,9 @@ fn read_binary_node<R>(file: &mut R, pool: &mut Pool<FbxNode>) -> Result<Handle<
 }
 
 pub fn read_binary<R>(file: &mut R) -> Result<FbxDocument, FbxError>
-    where R: Read + Seek {
+where
+    R: Read + Seek,
+{
     let total_length = file.seek(SeekFrom::End(0))?;
     file.seek(SeekFrom::Start(0))?;
 

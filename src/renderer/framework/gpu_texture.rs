@@ -1,23 +1,16 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
-use std::{
-    ffi::c_void,
-    marker::PhantomData,
-};
 use crate::{
-    resource::texture::TextureKind,
-    renderer::{
-        framework::{
-            gl::types::GLuint,
-            gl,
-            state::State
-        },
-        error::RendererError,
-    },
-    utils::log::Log,
     core::color::Color,
+    renderer::{
+        error::RendererError,
+        framework::{gl, gl::types::GLuint, state::State},
+    },
+    resource::texture::TextureKind,
+    utils::log::Log,
 };
+use std::{ffi::c_void, marker::PhantomData};
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -90,9 +83,13 @@ impl PixelKind {
 
     fn unpack_alignment(self) -> i32 {
         match self {
-            PixelKind::RGBA8 | PixelKind::RGB8 | PixelKind::D24S8 | PixelKind::D32 | PixelKind::F32 => 4,
+            PixelKind::RGBA8
+            | PixelKind::RGB8
+            | PixelKind::D24S8
+            | PixelKind::D32
+            | PixelKind::F32 => 4,
             PixelKind::RG8 => 2,
-            PixelKind::R8 => 1
+            PixelKind::R8 => 1,
         }
     }
 }
@@ -162,7 +159,7 @@ impl Coordinate {
 }
 
 pub struct TextureBinding<'a> {
-    texture: &'a mut GpuTexture
+    texture: &'a mut GpuTexture,
 }
 
 #[derive(Copy, Clone)]
@@ -200,21 +197,33 @@ impl<'a> TextureBinding<'a> {
 
     pub fn set_minification_filter(self, min_filter: MininificationFilter) -> Self {
         unsafe {
-            gl::TexParameteri(self.texture.kind.to_texture_target(), gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
+            gl::TexParameteri(
+                self.texture.kind.to_texture_target(),
+                gl::TEXTURE_MIN_FILTER,
+                min_filter.into_gl_value(),
+            );
         }
         self
     }
 
     pub fn set_magnification_filter(self, mag_filter: MagnificationFilter) -> Self {
         unsafe {
-            gl::TexParameteri(self.texture.kind.to_texture_target(), gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
+            gl::TexParameteri(
+                self.texture.kind.to_texture_target(),
+                gl::TEXTURE_MAG_FILTER,
+                mag_filter.into_gl_value(),
+            );
         }
         self
     }
 
     pub fn set_wrap(self, coordinate: Coordinate, wrap: WrapMode) -> Self {
         unsafe {
-            gl::TexParameteri(self.texture.kind.to_texture_target(), coordinate.into_gl_value(), wrap.into_gl_value());
+            gl::TexParameteri(
+                self.texture.kind.to_texture_target(),
+                coordinate.into_gl_value(),
+                wrap.into_gl_value(),
+            );
         }
         self
     }
@@ -223,7 +232,11 @@ impl<'a> TextureBinding<'a> {
         unsafe {
             let color = color.as_frgba();
             let color = [color.x, color.y, color.z, color.w];
-            gl::TexParameterfv(self.texture.kind.to_texture_target(), gl::TEXTURE_BORDER_COLOR, color.as_ptr());
+            gl::TexParameterfv(
+                self.texture.kind.to_texture_target(),
+                gl::TEXTURE_BORDER_COLOR,
+                color.as_ptr(),
+            );
         }
         self
     }
@@ -246,26 +259,30 @@ impl GpuTexture {
     ///
     /// Produced texture can be used as render target for framebuffer, in this case `data`
     /// parameter can be None.
-    pub fn new(state: &mut State,
-               kind: GpuTextureKind,
-               pixel_kind: PixelKind,
-               data: Option<&[u8]>) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut State,
+        kind: GpuTextureKind,
+        pixel_kind: PixelKind,
+        data: Option<&[u8]>,
+    ) -> Result<Self, RendererError> {
         let bytes_per_pixel = pixel_kind.size_bytes();
 
         let desired_byte_count = match kind {
             GpuTextureKind::Line { length } => length * bytes_per_pixel,
             GpuTextureKind::Rectangle { width, height } => width * height * bytes_per_pixel,
             GpuTextureKind::Cube { width, height } => 6 * width * height * bytes_per_pixel,
-            GpuTextureKind::Volume { width, height, depth } => {
-                width * height * depth * bytes_per_pixel
-            }
+            GpuTextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => width * height * depth * bytes_per_pixel,
         };
 
         if let Some(data) = data {
             if data.len() != desired_byte_count {
                 return Err(RendererError::InvalidTextureData {
                     expected_data_size: desired_byte_count,
-                    actual_data_size: data.len()
+                    actual_data_size: data.len(),
                 });
             }
         }
@@ -281,7 +298,11 @@ impl GpuTexture {
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (gl::FLOAT, gl::RED, gl::R32F),
                 PixelKind::D32 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT),
-                PixelKind::D24S8 => (gl::UNSIGNED_INT_24_8, gl::DEPTH_STENCIL, gl::DEPTH24_STENCIL8),
+                PixelKind::D24S8 => (
+                    gl::UNSIGNED_INT_24_8,
+                    gl::DEPTH_STENCIL,
+                    gl::DEPTH24_STENCIL8,
+                ),
                 PixelKind::RGBA8 => (gl::UNSIGNED_BYTE, gl::RGBA, gl::RGBA8),
                 PixelKind::RGB8 => (gl::UNSIGNED_BYTE, gl::RGB, gl::RGB8),
                 PixelKind::RG8 => (gl::UNSIGNED_BYTE, gl::RG, gl::RG8),
@@ -297,13 +318,29 @@ impl GpuTexture {
 
             match kind {
                 GpuTextureKind::Line { length } => {
-                    gl::TexImage1D(gl::TEXTURE_1D, 0, internal_format as i32,
-                                   length as i32, 0, format, type_, pixels);
+                    gl::TexImage1D(
+                        gl::TEXTURE_1D,
+                        0,
+                        internal_format as i32,
+                        length as i32,
+                        0,
+                        format,
+                        type_,
+                        pixels,
+                    );
                 }
                 GpuTextureKind::Rectangle { width, height } => {
-                    gl::TexImage2D(gl::TEXTURE_2D, 0, internal_format as i32,
-                                   width as i32, height as i32, 0,
-                                   format, type_, pixels);
+                    gl::TexImage2D(
+                        gl::TEXTURE_2D,
+                        0,
+                        internal_format as i32,
+                        width as i32,
+                        height as i32,
+                        0,
+                        format,
+                        type_,
+                        pixels,
+                    );
                 }
                 GpuTextureKind::Cube { width, height } => {
                     for face in 0..6 {
@@ -317,15 +354,36 @@ impl GpuTexture {
                             Some(data) => data[begin..end].as_ptr() as *const c_void,
                         };
 
-                        gl::TexImage2D(gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32, 0,
-                                       internal_format as i32, width as i32,
-                                       height as i32, 0, format, type_, face_pixels);
+                        gl::TexImage2D(
+                            gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
+                            0,
+                            internal_format as i32,
+                            width as i32,
+                            height as i32,
+                            0,
+                            format,
+                            type_,
+                            face_pixels,
+                        );
                     }
                 }
-                GpuTextureKind::Volume { width, height, depth } => {
-                    gl::TexImage3D(gl::TEXTURE_3D, 0, internal_format as i32,
-                                   width as i32, height as i32, depth as i32,
-                                   0, format, type_, pixels);
+                GpuTextureKind::Volume {
+                    width,
+                    height,
+                    depth,
+                } => {
+                    gl::TexImage3D(
+                        gl::TEXTURE_3D,
+                        0,
+                        internal_format as i32,
+                        width as i32,
+                        height as i32,
+                        depth as i32,
+                        0,
+                        format,
+                        type_,
+                        pixels,
+                    );
                 }
             }
 

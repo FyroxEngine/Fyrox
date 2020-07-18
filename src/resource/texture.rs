@@ -1,15 +1,6 @@
+use crate::core::visitor::{Visit, VisitResult, Visitor};
 use image::GenericImageView;
-use crate::{
-    core::visitor::{
-        Visit,
-        VisitResult,
-        Visitor,
-    }
-};
-use std::path::{
-    PathBuf,
-    Path,
-};
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Texture {
@@ -63,7 +54,7 @@ impl TextureKind {
             0 => Ok(TextureKind::R8),
             1 => Ok(TextureKind::RGB8),
             2 => Ok(TextureKind::RGBA8),
-            _ => Err(format!("Invalid texture kind {}!", id))
+            _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
 
@@ -77,7 +68,10 @@ impl TextureKind {
 }
 
 impl Texture {
-    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P, kind: TextureKind) -> Result<Self, image::ImageError> {
+    pub(in crate) fn load_from_file<P: AsRef<Path>>(
+        path: P,
+        kind: TextureKind,
+    ) -> Result<Self, image::ImageError> {
         let dyn_img = image::open(path.as_ref())?;
 
         let width = dyn_img.width();
@@ -99,7 +93,12 @@ impl Texture {
         })
     }
 
-    pub fn from_bytes(width: u32, height: u32, kind: TextureKind, bytes: Vec<u8>) -> Result<Self, ()> {
+    pub fn from_bytes(
+        width: u32,
+        height: u32,
+        kind: TextureKind,
+        bytes: Vec<u8>,
+    ) -> Result<Self, ()> {
         let bpp = match kind {
             TextureKind::R8 => 1,
             TextureKind::RGB8 => 3,
@@ -125,4 +124,3 @@ impl Texture {
         self.loaded
     }
 }
-

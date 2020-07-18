@@ -1,8 +1,8 @@
 #![deny(unsafe_code)]
 
-pub mod surface;
-pub mod error;
 pub mod debug_renderer;
+pub mod error;
+pub mod surface;
 
 // Framework wraps all OpenGL calls so it has to be unsafe. Rest of renderer
 // code must be safe.
@@ -10,104 +10,63 @@ pub mod debug_renderer;
 #[allow(unsafe_code)]
 mod framework;
 
-mod ui_renderer;
-mod particle_system_renderer;
-mod gbuffer;
+mod blur;
 mod deferred_light_renderer;
-mod shadow_map_renderer;
 mod flat_shader;
+mod gbuffer;
+mod light_volume;
+mod particle_system_renderer;
+mod shadow_map_renderer;
 mod sprite_renderer;
 mod ssao;
-mod blur;
-mod light_volume;
+mod ui_renderer;
 
-use glutin::PossiblyCurrent;
-use std::{
-    rc::Rc,
-    sync::{
-        Arc,
-        Mutex,
-    },
-    time,
-    collections::HashMap,
-    cell::RefCell,
-};
+use crate::resource::texture::TextureKind;
 use crate::{
-    resource::texture::{
-        Texture,
-    },
-    renderer::{
-        ui_renderer::{
-            UiRenderer,
-            UiRenderContext,
-        },
-        surface::SurfaceSharedData,
-        particle_system_renderer::{
-            ParticleSystemRenderer,
-            ParticleSystemRenderContext,
-        },
-        gbuffer::{
-            GBuffer,
-            GBufferRenderContext,
-        },
-        deferred_light_renderer::{
-            DeferredLightRenderer,
-            DeferredRendererContext,
-        },
-        error::RendererError,
-        framework::{
-            gpu_texture::{
-                GpuTexture,
-                GpuTextureKind,
-                PixelKind,
-                MininificationFilter,
-                MagnificationFilter,
-            },
-            geometry_buffer::{
-                GeometryBuffer,
-                GeometryBufferKind,
-                ElementKind,
-                AttributeKind,
-                AttributeDefinition,
-                DrawCallStatistics,
-            },
-            framebuffer::{
-                BackBuffer,
-                FrameBufferTrait,
-                DrawParameters,
-                CullFace,
-            },
-            gpu_program::UniformValue,
-            state::State,
-            gl,
-        },
-        flat_shader::FlatShader,
-        sprite_renderer::{
-            SpriteRenderer,
-            SpriteRenderContext,
-        },
-        debug_renderer::DebugRenderer,
-    },
-    scene::{
-        SceneContainer,
-        node::Node,
-    },
     core::{
-        scope_profile,
-        math::{
-            vec3::Vec3,
-            mat4::Mat4,
-            vec2::Vec2,
-            TriangleDefinition,
-        },
         color::Color,
         math::Rect,
+        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, TriangleDefinition},
         pool::Handle,
+        scope_profile,
     },
-    gui::draw::DrawingContext,
     engine::resource_manager::TimedEntry,
+    gui::draw::DrawingContext,
+    renderer::{
+        debug_renderer::DebugRenderer,
+        deferred_light_renderer::{DeferredLightRenderer, DeferredRendererContext},
+        error::RendererError,
+        flat_shader::FlatShader,
+        framework::{
+            framebuffer::{BackBuffer, CullFace, DrawParameters, FrameBufferTrait},
+            geometry_buffer::{
+                AttributeDefinition, AttributeKind, DrawCallStatistics, ElementKind,
+                GeometryBuffer, GeometryBufferKind,
+            },
+            gl,
+            gpu_program::UniformValue,
+            gpu_texture::{
+                GpuTexture, GpuTextureKind, MagnificationFilter, MininificationFilter, PixelKind,
+            },
+            state::State,
+        },
+        gbuffer::{GBuffer, GBufferRenderContext},
+        particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
+        sprite_renderer::{SpriteRenderContext, SpriteRenderer},
+        surface::SurfaceSharedData,
+        ui_renderer::{UiRenderContext, UiRenderer},
+    },
+    resource::texture::Texture,
+    scene::{node::Node, SceneContainer},
 };
-use crate::resource::texture::TextureKind;
+use glutin::PossiblyCurrent;
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    time,
+};
 
 #[derive(Copy, Clone)]
 pub struct Statistics {
@@ -225,10 +184,16 @@ impl Statistics {
     fn end_frame(&mut self) {
         let current_time = time::Instant::now();
 
-        self.pure_frame_time = current_time.duration_since(self.frame_start_time).as_secs_f32();
+        self.pure_frame_time = current_time
+            .duration_since(self.frame_start_time)
+            .as_secs_f32();
         self.frame_counter += 1;
 
-        if current_time.duration_since(self.last_fps_commit_time).as_secs_f32() >= 1.0 {
+        if current_time
+            .duration_since(self.last_fps_commit_time)
+            .as_secs_f32()
+            >= 1.0
+        {
             self.last_fps_commit_time = current_time;
             self.frames_per_second = self.frame_counter;
             self.frame_counter = 0;
@@ -237,7 +202,9 @@ impl Statistics {
 
     /// Must be called after SwapBuffers to get capped frame time.
     fn finalize(&mut self) {
-        self.capped_frame_time = time::Instant::now().duration_since(self.frame_start_time).as_secs_f32();
+        self.capped_frame_time = time::Instant::now()
+            .duration_since(self.frame_start_time)
+            .as_secs_f32();
     }
 }
 
@@ -284,31 +251,59 @@ pub struct Renderer {
 
 #[derive(Default)]
 pub struct GeometryCache {
-    map: HashMap<usize, TimedEntry<GeometryBuffer<surface::Vertex>>>
+    map: HashMap<usize, TimedEntry<GeometryBuffer<surface::Vertex>>>,
 }
 
 impl GeometryCache {
-    fn get(&mut self, state: &mut State, data: &SurfaceSharedData) -> &mut GeometryBuffer<surface::Vertex> {
+    fn get(
+        &mut self,
+        state: &mut State,
+        data: &SurfaceSharedData,
+    ) -> &mut GeometryBuffer<surface::Vertex> {
         scope_profile!();
 
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
-            let geometry_buffer = GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
+            let geometry_buffer =
+                GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
 
-            geometry_buffer.bind(state)
+            geometry_buffer
+                .bind(state)
                 .describe_attributes(vec![
-                    AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-                    AttributeDefinition { kind: AttributeKind::Float2, normalized: false },
-                    AttributeDefinition { kind: AttributeKind::Float3, normalized: false },
-                    AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
-                    AttributeDefinition { kind: AttributeKind::Float4, normalized: false },
-                    AttributeDefinition { kind: AttributeKind::UnsignedByte4, normalized: false }])
+                    AttributeDefinition {
+                        kind: AttributeKind::Float3,
+                        normalized: false,
+                    },
+                    AttributeDefinition {
+                        kind: AttributeKind::Float2,
+                        normalized: false,
+                    },
+                    AttributeDefinition {
+                        kind: AttributeKind::Float3,
+                        normalized: false,
+                    },
+                    AttributeDefinition {
+                        kind: AttributeKind::Float4,
+                        normalized: false,
+                    },
+                    AttributeDefinition {
+                        kind: AttributeKind::Float4,
+                        normalized: false,
+                    },
+                    AttributeDefinition {
+                        kind: AttributeKind::UnsignedByte4,
+                        normalized: false,
+                    },
+                ])
                 .unwrap()
                 .set_vertices(data.vertices.as_slice())
                 .set_triangles(data.triangles());
 
-            TimedEntry { value: geometry_buffer, time_to_live: 20.0 }
+            TimedEntry {
+                value: geometry_buffer,
+                time_to_live: 20.0,
+            }
         });
 
         geometry_buffer.time_to_live = 20.0;
@@ -329,11 +324,15 @@ impl GeometryCache {
 
 #[derive(Default)]
 pub struct TextureCache {
-    map: HashMap<usize, TimedEntry<Rc<RefCell<GpuTexture>>>>
+    map: HashMap<usize, TimedEntry<Rc<RefCell<GpuTexture>>>>,
 }
 
 impl TextureCache {
-    fn get(&mut self, state: &mut State, texture: Arc<Mutex<Texture>>) -> Option<Rc<RefCell<GpuTexture>>> {
+    fn get(
+        &mut self,
+        state: &mut State,
+        texture: Arc<Mutex<Texture>>,
+    ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
         if texture.lock().unwrap().loaded {
@@ -348,9 +347,11 @@ impl TextureCache {
                     state,
                     kind,
                     PixelKind::from(texture.kind),
-                    Some(texture.bytes.as_slice()))
-                    .unwrap();
-                gpu_texture.bind_mut(state, 0)
+                    Some(texture.bytes.as_slice()),
+                )
+                .unwrap();
+                gpu_texture
+                    .bind_mut(state, 0)
                     .generate_mip_maps()
                     .set_minification_filter(MininificationFilter::LinearMip)
                     .set_magnification_filter(MagnificationFilter::Linear)
@@ -381,7 +382,10 @@ impl TextureCache {
 }
 
 impl Renderer {
-    pub(in crate) fn new(context: &mut glutin::WindowedContext<PossiblyCurrent>, frame_size: (u32, u32)) -> Result<Self, RendererError> {
+    pub(in crate) fn new(
+        context: &mut glutin::WindowedContext<PossiblyCurrent>,
+        frame_size: (u32, u32),
+    ) -> Result<Self, RendererError> {
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
         let settings = QualitySettings::default();
@@ -394,10 +398,24 @@ impl Renderer {
             flat_shader: FlatShader::new()?,
             statistics: Statistics::default(),
             sprite_renderer: SpriteRenderer::new()?,
-            white_dummy: Rc::new(RefCell::new(GpuTexture::new(&mut state, GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                                              PixelKind::RGBA8, Some(&[255, 255, 255, 255]))?)),
-            normal_dummy: Rc::new(RefCell::new(GpuTexture::new(&mut state, GpuTextureKind::Rectangle { width: 1, height: 1 },
-                                                               PixelKind::RGBA8, Some(&[128, 128, 255, 255]))?)),
+            white_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Rectangle {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                Some(&[255, 255, 255, 255]),
+            )?)),
+            normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Rectangle {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                Some(&[128, 128, 255, 255]),
+            )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
@@ -435,7 +453,9 @@ impl Renderer {
     /// Input values will be set to 1 pixel if new size is 0. Rendering cannot
     /// be performed into 0x0 texture.
     pub fn set_frame_size(&mut self, new_size: (u32, u32)) {
-        self.deferred_light_renderer.set_frame_size(&mut self.state, new_size).unwrap();
+        self.deferred_light_renderer
+            .set_frame_size(&mut self.state, new_size)
+            .unwrap();
         self.frame_size.0 = new_size.0.max(1);
         self.frame_size.1 = new_size.1.max(1);
         // Invalidate all g-buffers.
@@ -446,9 +466,13 @@ impl Renderer {
         self.frame_size
     }
 
-    pub fn set_quality_settings(&mut self, settings: &QualitySettings) -> Result<(), RendererError> {
+    pub fn set_quality_settings(
+        &mut self,
+        settings: &QualitySettings,
+    ) -> Result<(), RendererError> {
         self.quality_settings = *settings;
-        self.deferred_light_renderer.set_quality_settings(&mut self.state, settings)
+        self.deferred_light_renderer
+            .set_quality_settings(&mut self.state, settings)
     }
 
     pub fn get_quality_settings(&self) -> QualitySettings {
@@ -463,9 +487,11 @@ impl Renderer {
         self.geometry_cache.clear();
     }
 
-    fn render_frame(&mut self, scenes: &SceneContainer,
-                    drawing_context: &DrawingContext,
-                    dt: f32,
+    fn render_frame(
+        &mut self,
+        scenes: &SceneContainer,
+        drawing_context: &DrawingContext,
+        dt: f32,
     ) -> Result<(), RendererError> {
         scope_profile!();
 
@@ -482,7 +508,13 @@ impl Renderer {
         self.statistics.begin_frame();
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
-        self.backbuffer.clear(&mut self.state, window_viewport, Some(self.backbuffer_clear_color), Some(1.0), Some(0));
+        self.backbuffer.clear(
+            &mut self.state,
+            window_viewport,
+            Some(self.backbuffer_clear_color),
+            Some(1.0),
+            Some(0),
+        );
 
         let frame_width = self.frame_size.0 as f32;
         let frame_height = self.frame_size.1 as f32;
@@ -491,7 +523,11 @@ impl Renderer {
             let graph = &scene.graph;
 
             for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
-                if let Node::Camera(camera) = node { Some((handle, camera)) } else { None }
+                if let Node::Camera(camera) = node {
+                    Some((handle, camera))
+                } else {
+                    None
+                }
             }) {
                 if !camera.is_enabled() {
                     continue;
@@ -500,7 +536,8 @@ impl Renderer {
                 let viewport = camera.viewport_pixels(Vec2::new(frame_width, frame_height));
 
                 let state = &mut self.state;
-                let gbuffer = self.gbuffers
+                let gbuffer = self
+                    .gbuffers
                     .entry(camera_handle)
                     .and_modify(|buf| {
                         if buf.width != viewport.w || buf.height != viewport.h {
@@ -509,7 +546,9 @@ impl Renderer {
                             *buf = GBuffer::new(state, width, height).unwrap();
                         }
                     })
-                    .or_insert_with(|| GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap());
+                    .or_insert_with(|| {
+                        GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap()
+                    });
 
                 // If we specified a texture to draw to, we have to register it in texture cache
                 // so it can be used in later on as texture. This is useful in case if you need
@@ -518,10 +557,13 @@ impl Renderer {
                 //  pipeline.
                 if let Some(rt) = scene.render_target.clone() {
                     let key = (&*rt as *const _) as usize;
-                    self.texture_cache.map.insert(key, TimedEntry {
-                        value: gbuffer.frame_texture(),
-                        time_to_live: std::f32::INFINITY,
-                    });
+                    self.texture_cache.map.insert(
+                        key,
+                        TimedEntry {
+                            value: gbuffer.frame_texture(),
+                            time_to_live: std::f32::INFINITY,
+                        },
+                    );
 
                     // Make sure to sync texture info with actual render target.
                     if let Ok(mut rt) = rt.lock() {
@@ -532,19 +574,19 @@ impl Renderer {
                     }
                 }
 
-                self.statistics += gbuffer.fill(
-                    GBufferRenderContext {
-                        state,
-                        graph,
-                        camera,
-                        white_dummy: self.white_dummy.clone(),
-                        normal_dummy: self.normal_dummy.clone(),
-                        texture_cache: &mut self.texture_cache,
-                        geom_cache: &mut self.geometry_cache,
-                    });
+                self.statistics += gbuffer.fill(GBufferRenderContext {
+                    state,
+                    graph,
+                    camera,
+                    white_dummy: self.white_dummy.clone(),
+                    normal_dummy: self.normal_dummy.clone(),
+                    texture_cache: &mut self.texture_cache,
+                    geom_cache: &mut self.geometry_cache,
+                });
 
-                self.statistics += self.deferred_light_renderer.render(
-                    DeferredRendererContext {
+                self.statistics += self
+                    .deferred_light_renderer
+                    .render(DeferredRendererContext {
                         state,
                         scene,
                         camera,
@@ -558,33 +600,35 @@ impl Renderer {
 
                 let depth = gbuffer.depth();
 
-                self.statistics += self.particle_system_renderer.render(
-                    ParticleSystemRenderContext {
-                        state,
-                        framebuffer: &mut gbuffer.final_frame,
-                        graph,
-                        camera,
-                        white_dummy: self.white_dummy.clone(),
-                        depth,
-                        frame_width,
-                        frame_height,
-                        viewport,
-                        texture_cache: &mut self.texture_cache,
-                    });
+                self.statistics +=
+                    self.particle_system_renderer
+                        .render(ParticleSystemRenderContext {
+                            state,
+                            framebuffer: &mut gbuffer.final_frame,
+                            graph,
+                            camera,
+                            white_dummy: self.white_dummy.clone(),
+                            depth,
+                            frame_width,
+                            frame_height,
+                            viewport,
+                            texture_cache: &mut self.texture_cache,
+                        });
 
-                self.statistics += self.sprite_renderer.render(
-                    SpriteRenderContext {
-                        state,
-                        framebuffer: &mut gbuffer.final_frame,
-                        graph,
-                        camera,
-                        white_dummy: self.white_dummy.clone(),
-                        viewport,
-                        textures: &mut self.texture_cache,
-                        geom_map: &mut self.geometry_cache,
-                    });
+                self.statistics += self.sprite_renderer.render(SpriteRenderContext {
+                    state,
+                    framebuffer: &mut gbuffer.final_frame,
+                    graph,
+                    camera,
+                    white_dummy: self.white_dummy.clone(),
+                    viewport,
+                    textures: &mut self.texture_cache,
+                    geom_map: &mut self.geometry_cache,
+                });
 
-                self.statistics += self.debug_renderer.render(state, viewport, &mut gbuffer.final_frame, camera);
+                self.statistics +=
+                    self.debug_renderer
+                        .render(state, viewport, &mut gbuffer.final_frame, camera);
 
                 // Finally render everything into back buffer.
                 if scene.render_target.is_none() {
@@ -603,14 +647,30 @@ impl Renderer {
                             blend: false,
                         },
                         &[
-                            (self.flat_shader.wvp_matrix, UniformValue::Mat4({
-                                Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0) *
-                                    Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0))
-                            })),
-                            (self.flat_shader.diffuse_texture, UniformValue::Sampler {
-                                index: 0,
-                                texture: gbuffer.frame_texture(),
-                            })
+                            (
+                                self.flat_shader.wvp_matrix,
+                                UniformValue::Mat4({
+                                    Mat4::ortho(
+                                        0.0,
+                                        viewport.w as f32,
+                                        viewport.h as f32,
+                                        0.0,
+                                        -1.0,
+                                        1.0,
+                                    ) * Mat4::scale(Vec3::new(
+                                        viewport.w as f32,
+                                        viewport.h as f32,
+                                        0.0,
+                                    ))
+                                }),
+                            ),
+                            (
+                                self.flat_shader.diffuse_texture,
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: gbuffer.frame_texture(),
+                                },
+                            ),
                         ],
                     );
                 }
@@ -618,27 +678,26 @@ impl Renderer {
         }
 
         // Render UI on top of everything.
-        self.statistics += self.ui_renderer.render(
-            UiRenderContext {
-                state: &mut self.state,
-                viewport: window_viewport,
-                backbuffer: &mut self.backbuffer,
-                frame_width,
-                frame_height,
-                drawing_context,
-                white_dummy: self.white_dummy.clone(),
-                texture_cache: &mut self.texture_cache,
-            }
-        )?;
+        self.statistics += self.ui_renderer.render(UiRenderContext {
+            state: &mut self.state,
+            viewport: window_viewport,
+            backbuffer: &mut self.backbuffer,
+            frame_width,
+            frame_height,
+            drawing_context,
+            white_dummy: self.white_dummy.clone(),
+            texture_cache: &mut self.texture_cache,
+        })?;
 
         Ok(())
     }
 
-    pub(in crate) fn render_and_swap_buffers(&mut self,
-                                             scenes: &SceneContainer,
-                                             drawing_context: &DrawingContext,
-                                             context: &glutin::WindowedContext<PossiblyCurrent>,
-                                             dt: f32,
+    pub(in crate) fn render_and_swap_buffers(
+        &mut self,
+        scenes: &SceneContainer,
+        drawing_context: &DrawingContext,
+        context: &glutin::WindowedContext<PossiblyCurrent>,
+        dt: f32,
     ) -> Result<(), RendererError> {
         scope_profile!();
 
@@ -651,4 +710,3 @@ impl Renderer {
         Ok(())
     }
 }
-

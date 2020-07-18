@@ -1,21 +1,8 @@
 use crate::{
-    core::{
-        pool::Handle,
-        color::Color,
-    },
-    resource::fbx::{
-        document::{
-            FbxNodeContainer,
-            FbxNode
-        }
-    },
+    core::{color::Color, pool::Handle},
+    resource::fbx::document::{FbxNode, FbxNodeContainer},
+    scene::light::{Light, LightKind, PointLight, SpotLight},
     utils::log::Log,
-    scene::light::{
-        LightKind,
-        PointLight,
-        SpotLight,
-        Light
-    }
 };
 
 pub enum FbxLightType {
@@ -35,7 +22,10 @@ pub struct FbxLight {
 }
 
 impl FbxLight {
-    pub(in crate::resource::fbx) fn read(light_node_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
+    pub(in crate::resource::fbx) fn read(
+        light_node_handle: Handle<FbxNode>,
+        nodes: &FbxNodeContainer,
+    ) -> Result<Self, String> {
         let mut light = Self {
             actual_type: FbxLightType::Point,
             color: Color::WHITE,
@@ -59,7 +49,9 @@ impl FbxLight {
                     light.hotspot_cone_angle = (prop.get_attrib(4)?.as_f64()? as f32).to_radians();
                 }
                 "Cone angle" => {
-                    light.falloff_cone_angle_delta = (prop.get_attrib(4)?.as_f64()? as f32).to_radians() - light.hotspot_cone_angle;
+                    light.falloff_cone_angle_delta = (prop.get_attrib(4)?.as_f64()? as f32)
+                        .to_radians()
+                        - light.hotspot_cone_angle;
                 }
                 "LightType" => {
                     let type_code = prop.get_attrib(4)?.as_i32()?;
@@ -70,12 +62,15 @@ impl FbxLight {
                         3 => FbxLightType::Area,
                         4 => FbxLightType::Volume,
                         _ => {
-                            Log::writeln(format!("FBX: Unknown light type {}, fallback to Point!", type_code));
+                            Log::writeln(format!(
+                                "FBX: Unknown light type {}, fallback to Point!",
+                                type_code
+                            ));
                             FbxLightType::Point
                         }
                     };
                 }
-                _ => ()
+                _ => (),
             }
         }
 
@@ -84,15 +79,15 @@ impl FbxLight {
 
     pub fn convert(&self) -> Light {
         let light_kind = match self.actual_type {
-            FbxLightType::Point| FbxLightType::Area | FbxLightType::Volume => {
+            FbxLightType::Point | FbxLightType::Area | FbxLightType::Volume => {
                 LightKind::Point(PointLight::new(self.radius))
             }
-            FbxLightType::Spot => {
-                LightKind::Spot(SpotLight::new(self.radius, self.hotspot_cone_angle, self.falloff_cone_angle_delta))
-            }
-            FbxLightType::Directional => {
-                LightKind::Directional
-            }
+            FbxLightType::Spot => LightKind::Spot(SpotLight::new(
+                self.radius,
+                self.hotspot_cone_angle,
+                self.falloff_cone_angle_delta,
+            )),
+            FbxLightType::Directional => LightKind::Directional,
         };
 
         let mut light = Light::new(light_kind);

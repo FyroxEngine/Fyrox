@@ -1,57 +1,50 @@
 //! Scene is container for
 
-pub mod node;
-pub mod mesh;
-pub mod camera;
-pub mod light;
-pub mod particle_system;
-pub mod transform;
-pub mod sprite;
-pub mod graph;
 pub mod base;
+pub mod camera;
+pub mod graph;
+pub mod light;
+pub mod mesh;
+pub mod node;
+pub mod particle_system;
+pub mod sprite;
+pub mod transform;
 
+use crate::resource::texture::Texture;
 use crate::{
-    core::{
-        visitor::{Visit, VisitResult, Visitor},
-        pool::{
-            Handle,
-            Pool,
-            PoolIterator,
-            PoolIteratorMut,
-        },
-        math::vec2::Vec2,
-    },
-    physics::{
-        Physics,
-        rigid_body::RigidBody,
-    },
-    scene::{
-        graph::Graph,
-        node::Node,
-    },
     animation::AnimationContainer,
+    core::{
+        math::vec2::Vec2,
+        pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    physics::{rigid_body::RigidBody, Physics},
+    scene::{graph::Graph, node::Node},
     utils::log::Log,
 };
 use std::collections::HashMap;
 use std::ops::{Index, IndexMut};
 use std::sync::{Arc, Mutex};
-use crate::resource::texture::Texture;
 
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder {
-    node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>
+    node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>,
 }
 
 impl Default for PhysicsBinder {
     fn default() -> Self {
         Self {
-            node_rigid_body_map: Default::default()
+            node_rigid_body_map: Default::default(),
         }
     }
 }
 
 impl PhysicsBinder {
-    pub fn bind(&mut self, node: Handle<Node>, rigid_body: Handle<RigidBody>) -> Option<Handle<RigidBody>> {
+    pub fn bind(
+        &mut self,
+        node: Handle<Node>,
+        rigid_body: Handle<RigidBody>,
+    ) -> Option<Handle<RigidBody>> {
         self.node_rigid_body_map.insert(node, rigid_body)
     }
 
@@ -91,7 +84,7 @@ pub struct Scene {
 
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
     ///
-    pub render_target: Option<Arc<Mutex<Texture>>>
+    pub render_target: Option<Arc<Mutex<Texture>>>,
 }
 
 impl Default for Scene {
@@ -101,7 +94,7 @@ impl Default for Scene {
             animations: Default::default(),
             physics: Default::default(),
             physics_binder: Default::default(),
-            render_target: None
+            render_target: None,
         }
     }
 }
@@ -115,7 +108,7 @@ impl Scene {
             physics: Default::default(),
             animations: Default::default(),
             physics_binder: Default::default(),
-            render_target: None
+            render_target: None,
         }
     }
 
@@ -125,14 +118,18 @@ impl Scene {
         // Keep pair when node and body are both alive.
         let graph = &self.graph;
         let physics = &self.physics;
-        self.physics_binder.node_rigid_body_map.retain(|node, body| {
-            graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
-        });
+        self.physics_binder
+            .node_rigid_body_map
+            .retain(|node, body| {
+                graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
+            });
 
         // Sync node positions with assigned physics bodies
         for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
             let body = physics.borrow_body(*body);
-            self.graph[*node].local_transform_mut().set_position(body.get_position());
+            self.graph[*node]
+                .local_transform_mut()
+                .set_position(body.get_position());
         }
     }
 
@@ -171,7 +168,9 @@ impl Scene {
     }
 
     pub fn clone<F>(&self, filter: &mut F) -> Self
-        where F: FnMut(Handle<Node>, &Node) -> bool {
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
         let (graph, old_new_map) = self.graph.clone(filter);
         let mut animations = self.animations.clone();
         for animation in animations.iter_mut() {
@@ -197,7 +196,7 @@ impl Scene {
             animations,
             physics,
             physics_binder,
-            render_target: Default::default()
+            render_target: Default::default(),
         }
     }
 }
@@ -214,14 +213,12 @@ impl Visit for Scene {
 }
 
 pub struct SceneContainer {
-    pool: Pool<Scene>
+    pool: Pool<Scene>,
 }
 
 impl SceneContainer {
     pub(in crate) fn new() -> Self {
-        Self {
-            pool: Pool::new()
-        }
+        Self { pool: Pool::new() }
     }
 
     #[inline]
@@ -268,9 +265,7 @@ impl IndexMut<Handle<Scene>> for SceneContainer {
 
 impl Default for SceneContainer {
     fn default() -> Self {
-        Self {
-            pool: Pool::new()
-        }
+        Self { pool: Pool::new() }
     }
 }
 

@@ -24,35 +24,22 @@
 
 #![warn(missing_docs)]
 
+use crate::{
+    core::{
+        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3},
+        pool::{
+            Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
+            Ticket,
+        },
+        visitor::{Visit, VisitResult, Visitor},
+    },
+    scene::node::Node,
+    utils::log::Log,
+};
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
 };
-use crate::{
-    utils::log::Log,
-    scene::node::Node,
-    core::{
-        pool::{
-            Handle,
-            Pool,
-            PoolIterator,
-            PoolIteratorMut,
-            PoolPairIterator,
-            PoolPairIteratorMut,
-        },
-        math::{
-            mat4::Mat4,
-            vec3::Vec3,
-            vec2::Vec2,
-        },
-        visitor::{
-            Visit,
-            Visitor,
-            VisitResult,
-        },
-    },
-};
-use rg3d_core::pool::Ticket;
 
 /// See module docs.
 #[derive(Debug)]
@@ -100,22 +87,25 @@ impl Graph {
 
     /// Tries to borrow mutable references to two nodes at the same time by given handles. Will
     /// panic if handles overlaps (points to same node).
-    pub fn get_two_mut(&mut self, nodes: (Handle<Node>, Handle<Node>))
-                       -> (&mut Node, &mut Node) {
+    pub fn get_two_mut(&mut self, nodes: (Handle<Node>, Handle<Node>)) -> (&mut Node, &mut Node) {
         self.pool.borrow_two_mut(nodes)
     }
 
     /// Tries to borrow mutable references to three nodes at the same time by given handles. Will
     /// return Err of handles overlaps (points to same node).
-    pub fn get_three_mut(&mut self, nodes: (Handle<Node>, Handle<Node>, Handle<Node>))
-                         -> (&mut Node, &mut Node, &mut Node) {
+    pub fn get_three_mut(
+        &mut self,
+        nodes: (Handle<Node>, Handle<Node>, Handle<Node>),
+    ) -> (&mut Node, &mut Node, &mut Node) {
         self.pool.borrow_three_mut(nodes)
     }
 
     /// Tries to borrow mutable references to four nodes at the same time by given handles. Will
     /// panic if handles overlaps (points to same node).
-    pub fn get_four_mut(&mut self, nodes: (Handle<Node>, Handle<Node>, Handle<Node>, Handle<Node>))
-                        -> (&mut Node, &mut Node, &mut Node, &mut Node) {
+    pub fn get_four_mut(
+        &mut self,
+        nodes: (Handle<Node>, Handle<Node>, Handle<Node>, Handle<Node>),
+    ) -> (&mut Node, &mut Node, &mut Node, &mut Node) {
         self.pool.borrow_four_mut(nodes)
     }
 
@@ -165,11 +155,17 @@ impl Graph {
     pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
         self.unlink_internal(node_handle);
         self.link_nodes(node_handle, self.root);
-        self.pool[node_handle].local_transform_mut().set_position(Vec3::ZERO);
+        self.pool[node_handle]
+            .local_transform_mut()
+            .set_position(Vec3::ZERO);
     }
 
     /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
-    pub fn find_copy_of(&self, root_handle: Handle<Node>, node_handle: Handle<Node>) -> Handle<Node> {
+    pub fn find_copy_of(
+        &self,
+        root_handle: Handle<Node>,
+        node_handle: Handle<Node>,
+    ) -> Handle<Node> {
         let root = &self.pool[root_handle];
         if root.original_handle() == node_handle {
             return root_handle;
@@ -232,11 +228,15 @@ impl Graph {
     ///
     /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
     /// odd nodes. Filtering applied only to descendant nodes.
-    pub fn copy_node<F>(&self,
-                        node_handle: Handle<Node>,
-                        dest_graph: &mut Graph,
-                        filter: &mut F,
-    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>) where F: FnMut(Handle<Node>, &Node) -> bool {
+    pub fn copy_node<F>(
+        &self,
+        node_handle: Handle<Node>,
+        dest_graph: &mut Graph,
+        filter: &mut F,
+    ) -> (Handle<Node>, HashMap<Handle<Node>, Handle<Node>>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
         let mut old_new_mapping = HashMap::new();
         let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
 
@@ -256,12 +256,16 @@ impl Graph {
         (root_handle, old_new_mapping)
     }
 
-    fn copy_node_raw<F>(&self,
-                        root_handle: Handle<Node>,
-                        dest_graph: &mut Graph,
-                        old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
-                        filter: &mut F,
-    ) -> Handle<Node> where F: FnMut(Handle<Node>, &Node) -> bool {
+    fn copy_node_raw<F>(
+        &self,
+        root_handle: Handle<Node>,
+        dest_graph: &mut Graph,
+        old_new_mapping: &mut HashMap<Handle<Node>, Handle<Node>>,
+        filter: &mut F,
+    ) -> Handle<Node>
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
         let src_node = &self.pool[root_handle];
         let mut dest_node = src_node.clone();
         dest_node.original = root_handle;
@@ -269,7 +273,8 @@ impl Graph {
         old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
-                let dest_child_handle = self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
+                let dest_child_handle =
+                    self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
                 if !dest_child_handle.is_none() {
                     dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
                 }
@@ -345,7 +350,9 @@ impl Graph {
                 if let Some(model) = mesh.resource() {
                     let model = model.lock().unwrap();
                     let resource_node_handle = model.find_node_by_name(node_name.as_str());
-                    if let Node::Mesh(resource_mesh) = &model.get_scene().graph[resource_node_handle] {
+                    if let Node::Mesh(resource_mesh) =
+                        &model.get_scene().graph[resource_node_handle]
+                    {
                         // Copy surfaces from resource and assign to meshes.
                         mesh.clear_surfaces();
                         for resource_surface in resource_mesh.surfaces() {
@@ -379,13 +386,12 @@ impl Graph {
             // Calculate local transform and get parent handle
             let parent_handle = self.pool[node_handle].parent();
 
-            let (parent_global_transform, parent_visibility) =
-                if parent_handle.is_some() {
-                    let parent = &self.pool[parent_handle];
-                    (parent.global_transform(), parent.global_visibility())
-                } else {
-                    (Mat4::IDENTITY, true)
-                };
+            let (parent_global_transform, parent_visibility) = if parent_handle.is_some() {
+                let parent = &self.pool[parent_handle];
+                (parent.global_transform(), parent.global_visibility())
+            } else {
+                (Mat4::IDENTITY, true)
+            };
 
             let node = &mut self.pool[node_handle];
             node.global_transform = parent_global_transform * node.local_transform().matrix();
@@ -413,7 +419,7 @@ impl Graph {
             match node {
                 Node::Camera(camera) => camera.calculate_matrices(frame_size),
                 Node::ParticleSystem(particle_system) => particle_system.update(dt),
-                _ => ()
+                _ => (),
             }
         }
 
@@ -510,7 +516,9 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
-        where F: FnMut(Handle<Node>, &Node) -> bool {
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
         let mut copy = Self::default();
         let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
         copy.root = root;
@@ -596,12 +604,8 @@ impl Visit for Graph {
 #[cfg(test)]
 mod test {
     use crate::{
-        scene::{
-            graph::Graph,
-            node::Node,
-            base::Base,
-        },
         core::pool::Handle,
+        scene::{base::Base, graph::Graph, node::Node},
     };
 
     #[test]

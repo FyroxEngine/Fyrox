@@ -1,9 +1,6 @@
 use crate::renderer::{
-    framework::gpu_program::{
-        GpuProgram,
-        UniformLocation,
-    },
     error::RendererError,
+    framework::gpu_program::{GpuProgram, UniformLocation},
 };
 
 pub struct FlatShader {

@@ -39,21 +39,21 @@
 //!  https://github.com/mrDIMAS/rusty-shooter
 //!
 
-extern crate image;
-extern crate glutin;
-extern crate lexical;
 extern crate byteorder;
+extern crate glutin;
+extern crate image;
 extern crate inflate;
+extern crate lexical;
 extern crate rand;
 #[macro_use]
 extern crate lazy_static;
 
-pub mod utils;
-pub mod scene;
-pub mod renderer;
-pub mod engine;
-pub mod resource;
 pub mod animation;
+pub mod engine;
+pub mod renderer;
+pub mod resource;
+pub mod scene;
+pub mod utils;
 
 pub use glutin::*;
 

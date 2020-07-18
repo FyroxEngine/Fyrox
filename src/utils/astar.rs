@@ -6,11 +6,7 @@
 
 #![warn(missing_docs)]
 
-use crate::core::math::{
-    self,
-    vec3::Vec3,
-    PositionProvider,
-};
+use crate::core::math::{self, vec3::Vec3, PositionProvider};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum PathVertexState {
@@ -59,7 +55,7 @@ impl PathVertex {
 
 /// See module docs.
 pub struct PathFinder {
-    vertices: Vec<PathVertex>
+    vertices: Vec<PathVertex>,
 }
 
 /// Shows path status.
@@ -107,7 +103,7 @@ impl PathFinder {
     /// Creates new empty path finder.
     pub fn new() -> Self {
         Self {
-            vertices: Default::default()
+            vertices: Default::default(),
         }
     }
 
@@ -164,7 +160,12 @@ impl PathFinder {
     /// This is more or less naive implementation, it most certainly will be slower
     /// than specialized solutions. I haven't benchmarked this algorithm against any
     /// other library!
-    pub fn build(&mut self, from: usize, to: usize, path: &mut Vec<Vec3>) -> Result<PathKind, PathError> {
+    pub fn build(
+        &mut self,
+        from: usize,
+        to: usize,
+        path: &mut Vec<Vec3>,
+    ) -> Result<PathKind, PathError> {
         if self.vertices.is_empty() {
             return Ok(PathKind::Empty);
         }
@@ -175,11 +176,17 @@ impl PathFinder {
             vertex.clear();
         }
 
-        let end_pos = self.vertices.get(to)
-            .ok_or(PathError::InvalidIndex(to))?.position;
+        let end_pos = self
+            .vertices
+            .get(to)
+            .ok_or(PathError::InvalidIndex(to))?
+            .position;
 
         // Put start vertex in open set.
-        let start = self.vertices.get_mut(from).ok_or(PathError::InvalidIndex(from))?;
+        let start = self
+            .vertices
+            .get_mut(from)
+            .ok_or(PathError::InvalidIndex(from))?;
         start.state = PathVertexState::Open;
         start.g_score = 0.0;
         start.f_score = heuristic(start.position, end_pos);
@@ -204,11 +211,11 @@ impl PathFinder {
 
             // Take second mutable reference to vertices array, we'll enforce borrowing rules
             // at runtime. It will *never* give two mutable references to same path vertex.
-            let unsafe_vertices: &mut Vec<PathVertex> = unsafe {
-                &mut *(&mut self.vertices as *mut _)
-            };
+            let unsafe_vertices: &mut Vec<PathVertex> =
+                unsafe { &mut *(&mut self.vertices as *mut _) };
 
-            let current_vertex = self.vertices
+            let current_vertex = self
+                .vertices
                 .get_mut(current_index)
                 .ok_or(PathError::InvalidIndex(current_index))?;
 
@@ -225,7 +232,8 @@ impl PathFinder {
                     .get_mut(*neighbour_index)
                     .ok_or(PathError::InvalidIndex(*neighbour_index))?;
 
-                let g_score = current_vertex.g_score + current_vertex.position.sqr_distance(&neighbour.position);
+                let g_score = current_vertex.g_score
+                    + current_vertex.position.sqr_distance(&neighbour.position);
                 if g_score < neighbour.g_score {
                     neighbour.parent = Some(current_index);
                     neighbour.g_score = g_score;
@@ -244,7 +252,9 @@ impl PathFinder {
         // reconstruct partial path.
         let mut closest_index = 0;
         for (i, vertex) in self.vertices.iter().enumerate() {
-            let closest_vertex = self.vertices.get(closest_index)
+            let closest_vertex = self
+                .vertices
+                .get(closest_index)
                 .ok_or(PathError::InvalidIndex(closest_index))?;
             if vertex.f_score < closest_vertex.f_score {
                 closest_index = i;
@@ -274,8 +284,8 @@ impl PathFinder {
 
 #[cfg(test)]
 mod test {
-    use crate::utils::astar::{PathFinder, PathVertex};
     use crate::core::math::vec3::Vec3;
+    use crate::utils::astar::{PathFinder, PathVertex};
     use rand::Rng;
 
     #[test]
@@ -325,8 +335,14 @@ mod test {
             if path.len() > 1 {
                 paths_count += 1;
 
-                assert_eq!(*path.first().unwrap(), pathfinder.get_vertex(to).unwrap().position);
-                assert_eq!(*path.last().unwrap(), pathfinder.get_vertex(from).unwrap().position);
+                assert_eq!(
+                    *path.first().unwrap(),
+                    pathfinder.get_vertex(to).unwrap().position
+                );
+                assert_eq!(
+                    *path.last().unwrap(),
+                    pathfinder.get_vertex(from).unwrap().position
+                );
             } else {
                 let point = *path.first().unwrap();
                 assert_eq!(point, pathfinder.get_vertex(to).unwrap().position);

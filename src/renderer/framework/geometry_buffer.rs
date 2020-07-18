@@ -1,22 +1,19 @@
-use std::{
-    marker::PhantomData,
-    mem::size_of,
-    ffi::c_void,
-    cell::Cell,
-};
 use crate::{
+    core::scope_profile,
     renderer::{
         error::RendererError,
-        framework::gl::{
-            self,
-            types::{GLuint, GLint},
+        framework::{
+            gl::{
+                self,
+                types::{GLint, GLuint},
+            },
+            state::State,
         },
         TriangleDefinition,
     },
-    core::scope_profile,
     utils::log::Log,
 };
-use crate::renderer::framework::state::State;
+use std::{cell::Cell, ffi::c_void, marker::PhantomData, mem::size_of};
 
 /// Safe wrapper over OpenGL's Vertex Array Objects for interleaved vertices (where
 /// position, normal, etc. stored together, not in separate arrays)
@@ -157,12 +154,12 @@ impl ElementKind {
 }
 
 pub struct GeometryBufferBinding<'a, T> {
-    buffer: &'a GeometryBuffer<T>
+    buffer: &'a GeometryBuffer<T>,
 }
 
 #[derive(Copy, Clone)]
 pub struct DrawCallStatistics {
-    pub triangles: usize
+    pub triangles: usize,
 }
 
 impl<'a, T> GeometryBufferBinding<'a, T> {
@@ -187,7 +184,10 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         self
     }
 
-    pub fn describe_attributes(self, definitions: Vec<AttributeDefinition>) -> Result<Self, RendererError> {
+    pub fn describe_attributes(
+        self,
+        definitions: Vec<AttributeDefinition>,
+    ) -> Result<Self, RendererError> {
         scope_profile!();
 
         let vertex_size = size_of::<T>();
@@ -196,7 +196,11 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
             let index = index as u32;
             let size = definition.kind.length();
             let type_ = definition.kind.get_type();
-            let normalized = if definition.normalized { gl::TRUE } else { gl::FALSE };
+            let normalized = if definition.normalized {
+                gl::TRUE
+            } else {
+                gl::FALSE
+            };
             let stride = vertex_size as i32;
             let pointer = offset as *const c_void;
 
@@ -252,7 +256,11 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
         gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, elements, usage);
     }
 
-    pub fn draw_part(&self, offset: usize, count: usize) -> Result<DrawCallStatistics, RendererError> {
+    pub fn draw_part(
+        &self,
+        offset: usize,
+        count: usize,
+    ) -> Result<DrawCallStatistics, RendererError> {
         scope_profile!();
 
         let last_triangle_index = offset + count;
@@ -268,7 +276,9 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
             let start_index = offset * index_per_element;
             let index_count = count * index_per_element;
 
-            unsafe { self.draw_internal(start_index, index_count); }
+            unsafe {
+                self.draw_internal(start_index, index_count);
+            }
 
             Ok(DrawCallStatistics { triangles: count })
         }
@@ -290,7 +300,9 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
 
         unsafe { self.draw_internal(start_index, index_count) }
 
-        DrawCallStatistics { triangles: self.buffer.element_count.get() }
+        DrawCallStatistics {
+            triangles: self.buffer.element_count.get(),
+        }
     }
 
     unsafe fn draw_internal(&self, start_index: usize, index_count: usize) {
@@ -303,7 +315,10 @@ impl<'a, T> GeometryBufferBinding<'a, T> {
     }
 }
 
-impl<T> GeometryBuffer<T> where T: Sized {
+impl<T> GeometryBuffer<T>
+where
+    T: Sized,
+{
     pub fn new(kind: GeometryBufferKind, element_kind: ElementKind) -> Self {
         unsafe {
             scope_profile!();
@@ -317,7 +332,10 @@ impl<T> GeometryBuffer<T> where T: Sized {
             let mut ebo = 0;
             gl::GenBuffers(1, &mut ebo);
 
-            Log::writeln(format!("GL geometry buffer was created - VBO: {}, EBO: {}, VAO: {}!", vbo, ebo, vao));
+            Log::writeln(format!(
+                "GL geometry buffer was created - VBO: {}, EBO: {}, VAO: {}!",
+                vbo, ebo, vao
+            ));
 
             Self {
                 vertex_array_object: vao,
@@ -344,17 +362,17 @@ impl<T> GeometryBuffer<T> where T: Sized {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.element_buffer_object);
         }
 
-        GeometryBufferBinding {
-            buffer: self
-        }
+        GeometryBufferBinding { buffer: self }
     }
 }
 
 impl<T> Drop for GeometryBuffer<T> {
     fn drop(&mut self) {
         unsafe {
-            Log::writeln(format!("GL geometry buffer was destroyed - VBO: {}, EBO: {}, VAO: {}!",
-                                 self.vertex_buffer_object, self.element_buffer_object, self.vertex_array_object));
+            Log::writeln(format!(
+                "GL geometry buffer was destroyed - VBO: {}, EBO: {}, VAO: {}!",
+                self.vertex_buffer_object, self.element_buffer_object, self.vertex_array_object
+            ));
 
             gl::DeleteBuffers(1, &self.vertex_buffer_object);
             gl::DeleteBuffers(1, &self.element_buffer_object);

@@ -30,12 +30,10 @@ impl FbxAttribute {
             FbxAttribute::Integer(val) => Ok(*val),
             FbxAttribute::Long(val) => Ok(*val as i32),
             FbxAttribute::Bool(val) => Ok(*val as i32),
-            FbxAttribute::String(val) => {
-                match lexical::parse::<i32, _>(val.as_str()) {
-                    Ok(i) => Ok(i),
-                    Err(_) => Err(format!("Unable to convert string {} to i32", val))
-                }
-            }
+            FbxAttribute::String(val) => match lexical::parse::<i32, _>(val.as_str()) {
+                Ok(i) => Ok(i),
+                Err(_) => Err(format!("Unable to convert string {} to i32", val)),
+            },
         }
     }
 
@@ -46,12 +44,10 @@ impl FbxAttribute {
             FbxAttribute::Integer(val) => Ok(i64::from(*val)),
             FbxAttribute::Long(val) => Ok(*val as i64),
             FbxAttribute::Bool(val) => Ok(*val as i64),
-            FbxAttribute::String(val) => {
-                match lexical::parse::<i64, _>(val.as_str()) {
-                    Ok(i) => Ok(i),
-                    Err(_) => Err(format!("Unable to convert string {} to i64", val))
-                }
-            }
+            FbxAttribute::String(val) => match lexical::parse::<i64, _>(val.as_str()) {
+                Ok(i) => Ok(i),
+                Err(_) => Err(format!("Unable to convert string {} to i64", val)),
+            },
         }
     }
 
@@ -62,12 +58,10 @@ impl FbxAttribute {
             FbxAttribute::Integer(val) => Ok(f64::from(*val)),
             FbxAttribute::Long(val) => Ok(*val as f64),
             FbxAttribute::Bool(val) => Ok((*val as i64) as f64),
-            FbxAttribute::String(val) => {
-                match lexical::parse_lossy::<f64, _>(val.as_str()) {
-                    Ok(i) => Ok(i),
-                    Err(_) => Err(format!("Unable to convert string {} to f64", val))
-                }
-            }
+            FbxAttribute::String(val) => match lexical::parse_lossy::<f64, _>(val.as_str()) {
+                Ok(i) => Ok(i),
+                Err(_) => Err(format!("Unable to convert string {} to f64", val)),
+            },
         }
     }
 
@@ -78,12 +72,10 @@ impl FbxAttribute {
             FbxAttribute::Integer(val) => Ok(*val as f32),
             FbxAttribute::Long(val) => Ok(*val as f32),
             FbxAttribute::Bool(val) => Ok((*val as i32) as f32),
-            FbxAttribute::String(val) => {
-                match lexical::parse_lossy::<f32, _>(val.as_str()) {
-                    Ok(i) => Ok(i),
-                    Err(_) => Err(format!("Unable to convert string {} to f32", val))
-                }
-            }
+            FbxAttribute::String(val) => match lexical::parse_lossy::<f32, _>(val.as_str()) {
+                Ok(i) => Ok(i),
+                Err(_) => Err(format!("Unable to convert string {} to f32", val)),
+            },
         }
     }
 

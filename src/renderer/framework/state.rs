@@ -1,24 +1,11 @@
 use crate::{
-    renderer::{
-        framework::{
-            framebuffer::{
-                CullFace,
-                DrawParameters,
-            },
-            gl::{
-                self,
-                types::{
-                    GLuint,
-                    GLboolean,
-                    GLenum,
-                    GLint
-                }
-            }
-        }
-    },
-    core::{
-        math::Rect,
-        color::Color,
+    core::{color::Color, math::Rect},
+    renderer::framework::{
+        framebuffer::{CullFace, DrawParameters},
+        gl::{
+            self,
+            types::{GLboolean, GLenum, GLint, GLuint},
+        },
     },
 };
 
@@ -166,7 +153,7 @@ impl State {
             stencil_func: Default::default(),
             stencil_op: Default::default(),
             vao: 0,
-            vbo: 0
+            vbo: 0,
         }
     }
 
@@ -174,9 +161,7 @@ impl State {
         if self.framebuffer != framebuffer {
             self.framebuffer = framebuffer;
 
-            unsafe {
-                gl::BindFramebuffer(gl::FRAMEBUFFER, self.framebuffer)
-            }
+            unsafe { gl::BindFramebuffer(gl::FRAMEBUFFER, self.framebuffer) }
         }
     }
 
@@ -185,7 +170,12 @@ impl State {
             self.viewport = viewport;
 
             unsafe {
-                gl::Viewport(self.viewport.x, self.viewport.y, self.viewport.w, self.viewport.h);
+                gl::Viewport(
+                    self.viewport.x,
+                    self.viewport.y,
+                    self.viewport.w,
+                    self.viewport.h,
+                );
             }
         }
     }
@@ -233,10 +223,12 @@ impl State {
             self.color_write = color_write;
 
             unsafe {
-                gl::ColorMask(bool_to_gl_bool(self.color_write.red),
-                              bool_to_gl_bool(self.color_write.green),
-                              bool_to_gl_bool(self.color_write.blue),
-                              bool_to_gl_bool(self.color_write.alpha));
+                gl::ColorMask(
+                    bool_to_gl_bool(self.color_write.red),
+                    bool_to_gl_bool(self.color_write.green),
+                    bool_to_gl_bool(self.color_write.blue),
+                    bool_to_gl_bool(self.color_write.alpha),
+                );
             }
         }
     }
@@ -259,9 +251,7 @@ impl State {
         if self.cull_face != cull_face {
             self.cull_face = cull_face;
 
-            unsafe {
-                gl::CullFace(self.cull_face.into_gl_value())
-            }
+            unsafe { gl::CullFace(self.cull_face.into_gl_value()) }
         }
     }
 
@@ -360,7 +350,11 @@ impl State {
             self.stencil_func = func;
 
             unsafe {
-                gl::StencilFunc(self.stencil_func.func, self.stencil_func.ref_value, self.stencil_func.mask);
+                gl::StencilFunc(
+                    self.stencil_func.func,
+                    self.stencil_func.ref_value,
+                    self.stencil_func.mask,
+                );
             }
         }
     }
@@ -370,7 +364,11 @@ impl State {
             self.stencil_op = op;
 
             unsafe {
-                gl::StencilOp(self.stencil_op.fail, self.stencil_op.zfail, self.stencil_op.zpass);
+                gl::StencilOp(
+                    self.stencil_op.fail,
+                    self.stencil_op.zfail,
+                    self.stencil_op.zpass,
+                );
             }
         }
     }

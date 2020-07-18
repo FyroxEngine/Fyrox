@@ -1,18 +1,22 @@
-use crate::utils::log::Log;
-use crate::renderer::framework::gl::types::{GLchar, GLenum, GLuint, GLsizei};
+use crate::{
+    renderer::framework::gl::types::{GLchar, GLenum, GLsizei, GLuint},
+    utils::log::Log,
+};
 use std::ffi::CStr;
 
 #[allow(clippy::all)]
 pub(in crate) mod gl;
 
 macro_rules! check_gl_error {
-    () => (crate::renderer::framework::check_gl_error_internal(line!(), file!()))
+    () => {
+        crate::renderer::framework::check_gl_error_internal(line!(), file!())
+    };
 }
 
-pub mod gpu_program;
-pub mod geometry_buffer;
-pub mod gpu_texture;
 pub mod framebuffer;
+pub mod geometry_buffer;
+pub mod gpu_program;
+pub mod gpu_texture;
 pub mod state;
 
 pub fn check_gl_error_internal(line: u32, file: &str) {
@@ -29,7 +33,10 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
                 _ => "Unknown",
             };
 
-            Log::writeln(format!("{} error has occurred! At line {} in file {}, stability is not guaranteed!", code, line, file));
+            Log::writeln(format!(
+                "{} error has occurred! At line {} in file {}, stability is not guaranteed!",
+                code, line, file
+            ));
 
             if gl::GetDebugMessageLog::is_loaded() {
                 let mut max_message_length = 0;
@@ -70,7 +77,9 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
                 );
 
                 if message_count == 0 {
-                    Log::writeln("Debug info is not available - run with OpenGL debug flag!".to_owned());
+                    Log::writeln(
+                        "Debug info is not available - run with OpenGL debug flag!".to_owned(),
+                    );
                 }
 
                 let mut message = message_buffer.as_ptr();
@@ -82,36 +91,33 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
                     let id = ids[i];
                     let len = lengths[i] as usize;
 
-                    let source_str =
-                        match source {
-                            gl::DEBUG_SOURCE_API => "API",
-                            gl::DEBUG_SOURCE_SHADER_COMPILER => "Shader Compiler",
-                            gl::DEBUG_SOURCE_WINDOW_SYSTEM => "Window System",
-                            gl::DEBUG_SOURCE_THIRD_PARTY => "Third Party",
-                            gl::DEBUG_SOURCE_APPLICATION => "Application",
-                            gl::DEBUG_SOURCE_OTHER => "Other",
-                            _ => "Unknown"
-                        };
+                    let source_str = match source {
+                        gl::DEBUG_SOURCE_API => "API",
+                        gl::DEBUG_SOURCE_SHADER_COMPILER => "Shader Compiler",
+                        gl::DEBUG_SOURCE_WINDOW_SYSTEM => "Window System",
+                        gl::DEBUG_SOURCE_THIRD_PARTY => "Third Party",
+                        gl::DEBUG_SOURCE_APPLICATION => "Application",
+                        gl::DEBUG_SOURCE_OTHER => "Other",
+                        _ => "Unknown",
+                    };
 
-                    let type_str =
-                        match ty {
-                            gl::DEBUG_TYPE_ERROR => "Error",
-                            gl::DEBUG_TYPE_DEPRECATED_BEHAVIOR => "Deprecated Behavior",
-                            gl::DEBUG_TYPE_UNDEFINED_BEHAVIOR => "Undefined Behavior",
-                            gl::DEBUG_TYPE_PERFORMANCE => "Performance",
-                            gl::DEBUG_TYPE_PORTABILITY => "Portability",
-                            gl::DEBUG_TYPE_OTHER => "Other",
-                            _ => "Unknown",
-                        };
+                    let type_str = match ty {
+                        gl::DEBUG_TYPE_ERROR => "Error",
+                        gl::DEBUG_TYPE_DEPRECATED_BEHAVIOR => "Deprecated Behavior",
+                        gl::DEBUG_TYPE_UNDEFINED_BEHAVIOR => "Undefined Behavior",
+                        gl::DEBUG_TYPE_PERFORMANCE => "Performance",
+                        gl::DEBUG_TYPE_PORTABILITY => "Portability",
+                        gl::DEBUG_TYPE_OTHER => "Other",
+                        _ => "Unknown",
+                    };
 
-                    let severity_str =
-                        match severity {
-                            gl::DEBUG_SEVERITY_HIGH => "High",
-                            gl::DEBUG_SEVERITY_MEDIUM => "Medium",
-                            gl::DEBUG_SEVERITY_LOW => "Low",
-                            gl::DEBUG_SEVERITY_NOTIFICATION => "Notification",
-                            _ => "Unknown"
-                        };
+                    let severity_str = match severity {
+                        gl::DEBUG_SEVERITY_HIGH => "High",
+                        gl::DEBUG_SEVERITY_MEDIUM => "Medium",
+                        gl::DEBUG_SEVERITY_LOW => "Low",
+                        gl::DEBUG_SEVERITY_NOTIFICATION => "Notification",
+                        _ => "Unknown",
+                    };
 
                     let str_msg = CStr::from_ptr(message);
 
@@ -125,7 +131,10 @@ pub fn check_gl_error_internal(line: u32, file: &str) {
                     message = message.add(len);
                 }
             } else {
-                Log::writeln("Debug info is not available - glGetDebugMessageLog is not available!".to_owned());
+                Log::writeln(
+                    "Debug info is not available - glGetDebugMessageLog is not available!"
+                        .to_owned(),
+                );
             }
         }
     }
