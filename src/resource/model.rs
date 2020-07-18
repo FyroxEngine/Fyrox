@@ -1,3 +1,22 @@
+#![deny(missing_docs)]
+
+//! Contains all data structures and method to work with model resources.
+//!
+//! Model is an isolated scene that is used to create copies of its data - this
+//! process is known as `instantiation`. Isolation in this context means that
+//! such scene cannot be modified, rendered, etc. It just a data source.
+//!
+//! All instances will have references to resource they were created from - this
+//! will help to get correct vertex and indices buffers when loading a save file,
+//! loader will just take all needed data from resource so we don't need to store
+//! such data in save file. Also this mechanism works perfectly when you changing
+//! resource in external editor (3Ds max, Maya, Blender, etc.) engine will assign
+//! correct visual data when loading a saved game.
+//!
+//! # Supported formats
+//!
+//! Currently only FBX (common format in game industry for storing complex 3d models)
+//! and RGS (native rusty-editor format) formats are supported.
 use crate::{
     animation::Animation,
     core::{
@@ -14,16 +33,7 @@ use std::{
     sync::{Arc, Mutex, Weak},
 };
 
-/// Model is an isolated scene that is used to create copies of its data - this
-/// process is known as `instantiation`. Isolation in this context means that
-/// such scene cannot be modified, rendered, etc. It just a data source.
-///
-/// All instances will have references to resource they were created from - this
-/// will help to get correct vertex and indices buffers when loading a save file,
-/// loader will just take all needed data from resource so we don't need to store
-/// such data in save file. Also this mechanism works perfectly when you changing
-/// resource in external editor (3Ds max, Maya, Blender, etc.) engine will assign
-/// correct visual data when loading a saved game.
+/// See module docs.
 #[derive(Debug)]
 pub struct Model {
     // enable_shared_from_this trick from C++
@@ -53,7 +63,10 @@ impl Visit for Model {
     }
 }
 
+/// Model instance is a combination of handle to root node of instance in a scene,
+/// and list of all animations from model which were instantiated on a scene.
 pub struct ModelInstance {
+    /// Handle of root node of instance.
     pub root: Handle<Node>,
 
     /// List of instantiated animations that were inside model resource.
@@ -74,10 +87,15 @@ fn upgrade_self_weak_ref(self_weak_ref: &Option<Weak<Mutex<Model>>>) -> Arc<Mute
         .expect("Model self weak ref must be valid!")
 }
 
+/// All possible errors that may occur while trying to load model from some
+/// data source.
 #[derive(Debug)]
 pub enum ModelLoadError {
+    /// An error occurred while reading some data source.
     Visit(VisitError),
-    Generic(String),
+    /// Format is not supported.
+    NotSupported(String),
+    /// An error occurred while loading FBX file.
     Fbx(FbxError),
 }
 
@@ -122,7 +140,7 @@ impl Model {
             }
             // TODO: Add more formats.
             _ => {
-                return Err(ModelLoadError::Generic(format!(
+                return Err(ModelLoadError::NotSupported(format!(
                     "Unsupported model resource format: {}",
                     extension
                 )))
@@ -230,11 +248,15 @@ impl Model {
         animation_handles
     }
 
-    /// Returns internal scene
+    /// Returns shared reference to internal scene, there is no way to obtain
+    /// mutable reference to inner scene because resource is immutable source
+    /// of data.
     pub fn get_scene(&self) -> &Scene {
         &self.scene
     }
 
+    /// Tries to find node in resource by its name. Returns Handle::NONE if
+    /// no node was found.
     pub fn find_node_by_name(&self, name: &str) -> Handle<Node> {
         self.scene.graph.find_by_name_from_root(name)
     }
