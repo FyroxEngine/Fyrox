@@ -1,3 +1,5 @@
+![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)
+
 # RG3D
 
 3D game engine written in Rust. 
