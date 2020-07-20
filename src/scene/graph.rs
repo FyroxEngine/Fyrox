@@ -22,8 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-#![warn(missing_docs)]
-
 use crate::{
     core::{
         math::{mat4::Mat4, vec2::Vec2, vec3::Vec3},

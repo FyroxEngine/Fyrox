@@ -14,17 +14,13 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-#![warn(missing_docs)]
-
 use crate::{
     core::{
-        math::{mat4::Mat4, vec2::Vec2, Rect},
+        math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec4::Vec4, Rect},
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::base::{Base, BaseBuilder},
 };
-use rg3d_core::math::ray::Ray;
-use rg3d_core::math::vec4::Vec4;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.

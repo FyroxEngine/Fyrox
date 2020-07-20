@@ -1,5 +1,3 @@
-#![warn(missing_docs)]
-
 //! Contains all structures and methods to create and manage sprites.
 //!
 //! Sprite is billboard which always faces towards camera. It can be used
@@ -111,7 +109,7 @@ impl Visit for Sprite {
     }
 }
 
-/// sprite builder allows you to construct sprite in declarative manner.
+/// Sprite builder allows you to construct sprite in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct SpriteBuilder {
     base_builder: BaseBuilder,

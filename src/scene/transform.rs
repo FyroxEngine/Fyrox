@@ -46,8 +46,6 @@
 //! initial components, thats why engine does not provide any methods to get those
 //! properties back.
 
-#![warn(missing_docs)]
-
 use crate::{
     core::{
         math::{mat4::Mat4, quat::Quat, vec3::Vec3},

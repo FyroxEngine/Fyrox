@@ -16,8 +16,6 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
-#![warn(missing_docs)]
-
 use crate::{
     core::{
         color::Color,

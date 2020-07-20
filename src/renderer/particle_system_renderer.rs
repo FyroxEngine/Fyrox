@@ -150,8 +150,8 @@ impl ParticleSystemRenderer {
 
             self.geometry_buffer
                 .bind(state)
-                .set_triangles(self.draw_data.get_triangles())
-                .set_vertices(self.draw_data.get_vertices());
+                .set_triangles(self.draw_data.triangles())
+                .set_vertices(self.draw_data.vertices());
 
             let uniforms = [
                 (

@@ -1,4 +1,8 @@
-//! Scene is container for
+#![warn(missing_docs)]
+
+//! Contains all structures and methods to create and manage scenes.
+//!
+//! Scene is container for graph nodes, animations and physics.
 
 pub mod base;
 pub mod camera;
@@ -10,7 +14,6 @@ pub mod particle_system;
 pub mod sprite;
 pub mod transform;
 
-use crate::resource::texture::Texture;
 use crate::{
     animation::AnimationContainer,
     core::{
@@ -19,13 +22,18 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     physics::{rigid_body::RigidBody, Physics},
+    resource::texture::Texture,
     scene::{graph::Graph, node::Node},
     utils::log::Log,
 };
-use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    ops::{Index, IndexMut},
+    sync::{Arc, Mutex},
+};
 
+/// Physics binder is used to link graph nodes with rigid bodies. Scene will
+/// sync transform of node with its associated rigid body.
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder {
     node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>,
@@ -40,6 +48,7 @@ impl Default for PhysicsBinder {
 }
 
 impl PhysicsBinder {
+    /// Links given graph node with specified rigid body.
     pub fn bind(
         &mut self,
         node: Handle<Node>,
@@ -48,8 +57,18 @@ impl PhysicsBinder {
         self.node_rigid_body_map.insert(node, rigid_body)
     }
 
+    /// Unlinks given graph node from its associated rigid body (if any).
     pub fn unbind(&mut self, node: Handle<Node>) -> Option<Handle<RigidBody>> {
         self.node_rigid_body_map.remove(&node)
+    }
+
+    /// Returns handle of rigid body associated with given node. It will return
+    /// Handle::NONE if given node isn't linked to a rigid body.
+    pub fn body_of(&self, node: Handle<Node>) -> Handle<RigidBody> {
+        self.node_rigid_body_map
+            .get(&node)
+            .map(|b| *b)
+            .unwrap_or_default()
     }
 }
 
@@ -63,6 +82,7 @@ impl Visit for PhysicsBinder {
     }
 }
 
+/// See module docs.
 #[derive(Debug)]
 pub struct Scene {
     /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
@@ -83,7 +103,12 @@ pub struct Scene {
     pub physics_binder: PhysicsBinder,
 
     /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
-    ///
+    /// It is useful to "embed" some scene into other by drawing a quad with this
+    /// texture. This can be used to make in-game video conference - you can make
+    /// separate scene with your characters and draw scene into texture, then in
+    /// main scene you can attach this texture to some quad which will be used as
+    /// monitor. Other usage could be previewer of models, like pictogram of character
+    /// in real-time strategies, in other words there are plenty of possible uses.
     pub render_target: Option<Arc<Mutex<Texture>>>,
 }
 
@@ -100,6 +125,12 @@ impl Default for Scene {
 }
 
 impl Scene {
+    /// Creates new scene with single root node.
+    ///
+    /// # Notes
+    ///
+    /// This method differs from Default trait implementation! Scene::default() creates
+    /// empty graph with no nodes.
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -154,19 +185,24 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
-    pub fn resolve(&mut self) {
+    pub(in crate) fn resolve(&mut self) {
         Log::writeln("Starting resolve...".to_owned());
         self.graph.resolve();
         self.animations.resolve(&self.graph);
         Log::writeln("Resolve succeeded!".to_owned());
     }
 
+    /// Performs single update tick with given delta time from last frame. Internally
+    /// it updates physics, animations, and each graph node. In most cases there is
+    /// no need to call it directly, engine automatically updates all available scenes.
     pub fn update(&mut self, frame_size: Vec2, dt: f32) {
         self.update_physics(dt);
         self.animations.update_animations(dt);
         self.graph.update_nodes(frame_size, dt);
     }
 
+    /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
+    /// by your criteria.
     pub fn clone<F>(&self, filter: &mut F) -> Self
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
@@ -212,6 +248,7 @@ impl Visit for Scene {
     }
 }
 
+/// Container for scenes in the engine. It just a simple wrapper around Pool.
 pub struct SceneContainer {
     pool: Pool<Scene>,
 }
@@ -221,26 +258,31 @@ impl SceneContainer {
         Self { pool: Pool::new() }
     }
 
+    /// Creates new iterator over scenes in container.
     #[inline]
     pub fn iter(&self) -> PoolIterator<Scene> {
         self.pool.iter()
     }
 
+    /// Creates new mutable iterator over scenes in container.
     #[inline]
     pub fn iter_mut(&mut self) -> PoolIteratorMut<Scene> {
         self.pool.iter_mut()
     }
 
+    /// Adds new scene into container.
     #[inline]
-    pub fn add(&mut self, animation: Scene) -> Handle<Scene> {
-        self.pool.spawn(animation)
+    pub fn add(&mut self, scene: Scene) -> Handle<Scene> {
+        self.pool.spawn(scene)
     }
 
+    /// Removes all scenes from container.
     #[inline]
     pub fn clear(&mut self) {
         self.pool.clear()
     }
 
+    /// Removes given scene from container.
     #[inline]
     pub fn remove(&mut self, handle: Handle<Scene>) {
         self.pool.free(handle);

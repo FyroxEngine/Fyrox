@@ -5,7 +5,7 @@ use std::{
 };
 
 lazy_static! {
-    static ref LOG_FILE: Mutex<File> = { Mutex::new(File::create("rg3d.log").unwrap()) };
+    static ref LOG_FILE: Mutex<File> = Mutex::new(File::create("rg3d.log").unwrap());
 }
 
 pub struct Log {}

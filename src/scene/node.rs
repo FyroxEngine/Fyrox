@@ -1,3 +1,7 @@
+//! Contains all structures and methods to create and manage scene graph nodes.
+//!
+//! Node is enumeration of possible types of scene nodes.
+
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     scene::{
@@ -34,13 +38,20 @@ impl Visit for Node {
     }
 }
 
+/// See module docs.
 #[derive(Clone, Debug)]
 pub enum Node {
+    /// See Base node docs.
     Base(Base),
+    /// See Light node docs.
     Light(Light),
+    /// See Camera node docs.
     Camera(Camera),
+    /// See Mesh node docs.
     Mesh(Mesh),
+    /// See Sprite node docs.
     Sprite(Sprite),
+    /// See ParticleSystem node docs.
     ParticleSystem(ParticleSystem),
 }
 
@@ -80,6 +91,7 @@ impl Default for Node {
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 macro_rules! define_is_as {
     ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
+        /// Returns true if node is intance of given type.
         pub fn $is(&self) -> bool {
             match self {
                 Node::$kind(_) => true,
@@ -87,6 +99,8 @@ macro_rules! define_is_as {
             }
         }
 
+        /// Tries to cast shared reference to a node to given type, panics if
+        /// cast is not possible.
         pub fn $as_ref(&self) -> &$result {
             match self {
                 Node::$kind(ref val) => val,
@@ -94,6 +108,8 @@ macro_rules! define_is_as {
             }
         }
 
+        /// Tries to cast mutable reference to a node to given type, panics if
+        /// cast is not possible.
         pub fn $as_mut(&mut self) -> &mut $result {
             match self {
                 Node::$kind(ref mut val) => val,

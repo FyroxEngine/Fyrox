@@ -6,8 +6,6 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
-#![warn(missing_docs)]
-
 use crate::{
     core::{
         math::{mat4::Mat4, vec3::Vec3},
