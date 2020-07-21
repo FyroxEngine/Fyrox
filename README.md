@@ -34,6 +34,8 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 	- Screen-Space Ambient Occlusion (SSAO)
 	- Soft shadows
 	- Volumetric light (spot, point)
+- Render in texture
+- Multi-camera rendering
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes
 - Built-in save/load - save/load state of engine in one call
 - [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound)

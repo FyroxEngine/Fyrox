@@ -94,7 +94,7 @@ impl SpotShadowMapRenderer {
         self.framebuffer.depth_attachment().unwrap().texture.clone()
     }
 
-    pub fn render(
+    pub(in crate) fn render(
         &mut self,
         state: &mut State,
         graph: &Graph,
@@ -242,7 +242,7 @@ struct PointShadowCubeMapFace {
     up: Vec3,
 }
 
-pub struct PointShadowMapRenderContext<'a, 'c> {
+pub(in crate) struct PointShadowMapRenderContext<'a, 'c> {
     pub state: &'a mut State,
     pub graph: &'c Graph,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
@@ -390,7 +390,7 @@ impl PointShadowMapRenderer {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
+    pub(in crate) fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

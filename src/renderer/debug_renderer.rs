@@ -1,7 +1,12 @@
+//! Debug renderer allows you to create debug geometry (wireframe) on the fly. As it said
+//! in its name its purpose - output debug information. It can be used to render collision
+//! shapes, contact information (normals, positions, etc.), paths build by navmesh and so
+//! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
+
 use crate::{
     core::{
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, vec3::Vec3, Rect},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, mat4::Mat4, vec3::Vec3, Rect},
         scope_profile,
     },
     renderer::{
@@ -18,7 +23,6 @@ use crate::{
     },
     scene::camera::Camera,
 };
-use rg3d_core::math::mat4::Mat4;
 
 #[repr(C)]
 struct Vertex {
@@ -26,6 +30,7 @@ struct Vertex {
     color: u32,
 }
 
+/// See module docs.
 pub struct DebugRenderer {
     geometry: GeometryBuffer<Vertex>,
     lines: Vec<Line>,
@@ -34,7 +39,7 @@ pub struct DebugRenderer {
     shader: DebugShader,
 }
 
-pub struct DebugShader {
+pub(in crate) struct DebugShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
 }
@@ -51,9 +56,13 @@ impl DebugShader {
     }
 }
 
+/// Colored line between two points.
 pub struct Line {
+    /// Beginning of the line.
     pub begin: Vec3,
+    /// End of the line.    
     pub end: Vec3,
+    /// Color of the line.
     pub color: Color,
 }
 
@@ -81,14 +90,19 @@ impl DebugRenderer {
         })
     }
 
+    /// Adds single line into internal buffer.
     pub fn add_line(&mut self, line: Line) {
         self.lines.push(line);
     }
 
+    /// Removes all lines from internal buffer.
     pub fn clear_lines(&mut self) {
         self.lines.clear()
     }
 
+    /// Draws frustum with given color. Drawing is not immediate, it only pushes
+    /// lines for frustum into internal buffer. It will be drawn later on in separate
+    /// render pass.
     pub fn draw_frustum(&mut self, frustum: &Frustum, color: Color) {
         let left_top_front = frustum.left_top_front_corner();
         let left_bottom_front = frustum.left_bottom_front_corner();
@@ -167,6 +181,9 @@ impl DebugRenderer {
         });
     }
 
+    /// Draws axis-aligned bounding box with given color. Drawing is not immediate,
+    /// it only pushes lines for bounding box into internal buffer. It will be drawn
+    /// later on in separate render pass.
     pub fn draw_aabb(&mut self, aabb: &AxisAlignedBoundingBox, color: Color) {
         let left_bottom_front = Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z);
         let left_top_front = Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z);
@@ -245,6 +262,9 @@ impl DebugRenderer {
         });
     }
 
+    /// Draws object-oriented bounding box with given color. Drawing is not immediate,
+    /// it only pushes lines for object-oriented bounding box into internal buffer. It
+    /// will be drawn later on in separate render pass.
     pub fn draw_oob(&mut self, aabb: &AxisAlignedBoundingBox, transform: Mat4, color: Color) {
         let left_bottom_front =
             transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z));

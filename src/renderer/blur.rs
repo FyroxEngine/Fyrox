@@ -79,7 +79,7 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub fn render(
+    pub(in crate) fn render(
         &mut self,
         state: &mut State,
         geom_cache: &mut GeometryCache,

@@ -60,7 +60,7 @@ pub struct ParticleSystemRenderer {
     sorted_particles: Vec<u32>,
 }
 
-pub struct ParticleSystemRenderContext<'a, 'b, 'c> {
+pub(in crate) struct ParticleSystemRenderContext<'a, 'b, 'c> {
     pub state: &'a mut State,
     pub framebuffer: &'b mut FrameBuffer,
     pub graph: &'c Graph,
@@ -110,7 +110,7 @@ impl ParticleSystemRenderer {
     }
 
     #[must_use]
-    pub fn render(&mut self, args: ParticleSystemRenderContext) -> RenderPassStatistics {
+    pub(in crate) fn render(&mut self, args: ParticleSystemRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

@@ -1,3 +1,11 @@
+//! Renderer is a "workhorse" of the engine, it draws scenes and user interface.
+//! For now there is almost no possibility to change pipeline of renderer, you
+//! can only modify quality settings. This will change in future to make renderer
+//! more flexible.
+//!
+//! Renderer based on OpenGL 3.3+ Core.
+
+#![warn(missing_docs)]
 #![deny(unsafe_code)]
 
 pub mod debug_renderer;
@@ -21,12 +29,10 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::resource::texture::TextureKind;
 use crate::{
     core::{
         color::Color,
-        math::Rect,
-        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, TriangleDefinition},
+        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, Rect, TriangleDefinition},
         pool::Handle,
         scope_profile,
     },
@@ -56,7 +62,7 @@ use crate::{
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::Texture,
+    resource::texture::{Texture, TextureKind},
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
@@ -68,6 +74,8 @@ use std::{
     time,
 };
 
+/// Renderer statistics for one frame, also includes current frames per second
+/// amount.
 #[derive(Copy, Clone)]
 pub struct Statistics {
     /// Geometry statistics.
@@ -84,9 +92,12 @@ pub struct Statistics {
     last_fps_commit_time: time::Instant,
 }
 
+/// GPU statistics for single frame.
 #[derive(Copy, Clone)]
 pub struct RenderPassStatistics {
+    /// Amount of draw calls per frame - lower the better.
     pub draw_calls: usize,
+    /// Amount of triangles per frame.
     pub triangles_rendered: usize,
 }
 
@@ -119,6 +130,8 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
     }
 }
 
+/// Quality settings allows you to find optimal balance between performance and
+/// graphics quality.
 #[derive(Copy, Clone, PartialEq)]
 pub struct QualitySettings {
     /// Point shadows
@@ -222,6 +235,7 @@ impl Default for Statistics {
     }
 }
 
+/// See module docs.
 pub struct Renderer {
     state: State,
     backbuffer: BackBuffer,
@@ -241,6 +255,7 @@ pub struct Renderer {
     frame_size: (u32, u32),
     ambient_color: Color,
     quality_settings: QualitySettings,
+    /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
     /// Camera to G-buffer mapping.
     gbuffers: HashMap<Handle<Node>, GBuffer>,
@@ -250,7 +265,7 @@ pub struct Renderer {
 }
 
 #[derive(Default)]
-pub struct GeometryCache {
+pub(in crate) struct GeometryCache {
     map: HashMap<usize, TimedEntry<GeometryBuffer<surface::Vertex>>>,
 }
 
@@ -323,7 +338,7 @@ impl GeometryCache {
 }
 
 #[derive(Default)]
-pub struct TextureCache {
+pub(in crate) struct TextureCache {
     map: HashMap<usize, TimedEntry<Rc<RefCell<GpuTexture>>>>,
 }
 
@@ -430,18 +445,22 @@ impl Renderer {
         })
     }
 
+    /// Sets new ambient color. Ambient color is used to imitate ambient lighting.
     pub fn set_ambient_color(&mut self, color: Color) {
         self.ambient_color = color;
     }
 
+    /// Returns current ambient color.
     pub fn get_ambient_color(&self) -> Color {
         self.ambient_color
     }
 
+    /// Returns statistics for last frame.
     pub fn get_statistics(&self) -> Statistics {
         self.statistics
     }
 
+    /// Sets color which will be used to fill screen when there is nothing to render.
     pub fn set_backbuffer_clear_color(&mut self, color: Color) {
         self.backbuffer_clear_color = color;
     }
@@ -462,10 +481,14 @@ impl Renderer {
         self.gbuffers.clear();
     }
 
+    /// Returns current (width, height) pair of back buffer size.
     pub fn get_frame_size(&self) -> (u32, u32) {
         self.frame_size
     }
 
+    /// Sets new quality settings for renderer. Never call this method in a loop, otherwise
+    /// you may get **significant** lags. Always check if current quality setting differs
+    /// from new!
     pub fn set_quality_settings(
         &mut self,
         settings: &QualitySettings,
@@ -475,6 +498,7 @@ impl Renderer {
             .set_quality_settings(&mut self.state, settings)
     }
 
+    /// Returns current quality settings.
     pub fn get_quality_settings(&self) -> QualitySettings {
         self.quality_settings
     }

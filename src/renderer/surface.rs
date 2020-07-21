@@ -1,3 +1,9 @@
+//! For efficient rendering each mesh is split into sets of triangles that uses same texture,
+//! such sets are called surfaces.
+//!
+//! Surfaces can use same data source across many instances, this is memory optimization for
+//! to be able to re-use data when you need to draw same mesh in many places.
+
 use crate::{
     core::{
         color::Color,
@@ -14,14 +20,29 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+/// Vertex for each mesh in engine.
+///
+/// # Possible optimizations
+///
+/// This vertex format maybe too big for some cases thus impacting performance.
+/// The ability to make your own vertices is nice to have but this is still a
+/// TODO.
 #[derive(Copy, Clone, Debug, Default)]
 #[repr(C)] // OpenGL expects this structure packed as in C
 pub struct Vertex {
+    /// Position of vertex in local coordinates.
     pub position: Vec3,
+    /// Texture coordinates.
     pub tex_coord: Vec2,
+    /// Normal in local coordinates.
     pub normal: Vec3,
+    /// Tangent vector in local coordinates.
     pub tangent: Vec4,
+    /// Array of bone weights. Unused bones will have 0.0 weight so they won't
+    /// impact the shape of mesh.
     pub bone_weights: [f32; 4],
+    /// Array of bone indices. It has indices of bones in array of bones of a
+    /// surface.
     pub bone_indices: [u8; 4],
 }
 
@@ -49,6 +70,7 @@ impl Visit for Vertex {
 }
 
 impl Vertex {
+    /// Creates new vertex from given position and texture coordinates.
     pub fn from_pos_uv(position: Vec3, tex_coord: Vec2) -> Self {
         Self {
             position,
@@ -93,6 +115,9 @@ impl Hash for Vertex {
     }
 }
 
+/// Data source of a surface. Each surface can share same data source, this is used
+/// in instancing technique to render multiple instances of same model at different
+/// places.
 #[derive(Debug)]
 pub struct SurfaceSharedData {
     pub(in crate) vertices: Vec<Vertex>,
@@ -113,6 +138,7 @@ impl Default for SurfaceSharedData {
 }
 
 impl SurfaceSharedData {
+    /// Creates new data source using given vertices and indices.
     pub fn new(
         vertices: Vec<Vertex>,
         triangles: Vec<TriangleDefinition>,
@@ -125,6 +151,8 @@ impl SurfaceSharedData {
         }
     }
 
+    /// Converts raw mesh into "renderable" mesh. It is useful to build procedural
+    /// meshes.
     pub fn from_raw_mesh(raw: RawMesh<Vertex>, is_procedural: bool) -> Self {
         Self {
             vertices: raw.vertices,
@@ -133,21 +161,28 @@ impl SurfaceSharedData {
         }
     }
 
+    /// Returns shared reference to vertices array.
     #[inline]
     pub fn get_vertices(&self) -> &[Vertex] {
         &self.vertices
     }
 
     #[inline]
-    pub fn get_vertices_mut(&mut self) -> &mut [Vertex] {
+    pub(in crate) fn get_vertices_mut(&mut self) -> &mut [Vertex] {
         &mut self.vertices
     }
 
+    /// Return shared reference to triangles array.
     #[inline]
     pub fn triangles(&self) -> &[TriangleDefinition] {
         self.triangles.as_slice()
     }
 
+    /// Calculates tangents of surface. Tangents are needed for correct lighting, you will
+    /// get incorrect lighting if tangents of your surface are invalid! When engine loads
+    /// a mesh from "untrusted" source, it automatically calculates tangents for you, so
+    /// there is no need to call this manually in this case. However if you making your
+    /// mesh procedurally, you have to use this method!
     pub fn calculate_tangents(&mut self) {
         let mut tan1 = vec![Vec3::ZERO; self.vertices.len()];
         let mut tan2 = vec![Vec3::ZERO; self.vertices.len()];
@@ -209,6 +244,7 @@ impl SurfaceSharedData {
         }
     }
 
+    /// Creates a quad oriented on oXY plane with unit width and height.
     pub fn make_unit_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
@@ -302,6 +338,9 @@ impl SurfaceSharedData {
         Self::new(vertices, indices, true)
     }
 
+    /// Creates a degenerated quad which collapsed in a point. This is very special method for
+    /// sprite renderer - shader will automatically "push" corners in correct sides so sprite
+    /// will always face camera.
     pub fn make_collapsed_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
@@ -395,6 +434,7 @@ impl SurfaceSharedData {
         Self::new(vertices, indices, true)
     }
 
+    /// Creates new quad at oXZ plane with given transform.
     pub fn make_quad(transform: Mat4) -> Self {
         let mut vertices = vec![
             Vertex {
@@ -497,6 +537,8 @@ impl SurfaceSharedData {
         data
     }
 
+    /// Calculates per-face normals. This method is fast, but have very poor quality, and surface
+    /// will look facet.
     pub fn calculate_normals(&mut self) {
         for triangle in self.triangles.iter() {
             let ia = triangle[0] as usize;
@@ -515,6 +557,7 @@ impl SurfaceSharedData {
         }
     }
 
+    /// Creates sphere of specified radius with given slices and stacks.
     pub fn make_sphere(slices: usize, stacks: usize, r: f32) -> Self {
         let mut builder = RawMeshBuilder::<Vertex>::new(stacks * slices, stacks * slices * 3);
 
@@ -715,6 +758,7 @@ impl SurfaceSharedData {
         data
     }
 
+    /// Creates unit cube with given transform.
     pub fn make_cube(transform: Mat4) -> Self {
         let mut vertices = vec![
             // Front
@@ -1274,8 +1318,10 @@ impl Visit for SurfaceSharedData {
     }
 }
 
+/// Vertex weight is a pair of (bone; weight) that affects vertex.
 #[derive(Copy, Clone, Debug)]
 pub struct VertexWeight {
+    /// Exact weight value in [0; 1] range
     pub value: f32,
     /// Handle to an entity that affects this vertex. It has double meaning
     /// relative to context:
@@ -1295,6 +1341,7 @@ impl Default for VertexWeight {
     }
 }
 
+/// Weight set contains up to four pairs of (bone; weight).
 #[derive(Copy, Clone, Debug)]
 pub struct VertexWeightSet {
     weights: [VertexWeight; 4],
@@ -1311,6 +1358,8 @@ impl Default for VertexWeightSet {
 }
 
 impl VertexWeightSet {
+    /// Pushes new weight in the set and returns true if vertex was pushed,
+    /// false - otherwise.
     pub fn push(&mut self, weight: VertexWeight) -> bool {
         if self.count < self.weights.len() {
             self.weights[self.count] = weight;
@@ -1321,22 +1370,30 @@ impl VertexWeightSet {
         }
     }
 
+    /// Returns exact amount of weights in the set.
     pub fn len(&self) -> usize {
         self.count
     }
 
+    /// Returns true if set is empty.
     pub fn is_empty(&self) -> bool {
         self.count == 0
     }
 
+    /// Returns shared iterator.
     pub fn iter(&self) -> std::slice::Iter<VertexWeight> {
         self.weights[0..self.count].iter()
     }
 
+    /// Returns mutable iterator.
     pub fn iter_mut(&mut self) -> std::slice::IterMut<VertexWeight> {
         self.weights[0..self.count].iter_mut()
     }
 
+    /// Normalizes weights in the set so they form unit 4-d vector. This method is useful
+    /// when mesh has more than 4 weights per vertex. Engine supports only 4 weights per
+    /// vertex so when there are more than 4 weights, first four weight may not give sum
+    /// equal to 1.0, we must fix that to prevent weirdly looking results.
     pub fn normalize(&mut self) {
         let len = self.iter().fold(0.0, |qs, w| qs + w.value * w.value).sqrt();
         if len >= std::f32::EPSILON {
@@ -1348,6 +1405,7 @@ impl VertexWeightSet {
     }
 }
 
+/// See module docs.
 #[derive(Debug, Default)]
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
@@ -1362,6 +1420,7 @@ pub struct Surface {
     /// like so: iterate over all vertices and weight data and calculate index of node handle that
     /// associated with vertex in `bones` array and store it as bone index in vertex.
     pub vertex_weights: Vec<VertexWeightSet>,
+    /// Array of handle to scene nodes which are used as bones.
     pub bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1375,17 +1434,18 @@ pub struct Surface {
 impl Clone for Surface {
     fn clone(&self) -> Self {
         Surface {
-            data: Some(Arc::clone(&self.data.as_ref().unwrap())),
+            data: self.data.clone(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
             bones: self.bones.clone(),
-            vertex_weights: Vec::new(),
+            vertex_weights: Vec::new(), // Intentionally not copied.
             color: self.color,
         }
     }
 }
 
 impl Surface {
+    /// Creates new surface instance with given data and without any texture.
     #[inline]
     pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
         Self {
@@ -1398,36 +1458,43 @@ impl Surface {
         }
     }
 
+    /// Returns current data used by surface.
     #[inline]
     pub fn data(&self) -> Arc<Mutex<SurfaceSharedData>> {
         self.data.as_ref().unwrap().clone()
     }
 
+    /// Sets new diffuse texture.
     #[inline]
     pub fn set_diffuse_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.diffuse_texture = Some(tex);
     }
 
+    /// Returns current diffuse texture.
     #[inline]
     pub fn diffuse_texture(&self) -> Option<Arc<Mutex<Texture>>> {
         self.diffuse_texture.clone()
     }
 
+    /// Sets new normal map texture.
     #[inline]
     pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
         self.normal_texture = Some(tex);
     }
 
+    /// Returns current normal map texture.
     #[inline]
     pub fn normal_texture(&self) -> Option<Arc<Mutex<Texture>>> {
         self.normal_texture.clone()
     }
 
+    /// Sets color of surface.
     #[inline]
     pub fn set_color(&mut self, color: Color) {
         self.color = color;
     }
 
+    /// Returns current color of surface.
     #[inline]
     pub fn color(&self) -> Color {
         self.color
@@ -1449,6 +1516,7 @@ impl Visit for Surface {
     }
 }
 
+/// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
     data: Arc<Mutex<SurfaceSharedData>>,
     diffuse_texture: Option<Arc<Mutex<Texture>>>,
@@ -1458,6 +1526,7 @@ pub struct SurfaceBuilder {
 }
 
 impl SurfaceBuilder {
+    /// Creates new builder instance with given data and no textures or bones.
     pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
         Self {
             data,
@@ -1468,26 +1537,31 @@ impl SurfaceBuilder {
         }
     }
 
+    /// Sets desired diffuse texture.
     pub fn with_diffuse_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
         self.diffuse_texture = Some(tex);
         self
     }
 
+    /// Sets desired normal map texture.
     pub fn with_normal_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
         self.normal_texture = Some(tex);
         self
     }
 
+    /// Sets desired color of surface.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
         self
     }
 
+    /// Sets desired bones array. Make sure your vertices has valid indices of bones!
     pub fn with_bones(mut self, bones: Vec<Handle<Node>>) -> Self {
         self.bones = bones;
         self
     }
 
+    /// Creates new instance of surface.
     pub fn build(self) -> Surface {
         Surface {
             data: Some(self.data),

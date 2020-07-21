@@ -79,7 +79,7 @@ pub struct UiRenderer {
     geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
 }
 
-pub struct UiRenderContext<'a, 'b, 'c> {
+pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
     pub state: &'a mut State,
     pub viewport: Rect<i32>,
     pub backbuffer: &'b mut BackBuffer,

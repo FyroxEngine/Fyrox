@@ -160,7 +160,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         self.blur.result()
     }
 
-    pub fn render(
+    pub(in crate) fn render(
         &mut self,
         state: &mut State,
         gbuffer: &GBuffer,

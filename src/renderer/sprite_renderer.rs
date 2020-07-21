@@ -52,7 +52,7 @@ pub struct SpriteRenderer {
     surface: SurfaceSharedData,
 }
 
-pub struct SpriteRenderContext<'a, 'b, 'c> {
+pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
     pub state: &'a mut State,
     pub framebuffer: &'b mut FrameBuffer,
     pub graph: &'c Graph,
@@ -74,7 +74,7 @@ impl SpriteRenderer {
     }
 
     #[must_use]
-    pub fn render(&mut self, args: SpriteRenderContext) -> RenderPassStatistics {
+    pub(in crate) fn render(&mut self, args: SpriteRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

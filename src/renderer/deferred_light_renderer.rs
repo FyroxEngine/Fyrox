@@ -189,7 +189,7 @@ pub struct DeferredLightRenderer {
     light_volume: LightVolumeRenderer,
 }
 
-pub struct DeferredRendererContext<'a> {
+pub(in crate) struct DeferredRendererContext<'a> {
     pub state: &'a mut State,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
@@ -263,7 +263,7 @@ impl DeferredLightRenderer {
     }
 
     #[must_use]
-    pub fn render(&mut self, args: DeferredRendererContext) -> RenderPassStatistics {
+    pub(in crate) fn render(&mut self, args: DeferredRendererContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();

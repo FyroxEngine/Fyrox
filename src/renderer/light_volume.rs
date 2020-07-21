@@ -106,7 +106,7 @@ impl LightVolumeRenderer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn render_volume(
+    pub(in crate) fn render_volume(
         &mut self,
         state: &mut State,
         light: &Light,

@@ -58,7 +58,7 @@ pub struct GBuffer {
     pub height: i32,
 }
 
-pub struct GBufferRenderContext<'a, 'b> {
+pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub state: &'a mut State,
     pub graph: &'b Graph,
     pub camera: &'b Camera,
@@ -169,7 +169,7 @@ impl GBuffer {
     }
 
     #[must_use]
-    pub fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
+    pub(in crate) fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
