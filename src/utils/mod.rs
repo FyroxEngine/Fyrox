@@ -1,3 +1,7 @@
+#![warn(missing_docs)]
+
+//! Utilities module provides set of commonly used algorithms.
+
 pub mod astar;
 pub mod log;
 pub mod navmesh;
@@ -42,6 +46,7 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
     StaticGeometry::new(triangles)
 }
 
+/// Translated key code to rg3d-ui key code.
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
     match key {
         VirtualKeyCode::Key1 => KeyCode::Key1,
@@ -208,6 +213,7 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
     }
 }
 
+/// Translates window mouse button into rg3d-ui mouse button.
 pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::message::MouseButton {
     match button {
         crate::event::MouseButton::Left => crate::gui::message::MouseButton::Left,
@@ -217,6 +223,7 @@ pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::messag
     }
 }
 
+/// Translates library button state into rg3d-ui button state.
 pub fn translate_state(state: ElementState) -> ButtonState {
     match state {
         ElementState::Pressed => ButtonState::Pressed,
@@ -224,6 +231,7 @@ pub fn translate_state(state: ElementState) -> ButtonState {
     }
 }
 
+/// Translates window event to rg3d-ui event.
 pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     match event {
         WindowEvent::ReceivedCharacter(c) => Some(OsEvent::Character(*c)),
@@ -257,6 +265,7 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     }
 }
 
+/// Translates keyboard modifiers to rg3d-ui keyboard modifiers.
 pub fn translate_keyboard_modifiers(modifiers: ModifiersState) -> KeyboardModifiers {
     KeyboardModifiers {
         alt: modifiers.alt(),
@@ -266,6 +275,8 @@ pub fn translate_keyboard_modifiers(modifiers: ModifiersState) -> KeyboardModifi
     }
 }
 
+/// Maps key code to its name. Can be useful if you making adjustable key bindings in your
+/// game and you need quickly map key code to its name.
 pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
     match code {
         VirtualKeyCode::Key1 => "1",
@@ -432,6 +443,7 @@ pub fn virtual_key_code_name(code: VirtualKeyCode) -> &'static str {
     }
 }
 
+/// Helper function to convert Option<Arc<T>> to Option<Arc<dyn Any>>.
 pub fn into_any_arc<T: Any + Send + Sync>(
     opt: Option<Arc<T>>,
 ) -> Option<Arc<dyn Any + Send + Sync>> {

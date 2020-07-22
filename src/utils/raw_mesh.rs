@@ -1,3 +1,9 @@
+//! Raw mesh is a procedural mesh builder, all you can do with it is to insert vertices
+//! one-by-one and it will automatically build faces by skipping duplicated vertices.
+//! Main usage of it - optimize "triangle soup" into mesh so adjacent faces will have
+//! shared edges. Raw mesh itself does not have any methods, it is just a final result
+//! of RawMeshBuilder.
+
 use crate::core::math::TriangleDefinition;
 use std::{
     collections::HashSet,
@@ -42,6 +48,7 @@ where
     }
 }
 
+/// See module docs.
 #[derive(Clone)]
 pub struct RawMeshBuilder<T>
 where
@@ -51,8 +58,11 @@ where
     indices: Vec<u32>,
 }
 
+/// See module docs.
 pub struct RawMesh<T> {
+    /// Vertices of mesh.
     pub vertices: Vec<T>,
+    /// Triangles of mesh. Each triangle contains indices of vertices.
     pub triangles: Vec<TriangleDefinition>,
 }
 
@@ -85,6 +95,8 @@ where
         }
     }
 
+    /// Creates new raw mesh from internal set of vertices and indices. If last "triangle" has
+    /// insufficient vertex count (less than 3), it will be discarded.
     pub fn build(self) -> RawMesh<T> {
         let mut vertices = self.vertices.into_iter().collect::<Vec<_>>();
         vertices.sort_unstable_by_key(|w| w.index);
