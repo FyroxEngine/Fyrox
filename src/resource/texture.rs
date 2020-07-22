@@ -1,7 +1,26 @@
+//! Texture is an image that used to fill faces to add details to them.
+//!
+//! In most cases textures are just 2D images, however there are some exclusions to that -
+//! for example cube maps, that may be used for environment mapping. For now only 2D textures
+//! are supported.
+//!
+//! # Supported formats
+//!
+//! To load images and decode them, rg3d uses image create which supports following image
+//! formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
+//!
+//! # Render target
+//!
+//! Texture can be used as render target to render scene in it. To do this you should make
+//! default instance of a texture and pass it to scene's render target property. Renderer
+//! will automatically provide you info about metrics of texture, but it won't give you
+//! access to pixels of render target.
+
 use crate::core::visitor::{Visit, VisitResult, Visitor};
 use image::GenericImageView;
 use std::path::{Path, PathBuf};
 
+/// See module docs.
 #[derive(Debug)]
 pub struct Texture {
     pub(in crate) path: PathBuf,
@@ -41,15 +60,19 @@ impl Visit for Texture {
     }
 }
 
+/// Texture kind defines pixel format of texture.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum TextureKind {
+    /// Only red component as 1 byte.
     R8,
+    /// Red, green, and blue components, each by 1 byte.
     RGB8,
+    /// Red, green, blue, and alpha components, each by 1 byte.
     RGBA8,
 }
 
 impl TextureKind {
-    pub fn new(id: u32) -> Result<Self, String> {
+    fn new(id: u32) -> Result<Self, String> {
         match id {
             0 => Ok(TextureKind::R8),
             1 => Ok(TextureKind::RGB8),
@@ -58,7 +81,7 @@ impl TextureKind {
         }
     }
 
-    pub fn id(self) -> u32 {
+    fn id(self) -> u32 {
         match self {
             TextureKind::R8 => 0,
             TextureKind::RGB8 => 1,
@@ -93,6 +116,7 @@ impl Texture {
         })
     }
 
+    /// Creates new texture instance from given parameters.
     pub fn from_bytes(
         width: u32,
         height: u32,
@@ -120,6 +144,8 @@ impl Texture {
         }
     }
 
+    /// Returns true if texture is loaded. This is hacky method to support poorman's async
+    /// texture loading. This will be changed in future. For now this is a TODO.
     pub fn is_loaded(&self) -> bool {
         self.loaded
     }

@@ -1,3 +1,11 @@
+//! Contains all methods to load and convert FBX model format.
+//!
+//! FBX is most flexible format to store and distribute 3D models, it has lots of useful features
+//! such as skeletal animation, keyframe animation, support tangents, binormals, materials, etc.
+//!
+//! Normally you should never use methods from this module directly, use resource manager to load
+//! models and create their instances.
+
 mod document;
 pub mod error;
 mod scene;
@@ -516,6 +524,10 @@ fn convert(
     Ok(root)
 }
 
+
+/// Tries to load and convert FBX from given path.
+///
+/// Normally you should never use this method, use resource manager to load models.
 pub fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: &mut ResourceManager,
