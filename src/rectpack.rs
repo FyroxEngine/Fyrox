@@ -27,7 +27,7 @@ impl<T> RectPackNode<T> {
     }
 }
 
-//! See module docs.
+/// See module docs.
 pub struct RectPacker<T> {
     nodes: Pool<RectPackNode<T>>,
     root: Handle<RectPackNode<T>>,
