@@ -1,7 +1,7 @@
 #![allow(clippy::len_without_is_empty)]
 
+use std::hash::{Hash, Hasher};
 use std::ops;
-use std::hash::{Hasher, Hash};
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -25,7 +25,8 @@ impl Hash for Vec2 {
         unsafe {
             state.write(std::slice::from_raw_parts(
                 self as *const Self as *const _,
-                std::mem::size_of::<Self>()))
+                std::mem::size_of::<Self>(),
+            ))
         }
     }
 }
@@ -69,7 +70,7 @@ impl Vec2 {
     pub fn perpendicular(self) -> Vec2 {
         Vec2 {
             x: self.y,
-            y: -self.x
+            y: -self.x,
         }
     }
 
@@ -77,10 +78,9 @@ impl Vec2 {
     pub fn scale(self, scalar: f32) -> Vec2 {
         Vec2 {
             x: self.x * scalar,
-            y: self.y * scalar
+            y: self.y * scalar,
         }
     }
-
 
     /// Per component min
     pub fn min(&self, other: Self) -> Self {
@@ -114,10 +114,13 @@ impl Vec2 {
 
 impl From<(f32, f32)> for Vec2 {
     fn from(v: (f32, f32)) -> Self {
-        Self {
-            x: v.0,
-            y: v.1
-        }
+        Self { x: v.0, y: v.1 }
+    }
+}
+
+impl From<Vec2> for (f32, f32) {
+    fn from(v: Vec2) -> Self {
+        (v.x, v.y)
     }
 }
 
