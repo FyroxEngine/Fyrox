@@ -145,6 +145,9 @@ impl Into<Vertex> for UnpackedVertex {
         Vertex {
             position: self.position,
             tex_coord: self.uv,
+            // TODO: FBX can contain second texture coordinates so they should be
+            //  extracted when available
+            second_tex_coord: Default::default(),
             normal: self.normal,
             tangent: Vec4::from_vec3(self.tangent, 1.0),
             // Correct values will be assigned in second pass of conversion
@@ -523,7 +526,6 @@ fn convert(
 
     Ok(root)
 }
-
 
 /// Tries to load and convert FBX from given path.
 ///

@@ -29,5 +29,8 @@ inflate = "0.4.5"
 rand = "0.7.3"
 lazy_static = "1.4.0"
 
+[dev-dependencies]
+imageproc = "0.21.0"
+
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]

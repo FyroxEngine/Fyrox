@@ -34,6 +34,8 @@ pub struct Vertex {
     pub position: Vec3,
     /// Texture coordinates.
     pub tex_coord: Vec2,
+    /// Second texture coordinates. Usually used for lightmapping.
+    pub second_tex_coord: Vec2,
     /// Normal in local coordinates.
     pub normal: Vec3,
     /// Tangent vector in local coordinates.
@@ -52,6 +54,7 @@ impl Visit for Vertex {
 
         self.position.visit("Position", visitor)?;
         self.tex_coord.visit("TexCoord", visitor)?;
+        self.second_tex_coord.visit("SecondTexCoord", visitor)?;
         self.normal.visit("Normal", visitor)?;
         self.tangent.visit("Tangent", visitor)?;
 
@@ -75,6 +78,7 @@ impl Vertex {
         Self {
             position,
             tex_coord,
+            second_tex_coord: Default::default(),
             normal: Vec3::new(0.0, 1.0, 0.0),
             tangent: Vec4 {
                 x: 0.0,
@@ -267,6 +271,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -288,6 +293,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -309,6 +315,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -330,6 +337,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
         ];
 
@@ -363,6 +371,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -384,6 +393,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -405,6 +415,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -426,6 +437,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
         ];
 
@@ -457,6 +469,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -478,6 +491,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -499,6 +513,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -520,6 +535,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
         ];
 
@@ -782,6 +798,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -803,6 +820,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -824,6 +842,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -845,6 +864,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             // Back
             Vertex {
@@ -867,6 +887,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -888,6 +909,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -909,6 +931,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -930,6 +953,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             // Left
             Vertex {
@@ -952,6 +976,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -973,6 +998,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -994,6 +1020,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1015,6 +1042,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             // Right
             Vertex {
@@ -1037,6 +1065,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1058,6 +1087,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1079,6 +1109,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1100,6 +1131,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             // Top
             Vertex {
@@ -1122,6 +1154,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1143,6 +1176,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1164,6 +1198,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1185,6 +1220,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             // Bottom
             Vertex {
@@ -1207,6 +1243,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1228,6 +1265,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1249,6 +1287,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
             Vertex {
                 position: Vec3 {
@@ -1270,6 +1309,7 @@ impl SurfaceSharedData {
                 },
                 bone_weights: [0.0, 0.0, 0.0, 0.0],
                 bone_indices: [0, 0, 0, 0],
+                second_tex_coord: Default::default(),
             },
         ];
 

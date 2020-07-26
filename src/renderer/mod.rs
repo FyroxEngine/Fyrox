@@ -295,6 +295,10 @@ impl GeometryCache {
                         normalized: false,
                     },
                     AttributeDefinition {
+                        kind: AttributeKind::Float2,
+                        normalized: false,
+                    },
+                    AttributeDefinition {
                         kind: AttributeKind::Float3,
                         normalized: false,
                     },

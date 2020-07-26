@@ -48,6 +48,9 @@ extern crate rand;
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(test)]
+extern crate imageproc;
+
 pub mod animation;
 pub mod engine;
 pub mod renderer;

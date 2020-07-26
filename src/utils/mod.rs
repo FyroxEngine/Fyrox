@@ -6,6 +6,7 @@ pub mod astar;
 pub mod log;
 pub mod navmesh;
 pub mod raw_mesh;
+pub mod uvgen;
 
 use crate::{
     core::math::vec2::Vec2,
