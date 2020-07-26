@@ -1,11 +1,10 @@
 #![allow(clippy::len_without_is_empty)]
 
+use crate::{math::lerpf, math::vec2::Vec2};
 use std::{
-    ops,
     hash::{Hash, Hasher},
+    ops,
 };
-use crate::math::lerpf;
-use crate::math::vec2::Vec2;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
@@ -30,7 +29,8 @@ impl Hash for Vec3 {
         unsafe {
             state.write(std::slice::from_raw_parts(
                 self as *const Self as *const _,
-                std::mem::size_of::<Self>()))
+                std::mem::size_of::<Self>(),
+            ))
         }
     }
 }
@@ -42,11 +42,31 @@ impl Default for Vec3 {
 }
 
 impl Vec3 {
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0 };
-    pub const UNIT: Self = Self { x: 1.0, y: 1.0, z: 1.0 };
-    pub const RIGHT: Self = Self { x: 1.0, y: 0.0, z: 0.0 };
-    pub const UP: Self = Self { x: 0.0, y: 1.0, z: 0.0 };
-    pub const LOOK: Self = Self { x: 0.0, y: 0.0, z: 1.0 };
+    pub const ZERO: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    pub const UNIT: Self = Self {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
+    };
+    pub const RIGHT: Self = Self {
+        x: 1.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    pub const UP: Self = Self {
+        x: 0.0,
+        y: 1.0,
+        z: 0.0,
+    };
+    pub const LOOK: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 1.0,
+    };
 
     fn validate(&self) {
         debug_assert!(!self.x.is_nan());
@@ -61,6 +81,26 @@ impl Vec3 {
 
     pub const fn xy(&self) -> Vec2 {
         Vec2::new(self.x, self.y)
+    }
+
+    pub const fn xz(&self) -> Vec2 {
+        Vec2::new(self.x, self.z)
+    }
+
+    pub const fn zx(&self) -> Vec2 {
+        Vec2::new(self.z, self.x)
+    }
+
+    pub const fn yx(&self) -> Vec2 {
+        Vec2::new(self.y, self.x)
+    }
+
+    pub const fn zy(&self) -> Vec2 {
+        Vec2::new(self.z, self.y)
+    }
+
+    pub const fn yz(&self) -> Vec2 {
+        Vec2::new(self.y, self.z)
     }
 
     #[inline]
@@ -116,17 +156,16 @@ impl Vec3 {
     pub fn normalized_ex(&self) -> (Option<Self>, f32) {
         let len = self.len();
 
-        let normalized =
-            if len >= std::f32::EPSILON {
-                let inv_len = 1.0 / len;
-                Some(Self {
-                    x: self.x * inv_len,
-                    y: self.y * inv_len,
-                    z: self.z * inv_len,
-                })
-            } else {
-                None
-            };
+        let normalized = if len >= std::f32::EPSILON {
+            let inv_len = 1.0 / len;
+            Some(Self {
+                x: self.x * inv_len,
+                y: self.y * inv_len,
+                z: self.z * inv_len,
+            })
+        } else {
+            None
+        };
 
         (normalized, len)
     }

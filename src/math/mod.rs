@@ -1,25 +1,25 @@
 // Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
 #![allow(clippy::many_single_char_names)]
 
+pub mod aabb;
+pub mod frustum;
+pub mod mat3;
+pub mod mat4;
+pub mod plane;
+pub mod quat;
+pub mod ray;
+pub mod triangulator;
 pub mod vec2;
 pub mod vec3;
 pub mod vec4;
-pub mod mat4;
-pub mod mat3;
-pub mod quat;
-pub mod ray;
-pub mod plane;
-pub mod triangulator;
-pub mod frustum;
-pub mod aabb;
 
+use crate::visitor::{Visit, VisitResult, Visitor};
+use std::ops::{Add, Index, IndexMut, Mul, Sub};
 use vec2::*;
 use vec3::*;
-use std::ops::{Add, Sub, Mul, Index, IndexMut};
-use crate::visitor::{Visit, VisitResult, Visitor};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Rect<T: Copy + Clone + PartialEq> {
+pub struct Rect<T> {
     pub x: T,
     pub y: T,
     pub w: T,
@@ -37,7 +37,10 @@ impl<T: Default + Copy + Clone + PartialEq> Default for Rect<T> {
     }
 }
 
-impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + Mul<Output=T> + Copy {
+impl<T> Rect<T>
+where
+    T: PartialOrd + Default + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Copy,
+{
     pub fn new(x: T, y: T, w: T, h: T) -> Rect<T> {
         Rect { x, y, w, h }
     }
@@ -89,7 +92,7 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
             x: self.x + dx,
             y: self.y + dy,
             w: self.w,
-            h: self.h
+            h: self.h,
         }
     }
 
@@ -102,7 +105,10 @@ impl<T> Rect<T> where T: PartialOrd + Default + Add<Output=T> + Sub<Output=T> + 
     }
 }
 
-impl<T> Visit for Rect<T> where T: PartialEq + Copy + Clone + Default + Visit + 'static {
+impl<T> Visit for Rect<T>
+where
+    T: PartialEq + Copy + Clone + Default + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -263,8 +269,7 @@ pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-pub fn get_farthest_point(points: &[Vec3], dir: Vec3) -> Vec3
-{
+pub fn get_farthest_point(points: &[Vec3], dir: Vec3) -> Vec3 {
     let mut n_farthest = 0;
     let mut max_dot = -std::f32::MAX;
     for (i, point) in points.iter().enumerate() {
@@ -277,8 +282,7 @@ pub fn get_farthest_point(points: &[Vec3], dir: Vec3) -> Vec3
     points[n_farthest]
 }
 
-pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f32, f32)
-{
+pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f32, f32) {
     let v0 = *b - *a;
     let v1 = *c - *a;
     let v2 = *p - *a;
@@ -297,8 +301,7 @@ pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f
     (u, v, w)
 }
 
-pub fn get_barycentric_coords_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> (f32, f32, f32)
-{
+pub fn get_barycentric_coords_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> (f32, f32, f32) {
     let v0 = b - a;
     let v1 = c - a;
     let v2 = p - a;
@@ -441,7 +444,12 @@ pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vec3) -> Opti
     closest_index
 }
 
-pub fn get_closest_point_triangles<P: PositionProvider>(points: &[P], triangles: &[TriangleDefinition], triangle_indices: &[u32], point: Vec3) -> Option<usize> {
+pub fn get_closest_point_triangles<P: PositionProvider>(
+    points: &[P],
+    triangles: &[TriangleDefinition],
+    triangle_indices: &[u32],
+    point: Vec3,
+) -> Option<usize> {
     let mut closest_sqr_distance = std::f32::MAX;
     let mut closest_index = None;
     for triangle_index in triangle_indices {
