@@ -5,24 +5,18 @@
 #![allow(unsafe_code)]
 
 use crate::{
-    core::{
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
-        pool::{Pool, Handle},
-    },
+    core::{math::vec2::Vec2, rectpack::RectPacker},
     draw::Texture,
 };
 use std::{
     collections::HashMap,
-    path::Path,
+    fmt::{Debug, Formatter},
     fs::File,
     io::Read,
     ops::Range,
-    sync::Arc
+    path::Path,
+    sync::Arc,
 };
-use std::fmt::{Debug, Formatter};
 
 const ON_CURVE_POINT: u8 = 1;
 const REPEAT_FLAG: u8 = 8;
@@ -36,7 +30,7 @@ struct Point {
 
 #[derive(Debug)]
 struct Polygon {
-    points: Vec<Point>
+    points: Vec<Point>,
 }
 
 #[derive(Debug)]
@@ -108,87 +102,6 @@ impl Debug for Font {
     }
 }
 
-struct RectPackNode {
-    filled: bool,
-    split: bool,
-    bounds: Rect<i32>,
-    left: Handle<RectPackNode>,
-    right: Handle<RectPackNode>,
-}
-
-impl RectPackNode {
-    fn new(bounds: Rect<i32>) -> RectPackNode {
-        RectPackNode {
-            bounds,
-            filled: false,
-            split: false,
-            left: Handle::NONE,
-            right: Handle::NONE,
-        }
-    }
-}
-
-struct RectPacker {
-    nodes: Pool<RectPackNode>,
-    root: Handle<RectPackNode>,
-}
-
-impl RectPacker {
-    fn new(w: i32, h: i32) -> RectPacker {
-        let mut nodes = Pool::new();
-        let root = nodes.spawn(RectPackNode::new(Rect::new(0, 0, w, h)));
-        RectPacker {
-            nodes,
-            root,
-        }
-    }
-
-    fn find_free(&mut self, w: i32, h: i32) -> Option<Rect<i32>> {
-        let mut unvisited: Vec<Handle<RectPackNode>> = Vec::new();
-        unvisited.push(self.root);
-        while let Some(node_handle) = unvisited.pop() {
-            let left_bounds;
-            let right_bounds;
-
-            let node = self.nodes.borrow_mut(node_handle);
-            if node.split {
-                unvisited.push(node.right);
-                unvisited.push(node.left);
-                continue;
-            } else {
-                if node.filled || node.bounds.w < w || node.bounds.h < h {
-                    continue;
-                }
-
-                if node.bounds.w == w && node.bounds.h == h {
-                    node.filled = true;
-                    return Some(node.bounds);
-                }
-
-                // Split and continue
-                node.split = true;
-                if node.bounds.w - w > node.bounds.h - h {
-                    left_bounds = Rect::new(node.bounds.x, node.bounds.y, w, node.bounds.h);
-                    right_bounds = Rect::new(node.bounds.x + w, node.bounds.y, node.bounds.w - w, node.bounds.h);
-                } else {
-                    left_bounds = Rect::new(node.bounds.x, node.bounds.y, node.bounds.w, h);
-                    right_bounds = Rect::new(node.bounds.x, node.bounds.y + h, node.bounds.w, node.bounds.h - h);
-                }
-            }
-
-            let left = self.nodes.spawn(RectPackNode::new(left_bounds));
-            self.nodes.borrow_mut(node_handle).left = left;
-
-            let right = self.nodes.spawn(RectPackNode::new(right_bounds));
-            self.nodes.borrow_mut(node_handle).right = right;
-
-            unvisited.push(left);
-        }
-
-        None
-    }
-}
-
 impl Bitmap {
     fn new(w: usize, h: usize) -> Bitmap {
         Bitmap {
@@ -221,22 +134,19 @@ impl Bitmap {
     }
 }
 
-unsafe fn get_u16(p: *const u8) -> u16
-{
+unsafe fn get_u16(p: *const u8) -> u16 {
     let b0 = u32::from(*p);
     let b1 = u32::from(*p.offset(1));
     (b0 * 256 + b1) as u16
 }
 
-unsafe fn get_i16(p: *const u8) -> i16
-{
+unsafe fn get_i16(p: *const u8) -> i16 {
     let b0 = i32::from(*p);
     let b1 = i32::from(*p.offset(1));
     (b0 * 256 + b1) as i16
 }
 
-unsafe fn get_u32(p: *const u8) -> u32
-{
+unsafe fn get_u32(p: *const u8) -> u32 {
     let b0 = u32::from(*p);
     let b1 = u32::from(*p.offset(1));
     let b2 = u32::from(*p.offset(2));
@@ -267,9 +177,11 @@ fn segmented_mapping(subtable: *const u8, unicode: u32) -> usize {
         if segment != segment_count {
             let start_code = u32::from(get_u16(start_codes.offset(2 * segment as isize)));
             if start_code <= unicode {
-                let range_offset = u32::from(get_u16(id_range_offset.offset(2 * segment as isize)) / 2);
+                let range_offset =
+                    u32::from(get_u16(id_range_offset.offset(2 * segment as isize)) / 2);
                 if range_offset == 0 {
-                    return ((unicode + u32::from(get_u16(id_delta.offset(2 * segment as isize)))) & 0xFFFF) as usize;
+                    return ((unicode + u32::from(get_u16(id_delta.offset(2 * segment as isize))))
+                        & 0xFFFF) as usize;
                 } else {
                     let offset = 2 * (segment + range_offset + (unicode - start_code));
                     return get_u16(id_range_offset.offset(offset as isize)) as usize;
@@ -311,8 +223,10 @@ fn line_line_intersection(a: &Line2, b: &Line2) -> Option<Point> {
     let s1y = a.end.y - a.begin.y;
     let s2x = b.end.x - b.begin.x;
     let s2y = b.end.y - b.begin.y;
-    let s = (-s1y * (a.begin.x - b.begin.x) + s1x * (a.begin.y - b.begin.y)) / (-s2x * s1y + s1x * s2y);
-    let t = (s2x * (a.begin.y - b.begin.y) - s2y * (a.begin.x - b.begin.x)) / (-s2x * s1y + s1x * s2y);
+    let s =
+        (-s1y * (a.begin.x - b.begin.x) + s1x * (a.begin.y - b.begin.y)) / (-s2x * s1y + s1x * s2y);
+    let t =
+        (s2x * (a.begin.y - b.begin.y) - s2y * (a.begin.x - b.begin.x)) / (-s2x * s1y + s1x * s2y);
     if s >= 0.0 && s <= 1.0 && t >= 0.0 && t <= 1.0 {
         Some(Point {
             x: a.begin.x + (t * s1x),
@@ -335,8 +249,16 @@ fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32)
     let mut intersections: Vec<Point> = Vec::new();
 
     let mut scanline = Line2 {
-        begin: Point { x: -1.0, y: 0.0, flags: 0 },
-        end: Point { x: real_width + 2.0, y: 0.0, flags: 0 },
+        begin: Point {
+            x: -1.0,
+            y: 0.0,
+            flags: 0,
+        },
+        end: Point {
+            x: real_width + 2.0,
+            y: 0.0,
+            flags: 0,
+        },
     };
 
     let mut lines = Vec::new();
@@ -379,8 +301,16 @@ fn polygons_to_scanlines(polys: &[Polygon], width: f32, height: f32, scale: f32)
         if !intersections.is_empty() {
             for i in (0..(intersections.len() - 1)).step_by(2) {
                 let line = Line2 {
-                    begin: Point { x: intersections[i].x, y, flags: 0 },
-                    end: Point { x: intersections[i + 1].x, y, flags: 0 },
+                    begin: Point {
+                        x: intersections[i].x,
+                        y,
+                        flags: 0,
+                    },
+                    end: Point {
+                        x: intersections[i + 1].x,
+                        y,
+                        flags: 0,
+                    },
                 };
                 lines.push(line);
             }
@@ -428,7 +358,8 @@ fn raster_scanlines(w: usize, h: usize, lines: &[Line2]) -> Bitmap {
             let r = row - half_border;
             let c = col - half_border;
             if r < bitmap.height && c < bitmap.width {
-                out_bitmap.pixels[row * out_bitmap.width + col] = bitmap.pixels[r * bitmap.width + c];
+                out_bitmap.pixels[row * out_bitmap.width + col] =
+                    bitmap.pixels[r * bitmap.width + c];
             }
         }
     }
@@ -502,7 +433,7 @@ impl TrueType {
                     0 => return direct_mapping(subtable, unicode),
                     4 => return segmented_mapping(subtable, unicode),
                     6 => return dense_mapping(subtable, unicode),
-                    _ => () // TODO: Add more mappings
+                    _ => (), // TODO: Add more mappings
                 }
             }
         }
@@ -566,15 +497,11 @@ impl TrueType {
     }
 
     fn get_ascender(&self) -> i16 {
-        unsafe {
-            get_i16(self.hhea_table.offset(4))
-        }
+        unsafe { get_i16(self.hhea_table.offset(4)) }
     }
 
     fn get_descender(&self) -> i16 {
-        unsafe {
-            get_i16(self.hhea_table.offset(6))
-        }
+        unsafe { get_i16(self.hhea_table.offset(6)) }
     }
 
     fn read_glyphs(&mut self) {
@@ -617,14 +544,20 @@ impl TrueType {
                     /* Alloc points */
                     let mut points: Vec<Point> = Vec::new();
                     for _ in 0..point_count {
-                        points.push(Point { x: 0.0, y: 0.0, flags: 0 });
+                        points.push(Point {
+                            x: 0.0,
+                            y: 0.0,
+                            flags: 0,
+                        });
                     }
 
                     /* TODO: Skip instructions for now. Simple interpreter would be nice. */
-                    let instructions = get_u16(glyph_data.offset(10 + 2 * glyph.num_contours as isize)) as isize;
+                    let instructions =
+                        get_u16(glyph_data.offset(10 + 2 * glyph.num_contours as isize)) as isize;
 
                     /* Read flags for each point */
-                    let mut flags = glyph_data.offset(10 + 2 * glyph.num_contours as isize + 2 + instructions);
+                    let mut flags =
+                        glyph_data.offset(10 + 2 * glyph.num_contours as isize + 2 + instructions);
 
                     let mut j = 0;
                     while j < points.len() {
@@ -711,7 +644,12 @@ fn eval_quad_bezier(p0: Point, p1: Point, p2: Point, steps: usize) -> Vec<Point>
 }
 
 impl TtfGlyph {
-    fn fill_horizontal_metrics(&mut self, hhea_table: *const u8, hmtx_table: *const u8, glyph_index: usize) {
+    fn fill_horizontal_metrics(
+        &mut self,
+        hhea_table: *const u8,
+        hmtx_table: *const u8,
+        glyph_index: usize,
+    ) {
         unsafe {
             let num_of_long_hor_metrics = get_u16(hhea_table.add(34)) as usize;
             if glyph_index < num_of_long_hor_metrics {
@@ -719,7 +657,9 @@ impl TtfGlyph {
                 self.left_side_bearing = get_i16(hmtx_table.add(4 * glyph_index + 2));
             } else {
                 self.advance = get_u16(hmtx_table.add(4 * (num_of_long_hor_metrics - 1)));
-                self.left_side_bearing = get_i16(hmtx_table.add(4 * num_of_long_hor_metrics + 2 * (glyph_index - num_of_long_hor_metrics)));
+                self.left_side_bearing = get_i16(hmtx_table.add(
+                    4 * num_of_long_hor_metrics + 2 * (glyph_index - num_of_long_hor_metrics),
+                ));
             }
         }
     }
@@ -798,25 +738,24 @@ impl TtfGlyph {
 
             let start_off = (raw_contour.points[0].flags & ON_CURVE_POINT) == 0;
 
-            let to =
-                if start_off {
-                    /* when first point is off-curve we should add middle point between first and last points */
-                    let first = raw_contour.points.first().unwrap();
-                    let last = raw_contour.points.last().unwrap();
+            let to = if start_off {
+                /* when first point is off-curve we should add middle point between first and last points */
+                let first = raw_contour.points.first().unwrap();
+                let last = raw_contour.points.last().unwrap();
 
-                    let middle = Point {
-                        flags: ON_CURVE_POINT,
-                        x: (first.x + last.x) / 2.0,
-                        y: f32::from(glyph_height) - (first.y + last.y) / 2.0,
-                    };
-
-                    unpacked_contour.points.push(middle);
-
-                    /* also make sure to iterate not to the end - we already added point */
-                    raw_contour.points.len() - 1
-                } else {
-                    raw_contour.points.len()
+                let middle = Point {
+                    flags: ON_CURVE_POINT,
+                    x: (first.x + last.x) / 2.0,
+                    y: f32::from(glyph_height) - (first.y + last.y) / 2.0,
                 };
+
+                unpacked_contour.points.push(middle);
+
+                /* also make sure to iterate not to the end - we already added point */
+                raw_contour.points.len() - 1
+            } else {
+                raw_contour.points.len()
+            };
 
             for k in 0..to {
                 let p0 = raw_contour.points[k as usize];
@@ -884,9 +823,14 @@ impl Font {
         Ok(font)
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P, height: f32, char_set: &[Range<u32>]) -> Result<Self, ()> {
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        height: f32,
+        char_set: &[Range<u32>],
+    ) -> Result<Self, ()> {
         if let Ok(ref mut file) = File::open(path) {
-            let mut file_content: Vec<u8> = Vec::with_capacity(file.metadata().unwrap().len() as usize);
+            let mut file_content: Vec<u8> =
+                Vec::with_capacity(file.metadata().unwrap().len() as usize);
             file.read_to_end(&mut file_content).unwrap();
 
             Self::from_memory(file_content, height, char_set)
@@ -899,7 +843,7 @@ impl Font {
     pub fn get_glyph(&self, unicode: u32) -> Option<&FontGlyph> {
         match self.char_map.get(&unicode) {
             Some(glyph_index) => self.glyphs.get(*glyph_index),
-            None => None
+            None => None,
         }
     }
 
@@ -950,7 +894,9 @@ impl Font {
 
         let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
         for glyph in self.glyphs.iter_mut() {
-            if let Some(bounds) = rect_packer.find_free(glyph.bitmap_width as i32, glyph.bitmap_height as i32) {
+            if let Some(bounds) =
+                rect_packer.find_free(glyph.bitmap_width as i32, glyph.bitmap_height as i32)
+            {
                 let w = bounds.w as f32 / self.atlas_size as f32;
                 let h = bounds.h as f32 / self.atlas_size as f32;
                 let x = bounds.x as f32 / self.atlas_size as f32;
@@ -971,7 +917,8 @@ impl Font {
                     let mut col = bounds.x;
                     let mut src_col = 0;
                     while col < col_end {
-                        self.atlas[(row * self.atlas_size + col) as usize] = glyph.pixels[(src_row * bounds.w + src_col) as usize];
+                        self.atlas[(row * self.atlas_size + col) as usize] =
+                            glyph.pixels[(src_row * bounds.w + src_col) as usize];
                         col += 1;
                         src_col += 1;
                     }
