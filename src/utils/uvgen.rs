@@ -3,51 +3,11 @@
 //! Current implementation uses simple planar mapping.
 use crate::{
     core::{
-        math::{self, vec2::Vec2, vec3::Vec3, PlaneClass},
+        math::{self, vec2::Vec2, PlaneClass},
         rectpack::RectPacker,
     },
     renderer::surface::SurfaceSharedData,
 };
-use std::collections::HashSet;
-
-#[derive(Clone, Copy)]
-#[repr(usize)]
-enum BoxFace {
-    PositiveX = 0,
-    NegativeX = 1,
-    PositiveY = 2,
-    NegativeY = 3,
-    PositiveZ = 4,
-    NegativeZ = 5,
-}
-
-fn box_map(a: Vec3, b: Vec3, c: Vec3) -> (BoxFace, [Vec2; 3]) {
-    let normal = (b - a).cross(&(c - a));
-    let class = math::classify_plane(normal);
-    match class {
-        PlaneClass::XY => {
-            if normal.z < 0.0 {
-                (BoxFace::NegativeZ, [a.yx(), b.yx(), c.yx()])
-            } else {
-                (BoxFace::PositiveZ, [a.xy(), b.xy(), c.xy()])
-            }
-        }
-        PlaneClass::XZ => {
-            if normal.y < 0.0 {
-                (BoxFace::NegativeY, [a.xz(), b.xz(), c.xz()])
-            } else {
-                (BoxFace::PositiveY, [a.zx(), b.zx(), c.zx()])
-            }
-        }
-        PlaneClass::YZ => {
-            if normal.x < 0.0 {
-                (BoxFace::NegativeX, [a.zy(), b.zy(), c.zy()])
-            } else {
-                (BoxFace::PositiveX, [a.yz(), b.yz(), c.yz()])
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 struct UvMesh {
@@ -75,6 +35,43 @@ impl UvMesh {
     }
 }
 
+#[derive(Default)]
+struct UvBox {
+    px: Vec<usize>,
+    nx: Vec<usize>,
+    py: Vec<usize>,
+    ny: Vec<usize>,
+    pz: Vec<usize>,
+    nz: Vec<usize>,
+}
+
+fn make_seam(
+    data: &mut SurfaceSharedData,
+    face_triangles: &Vec<usize>,
+    other_faces: &[&Vec<usize>],
+) {
+    for &other_face_triangles in other_faces.iter() {
+        for triangle_index in face_triangles.iter() {
+            // Check if other part has adjacent triangle to current one. And if so
+            // add new vertices at boundary to form seam.
+            for other_triangle_index in other_face_triangles.iter() {
+                let other_triangle = data.triangles[*other_triangle_index].clone();
+                let triangle = &mut data.triangles[*triangle_index];
+                for vertex_index in triangle.indices_mut() {
+                    for &other_vertex_index in other_triangle.indices() {
+                        if *vertex_index == other_vertex_index {
+                            // We have adjacency, add new vertex and fix current index.
+                            let vertex = data.vertices[other_vertex_index as usize].clone();
+                            *vertex_index = data.vertices.len() as u32;
+                            data.vertices.push(vertex);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Generates UV map for given surface data.
 ///
 /// # Performance
@@ -83,99 +80,98 @@ impl UvMesh {
 /// could be in ideal case. It also allocates some memory for internal needs.
 pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
     // Step 1. Map each triangle from surface to appropriate side of box.
-    let mut face_triangles = vec![Vec::default(); 6];
+    let mut uv_box = UvBox::default();
     let mut projections = Vec::new();
     for (i, triangle) in data.triangles.iter().enumerate() {
         let a = data.vertices[triangle[0] as usize].position;
         let b = data.vertices[triangle[1] as usize].position;
         let c = data.vertices[triangle[2] as usize].position;
-        let (face, proj) = box_map(a, b, c);
-        face_triangles[face as usize].push(i);
-        projections.push(proj);
-    }
-
-    // Step 2. Split vertices at boundary between each face. This step multiplies the
-    // number of vertices at boundary so we'll get separate texture coordinates at
-    // seams.
-    //
-    // TODO: This more or less brute force approach, needs profiling to check if it
-    //  is slow and needs optimization.
-
-    // It is safe to take second immutable reference to face triangles, we'll enforce
-    // borrowing rules at runtime so there won't be two mutable references to same
-    // memory. Borrow checker cannot understand this and we helping it by taking
-    // responsibility to ourselves.
-    let face_triangles2 = unsafe { &*(&face_triangles as *const Vec<Vec<usize>>) };
-
-    for (i, part) in face_triangles.iter_mut().enumerate() {
-        for (j, other_face_triangles) in face_triangles2.iter().enumerate() {
-            // Enforce borrowing rules at runtime.
-            if i == j {
-                continue;
+        let normal = (b - a).cross(&(c - a));
+        let class = math::classify_plane(normal);
+        match class {
+            PlaneClass::XY => {
+                if normal.z < 0.0 {
+                    uv_box.nz.push(i);
+                    projections.push([a.yx(), b.yx(), c.yx()])
+                } else {
+                    uv_box.pz.push(i);
+                    projections.push([a.xy(), b.xy(), c.xy()]);
+                }
             }
-
-            for triangle_idx in part.iter_mut() {
-                // Check if other part has adjacent triangle to current one. And if so
-                // add new vertices at boundary to form seam.
-                for other_triangle_idx in other_face_triangles.iter() {
-                    // This assert must always be true - triangle cannot belong to two
-                    // faces of box at the same time, if assert fails - then first step
-                    // is bugged.
-                    assert_ne!(*triangle_idx, *other_triangle_idx);
-                    let other_triangle = data.triangles[*other_triangle_idx].clone();
-                    let triangle = &mut data.triangles[*triangle_idx];
-                    for vi in triangle.indices_mut() {
-                        for &ovi in other_triangle.indices() {
-                            if *vi == ovi {
-                                // We have adjacency, add new vertex and fix current index.
-                                let vertex = data.vertices[ovi as usize].clone();
-                                *vi = data.vertices.len() as u32;
-                                data.vertices.push(vertex);
-                            }
-                        }
-                    }
+            PlaneClass::XZ => {
+                if normal.y < 0.0 {
+                    uv_box.ny.push(i);
+                    projections.push([a.xz(), b.xz(), c.xz()])
+                } else {
+                    uv_box.py.push(i);
+                    projections.push([a.zx(), b.zx(), c.zx()])
+                }
+            }
+            PlaneClass::YZ => {
+                if normal.x < 0.0 {
+                    uv_box.nx.push(i);
+                    projections.push([a.zy(), b.zy(), c.zy()])
+                } else {
+                    uv_box.px.push(i);
+                    projections.push([a.yz(), b.yz(), c.yz()])
                 }
             }
         }
     }
 
+    // Step 2. Split vertices at boundary between each face. This step multiplies the
+    // number of vertices at boundary so we'll get separate texture coordinates at
+    // seams.
+    make_seam(
+        data,
+        &uv_box.px,
+        &[&uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+    );
+    make_seam(
+        data,
+        &uv_box.nx,
+        &[&uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+    );
+    make_seam(data, &uv_box.py, &[&uv_box.pz, &uv_box.nz]);
+    make_seam(data, &uv_box.ny, &[&uv_box.pz, &uv_box.nz]);
+
     // Step 3. Find separate "meshes" on uv map. After box mapping we will most likely
     // end up with set of faces, some of them may form meshes and each such mesh must
     // be moved with all faces it has.
     let mut meshes = Vec::new();
-    let mut removed_triangles = HashSet::new();
-    let mut new_triangles = Vec::new();
-    for i in 0..data.triangles.len() {
-        if !removed_triangles.contains(&i) {
+    let mut removed_triangles = vec![false; data.triangles.len()];
+    for triangle_index in 0..data.triangles.len() {
+        if !removed_triangles[triangle_index] {
             // Start off random triangle and continue gather adjacent triangles one by one.
-            let mut mesh = UvMesh::new(i);
-            removed_triangles.insert(i);
-            'search: loop {
-                new_triangles.clear();
-                let mut adjacent_count = 0;
-                for &k in mesh.triangles.iter() {
-                    let triangle = &data.triangles[k];
-                    // Push all adjacent triangles into mesh. This is brute force implementation.
-                    for (j, other_triangle) in data.triangles.iter().enumerate() {
-                        if !removed_triangles.contains(&j) {
-                            'vloop: for &vi in triangle.indices() {
-                                for &ovi in other_triangle.indices() {
-                                    if vi == ovi {
-                                        new_triangles.push(j);
-                                        removed_triangles.insert(j);
-                                        adjacent_count += 1;
-                                        break 'vloop;
-                                    }
+            let mut mesh = UvMesh::new(triangle_index);
+            removed_triangles[triangle_index] = true;
+
+            let mut last_triangle = 1;
+            let mut i = 0;
+            while i < last_triangle {
+                let triangle = &data.triangles[mesh.triangles[i]];
+                // Push all adjacent triangles into mesh. This is brute force implementation.
+                for (other_triangle_index, other_triangle) in data.triangles.iter().enumerate() {
+                    if !removed_triangles[other_triangle_index] {
+                        'vertex_loop: for &vertex_index in triangle.indices() {
+                            for &other_vertex_index in other_triangle.indices() {
+                                if vertex_index == other_vertex_index {
+                                    mesh.triangles.push(other_triangle_index);
+                                    removed_triangles[other_triangle_index] = true;
+                                    // Push border further to continue iterating from added
+                                    // triangle. This is needed because we checking one triangle
+                                    // after another and we must continue if new triangles have
+                                    // some adjacent ones.
+                                    last_triangle += 1;
+                                    break 'vertex_loop;
                                 }
                             }
                         }
                     }
                 }
-                mesh.triangles.extend_from_slice(&new_triangles);
-                if adjacent_count == 0 {
-                    break 'search;
-                }
+                i += 1;
             }
+
             // Calculate bounds.
             for &triangle_index in mesh.triangles.iter() {
                 let [a, b, c] = projections[triangle_index];
@@ -209,7 +205,6 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
         let w = mesh.width() * scale;
         let h = mesh.height() * scale;
         let rect = packer.find_free(w, h).unwrap();
-        dbg!(rect);
         for &triangle_index in mesh.triangles.iter() {
             let [mut a, mut b, mut c] = projections[triangle_index];
             // Move to origin.
@@ -240,9 +235,9 @@ mod test {
 
     #[test]
     fn test_generate_uvs() {
-        //let mut data = SurfaceSharedData::make_sphere(10, 10, 1.0);
-        let mut data = SurfaceSharedData::make_cylinder(20, 1.0, 1.0, true, Default::default());
-        // let mut data = SurfaceSharedData::make_cube(Default::default());
+        let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
+        //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Default::default());
+        //let mut data = SurfaceSharedData::make_cube(Default::default());
         generate_uvs(&mut data, 0.01);
 
         let white = Rgb([255u8, 255u8, 255u8]);
