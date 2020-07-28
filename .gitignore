@@ -4,4 +4,4 @@
 *.lock
 .*
 /*.log
-uvgen.png
+/*.png

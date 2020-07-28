@@ -192,37 +192,25 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
     let empiric_scale = 1.25;
 
     // Calculate size of atlas for packer, we'll scale it later on.
-    let size = meshes
+    let area = meshes
         .iter()
-        .fold(0.0, |area, mesh| area + mesh.width() * mesh.height())
-        .sqrt()
-        * empiric_scale;
+        .fold(0.0, |area, mesh| area + mesh.width() * mesh.height());
+    let scale = 1.0 / (area.sqrt() * empiric_scale);
 
     // We'll pack into 1.0 square, our UVs must be in [0;1] range, no wrapping is allowed.
     let mut packer = RectPacker::new(1.0, 1.0);
     for mesh in meshes {
-        let scale = 1.0 / size;
-        let w = mesh.width() * scale;
-        let h = mesh.height() * scale;
-        let rect = packer.find_free(w, h).unwrap();
-        for &triangle_index in mesh.triangles.iter() {
-            let [mut a, mut b, mut c] = projections[triangle_index];
-            // Move to origin.
-            a -= mesh.uv_min;
-            b -= mesh.uv_min;
-            c -= mesh.uv_min;
-            // Scale.
-            a = a.scale(scale);
-            b = b.scale(scale);
-            c = c.scale(scale);
-            // Move back.
-            a += Vec2::from(rect.position());
-            b += Vec2::from(rect.position());
-            c += Vec2::from(rect.position());
-            let triangle = &data.triangles[triangle_index];
-            data.vertices[triangle[0] as usize].second_tex_coord = a;
-            data.vertices[triangle[1] as usize].second_tex_coord = b;
-            data.vertices[triangle[2] as usize].second_tex_coord = c;
+        if let Some(rect) = packer.find_free(mesh.width() * scale, mesh.height() * scale) {
+            for &triangle_index in mesh.triangles.iter() {
+                for (&vertex_index, &projection) in data.triangles[triangle_index]
+                    .indices()
+                    .iter()
+                    .zip(&projections[triangle_index])
+                {
+                    data.vertices[vertex_index as usize].second_tex_coord =
+                        (projection - mesh.uv_min).scale(scale) + Vec2::from(rect.position());
+                }
+            }
         }
     }
 }

@@ -3,6 +3,7 @@
 //! Utilities module provides set of commonly used algorithms.
 
 pub mod astar;
+pub mod lightmap;
 pub mod log;
 pub mod navmesh;
 pub mod raw_mesh;

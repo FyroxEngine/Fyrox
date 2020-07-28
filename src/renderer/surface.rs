@@ -1453,6 +1453,7 @@ pub struct Surface {
     data: Option<Arc<Mutex<SurfaceSharedData>>>,
     diffuse_texture: Option<Arc<Mutex<Texture>>>,
     normal_texture: Option<Arc<Mutex<Texture>>>,
+    lightmap_texture: Option<Arc<Mutex<Texture>>>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -1480,6 +1481,7 @@ impl Clone for Surface {
             bones: self.bones.clone(),
             vertex_weights: Vec::new(), // Intentionally not copied.
             color: self.color,
+            lightmap_texture: self.lightmap_texture.clone(),
         }
     }
 }
@@ -1495,6 +1497,7 @@ impl Surface {
             bones: Vec::new(),
             vertex_weights: Vec::new(),
             color: Color::WHITE,
+            lightmap_texture: None,
         }
     }
 
@@ -1528,6 +1531,18 @@ impl Surface {
         self.normal_texture.clone()
     }
 
+    /// Sets new lightmap texture.
+    #[inline]
+    pub fn set_lightmap_texture(&mut self, tex: Arc<Mutex<Texture>>) {
+        self.lightmap_texture = Some(tex);
+    }
+
+    /// Returns lightmap texture.
+    #[inline]
+    pub fn lightmap_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+        self.lightmap_texture.clone()
+    }
+
     /// Sets color of surface.
     #[inline]
     pub fn set_color(&mut self, color: Color) {
@@ -1552,6 +1567,10 @@ impl Visit for Surface {
         self.bones.visit("Bones", visitor)?;
         // self.vertex_weights intentionally not serialized!
 
+        // Try to get lightmap texture but don't care if it is missing, it can
+        // be missing on previous versions.
+        let _ = self.lightmap_texture.visit("LightmapTexture", visitor);
+
         visitor.leave_region()
     }
 }
@@ -1561,6 +1580,7 @@ pub struct SurfaceBuilder {
     data: Arc<Mutex<SurfaceSharedData>>,
     diffuse_texture: Option<Arc<Mutex<Texture>>>,
     normal_texture: Option<Arc<Mutex<Texture>>>,
+    lightmap_texture: Option<Arc<Mutex<Texture>>>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1572,6 +1592,7 @@ impl SurfaceBuilder {
             data,
             diffuse_texture: None,
             normal_texture: None,
+            lightmap_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
         }
@@ -1586,6 +1607,12 @@ impl SurfaceBuilder {
     /// Sets desired normal map texture.
     pub fn with_normal_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
         self.normal_texture = Some(tex);
+        self
+    }
+
+    /// Sets desired lightmap texture.
+    pub fn with_lightmap_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
+        self.lightmap_texture = Some(tex);
         self
     }
 
@@ -1607,6 +1634,7 @@ impl SurfaceBuilder {
             data: Some(self.data),
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
+            lightmap_texture: self.lightmap_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,
