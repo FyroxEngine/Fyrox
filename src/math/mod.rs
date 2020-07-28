@@ -320,6 +320,14 @@ pub fn get_barycentric_coords_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> (f32, f3
     (u, v, w)
 }
 
+pub fn barycentric_to_world(bary: (f32, f32, f32), pa: Vec3, pb: Vec3, pc: Vec3) -> Vec3 {
+    pa.scale(bary.0) + pb.scale(bary.1) + pc.scale(bary.2)
+}
+
+pub fn barycentric_is_inside(bary: (f32, f32, f32)) -> bool {
+    (bary.0 >= 0.0) && (bary.1 >= 0.0) && (bary.0 + bary.1 < 1.0)
+}
+
 pub fn is_point_inside_triangle(p: &Vec3, vertices: &[Vec3; 3]) -> bool {
     let ba = vertices[1] - vertices[0];
     let ca = vertices[2] - vertices[0];
@@ -339,6 +347,10 @@ pub fn is_point_inside_triangle(p: &Vec3, vertices: &[Vec3; 3]) -> bool {
     let v = (ca_dot_ca * dot12 - ca_dot_ba * dot02) * inv_denom;
 
     (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
+}
+
+pub fn triangle_area(a: Vec3, b: Vec3, c: Vec3) -> f32 {
+    (b - a).cross(&(c - a)).len() * 0.5
 }
 
 pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
