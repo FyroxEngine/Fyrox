@@ -10,11 +10,12 @@
 use crate::{
     core::{
         color::Color,
-        math::{self, mat3::Mat3, mat4::Mat4, vec2::Vec2, vec3::Vec3, TriangleDefinition},
+        math::{self, mat3::Mat3, mat4::Mat4, vec2::Vec2, vec3::Vec3, Rect, TriangleDefinition},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
     resource::texture::{Texture, TextureKind},
 };
+use std::time;
 
 /// Directional light is a light source with parallel rays. Example: Sun.
 pub struct DirectionalLightDefinition {
@@ -109,38 +110,102 @@ enum Pixel {
 /// Calculates properties of pixel (world position, normal) at given position.
 fn pick(
     uv: Vec2,
+    grid: &Grid,
     triangles: &[TriangleDefinition],
     vertices: &[Vertex],
     world_positions: &[Vec3],
     normal_matrix: &Mat3,
 ) -> Option<(Vec3, Vec3)> {
-    for triangle in triangles.iter() {
-        let uv_a = vertices[triangle[0] as usize].second_tex_coord;
-        let uv_b = vertices[triangle[1] as usize].second_tex_coord;
-        let uv_c = vertices[triangle[2] as usize].second_tex_coord;
+    if let Some(cell) = grid.pick(uv) {
+        for triangle in cell.triangles.iter().map(|&ti| &triangles[ti]) {
+            let uv_a = vertices[triangle[0] as usize].second_tex_coord;
+            let uv_b = vertices[triangle[1] as usize].second_tex_coord;
+            let uv_c = vertices[triangle[2] as usize].second_tex_coord;
 
-        let barycentric = math::get_barycentric_coords_2d(uv, uv_a, uv_b, uv_c);
+            let barycentric = math::get_barycentric_coords_2d(uv, uv_a, uv_b, uv_c);
 
-        if math::barycentric_is_inside(barycentric) {
-            let a = world_positions[triangle[0] as usize];
-            let b = world_positions[triangle[1] as usize];
-            let c = world_positions[triangle[2] as usize];
-            return Some((
-                math::barycentric_to_world(barycentric, a, b, c),
-                normal_matrix.transform_vector(
-                    math::barycentric_to_world(
-                        barycentric,
-                        vertices[triangle[0] as usize].normal,
-                        vertices[triangle[1] as usize].normal,
-                        vertices[triangle[2] as usize].normal,
-                    )
-                    .normalized()
-                    .unwrap_or(Vec3::UP),
-                ),
-            ));
+            if math::barycentric_is_inside(barycentric) {
+                let a = world_positions[triangle[0] as usize];
+                let b = world_positions[triangle[1] as usize];
+                let c = world_positions[triangle[2] as usize];
+                return Some((
+                    math::barycentric_to_world(barycentric, a, b, c),
+                    normal_matrix.transform_vector(
+                        math::barycentric_to_world(
+                            barycentric,
+                            vertices[triangle[0] as usize].normal,
+                            vertices[triangle[1] as usize].normal,
+                            vertices[triangle[2] as usize].normal,
+                        )
+                        .normalized()
+                        .unwrap_or(Vec3::UP),
+                    ),
+                ));
+            }
         }
     }
     None
+}
+
+struct GridCell {
+    bounds: Rect<f32>,
+    // List of triangle indices.
+    triangles: Vec<usize>,
+}
+
+struct Grid {
+    cells: Vec<GridCell>,
+    size: usize,
+}
+
+impl Grid {
+    /// Creates uniform grid where each cell contains list of triangles
+    /// whose second texture coordinates intersects with it.
+    fn new(data: &SurfaceSharedData, size: usize) -> Self {
+        dbg!(size);
+
+        let mut cells = Vec::with_capacity(size);
+        let fsize = size as f32;
+        for y in 0..size {
+            for x in 0..size {
+                let bounds = Rect {
+                    x: x as f32 / fsize,
+                    y: y as f32 / fsize,
+                    w: 1.0 / fsize,
+                    h: 1.0 / fsize,
+                };
+
+                let mut triangles = Vec::new();
+
+                for (triangle_index, triangle) in data.triangles.iter().enumerate() {
+                    let uv_a = data.vertices[triangle[0] as usize].second_tex_coord;
+                    let uv_b = data.vertices[triangle[1] as usize].second_tex_coord;
+                    let uv_c = data.vertices[triangle[2] as usize].second_tex_coord;
+                    let uv_min = uv_a.min(uv_b).min(uv_c);
+                    let uv_max = uv_a.max(uv_b).max(uv_c);
+                    let triangle_bounds = Rect {
+                        x: uv_min.x,
+                        y: uv_min.y,
+                        w: uv_max.x - uv_min.x,
+                        h: uv_max.y - uv_min.y,
+                    };
+                    if triangle_bounds.intersects(bounds) {
+                        triangles.push(triangle_index);
+                    }
+                }
+
+                cells.push(GridCell { bounds, triangles })
+            }
+        }
+
+        Self { cells, size }
+    }
+
+    fn pick(&self, v: Vec2) -> Option<&GridCell> {
+        let ix = (v.x as f32 * self.size as f32) as usize;
+        let iy = (v.y as f32 * self.size as f32) as usize;
+        self.cells.get(iy * self.size + ix)
+    }
 }
 
 /// https://en.wikipedia.org/wiki/Lambert%27s_cosine_law
@@ -167,8 +232,16 @@ pub fn generate_lightmap(
 
     let scale = 1.0 / size as f32;
 
+    let last_time = time::Instant::now();
+
+    let grid = Grid::new(data, (size / 16).max(4) as usize);
+
+    println!("Step 0: {:?}", time::Instant::now() - last_time);
+
     // TODO: Must be inverse transposed to eliminate scale/shear.
     let normal_matrix = transform.basis();
+
+    let last_time = time::Instant::now();
 
     for y in 0..(size as usize) {
         for x in 0..(size as usize) {
@@ -176,6 +249,7 @@ pub fn generate_lightmap(
 
             if let Some((world_position, normal)) = pick(
                 uv,
+                &grid,
                 &data.triangles,
                 &data.vertices,
                 &vertices,
@@ -191,6 +265,10 @@ pub fn generate_lightmap(
             }
         }
     }
+
+    println!("Step 1: {:?}", time::Instant::now() - last_time);
+
+    let last_time = time::Instant::now();
 
     for pixel in pixels.iter_mut() {
         if let Pixel::Color {
@@ -218,6 +296,8 @@ pub fn generate_lightmap(
             }
         }
     }
+
+    println!("Step 2: {:?}", time::Instant::now() - last_time);
 
     let mut bytes = Vec::with_capacity((size * size * 4) as usize);
     for pixel in pixels {
@@ -257,7 +337,7 @@ mod test {
             color: Color::WHITE,
             radius: 4.0,
         })];
-        let lightmap = generate_lightmap(&data, &Default::default(), &lights, 32);
+        let lightmap = generate_lightmap(&data, &Default::default(), &lights, 128);
 
         let image = RgbaImage::from_raw(lightmap.width, lightmap.height, lightmap.bytes).unwrap();
         image.save("lightmap.png").unwrap();
