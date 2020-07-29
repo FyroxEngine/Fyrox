@@ -616,9 +616,9 @@ mod test {
     #[test]
     fn graph_node_test() {
         let mut graph = Graph::new();
-        let a = graph.add_node(Node::Base(Base::default()));
-        let b = graph.add_node(Node::Base(Base::default()));
-        let c = graph.add_node(Node::Base(Base::default()));
+        graph.add_node(Node::Base(Base::default()));
+        graph.add_node(Node::Base(Base::default()));
+        graph.add_node(Node::Base(Base::default()));
         assert_eq!(graph.pool.alive_count(), 4);
     }
 }

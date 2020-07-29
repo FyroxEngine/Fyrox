@@ -10,7 +10,7 @@
 use crate::{
     core::{
         color::Color,
-        math::{self, mat4::Mat4, vec2::Vec2, vec3::Vec3, TriangleDefinition},
+        math::{self, mat3::Mat3, mat4::Mat4, vec2::Vec2, vec3::Vec3, TriangleDefinition},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
     resource::texture::{Texture, TextureKind},
@@ -69,7 +69,7 @@ pub enum LightDefinition {
 
 /// Computes total area of triangles in surface data and returns size of square
 /// in which triangles can fit.
-fn estimate_size(vertices: &[Vec3], triangles: &[TriangleDefinition]) -> u32 {
+fn estimate_size(vertices: &[Vec3], triangles: &[TriangleDefinition], texels_per_unit: u32) -> u32 {
     let mut area = 0.0;
     for triangle in triangles.iter() {
         let a = vertices[triangle[0] as usize];
@@ -77,7 +77,7 @@ fn estimate_size(vertices: &[Vec3], triangles: &[TriangleDefinition]) -> u32 {
         let c = vertices[triangle[2] as usize];
         area += math::triangle_area(a, b, c);
     }
-    (32.0 * area.sqrt()).ceil() as u32
+    area.sqrt().ceil() as u32 * texels_per_unit
 }
 
 /// Calculates distance attenuation for a point using given distance to the point and
@@ -97,20 +97,23 @@ fn transform_vertices(data: &SurfaceSharedData, transform: &Mat4) -> Vec<Vec3> {
         .collect()
 }
 
-struct Pixel {
-    color: Color,
-    // Pixel can be outside of any triangle, in this case it has None position.
-    // Such pixels are ignored in calculations and their color has alpha = 0,
-    // so it won't affect pixels color during rendering.
-    position: Option<Vec3>,
+enum Pixel {
+    Transparent,
+    Color {
+        color: Color,
+        position: Vec3,
+        normal: Vec3,
+    },
 }
 
+/// Calculates properties of pixel (world position, normal) at given position.
 fn pick(
     uv: Vec2,
     triangles: &[TriangleDefinition],
     vertices: &[Vertex],
     world_positions: &[Vec3],
-) -> Option<Vec3> {
+    normal_matrix: &Mat3,
+) -> Option<(Vec3, Vec3)> {
     for triangle in triangles.iter() {
         let uv_a = vertices[triangle[0] as usize].second_tex_coord;
         let uv_b = vertices[triangle[1] as usize].second_tex_coord;
@@ -122,10 +125,27 @@ fn pick(
             let a = world_positions[triangle[0] as usize];
             let b = world_positions[triangle[1] as usize];
             let c = world_positions[triangle[2] as usize];
-            return Some(math::barycentric_to_world(barycentric, a, b, c));
+            return Some((
+                math::barycentric_to_world(barycentric, a, b, c),
+                normal_matrix.transform_vector(
+                    math::barycentric_to_world(
+                        barycentric,
+                        vertices[triangle[0] as usize].normal,
+                        vertices[triangle[1] as usize].normal,
+                        vertices[triangle[2] as usize].normal,
+                    )
+                    .normalized()
+                    .unwrap_or(Vec3::UP),
+                ),
+            ));
         }
     }
     None
+}
+
+/// https://en.wikipedia.org/wiki/Lambert%27s_cosine_law
+fn lambertian(light_vec: Vec3, normal: Vec3) -> f32 {
+    normal.dot(&light_vec).max(0.0)
 }
 
 /// Generates lightmap for given surface data with specified transform.
@@ -139,44 +159,60 @@ pub fn generate_lightmap(
     data: &SurfaceSharedData,
     transform: &Mat4,
     lights: &[LightDefinition],
+    texels_per_unit: u32,
 ) -> Texture {
     let vertices = transform_vertices(data, transform);
-    let size = estimate_size(&vertices, &data.triangles);
+    let size = estimate_size(&vertices, &data.triangles, texels_per_unit);
     let mut pixels = Vec::<Pixel>::with_capacity((size * size) as usize);
 
     let scale = 1.0 / size as f32;
+
+    // TODO: Must be inverse transposed to eliminate scale/shear.
+    let normal_matrix = transform.basis();
 
     for y in 0..(size as usize) {
         for x in 0..(size as usize) {
             let uv = Vec2::new(x as f32 * scale, y as f32 * scale);
 
-            if let Some(world_position) = pick(uv, &data.triangles, &data.vertices, &vertices) {
-                pixels.push(Pixel {
+            if let Some((world_position, normal)) = pick(
+                uv,
+                &data.triangles,
+                &data.vertices,
+                &vertices,
+                &normal_matrix,
+            ) {
+                pixels.push(Pixel::Color {
                     color: Color::BLACK,
-                    position: Some(world_position),
+                    position: world_position,
+                    normal,
                 })
             } else {
-                pixels.push(Pixel {
-                    color: Color::TRANSPARENT,
-                    position: None,
-                })
+                pixels.push(Pixel::Transparent)
             }
         }
     }
 
     for pixel in pixels.iter_mut() {
-        if let Some(position) = pixel.position {
+        if let Pixel::Color {
+            color,
+            position,
+            normal,
+        } = pixel
+        {
             for light in lights {
                 match light {
                     LightDefinition::Directional(_) => {}
                     LightDefinition::Spot(_) => {}
                     LightDefinition::Point(point) => {
-                        let d = position - point.position;
+                        let d = *position - point.position;
                         let distance = d.len();
-                        let attenuation = distance_attenuation(distance, point.radius);
-                        pixel.color.r += ((point.color.r as f32) * attenuation) as u8;
-                        pixel.color.g += ((point.color.g as f32) * attenuation) as u8;
-                        pixel.color.b += ((point.color.b as f32) * attenuation) as u8;
+                        let light_vec = d.scale(1.0 / distance);
+                        let attenuation = point.intensity
+                            * lambertian(light_vec, *normal)
+                            * distance_attenuation(distance, point.radius);
+                        color.r += ((point.color.r as f32) * attenuation) as u8;
+                        color.g += ((point.color.g as f32) * attenuation) as u8;
+                        color.b += ((point.color.b as f32) * attenuation) as u8;
                     }
                 }
             }
@@ -185,10 +221,14 @@ pub fn generate_lightmap(
 
     let mut bytes = Vec::with_capacity((size * size * 4) as usize);
     for pixel in pixels {
-        bytes.push(pixel.color.r);
-        bytes.push(pixel.color.g);
-        bytes.push(pixel.color.b);
-        bytes.push(pixel.color.a);
+        let color = match pixel {
+            Pixel::Transparent => Color::TRANSPARENT,
+            Pixel::Color { color, .. } => color,
+        };
+        bytes.push(color.r);
+        bytes.push(color.g);
+        bytes.push(color.b);
+        bytes.push(color.a);
     }
     Texture::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
 }
@@ -212,15 +252,14 @@ mod test {
         generate_uvs(&mut data, 0.01);
 
         let lights = [LightDefinition::Point(PointLightDefinition {
-            intensity: 1.0,
+            intensity: 3.0,
             position: Vec3::new(0.0, 2.0, 0.0),
             color: Color::WHITE,
             radius: 4.0,
         })];
-        let lightmap = generate_lightmap(&data, &Default::default(), &lights);
+        let lightmap = generate_lightmap(&data, &Default::default(), &lights, 32);
 
-        let mut image =
-            RgbaImage::from_raw(lightmap.width, lightmap.height, lightmap.bytes).unwrap();
+        let image = RgbaImage::from_raw(lightmap.width, lightmap.height, lightmap.bytes).unwrap();
         image.save("lightmap.png").unwrap();
     }
 }
