@@ -148,7 +148,6 @@ fn pick(
 }
 
 struct GridCell {
-    bounds: Rect<f32>,
     // List of triangle indices.
     triangles: Vec<usize>,
 }
@@ -162,8 +161,6 @@ impl Grid {
     /// Creates uniform grid where each cell contains list of triangles
     /// whose second texture coordinates intersects with it.
     fn new(data: &SurfaceSharedData, size: usize) -> Self {
-        dbg!(size);
-
         let mut cells = Vec::with_capacity(size);
         let fsize = size as f32;
         for y in 0..size {
@@ -194,7 +191,7 @@ impl Grid {
                     }
                 }
 
-                cells.push(GridCell { bounds, triangles })
+                cells.push(GridCell { triangles })
             }
         }
 
@@ -211,6 +208,12 @@ impl Grid {
 /// https://en.wikipedia.org/wiki/Lambert%27s_cosine_law
 fn lambertian(light_vec: Vec3, normal: Vec3) -> f32 {
     normal.dot(&light_vec).max(0.0)
+}
+
+/// https://en.wikipedia.org/wiki/Smoothstep
+fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let k = ((x - edge0) / (edge1 - edge0)).max(0.0).min(1.0);
+    k * k * (3.0 - 2.0 * k)
 }
 
 /// Generates lightmap for given surface data with specified transform.
@@ -278,9 +281,28 @@ pub fn generate_lightmap(
         } = pixel
         {
             for light in lights {
-                match light {
-                    LightDefinition::Directional(_) => {}
-                    LightDefinition::Spot(_) => {}
+                let (light_color, attenuation) = match light {
+                    LightDefinition::Directional(directional) => {
+                        let attenuation =
+                            directional.intensity * lambertian(directional.direction, *normal);
+                        (directional.color, attenuation)
+                    }
+                    LightDefinition::Spot(spot) => {
+                        let d = *position - spot.position;
+                        let distance = d.len();
+                        let light_vec = d.scale(1.0 / distance);
+                        let spot_angle_cos = light_vec.dot(&spot.direction);
+                        let cone_factor = smoothstep(
+                            ((spot.hotspot_cone_angle + spot.falloff_angle_delta) * 0.5).cos(),
+                            (spot.hotspot_cone_angle * 0.5).cos(),
+                            spot_angle_cos,
+                        );
+                        let attenuation = cone_factor
+                            * spot.intensity
+                            * lambertian(light_vec, *normal)
+                            * distance_attenuation(distance, spot.distance);
+                        (spot.color, attenuation)
+                    }
                     LightDefinition::Point(point) => {
                         let d = *position - point.position;
                         let distance = d.len();
@@ -288,11 +310,12 @@ pub fn generate_lightmap(
                         let attenuation = point.intensity
                             * lambertian(light_vec, *normal)
                             * distance_attenuation(distance, point.radius);
-                        color.r += ((point.color.r as f32) * attenuation) as u8;
-                        color.g += ((point.color.g as f32) * attenuation) as u8;
-                        color.b += ((point.color.b as f32) * attenuation) as u8;
+                        (point.color, attenuation)
                     }
-                }
+                };
+                color.r += ((light_color.r as f32) * attenuation) as u8;
+                color.g += ((light_color.g as f32) * attenuation) as u8;
+                color.b += ((light_color.b as f32) * attenuation) as u8;
             }
         }
     }
