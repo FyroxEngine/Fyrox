@@ -45,11 +45,7 @@ struct UvBox {
     nz: Vec<usize>,
 }
 
-fn make_seam(
-    data: &mut SurfaceSharedData,
-    face_triangles: &Vec<usize>,
-    other_faces: &[&Vec<usize>],
-) {
+fn make_seam(data: &mut SurfaceSharedData, face_triangles: &[usize], other_faces: &[&[usize]]) {
     for &other_face_triangles in other_faces.iter() {
         for triangle_index in face_triangles.iter() {
             // Check if other part has adjacent triangle to current one. And if so
@@ -61,7 +57,7 @@ fn make_seam(
                     for &other_vertex_index in other_triangle.indices() {
                         if *vertex_index == other_vertex_index {
                             // We have adjacency, add new vertex and fix current index.
-                            let vertex = data.vertices[other_vertex_index as usize].clone();
+                            let vertex = data.vertices[other_vertex_index as usize];
                             *vertex_index = data.vertices.len() as u32;
                             data.vertices.push(vertex);
                         }

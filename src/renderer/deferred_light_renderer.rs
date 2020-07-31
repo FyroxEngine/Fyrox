@@ -33,6 +33,7 @@ struct AmbientLightShader {
     diffuse_texture: UniformLocation,
     ambient_color: UniformLocation,
     ao_sampler: UniformLocation,
+    ambient_texture: UniformLocation,
 }
 
 impl AmbientLightShader {
@@ -46,6 +47,7 @@ impl AmbientLightShader {
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             ambient_color: program.uniform_location("ambientColor")?,
             ao_sampler: program.uniform_location("aoSampler")?,
+            ambient_texture: program.uniform_location("ambientTexture")?,
             program,
         })
     }
@@ -349,6 +351,13 @@ impl DeferredLightRenderer {
                         } else {
                             white_dummy.clone()
                         },
+                    },
+                ),
+                (
+                    self.ambient_light_shader.ambient_texture,
+                    UniformValue::Sampler {
+                        index: 2,
+                        texture: gbuffer.ambient_texture(),
                     },
                 ),
             ],

@@ -24,7 +24,7 @@ use crate::{
     physics::{rigid_body::RigidBody, Physics},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node},
-    utils::log::Log,
+    utils::{lightmap::Lightmap, log::Log},
 };
 use std::{
     collections::HashMap,
@@ -67,7 +67,7 @@ impl PhysicsBinder {
     pub fn body_of(&self, node: Handle<Node>) -> Handle<RigidBody> {
         self.node_rigid_body_map
             .get(&node)
-            .map(|b| *b)
+            .copied()
             .unwrap_or_default()
     }
 }
@@ -110,6 +110,8 @@ pub struct Scene {
     /// monitor. Other usage could be previewer of models, like pictogram of character
     /// in real-time strategies, in other words there are plenty of possible uses.
     pub render_target: Option<Arc<Mutex<Texture>>>,
+
+    lightmap: Option<Lightmap>,
 }
 
 impl Default for Scene {
@@ -120,6 +122,7 @@ impl Default for Scene {
             physics: Default::default(),
             physics_binder: Default::default(),
             render_target: None,
+            lightmap: None,
         }
     }
 }
@@ -140,6 +143,7 @@ impl Scene {
             animations: Default::default(),
             physics_binder: Default::default(),
             render_target: None,
+            lightmap: None,
         }
     }
 
@@ -192,6 +196,26 @@ impl Scene {
         Log::writeln("Resolve succeeded!".to_owned());
     }
 
+    /// Tries to set new lightmap to scene.
+    pub fn set_lightmap(&mut self, lightmap: Lightmap) -> Result<Option<Lightmap>, &'static str> {
+        // Assign textures to surfaces.
+        for (handle, lightmaps) in lightmap.map.iter() {
+            if let Node::Mesh(mesh) = &mut self.graph[*handle] {
+                if mesh.surfaces().len() != lightmaps.len() {
+                    return Err("failed to set lightmap, surface count mismatch");
+                }
+
+                for (surface, entry) in mesh.surfaces_mut().iter_mut().zip(lightmaps) {
+                    // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
+                    // only to implement Default trait to be serializable.
+                    let texture = entry.texture.clone().unwrap();
+                    surface.set_lightmap_texture(texture)
+                }
+            }
+        }
+        Ok(std::mem::replace(&mut self.lightmap, Some(lightmap)))
+    }
+
     /// Performs single update tick with given delta time from last frame. Internally
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
@@ -233,6 +257,7 @@ impl Scene {
             physics,
             physics_binder,
             render_target: Default::default(),
+            lightmap: self.lightmap.clone(),
         }
     }
 }
@@ -244,6 +269,7 @@ impl Visit for Scene {
         self.graph.visit("Graph", visitor)?;
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
+        let _ = self.lightmap.visit("Lightmap", visitor);
         visitor.leave_region()
     }
 }

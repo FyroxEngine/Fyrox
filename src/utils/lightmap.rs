@@ -11,11 +11,134 @@ use crate::{
     core::{
         color::Color,
         math::{self, mat3::Mat3, mat4::Mat4, vec2::Vec2, vec3::Vec3, Rect, TriangleDefinition},
+        pool::Handle,
+        visitor::{Visit, VisitResult, Visitor},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
     resource::texture::{Texture, TextureKind},
+    scene::{light::LightKind, node::Node, Scene},
 };
-use std::time;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time,
+};
+
+///
+#[derive(Default, Clone, Debug)]
+pub struct LightmapEntry {
+    /// Lightmap texture.
+    ///
+    /// TODO: Is single texture enough? There may be surfaces with huge amount of faces
+    ///  which may not fit into texture, because there is hardware limit on most GPUs
+    ///  up to 8192x8192 pixels.
+    pub texture: Option<Arc<Mutex<Texture>>>,
+    /// List of lights that were used to generate this lightmap. This list is used for
+    /// masking when applying dynamic lights for surfaces with light, it prevents double
+    /// lighting.
+    pub lights: Vec<Handle<Node>>,
+}
+
+impl Visit for LightmapEntry {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.texture.visit("Texture", visitor)?;
+        self.lights.visit("Lights", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+/// Lightmap is a texture with precomputed lighting.
+#[derive(Default, Clone, Debug)]
+pub struct Lightmap {
+    /// Node handle to lightmap mapping. It is used to quickly get information about
+    /// lightmaps for any node in scene.
+    pub map: HashMap<Handle<Node>, Vec<LightmapEntry>>,
+}
+
+impl Visit for Lightmap {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.map.visit(name, visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+impl Lightmap {
+    /// Generates lightmap for given scene.
+    /// Each mesh *must* have generated UVs for lightmap, otherwise result will be incorrect!    
+    pub fn new(scene: &Scene, texels_per_unit: u32) -> Self {
+        // Extract info about lights first. We need it to be in separate array because
+        // it won't be possible to store immutable references to light sources and at the
+        // same time modify meshes.
+        let mut lights = Vec::new();
+        for (handle, node) in scene.graph.pair_iter() {
+            if let Node::Light(light) = node {
+                match light.kind() {
+                    LightKind::Directional => lights.push((
+                        handle,
+                        LightDefinition::Directional(DirectionalLightDefinition {
+                            intensity: 1.0,
+                            direction: light.up_vector(),
+                            color: light.color(),
+                        }),
+                    )),
+                    LightKind::Spot(spot) => lights.push((
+                        handle,
+                        LightDefinition::Spot(SpotLightDefinition {
+                            intensity: 1.0,
+                            hotspot_cone_angle: spot.hotspot_cone_angle(),
+                            falloff_angle_delta: spot.falloff_angle_delta(),
+                            color: light.color(),
+                            direction: light.up_vector(),
+                            position: light.global_position(),
+                            distance: spot.distance(),
+                        }),
+                    )),
+                    LightKind::Point(point) => lights.push((
+                        handle,
+                        LightDefinition::Point(PointLightDefinition {
+                            intensity: 1.0,
+                            position: light.global_position(),
+                            color: light.color(),
+                            radius: point.radius(),
+                        }),
+                    )),
+                }
+            }
+        }
+        let mut map = HashMap::new();
+        for (handle, node) in scene.graph.pair_iter() {
+            if let Node::Mesh(mesh) = node {
+                let global_transform = mesh.global_transform;
+                let mut surface_lightmaps = Vec::new();
+                for surface in mesh.surfaces() {
+                    let data = surface.data();
+                    let data = data.lock().unwrap();
+                    let lightmap = generate_lightmap(
+                        &data,
+                        &global_transform,
+                        lights.iter().map(|(_, definition)| definition),
+                        texels_per_unit,
+                    );
+                    surface_lightmaps.push(LightmapEntry {
+                        texture: Some(Arc::new(Mutex::new(lightmap))),
+                        lights: lights
+                            .iter()
+                            .map(|(light_handle, _)| *light_handle)
+                            .collect(),
+                    })
+                }
+                map.insert(handle, surface_lightmaps);
+            }
+        }
+        Self { map }
+    }
+}
 
 /// Directional light is a light source with parallel rays. Example: Sun.
 pub struct DirectionalLightDefinition {
@@ -87,7 +210,7 @@ fn distance_attenuation(distance: f32, radius: f32) -> f32 {
     let attenuation = (1.0 - distance * distance / (radius * radius))
         .max(0.0)
         .min(1.0);
-    return attenuation * attenuation;
+    attenuation * attenuation
 }
 
 /// Transforms vertices of surface data into set of world space positions.
@@ -223,10 +346,10 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 /// This method is has linear complexity - the more complex mesh you pass, the more
 /// time it will take. Required time increases drastically if you enable shadows (TODO) and
 /// global illumination (TODO), because in this case your data will be raytraced.
-pub fn generate_lightmap(
+fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     data: &SurfaceSharedData,
     transform: &Mat4,
-    lights: &[LightDefinition],
+    lights: I,
     texels_per_unit: u32,
 ) -> Texture {
     let vertices = transform_vertices(data, transform);
@@ -273,6 +396,7 @@ pub fn generate_lightmap(
 
     let last_time = time::Instant::now();
 
+    let lights: Vec<&LightDefinition> = lights.into_iter().collect();
     for pixel in pixels.iter_mut() {
         if let Pixel::Color {
             color,
@@ -280,7 +404,7 @@ pub fn generate_lightmap(
             normal,
         } = pixel
         {
-            for light in lights {
+            for light in &lights {
                 let (light_color, attenuation) = match light {
                     LightDefinition::Directional(directional) => {
                         let attenuation =

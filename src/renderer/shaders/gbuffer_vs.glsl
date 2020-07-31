@@ -17,6 +17,7 @@ out vec3 normal;
 out vec2 texCoord;
 out vec3 tangent;
 out vec3 binormal;
+out vec2 secondTexCoord;
 
 void main()
 {
@@ -58,4 +59,5 @@ void main()
     tangent = normalize(mat3(worldMatrix) * localTangent);
     binormal = normalize(vertexTangent.w * cross(tangent, normal));
     texCoord = vertexTexCoord;
+    secondTexCoord = vertexSecondTexCoord;
 }

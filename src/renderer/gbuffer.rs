@@ -28,6 +28,7 @@ struct GBufferShader {
     bone_matrices: UniformLocation,
     diffuse_texture: UniformLocation,
     normal_texture: UniformLocation,
+    lightmap_texture: UniformLocation,
     diffuse_color: UniformLocation,
 }
 
@@ -43,6 +44,7 @@ impl GBufferShader {
             bone_matrices: program.uniform_location("boneMatrices")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             normal_texture: program.uniform_location("normalTexture")?,
+            lightmap_texture: program.uniform_location("lightmapTexture")?,
             diffuse_color: program.uniform_location("diffuseColor")?,
             program,
         })
@@ -105,6 +107,17 @@ impl GBuffer {
             .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
             .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
+        let mut ambient_texture = GpuTexture::new(
+            state,
+            GpuTextureKind::Rectangle { width, height },
+            PixelKind::RGBA8,
+            None,
+        )?;
+        ambient_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+
         let framebuffer = FrameBuffer::new(
             state,
             Some(Attachment {
@@ -119,6 +132,10 @@ impl GBuffer {
                 Attachment {
                     kind: AttachmentKind::Color,
                     texture: Rc::new(RefCell::new(normal_texture)),
+                },
+                Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(ambient_texture)),
                 },
             ],
         )?;
@@ -166,6 +183,10 @@ impl GBuffer {
 
     pub fn normal_texture(&self) -> Rc<RefCell<GpuTexture>> {
         self.framebuffer.color_attachments()[1].texture.clone()
+    }
+
+    pub fn ambient_texture(&self) -> Rc<RefCell<GpuTexture>> {
+        self.framebuffer.color_attachments()[2].texture.clone()
     }
 
     #[must_use]
@@ -250,6 +271,16 @@ impl GBuffer {
                     normal_dummy.clone()
                 };
 
+                let lightmap_texture = if let Some(texture) = surface.lightmap_texture() {
+                    if let Some(texture) = texture_cache.get(state, texture) {
+                        texture
+                    } else {
+                        white_dummy.clone()
+                    }
+                } else {
+                    white_dummy.clone()
+                };
+
                 statistics += self.framebuffer.draw(
                     geom_cache.get(state, &surface.data().lock().unwrap()),
                     state,
@@ -277,6 +308,13 @@ impl GBuffer {
                             UniformValue::Sampler {
                                 index: 1,
                                 texture: normal_texture,
+                            },
+                        ),
+                        (
+                            self.shader.lightmap_texture,
+                            UniformValue::Sampler {
+                                index: 2,
+                                texture: lightmap_texture,
                             },
                         ),
                         (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),

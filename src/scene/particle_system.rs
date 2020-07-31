@@ -666,6 +666,12 @@ pub struct BaseEmitterBuilder {
     resurrect_particles: bool,
 }
 
+impl Default for BaseEmitterBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BaseEmitterBuilder {
     /// Creates new emitter builder in declarative manner.
     pub fn new() -> Self {

@@ -54,7 +54,7 @@ impl Visit for Vertex {
 
         self.position.visit("Position", visitor)?;
         self.tex_coord.visit("TexCoord", visitor)?;
-        self.second_tex_coord.visit("SecondTexCoord", visitor)?;
+        let _ = self.second_tex_coord.visit("SecondTexCoord", visitor);
         self.normal.visit("Normal", visitor)?;
         self.tangent.visit("Tangent", visitor)?;
 
