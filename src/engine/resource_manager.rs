@@ -1,11 +1,13 @@
+//! Resource manager controls loading and lifetime of resource in the engine.
+
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{model::Model, texture::Texture, texture::TextureKind},
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
 };
-use std::ops::{Deref, DerefMut};
 use std::{
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     time,
@@ -15,7 +17,9 @@ use std::{
 /// (and unloaded) if there were no other strong references to it in given time
 /// span.
 pub struct TimedEntry<T> {
+    /// Payload of entry.
     pub value: T,
+    /// Time to live in seconds.
     pub time_to_live: f32,
 }
 
@@ -71,10 +75,14 @@ where
     }
 }
 
+/// Type alias for Arc<Mutex<Texture>> to make code less noisy.
 pub type SharedTexture = Arc<Mutex<Texture>>;
+/// Type alias for Arc<Mutex<Model>> to make code less noisy.
 pub type SharedModel = Arc<Mutex<Model>>;
+/// Type alias for Arc<Mutex<SoundBuffer>> to make code less noisy.
 pub type SharedSoundBuffer = Arc<Mutex<SoundBuffer>>;
 
+/// See module docs.
 pub struct ResourceManager {
     textures: Vec<TimedEntry<SharedTexture>>,
     models: Vec<TimedEntry<SharedModel>>,
@@ -140,6 +148,14 @@ impl ResourceManager {
         result
     }
 
+    /// Tries to load texture from given path or get instance of existing, if any. This method is
+    /// **blocking**, so it will block current thread until texture is loading. On failure it
+    /// returns None and prints failure reason to log.
+    ///
+    /// # Supported formats
+    ///
+    /// To load images and decode them, rg3d uses image create which supports following image
+    /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
     pub fn request_texture<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -170,6 +186,14 @@ impl ResourceManager {
         }
     }
 
+    /// Tries to load new model resource from given path or get instance of existing, if any.
+    /// This method is **blocking**, so it will block current thread until model is loading
+    /// On failure it returns None and prints failure reason to log.
+    ///
+    /// # Supported formats
+    ///
+    /// Currently only FBX (common format in game industry for storing complex 3d models)
+    /// and RGS (native rusty-editor format) formats are supported.
     pub fn request_model<P: AsRef<Path>>(&mut self, path: P) -> Option<SharedModel> {
         if let Some(model) = self.find_model(path.as_ref()) {
             return Some(model);
@@ -197,6 +221,13 @@ impl ResourceManager {
         }
     }
 
+    /// Tries to load new sound buffer from given path or get instance of existing, if any.
+    /// This method is **blocking**, so it will block current thread until sound buffer is
+    /// loading. On failure it returns None and prints failure reason to log.
+    ///
+    /// # Supported formats
+    ///
+    /// Currently only WAV (uncompressed) and OGG are supported.
     pub fn request_sound_buffer<P: AsRef<Path>>(
         &mut self,
         path: P,
@@ -241,11 +272,13 @@ impl ResourceManager {
         }
     }
 
+    /// Returns shared reference to list of available textures.
     #[inline]
     pub fn textures(&self) -> &[TimedEntry<SharedTexture>] {
         &self.textures
     }
 
+    /// Tries to find texture by its path. Returns None if no such texture was found.
     pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<SharedTexture> {
         for texture_entry in self.textures.iter() {
             if texture_entry.lock().unwrap().path.as_path() == path.as_ref() {
@@ -255,11 +288,13 @@ impl ResourceManager {
         None
     }
 
+    /// Returns shared reference to list of available models.
     #[inline]
     pub fn models(&self) -> &[TimedEntry<SharedModel>] {
         &self.models
     }
 
+    /// Tries to find model by its path. Returns None if no such model was found.
     pub fn find_model<P: AsRef<Path>>(&self, path: P) -> Option<SharedModel> {
         for model in self.models.iter() {
             if model.lock().unwrap().path.as_path() == path.as_ref() {
@@ -269,11 +304,13 @@ impl ResourceManager {
         None
     }
 
+    /// Returns shared reference to list of sound buffers.
     #[inline]
     pub fn sound_buffers(&self) -> &[TimedEntry<SharedSoundBuffer>] {
         &self.sound_buffers
     }
 
+    /// Tries to find sound buffer by its path. Returns None if no such sound buffer was found.
     pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<SharedSoundBuffer> {
         for sound_buffer in self.sound_buffers.iter() {
             if let Some(ext_path) = sound_buffer.lock().unwrap().external_data_path() {
@@ -285,11 +322,18 @@ impl ResourceManager {
         None
     }
 
+    /// Returns current path where to search texture when loading complex model resources.
     #[inline]
     pub fn textures_path(&self) -> &Path {
         self.textures_path.as_path()
     }
 
+    /// Sets new path where engine should search textures when it loads a model from external
+    /// non-native format. Most 3d model formats uses absolute paths to textures, this is
+    /// bad for engine, because all paths to data must be in relative format, otherwise it
+    /// would be tightly coupled with environment where a model was made. This path should
+    /// lead to a folder where all textures are located. **CAVEAT** Sub-folders are **not**
+    /// supported!
     #[inline]
     pub fn set_textures_path<P: AsRef<Path>>(&mut self, path: P) {
         self.textures_path = path.as_ref().to_owned();
@@ -421,6 +465,8 @@ impl ResourceManager {
         }
     }
 
+    /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
+    /// method!
     pub fn reload_resources(&mut self) {
         self.reload_textures();
         self.reload_models();

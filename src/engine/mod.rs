@@ -1,3 +1,8 @@
+//! Engine is container for all subsystems (renderer, ui, sound, resource manager). It also
+//! creates a window and an OpenGL context.
+
+#![warn(missing_docs)]
+
 pub mod error;
 pub mod resource_manager;
 
@@ -8,8 +13,7 @@ use crate::{
     },
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
-    gui::Control,
-    gui::UserInterface,
+    gui::{Control, UserInterface},
     renderer::{error::RendererError, Renderer},
     scene::SceneContainer,
     sound::context::Context,
@@ -18,17 +22,32 @@ use crate::{
 };
 use std::{
     sync::{Arc, Mutex},
-    time,
-    time::Duration,
+    time::{self, Duration},
 };
 
+/// See module docs.
 pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
     context: glutin::WindowedContext<PossiblyCurrent>,
+    /// Current renderer. You should call at least [render] method to see your scene on screen.
     pub renderer: Renderer,
+    /// User interface allows you to build interface of any kind. UI itself is *not* thread-safe,
+    /// but it uses messages to "talk" with outside world and message queue (MPSC) *is* thread-safe
+    /// so its sender part can be shared across threads.   
     pub user_interface: UserInterface<M, C>,
+    /// Sound context control all sound sources in the engine. It is wrapped into Arc<Mutex<>>
+    /// because internally sound engine spawns separate thread to mix and send data to sound
+    /// device. For more info see docs for Context.
     pub sound_context: Arc<Mutex<Context>>,
+    /// Current resource manager. Resource manager wrapped into Arc<Mutex<>> to be able to
+    /// use resource manager from any thread, this is useful to load resources from multiple
+    /// threads to decrease loading times of your game by utilizing all available power of
+    /// your CPU.
     pub resource_manager: Arc<Mutex<ResourceManager>>,
+    /// All available scenes in the engine.
     pub scenes: SceneContainer,
+    /// The time user interface took for internal needs. TODO: This is not the right place
+    /// for such statistics, probably it is best to make separate structure to hold all
+    /// such data.
     pub ui_time: Duration,
 }
 
@@ -83,7 +102,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
         })
     }
 
-    /// Returns reference to main window.  Could be useful to set fullscreen mode, change
+    /// Returns reference to main window. Could be useful to set fullscreen mode, change
     /// size of window, its title, etc.
     #[inline]
     pub fn get_window(&self) -> &Window {
@@ -113,10 +132,8 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
         self.ui_time = time::Instant::now() - time;
     }
 
-    pub fn get_ui_mut(&mut self) -> &mut UserInterface<M, C> {
-        &mut self.user_interface
-    }
-
+    /// Performs rendering of single frame, must be called from your game loop, otherwise you won't
+    /// see anything.
     #[inline]
     pub fn render(&mut self, dt: f32) -> Result<(), RendererError> {
         self.user_interface.draw();
