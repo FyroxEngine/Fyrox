@@ -767,7 +767,11 @@ impl Menu {
                             )))
                             .unwrap();
                     } else if message.destination == self.create_spot_light {
-                        let kind = LightKind::Spot(SpotLight::new(10.0, 45.0, 2.0));
+                        let kind = LightKind::Spot(SpotLight::new(
+                            10.0,
+                            45.0f32.to_radians(),
+                            2.0f32.to_radians(),
+                        ));
                         let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
                         light.set_name("SpotLight");
                         let node = Node::Light(light);

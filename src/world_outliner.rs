@@ -408,12 +408,14 @@ impl WorldOutliner {
             match ui.node(handle) {
                 UiNode::User(usr) => {
                     if let EditorUiNode::SceneItem(item) = usr {
-                        let node = &graph[item.node];
-                        ui.send_message(SceneItemMessage::node_visibility(
-                            handle,
-                            node.visibility(),
-                        ));
-                        stack.extend_from_slice(item.tree.items());
+                        if graph.is_valid_handle(item.node) {
+                            let node = &graph[item.node];
+                            ui.send_message(SceneItemMessage::node_visibility(
+                                handle,
+                                node.visibility(),
+                            ));
+                            stack.extend_from_slice(item.tree.items());
+                        }
                     }
                 }
                 UiNode::TreeRoot(root) => stack.extend_from_slice(root.items()),
