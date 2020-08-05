@@ -18,8 +18,10 @@ use crate::{
     resource::texture::{Texture, TextureKind},
     scene::{light::LightKind, node::Node, Scene},
 };
+use image::ImageError;
 use std::{
     collections::HashMap,
+    path::Path,
     sync::{Arc, Mutex},
     time,
 };
@@ -83,7 +85,7 @@ impl Lightmap {
                         handle,
                         LightDefinition::Directional(DirectionalLightDefinition {
                             intensity: 1.0,
-                            direction: light.up_vector(),
+                            direction: light.up_vector().normalized().unwrap_or(Vec3::UP),
                             color: light.color(),
                         }),
                     )),
@@ -94,7 +96,7 @@ impl Lightmap {
                             hotspot_cone_angle: spot.hotspot_cone_angle(),
                             falloff_angle_delta: spot.falloff_angle_delta(),
                             color: light.color(),
-                            direction: light.up_vector(),
+                            direction: light.up_vector().normalized().unwrap_or(Vec3::UP),
                             position: light.global_position(),
                             distance: spot.distance(),
                         }),
@@ -114,6 +116,9 @@ impl Lightmap {
         let mut map = HashMap::new();
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Mesh(mesh) = node {
+                if !mesh.global_visibility() {
+                    continue;
+                }
                 let global_transform = mesh.global_transform;
                 let mut surface_lightmaps = Vec::new();
                 for surface in mesh.surfaces() {
@@ -137,6 +142,21 @@ impl Lightmap {
             }
         }
         Self { map }
+    }
+
+    /// Saves lightmap textures into specified folder.
+    pub fn save<P: AsRef<Path>>(&self, base_path: P) -> Result<(), ImageError> {
+        for (handle, entries) in self.map.iter() {
+            let handle_path = handle.index().to_string();
+            for (i, entry) in entries.iter().enumerate() {
+                let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
+                let texture = entry.texture.clone().unwrap();
+                let mut texture = texture.lock().unwrap();
+                texture.set_path(&base_path.as_ref().join(file_path));
+                texture.save()?;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -238,6 +258,7 @@ fn pick(
     vertices: &[Vertex],
     world_positions: &[Vec3],
     normal_matrix: &Mat3,
+    scale: f32,
 ) -> Option<(Vec3, Vec3)> {
     if let Some(cell) = grid.pick(uv) {
         for triangle in cell.triangles.iter().map(|&ti| &triangles[ti]) {
@@ -245,25 +266,33 @@ fn pick(
             let uv_b = vertices[triangle[1] as usize].second_tex_coord;
             let uv_c = vertices[triangle[2] as usize].second_tex_coord;
 
-            let barycentric = math::get_barycentric_coords_2d(uv, uv_a, uv_b, uv_c);
+            let center = (uv_a + uv_b + uv_c).scale(1.0 / 3.0);
+            let to_center = (center - uv).normalized().unwrap_or_default().scale(scale);
 
-            if math::barycentric_is_inside(barycentric) {
-                let a = world_positions[triangle[0] as usize];
-                let b = world_positions[triangle[1] as usize];
-                let c = world_positions[triangle[2] as usize];
-                return Some((
-                    math::barycentric_to_world(barycentric, a, b, c),
-                    normal_matrix.transform_vector(
-                        math::barycentric_to_world(
-                            barycentric,
-                            vertices[triangle[0] as usize].normal,
-                            vertices[triangle[1] as usize].normal,
-                            vertices[triangle[2] as usize].normal,
-                        )
-                        .normalized()
-                        .unwrap_or(Vec3::UP),
-                    ),
-                ));
+            let mut current_uv = uv;
+            for _ in 0..2 {
+                let barycentric = math::get_barycentric_coords_2d(current_uv, uv_a, uv_b, uv_c);
+
+                if math::barycentric_is_inside(barycentric) {
+                    let a = world_positions[triangle[0] as usize];
+                    let b = world_positions[triangle[1] as usize];
+                    let c = world_positions[triangle[2] as usize];
+                    return Some((
+                        math::barycentric_to_world(barycentric, a, b, c),
+                        normal_matrix
+                            .transform_vector(math::barycentric_to_world(
+                                barycentric,
+                                vertices[triangle[0] as usize].normal,
+                                vertices[triangle[1] as usize].normal,
+                                vertices[triangle[2] as usize].normal,
+                            ))
+                            .normalized()
+                            .unwrap_or(Vec3::UP),
+                    ));
+                }
+
+                // Offset uv to center to remove seams.
+                current_uv += to_center;
             }
         }
     }
@@ -352,8 +381,8 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     lights: I,
     texels_per_unit: u32,
 ) -> Texture {
-    let vertices = transform_vertices(data, transform);
-    let size = estimate_size(&vertices, &data.triangles, texels_per_unit);
+    let world_positions = transform_vertices(data, transform);
+    let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
     let mut pixels = Vec::<Pixel>::with_capacity((size * size) as usize);
 
     let scale = 1.0 / size as f32;
@@ -369,20 +398,23 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
 
     let last_time = time::Instant::now();
 
+    let half_pixel = scale * 0.5;
     for y in 0..(size as usize) {
         for x in 0..(size as usize) {
-            let uv = Vec2::new(x as f32 * scale, y as f32 * scale);
+            // Get uv in center of pixel.
+            let uv = Vec2::new(x as f32 * scale + half_pixel, y as f32 * scale + half_pixel);
 
             if let Some((world_position, normal)) = pick(
                 uv,
                 &grid,
                 &data.triangles,
                 &data.vertices,
-                &vertices,
+                &world_positions,
                 &normal_matrix,
+                scale,
             ) {
                 pixels.push(Pixel::Color {
-                    color: Color::BLACK,
+                    color: Color::opaque(0, 0, 0),
                     position: world_position,
                     normal,
                 })
@@ -397,6 +429,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     let last_time = time::Instant::now();
 
     let lights: Vec<&LightDefinition> = lights.into_iter().collect();
+
     for pixel in pixels.iter_mut() {
         if let Pixel::Color {
             color,
@@ -412,7 +445,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         (directional.color, attenuation)
                     }
                     LightDefinition::Spot(spot) => {
-                        let d = *position - spot.position;
+                        let d = spot.position - *position;
                         let distance = d.len();
                         let light_vec = d.scale(1.0 / distance);
                         let spot_angle_cos = light_vec.dot(&spot.direction);
@@ -428,7 +461,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         (spot.color, attenuation)
                     }
                     LightDefinition::Point(point) => {
-                        let d = *position - point.position;
+                        let d = point.position - *position;
                         let distance = d.len();
                         let light_vec = d.scale(1.0 / distance);
                         let attenuation = point.intensity
@@ -437,9 +470,12 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         (point.color, attenuation)
                     }
                 };
-                color.r += ((light_color.r as f32) * attenuation) as u8;
-                color.g += ((light_color.g as f32) * attenuation) as u8;
-                color.b += ((light_color.b as f32) * attenuation) as u8;
+                color.r =
+                    (color.r as f32 + ((light_color.r as f32) * attenuation)).min(255.0) as u8;
+                color.g =
+                    (color.g as f32 + ((light_color.g as f32) * attenuation)).min(255.0) as u8;
+                color.b =
+                    (color.b as f32 + ((light_color.b as f32) * attenuation)).min(255.0) as u8;
             }
         }
     }

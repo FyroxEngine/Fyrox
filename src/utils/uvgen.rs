@@ -7,6 +7,7 @@ use crate::{
         rectpack::RectPacker,
     },
     renderer::surface::SurfaceSharedData,
+    scene::mesh::Mesh,
 };
 
 #[derive(Debug)]
@@ -208,6 +209,12 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
                 }
             }
         }
+    }
+}
+
+pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
+    for surface in mesh.surfaces() {
+        generate_uvs(&mut surface.data().lock().unwrap(), spacing);
     }
 }
 

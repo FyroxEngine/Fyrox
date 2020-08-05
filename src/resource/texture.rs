@@ -17,7 +17,7 @@
 //! access to pixels of render target.
 
 use crate::core::visitor::{Visit, VisitResult, Visitor};
-use image::GenericImageView;
+use image::{ColorType, GenericImageView, ImageError};
 use std::path::{Path, PathBuf};
 
 /// See module docs.
@@ -148,5 +148,26 @@ impl Texture {
     /// texture loading. This will be changed in future. For now this is a TODO.
     pub fn is_loaded(&self) -> bool {
         self.loaded
+    }
+
+    /// Sets new path to source file.
+    pub fn set_path<P: AsRef<Path>>(&mut self, path: &P) {
+        self.path = path.as_ref().to_owned();
+    }
+
+    /// Tries to save internal buffer into source file.
+    pub fn save(&self) -> Result<(), ImageError> {
+        let color_type = match self.kind {
+            TextureKind::R8 => ColorType::L8,
+            TextureKind::RGB8 => ColorType::Rgb8,
+            TextureKind::RGBA8 => ColorType::Rgba8,
+        };
+        image::save_buffer(
+            &self.path,
+            self.bytes.as_ref(),
+            self.width,
+            self.height,
+            color_type,
+        )
     }
 }

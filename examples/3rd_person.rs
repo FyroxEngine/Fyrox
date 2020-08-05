@@ -623,7 +623,7 @@ fn create_scene_async(
 
         // Load simple map.
         resource_manager
-            .request_model("examples/data/Sponza.FBX")
+            .request_model("examples/data/Sponza.fbx")
             .unwrap()
             .lock()
             .unwrap()
