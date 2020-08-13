@@ -391,6 +391,20 @@ impl ImageMessage {
     }
 }
 
+impl TextBoxMessage {
+    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: TextBoxMessage) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::TextBox(msg),
+            destination,
+        }
+    }
+
+    pub fn text<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: String) -> UiMessage<M, C> {
+        Self::make(destination, TextBoxMessage::Text(value))
+    }
+}
+
 impl TextMessage {
     fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: TextMessage) -> UiMessage<M, C> {
         UiMessage {
