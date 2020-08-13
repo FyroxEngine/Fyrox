@@ -34,6 +34,7 @@ use crate::{
     scene::node::Node,
     utils::log::Log,
 };
+use rg3d_core::math::quat::Quat;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -521,6 +522,33 @@ impl Graph {
         let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
         copy.root = root;
         (copy, old_new_map)
+    }
+
+    /// Returns local transformation matrix of a node without scale.
+    pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Mat4 {
+        let mut transform = self[node].local_transform().clone();
+        transform.set_scale(Vec3::new(1.0, 1.0, 1.0));
+        transform.matrix()
+    }
+
+    /// Returns world transformation matrix of a node without scale.
+    pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Mat4 {
+        let parent = self[node].parent();
+        if parent.is_some() {
+            self.global_transform_no_scale(parent) * self.local_transform_no_scale(node)
+        } else {
+            self.local_transform_no_scale(node)
+        }
+    }
+
+    /// Returns rotation quaternion of a node in world coordinates.
+    pub fn global_rotation(&self, node: Handle<Node>) -> Quat {
+        Quat::from(self.global_transform_no_scale(node).basis())
+    }
+
+    /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
+    pub fn global_rotation_position_no_scale(&self, node: Handle<Node>) -> (Quat, Vec3) {
+        (self.global_rotation(node), self[node].global_position())
     }
 }
 

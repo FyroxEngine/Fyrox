@@ -16,7 +16,7 @@
 
 use crate::{
     core::{
-        math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec4::Vec4, Rect},
+        math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec3::Vec3, vec4::Vec4, Rect},
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::base::{Base, BaseBuilder},
@@ -203,6 +203,23 @@ impl Camera {
         let begin = near.xyz().scale(1.0 / near.w);
         let end = far.xyz().scale(1.0 / far.w);
         Ray::from_two_points(&begin, &end).unwrap_or_default()
+    }
+
+    /// Projects given world space point on screen plane.
+    pub fn project(&self, world_pos: Vec3, screen_size: Vec2) -> Option<Vec2> {
+        let viewport = self.viewport_pixels(screen_size);
+        let proj = self
+            .view_projection_matrix()
+            .transform_vector4(Vec4::from_vec3(world_pos, 1.0));
+        if proj.w != 0.0 {
+            let k = (1.0 / proj.w) * 0.5;
+            Some(Vec2::new(
+                viewport.x as f32 + viewport.w as f32 * (proj.x * k + 0.5),
+                viewport.h as f32 - (viewport.y as f32 + viewport.h as f32 * (proj.y * k + 0.5)),
+            ))
+        } else {
+            None
+        }
     }
 }
 

@@ -47,8 +47,8 @@ pub struct Base {
 
 impl Base {
     /// Sets name of node. Can be useful to mark a node to be able to find it later on.
-    pub fn set_name(&mut self, name: &str) -> &mut Self {
-        self.name = name.to_owned();
+    pub fn set_name<N: AsRef<str>>(&mut self, name: N) -> &mut Self {
+        self.name = name.as_ref().to_owned();
         self
     }
 
