@@ -1,21 +1,22 @@
-use crate::gui::UiNode;
 use crate::{
     camera::CameraController,
+    gui::UiNode,
     scene::{
         ChangeSelectionCommand, EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
         SceneCommand, Selection,
     },
     GameEngine, Message,
 };
-use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::gui::message::WidgetMessage;
-use rg3d::sound::math::vec4::Vec4;
 use rg3d::{
     core::{
         color::Color,
-        math::{mat4::Mat4, plane::Plane, quat::Quat, vec2::Vec2, vec3::Vec3},
+        math::{
+            aabb::AxisAlignedBoundingBox, mat4::Mat4, plane::Plane, quat::Quat, vec2::Vec2,
+            vec3::Vec3,
+        },
         pool::Handle,
     },
+    gui::message::WidgetMessage,
     renderer::surface::{SurfaceBuilder, SurfaceSharedData},
     scene::{
         base::BaseBuilder, graph::Graph, mesh::MeshBuilder, node::Node, transform::TransformBuilder,
@@ -1322,8 +1323,8 @@ impl SelectInteractionMode {
 impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        _editor_scene: &EditorScene,
+        _camera_controller: &mut CameraController,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
@@ -1343,7 +1344,7 @@ impl InteractionMode for SelectInteractionMode {
         editor_scene: &EditorScene,
         camera_controller: &mut CameraController,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
+        _mouse_pos: Vec2,
     ) {
         let scene = &engine.scenes[editor_scene.scene];
         let camera = scene.graph[camera_controller.camera].as_camera();
@@ -1354,7 +1355,6 @@ impl InteractionMode for SelectInteractionMode {
             .screen_bounds();
         let relative_bounds =
             frame_screen_bounds.translate(-preview_screen_bounds.x, -preview_screen_bounds.y);
-        dbg!(relative_bounds);
         self.stack.clear();
         self.stack.push(scene.graph.get_root());
         let mut selection = Selection::default();
@@ -1407,10 +1407,10 @@ impl InteractionMode for SelectInteractionMode {
 
     fn on_mouse_move(
         &mut self,
-        mouse_offset: Vec2,
+        _mouse_offset: Vec2,
         mouse_position: Vec2,
-        camera: Handle<Node>,
-        editor_scene: &EditorScene,
+        _camera: Handle<Node>,
+        _editor_scene: &EditorScene,
         engine: &mut GameEngine,
     ) {
         let ui = &mut engine.user_interface;
@@ -1439,13 +1439,13 @@ impl InteractionMode for SelectInteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &EditorScene,
-        camera: Handle<Node>,
-        engine: &mut GameEngine,
+        _editor_scene: &EditorScene,
+        _camera: Handle<Node>,
+        _engine: &mut GameEngine,
     ) {
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {}
+    fn deactivate(&mut self, _editor_scene: &EditorScene, _engine: &mut GameEngine) {}
 }
 
 /// Helper enum to be able to access interaction modes in array directly.

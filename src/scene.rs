@@ -1,7 +1,7 @@
 use crate::{command::Command, Message};
 use rg3d::{
     core::{
-        math::{mat3::Mat3, quat::Quat, vec3::Vec3},
+        math::{quat::Quat, vec3::Vec3},
         pool::{Handle, Ticket},
     },
     scene::{graph::Graph, node::Node, Scene},
