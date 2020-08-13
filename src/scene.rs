@@ -1,7 +1,7 @@
 use crate::{command::Command, Message};
 use rg3d::{
     core::{
-        math::{quat::Quat, vec3::Vec3},
+        math::{mat3::Mat3, quat::Quat, vec3::Vec3},
         pool::{Handle, Ticket},
     },
     scene::{graph::Graph, node::Node, Scene},
@@ -12,6 +12,7 @@ pub struct EditorScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub root: Handle<Node>,
+    pub selection: Selection,
 }
 
 #[derive(Debug)]
@@ -25,16 +26,13 @@ pub enum SceneCommand {
     RotateNode(RotateNodeCommand),
     LinkNodes(LinkNodesCommand),
     SetVisible(SetVisibleCommand),
-}
-
-pub struct MutRefLt<'a, T: 'a> {
-    field: &'a mut T,
+    SetName(SetNameCommand),
 }
 
 pub struct SceneContext<'a> {
     pub graph: &'a mut Graph,
     pub message_sender: Sender<Message>,
-    pub current_selection: Handle<Node>,
+    pub current_selection: Selection,
 }
 
 macro_rules! static_dispatch {
@@ -53,6 +51,7 @@ macro_rules! static_dispatch {
             SceneCommand::RotateNode(v) => v.$func($($args),*),
             SceneCommand::LinkNodes(v) => v.$func($($args),*),
             SceneCommand::SetVisible(v) => v.$func($($args),*),
+            SceneCommand::SetName(v) => v.$func($($args),*),
         }
     };
 }
@@ -119,20 +118,20 @@ impl<'a> Command<'a> for AddNodeCommand {
 
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {
-    new_selection: Handle<Node>,
-    old_selection: Handle<Node>,
+    new_selection: Selection,
+    old_selection: Selection,
 }
 
 impl ChangeSelectionCommand {
-    pub fn new(new_selection: Handle<Node>, old_selection: Handle<Node>) -> Self {
+    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
         Self {
             new_selection,
             old_selection,
         }
     }
 
-    fn swap(&mut self) -> Handle<Node> {
-        let selection = self.new_selection;
+    fn swap(&mut self) -> Selection {
+        let selection = self.new_selection.clone();
         std::mem::swap(&mut self.new_selection, &mut self.old_selection);
         selection
     }
@@ -389,5 +388,134 @@ impl<'a> Command<'a> for SetVisibleCommand {
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.apply(context.graph);
+    }
+}
+
+#[derive(Debug)]
+pub struct SetNameCommand {
+    handle: Handle<Node>,
+    value: String,
+}
+
+impl SetNameCommand {
+    pub fn new(handle: Handle<Node>, name: String) -> Self {
+        Self {
+            handle,
+            value: name,
+        }
+    }
+
+    fn apply(&mut self, graph: &mut Graph) {
+        let node = &mut graph[self.handle];
+        let old = node.name().to_owned();
+        node.set_name(&self.value);
+        self.value = old;
+    }
+}
+
+impl<'a> Command<'a> for SetNameCommand {
+    type Context = SceneContext<'a>;
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        self.apply(context.graph);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.apply(context.graph);
+    }
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
+pub struct Selection {
+    pub nodes: Vec<Handle<Node>>,
+}
+
+impl Selection {
+    /// Creates new selection as single if node handle is not none, and empty if it is.
+    pub fn single_or_empty(node: Handle<Node>) -> Self {
+        if node.is_none() {
+            Self {
+                nodes: Default::default(),
+            }
+        } else {
+            Self { nodes: vec![node] }
+        }
+    }
+
+    pub fn is_multi_selection(&self) -> bool {
+        self.nodes.len() > 1
+    }
+
+    pub fn is_single_selection(&self) -> bool {
+        self.nodes.len() == 1
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    pub fn extend(&mut self, other: &Selection) {
+        self.nodes.extend_from_slice(&other.nodes)
+    }
+
+    pub fn global_rotation_position(&self, graph: &Graph) -> Option<(Quat, Vec3)> {
+        if self.is_single_selection() {
+            Some(graph.global_rotation_position_no_scale(self.nodes[0]))
+        } else if self.is_empty() {
+            None
+        } else {
+            let mut position = Vec3::ZERO;
+            let mut rotation = graph.global_rotation(self.nodes[0]);
+            let t = 1.0 / self.nodes.len() as f32;
+            for &handle in self.nodes.iter() {
+                let global_transform = graph[handle].global_transform();
+                position += global_transform.position();
+                rotation = rotation.slerp(&graph.global_rotation(self.nodes[0]), t);
+            }
+            position = position.scale(t);
+            Some((rotation, position))
+        }
+    }
+
+    pub fn offset(&self, graph: &mut Graph, offset: Vec3) {
+        for &handle in self.nodes.iter() {
+            graph[handle].local_transform_mut().offset(offset);
+        }
+    }
+
+    pub fn rotate(&self, graph: &mut Graph, rotation: Quat) {
+        for &handle in self.nodes.iter() {
+            graph[handle].local_transform_mut().set_rotation(rotation);
+        }
+    }
+
+    pub fn scale(&self, graph: &mut Graph, scale: Vec3) {
+        for &handle in self.nodes.iter() {
+            graph[handle].local_transform_mut().set_scale(scale);
+        }
+    }
+
+    pub fn local_positions(&self, graph: &Graph) -> Vec<Vec3> {
+        let mut positions = Vec::new();
+        for &handle in self.nodes.iter() {
+            positions.push(graph[handle].local_transform().position());
+        }
+        positions
+    }
+
+    pub fn local_rotations(&self, graph: &Graph) -> Vec<Quat> {
+        let mut rotations = Vec::new();
+        for &handle in self.nodes.iter() {
+            rotations.push(graph[handle].local_transform().rotation());
+        }
+        rotations
+    }
+
+    pub fn local_scales(&self, graph: &Graph) -> Vec<Vec3> {
+        let mut scales = Vec::new();
+        for &handle in self.nodes.iter() {
+            scales.push(graph[handle].local_transform().scale());
+        }
+        scales
     }
 }

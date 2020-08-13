@@ -1,11 +1,15 @@
+use crate::gui::UiNode;
 use crate::{
     camera::CameraController,
     scene::{
         ChangeSelectionCommand, EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
-        SceneCommand,
+        SceneCommand, Selection,
     },
     GameEngine, Message,
 };
+use rg3d::core::math::aabb::AxisAlignedBoundingBox;
+use rg3d::gui::message::WidgetMessage;
+use rg3d::sound::math::vec4::Vec4;
 use rg3d::{
     core::{
         color::Color,
@@ -24,11 +28,16 @@ pub trait InteractionMode {
         &mut self,
         editor_scene: &EditorScene,
         camera_controller: &mut CameraController,
-        current_selection: Handle<Node>,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     );
-    fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
+    fn on_left_mouse_button_up(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera_controller: &mut CameraController,
+        engine: &mut GameEngine,
+        mouse_pos: Vec2,
+    );
     fn on_mouse_move(
         &mut self,
         mouse_offset: Vec2,
@@ -38,9 +47,7 @@ pub trait InteractionMode {
         engine: &mut GameEngine,
     );
     fn update(&mut self, editor_scene: &EditorScene, camera: Handle<Node>, engine: &mut GameEngine);
-    fn activate(&mut self, node: Handle<Node>);
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
-    fn handle_message(&mut self, message: &Message);
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -291,15 +298,14 @@ impl MoveGizmo {
         camera: Handle<Node>,
         mouse_offset: Vec2,
         mouse_position: Vec2,
-        node: Handle<Node>,
         engine: &GameEngine,
     ) -> Vec3 {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
         let screen_size = engine.renderer.get_frame_size();
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
-        let node_global_transform = graph[node].global_transform();
-        let node_local_transform = graph[node].local_transform().matrix();
+        let node_global_transform = graph[self.origin].global_transform();
+        let node_local_transform = graph[self.origin].local_transform().matrix();
 
         if let Node::Camera(camera) = &graph[camera] {
             let dlook = node_global_transform.position() - camera.global_position();
@@ -353,14 +359,15 @@ impl MoveGizmo {
         Vec3::ZERO
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>, scale: Vec3) {
-        let (rotation, position) = extract_rotation_position_no_scale(node, graph);
-        graph[self.origin]
-            .set_visibility(true)
-            .local_transform_mut()
-            .set_rotation(rotation)
-            .set_position(position)
-            .set_scale(scale);
+    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vec3) {
+        if let Some((rotation, position)) = selection.global_rotation_position(graph) {
+            graph[self.origin]
+                .set_visibility(true)
+                .local_transform_mut()
+                .set_rotation(rotation)
+                .set_position(position)
+                .set_scale(scale);
+        }
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
@@ -368,31 +375,9 @@ impl MoveGizmo {
     }
 }
 
-fn local_transform_no_scale(node: Handle<Node>, graph: &Graph) -> Mat4 {
-    let mut transform = graph[node].local_transform().clone();
-    transform.set_scale(Vec3::new(1.0, 1.0, 1.0));
-    transform.matrix()
-}
-
-fn global_transform_no_scale(node: Handle<Node>, graph: &Graph) -> Mat4 {
-    let parent = graph[node].parent();
-    if parent.is_some() {
-        global_transform_no_scale(parent, graph) * local_transform_no_scale(node, graph)
-    } else {
-        local_transform_no_scale(node, graph)
-    }
-}
-
-fn extract_rotation_position_no_scale(node: Handle<Node>, graph: &Graph) -> (Quat, Vec3) {
-    let basis = global_transform_no_scale(node, graph).basis();
-    let position = graph[node].global_position();
-    (Quat::from(basis), position)
-}
-
 pub struct MoveInteractionMode {
-    initial_position: Vec3,
+    initial_positions: Vec<Vec3>,
     move_gizmo: MoveGizmo,
-    node: Handle<Node>,
     interacting: bool,
     message_sender: Sender<Message>,
 }
@@ -406,9 +391,8 @@ impl MoveInteractionMode {
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
-            initial_position: Default::default(),
+            initial_positions: Default::default(),
             move_gizmo: MoveGizmo::new(editor_scene, engine),
-            node: Default::default(),
             interacting: false,
             message_sender,
         }
@@ -420,7 +404,6 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         editor_scene: &EditorScene,
         camera_controller: &mut CameraController,
-        current_selection: Handle<Node>,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
@@ -438,32 +421,52 @@ impl InteractionMode for MoveInteractionMode {
         {
             self.interacting = true;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.initial_position = graph[self.node].local_transform().position();
-        } else {
-            let new_selection =
-                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
-            if new_selection != current_selection {
-                self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                        ChangeSelectionCommand::new(new_selection, current_selection),
-                    )))
-                    .unwrap();
-            }
+            self.initial_positions = editor_scene.selection.local_positions(graph);
         }
     }
 
-    fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() && self.interacting {
-            self.interacting = false;
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let current_position = graph[self.node].local_transform().position();
-            if current_position != self.initial_position {
-                // Commit changes.
-                let move_command =
-                    MoveNodeCommand::new(self.node, self.initial_position, current_position);
+    fn on_left_mouse_button_up(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera_controller: &mut CameraController,
+        engine: &mut GameEngine,
+        mouse_pos: Vec2,
+    ) {
+        if self.interacting {
+            if !editor_scene.selection.is_empty() {
+                self.interacting = false;
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let current_positions = editor_scene.selection.local_positions(graph);
+                if current_positions != self.initial_positions {
+                    let commands = editor_scene
+                        .selection
+                        .nodes
+                        .iter()
+                        .zip(current_positions.iter().zip(self.initial_positions.iter()))
+                        .map(|(&node, (&new_pos, &old_pos))| {
+                            SceneCommand::MoveNode(MoveNodeCommand::new(node, old_pos, new_pos))
+                        })
+                        .collect();
+                    // Commit changes.
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                            commands,
+                        )))
+                        .unwrap();
+                }
+            }
+        } else {
+            let new_selection = Selection::single_or_empty(camera_controller.pick(
+                mouse_pos,
+                editor_scene,
+                engine,
+                false,
+                |_, _| true,
+            ));
+            if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::MoveNode(
-                        move_command,
+                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                        ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
                     )))
                     .unwrap();
             }
@@ -484,12 +487,11 @@ impl InteractionMode for MoveInteractionMode {
                 camera,
                 mouse_offset,
                 mouse_position,
-                self.node,
                 engine,
             );
-            engine.scenes[editor_scene.scene].graph[self.node]
-                .local_transform_mut()
-                .offset(node_offset);
+            editor_scene
+                .selection
+                .offset(&mut engine.scenes[editor_scene.scene].graph, node_offset);
         }
     }
 
@@ -499,14 +501,15 @@ impl InteractionMode for MoveInteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
-        if self.node.is_some() {
+        if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             let distance = GIZMO_SCALE_FACTOR
                 * graph[self.move_gizmo.origin]
                     .global_position()
                     .distance(&graph[camera].global_position());
             let scale = Vec3::new(distance, distance, distance);
-            self.move_gizmo.sync_transform(graph, self.node, scale);
+            self.move_gizmo
+                .sync_transform(graph, &editor_scene.selection, scale);
             self.move_gizmo.set_visible(graph, true);
         } else {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -514,20 +517,9 @@ impl InteractionMode for MoveInteractionMode {
         }
     }
 
-    fn activate(&mut self, node: Handle<Node>) {
-        self.node = node;
-    }
-
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
-        self.node = Default::default();
         self.move_gizmo.set_visible(graph, false);
-    }
-
-    fn handle_message(&mut self, message: &Message) {
-        if let &Message::SetSelection(selection) = message {
-            self.node = selection;
-        }
     }
 }
 
@@ -715,13 +707,12 @@ impl ScaleGizmo {
         camera: Handle<Node>,
         mouse_offset: Vec2,
         mouse_position: Vec2,
-        node: Handle<Node>,
         engine: &GameEngine,
     ) -> Vec3 {
         let graph = &engine.scenes[editor_scene.scene].graph;
         let screen_size = engine.renderer.get_frame_size();
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
-        let node_global_transform = graph[node].global_transform();
+        let node_global_transform = graph[self.origin].global_transform();
 
         if let Node::Camera(camera) = &graph[camera] {
             let dlook = node_global_transform.position() - camera.global_position();
@@ -773,14 +764,15 @@ impl ScaleGizmo {
         Vec3::ZERO
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>, scale: Vec3) {
-        let (rotation, position) = extract_rotation_position_no_scale(node, graph);
-        graph[self.origin]
-            .set_visibility(true)
-            .local_transform_mut()
-            .set_rotation(rotation)
-            .set_position(position)
-            .set_scale(scale);
+    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vec3) {
+        if let Some((rotation, position)) = selection.global_rotation_position(graph) {
+            graph[self.origin]
+                .set_visibility(true)
+                .local_transform_mut()
+                .set_rotation(rotation)
+                .set_position(position)
+                .set_scale(scale);
+        }
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
@@ -789,9 +781,8 @@ impl ScaleGizmo {
 }
 
 pub struct ScaleInteractionMode {
-    initial_scale: Vec3,
+    initial_scales: Vec<Vec3>,
     scale_gizmo: ScaleGizmo,
-    node: Handle<Node>,
     interacting: bool,
     message_sender: Sender<Message>,
 }
@@ -803,9 +794,8 @@ impl ScaleInteractionMode {
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
-            initial_scale: Default::default(),
+            initial_scales: Default::default(),
             scale_gizmo: ScaleGizmo::new(editor_scene, engine),
-            node: Default::default(),
             interacting: false,
             message_sender,
         }
@@ -817,7 +807,6 @@ impl InteractionMode for ScaleInteractionMode {
         &mut self,
         editor_scene: &EditorScene,
         camera_controller: &mut CameraController,
-        current_selection: Handle<Node>,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
@@ -835,32 +824,55 @@ impl InteractionMode for ScaleInteractionMode {
         {
             self.interacting = true;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.initial_scale = graph[self.node].local_transform().scale();
+            self.initial_scales = editor_scene.selection.local_scales(graph);
         } else {
-            let new_selection =
-                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
-            if new_selection != current_selection {
-                self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                        ChangeSelectionCommand::new(new_selection, current_selection),
-                    )))
-                    .unwrap();
-            }
         }
     }
 
-    fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() && self.interacting {
-            self.interacting = false;
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let current_scale = graph[self.node].local_transform().scale();
-            if current_scale != self.initial_scale {
-                // Commit changes.
-                let scale_command =
-                    ScaleNodeCommand::new(self.node, self.initial_scale, current_scale);
+    fn on_left_mouse_button_up(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera_controller: &mut CameraController,
+        engine: &mut GameEngine,
+        mouse_pos: Vec2,
+    ) {
+        if self.interacting {
+            if !editor_scene.selection.is_empty() {
+                self.interacting = false;
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let current_scales = editor_scene.selection.local_scales(graph);
+                if current_scales != self.initial_scales {
+                    // Commit changes.
+                    let commands = editor_scene
+                        .selection
+                        .nodes
+                        .iter()
+                        .zip(self.initial_scales.iter().zip(current_scales.iter()))
+                        .map(|(&node, (&old_scale, &new_scale))| {
+                            SceneCommand::ScaleNode(ScaleNodeCommand::new(
+                                node, old_scale, new_scale,
+                            ))
+                        })
+                        .collect();
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                            commands,
+                        )))
+                        .unwrap();
+                }
+            }
+        } else {
+            let new_selection = Selection::single_or_empty(camera_controller.pick(
+                mouse_pos,
+                editor_scene,
+                engine,
+                false,
+                |_, _| true,
+            ));
+            if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
-                        scale_command,
+                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                        ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
                     )))
                     .unwrap();
             }
@@ -881,16 +893,16 @@ impl InteractionMode for ScaleInteractionMode {
                 camera,
                 mouse_offset,
                 mouse_position,
-                self.node,
                 engine,
             );
-            let transform =
-                engine.scenes[editor_scene.scene].graph[self.node].local_transform_mut();
-            let initial_scale = transform.scale();
-            let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
-            let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
-            let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
-            transform.set_scale(Vec3::new(sx, sy, sz));
+            for &node in editor_scene.selection.nodes.iter() {
+                let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
+                let initial_scale = transform.scale();
+                let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
+                let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
+                let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
+                transform.set_scale(Vec3::new(sx, sy, sz));
+            }
         }
     }
 
@@ -900,14 +912,15 @@ impl InteractionMode for ScaleInteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
-        if self.node.is_some() {
+        if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             let distance = GIZMO_SCALE_FACTOR
                 * graph[self.scale_gizmo.origin]
                     .global_position()
                     .distance(&graph[camera].global_position());
             let scale = Vec3::new(distance, distance, distance);
-            self.scale_gizmo.sync_transform(graph, self.node, scale);
+            self.scale_gizmo
+                .sync_transform(graph, &editor_scene.selection, scale);
             self.scale_gizmo.set_visible(graph, true);
         } else {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -915,20 +928,9 @@ impl InteractionMode for ScaleInteractionMode {
         }
     }
 
-    fn activate(&mut self, node: Handle<Node>) {
-        self.node = node;
-    }
-
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
-        self.node = Default::default();
         self.scale_gizmo.set_visible(graph, false);
-    }
-
-    fn handle_message(&mut self, message: &Message) {
-        if let &Message::SetSelection(selection) = message {
-            self.node = selection;
-        }
     }
 }
 
@@ -1082,7 +1084,6 @@ impl RotationGizmo {
         camera: Handle<Node>,
         mouse_offset: Vec2,
         mouse_position: Vec2,
-        node: Handle<Node>,
         engine: &GameEngine,
     ) -> Quat {
         let graph = &engine.scenes[editor_scene.scene].graph;
@@ -1090,7 +1091,7 @@ impl RotationGizmo {
         let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
 
         if let Node::Camera(camera) = &graph[camera] {
-            let transform = graph[node].global_transform();
+            let transform = graph[self.origin].global_transform();
 
             let initial_ray = camera.make_ray(mouse_position, screen_size);
             let offset_ray = camera.make_ray(mouse_position + mouse_offset, screen_size);
@@ -1126,14 +1127,15 @@ impl RotationGizmo {
         Quat::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, node: Handle<Node>, scale: Vec3) {
-        let (rotation, position) = extract_rotation_position_no_scale(node, graph);
-        graph[self.origin]
-            .set_visibility(true)
-            .local_transform_mut()
-            .set_rotation(rotation)
-            .set_position(position)
-            .set_scale(scale);
+    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vec3) {
+        if let Some((rotation, position)) = selection.global_rotation_position(graph) {
+            graph[self.origin]
+                .set_visibility(true)
+                .local_transform_mut()
+                .set_rotation(rotation)
+                .set_position(position)
+                .set_scale(scale);
+        }
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
@@ -1142,9 +1144,8 @@ impl RotationGizmo {
 }
 
 pub struct RotateInteractionMode {
-    initial_rotation: Quat,
+    initial_rotations: Vec<Quat>,
     rotation_gizmo: RotationGizmo,
-    node: Handle<Node>,
     interacting: bool,
     message_sender: Sender<Message>,
 }
@@ -1156,9 +1157,8 @@ impl RotateInteractionMode {
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
-            initial_rotation: Default::default(),
+            initial_rotations: Default::default(),
             rotation_gizmo: RotationGizmo::new(editor_scene, engine),
-            node: Default::default(),
             interacting: false,
             message_sender,
         }
@@ -1170,7 +1170,6 @@ impl InteractionMode for RotateInteractionMode {
         &mut self,
         editor_scene: &EditorScene,
         camera_controller: &mut CameraController,
-        current_selection: Handle<Node>,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
@@ -1188,32 +1187,56 @@ impl InteractionMode for RotateInteractionMode {
         {
             self.interacting = true;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            self.initial_rotation = graph[self.node].local_transform().rotation();
-        } else {
-            let new_selection =
-                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
-            if new_selection != current_selection {
-                self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                        ChangeSelectionCommand::new(new_selection, current_selection),
-                    )))
-                    .unwrap();
-            }
+            self.initial_rotations = editor_scene.selection.local_rotations(graph);
         }
     }
 
-    fn on_left_mouse_button_up(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
-        if self.node.is_some() && self.interacting {
-            self.interacting = false;
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let current_rotation = graph[self.node].local_transform().rotation();
-            if current_rotation != self.initial_rotation {
-                // Commit changes.
-                let rotate_command =
-                    RotateNodeCommand::new(self.node, self.initial_rotation, current_rotation);
+    fn on_left_mouse_button_up(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera_controller: &mut CameraController,
+        engine: &mut GameEngine,
+        mouse_pos: Vec2,
+    ) {
+        if self.interacting {
+            if !editor_scene.selection.is_empty() {
+                self.interacting = false;
+                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let current_rotation = editor_scene.selection.local_rotations(graph);
+                if current_rotation != self.initial_rotations {
+                    let commands = editor_scene
+                        .selection
+                        .nodes
+                        .iter()
+                        .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
+                        .map(|(&node, (&old_rotation, &new_rotation))| {
+                            SceneCommand::RotateNode(RotateNodeCommand::new(
+                                node,
+                                old_rotation,
+                                new_rotation,
+                            ))
+                        })
+                        .collect();
+                    // Commit changes.
+                    self.message_sender
+                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                            commands,
+                        )))
+                        .unwrap();
+                }
+            }
+        } else {
+            let new_selection = Selection::single_or_empty(camera_controller.pick(
+                mouse_pos,
+                editor_scene,
+                engine,
+                false,
+                |_, _| true,
+            ));
+            if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::RotateNode(
-                        rotate_command,
+                    .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                        ChangeSelectionCommand::new(new_selection, editor_scene.selection.clone()),
                     )))
                     .unwrap();
             }
@@ -1234,13 +1257,13 @@ impl InteractionMode for RotateInteractionMode {
                 camera,
                 mouse_offset,
                 mouse_position,
-                self.node,
                 engine,
             );
-            let transform =
-                engine.scenes[editor_scene.scene].graph[self.node].local_transform_mut();
-            let rotation = transform.rotation();
-            transform.set_rotation(rotation * rotation_delta);
+            for &node in editor_scene.selection.nodes.iter() {
+                let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
+                let rotation = transform.rotation();
+                transform.set_rotation(rotation * rotation_delta);
+            }
         }
     }
 
@@ -1250,14 +1273,15 @@ impl InteractionMode for RotateInteractionMode {
         camera: Handle<Node>,
         engine: &mut GameEngine,
     ) {
-        if self.node.is_some() {
+        if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             let distance = GIZMO_SCALE_FACTOR
                 * graph[self.rotation_gizmo.origin]
                     .global_position()
                     .distance(&graph[camera].global_position());
             let scale = Vec3::new(distance, distance, distance);
-            self.rotation_gizmo.sync_transform(graph, self.node, scale);
+            self.rotation_gizmo
+                .sync_transform(graph, &editor_scene.selection, scale);
             self.rotation_gizmo.set_visible(graph, true);
         } else {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -1265,28 +1289,171 @@ impl InteractionMode for RotateInteractionMode {
         }
     }
 
-    fn activate(&mut self, node: Handle<Node>) {
-        self.node = node;
-    }
-
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
-        self.node = Default::default();
         self.rotation_gizmo.set_visible(graph, false);
     }
+}
 
-    fn handle_message(&mut self, message: &Message) {
-        if let &Message::SetSelection(selection) = message {
-            self.node = selection;
+pub struct SelectInteractionMode {
+    preview: Handle<UiNode>,
+    selection_frame: Handle<UiNode>,
+    message_sender: Sender<Message>,
+    stack: Vec<Handle<Node>>,
+    click_pos: Vec2,
+}
+
+impl SelectInteractionMode {
+    pub fn new(
+        preview: Handle<UiNode>,
+        selection_frame: Handle<UiNode>,
+        message_sender: Sender<Message>,
+    ) -> Self {
+        Self {
+            preview,
+            selection_frame,
+            message_sender,
+            stack: Vec::new(),
+            click_pos: Vec2::ZERO,
         }
     }
+}
+
+impl InteractionMode for SelectInteractionMode {
+    fn on_left_mouse_button_down(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera_controller: &mut CameraController,
+        engine: &mut GameEngine,
+        mouse_pos: Vec2,
+    ) {
+        self.click_pos = mouse_pos;
+        let ui = &mut engine.user_interface;
+        ui.send_message(WidgetMessage::visibility(self.selection_frame, true));
+        ui.send_message(WidgetMessage::desired_position(
+            self.selection_frame,
+            mouse_pos,
+        ));
+        ui.send_message(WidgetMessage::width(self.selection_frame, 0.0));
+        ui.send_message(WidgetMessage::height(self.selection_frame, 0.0));
+    }
+
+    fn on_left_mouse_button_up(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera_controller: &mut CameraController,
+        engine: &mut GameEngine,
+        mouse_pos: Vec2,
+    ) {
+        let scene = &engine.scenes[editor_scene.scene];
+        let camera = scene.graph[camera_controller.camera].as_camera();
+        let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
+        let frame_screen_bounds = engine
+            .user_interface
+            .node(self.selection_frame)
+            .screen_bounds();
+        let relative_bounds =
+            frame_screen_bounds.translate(-preview_screen_bounds.x, -preview_screen_bounds.y);
+        dbg!(relative_bounds);
+        self.stack.clear();
+        self.stack.push(scene.graph.get_root());
+        let mut selection = Selection::default();
+        while let Some(handle) = self.stack.pop() {
+            let node = &scene.graph[handle];
+            if handle == editor_scene.root {
+                continue;
+            }
+            if handle == scene.graph.get_root() {
+                self.stack.extend_from_slice(node.children());
+                continue;
+            }
+            let aabb = match node {
+                Node::Base(_) => AxisAlignedBoundingBox::UNIT,
+                Node::Light(_) => AxisAlignedBoundingBox::UNIT,
+                Node::Camera(_) => AxisAlignedBoundingBox::UNIT,
+                Node::Mesh(mesh) => mesh.bounding_box(),
+                Node::Sprite(_) => AxisAlignedBoundingBox::UNIT,
+                Node::ParticleSystem(_) => AxisAlignedBoundingBox::UNIT,
+            };
+
+            let fsize = Vec2::new(
+                engine.renderer.get_frame_size().0 as f32,
+                engine.renderer.get_frame_size().1 as f32,
+            );
+            for screen_corner in aabb
+                .corners()
+                .iter()
+                .filter_map(|&p| camera.project(p + node.global_position(), fsize))
+            {
+                if relative_bounds.contains(screen_corner.x, screen_corner.y) {
+                    selection.nodes.push(handle);
+                    break;
+                }
+            }
+
+            self.stack.extend_from_slice(node.children());
+        }
+        if !selection.is_empty() && selection != editor_scene.selection {
+            self.message_sender
+                .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
+                    ChangeSelectionCommand::new(selection, editor_scene.selection.clone()),
+                )))
+                .unwrap();
+        }
+        engine
+            .user_interface
+            .send_message(WidgetMessage::visibility(self.selection_frame, false));
+    }
+
+    fn on_mouse_move(
+        &mut self,
+        mouse_offset: Vec2,
+        mouse_position: Vec2,
+        camera: Handle<Node>,
+        editor_scene: &EditorScene,
+        engine: &mut GameEngine,
+    ) {
+        let ui = &mut engine.user_interface;
+        let width = mouse_position.x - self.click_pos.x;
+        let height = mouse_position.y - self.click_pos.y;
+
+        let position = Vec2 {
+            x: if width < 0.0 {
+                mouse_position.x
+            } else {
+                self.click_pos.x
+            },
+            y: if height < 0.0 {
+                mouse_position.y
+            } else {
+                self.click_pos.y
+            },
+        };
+        ui.send_message(WidgetMessage::desired_position(
+            self.selection_frame,
+            position,
+        ));
+        ui.send_message(WidgetMessage::width(self.selection_frame, width.abs()));
+        ui.send_message(WidgetMessage::height(self.selection_frame, height.abs()));
+    }
+
+    fn update(
+        &mut self,
+        editor_scene: &EditorScene,
+        camera: Handle<Node>,
+        engine: &mut GameEngine,
+    ) {
+    }
+
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {}
 }
 
 /// Helper enum to be able to access interaction modes in array directly.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug)]
 #[repr(usize)]
 pub enum InteractionModeKind {
-    Move = 0,
-    Scale = 1,
-    Rotate = 2,
+    Select = 0,
+    Move = 1,
+    Scale = 2,
+    Rotate = 3,
 }

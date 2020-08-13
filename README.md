@@ -1,6 +1,6 @@
 # rusty editor
 
-Scene editor for [rg3d engine](https://github.com/mrDIMAS/rg3d). **It is not ready for use yet.**
+Scene editor for [rg3d engine](https://github.com/mrDIMAS/rg3d).
 
 ## Motivation
 
@@ -47,6 +47,7 @@ let scene_handle = engine.scenes.add(scene);
 ## Plan
 
 - [x] Interaction modes.
+	- [x] Select.
 	- [x] Move.
 	- [x] Scale.
 	- [x] Rotate.
@@ -57,6 +58,7 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Docking windows.
 - [x] Scene preview
 - [x] Side bar with interaction modes.
+- [x] Multi selection
 - [x] Menu
 	- [x] File
 		- [x] Save
@@ -82,6 +84,9 @@ let scene_handle = engine.scenes.add(scene);
 	- [x] Delete node.
 	- [x] Create node.
 	- [x] Link nodes.
+	- [x] Select nodes.
+	- [x] Set name.
+	- [x] Set visible.
 	- [ ] Other?
 - [ ] World outliner
 	- [x] Syncing with graph.
@@ -91,7 +96,7 @@ let scene_handle = engine.scenes.add(scene);
 - [ ] Node properties editor
 	- [ ] Base node
 		- [x] Show name.
-		- [ ] Edit name.
+		- [x] Edit name.
 		- [x] Edit position.
 		- [x] Edit rotation.
 		- [x] Edit scale.

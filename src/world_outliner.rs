@@ -3,16 +3,22 @@ use crate::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
         UiNode,
     },
-    scene::SetVisibleCommand,
-    scene::{ChangeSelectionCommand, EditorScene, LinkNodesCommand, SceneCommand},
+    scene::{
+        ChangeSelectionCommand, EditorScene, LinkNodesCommand, SceneCommand, Selection,
+        SetVisibleCommand,
+    },
     GameEngine, Message,
 };
 use rg3d::{
-    core::{math::vec2::Vec2, math::Rect, pool::Handle},
+    core::{
+        math::{vec2::Vec2, Rect},
+        pool::Handle,
+    },
     engine::resource_manager::ResourceManager,
     gui::{
         button::ButtonBuilder,
         draw::DrawingContext,
+        draw::Texture,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
@@ -23,7 +29,7 @@ use rg3d::{
         tree::{Tree, TreeBuilder, TreeRootBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Control, HorizontalAlignment, NodeHandleMapping, Thickness,
+        Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
     },
     resource::texture::TextureKind,
     scene::node::Node,
@@ -135,7 +141,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::SceneItem(item) = msg {
                     if let &SceneItemMessage::NodeVisibility(visibility) = item {
-                        if self.visibility != visibility {
+                        if self.visibility != visibility && message.destination == self.handle() {
                             self.visibility = visibility;
 
                             let path = if visibility {
@@ -177,6 +183,7 @@ pub struct SceneItemBuilder {
     node: Handle<Node>,
     name: String,
     visibility: bool,
+    icon: Option<Arc<Texture>>,
 }
 
 impl SceneItemBuilder {
@@ -185,6 +192,7 @@ impl SceneItemBuilder {
             node: Default::default(),
             name: Default::default(),
             visibility: true,
+            icon: None,
         }
     }
 
@@ -203,12 +211,24 @@ impl SceneItemBuilder {
         self
     }
 
+    pub fn with_icon(mut self, icon: Option<Arc<Texture>>) -> Self {
+        self.icon = icon;
+        self
+    }
+
     pub fn build(
         self,
         ctx: &mut BuildContext,
         sender: Sender<Message>,
         resource_manager: Arc<Mutex<ResourceManager>>,
     ) -> Handle<UiNode> {
+        let visible_texture = into_any_arc(
+            resource_manager
+                .lock()
+                .unwrap()
+                .request_texture("resources/visible.png", TextureKind::RGBA8),
+        );
+
         let visibility_toggle;
         let item = SceneItem {
             tree: TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
@@ -216,26 +236,37 @@ impl SceneItemBuilder {
                     GridBuilder::new(
                         WidgetBuilder::new()
                             .with_child(
-                                TextBuilder::new(WidgetBuilder::new())
-                                    .with_text(self.name)
-                                    .build(ctx),
+                                ImageBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(16.0)
+                                        .with_height(16.0)
+                                        .on_column(0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_opt_texture(self.icon)
+                                .build(ctx),
+                            )
+                            .with_child(
+                                TextBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_vertical_alignment(VerticalAlignment::Center),
+                                )
+                                .with_text(self.name)
+                                .build(ctx),
                             )
                             .with_child({
                                 visibility_toggle = ButtonBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
                                         .with_width(22.0)
                                         .with_height(16.0)
                                         .with_horizontal_alignment(HorizontalAlignment::Right)
-                                        .on_column(1),
+                                        .on_column(2),
                                 )
                                 .with_content(
                                     ImageBuilder::new(WidgetBuilder::new())
-                                        .with_opt_texture(into_any_arc(
-                                            resource_manager.lock().unwrap().request_texture(
-                                                "resources/visible.png",
-                                                TextureKind::RGBA8,
-                                            ),
-                                        ))
+                                        .with_opt_texture(visible_texture)
                                         .build(ctx),
                                 )
                                 .build(ctx);
@@ -243,6 +274,7 @@ impl SceneItemBuilder {
                             }),
                     )
                     .add_row(Row::stretch())
+                    .add_column(Column::auto())
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
                     .build(ctx),
@@ -266,10 +298,23 @@ fn make_tree(
     sender: Sender<Message>,
     resource_manager: Arc<Mutex<ResourceManager>>,
 ) -> Handle<UiNode> {
+    let icon_path = match node {
+        Node::Light(_) => "resources/light.png",
+        _ => "resources/cube.png",
+    };
+
+    let icon = into_any_arc(
+        resource_manager
+            .lock()
+            .unwrap()
+            .request_texture(icon_path, TextureKind::RGBA8),
+    );
+
     SceneItemBuilder::new()
         .with_name(node.name().to_owned())
         .with_node(handle)
         .with_visibility(node.visibility())
+        .with_icon(icon)
         .build(ctx, sender, resource_manager)
 }
 
@@ -305,12 +350,7 @@ impl WorldOutliner {
         }
     }
 
-    pub fn sync_to_model(
-        &mut self,
-        editor_scene: &EditorScene,
-        engine: &mut GameEngine,
-        current_selection: Handle<Node>,
-    ) {
+    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
@@ -369,8 +409,12 @@ impl WorldOutliner {
                                         engine.resource_manager.clone(),
                                     );
                                     ui.send_message(TreeMessage::add_item(tree_handle, tree));
-                                    if child_handle == current_selection {
-                                        ui.send_message(TreeRootMessage::select(self.root, tree));
+                                    if editor_scene.selection.is_single_selection() {
+                                        if child_handle == editor_scene.selection.nodes[0] {
+                                            ui.send_message(TreeRootMessage::select(
+                                                self.root, tree,
+                                            ));
+                                        }
                                     }
                                     self.stack.push((tree, child_handle));
                                 }
@@ -436,17 +480,17 @@ impl WorldOutliner {
         &mut self,
         message: &UiMessage,
         ui: &Ui,
-        current_selection: Handle<Node>,
+        current_selection: &Selection,
     ) {
         match &message.data {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination == self.root {
                     if let &TreeRootMessage::Selected(selection) = msg {
-                        let node = self.map_tree_to_node(selection, ui);
-                        if node != current_selection {
+                        let node = Selection::single_or_empty(self.map_tree_to_node(selection, ui));
+                        if &node != current_selection {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                    ChangeSelectionCommand::new(node, current_selection),
+                                    ChangeSelectionCommand::new(node, current_selection.clone()),
                                 )))
                                 .unwrap();
                         }
@@ -483,9 +527,13 @@ impl WorldOutliner {
         let ui = &engine.user_interface;
 
         match message {
-            &Message::SetSelection(selection) => {
-                let tree = self.map_node_to_tree(ui, selection);
-                ui.send_message(TreeRootMessage::select(self.root, tree));
+            Message::SetSelection(selection) => {
+                // TODO: TreeView currently does not support multi selection so there is no way
+                //  to reflect multi selection in world outliner.
+                if selection.is_single_selection() {
+                    let tree = self.map_node_to_tree(ui, selection.nodes[0]);
+                    ui.send_message(TreeRootMessage::select(self.root, tree));
+                }
             }
             _ => (),
         }

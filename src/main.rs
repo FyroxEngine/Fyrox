@@ -10,19 +10,19 @@ pub mod interaction;
 pub mod scene;
 pub mod world_outliner;
 
-use crate::gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode};
+use crate::interaction::SelectInteractionMode;
 use crate::{
     asset::AssetBrowser,
     camera::CameraController,
     command::CommandStack,
+    gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
     interaction::{
         InteractionMode, InteractionModeKind, MoveInteractionMode, RotateInteractionMode,
         ScaleInteractionMode,
     },
-    scene::EditorScene,
     scene::{
-        AddNodeCommand, ChangeSelectionCommand, DeleteNodeCommand, MoveNodeCommand,
-        RotateNodeCommand, ScaleNodeCommand, SceneCommand, SceneContext,
+        AddNodeCommand, ChangeSelectionCommand, DeleteNodeCommand, EditorScene, MoveNodeCommand,
+        RotateNodeCommand, ScaleNodeCommand, SceneCommand, SceneContext, Selection, SetNameCommand,
     },
     world_outliner::WorldOutliner,
 };
@@ -41,14 +41,17 @@ use rg3d::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
+        border::BorderBuilder,
+        brush::Brush,
         button::ButtonBuilder,
+        canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         file_browser::FileBrowserBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
         message::{
-            ButtonMessage, ImageMessage, KeyCode, MenuItemMessage, MouseButton, TextMessage,
+            ButtonMessage, ImageMessage, KeyCode, MenuItemMessage, MouseButton, TextBoxMessage,
             UiMessageData, Vec3EditorMessage, WidgetMessage,
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons},
@@ -90,7 +93,6 @@ type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
 struct NodeEditor {
     window: Handle<UiNode>,
-    node: Handle<Node>,
     node_name: Handle<UiNode>,
     position: Handle<UiNode>,
     rotation: Handle<UiNode>,
@@ -174,7 +176,6 @@ impl NodeEditor {
 
         Self {
             window,
-            node: Default::default(),
             node_name,
             position,
             rotation,
@@ -185,39 +186,50 @@ impl NodeEditor {
 
     fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &engine.scenes[editor_scene.scene];
-        if scene.graph.is_valid_handle(self.node) {
-            let node = &scene.graph[self.node];
+        if editor_scene.selection.is_single_selection() {
+            let node = editor_scene.selection.nodes[0];
+            if scene.graph.is_valid_handle(node) {
+                let node = &scene.graph[node];
 
-            let ui = &mut engine.user_interface;
+                let ui = &mut engine.user_interface;
 
-            ui.send_message(TextMessage::text(self.node_name, node.name().to_owned()));
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
-                    node.local_transform().position(),
-                )),
-                destination: self.position,
-            });
+                // These messages created with `handled=true` flag to be able to filter such messages
+                // in `handle_message` method. Otherwise each syncing would create command, which is
+                // not what we want - we want to create command only when user types something in
+                // fields, and such messages comes from ui library and they're not handled by default.
+                ui.send_message(UiMessage {
+                    handled: true,
+                    data: UiMessageData::TextBox(TextBoxMessage::Text(node.name().to_owned())),
+                    destination: self.node_name,
+                });
+                ui.send_message(UiMessage {
+                    handled: true,
+                    data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
+                        node.local_transform().position(),
+                    )),
+                    destination: self.position,
+                });
 
-            let euler = node.local_transform().rotation().to_euler();
-            let euler_degrees = Vec3::new(
-                euler.x.to_degrees(),
-                euler.y.to_degrees(),
-                euler.z.to_degrees(),
-            );
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(euler_degrees)),
-                destination: self.rotation,
-            });
+                let euler = node.local_transform().rotation().to_euler();
+                let euler_degrees = Vec3::new(
+                    euler.x.to_degrees(),
+                    euler.y.to_degrees(),
+                    euler.z.to_degrees(),
+                );
+                ui.send_message(UiMessage {
+                    handled: true,
+                    data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(euler_degrees)),
+                    destination: self.rotation,
+                });
 
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
-                    node.local_transform().scale(),
-                )),
-                destination: self.scale,
-            });
+                ui.send_message(UiMessage {
+                    handled: true,
+                    data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
+                        node.local_transform().scale(),
+                    )),
+                    destination: self.scale,
+                });
+            }
         }
     }
 
@@ -228,11 +240,13 @@ impl NodeEditor {
         engine: &GameEngine,
     ) {
         let graph = &engine.scenes[editor_scene.scene].graph;
-        if self.node.is_some() && !message.handled {
+
+        if editor_scene.selection.is_single_selection() && !message.handled {
+            let node = editor_scene.selection.nodes[0];
             match &message.data {
                 UiMessageData::Vec3Editor(msg) => {
                     if let &Vec3EditorMessage::Value(value) = msg {
-                        let transform = graph[self.node].local_transform();
+                        let transform = graph[node].local_transform();
                         if message.destination == self.rotation {
                             let old_rotation = transform.rotation();
                             let euler = Vec3::new(
@@ -244,11 +258,7 @@ impl NodeEditor {
                             if !old_rotation.approx_eq(new_rotation, 0.001) {
                                 self.sender
                                     .send(Message::DoSceneCommand(SceneCommand::RotateNode(
-                                        RotateNodeCommand::new(
-                                            self.node,
-                                            old_rotation,
-                                            new_rotation,
-                                        ),
+                                        RotateNodeCommand::new(node, old_rotation, new_rotation),
                                     )))
                                     .unwrap();
                             }
@@ -257,7 +267,7 @@ impl NodeEditor {
                             if old_position != value {
                                 self.sender
                                     .send(Message::DoSceneCommand(SceneCommand::MoveNode(
-                                        MoveNodeCommand::new(self.node, old_position, value),
+                                        MoveNodeCommand::new(node, old_position, value),
                                     )))
                                     .unwrap();
                             }
@@ -266,7 +276,21 @@ impl NodeEditor {
                             if old_scale != value {
                                 self.sender
                                     .send(Message::DoSceneCommand(SceneCommand::ScaleNode(
-                                        ScaleNodeCommand::new(self.node, old_scale, value),
+                                        ScaleNodeCommand::new(node, old_scale, value),
+                                    )))
+                                    .unwrap();
+                            }
+                        }
+                    }
+                }
+                UiMessageData::TextBox(msg) => {
+                    if message.destination == self.node_name {
+                        if let TextBoxMessage::Text(new_name) = msg {
+                            let old_name = graph[node].name();
+                            if old_name != new_name {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::SetName(
+                                        SetNameCommand::new(node, new_name.to_owned()),
                                     )))
                                     .unwrap();
                             }
@@ -364,7 +388,10 @@ pub struct ScenePreview {
     frame: Handle<UiNode>,
     window: Handle<UiNode>,
     last_mouse_pos: Option<Vec2>,
+    click_mouse_pos: Option<Vec2>,
+    selection_frame: Handle<UiNode>,
     // Side bar stuff
+    select_mode: Handle<UiNode>,
     move_mode: Handle<UiNode>,
     rotate_mode: Handle<UiNode>,
     scale_mode: Handle<UiNode>,
@@ -385,9 +412,11 @@ impl ScenePreview {
             .unwrap();
 
         let frame;
+        let select_mode;
         let move_mode;
         let rotate_mode;
         let scale_mode;
+        let selection_frame;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -402,11 +431,53 @@ impl ScenePreview {
                             frame
                         })
                         .with_child(
+                            CanvasBuilder::new(WidgetBuilder::new().on_column(1).with_child({
+                                selection_frame = BorderBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_visibility(false)
+                                        .with_background(Brush::Solid(Color::from_rgba(
+                                            255, 255, 255, 40,
+                                        )))
+                                        .with_foreground(Brush::Solid(Color::opaque(0, 255, 0))),
+                                )
+                                .with_stroke_thickness(Thickness::uniform(1.0))
+                                .build(ctx);
+                                selection_frame
+                            }))
+                            .build(ctx),
+                        )
+                        .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
                                     .with_margin(Thickness::uniform(1.0))
                                     .on_row(0)
                                     .on_column(0)
+                                    .with_child({
+                                        select_mode = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_content(
+                                            ImageBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_width(32.0)
+                                                    .with_height(32.0),
+                                            )
+                                            .with_opt_texture(into_any_arc(
+                                                engine
+                                                    .resource_manager
+                                                    .lock()
+                                                    .unwrap()
+                                                    .request_texture(
+                                                        "resources/select.png",
+                                                        TextureKind::RGBA8,
+                                                    ),
+                                            ))
+                                            .build(ctx),
+                                        )
+                                        .build(ctx);
+                                        select_mode
+                                    })
                                     .with_child({
                                         move_mode = ButtonBuilder::new(
                                             WidgetBuilder::new()
@@ -505,6 +576,9 @@ impl ScenePreview {
             move_mode,
             rotate_mode,
             scale_mode,
+            selection_frame,
+            select_mode,
+            click_mouse_pos: None,
         }
     }
 }
@@ -526,6 +600,10 @@ impl ScenePreview {
                         self.sender
                             .send(Message::SetInteractionMode(InteractionModeKind::Move))
                             .unwrap();
+                    } else if message.destination == self.select_mode {
+                        self.sender
+                            .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                            .unwrap();
                     }
                 }
             }
@@ -539,7 +617,7 @@ pub enum Message {
     DoSceneCommand(SceneCommand),
     UndoSceneCommand,
     RedoSceneCommand,
-    SetSelection(Handle<Node>),
+    SetSelection(Selection),
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     SetInteractionMode(InteractionModeKind),
@@ -869,6 +947,7 @@ impl Editor {
         let editor_scene = EditorScene {
             root,
             scene: engine.scenes.add(scene),
+            selection: Default::default(),
         };
 
         let preview = ScenePreview::new(engine, &editor_scene, message_sender.clone());
@@ -961,6 +1040,11 @@ impl Editor {
         });
 
         let interaction_modes: Vec<Box<dyn InteractionMode>> = vec![
+            Box::new(SelectInteractionMode::new(
+                preview.frame,
+                preview.selection_frame,
+                message_sender.clone(),
+            )),
             Box::new(MoveInteractionMode::new(
                 &editor_scene,
                 engine,
@@ -1015,9 +1099,15 @@ impl Editor {
         self.scene = EditorScene {
             root,
             scene: engine.scenes.add(scene),
+            selection: Default::default(),
         };
 
         self.interaction_modes = vec![
+            Box::new(SelectInteractionMode::new(
+                self.preview.frame,
+                self.preview.selection_frame,
+                self.message_sender.clone(),
+            )),
             Box::new(MoveInteractionMode::new(
                 &self.scene,
                 engine,
@@ -1051,10 +1141,6 @@ impl Editor {
             }
 
             self.current_interaction_mode = mode;
-
-            if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode as usize].activate(self.node_editor.node);
-            }
         }
     }
 
@@ -1066,7 +1152,7 @@ impl Editor {
 
         let ui = &mut engine.user_interface;
         self.world_outliner
-            .handle_ui_message(message, ui, self.node_editor.node);
+            .handle_ui_message(message, ui, &self.scene.selection);
         self.preview.handle_message(message);
 
         if message.destination == self.preview.frame {
@@ -1079,11 +1165,13 @@ impl Editor {
                                 let screen_bounds = ui.node(self.preview.frame).screen_bounds();
                                 let rel_pos =
                                     Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+
+                                self.preview.click_mouse_pos = Some(rel_pos);
+
                                 self.interaction_modes[current_im as usize]
                                     .on_left_mouse_button_down(
                                         &self.scene,
                                         &mut self.camera_controller,
-                                        self.node_editor.node,
                                         engine,
                                         rel_pos,
                                     );
@@ -1091,12 +1179,22 @@ impl Editor {
                         }
                         self.camera_controller.on_mouse_button_down(button);
                     }
-                    &WidgetMessage::MouseUp { button, .. } => {
+                    &WidgetMessage::MouseUp { button, pos, .. } => {
                         ui.release_mouse_capture();
+
                         if button == MouseButton::Left {
+                            self.preview.click_mouse_pos = None;
                             if let Some(current_im) = self.current_interaction_mode {
+                                let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                                let rel_pos =
+                                    Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
                                 self.interaction_modes[current_im as usize]
-                                    .on_left_mouse_button_up(&self.scene, engine);
+                                    .on_left_mouse_button_up(
+                                        &self.scene,
+                                        &mut self.camera_controller,
+                                        engine,
+                                        rel_pos,
+                                    );
                             }
                         }
                         self.camera_controller.on_mouse_button_up(button);
@@ -1111,6 +1209,7 @@ impl Editor {
                         self.camera_controller.on_mouse_move(mouse_offset);
                         let screen_bounds = ui.node(self.preview.frame).screen_bounds();
                         let rel_pos = Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+
                         if let Some(current_im) = self.current_interaction_mode {
                             self.interaction_modes[current_im as usize].on_mouse_move(
                                 mouse_offset,
@@ -1139,12 +1238,15 @@ impl Editor {
                                 }
                             }
                             KeyCode::Key1 => {
-                                self.set_interaction_mode(Some(InteractionModeKind::Move), engine)
+                                self.set_interaction_mode(Some(InteractionModeKind::Select), engine)
                             }
                             KeyCode::Key2 => {
-                                self.set_interaction_mode(Some(InteractionModeKind::Rotate), engine)
+                                self.set_interaction_mode(Some(InteractionModeKind::Move), engine)
                             }
                             KeyCode::Key3 => {
+                                self.set_interaction_mode(Some(InteractionModeKind::Rotate), engine)
+                            }
+                            KeyCode::Key4 => {
                                 self.set_interaction_mode(Some(InteractionModeKind::Scale), engine)
                             }
                             KeyCode::L => {
@@ -1155,18 +1257,23 @@ impl Editor {
                                 }
                             }
                             KeyCode::Delete => {
-                                if self.node_editor.node.is_some() {
-                                    let command = SceneCommand::CommandGroup(vec![
-                                        SceneCommand::ChangeSelection(ChangeSelectionCommand::new(
-                                            Handle::NONE,
-                                            self.node_editor.node,
-                                        )),
-                                        SceneCommand::DeleteNode(DeleteNodeCommand::new(
-                                            self.node_editor.node,
-                                        )),
-                                    ]);
+                                if !self.scene.selection.is_empty() {
+                                    let mut commands = vec![SceneCommand::ChangeSelection(
+                                        ChangeSelectionCommand::new(
+                                            Default::default(),
+                                            self.scene.selection.clone(),
+                                        ),
+                                    )];
+                                    for &node in self.scene.selection.nodes.iter() {
+                                        commands.push(SceneCommand::DeleteNode(
+                                            DeleteNodeCommand::new(node),
+                                        ));
+                                    }
+
                                     self.message_sender
-                                        .send(Message::DoSceneCommand(command))
+                                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                            commands,
+                                        )))
                                         .unwrap();
                                 }
                             }
@@ -1181,24 +1288,19 @@ impl Editor {
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
-        self.world_outliner
-            .sync_to_model(&self.scene, engine, self.node_editor.node);
+        self.world_outliner.sync_to_model(&self.scene, engine);
         self.node_editor.sync_to_model(&self.scene, engine);
     }
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         while let Ok(message) = self.message_receiver.try_recv() {
-            for mode in &mut self.interaction_modes {
-                mode.handle_message(&message);
-            }
-
             self.world_outliner.handle_message(&message, engine);
 
             let scene = &mut engine.scenes[self.scene.scene];
             let context = SceneContext {
                 graph: &mut scene.graph,
                 message_sender: self.message_sender.clone(),
-                current_selection: self.node_editor.node,
+                current_selection: self.scene.selection.clone(),
             };
 
             match message {
@@ -1214,7 +1316,7 @@ impl Editor {
                     self.command_stack.redo(context);
                     self.sync_to_model(engine);
                 }
-                Message::SetSelection(node) => self.node_editor.node = node,
+                Message::SetSelection(selection) => self.scene.selection = selection,
                 Message::SaveScene(mut path) => {
                     let scene = &mut engine.scenes[self.scene.scene];
                     let editor_root = self.scene.root;
