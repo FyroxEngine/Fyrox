@@ -5,32 +5,24 @@
 //! from each other. There is no direct way of modify something during runtime,
 //! you have to use messages to change state of ui elements.
 
-use std::{
-    path::PathBuf,
-    sync::{Arc, Mutex}
-};
 use crate::{
-    ttf::Font,
+    brush::Brush,
     core::{
-        math::{
-            vec2::Vec2,
-            vec3::Vec3,
-        },
+        math::{vec2::Vec2, vec3::Vec3},
         pool::Handle,
     },
-    UINode,
-    VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    brush::Brush,
-    Control,
-    popup::Placement,
-    MouseState,
+    dock::TileContent,
+    draw::Texture,
     messagebox::MessageBoxResult,
+    popup::Placement,
+    ttf::Font,
     window::WindowTitle,
-    dock::TileContent
+    Control, HorizontalAlignment, MouseState, Thickness, UINode, VerticalAlignment,
 };
-use crate::draw::Texture;
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Debug)]
 pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
@@ -104,7 +96,10 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetMessage<M, C> {
     }
 
     /// Creates message to link `destination` node with specified `parent` node.
-    pub fn link(destination: Handle<UINode<M, C>>, parent: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+    pub fn link(
+        destination: Handle<UINode<M, C>>,
+        parent: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, WidgetMessage::LinkWith(parent))
     }
 
@@ -160,7 +155,10 @@ impl<M: 'static, C: 'static + Control<M, C>> ButtonMessage<M, C> {
         Self::make(destination, ButtonMessage::Click)
     }
 
-    pub fn content(destination: Handle<UINode<M, C>>, content: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+    pub fn content(
+        destination: Handle<UINode<M, C>>,
+        content: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ButtonMessage::Content(content))
     }
 }
@@ -173,7 +171,10 @@ pub enum ScrollBarMessage {
 }
 
 impl ScrollBarMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: ScrollBarMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: ScrollBarMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::ScrollBar(msg),
@@ -181,15 +182,24 @@ impl ScrollBarMessage {
         }
     }
 
-    pub fn value<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
+    pub fn value<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: f32,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ScrollBarMessage::Value(value))
     }
 
-    pub fn max_value<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
+    pub fn max_value<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: f32,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ScrollBarMessage::MaxValue(value))
     }
 
-    pub fn min_value<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
+    pub fn min_value<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: f32,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ScrollBarMessage::MinValue(value))
     }
 }
@@ -200,7 +210,10 @@ pub enum CheckBoxMessage {
 }
 
 impl CheckBoxMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: CheckBoxMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: CheckBoxMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::CheckBox(msg),
@@ -208,7 +221,10 @@ impl CheckBoxMessage {
         }
     }
 
-    pub fn check<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: Option<bool>) -> UiMessage<M, C> {
+    pub fn check<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: Option<bool>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, CheckBoxMessage::Check(value))
     }
 }
@@ -252,7 +268,7 @@ impl<M: 'static, C: 'static + Control<M, C>> WindowMessage<M, C> {
 
 #[derive(Debug)]
 pub enum ScrollViewerMessage<M: 'static, C: 'static + Control<M, C>> {
-    Content(Handle<UINode<M, C>>)
+    Content(Handle<UINode<M, C>>),
 }
 
 #[derive(Debug)]
@@ -280,7 +296,7 @@ pub enum TreeMessage<M: 'static, C: 'static + Control<M, C>> {
     RemoveItem(Handle<UINode<M, C>>),
     SetItems(Vec<Handle<UINode<M, C>>>),
     // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
-    Select(SelectionState)
+    Select(SelectionState),
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> TreeMessage<M, C> {
@@ -292,15 +308,24 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeMessage<M, C> {
         }
     }
 
-    pub fn add_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+    pub fn add_item(
+        destination: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TreeMessage::AddItem(item))
     }
 
-    pub fn remove_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+    pub fn remove_item(
+        destination: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TreeMessage::RemoveItem(item))
     }
 
-    pub fn set_items(destination: Handle<UINode<M, C>>, items: Vec<Handle<UINode<M, C>>>) -> UiMessage<M, C> {
+    pub fn set_items(
+        destination: Handle<UINode<M, C>>,
+        items: Vec<Handle<UINode<M, C>>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TreeMessage::SetItems(items))
     }
 
@@ -318,7 +343,7 @@ pub enum TreeRootMessage<M: 'static, C: 'static + Control<M, C>> {
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     Items(Vec<Handle<UINode<M, C>>>),
-    Selected(Handle<UINode<M, C>>),
+    Selected(Vec<Handle<UINode<M, C>>>),
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
@@ -330,20 +355,32 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
         }
     }
 
-    pub fn add_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+    pub fn add_item(
+        destination: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TreeRootMessage::AddItem(item))
     }
 
-    pub fn remove_item(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+    pub fn remove_item(
+        destination: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TreeRootMessage::RemoveItem(item))
     }
 
-    pub fn items(destination: Handle<UINode<M, C>>, items: Vec<Handle<UINode<M, C>>>) -> UiMessage<M, C> {
+    pub fn items(
+        destination: Handle<UINode<M, C>>,
+        items: Vec<Handle<UINode<M, C>>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TreeRootMessage::Items(items))
     }
 
-    pub fn select(destination: Handle<UINode<M, C>>, item: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, TreeRootMessage::Selected(item))
+    pub fn select(
+        destination: Handle<UINode<M, C>>,
+        items: Vec<Handle<UINode<M, C>>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, TreeRootMessage::Selected(items))
     }
 }
 
@@ -355,7 +392,7 @@ pub enum FileBrowserMessage {
 
 #[derive(Debug)]
 pub enum TextBoxMessage {
-    Text(String)
+    Text(String),
 }
 
 #[derive(Debug)]
@@ -370,11 +407,14 @@ pub enum TextMessage {
 #[derive(Debug)]
 pub enum ImageMessage {
     Texture(Arc<Texture>),
-    Flip(bool)
+    Flip(bool),
 }
 
 impl ImageMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: ImageMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: ImageMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::Image(msg),
@@ -382,17 +422,26 @@ impl ImageMessage {
         }
     }
 
-    pub fn texture<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: Arc<Texture>) -> UiMessage<M, C> {
+    pub fn texture<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: Arc<Texture>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ImageMessage::Texture(value))
     }
 
-    pub fn flip<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: bool) -> UiMessage<M, C> {
+    pub fn flip<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: bool,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ImageMessage::Flip(value))
     }
 }
 
 impl TextBoxMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: TextBoxMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: TextBoxMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::TextBox(msg),
@@ -400,13 +449,19 @@ impl TextBoxMessage {
         }
     }
 
-    pub fn text<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: String) -> UiMessage<M, C> {
+    pub fn text<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: String,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TextBoxMessage::Text(value))
     }
 }
 
 impl TextMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: TextMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: TextMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::Text(msg),
@@ -414,30 +469,45 @@ impl TextMessage {
         }
     }
 
-    pub fn text<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: String) -> UiMessage<M, C> {
+    pub fn text<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: String,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TextMessage::Text(value))
     }
 
-    pub fn wrap<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: bool) -> UiMessage<M, C> {
+    pub fn wrap<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: bool,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TextMessage::Wrap(value))
     }
 
-    pub fn horizontal_alignment<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: HorizontalAlignment) -> UiMessage<M, C> {
+    pub fn horizontal_alignment<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: HorizontalAlignment,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TextMessage::HorizontalAlignment(value))
     }
 
-    pub fn vertical_alignment<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: VerticalAlignment) -> UiMessage<M, C> {
+    pub fn vertical_alignment<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: VerticalAlignment,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TextMessage::VerticalAlignment(value))
     }
 
-    pub fn font<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: Arc<Mutex<Font>>) -> UiMessage<M, C> {
+    pub fn font<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: Arc<Mutex<Font>>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TextMessage::Font(value))
     }
 }
 
 #[derive(Debug)]
 pub enum TileMessage<M: 'static, C: 'static + Control<M, C>> {
-    Content(TileContent<M, C>)
+    Content(TileContent<M, C>),
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> TileMessage<M, C> {
@@ -449,7 +519,10 @@ impl<M: 'static, C: 'static + Control<M, C>> TileMessage<M, C> {
         }
     }
 
-    pub fn content(destination: Handle<UINode<M, C>>, content: TileContent<M, C>) -> UiMessage<M, C> {
+    pub fn content(
+        destination: Handle<UINode<M, C>>,
+        content: TileContent<M, C>,
+    ) -> UiMessage<M, C> {
         Self::make(destination, TileMessage::Content(content))
     }
 }
@@ -461,17 +534,20 @@ pub enum NumericUpDownMessage {
 
 #[derive(Debug)]
 pub enum Vec3EditorMessage {
-    Value(Vec3)
+    Value(Vec3),
 }
 
 #[derive(Debug)]
 pub enum ScrollPanelMessage {
     VerticalScroll(f32),
-    HorizontalScroll(f32)
+    HorizontalScroll(f32),
 }
 
 impl ScrollPanelMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: ScrollPanelMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: ScrollPanelMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::ScrollPanel(msg),
@@ -479,11 +555,17 @@ impl ScrollPanelMessage {
         }
     }
 
-    pub fn vertical_scroll<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
+    pub fn vertical_scroll<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: f32,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ScrollPanelMessage::VerticalScroll(value))
     }
 
-    pub fn horizontal_scroll<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
+    pub fn horizontal_scroll<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: f32,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ScrollPanelMessage::HorizontalScroll(value))
     }
 }
@@ -512,11 +594,14 @@ pub enum MessageBoxMessage {
 
 #[derive(Debug)]
 pub enum DecoratorMessage {
-    Select(bool)
+    Select(bool),
 }
 
 impl DecoratorMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: DecoratorMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: DecoratorMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::Decorator(msg),
@@ -524,18 +609,24 @@ impl DecoratorMessage {
         }
     }
 
-    pub fn select<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: bool) -> UiMessage<M, C> {
+    pub fn select<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: bool,
+    ) -> UiMessage<M, C> {
         Self::make(destination, DecoratorMessage::Select(value))
     }
 }
 
 #[derive(Debug)]
 pub enum ProgressBarMessage {
-    Progress(f32)
+    Progress(f32),
 }
 
 impl ProgressBarMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, msg: ProgressBarMessage) -> UiMessage<M, C> {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: ProgressBarMessage,
+    ) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::ProgressBar(msg),
@@ -543,7 +634,10 @@ impl ProgressBarMessage {
         }
     }
 
-    pub fn progress<M: 'static, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
+    pub fn progress<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        value: f32,
+    ) -> UiMessage<M, C> {
         Self::make(destination, ProgressBarMessage::Progress(value))
     }
 }
@@ -619,7 +713,7 @@ pub enum OsEvent {
         state: ButtonState,
     },
     CursorMoved {
-        position: Vec2
+        position: Vec2,
     },
     KeyboardInput {
         button: KeyCode,

@@ -1,34 +1,19 @@
-use std::{
-    ops::{DerefMut, Deref},
-};
 use crate::{
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-        color::Color,
-    },
-    grid::{GridBuilder, Row, Column},
-    button::ButtonBuilder,
-    message::{
-        UiMessage,
-        UiMessageData,
-        ButtonMessage,
-        WidgetMessage,
-        TreeMessage,
-        TreeRootMessage,
-    },
-    node::UINode,
-    Control,
-    UserInterface,
-    Thickness,
-    NodeHandleMapping,
-    widget::{Widget, WidgetBuilder},
     border::BorderBuilder,
     brush::Brush,
-    stack_panel::StackPanelBuilder,
-    BuildContext,
+    button::ButtonBuilder,
+    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    grid::{Column, GridBuilder, Row},
     message::TextMessage,
+    message::{
+        ButtonMessage, TreeMessage, TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
+    },
+    node::UINode,
+    stack_panel::StackPanelBuilder,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
 pub struct Tree<M: 'static, C: 'static + Control<M, C>> {
@@ -98,13 +83,20 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
 
         if !self.always_show_expander {
             let expander_visibility = !self.items.is_empty();
-            ui.send_message(WidgetMessage::visibility(self.expander, expander_visibility));
+            ui.send_message(WidgetMessage::visibility(
+                self.expander,
+                expander_visibility,
+            ));
         }
 
         size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
@@ -115,44 +107,72 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                     }
                 }
             }
-            UiMessageData::Widget(msg) => {
-                match msg {
-                    WidgetMessage::MouseDown { .. } => {
-                        if !message.handled {
-                            let root = ui.find_by_criteria_up(self.parent(), |n| {
-                                if let UINode::TreeRoot(_) = n { true } else { false }
-                            });
-                            if root.is_some() {
-                                ui.send_message(TreeRootMessage::select(root, self.handle()));
+            UiMessageData::Widget(msg) => match msg {
+                WidgetMessage::MouseDown { .. } => {
+                    if !message.handled {
+                        let root = ui.find_by_criteria_up(self.parent(), |n| {
+                            if let UINode::TreeRoot(_) = n {
+                                true
+                            } else {
+                                false
+                            }
+                        });
+                        if root.is_some() {
+                            if let UINode::TreeRoot(tree_root) = ui.node(root) {
+                                let selection = if ui.keyboard_modifiers().control {
+                                    let mut selection = tree_root.selected.clone();
+                                    if let Some(existing) =
+                                        selection.iter().position(|&h| h == self.handle)
+                                    {
+                                        selection.remove(existing);
+                                    } else {
+                                        selection.push(self.handle);
+                                    }
+                                    selection
+                                } else {
+                                    vec![self.handle()]
+                                };
+                                ui.send_message(TreeRootMessage::select(root, selection));
                                 message.handled = true;
+                            } else {
+                                unreachable!();
                             }
                         }
                     }
-                    WidgetMessage::MouseEnter => {
-                        if !message.handled {
-                            if !self.is_selected {
-                                ui.send_message(WidgetMessage::background(self.background, self.hovered_brush.clone()));
-                            }
-                            message.handled = true;
-                        }
-                    }
-                    WidgetMessage::MouseLeave => {
-                        if !message.handled {
-                            if !self.is_selected {
-                                ui.send_message(WidgetMessage::background(self.background, self.normal_brush.clone()));
-                            }
-                            message.handled = true;
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                WidgetMessage::MouseEnter => {
+                    if !message.handled {
+                        if !self.is_selected {
+                            ui.send_message(WidgetMessage::background(
+                                self.background,
+                                self.hovered_brush.clone(),
+                            ));
+                        }
+                        message.handled = true;
+                    }
+                }
+                WidgetMessage::MouseLeave => {
+                    if !message.handled {
+                        if !self.is_selected {
+                            ui.send_message(WidgetMessage::background(
+                                self.background,
+                                self.normal_brush.clone(),
+                            ));
+                        }
+                        message.handled = true;
+                    }
+                }
+                _ => {}
+            },
             UiMessageData::Tree(msg) => {
                 if message.destination == self.handle() {
                     match msg {
                         &TreeMessage::Expand(expand) => {
                             self.is_expanded = expand;
-                            ui.send_message(WidgetMessage::visibility(self.panel, self.is_expanded));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.panel,
+                                self.is_expanded,
+                            ));
                             if let UINode::Button(expander) = ui.node(self.expander) {
                                 let content = expander.content();
                                 let text = if expand { "-" } else { "+" };
@@ -192,7 +212,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
                     }
                 }
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -268,13 +288,15 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
     }
 
     pub fn build_tree(self, ctx: &mut BuildContext<M, C>) -> Tree<M, C> {
-        let expander = ButtonBuilder::new(WidgetBuilder::new()
-            .with_width(20.0)
-            .with_visibility(self.always_show_expander || !self.items.is_empty())
-            .on_row(0)
-            .on_column(0))
-            .with_text("+")
-            .build(ctx);
+        let expander = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_width(20.0)
+                .with_visibility(self.always_show_expander || !self.items.is_empty())
+                .on_row(0)
+                .on_column(0),
+        )
+        .with_text("+")
+        .build(ctx);
 
         if self.content.is_some() {
             ctx[self.content].set_row(0).set_column(1);
@@ -282,44 +304,55 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
 
         let item_background;
         let panel;
-        let grid = GridBuilder::new(WidgetBuilder::new()
-            .with_child({
-                item_background = BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(self.normal_brush.clone())
-                    .with_child(GridBuilder::new(WidgetBuilder::new()
-                        .on_column(0)
-                        .on_row(0)
-                        .with_margin(Thickness {
-                            left: 1.0,
-                            top: 1.0,
-                            right: 0.0,
-                            bottom: 1.0,
-                        })
-                        .with_child(expander)
-                        .with_child(self.content))
-                        .add_column(Column::auto())
-                        .add_column(Column::stretch())
-                        .add_row(Row::strict(20.0))
-                        .build(ctx)))
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    item_background = BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_background(self.normal_brush.clone())
+                            .with_child(
+                                GridBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(0)
+                                        .on_row(0)
+                                        .with_margin(Thickness {
+                                            left: 1.0,
+                                            top: 1.0,
+                                            right: 0.0,
+                                            bottom: 1.0,
+                                        })
+                                        .with_child(expander)
+                                        .with_child(self.content),
+                                )
+                                .add_column(Column::auto())
+                                .add_column(Column::stretch())
+                                .add_row(Row::strict(20.0))
+                                .build(ctx),
+                            ),
+                    )
                     .build(ctx);
-                item_background
-            })
-            .with_child({
-                panel = StackPanelBuilder::new(WidgetBuilder::new()
-                    .on_row(1)
-                    .on_column(0)
-                    .with_margin(Thickness::left(15.0))
-                    .with_children(self.items.iter()))
+                    item_background
+                })
+                .with_child({
+                    panel = StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .on_column(0)
+                            .with_margin(Thickness::left(15.0))
+                            .with_children(self.items.iter()),
+                    )
                     .build(ctx);
-                panel
-            }))
-            .add_column(Column::auto())
-            .add_row(Row::strict(24.0))
-            .add_row(Row::stretch())
-            .build(ctx);
+                    panel
+                }),
+        )
+        .add_column(Column::auto())
+        .add_row(Row::strict(24.0))
+        .add_row(Row::stretch())
+        .build(ctx);
 
         Tree {
-            widget: self.widget_builder
+            widget: self
+                .widget_builder
                 .with_allow_drag(true)
                 .with_allow_drop(true)
                 .with_child(grid)
@@ -349,7 +382,7 @@ pub struct TreeRoot<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
-    selected: Handle<UINode<M, C>>,
+    selected: Vec<Handle<UINode<M, C>>>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for TreeRoot<M, C> {
@@ -372,7 +405,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for TreeRoot<M, C> {
             widget: self.widget.raw_copy(),
             panel: self.panel,
             items: self.items.clone(),
-            selected: self.selected,
+            selected: self.selected.clone(),
         }
     }
 }
@@ -384,12 +417,16 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
 
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.panel = *node_map.get(&self.panel).unwrap();
-        if self.selected.is_some() {
-            self.selected = *node_map.get(&self.selected).unwrap();
+        for handle in self.selected.iter_mut() {
+            *handle = *node_map.get(handle).unwrap();
         }
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::TreeRoot(msg) = &message.data {
@@ -414,19 +451,19 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
                         }
                         self.items = items.to_vec();
                     }
-                    &TreeRootMessage::Selected(selected) => {
-                        if self.selected != selected {
+                    TreeRootMessage::Selected(selected) => {
+                        if &self.selected != selected {
                             let mut stack = self.children().to_vec();
                             while let Some(handle) = stack.pop() {
                                 let node = ui.node(handle);
                                 stack.extend_from_slice(node.children());
-                                if handle == selected {
-                                    self.selected = selected;
+                                if selected.contains(&handle) {
                                     ui.send_message(TreeMessage::select(handle, true));
                                 } else {
                                     ui.send_message(TreeMessage::select(handle, false));
                                 }
                             }
+                            self.selected = selected.clone();
                         }
                     }
                 }
@@ -438,9 +475,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
         if self.panel == handle {
             self.panel = Default::default();
         }
-        if self.selected == handle {
-            self.selected = Default::default();
-        }
+        self.selected = self
+            .selected
+            .iter()
+            .filter_map(|&s| if s != handle { Some(s) } else { None })
+            .collect();
     }
 }
 
@@ -469,14 +508,11 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeRootBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let panel = StackPanelBuilder::new(WidgetBuilder::new()
-            .with_children(self.items.iter()))
+        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(self.items.iter()))
             .build(ctx);
 
         let tree = TreeRoot {
-            widget: self.widget_builder
-                .with_child(panel)
-                .build(),
+            widget: self.widget_builder.with_child(panel).build(),
             panel,
             items: self.items,
             selected: Default::default(),
