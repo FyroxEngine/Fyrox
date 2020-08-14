@@ -441,7 +441,7 @@ impl InteractionMode for MoveInteractionMode {
                 if current_positions != self.initial_positions {
                     let commands = editor_scene
                         .selection
-                        .nodes
+                        .nodes()
                         .iter()
                         .zip(current_positions.iter().zip(self.initial_positions.iter()))
                         .map(|(&node, (&new_pos, &old_pos))| {
@@ -457,13 +457,16 @@ impl InteractionMode for MoveInteractionMode {
                 }
             }
         } else {
-            let new_selection = Selection::single_or_empty(camera_controller.pick(
-                mouse_pos,
-                editor_scene,
-                engine,
-                false,
-                |_, _| true,
-            ));
+            let picked =
+                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
+            let new_selection =
+                if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
+                    let mut selection = editor_scene.selection.clone();
+                    selection.insert_or_exclude(picked);
+                    selection
+                } else {
+                    Selection::single_or_empty(picked)
+                };
             if new_selection != editor_scene.selection {
                 self.message_sender
                     .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
@@ -846,7 +849,7 @@ impl InteractionMode for ScaleInteractionMode {
                     // Commit changes.
                     let commands = editor_scene
                         .selection
-                        .nodes
+                        .nodes()
                         .iter()
                         .zip(self.initial_scales.iter().zip(current_scales.iter()))
                         .map(|(&node, (&old_scale, &new_scale))| {
@@ -863,13 +866,16 @@ impl InteractionMode for ScaleInteractionMode {
                 }
             }
         } else {
-            let new_selection = Selection::single_or_empty(camera_controller.pick(
-                mouse_pos,
-                editor_scene,
-                engine,
-                false,
-                |_, _| true,
-            ));
+            let picked =
+                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
+            let new_selection =
+                if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
+                    let mut selection = editor_scene.selection.clone();
+                    selection.insert_or_exclude(picked);
+                    selection
+                } else {
+                    Selection::single_or_empty(picked)
+                };
             if new_selection != editor_scene.selection {
                 self.message_sender
                     .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
@@ -896,7 +902,7 @@ impl InteractionMode for ScaleInteractionMode {
                 mouse_position,
                 engine,
             );
-            for &node in editor_scene.selection.nodes.iter() {
+            for &node in editor_scene.selection.nodes().iter() {
                 let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
                 let initial_scale = transform.scale();
                 let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
@@ -1207,7 +1213,7 @@ impl InteractionMode for RotateInteractionMode {
                 if current_rotation != self.initial_rotations {
                     let commands = editor_scene
                         .selection
-                        .nodes
+                        .nodes()
                         .iter()
                         .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
                         .map(|(&node, (&old_rotation, &new_rotation))| {
@@ -1227,13 +1233,16 @@ impl InteractionMode for RotateInteractionMode {
                 }
             }
         } else {
-            let new_selection = Selection::single_or_empty(camera_controller.pick(
-                mouse_pos,
-                editor_scene,
-                engine,
-                false,
-                |_, _| true,
-            ));
+            let picked =
+                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
+            let new_selection =
+                if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
+                    let mut selection = editor_scene.selection.clone();
+                    selection.insert_or_exclude(picked);
+                    selection
+                } else {
+                    Selection::single_or_empty(picked)
+                };
             if new_selection != editor_scene.selection {
                 self.message_sender
                     .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
@@ -1260,7 +1269,7 @@ impl InteractionMode for RotateInteractionMode {
                 mouse_position,
                 engine,
             );
-            for &node in editor_scene.selection.nodes.iter() {
+            for &node in editor_scene.selection.nodes().iter() {
                 let transform = engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
                 let rotation = transform.rotation();
                 transform.set_rotation(rotation * rotation_delta);
@@ -1386,7 +1395,7 @@ impl InteractionMode for SelectInteractionMode {
                 .filter_map(|&p| camera.project(p + node.global_position(), fsize))
             {
                 if relative_bounds.contains(screen_corner.x, screen_corner.y) {
-                    selection.nodes.push(handle);
+                    selection.insert_or_exclude(handle);
                     break;
                 }
             }

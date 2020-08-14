@@ -18,15 +18,39 @@ It should be noted that this editor is the **scene** editor, it does **not** all
 
 - [Click] - Select
 - [W][S][A][D] - Move camera
-- [1] - Move interaction mode
-- [2] - Scale interaction mode
-- [3] - Rotate interaction mode
-- [Z] - Undo
-- [Y] - Redo
+- [1] - Select interaction mode
+- [2] - Move interaction mode
+- [3] - Scale interaction mode
+- [4] - Rotate interaction mode
+- [Ctrl]+[Z] - Undo
+- [Ctrl]+[Y] - Redo
 
 ## How to use produced scenes.
 
-`rgs` can be loaded by standard object visitor like this:
+`rgs` files can be loaded as standard model resources:
+
+```rust
+use rg3d::scene::Scene;
+
+// Create test scene, this step is unnecessary, if you already have some scene
+// you can instantiate model into your scene.
+let mut scene = Scene::default();
+
+// There is no difference between scene created in rusty-editor and any other
+// model file, so any scene can be used directly as resource. 
+let root = resource_manager
+	.request_model("your_scene.rgs")
+	.unwrap()
+	.lock()
+	.unwrap()
+	.instantiate(&mut scene)
+	.root;
+	
+let scene_handle = engine.scenes.add(scene);
+	
+```
+
+Alternatively `rgs` can be loaded by standard object visitor like this:
 
 ```rust
 use rg3d::core::visitor::Visitor;
@@ -108,5 +132,8 @@ let scene_handle = engine.scenes.add(scene);
 	- [ ] Mesh node.
 		- [ ] Mesh properties.
 - [ ] Asset browser.
+	- [x] Proof-of-concept version
+- [ ] Animation graph editor
+	- [ ] Simple node-based animation blending machine editor is needed.
 
 ... Lots of stuff.

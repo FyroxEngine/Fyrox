@@ -187,7 +187,7 @@ impl NodeEditor {
     fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &engine.scenes[editor_scene.scene];
         if editor_scene.selection.is_single_selection() {
-            let node = editor_scene.selection.nodes[0];
+            let node = editor_scene.selection.nodes()[0];
             if scene.graph.is_valid_handle(node) {
                 let node = &scene.graph[node];
 
@@ -242,7 +242,7 @@ impl NodeEditor {
         let graph = &engine.scenes[editor_scene.scene].graph;
 
         if editor_scene.selection.is_single_selection() && !message.handled {
-            let node = editor_scene.selection.nodes[0];
+            let node = editor_scene.selection.nodes()[0];
             match &message.data {
                 UiMessageData::Vec3Editor(msg) => {
                     if let &Vec3EditorMessage::Value(value) = msg {
@@ -1264,7 +1264,7 @@ impl Editor {
                                             self.scene.selection.clone(),
                                         ),
                                     )];
-                                    for &node in self.scene.selection.nodes.iter() {
+                                    for &node in self.scene.selection.nodes().iter() {
                                         commands.push(SceneCommand::DeleteNode(
                                             DeleteNodeCommand::new(node),
                                         ));

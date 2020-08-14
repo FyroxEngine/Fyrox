@@ -427,10 +427,14 @@ impl<'a> Command<'a> for SetNameCommand {
 
 #[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub struct Selection {
-    pub nodes: Vec<Handle<Node>>,
+    nodes: Vec<Handle<Node>>,
 }
 
 impl Selection {
+    pub fn from_list(nodes: Vec<Handle<Node>>) -> Self {
+        Self { nodes }
+    }
+
     /// Creates new selection as single if node handle is not none, and empty if it is.
     pub fn single_or_empty(node: Handle<Node>) -> Self {
         if node.is_none() {
@@ -440,6 +444,23 @@ impl Selection {
         } else {
             Self { nodes: vec![node] }
         }
+    }
+
+    /// Adds new selected node, or removes it if it is already in the list of selected nodes.
+    pub fn insert_or_exclude(&mut self, handle: Handle<Node>) {
+        if let Some(position) = self.nodes.iter().position(|&h| h == handle) {
+            self.nodes.remove(position);
+        } else {
+            self.nodes.push(handle);
+        }
+    }
+
+    pub fn contains(&self, handle: Handle<Node>) -> bool {
+        self.nodes.iter().position(|&h| h == handle).is_some()
+    }
+
+    pub fn nodes(&self) -> &[Handle<Node>] {
+        &self.nodes
     }
 
     pub fn is_multi_selection(&self) -> bool {

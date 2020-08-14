@@ -355,6 +355,7 @@ impl WorldOutliner {
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
 
+        let mut selected_items = Vec::new();
         // Sync tree structure with graph structure.
         self.stack.clear();
         self.stack.push((self.root, graph.get_root()));
@@ -409,12 +410,8 @@ impl WorldOutliner {
                                         engine.resource_manager.clone(),
                                     );
                                     ui.send_message(TreeMessage::add_item(tree_handle, tree));
-                                    if editor_scene.selection.is_single_selection() {
-                                        if child_handle == editor_scene.selection.nodes[0] {
-                                            ui.send_message(TreeRootMessage::select(
-                                                self.root, tree,
-                                            ));
-                                        }
+                                    if editor_scene.selection.contains(child_handle) {
+                                        selected_items.push(tree);
                                     }
                                     self.stack.push((tree, child_handle));
                                 }
@@ -444,6 +441,10 @@ impl WorldOutliner {
                 }
                 _ => unreachable!(),
             }
+        }
+
+        if !selected_items.is_empty() {
+            ui.send_message(TreeRootMessage::select(self.root, selected_items));
         }
 
         // Sync items data.
@@ -485,12 +486,20 @@ impl WorldOutliner {
         match &message.data {
             UiMessageData::TreeRoot(msg) => {
                 if message.destination == self.root {
-                    if let &TreeRootMessage::Selected(selection) = msg {
-                        let node = Selection::single_or_empty(self.map_tree_to_node(selection, ui));
-                        if &node != current_selection {
+                    if let TreeRootMessage::Selected(selection) = msg {
+                        let new_selection = Selection::from_list(
+                            selection
+                                .iter()
+                                .map(|&h| self.map_tree_to_node(h, ui))
+                                .collect(),
+                        );
+                        if &new_selection != current_selection {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
-                                    ChangeSelectionCommand::new(node, current_selection.clone()),
+                                    ChangeSelectionCommand::new(
+                                        new_selection,
+                                        current_selection.clone(),
+                                    ),
                                 )))
                                 .unwrap();
                         }
@@ -528,12 +537,12 @@ impl WorldOutliner {
 
         match message {
             Message::SetSelection(selection) => {
-                // TODO: TreeView currently does not support multi selection so there is no way
-                //  to reflect multi selection in world outliner.
-                if selection.is_single_selection() {
-                    let tree = self.map_node_to_tree(ui, selection.nodes[0]);
-                    ui.send_message(TreeRootMessage::select(self.root, tree));
-                }
+                let trees = selection
+                    .nodes()
+                    .iter()
+                    .map(|&n| self.map_node_to_tree(ui, n))
+                    .collect();
+                ui.send_message(TreeRootMessage::select(self.root, trees));
             }
             _ => (),
         }
