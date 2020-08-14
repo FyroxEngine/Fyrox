@@ -23,6 +23,12 @@ pub struct CameraController {
     move_forward: bool,
     move_backward: bool,
     stack: Vec<Handle<Node>>,
+    editor_context: PickContext,
+    scene_context: PickContext,
+}
+
+#[derive(Default)]
+struct PickContext {
     pick_list: Vec<(Handle<Node>, f32)>,
     pick_index: usize,
     old_selection_hash: u64,
@@ -61,10 +67,8 @@ impl CameraController {
             move_forward: false,
             move_backward: false,
             stack: Default::default(),
-            pick_list: Default::default(),
-            pick_index: 0,
-            old_selection_hash: 0,
-            old_cursor_pos: Default::default(),
+            editor_context: Default::default(),
+            scene_context: Default::default(),
         }
     }
 
@@ -181,16 +185,19 @@ impl CameraController {
                 Vec2::new(screen_size.0 as f32, screen_size.1 as f32),
             );
 
-            self.pick_list.clear();
-
             self.stack.clear();
-            if editor_only {
+            let context = if editor_only {
                 // In case if we want to pick stuff from editor scene only, we have to
                 // start traversing graph from editor root.
                 self.stack.push(editor_scene.root);
+                &mut self.editor_context
             } else {
                 self.stack.push(scene.graph.get_root());
-            }
+                &mut self.scene_context
+            };
+
+            context.pick_list.clear();
+
             while let Some(handle) = self.stack.pop() {
                 // Ignore editor nodes if we picking scene stuff only.
                 if !editor_only && handle == editor_scene.root {
@@ -225,7 +232,7 @@ impl CameraController {
                         let da = points[0].distance(&object_space_ray.origin);
                         let db = points[1].distance(&object_space_ray.origin);
                         let closest_distance = da.min(db);
-                        self.pick_list.push((handle, closest_distance));
+                        context.pick_list.push((handle, closest_distance));
                     }
                 }
 
@@ -235,30 +242,32 @@ impl CameraController {
             }
 
             // Make sure closest will be selected first.
-            self.pick_list
+            context
+                .pick_list
                 .sort_by(|&(_, a), (_, b)| a.partial_cmp(b).unwrap());
 
             let mut hasher = DefaultHasher::new();
-            for (handle, _) in self.pick_list.iter() {
+            for (handle, _) in context.pick_list.iter() {
                 handle.hash(&mut hasher);
             }
             let selection_hash = hasher.finish();
-            if selection_hash == self.old_selection_hash && cursor_pos == self.old_cursor_pos {
-                self.pick_index += 1;
+            if selection_hash == context.old_selection_hash && cursor_pos == context.old_cursor_pos
+            {
+                context.pick_index += 1;
 
                 // Wrap picking loop.
-                if self.pick_index >= self.pick_list.len() {
-                    self.pick_index = 0;
+                if context.pick_index >= context.pick_list.len() {
+                    context.pick_index = 0;
                 }
             } else {
                 // Select is different, start from beginning.
-                self.pick_index = 0;
+                context.pick_index = 0;
             }
-            self.old_selection_hash = selection_hash;
-            self.old_cursor_pos = cursor_pos;
+            context.old_selection_hash = selection_hash;
+            context.old_cursor_pos = cursor_pos;
 
-            if !self.pick_list.is_empty() {
-                if let Some(&(handle, _)) = self.pick_list.get(self.pick_index) {
+            if !context.pick_list.is_empty() {
+                if let Some(&(handle, _)) = context.pick_list.get(context.pick_index) {
                     return handle;
                 }
             }
