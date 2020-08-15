@@ -1,21 +1,11 @@
 use crate::{
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UINode,
-    Control,
     core::{
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
+        math::{vec2::Vec2, Rect},
         pool::Handle,
     },
     message::UiMessage,
-    Orientation,
-    BuildContext,
-    UserInterface
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, Orientation, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -77,7 +67,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> 
                     child_constraint.x = self.widget.width();
                 }
 
-                child_constraint.x = child_constraint.x.min(self.max_width()).max(self.min_width());
+                child_constraint.x = child_constraint
+                    .x
+                    .min(self.max_width())
+                    .max(self.min_width());
             }
             Orientation::Horizontal => {
                 child_constraint.y = available_size.y;
@@ -86,7 +79,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> 
                     child_constraint.y = self.widget.height();
                 }
 
-                child_constraint.y = child_constraint.y.min(self.max_height()).max(self.min_height());
+                child_constraint.y = child_constraint
+                    .y
+                    .min(self.max_height())
+                    .max(self.min_height());
             }
         }
 
@@ -165,7 +161,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for StackPanel<M, C> 
         Vec2::new(width, height)
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
     }
 }

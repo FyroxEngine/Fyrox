@@ -1,29 +1,16 @@
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut}
-};
 use crate::{
     core::{
+        math::{vec2::Vec2, Rect},
         pool::Handle,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
     },
-    widget::{
-        WidgetBuilder,
-        Widget,
-    },
-    Control,
-    UINode,
-    draw::{
-        DrawingContext,
-        CommandKind,
-        CommandTexture
-    },
+    draw::{CommandKind, CommandTexture, DrawingContext},
     message::UiMessage,
-    BuildContext,
-    UserInterface
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, UINode, UserInterface,
+};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
 };
 
 #[derive(Clone, Copy, PartialEq)]
@@ -184,7 +171,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
             if let Some(column) = self.columns.borrow().get(child.column()) {
                 if let Some(row) = self.rows.borrow().get(child.row()) {
                     ui.node(*child_handle)
-                        .measure(ui, Vec2::new(column.actual_width,row.actual_height));
+                        .measure(ui, Vec2::new(column.actual_width, row.actual_height));
                 }
             }
         }
@@ -222,12 +209,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
             let child = ui.nodes.borrow(*child_handle);
             if let Some(column) = self.columns.borrow().get(child.column()) {
                 if let Some(row) = self.rows.borrow().get(child.row()) {
-                    ui.nodes.borrow(*child_handle).arrange(ui, &Rect::new(
-                        column.x,
-                        row.y,
-                        column.actual_width,
-                        row.actual_height,
-                    ));
+                    ui.nodes.borrow(*child_handle).arrange(
+                        ui,
+                        &Rect::new(column.x, row.y, column.actual_width, row.actual_height),
+                    );
                 }
             }
         }
@@ -260,11 +245,19 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
                 drawing_context.push_line(a, b, self.border_thickness);
             }
 
-            drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
+            drawing_context.commit(
+                CommandKind::Geometry,
+                self.widget.foreground(),
+                CommandTexture::None,
+            );
         }
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
     }
 }
@@ -379,7 +372,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Grid<M, C> {
                 col.actual_width = col.desired_width;
                 for child_handle in self.widget.children() {
                     let child = ui.nodes.borrow(*child_handle);
-                    if child.column() == i && child.visibility() && child.desired_size().x > col.actual_width {
+                    if child.column() == i
+                        && child.visibility()
+                        && child.desired_size().x > col.actual_width
+                    {
                         col.actual_width = child.desired_size().x;
                     }
                 }
@@ -402,7 +398,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Grid<M, C> {
                 row.actual_height = row.desired_height;
                 for child_handle in self.widget.children() {
                     let child = ui.nodes.borrow(*child_handle);
-                    if child.row() == i && child.visibility() && child.desired_size().y > row.actual_height {
+                    if child.row() == i
+                        && child.visibility()
+                        && child.desired_size().y > row.actual_height
+                    {
                         row.actual_height = child.desired_size().y;
                     }
                 }
@@ -413,7 +412,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Grid<M, C> {
         preset_height
     }
 
-    fn fit_stretch_sized_columns(&self, ui: &UserInterface<M, C>, available_size: Vec2, preset_width: f32) {
+    fn fit_stretch_sized_columns(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vec2,
+        preset_width: f32,
+    ) {
         let mut rest_width = 0.0;
         if available_size.x.is_infinite() {
             for child_handle in self.widget.children() {
@@ -445,7 +449,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Grid<M, C> {
         }
     }
 
-    fn fit_stretch_sized_rows(&self, ui: &UserInterface<M, C>, available_size: Vec2, preset_height: f32) {
+    fn fit_stretch_sized_rows(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vec2,
+        preset_height: f32,
+    ) {
         let mut stretch_sized_rows = 0;
         let mut rest_height = 0.0;
         if available_size.y.is_infinite() {

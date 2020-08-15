@@ -1,33 +1,18 @@
 use crate::{
+    brush::Brush,
     core::{
         color::Color,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
+        math::{vec2::Vec2, Rect},
         pool::Handle,
     },
-    VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    UserInterface,
-    UINode,
-    Control,
-    brush::Brush,
-    message::{
-        UiMessageData,
-        WidgetMessage,
-        UiMessage,
-    },
+    message::{UiMessage, UiMessageData, WidgetMessage},
+    Control, HorizontalAlignment, Thickness, UINode, UserInterface, VerticalAlignment,
 };
 use std::{
-    cell::{
-        RefCell,
-        Cell,
-    },
     any::Any,
-    rc::Rc,
+    cell::{Cell, RefCell},
     marker::PhantomData,
+    rc::Rc,
 };
 
 #[derive(Debug)]
@@ -356,13 +341,20 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
         )
     }
 
-    pub fn has_descendant(&self, node_handle: Handle<UINode<M, C>>, ui: &UserInterface<M, C>) -> bool {
+    pub fn has_descendant(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        ui: &UserInterface<M, C>,
+    ) -> bool {
         for child_handle in self.children.iter() {
             if *child_handle == node_handle {
                 return true;
             }
 
-            let result = ui.nodes.borrow(*child_handle).has_descendant(node_handle, ui);
+            let result = ui
+                .nodes
+                .borrow(*child_handle)
+                .has_descendant(node_handle, ui);
             if result {
                 return true;
             }
@@ -372,7 +364,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
 
     /// Searches a node up on tree starting from given root that matches a criteria
     /// defined by a given func.
-    pub fn find_by_criteria_up<Func: Fn(&UINode<M, C>) -> bool>(&self, ui: &UserInterface<M, C>, func: Func) -> Handle<UINode<M, C>> {
+    pub fn find_by_criteria_up<Func: Fn(&UINode<M, C>) -> bool>(
+        &self,
+        ui: &UserInterface<M, C>,
+        func: Func,
+    ) -> Handle<UINode<M, C>> {
         let mut parent_handle = self.parent;
         while parent_handle.is_some() {
             let parent_node = ui.nodes.borrow(parent_handle);
@@ -384,19 +380,17 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
         Handle::NONE
     }
 
-    pub fn handle_routed_message(&mut self, _ui: &mut UserInterface<M, C>, msg: &mut UiMessage<M, C>) {
+    pub fn handle_routed_message(
+        &mut self,
+        _ui: &mut UserInterface<M, C>,
+        msg: &mut UiMessage<M, C>,
+    ) {
         if msg.destination == self.handle() {
             if let UiMessageData::Widget(msg) = &msg.data {
                 match msg {
-                    WidgetMessage::Background(background) => {
-                        self.background = background.clone()
-                    }
-                    WidgetMessage::Foreground(foreground) => {
-                        self.foreground = foreground.clone()
-                    }
-                    WidgetMessage::Name(name) => {
-                        self.name = name.clone()
-                    }
+                    WidgetMessage::Background(background) => self.background = background.clone(),
+                    WidgetMessage::Foreground(foreground) => self.foreground = foreground.clone(),
+                    WidgetMessage::Name(name) => self.name = name.clone(),
                     &WidgetMessage::Width(width) => {
                         if self.width != width {
                             self.width = width;
@@ -466,7 +460,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
                             self.invalidate_layout();
                         }
                     }
-                    _ => ()
+                    _ => (),
                 }
             }
         }
@@ -484,7 +478,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
-    pub fn set_horizontal_alignment(&mut self, horizontal_alignment: HorizontalAlignment) -> &mut Self {
+    pub fn set_horizontal_alignment(
+        &mut self,
+        horizontal_alignment: HorizontalAlignment,
+    ) -> &mut Self {
         self.horizontal_alignment = horizontal_alignment;
         self
     }
@@ -735,7 +732,10 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
         self
     }
 
-    pub fn with_children<'a, I: IntoIterator<Item=&'a Handle<UINode<M, C>>>>(mut self, children: I) -> Self {
+    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<UINode<M, C>>>>(
+        mut self,
+        children: I,
+    ) -> Self {
         for &child in children.into_iter() {
             if child.is_some() {
                 self.children.push(child)
@@ -786,9 +786,15 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             actual_local_position: Cell::new(Vec2::ZERO),
             actual_size: Cell::new(Vec2::ZERO),
             min_size: self.min_size.unwrap_or(Vec2::ZERO),
-            max_size: self.max_size.unwrap_or_else(|| Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
-            background: self.background.unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
-            foreground: self.foreground.unwrap_or_else(|| Brush::Solid(Color::WHITE)),
+            max_size: self
+                .max_size
+                .unwrap_or_else(|| Vec2::new(std::f32::INFINITY, std::f32::INFINITY)),
+            background: self
+                .background
+                .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
+            foreground: self
+                .foreground
+                .unwrap_or_else(|| Brush::Solid(Color::WHITE)),
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,

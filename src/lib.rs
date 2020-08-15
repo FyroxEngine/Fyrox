@@ -10,90 +10,67 @@ extern crate lazy_static;
 
 pub use rg3d_core as core;
 
-pub mod draw;
-pub mod text;
 pub mod border;
-pub mod image;
-pub mod canvas;
-pub mod message;
+pub mod brush;
 pub mod button;
+pub mod canvas;
+pub mod check_box;
+pub mod decorator;
+pub mod dock;
+pub mod draw;
+pub mod dropdown_list;
+pub mod file_browser;
+pub mod formatted_text;
+pub mod grid;
+pub mod image;
+pub mod list_view;
+pub mod menu;
+pub mod message;
+pub mod messagebox;
+pub mod node;
+pub mod numeric;
+pub mod popup;
+pub mod progress_bar;
 pub mod scroll_bar;
 pub mod scroll_panel;
 pub mod scroll_viewer;
-pub mod grid;
-pub mod window;
-pub mod formatted_text;
-pub mod widget;
-pub mod list_view;
 pub mod stack_panel;
-pub mod text_box;
-pub mod check_box;
 pub mod tab_control;
-pub mod ttf;
-pub mod brush;
-pub mod node;
-pub mod popup;
-pub mod dropdown_list;
-pub mod decorator;
-pub mod progress_bar;
+pub mod text;
+pub mod text_box;
 pub mod tree;
-pub mod file_browser;
-pub mod dock;
+pub mod ttf;
 pub mod vec;
-pub mod numeric;
-pub mod menu;
-pub mod messagebox;
+pub mod widget;
+pub mod window;
 pub mod wrap_panel;
 
 use crate::{
+    brush::Brush,
+    canvas::Canvas,
     core::{
         color::Color,
-        pool::{
-            Pool,
-            Handle,
-        },
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
+        math::{vec2::Vec2, Rect},
+        pool::{Handle, Pool},
     },
-    draw::{
-        DrawingContext,
-        CommandKind,
-        CommandTexture,
-    },
-    canvas::Canvas,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    ttf::Font,
+    draw::{CommandKind, CommandTexture, DrawingContext},
     message::{
-        OsEvent,
-        ButtonState,
-        UiMessage,
-        UiMessageData,
+        ButtonState, KeyboardModifiers, MouseButton, OsEvent, UiMessage, UiMessageData,
         WidgetMessage,
-        MouseButton,
-        KeyboardModifiers,
     },
-    brush::Brush,
     node::UINode,
+    ttf::Font,
+    widget::{Widget, WidgetBuilder},
 };
 use std::{
-    ops::{DerefMut, Deref},
-    sync::{
-        Mutex,
-        Arc,
-        mpsc::{
-            Sender,
-            Receiver,
-            self,
-        },
-    },
     collections::HashMap,
+    ops::{Deref, DerefMut},
+    ops::{Index, IndexMut},
     sync::mpsc::TryRecvError,
-    ops::{IndexMut, Index},
+    sync::{
+        mpsc::{self, Receiver, Sender},
+        Arc, Mutex,
+    },
 };
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -134,27 +111,57 @@ pub enum Orientation {
 
 impl Thickness {
     pub fn zero() -> Self {
-        Self { left: 0.0, top: 0.0, right: 0.0, bottom: 0.0 }
+        Self {
+            left: 0.0,
+            top: 0.0,
+            right: 0.0,
+            bottom: 0.0,
+        }
     }
 
     pub fn uniform(v: f32) -> Self {
-        Self { left: v, top: v, right: v, bottom: v }
+        Self {
+            left: v,
+            top: v,
+            right: v,
+            bottom: v,
+        }
     }
 
     pub fn bottom(v: f32) -> Self {
-        Self { left: 0.0, top: 0.0, right: 0.0, bottom: v }
+        Self {
+            left: 0.0,
+            top: 0.0,
+            right: 0.0,
+            bottom: v,
+        }
     }
 
     pub fn top(v: f32) -> Self {
-        Self { left: 0.0, top: v, right: 0.0, bottom: 0.0 }
+        Self {
+            left: 0.0,
+            top: v,
+            right: 0.0,
+            bottom: 0.0,
+        }
     }
 
     pub fn left(v: f32) -> Self {
-        Self { left: v, top: 0.0, right: 0.0, bottom: 0.0 }
+        Self {
+            left: v,
+            top: 0.0,
+            right: 0.0,
+            bottom: 0.0,
+        }
     }
 
     pub fn right(v: f32) -> Self {
-        Self { left: 0.0, top: 0.0, right: v, bottom: 0.0 }
+        Self {
+            left: 0.0,
+            top: 0.0,
+            right: v,
+            bottom: 0.0,
+        }
     }
 
     pub fn offset(&self) -> Vec2 {
@@ -170,7 +177,9 @@ impl Thickness {
 pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
 
 /// Trait for all UI controls in library.
-pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M, C>> + DerefMut {
+pub trait Control<M: 'static, C: 'static + Control<M, C>>:
+    Deref<Target = Widget<M, C>> + DerefMut
+{
     fn raw_copy(&self) -> UINode<M, C>;
 
     fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
@@ -211,7 +220,9 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
                 size.y = self.height();
             }
 
-            size = self.arrange_override(ui, size).min(final_rect.size().into());
+            size = self
+                .arrange_override(ui, size)
+                .min(final_rect.size().into());
 
             let mut origin = Vec2::from(final_rect.position()) + self.margin().offset();
 
@@ -220,7 +231,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
                     origin.x += (available_size.x - size.x) * 0.5;
                 }
                 HorizontalAlignment::Right => origin.x += available_size.x - size.x,
-                _ => ()
+                _ => (),
             }
 
             match self.vertical_alignment() {
@@ -228,7 +239,7 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
                     origin.y += (available_size.y - size.y) * 0.5;
                 }
                 VerticalAlignment::Bottom => origin.y += available_size.y - size.y,
-                _ => ()
+                _ => (),
             }
 
             self.commit_arrange(origin, size);
@@ -236,7 +247,8 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
     }
 
     fn is_measure_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut valid = self.deref().is_measure_valid() && self.prev_global_visibility == self.is_globally_visible();
+        let mut valid = self.deref().is_measure_valid()
+            && self.prev_global_visibility == self.is_globally_visible();
         if valid {
             for child in self.children() {
                 valid &= ui.node(*child).is_measure_valid(ui);
@@ -249,7 +261,8 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
     }
 
     fn is_arrange_valid(&self, ui: &UserInterface<M, C>) -> bool {
-        let mut valid = self.deref().is_arrange_valid() && self.prev_global_visibility == self.is_globally_visible();
+        let mut valid = self.deref().is_arrange_valid()
+            && self.prev_global_visibility == self.is_globally_visible();
         if valid {
             for child in self.children() {
                 valid &= ui.node(*child).is_arrange_valid(ui);
@@ -272,11 +285,20 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
             let axes_margin = self.margin().axes_margin();
             let inner_size = (available_size - axes_margin).max(Vec2::ZERO);
 
-            let size =
-                Vec2::new(if self.width() > 0.0 { self.width() } else { inner_size.x },
-                          if self.height() > 0.0 { self.height() } else { inner_size.y })
-                    .min(self.max_size())
-                    .max(self.min_size());
+            let size = Vec2::new(
+                if self.width() > 0.0 {
+                    self.width()
+                } else {
+                    inner_size.x
+                },
+                if self.height() > 0.0 {
+                    self.height()
+                } else {
+                    inner_size.y
+                },
+            )
+            .min(self.max_size())
+            .max(self.min_size());
 
             let mut desired_size = self.measure_override(ui, size);
 
@@ -307,7 +329,11 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
     /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
     /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
     /// to check if event came from/for this node or to capture input on node.
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>);
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    );
 
     fn preview_message(&mut self, _ui: &mut UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
         // This method is optional.
@@ -316,7 +342,13 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>: Deref<Target=Widget<M
     /// Provides a way to respond to OS specific events. Can be useful to detect if a key or mouse
     /// button was pressed. This method significantly differs from `handle_message` because os events
     /// are not dispatched - they'll be passed to this method in any case.
-    fn handle_os_event(&mut self, _self_handle: Handle<UINode<M, C>>, _ui: &mut UserInterface<M, C>, _event: &OsEvent) {}
+    fn handle_os_event(
+        &mut self,
+        _self_handle: Handle<UINode<M, C>>,
+        _ui: &mut UserInterface<M, C>,
+        _event: &OsEvent,
+    ) {
+    }
 
     /// Called when a node is deleted from container thus giving a chance to remove dangling
     /// handles which may cause panic.
@@ -358,7 +390,7 @@ impl Default for MouseState {
 }
 
 pub struct BuildContext<'a, M: 'static, C: 'static + Control<M, C>> {
-    ui: &'a mut UserInterface<M, C>
+    ui: &'a mut UserInterface<M, C>,
 }
 
 impl<'a, M: 'static, C: 'static + Control<M, C>> BuildContext<'a, M, C> {
@@ -375,7 +407,9 @@ impl<'a, M: 'static, C: 'static + Control<M, C>> BuildContext<'a, M, C> {
     }
 }
 
-impl<'a, M: 'static, C: 'static + Control<M, C>> Index<Handle<UINode<M, C>>> for BuildContext<'a, M, C> {
+impl<'a, M: 'static, C: 'static + Control<M, C>> Index<Handle<UINode<M, C>>>
+    for BuildContext<'a, M, C>
+{
     type Output = UINode<M, C>;
 
     fn index(&self, index: Handle<UINode<M, C>>) -> &Self::Output {
@@ -383,7 +417,9 @@ impl<'a, M: 'static, C: 'static + Control<M, C>> Index<Handle<UINode<M, C>>> for
     }
 }
 
-impl<'a, M: 'static, C: 'static + Control<M, C>> IndexMut<Handle<UINode<M, C>>> for BuildContext<'a, M, C> {
+impl<'a, M: 'static, C: 'static + Control<M, C>> IndexMut<Handle<UINode<M, C>>>
+    for BuildContext<'a, M, C>
+{
     fn index_mut(&mut self, index: Handle<UINode<M, C>>) -> &mut Self::Output {
         &mut self.ui.nodes[index]
     }
@@ -417,7 +453,12 @@ lazy_static! {
     };
 }
 
-fn draw_node<M: 'static, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M, C>>, node_handle: Handle<UINode<M, C>>, drawing_context: &mut DrawingContext, nesting: u8) {
+fn draw_node<M: 'static, C: 'static + Control<M, C>>(
+    nodes: &Pool<UINode<M, C>>,
+    node_handle: Handle<UINode<M, C>>,
+    drawing_context: &mut DrawingContext,
+    nesting: u8,
+) {
     let node = &nodes[node_handle];
     if !node.is_globally_visible() {
         return;
@@ -445,9 +486,7 @@ fn draw_node<M: 'static, C: 'static + Control<M, C>>(nodes: &Pool<UINode<M, C>>,
 
     let end_index = drawing_context.get_commands().len();
     for i in start_index..end_index {
-        node.command_indices
-            .borrow_mut()
-            .push(i);
+        node.command_indices.borrow_mut().push(i);
     }
 
     // Continue on children
@@ -526,12 +565,11 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
         while let Some(node_handle) = self.stack.pop() {
             let widget = self.nodes.borrow(node_handle);
             self.stack.extend_from_slice(widget.children());
-            let parent_visibility =
-                if widget.parent().is_some() {
-                    self.node(widget.parent()).is_globally_visible()
-                } else {
-                    true
-                };
+            let parent_visibility = if widget.parent().is_some() {
+                self.node(widget.parent()).is_globally_visible()
+            } else {
+                true
+            };
             let widget = self.nodes.borrow_mut(node_handle);
             let visibility = widget.visibility() && parent_visibility;
             widget.set_global_visibility(visibility);
@@ -546,12 +584,12 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
             for child_handle in widget.children() {
                 self.stack.push(*child_handle);
             }
-            let screen_position =
-                if widget.parent().is_some() {
-                    widget.actual_local_position() + self.nodes.borrow(widget.parent()).screen_position()
-                } else {
-                    widget.actual_local_position()
-                };
+            let screen_position = if widget.parent().is_some() {
+                widget.actual_local_position()
+                    + self.nodes.borrow(widget.parent()).screen_position()
+            } else {
+                widget.actual_local_position()
+            };
             self.nodes.borrow_mut(node_handle).screen_position = screen_position;
         }
     }
@@ -571,8 +609,7 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
             }
         }
 
-        self.node(self.root_canvas)
-            .measure(self, screen_size);
+        self.node(self.root_canvas).measure(self, screen_size);
         self.node(self.root_canvas)
             .arrange(self, &Rect::new(0.0, 0.0, screen_size.x, screen_size.y));
         self.update_transform();
@@ -586,9 +623,7 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
-            node.command_indices
-                .borrow_mut()
-                .clear();
+            node.command_indices.borrow_mut().clear();
         }
 
         // Draw everything except top-most nodes.
@@ -615,13 +650,21 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
             if self.picked_node.is_some() {
                 let bounds = self.nodes.borrow(self.picked_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
-                self.drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::WHITE), CommandTexture::None);
+                self.drawing_context.commit(
+                    CommandKind::Geometry,
+                    Brush::Solid(Color::WHITE),
+                    CommandTexture::None,
+                );
             }
 
             if self.keyboard_focus_node.is_some() {
                 let bounds = self.nodes.borrow(self.keyboard_focus_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
-                self.drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::GREEN), CommandTexture::None);
+                self.drawing_context.commit(
+                    CommandKind::Geometry,
+                    Brush::Solid(Color::GREEN),
+                    CommandTexture::None,
+                );
             }
         }
 
@@ -638,7 +681,9 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
         for command_index in widget.command_indices.borrow().iter() {
             if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                if command.kind == CommandKind::Clip && self.drawing_context.is_command_contains_point(command, pt) {
+                if command.kind == CommandKind::Clip
+                    && self.drawing_context.is_command_contains_point(command, pt)
+                {
                     clipped = false;
                     break;
                 }
@@ -663,7 +708,9 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
         if !self.is_node_clipped(node_handle, pt) {
             for command_index in widget.command_indices.borrow().iter() {
                 if let Some(command) = self.drawing_context.get_commands().get(*command_index) {
-                    if command.kind == CommandKind::Geometry && self.drawing_context.is_command_contains_point(command, pt) {
+                    if command.kind == CommandKind::Geometry
+                        && self.drawing_context.is_command_contains_point(command, pt)
+                    {
                         return true;
                     }
                 }
@@ -673,19 +720,24 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
         false
     }
 
-    fn pick_node(&self, node_handle: Handle<UINode<M, C>>, pt: Vec2, level: &mut i32) -> Handle<UINode<M, C>> {
+    fn pick_node(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        pt: Vec2,
+        level: &mut i32,
+    ) -> Handle<UINode<M, C>> {
         let widget = self.nodes.borrow(node_handle);
 
         if !widget.is_hit_test_visible() {
             return Handle::NONE;
         }
 
-        let (mut picked, mut topmost_picked_level) =
-            if self.is_node_contains_point(node_handle, pt) {
-                (node_handle, *level)
-            } else {
-                (Handle::NONE, 0)
-            };
+        let (mut picked, mut topmost_picked_level) = if self.is_node_contains_point(node_handle, pt)
+        {
+            (node_handle, *level)
+        } else {
+            (Handle::NONE, 0)
+        };
 
         for child_handle in widget.children() {
             *level += 1;
@@ -730,8 +782,14 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     /// Searches a node down on tree starting from give root that matches a criteria
     /// defined by a given func.
-    pub fn find_by_criteria_down<Func>(&self, node_handle: Handle<UINode<M, C>>, func: &Func) -> Handle<UINode<M, C>>
-        where Func: Fn(&UINode<M, C>) -> bool {
+    pub fn find_by_criteria_down<Func>(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        func: &Func,
+    ) -> Handle<UINode<M, C>>
+    where
+        Func: Fn(&UINode<M, C>) -> bool,
+    {
         let node = self.nodes.borrow(node_handle);
 
         if func(node) {
@@ -751,8 +809,14 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     /// Searches a node up on tree starting from given root that matches a criteria
     /// defined by a given func.
-    pub fn find_by_criteria_up<Func>(&self, node_handle: Handle<UINode<M, C>>, func: Func) -> Handle<UINode<M, C>>
-        where Func: Fn(&UINode<M, C>) -> bool {
+    pub fn find_by_criteria_up<Func>(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        func: Func,
+    ) -> Handle<UINode<M, C>>
+    where
+        Func: Fn(&UINode<M, C>) -> bool,
+    {
         let node = self.nodes.borrow(node_handle);
 
         if func(node) {
@@ -768,12 +832,22 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     /// Checks if specified node is a child of some other node on `root_handle`. This method
     /// is useful to understand if some event came from some node down by tree.
-    pub fn is_node_child_of(&self, node_handle: Handle<UINode<M, C>>, root_handle: Handle<UINode<M, C>>) -> bool {
-        self.nodes.borrow(root_handle).has_descendant(node_handle, self)
+    pub fn is_node_child_of(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        root_handle: Handle<UINode<M, C>>,
+    ) -> bool {
+        self.nodes
+            .borrow(root_handle)
+            .has_descendant(node_handle, self)
     }
 
     /// Checks if specified node is a direct child of some other node on `root_handle`.
-    pub fn is_node_direct_child_of(&self, node_handle: Handle<UINode<M, C>>, root_handle: Handle<UINode<M, C>>) -> bool {
+    pub fn is_node_direct_child_of(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        root_handle: Handle<UINode<M, C>>,
+    ) -> bool {
         for child_handle in self.nodes.borrow(root_handle).children() {
             if *child_handle == node_handle {
                 return true;
@@ -783,33 +857,61 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
     }
 
     /// Searches a node by name up on tree starting from given root node.
-    pub fn find_by_name_up(&self, node_handle: Handle<UINode<M, C>>, name: &str) -> Handle<UINode<M, C>> {
+    pub fn find_by_name_up(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        name: &str,
+    ) -> Handle<UINode<M, C>> {
         self.find_by_criteria_up(node_handle, |node| node.name() == name)
     }
 
     /// Searches a node by name down on tree starting from given root node.
-    pub fn find_by_name_down(&self, node_handle: Handle<UINode<M, C>>, name: &str) -> Handle<UINode<M, C>> {
+    pub fn find_by_name_down(
+        &self,
+        node_handle: Handle<UINode<M, C>>,
+        name: &str,
+    ) -> Handle<UINode<M, C>> {
         self.find_by_criteria_down(node_handle, &|node| node.name() == name)
     }
 
     /// Searches a node by name up on tree starting from given root node and tries to borrow it if exists.
-    pub fn borrow_by_name_up(&self, start_node_handle: Handle<UINode<M, C>>, name: &str) -> &UINode<M, C> {
-        self.nodes.borrow(self.find_by_name_up(start_node_handle, name))
+    pub fn borrow_by_name_up(
+        &self,
+        start_node_handle: Handle<UINode<M, C>>,
+        name: &str,
+    ) -> &UINode<M, C> {
+        self.nodes
+            .borrow(self.find_by_name_up(start_node_handle, name))
     }
 
     /// Searches a node by name up on tree starting from given root node and tries to borrow it as mutable if exists.
-    pub fn borrow_by_name_up_mut(&mut self, start_node_handle: Handle<UINode<M, C>>, name: &str) -> &mut UINode<M, C> {
-        self.nodes.borrow_mut(self.find_by_name_up(start_node_handle, name))
+    pub fn borrow_by_name_up_mut(
+        &mut self,
+        start_node_handle: Handle<UINode<M, C>>,
+        name: &str,
+    ) -> &mut UINode<M, C> {
+        self.nodes
+            .borrow_mut(self.find_by_name_up(start_node_handle, name))
     }
 
     /// Searches a node by name down on tree starting from given root node and tries to borrow it if exists.
-    pub fn borrow_by_name_down(&self, start_node_handle: Handle<UINode<M, C>>, name: &str) -> &UINode<M, C> {
-        self.nodes.borrow(self.find_by_name_down(start_node_handle, name))
+    pub fn borrow_by_name_down(
+        &self,
+        start_node_handle: Handle<UINode<M, C>>,
+        name: &str,
+    ) -> &UINode<M, C> {
+        self.nodes
+            .borrow(self.find_by_name_down(start_node_handle, name))
     }
 
     /// Searches a node by name down on tree starting from given root node and tries to borrow it as mutable if exists.
-    pub fn borrow_by_name_down_mut(&mut self, start_node_handle: Handle<UINode<M, C>>, name: &str) -> &mut UINode<M, C> {
-        self.nodes.borrow_mut(self.find_by_name_down(start_node_handle, name))
+    pub fn borrow_by_name_down_mut(
+        &mut self,
+        start_node_handle: Handle<UINode<M, C>>,
+        name: &str,
+    ) -> &mut UINode<M, C> {
+        self.nodes
+            .borrow_mut(self.find_by_name_down(start_node_handle, name))
     }
 
     /// Searches for a node up on tree that satisfies some criteria and then borrows
@@ -818,14 +920,28 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
     /// # Panics
     ///
     /// It will panic if there no node that satisfies given criteria.
-    pub fn borrow_by_criteria_up<Func>(&self, start_node_handle: Handle<UINode<M, C>>, func: Func) -> &UINode<M, C>
-        where Func: Fn(&UINode<M, C>) -> bool {
-        self.nodes.borrow(self.find_by_criteria_up(start_node_handle, func))
+    pub fn borrow_by_criteria_up<Func>(
+        &self,
+        start_node_handle: Handle<UINode<M, C>>,
+        func: Func,
+    ) -> &UINode<M, C>
+    where
+        Func: Fn(&UINode<M, C>) -> bool,
+    {
+        self.nodes
+            .borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
-    pub fn try_borrow_by_criteria_up<Func>(&self, start_node_handle: Handle<UINode<M, C>>, func: Func) -> Option<&UINode<M, C>>
-        where Func: Fn(&UINode<M, C>) -> bool {
-        self.nodes.try_borrow(self.find_by_criteria_up(start_node_handle, func))
+    pub fn try_borrow_by_criteria_up<Func>(
+        &self,
+        start_node_handle: Handle<UINode<M, C>>,
+        func: Func,
+    ) -> Option<&UINode<M, C>>
+    where
+        Func: Fn(&UINode<M, C>) -> bool,
+    {
+        self.nodes
+            .try_borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
     /// Searches for a node up on tree that satisfies some criteria and then borrows
@@ -834,9 +950,28 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
     /// # Panics
     ///
     /// It will panic if there no node that satisfies given criteria.
-    pub fn borrow_by_criteria_up_mut<Func>(&mut self, start_node_handle: Handle<UINode<M, C>>, func: Func) -> &mut UINode<M, C>
-        where Func: Fn(&UINode<M, C>) -> bool {
-        self.nodes.borrow_mut(self.find_by_criteria_up(start_node_handle, func))
+    pub fn borrow_by_criteria_up_mut<Func>(
+        &mut self,
+        start_node_handle: Handle<UINode<M, C>>,
+        func: Func,
+    ) -> &mut UINode<M, C>
+    where
+        Func: Fn(&UINode<M, C>) -> bool,
+    {
+        self.nodes
+            .borrow_mut(self.find_by_criteria_up(start_node_handle, func))
+    }
+
+    pub fn try_borrow_by_criteria_up_mut<Func>(
+        &mut self,
+        start_node_handle: Handle<UINode<M, C>>,
+        func: Func,
+    ) -> Option<&mut UINode<M, C>>
+    where
+        Func: Fn(&UINode<M, C>) -> bool,
+    {
+        self.nodes
+            .try_borrow_mut(self.find_by_criteria_up(start_node_handle, func))
     }
 
     /// Returns instance of message sender which can be used to push messages into queue
@@ -898,7 +1033,8 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
                 // Dispatch event using bubble strategy. Bubble routing means that message will go
                 // from specified destination up on tree to tree root.
-                if message.destination.is_some() && self.nodes.is_valid_handle(message.destination) {
+                if message.destination.is_some() && self.nodes.is_valid_handle(message.destination)
+                {
                     // Gather chain of nodes from source to root.
                     self.stack.clear();
                     self.stack.push(message.destination);
@@ -977,7 +1113,10 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
                                     self.screen_size
                                 };
 
-                                self.send_message(WidgetMessage::desired_position(message.destination, (parent_size - size).scale(0.5)));
+                                self.send_message(WidgetMessage::desired_position(
+                                    message.destination,
+                                    (parent_size - size).scale(0.5),
+                                ));
                             }
                         }
                         _ => {}
@@ -986,12 +1125,10 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
                 Some(message)
             }
-            Err(e) => {
-                match e {
-                    TryRecvError::Empty => None,
-                    TryRecvError::Disconnected => unreachable!(),
-                }
-            }
+            Err(e) => match e {
+                TryRecvError::Empty => None,
+                TryRecvError::Disconnected => unreachable!(),
+            },
         }
     }
 
@@ -1080,7 +1217,9 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
                                     if node.is_drop_allowed() {
                                         self.send_message(UiMessage {
                                             handled: false,
-                                            data: UiMessageData::Widget(WidgetMessage::Drop(self.drag_context.drag_node)),
+                                            data: UiMessageData::Widget(WidgetMessage::Drop(
+                                                self.drag_context.drag_node,
+                                            )),
                                             destination: handle,
                                         });
                                         self.stack.clear();
@@ -1109,12 +1248,18 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
                 self.cursor_position = *position;
                 self.picked_node = self.hit_test(self.cursor_position);
 
-                if !self.drag_context.is_dragging && self.mouse_state.left == ButtonState::Pressed && self.picked_node.is_some() && (self.drag_context.click_pos - *position).len() > 5.0 {
+                if !self.drag_context.is_dragging
+                    && self.mouse_state.left == ButtonState::Pressed
+                    && self.picked_node.is_some()
+                    && (self.drag_context.click_pos - *position).len() > 5.0
+                {
                     self.drag_context.is_dragging = true;
 
                     self.send_message(UiMessage {
                         handled: false,
-                        data: UiMessageData::Widget(WidgetMessage::DragStarted(self.drag_context.drag_node)),
+                        data: UiMessageData::Widget(WidgetMessage::DragStarted(
+                            self.drag_context.drag_node,
+                        )),
                         destination: self.picked_node,
                     })
                 }
@@ -1156,7 +1301,9 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
                     if self.drag_context.is_dragging {
                         self.send_message(UiMessage {
                             handled: false,
-                            data: UiMessageData::Widget(WidgetMessage::DragOver(self.drag_context.drag_node)),
+                            data: UiMessageData::Widget(WidgetMessage::DragOver(
+                                self.drag_context.drag_node,
+                            )),
                             destination: self.picked_node,
                         });
                     }
@@ -1319,7 +1466,11 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     /// Links specified child with specified parent.
     #[inline]
-    pub fn link_nodes(&mut self, child_handle: Handle<UINode<M, C>>, parent_handle: Handle<UINode<M, C>>) {
+    pub fn link_nodes(
+        &mut self,
+        child_handle: Handle<UINode<M, C>>,
+        parent_handle: Handle<UINode<M, C>>,
+    ) {
         assert_ne!(child_handle, parent_handle);
         self.unlink_node_internal(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
@@ -1352,8 +1503,7 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
     #[inline]
     pub fn node(&self, node_handle: Handle<UINode<M, C>>) -> &UINode<M, C> {
-        self.nodes()
-            .borrow(node_handle)
+        self.nodes().borrow(node_handle)
     }
 
     pub fn copy_node(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
@@ -1368,7 +1518,11 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
         root
     }
 
-    fn copy_node_recursive(&mut self, node_handle: Handle<UINode<M, C>>, map: &mut NodeHandleMapping<M, C>) -> Handle<UINode<M, C>> {
+    fn copy_node_recursive(
+        &mut self,
+        node_handle: Handle<UINode<M, C>>,
+        map: &mut NodeHandleMapping<M, C>,
+    ) -> Handle<UINode<M, C>> {
         let node = self.nodes.borrow(node_handle);
         let mut cloned = node.raw_copy();
 
@@ -1386,87 +1540,102 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
 
 #[cfg(test)]
 mod test {
+    use crate::node::StubNode;
     use crate::{
-        widget::{WidgetBuilder},
-        grid::{GridBuilder, Row, Column},
-        window::{WindowBuilder, WindowTitle},
-        Thickness,
-        UserInterface,
         button::ButtonBuilder,
         core::math::vec2::Vec2,
+        grid::{Column, GridBuilder, Row},
+        widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
+        Thickness, UserInterface,
     };
-    use crate::node::StubNode;
 
     #[test]
     fn perf_test() {
         let mut ui = UserInterface::<(), StubNode>::new(Vec2::new(1000.0, 1000.0));
 
-        GridBuilder::new(WidgetBuilder::new()
-            .with_width(1000.0)
-            .with_height(1000.0)
-            .with_child(WindowBuilder::new(WidgetBuilder::new()
-                .on_row(1)
-                .on_column(1))
-                .can_minimize(false)
-                .can_close(false)
-                .with_title(WindowTitle::text("Test"))
-                .with_content(GridBuilder::new(WidgetBuilder::new()
-                    .with_margin(Thickness::uniform(20.0))
-                    .with_child({
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .on_column(0)
-                            .on_row(0)
-                            .with_margin(Thickness::uniform(4.0)))
-                            .with_text("New Game")
-                            .build(&mut ui)
-                    })
-                    .with_child({
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .on_column(0)
-                            .on_row(1)
-                            .with_margin(Thickness::uniform(4.0)))
-                            .with_text("Save Game")
-                            .build(&mut ui)
-                    })
-                    .with_child({
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .on_column(0)
-                            .on_row(2)
-                            .with_margin(Thickness::uniform(4.0)))
-                            .with_text("Load Game")
-                            .build(&mut ui)
-                    })
-                    .with_child({
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .on_column(0)
-                            .on_row(3)
-                            .with_margin(Thickness::uniform(4.0)))
-                            .with_text("Settings")
-                            .build(&mut ui)
-                    })
-                    .with_child({
-                        ButtonBuilder::new(WidgetBuilder::new()
-                            .on_column(0)
-                            .on_row(4)
-                            .with_margin(Thickness::uniform(4.0)))
-                            .with_text("Quit")
-                            .build(&mut ui)
-                    }))
-                    .add_column(Column::stretch())
-                    .add_row(Row::strict(75.0))
-                    .add_row(Row::strict(75.0))
-                    .add_row(Row::strict(75.0))
-                    .add_row(Row::strict(75.0))
-                    .add_row(Row::strict(75.0))
-                    .build_node())
-                .build(&mut ui)))
-            .add_row(Row::stretch())
-            .add_row(Row::strict(500.0))
-            .add_row(Row::stretch())
-            .add_column(Column::stretch())
-            .add_column(Column::strict(400.0))
-            .add_column(Column::stretch())
-            .build(&mut ui);
+        GridBuilder::new(
+            WidgetBuilder::new()
+                .with_width(1000.0)
+                .with_height(1000.0)
+                .with_child(
+                    WindowBuilder::new(WidgetBuilder::new().on_row(1).on_column(1))
+                        .can_minimize(false)
+                        .can_close(false)
+                        .with_title(WindowTitle::text("Test"))
+                        .with_content(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(20.0))
+                                    .with_child({
+                                        ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .on_row(0)
+                                                .with_margin(Thickness::uniform(4.0)),
+                                        )
+                                        .with_text("New Game")
+                                        .build(&mut ui)
+                                    })
+                                    .with_child({
+                                        ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .on_row(1)
+                                                .with_margin(Thickness::uniform(4.0)),
+                                        )
+                                        .with_text("Save Game")
+                                        .build(&mut ui)
+                                    })
+                                    .with_child({
+                                        ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .on_row(2)
+                                                .with_margin(Thickness::uniform(4.0)),
+                                        )
+                                        .with_text("Load Game")
+                                        .build(&mut ui)
+                                    })
+                                    .with_child({
+                                        ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .on_row(3)
+                                                .with_margin(Thickness::uniform(4.0)),
+                                        )
+                                        .with_text("Settings")
+                                        .build(&mut ui)
+                                    })
+                                    .with_child({
+                                        ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .on_row(4)
+                                                .with_margin(Thickness::uniform(4.0)),
+                                        )
+                                        .with_text("Quit")
+                                        .build(&mut ui)
+                                    }),
+                            )
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(75.0))
+                            .add_row(Row::strict(75.0))
+                            .add_row(Row::strict(75.0))
+                            .add_row(Row::strict(75.0))
+                            .add_row(Row::strict(75.0))
+                            .build_node(),
+                        )
+                        .build(&mut ui),
+                ),
+        )
+        .add_row(Row::stretch())
+        .add_row(Row::strict(500.0))
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::strict(400.0))
+        .add_column(Column::stretch())
+        .build(&mut ui);
 
         ui.update(Vec2::new(1000.0, 1000.0), 0.016);
     }

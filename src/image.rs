@@ -1,30 +1,18 @@
-use std::{
-    sync::Arc,
-    ops::{Deref, DerefMut},
-};
+use crate::message::{ImageMessage, UiMessageData};
 use crate::{
     brush::Brush,
-    core::{
-        pool::Handle,
-        color::Color,
-    },
-    UINode,
-    draw::{
-        DrawingContext,
-        CommandKind,
-    },
-    widget::{
-        WidgetBuilder,
-        Widget,
-    },
-    Control,
-    draw::{Texture, CommandTexture},
-    UserInterface,
-    message::UiMessage,
-    BuildContext,
     core::math::vec2::Vec2,
+    core::{color::Color, pool::Handle},
+    draw::{CommandKind, DrawingContext},
+    draw::{CommandTexture, Texture},
+    message::UiMessage,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, UINode, UserInterface,
 };
-use crate::message::{UiMessageData, ImageMessage};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 pub struct Image<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -88,13 +76,18 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
             None
         };
         drawing_context.push_rect_filled(&bounds, tex_coords.as_ref());
-        let texture = self.texture
+        let texture = self
+            .texture
             .as_ref()
             .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
         drawing_context.commit(CommandKind::Geometry, self.widget.background(), texture);
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination == self.handle {
@@ -102,10 +95,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
                 match msg {
                     ImageMessage::Texture(tex) => {
                         self.texture = Some(tex.clone());
-                    },
+                    }
                     &ImageMessage::Flip(flip) => {
                         self.flip = flip;
-                    },
+                    }
                 }
             }
         }

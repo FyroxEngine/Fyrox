@@ -1,7 +1,4 @@
-use crate::core::{
-    color::Color,
-    math::vec2::Vec2,
-};
+use crate::core::{color::Color, math::vec2::Vec2};
 
 #[derive(Clone, Debug)]
 pub struct GradientPoint {

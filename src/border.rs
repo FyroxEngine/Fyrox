@@ -1,28 +1,15 @@
 use crate::{
-    core::{
-        pool::Handle,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
-        color::Color,
-    },
-    UINode,
-    draw::{
-        CommandKind,
-        DrawingContext,
-    },
-    Thickness,
-    UserInterface,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
-    draw::CommandTexture,
     brush::Brush,
-    BuildContext,
-    message::UiMessage
+    core::{
+        color::Color,
+        math::{vec2::Vec2, Rect},
+        pool::Handle,
+    },
+    draw::CommandTexture,
+    draw::{CommandKind, DrawingContext},
+    message::UiMessage,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, Thickness, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -63,10 +50,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
-        let size_for_child = Vec2::new(
-            available_size.x - margin_x,
-            available_size.y - margin_y,
-        );
+        let size_for_child = Vec2::new(available_size.x - margin_x, available_size.y - margin_y);
         let mut desired_size = Vec2::ZERO;
 
         for child_handle in self.widget.children() {
@@ -89,7 +73,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let rect_for_child = Rect::new(
-            self.stroke_thickness.left, self.stroke_thickness.top,
+            self.stroke_thickness.left,
+            self.stroke_thickness.top,
             final_size.x - (self.stroke_thickness.right + self.stroke_thickness.left),
             final_size.y - (self.stroke_thickness.bottom + self.stroke_thickness.top),
         );
@@ -104,13 +89,25 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
-        drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
+        drawing_context.commit(
+            CommandKind::Geometry,
+            self.widget.background(),
+            CommandTexture::None,
+        );
 
         drawing_context.push_rect_vary(&bounds, self.stroke_thickness);
-        drawing_context.commit(CommandKind::Geometry, self.widget.foreground(), CommandTexture::None);
+        drawing_context.commit(
+            CommandKind::Geometry,
+            self.widget.foreground(),
+            CommandTexture::None,
+        );
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
     }
 }
@@ -150,13 +147,15 @@ impl<M: 'static, C: 'static + Control<M, C>> BorderBuilder<M, C> {
         self
     }
 
-    pub fn build_border(mut self ) -> Border<M, C> {
+    pub fn build_border(mut self) -> Border<M, C> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(100, 100, 100)));
         }
         Border {
             widget: self.widget_builder.build(),
-            stroke_thickness: self.stroke_thickness.unwrap_or_else(|| Thickness::uniform(1.0)),
+            stroke_thickness: self
+                .stroke_thickness
+                .unwrap_or_else(|| Thickness::uniform(1.0)),
         }
     }
 

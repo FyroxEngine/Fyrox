@@ -1,41 +1,23 @@
-use std::{
-    ops::{
-        DerefMut,
-        Deref,
-    },
-    rc::Rc,
-};
 use crate::{
-    brush::Brush,
     border::BorderBuilder,
-    popup::{PopupBuilder, Placement},
+    brush::Brush,
+    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    grid::{Column, GridBuilder, Row},
     message::{
-        UiMessageData,
+        ButtonState, MenuItemMessage, MenuMessage, OsEvent, PopupMessage, UiMessage, UiMessageData,
         WidgetMessage,
-        PopupMessage,
-        UiMessage,
-        OsEvent,
-        ButtonState,
-        MenuMessage,
-        MenuItemMessage,
     },
-    stack_panel::StackPanelBuilder,
     node::UINode,
-    Control,
-    Orientation,
-    widget::{Widget, WidgetBuilder},
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-        color::Color,
-    },
-    VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    grid::{GridBuilder, Row, Column},
+    popup::{Placement, PopupBuilder},
+    stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    BuildContext,
-    UserInterface
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UserInterface,
+    VerticalAlignment,
+};
+use std::{
+    ops::{Deref, DerefMut},
+    rc::Rc,
 };
 
 pub struct Menu<M: 'static, C: 'static + Control<M, C>> {
@@ -71,7 +53,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
         UINode::Menu(self.clone())
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Menu(msg) = &message.data {
@@ -110,7 +96,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
         }
     }
 
-    fn handle_os_event(&mut self, _self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
+    fn handle_os_event(
+        &mut self,
+        _self_handle: Handle<UINode<M, C>>,
+        ui: &mut UserInterface<M, C>,
+        event: &OsEvent,
+    ) {
         // Handle menu items close by clicking outside of menu item. We using
         // raw event here because we need to know the fact that mouse was clicked
         // and we do not care which element was clicked so we'll get here in any
@@ -200,16 +191,27 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for MenuItem<M, C> {
 // of parent menu - we can't just traverse the tree because popup is not a child
 // of menu item, instead we trying to fetch handle to parent menu item from popup's
 // user data and continue up-search until we find menu.
-fn find_menu<M: 'static, C: 'static + Control<M, C>>(from: Handle<UINode<M, C>>, ui: &UserInterface<M, C>) -> Handle<UINode<M, C>> {
+fn find_menu<M: 'static, C: 'static + Control<M, C>>(
+    from: Handle<UINode<M, C>>,
+    ui: &UserInterface<M, C>,
+) -> Handle<UINode<M, C>> {
     let mut handle = from;
     loop {
         let popup = ui.find_by_criteria_up(handle, |n| {
-            if let UINode::Popup(_) = n { true } else { false }
+            if let UINode::Popup(_) = n {
+                true
+            } else {
+                false
+            }
         });
         if popup.is_none() {
             // Maybe we have Menu as parent for MenuItem.
             return ui.find_by_criteria_up(handle, |n| {
-                if let UINode::Menu(_) = n { true } else { false }
+                if let UINode::Menu(_) = n {
+                    true
+                } else {
+                    false
+                }
             });
         } else {
             // Continue search from parent menu item of popup.
@@ -227,7 +229,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
         UINode::MenuItem(self.clone())
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
@@ -272,10 +278,16 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                         }
                     }
                     WidgetMessage::MouseLeave => {
-                        ui.send_message(WidgetMessage::background(self.back, Brush::Solid(Color::opaque(50, 50, 50))));
+                        ui.send_message(WidgetMessage::background(
+                            self.back,
+                            Brush::Solid(Color::opaque(50, 50, 50)),
+                        ));
                     }
                     WidgetMessage::MouseEnter => {
-                        ui.send_message(WidgetMessage::background(self.back, Brush::Solid(Color::opaque(130, 130, 130))));
+                        ui.send_message(WidgetMessage::background(
+                            self.back,
+                            Brush::Solid(Color::opaque(130, 130, 130)),
+                        ));
 
                         // While parent menu active it is possible to open submenus
                         // by simple mouse hover.
@@ -311,7 +323,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
                             // Open popup.
                             ui.send_message(UiMessage {
                                 handled: false,
-                                data: UiMessageData::Popup(PopupMessage::Placement(Placement::Position(position))),
+                                data: UiMessageData::Popup(PopupMessage::Placement(
+                                    Placement::Position(position),
+                                )),
                                 destination: self.popup,
                             });
                             ui.send_message(UiMessage {
@@ -397,17 +411,17 @@ impl<M: 'static, C: 'static + Control<M, C>> MenuBuilder<M, C> {
             }
         }
 
-        let back = BorderBuilder::new(WidgetBuilder::new()
-            .with_child(StackPanelBuilder::new(WidgetBuilder::new()
-                .with_children(&self.items))
-                .with_orientation(Orientation::Horizontal)
-                .build(ctx)))
-            .build(ctx);
+        let back = BorderBuilder::new(
+            WidgetBuilder::new().with_child(
+                StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items))
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
+            ),
+        )
+        .build(ctx);
 
         let menu = Menu {
-            widget: self.widget_builder
-                .with_child(back)
-                .build(),
+            widget: self.widget_builder.with_child(back).build(),
             active: false,
         };
 
@@ -480,48 +494,55 @@ impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let content = match self.content {
             MenuItemContent::None => Handle::NONE,
-            MenuItemContent::Text { text, shortcut, icon } => {
-                GridBuilder::new(WidgetBuilder::new()
+            MenuItemContent::Text {
+                text,
+                shortcut,
+                icon,
+            } => GridBuilder::new(
+                WidgetBuilder::new()
                     .with_child(icon)
-                    .with_child(TextBuilder::new(WidgetBuilder::new()
-                        .with_vertical_alignment(VerticalAlignment::Center)
-                        .with_margin(Thickness::uniform(1.0))
-                        .on_column(1))
+                    .with_child(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_column(1),
+                        )
                         .with_text(text)
-                        .build(ctx))
-                    .with_child(TextBuilder::new(WidgetBuilder::new()
-                        .with_vertical_alignment(VerticalAlignment::Center)
-                        .with_horizontal_alignment(HorizontalAlignment::Right)
-                        .with_margin(Thickness::uniform(1.0))
-                        .on_column(2))
+                        .build(ctx),
+                    )
+                    .with_child(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_horizontal_alignment(HorizontalAlignment::Right)
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_column(2),
+                        )
                         .with_text(shortcut)
-                        .build(ctx)))
-                    .add_row(Row::stretch())
-                    .add_column(Column::auto())
-                    .add_column(Column::stretch())
-                    .add_column(Column::auto())
-                    .build(ctx)
-            }
+                        .build(ctx),
+                    ),
+            )
+            .add_row(Row::stretch())
+            .add_column(Column::auto())
+            .add_column(Column::stretch())
+            .add_column(Column::auto())
+            .build(ctx),
             MenuItemContent::Node(node) => node,
         };
 
-        let back = BorderBuilder::new(WidgetBuilder::new()
-            .with_child(content))
-            .build(ctx);
+        let back = BorderBuilder::new(WidgetBuilder::new().with_child(content)).build(ctx);
 
-        let popup = PopupBuilder::new(WidgetBuilder::new()
-            .with_min_size(Vec2::new(10.0, 10.0)))
-            .with_content(StackPanelBuilder::new(WidgetBuilder::new()
-                .with_children(&self.items))
-                .build(ctx))
+        let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vec2::new(10.0, 10.0)))
+            .with_content(
+                StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items)).build(ctx),
+            )
             // We'll manually control if popup is either open or closed.
             .stays_open(true)
             .build(ctx);
 
         let menu = MenuItem {
-            widget: self.widget_builder
-                .with_child(back)
-                .build(),
+            widget: self.widget_builder.with_child(back).build(),
             popup,
             items: self.items,
             back,

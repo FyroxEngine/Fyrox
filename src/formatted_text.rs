@@ -1,28 +1,21 @@
 use crate::{
+    brush::Brush,
     core::{
         color::Color,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
+        math::{vec2::Vec2, Rect},
     },
     ttf::Font,
-    HorizontalAlignment,
-    VerticalAlignment,
-    brush::Brush
+    HorizontalAlignment, VerticalAlignment,
 };
 use std::{
     ops::Range,
-    sync::{
-        Arc,
-        Mutex,
-    },
+    sync::{Arc, Mutex},
 };
 
 #[derive(Debug, Clone)]
 pub struct TextGlyph {
     bounds: Rect<f32>,
-    tex_coords: [Vec2; 4]
+    tex_coords: [Vec2; 4],
 }
 
 impl TextGlyph {
@@ -117,7 +110,10 @@ impl FormattedText {
         self.vertical_alignment
     }
 
-    pub fn set_horizontal_alignment(&mut self, horizontal_alignment: HorizontalAlignment) -> &mut Self {
+    pub fn set_horizontal_alignment(
+        &mut self,
+        horizontal_alignment: HorizontalAlignment,
+    ) -> &mut Self {
         self.horizontal_alignment = horizontal_alignment;
         self
     }
@@ -207,11 +203,10 @@ impl FormattedText {
         let mut current_line = TextLine::new();
         self.lines.clear();
         for (i, code) in self.text.iter().enumerate() {
-            let advance =
-                match font.get_glyph(*code) {
-                    Some(glyph) => glyph.get_advance(),
-                    None => font.get_height()
-                };
+            let advance = match font.get_glyph(*code) {
+                Some(glyph) => glyph.get_advance(),
+                None => font.get_height(),
+            };
             let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
             let new_width = current_line.width + advance;
             if self.wrap && new_width > self.constraint.x || is_new_line {
@@ -249,8 +244,8 @@ impl FormattedText {
                     } else {
                         line.x_offset = self.constraint.x - line.width
                     }
-                },
-                HorizontalAlignment::Stretch => line.x_offset = 0.0
+                }
+                HorizontalAlignment::Stretch => line.x_offset = 0.0,
             }
         }
 
@@ -265,15 +260,15 @@ impl FormattedText {
                 } else {
                     (self.constraint.y - total_height) * 0.5
                 }
-            },
+            }
             VerticalAlignment::Bottom => {
                 if self.constraint.y.is_infinite() {
                     0.0
                 } else {
                     self.constraint.y - total_height
                 }
-            },
-            VerticalAlignment::Stretch => 0.0
+            }
+            VerticalAlignment::Stretch => 0.0,
         };
 
         let cursor_x_start = if self.constraint.x.is_infinite() {
@@ -295,7 +290,9 @@ impl FormattedText {
                         if glyph.has_outline() {
                             let rect = Rect {
                                 x: cursor.x + glyph.get_bitmap_left(),
-                                y: cursor.y + font.get_ascender() - glyph.get_bitmap_top() - glyph.get_bitmap_height(),
+                                y: cursor.y + font.get_ascender()
+                                    - glyph.get_bitmap_top()
+                                    - glyph.get_bitmap_height(),
                                 w: glyph.get_bitmap_width(),
                                 h: glyph.get_bitmap_height(),
                             };
@@ -317,7 +314,7 @@ impl FormattedText {
                         };
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
-                            tex_coords: [Vec2::ZERO; 4]
+                            tex_coords: [Vec2::ZERO; 4],
                         });
                         cursor.x += rect.w;
                     }

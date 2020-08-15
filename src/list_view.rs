@@ -1,29 +1,13 @@
 use crate::{
-    scroll_viewer::ScrollViewerBuilder,
-    Thickness,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UINode,
-    UserInterface,
-    stack_panel::StackPanelBuilder,
-    message::{
-        UiMessageData,
-        UiMessage,
-        ListViewMessage,
-        WidgetMessage,
-    },
-    Control,
-    core::{
-        pool::Handle,
-        color::Color,
-    },
     brush::Brush,
-    NodeHandleMapping,
-    draw::{DrawingContext, CommandTexture, CommandKind},
-    BuildContext,
+    core::{color::Color, pool::Handle},
+    draw::{CommandKind, CommandTexture, DrawingContext},
     message::DecoratorMessage,
+    message::{ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
+    scroll_viewer::ScrollViewerBuilder,
+    stack_panel::StackPanelBuilder,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -109,14 +93,26 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListViewItem<M, C
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
-        drawing_context.commit(CommandKind::Geometry, Brush::Solid(Color::TRANSPARENT), CommandTexture::None);
+        drawing_context.commit(
+            CommandKind::Geometry,
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+        );
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         let items_control = self.find_by_criteria_up(ui, |node| {
-            if let UINode::ListView(_) = node { true } else { false }
+            if let UINode::ListView(_) = node {
+                true
+            } else {
+                false
+            }
         });
 
         if let UiMessageData::Widget(msg) = &message.data {
@@ -126,7 +122,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListViewItem<M, C
                     // SelectionChanged message and all items will react.
                     ui.send_message(UiMessage {
                         handled: false,
-                        data: UiMessageData::ListView(ListViewMessage::SelectionChanged(Some(self.index))),
+                        data: UiMessageData::ListView(ListViewMessage::SelectionChanged(Some(
+                            self.index,
+                        ))),
                         destination: items_control,
                     });
                     message.handled = true;
@@ -157,7 +155,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
         }
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::ListView(msg) = &message.data {
@@ -180,7 +182,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
                         self.items = items.clone();
                     }
                     &ListViewMessage::AddItem(item) => {
-                        let item_container = generate_item_container(&mut ui.build_ctx(), item, self.items.len());
+                        let item_container =
+                            generate_item_container(&mut ui.build_ctx(), item, self.items.len());
 
                         ui.link_nodes(item_container, self.panel);
 
@@ -197,9 +200,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
                                     match node {
                                         UINode::ListView(_) => {}
                                         UINode::Decorator(_) => {
-                                            ui.send_message(DecoratorMessage::select(handle, select));
+                                            ui.send_message(DecoratorMessage::select(
+                                                handle, select,
+                                            ));
                                         }
-                                        _ => stack.extend_from_slice(node.children())
+                                        _ => stack.extend_from_slice(node.children()),
                                     }
                                 }
                             }
@@ -251,14 +256,11 @@ impl<M: 'static, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
         let item_containers = generate_item_containers(ctx, &self.items);
 
         let panel = self.panel.unwrap_or_else(|| {
-            StackPanelBuilder::new(WidgetBuilder::new()
-                .with_children(&item_containers))
-                .build(ctx)
+            StackPanelBuilder::new(WidgetBuilder::new().with_children(&item_containers)).build(ctx)
         });
 
         let scroll_viewer = self.scroll_viewer.unwrap_or_else(|| {
-            ScrollViewerBuilder::new(WidgetBuilder::new()
-                .with_margin(Thickness::uniform(3.0)))
+            ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .build(ctx)
         });
         if let UINode::ScrollViewer(scroll_viewer) = &mut ctx[scroll_viewer] {
@@ -270,9 +272,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
         }
 
         let list_box = ListView {
-            widget: self.widget_builder
-                .with_child(scroll_viewer)
-                .build(),
+            widget: self.widget_builder.with_child(scroll_viewer).build(),
             selected_index: None,
             item_containers,
             items: self.items,
@@ -283,19 +283,25 @@ impl<M: 'static, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
     }
 }
 
-fn generate_item_container<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, item: Handle<UINode<M, C>>, index: usize) -> Handle<UINode<M, C>> {
+fn generate_item_container<M: 'static, C: 'static + Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    item: Handle<UINode<M, C>>,
+    index: usize,
+) -> Handle<UINode<M, C>> {
     let item = ListViewItem {
-        widget: WidgetBuilder::new()
-            .with_child(item)
-            .build(),
+        widget: WidgetBuilder::new().with_child(item).build(),
         index,
     };
 
     ctx.add_node(UINode::ListViewItem(item))
 }
 
-fn generate_item_containers<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, items: &[Handle<UINode<M, C>>]) -> Vec<Handle<UINode<M, C>>> {
-    items.iter()
+fn generate_item_containers<M: 'static, C: 'static + Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    items: &[Handle<UINode<M, C>>],
+) -> Vec<Handle<UINode<M, C>>> {
+    items
+        .iter()
         .enumerate()
         .map(|(index, &item)| generate_item_container(ctx, item, index))
         .collect()

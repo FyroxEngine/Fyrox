@@ -1,44 +1,22 @@
 use crate::{
     border::BorderBuilder,
-    canvas::CanvasBuilder,
+    brush::Brush,
     button::ButtonBuilder,
-    Thickness,
-    grid::{
-        GridBuilder,
-        Column,
-        Row,
-    },
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
-    UINode,
+    canvas::CanvasBuilder,
     core::{
         color::Color,
-        math::{
-            self,
-            vec2::Vec2,
-        },
+        math::{self, vec2::Vec2},
         pool::Handle,
     },
-    HorizontalAlignment,
-    VerticalAlignment,
-    text::TextBuilder,
-    brush::Brush,
     decorator::DecoratorBuilder,
+    grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage,
-        UiMessageData,
-        UiMessage,
-        ScrollBarMessage,
-        WidgetMessage,
-        TextMessage
+        ButtonMessage, ScrollBarMessage, TextMessage, UiMessage, UiMessageData, WidgetMessage,
     },
-    NodeHandleMapping,
-    Orientation,
-    BuildContext,
-    UserInterface
+    text::TextBuilder,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UINode,
+    UserInterface, VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -113,12 +91,18 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         match self.orientation {
             Orientation::Horizontal => {
                 ui.send_message(WidgetMessage::height(self.indicator, field_size.y));
-                let position = Vec2::new(percent * (field_size.x - indicator.actual_size().x).max(0.0), 0.0);
+                let position = Vec2::new(
+                    percent * (field_size.x - indicator.actual_size().x).max(0.0),
+                    0.0,
+                );
                 ui.send_message(WidgetMessage::desired_position(self.indicator, position));
             }
             Orientation::Vertical => {
                 ui.send_message(WidgetMessage::width(self.indicator, field_size.x));
-                let position = Vec2::new(0.0, percent * (field_size.y - indicator.actual_size().y).max(0.0));
+                let position = Vec2::new(
+                    0.0,
+                    percent * (field_size.y - indicator.actual_size().y).max(0.0),
+                );
                 ui.send_message(WidgetMessage::desired_position(self.indicator, position));
             }
         }
@@ -126,16 +110,26 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
                     if message.destination == self.increase {
-                        ui.send_message(ScrollBarMessage::value(self.handle(), self.value + self.step));
+                        ui.send_message(ScrollBarMessage::value(
+                            self.handle(),
+                            self.value + self.step,
+                        ));
                     } else if message.destination == self.decrease {
-                        ui.send_message(ScrollBarMessage::value(self.handle(), self.value - self.step));
+                        ui.send_message(ScrollBarMessage::value(
+                            self.handle(),
+                            self.value - self.step,
+                        ));
                     }
                 }
             }
@@ -150,7 +144,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                 self.invalidate_layout();
 
                                 if self.value_text.is_some() {
-                                    ui.send_message(TextMessage::text(self.value_text, format!("{:.1$}", value, self.value_precision)));
+                                    ui.send_message(TextMessage::text(
+                                        self.value_text,
+                                        format!("{:.1$}", value, self.value_precision),
+                                    ));
                                 }
                             }
                         }
@@ -161,9 +158,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                     std::mem::swap(&mut self.min, &mut self.max);
                                 }
                                 let old_value = self.value;
-                                let clamped_new_value = math::clampf(self.value, self.min, self.max);
+                                let clamped_new_value =
+                                    math::clampf(self.value, self.min, self.max);
                                 if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
-                                    ui.send_message(ScrollBarMessage::value(self.handle(), clamped_new_value));
+                                    ui.send_message(ScrollBarMessage::value(
+                                        self.handle(),
+                                        clamped_new_value,
+                                    ));
                                 }
                             }
                         }
@@ -174,9 +175,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                     std::mem::swap(&mut self.min, &mut self.max);
                                 }
                                 let old_value = self.value;
-                                let clamped_new_value = math::clampf(self.value, self.min, self.max);
+                                let clamped_new_value =
+                                    math::clampf(self.value, self.min, self.max);
                                 if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
-                                    ui.send_message(ScrollBarMessage::value(self.handle(), clamped_new_value));
+                                    ui.send_message(ScrollBarMessage::value(
+                                        self.handle(),
+                                        clamped_new_value,
+                                    ));
                                 }
                             }
                         }
@@ -188,9 +193,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
                             if self.indicator.is_some() {
-                                let indicator_pos = ui.nodes
-                                    .borrow(self.indicator)
-                                    .screen_position;
+                                let indicator_pos = ui.nodes.borrow(self.indicator).screen_position;
                                 self.is_dragging = true;
                                 self.offset = indicator_pos - *pos;
                                 ui.capture_mouse(self.indicator);
@@ -204,15 +207,17 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                         }
                         WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                             if self.indicator.is_some() {
-                                let canvas = ui.borrow_by_name_up(self.indicator, ScrollBar::<M, C>::PART_CANVAS);
-                                let indicator_size = ui.nodes
-                                    .borrow(self.indicator)
-                                    .actual_size();
+                                let canvas = ui.borrow_by_name_up(
+                                    self.indicator,
+                                    ScrollBar::<M, C>::PART_CANVAS,
+                                );
+                                let indicator_size = ui.nodes.borrow(self.indicator).actual_size();
                                 if self.is_dragging {
                                     let percent = match self.orientation {
                                         Orientation::Horizontal => {
                                             let span = canvas.actual_size().x - indicator_size.x;
-                                            let offset = mouse_pos.x - canvas.screen_position.x + self.offset.x;
+                                            let offset = mouse_pos.x - canvas.screen_position.x
+                                                + self.offset.x;
                                             if span > 0.0 {
                                                 math::clampf(offset / span, 0.0, 1.0)
                                             } else {
@@ -221,7 +226,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                         }
                                         Orientation::Vertical => {
                                             let span = canvas.actual_size().y - indicator_size.y;
-                                            let offset = mouse_pos.y - canvas.screen_position.y + self.offset.y;
+                                            let offset = mouse_pos.y - canvas.screen_position.y
+                                                + self.offset.y;
                                             if span > 0.0 {
                                                 math::clampf(offset / span, 0.0, 1.0)
                                             } else {
@@ -229,12 +235,15 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                                             }
                                         }
                                     };
-                                    ui.send_message(ScrollBarMessage::value(self.handle(), percent * (self.max - self.min)));
+                                    ui.send_message(ScrollBarMessage::value(
+                                        self.handle(),
+                                        percent * (self.max - self.min),
+                                    ));
                                     message.handled = true;
                                 }
                             }
                         }
-                        _ => ()
+                        _ => (),
                     }
                 }
             }
@@ -407,23 +416,17 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
             ButtonBuilder::new(WidgetBuilder::new())
                 .with_text(match orientation {
                     Orientation::Horizontal => ">",
-                    Orientation::Vertical => "v"
+                    Orientation::Vertical => "v",
                 })
                 .build(ctx)
         });
 
         match orientation {
             Orientation::Vertical => {
-                ctx[increase]
-                    .set_height(30.0)
-                    .set_row(2)
-                    .set_column(0);
+                ctx[increase].set_height(30.0).set_row(2).set_column(0);
             }
             Orientation::Horizontal => {
-                ctx[increase]
-                    .set_width(30.0)
-                    .set_row(0)
-                    .set_column(2);
+                ctx[increase].set_width(30.0).set_row(0).set_column(2);
             }
         }
 
@@ -431,14 +434,12 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
             ButtonBuilder::new(WidgetBuilder::new())
                 .with_text(match orientation {
                     Orientation::Horizontal => "<",
-                    Orientation::Vertical => "^"
+                    Orientation::Vertical => "^",
                 })
                 .build(ctx)
         });
 
-        ctx[decrease]
-            .set_row(0)
-            .set_column(0);
+        ctx[decrease].set_row(0).set_column(0);
 
         match orientation {
             Orientation::Vertical => ctx[decrease].set_height(30.0),
@@ -446,8 +447,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         };
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
-                .build(ctx)
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new())).build(ctx)
         });
 
         match orientation {
@@ -467,68 +467,69 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
         let max = self.max.unwrap_or(100.0);
         let value = math::clampf(self.value.unwrap_or(0.0), min, max);
 
-        let value_text = TextBuilder::new(WidgetBuilder::new()
-            .with_visibility(self.show_value)
-            .with_horizontal_alignment(HorizontalAlignment::Center)
-            .with_vertical_alignment(VerticalAlignment::Center)
-            .with_hit_test_visibility(false)
-            .with_margin(Thickness::uniform(3.0))
-            .on_column(match orientation {
-                Orientation::Horizontal => 1,
-                Orientation::Vertical => 0
-            })
-            .on_row(match orientation {
-                Orientation::Horizontal => 0,
-                Orientation::Vertical => 1
-            }))
-            .with_text(format!("{:.1$}", value, self.value_precision))
-            .build(ctx);
+        let value_text = TextBuilder::new(
+            WidgetBuilder::new()
+                .with_visibility(self.show_value)
+                .with_horizontal_alignment(HorizontalAlignment::Center)
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .with_hit_test_visibility(false)
+                .with_margin(Thickness::uniform(3.0))
+                .on_column(match orientation {
+                    Orientation::Horizontal => 1,
+                    Orientation::Vertical => 0,
+                })
+                .on_row(match orientation {
+                    Orientation::Horizontal => 0,
+                    Orientation::Vertical => 1,
+                }),
+        )
+        .with_text(format!("{:.1$}", value, self.value_precision))
+        .build(ctx);
 
         ctx.link(value_text, indicator);
 
-        let field = CanvasBuilder::new(WidgetBuilder::new()
-            .with_name(ScrollBar::<M, C>::PART_CANVAS)
-            .on_column(match orientation {
-                Orientation::Horizontal => 1,
-                Orientation::Vertical => 0
-            })
-            .on_row(match orientation {
-                Orientation::Horizontal => 0,
-                Orientation::Vertical => 1
-            })
-            .with_child(indicator)
-        ).build(ctx);
+        let field = CanvasBuilder::new(
+            WidgetBuilder::new()
+                .with_name(ScrollBar::<M, C>::PART_CANVAS)
+                .on_column(match orientation {
+                    Orientation::Horizontal => 1,
+                    Orientation::Vertical => 0,
+                })
+                .on_row(match orientation {
+                    Orientation::Horizontal => 0,
+                    Orientation::Vertical => 1,
+                })
+                .with_child(indicator),
+        )
+        .build(ctx);
 
-        let grid = GridBuilder::new(WidgetBuilder::new()
-            .with_child(decrease)
-            .with_child(field)
-            .with_child(increase))
-            .add_rows(match orientation {
-                Orientation::Horizontal => vec![Row::stretch()],
-                Orientation::Vertical => vec![Row::auto(),
-                                              Row::stretch(),
-                                              Row::auto()]
-            })
-            .add_columns(match orientation {
-                Orientation::Horizontal => vec![Column::auto(),
-                                                Column::stretch(),
-                                                Column::auto()],
-                Orientation::Vertical => vec![Column::stretch()]
-            })
-            .build(ctx);
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(decrease)
+                .with_child(field)
+                .with_child(increase),
+        )
+        .add_rows(match orientation {
+            Orientation::Horizontal => vec![Row::stretch()],
+            Orientation::Vertical => vec![Row::auto(), Row::stretch(), Row::auto()],
+        })
+        .add_columns(match orientation {
+            Orientation::Horizontal => vec![Column::auto(), Column::stretch(), Column::auto()],
+            Orientation::Vertical => vec![Column::stretch()],
+        })
+        .build(ctx);
 
         let body = self.body.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(120, 120, 120))))
-                .with_stroke_thickness(Thickness::uniform(1.0))
-                .build(ctx)
+            BorderBuilder::new(
+                WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(120, 120, 120))),
+            )
+            .with_stroke_thickness(Thickness::uniform(1.0))
+            .build(ctx)
         });
         ctx.link(grid, body);
 
         let node = UINode::ScrollBar(ScrollBar {
-            widget: self.widget_builder
-                .with_child(body)
-                .build(),
+            widget: self.widget_builder.with_child(body).build(),
             min,
             max,
             value,

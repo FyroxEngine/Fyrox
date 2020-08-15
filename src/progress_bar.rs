@@ -1,26 +1,12 @@
 use crate::{
-    canvas::CanvasBuilder,
     border::BorderBuilder,
-    message::{
-        UiMessage,
-        UiMessageData,
-        WidgetMessage,
-        ProgressBarMessage
-    },
-    node::UINode,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-        color::Color,
-    },
     brush::Brush,
-    BuildContext,
-    UserInterface,
+    canvas::CanvasBuilder,
+    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    message::{ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage},
+    node::UINode,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -73,7 +59,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C>
         size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination == self.handle {
@@ -84,7 +74,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C>
                             self.set_progress(progress);
                             self.invalidate_layout();
                         }
-                    },
+                    }
                 }
             }
         }
@@ -134,27 +124,23 @@ impl<M: 'static, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let body = self.body.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new())
-                .build(ctx)
-        });
+        let body = self
+            .body
+            .unwrap_or_else(|| BorderBuilder::new(WidgetBuilder::new()).build(ctx));
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(180, 180, 180))))
-                .build(ctx)
+            BorderBuilder::new(
+                WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(180, 180, 180))),
+            )
+            .build(ctx)
         });
 
-        let canvas = CanvasBuilder::new(WidgetBuilder::new()
-            .with_child(indicator))
-            .build(ctx);
+        let canvas = CanvasBuilder::new(WidgetBuilder::new().with_child(indicator)).build(ctx);
 
         ctx.link(canvas, body);
 
         let progress_bar = ProgressBar {
-            widget: self.widget_builder
-                .with_child(body)
-                .build(),
+            widget: self.widget_builder.with_child(body).build(),
             progress: self.progress,
             indicator,
             body,
@@ -163,4 +149,3 @@ impl<M: 'static, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
         ctx.add_node(UINode::ProgressBar(progress_bar))
     }
 }
-

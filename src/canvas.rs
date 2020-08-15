@@ -1,20 +1,11 @@
 use crate::{
     core::{
+        math::{vec2::Vec2, Rect},
         pool::Handle,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
     },
-    UINode,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
     message::UiMessage,
-    BuildContext,
-    UserInterface
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -40,15 +31,12 @@ impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Canvas<M, C> {
 impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Canvas(Self {
-            widget: self.widget.raw_copy()
+            widget: self.widget.raw_copy(),
         })
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
-        let size_for_child = Vec2::new(
-            std::f32::INFINITY,
-            std::f32::INFINITY,
-        );
+        let size_for_child = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
@@ -60,26 +48,32 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Canvas<M, C> {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         for child_handle in self.widget.children() {
             let child = ui.nodes.borrow(*child_handle);
-            child.arrange(ui, &Rect::new(
-                child.desired_local_position().x,
-                child.desired_local_position().y,
-                child.desired_size().x,
-                child.desired_size().y));
+            child.arrange(
+                ui,
+                &Rect::new(
+                    child.desired_local_position().x,
+                    child.desired_local_position().y,
+                    child.desired_size().x,
+                    child.desired_size().y,
+                ),
+            );
         }
 
         final_size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
     }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Canvas<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
-        Self {
-            widget
-        }
+        Self { widget }
     }
 }
 
@@ -89,14 +83,12 @@ pub struct CanvasBuilder<M: 'static, C: 'static + Control<M, C>> {
 
 impl<M: 'static, C: 'static + Control<M, C>> CanvasBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
-        Self {
-            widget_builder,
-        }
+        Self { widget_builder }
     }
 
     pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let canvas = Canvas {
-            widget: self.widget_builder.build()
+            widget: self.widget_builder.build(),
         };
         ui.add_node(UINode::Canvas(canvas))
     }

@@ -1,35 +1,17 @@
-use std::sync::{
-    Arc,
-    Mutex,
-};
 use crate::{
-    brush::Brush,
-    core::{
-        pool::Handle,
-    },
-    UINode,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    HorizontalAlignment,
-    VerticalAlignment,
-    text::TextBuilder,
     border::BorderBuilder,
-    Control,
-    ttf::Font,
-    message::{
-        WidgetMessage,
-        UiMessage,
-        UiMessageData,
-        ButtonMessage,
-    },
-    NodeHandleMapping,
+    brush::Brush,
+    core::pool::Handle,
     decorator::DecoratorBuilder,
-    BuildContext,
-    UserInterface
+    message::{ButtonMessage, UiMessage, UiMessageData, WidgetMessage},
+    text::TextBuilder,
+    ttf::Font,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, UINode, UserInterface,
+    VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, Mutex};
 
 pub struct Button<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -96,12 +78,18 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
         self.decorator = *node_map.get(&self.decorator).unwrap();
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
             UiMessageData::Widget(msg) => {
-                if message.destination == self.handle() || self.has_descendant(message.destination, ui) {
+                if message.destination == self.handle()
+                    || self.has_descendant(message.destination, ui)
+                {
                     match msg {
                         WidgetMessage::MouseUp { .. } => {
                             ui.send_message(UiMessage {
@@ -116,7 +104,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
                             ui.capture_mouse(message.destination);
                             message.handled = true;
                         }
-                        _ => ()
+                        _ => (),
                     }
                 }
             }
@@ -134,7 +122,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
                     }
                 }
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -204,31 +192,26 @@ impl<M: 'static, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let content = if let Some(content) = self.content {
             match content {
-                ButtonContent::Text(txt) => {
-                    TextBuilder::new(WidgetBuilder::new())
-                        .with_text(txt.as_str())
-                        .with_opt_font(self.font)
-                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .build(ctx)
-                }
-                ButtonContent::Node(node) => node
+                ButtonContent::Text(txt) => TextBuilder::new(WidgetBuilder::new())
+                    .with_text(txt.as_str())
+                    .with_opt_font(self.font)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx),
+                ButtonContent::Node(node) => node,
             }
         } else {
             Handle::NONE
         };
 
-        let decorator = self.decorator.unwrap_or_else(||{
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()
-                .with_child(content)))
+        let decorator = self.decorator.unwrap_or_else(|| {
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child(content)))
                 .build(ctx)
         });
         ctx.link(content, decorator);
 
         let button = Button {
-            widget: self.widget_builder
-                .with_child(decorator)
-                .build(),
+            widget: self.widget_builder.with_child(decorator).build(),
             decorator,
             content,
         };

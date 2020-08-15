@@ -1,49 +1,24 @@
 use crate::{
-    message::{
-        UiMessageData,
-        UiMessage,
-    },
     border::BorderBuilder,
-    UINode,
-    UserInterface,
-    grid::{
-        GridBuilder,
-        Column,
-        Row,
-    },
-    HorizontalAlignment,
-    text::TextBuilder,
-    Thickness,
+    brush::{Brush, GradientPoint},
     button::ButtonBuilder,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
     core::{
-        pool::Handle,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
         color::Color,
+        math::{vec2::Vec2, Rect},
+        pool::Handle,
     },
-    message::{
-        WidgetMessage,
-        ButtonMessage,
-        WindowMessage,
-    },
-    brush::{
-        Brush,
-        GradientPoint,
-    },
-    NodeHandleMapping,
-    BuildContext,
+    grid::{Column, GridBuilder, Row},
     message::TextMessage,
+    message::{ButtonMessage, WidgetMessage, WindowMessage},
+    message::{UiMessage, UiMessageData},
+    text::TextBuilder,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
+    UserInterface,
 };
 use std::{
-    ops::{Deref, DerefMut},
     cell::RefCell,
+    ops::{Deref, DerefMut},
 };
 
 /// Represents a widget looking as window in Windows - with title, minimize and close buttons.
@@ -215,7 +190,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
         size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
@@ -268,14 +247,28 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                         GripKind::LeftBottomCorner => (-1.0, 0.0, 1.0, -1.0),
                                     };
 
-                                    let new_pos = self.initial_position + Vec2::new(delta.x * dx, delta.y * dy);
-                                    let new_size = self.initial_size + Vec2::new(delta.x * dw, delta.y * dh);
+                                    let new_pos = self.initial_position
+                                        + Vec2::new(delta.x * dx, delta.y * dy);
+                                    let new_size =
+                                        self.initial_size + Vec2::new(delta.x * dw, delta.y * dh);
 
-                                    if new_size.x > self.min_width() && new_size.x < self.max_width() &&
-                                        new_size.y > self.min_height() && new_size.y < self.max_height() {
-                                        ui.send_message(WidgetMessage::desired_position(self.handle(), new_pos));
-                                        ui.send_message(WidgetMessage::width(self.handle(), new_size.x));
-                                        ui.send_message(WidgetMessage::height(self.handle(), new_size.y));
+                                    if new_size.x > self.min_width()
+                                        && new_size.x < self.max_width()
+                                        && new_size.y > self.min_height()
+                                        && new_size.y < self.max_height()
+                                    {
+                                        ui.send_message(WidgetMessage::desired_position(
+                                            self.handle(),
+                                            new_pos,
+                                        ));
+                                        ui.send_message(WidgetMessage::width(
+                                            self.handle(),
+                                            new_size.x,
+                                        ));
+                                        ui.send_message(WidgetMessage::height(
+                                            self.handle(),
+                                            new_size.y,
+                                        ));
                                     }
 
                                     break;
@@ -286,8 +279,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                     }
                 }
 
-                if (message.destination == self.header || ui.node(self.header).has_descendant(message.destination, ui))
-                    && !message.handled && !self.has_active_grip() {
+                if (message.destination == self.header
+                    || ui.node(self.header).has_descendant(message.destination, ui))
+                    && !message.handled
+                    && !self.has_active_grip()
+                {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
                             message.handled = true;
@@ -318,7 +314,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                             }
                             message.handled = true;
                         }
-                        _ => ()
+                        _ => (),
                     }
                 }
                 if let WidgetMessage::Unlink = msg {
@@ -365,7 +361,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 self.minimized = minimized;
                                 self.invalidate_layout();
                                 if self.content.is_some() {
-                                    ui.send_message(WidgetMessage::visibility(self.content, !minimized));
+                                    ui.send_message(WidgetMessage::visibility(
+                                        self.content,
+                                        !minimized,
+                                    ));
                                 }
                             }
                         }
@@ -374,7 +373,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 self.can_minimize = value;
                                 self.invalidate_layout();
                                 if self.minimize_button.is_some() {
-                                    ui.send_message(WidgetMessage::visibility(self.minimize_button, value));
+                                    ui.send_message(WidgetMessage::visibility(
+                                        self.minimize_button,
+                                        value,
+                                    ));
                                 }
                             }
                         }
@@ -383,13 +385,19 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                 self.can_close = value;
                                 self.invalidate_layout();
                                 if self.close_button.is_some() {
-                                    ui.send_message(WidgetMessage::visibility(self.close_button, value));
+                                    ui.send_message(WidgetMessage::visibility(
+                                        self.close_button,
+                                        value,
+                                    ));
                                 }
                             }
                         }
                         &WindowMessage::Move(new_pos) => {
                             if self.desired_local_position() != new_pos {
-                                ui.send_message(WidgetMessage::desired_position(self.handle(), new_pos));
+                                ui.send_message(WidgetMessage::desired_position(
+                                    self.handle(),
+                                    new_pos,
+                                ));
                             }
                         }
                         WindowMessage::MoveStart => {
@@ -408,7 +416,10 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                     if let UINode::Text(_) = ui.node(self.title) {
                                         // Just modify existing text, this is much faster than
                                         // re-create text everytime.
-                                        ui.send_message(TextMessage::text(self.title, text.clone()));
+                                        ui.send_message(TextMessage::text(
+                                            self.title,
+                                            text.clone(),
+                                        ));
                                     } else {
                                         ui.send_message(WidgetMessage::remove(self.title));
                                         self.title = make_text_title(&mut ui.build_ctx(), text);
@@ -426,7 +437,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                                         // Attach new one.
                                         ui.send_message(UiMessage {
                                             handled: false,
-                                            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.title_grid)),
+                                            data: UiMessageData::Widget(WidgetMessage::LinkWith(
+                                                self.title_grid,
+                                            )),
                                             destination: self.title,
                                         });
                                     }
@@ -436,7 +449,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                     }
                 }
             }
-            _ => ()
+            _ => (),
         }
     }
 
@@ -518,13 +531,18 @@ impl<M: 'static, C: 'static + Control<M, C>> WindowTitle<M, C> {
     }
 }
 
-fn make_text_title<M: 'static, C: 'static + Control<M, C>>(ctx: &mut BuildContext<M, C>, text: &str) -> Handle<UINode<M, C>> {
-    TextBuilder::new(WidgetBuilder::new()
-        .with_margin(Thickness::uniform(5.0))
-        .on_row(0)
-        .on_column(0))
-        .with_text(text)
-        .build(ctx)
+fn make_text_title<M: 'static, C: 'static + Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    text: &str,
+) -> Handle<UINode<M, C>> {
+    TextBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::uniform(5.0))
+            .on_row(0)
+            .on_column(0),
+    )
+    .with_text(text)
+    .build(ctx)
 }
 
 impl<'a, M: 'static, C: 'static + Control<M, C>> WindowBuilder<M, C> {
@@ -594,85 +612,106 @@ impl<'a, M: 'static, C: 'static + Control<M, C>> WindowBuilder<M, C> {
 
         let title;
         let title_grid;
-        let header = BorderBuilder::new(WidgetBuilder::new()
-            .with_horizontal_alignment(HorizontalAlignment::Stretch)
-            .with_height(30.0)
-            .with_background(Brush::LinearGradient {
-                from: Vec2::new(0.5, 0.0),
-                to: Vec2::new(0.5, 1.0),
-                stops: vec![
-                    GradientPoint { stop: 0.0, color: Color::opaque(85, 85, 85) },
-                    GradientPoint { stop: 0.5, color: Color::opaque(65, 65, 65) },
-                    GradientPoint { stop: 1.0, color: Color::opaque(75, 75, 75) },
-                ],
-            })
-            .with_child({
-                title_grid = GridBuilder::new(WidgetBuilder::new()
-                    .with_child({
-                        title = match self.title {
-                            None => Handle::NONE,
-                            Some(window_title) => {
-                                match window_title {
-                                    WindowTitle::Node(node) => node,
-                                    WindowTitle::Text(text) => make_text_title(ctx, &text)
-                                }
-                            }
-                        };
-                        title
-                    })
-                    .with_child({
-                        minimize_button = self.minimize_button.unwrap_or_else(|| {
-                            ButtonBuilder::new(WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(2.0)))
-                                .with_text("_")
-                                .build(ctx)
-                        });
-                        ctx[minimize_button]
-                            .set_visibility(self.can_minimize)
-                            .set_width(30.0)
-                            .set_row(0)
-                            .set_column(1);
-                        minimize_button
-                    })
-                    .with_child({
-                        close_button = self.close_button.unwrap_or_else(|| {
-                            ButtonBuilder::new(WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(2.0)))
-                                .with_text("X")
-                                .build(ctx)
-                        });
-                        ctx[close_button]
-                            .set_width(30.0)
-                            .set_visibility(self.can_close)
-                            .set_row(0)
-                            .set_column(2);
-                        close_button
-                    }))
+        let header = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_horizontal_alignment(HorizontalAlignment::Stretch)
+                .with_height(30.0)
+                .with_background(Brush::LinearGradient {
+                    from: Vec2::new(0.5, 0.0),
+                    to: Vec2::new(0.5, 1.0),
+                    stops: vec![
+                        GradientPoint {
+                            stop: 0.0,
+                            color: Color::opaque(85, 85, 85),
+                        },
+                        GradientPoint {
+                            stop: 0.5,
+                            color: Color::opaque(65, 65, 65),
+                        },
+                        GradientPoint {
+                            stop: 1.0,
+                            color: Color::opaque(75, 75, 75),
+                        },
+                    ],
+                })
+                .with_child({
+                    title_grid = GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child({
+                                title = match self.title {
+                                    None => Handle::NONE,
+                                    Some(window_title) => match window_title {
+                                        WindowTitle::Node(node) => node,
+                                        WindowTitle::Text(text) => make_text_title(ctx, &text),
+                                    },
+                                };
+                                title
+                            })
+                            .with_child({
+                                minimize_button = self.minimize_button.unwrap_or_else(|| {
+                                    ButtonBuilder::new(
+                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                    )
+                                    .with_text("_")
+                                    .build(ctx)
+                                });
+                                ctx[minimize_button]
+                                    .set_visibility(self.can_minimize)
+                                    .set_width(30.0)
+                                    .set_row(0)
+                                    .set_column(1);
+                                minimize_button
+                            })
+                            .with_child({
+                                close_button = self.close_button.unwrap_or_else(|| {
+                                    ButtonBuilder::new(
+                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                    )
+                                    .with_text("X")
+                                    .build(ctx)
+                                });
+                                ctx[close_button]
+                                    .set_width(30.0)
+                                    .set_visibility(self.can_close)
+                                    .set_row(0)
+                                    .set_column(2);
+                                close_button
+                            }),
+                    )
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
                     .add_column(Column::auto())
                     .add_row(Row::stretch())
                     .build(ctx);
-                title_grid
-            })
-            .on_row(0)
-        ).build(ctx);
+                    title_grid
+                })
+                .on_row(0),
+        )
+        .build(ctx);
 
         if self.content.is_some() {
             ctx[self.content].set_row(1);
         }
         Window {
-            widget: self.widget_builder
+            widget: self
+                .widget_builder
                 .with_visibility(self.open)
-                .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_child(GridBuilder::new(WidgetBuilder::new()
-                        .with_child(self.content)
-                        .with_child(header))
-                        .add_column(Column::stretch())
-                        .add_row(Row::auto())
-                        .add_row(Row::stretch())
-                        .build(ctx)))
-                    .build(ctx))
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new().with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child(self.content)
+                                    .with_child(header),
+                            )
+                            .add_column(Column::stretch())
+                            .add_row(Row::auto())
+                            .add_row(Row::stretch())
+                            .build(ctx),
+                        ),
+                    )
+                    .build(ctx),
+                )
                 .build(),
             mouse_click_pos: Vec2::ZERO,
             initial_position: Vec2::ZERO,

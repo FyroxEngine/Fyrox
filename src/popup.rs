@@ -1,26 +1,10 @@
 use crate::{
-    node::UINode,
-    Control,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    message::{
-        UiMessage,
-        UiMessageData,
-        PopupMessage,
-        WidgetMessage,
-        OsEvent,
-        ButtonState,
-    },
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-    },
     border::BorderBuilder,
-    NodeHandleMapping,
-    BuildContext,
-    UserInterface
+    core::{math::vec2::Vec2, pool::Handle},
+    message::{ButtonState, OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage},
+    node::UINode,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, NodeHandleMapping, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -77,80 +61,90 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Popup<M, C> {
         self.body = *node_map.get(&self.body).unwrap();
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
-            UiMessageData::Popup(msg) if message.destination == self.handle() => {
-                match msg {
-                    PopupMessage::Open => {
-                        if !self.is_open {
-                            self.is_open = true;
-                            ui.send_message(WidgetMessage::visibility(self.handle(), true));
-                            ui.push_picking_restriction(self.handle());
-                            ui.send_message(UiMessage {
-                                data: UiMessageData::Widget(WidgetMessage::TopMost),
-                                destination: self.handle(),
-                                handled: false,
-                            });
-                            let position = match self.placement {
-                                Placement::LeftTop => Vec2::ZERO,
-                                Placement::RightTop => {
-                                    let width = self.widget.actual_size().x;
-                                    let screen_width = ui.screen_size().x;
-                                    Vec2::new(screen_width - width, 0.0)
-                                }
-                                Placement::Center => {
-                                    let size = self.widget.actual_size();
-                                    let screen_size = ui.screen_size;
-                                    (screen_size - size).scale(0.5)
-                                }
-                                Placement::LeftBottom => {
-                                    let height = self.widget.actual_size().y;
-                                    let screen_height = ui.screen_size().y;
-                                    Vec2::new(0.0, screen_height - height)
-                                }
-                                Placement::RightBottom => {
-                                    let size = self.widget.actual_size();
-                                    let screen_size = ui.screen_size;
-                                    screen_size - size
-                                }
-                                Placement::Cursor => ui.cursor_position(),
-                                Placement::Position(position) => position
-                            };
-                            ui.send_message(WidgetMessage::desired_position(self.handle(), position));
-                        }
-                    }
-                    PopupMessage::Close => {
-                        if self.is_open {
-                            self.is_open = false;
-                            ui.send_message(WidgetMessage::visibility(self.handle(), false));
-                            ui.remove_picking_restriction(self.handle());
-                            if ui.captured_node() == self.handle() {
-                                ui.release_mouse_capture();
+            UiMessageData::Popup(msg) if message.destination == self.handle() => match msg {
+                PopupMessage::Open => {
+                    if !self.is_open {
+                        self.is_open = true;
+                        ui.send_message(WidgetMessage::visibility(self.handle(), true));
+                        ui.push_picking_restriction(self.handle());
+                        ui.send_message(UiMessage {
+                            data: UiMessageData::Widget(WidgetMessage::TopMost),
+                            destination: self.handle(),
+                            handled: false,
+                        });
+                        let position = match self.placement {
+                            Placement::LeftTop => Vec2::ZERO,
+                            Placement::RightTop => {
+                                let width = self.widget.actual_size().x;
+                                let screen_width = ui.screen_size().x;
+                                Vec2::new(screen_width - width, 0.0)
                             }
-                        }
-                    }
-                    PopupMessage::Content(content) => {
-                        if self.content.is_some() {
-                            ui.send_message(WidgetMessage::remove(self.content));
-                        }
-                        self.content = *content;
-                        ui.link_nodes(self.content, self.body);
-                    }
-                    &PopupMessage::Placement(placement) => {
-                        self.placement = placement;
-                        self.invalidate_layout();
+                            Placement::Center => {
+                                let size = self.widget.actual_size();
+                                let screen_size = ui.screen_size;
+                                (screen_size - size).scale(0.5)
+                            }
+                            Placement::LeftBottom => {
+                                let height = self.widget.actual_size().y;
+                                let screen_height = ui.screen_size().y;
+                                Vec2::new(0.0, screen_height - height)
+                            }
+                            Placement::RightBottom => {
+                                let size = self.widget.actual_size();
+                                let screen_size = ui.screen_size;
+                                screen_size - size
+                            }
+                            Placement::Cursor => ui.cursor_position(),
+                            Placement::Position(position) => position,
+                        };
+                        ui.send_message(WidgetMessage::desired_position(self.handle(), position));
                     }
                 }
-            }
+                PopupMessage::Close => {
+                    if self.is_open {
+                        self.is_open = false;
+                        ui.send_message(WidgetMessage::visibility(self.handle(), false));
+                        ui.remove_picking_restriction(self.handle());
+                        if ui.captured_node() == self.handle() {
+                            ui.release_mouse_capture();
+                        }
+                    }
+                }
+                PopupMessage::Content(content) => {
+                    if self.content.is_some() {
+                        ui.send_message(WidgetMessage::remove(self.content));
+                    }
+                    self.content = *content;
+                    ui.link_nodes(self.content, self.body);
+                }
+                &PopupMessage::Placement(placement) => {
+                    self.placement = placement;
+                    self.invalidate_layout();
+                }
+            },
             _ => {}
         }
     }
 
-    fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
+    fn handle_os_event(
+        &mut self,
+        self_handle: Handle<UINode<M, C>>,
+        ui: &mut UserInterface<M, C>,
+        event: &OsEvent,
+    ) {
         if let OsEvent::MouseInput { state, .. } = event {
-            if *state == ButtonState::Pressed && ui.top_picking_restriction() == self_handle && self.is_open {
+            if *state == ButtonState::Pressed
+                && ui.top_picking_restriction() == self_handle
+                && self.is_open
+            {
                 let pos = ui.cursor_position();
                 if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
                     ui.send_message(UiMessage {
@@ -197,12 +191,11 @@ impl<M: 'static, C: 'static + Control<M, C>> PopupBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let body = BorderBuilder::new(WidgetBuilder::new()
-            .with_child(self.content))
-            .build(ctx);
+        let body = BorderBuilder::new(WidgetBuilder::new().with_child(self.content)).build(ctx);
 
         let popup = Popup {
-            widget: self.widget_builder
+            widget: self
+                .widget_builder
                 .with_child(body)
                 .with_visibility(false)
                 .build(),

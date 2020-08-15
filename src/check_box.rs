@@ -1,26 +1,10 @@
 use crate::{
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UINode,
-    message::{
-        UiMessage,
-        UiMessageData,
-        CheckBoxMessage,
-        WidgetMessage,
-    },
-    Thickness,
     border::BorderBuilder,
-    Control,
-    core::{
-        pool::Handle,
-        color::Color,
-    },
     brush::Brush,
-    NodeHandleMapping,
-    BuildContext,
-    UserInterface
+    core::{color::Color, pool::Handle},
+    message::{CheckBoxMessage, UiMessage, UiMessageData, WidgetMessage},
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, NodeHandleMapping, Thickness, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -57,39 +41,51 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
         self.check_mark = *node_map.get(&self.check_mark).unwrap();
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match message.data {
             UiMessageData::Widget(ref msg) => {
                 match msg {
                     WidgetMessage::MouseDown { .. } => {
-                        if message.destination == self.handle() || self.widget.has_descendant(message.destination, ui) {
+                        if message.destination == self.handle()
+                            || self.widget.has_descendant(message.destination, ui)
+                        {
                             ui.capture_mouse(self.handle());
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if message.destination == self.handle() || self.widget.has_descendant(message.destination, ui) {
+                        if message.destination == self.handle()
+                            || self.widget.has_descendant(message.destination, ui)
+                        {
                             ui.release_mouse_capture();
 
                             if let Some(value) = self.checked {
                                 // Invert state if it is defined.
                                 ui.send_message(UiMessage {
-                                    data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(!value))),
+                                    data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(
+                                        !value,
+                                    ))),
                                     destination: self.handle(),
                                     handled: false,
                                 });
                             } else {
                                 // Switch from undefined state to checked.
                                 ui.send_message(UiMessage {
-                                    data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(true))),
+                                    data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(
+                                        true,
+                                    ))),
                                     destination: self.handle(),
                                     handled: false,
                                 });
                             }
                         }
                     }
-                    _ => ()
+                    _ => (),
                 }
             }
             UiMessageData::CheckBox(ref msg) => {
@@ -99,11 +95,20 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
                         if message.destination == self.handle() && self.check_mark.is_some() {
                             match value {
                                 None => {
-                                    ui.send_message(WidgetMessage::background(self.check_mark, Brush::Solid(Color::opaque(30, 30, 80))));
+                                    ui.send_message(WidgetMessage::background(
+                                        self.check_mark,
+                                        Brush::Solid(Color::opaque(30, 30, 80)),
+                                    ));
                                 }
                                 Some(value) => {
-                                    ui.send_message(WidgetMessage::background(self.check_mark, Brush::Solid(Color::opaque(200, 200, 200))));
-                                    ui.send_message(WidgetMessage::visibility(self.check_mark, value));
+                                    ui.send_message(WidgetMessage::background(
+                                        self.check_mark,
+                                        Brush::Solid(Color::opaque(200, 200, 200)),
+                                    ));
+                                    ui.send_message(WidgetMessage::visibility(
+                                        self.check_mark,
+                                        value,
+                                    ));
                                 }
                             }
                         }
@@ -148,21 +153,28 @@ impl<M: 'static, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(200, 200, 200)))
-                .with_margin(Thickness::uniform(1.0)))
-                .with_stroke_thickness(Thickness::uniform(0.0))
-                .build(ctx)
+            BorderBuilder::new(
+                WidgetBuilder::new()
+                    .with_background(Brush::Solid(Color::opaque(200, 200, 200)))
+                    .with_margin(Thickness::uniform(1.0)),
+            )
+            .with_stroke_thickness(Thickness::uniform(0.0))
+            .build(ctx)
         });
         ctx[check_mark].set_visibility(self.checked.unwrap_or(true));
 
         let cb = CheckBox {
-            widget: self.widget_builder
-                .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Brush::Solid(Color::opaque(60, 60, 60)))
-                    .with_child(check_mark))
+            widget: self
+                .widget_builder
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_background(Brush::Solid(Color::opaque(60, 60, 60)))
+                            .with_child(check_mark),
+                    )
                     .with_stroke_thickness(Thickness::uniform(1.0))
-                    .build(ctx))
+                    .build(ctx),
+                )
                 .build(),
             checked: self.checked,
             check_mark,

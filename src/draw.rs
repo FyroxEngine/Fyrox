@@ -1,22 +1,17 @@
 use crate::{
-    Thickness,
-    formatted_text::FormattedText,
+    brush::Brush,
     core::{
         color::Color,
-        math::{
-            vec2::Vec2,
-            Rect,
-            TriangleDefinition,
-            self
-        }
+        math::{self, vec2::Vec2, Rect, TriangleDefinition},
     },
-    brush::Brush,
+    formatted_text::FormattedText,
     ttf::Font,
+    Thickness,
 };
 use std::{
     any::Any,
+    ops::Range,
     sync::{Arc, Mutex},
-    ops::Range
 };
 
 #[repr(C)]
@@ -27,10 +22,7 @@ pub struct Vertex {
 
 impl Vertex {
     fn new(pos: Vec2, tex_coord: Vec2) -> Vertex {
-        Vertex {
-            pos,
-            tex_coord,
-        }
+        Vertex { pos, tex_coord }
     }
 }
 
@@ -159,7 +151,7 @@ impl DrawingContext {
     fn index_origin(&self) -> u32 {
         match self.triangle_buffer.last() {
             Some(last) => last.0.last().unwrap() + 1,
-            None => 0
+            None => 0,
         }
     }
 
@@ -168,7 +160,10 @@ impl DrawingContext {
         &self.command_buffer
     }
 
-    pub fn triangle_points(&self, triangle: &TriangleDefinition) -> Option<(&Vertex, &Vertex, &Vertex)> {
+    pub fn triangle_points(
+        &self,
+        triangle: &TriangleDefinition,
+    ) -> Option<(&Vertex, &Vertex, &Vertex)> {
         let a = self.vertex_buffer.get(triangle[0] as usize)?;
         let b = self.vertex_buffer.get(triangle[1] as usize)?;
         let c = self.vertex_buffer.get(triangle[2] as usize)?;
@@ -224,9 +219,18 @@ impl DrawingContext {
 
     pub fn push_rect_vary(&mut self, rect: &Rect<f32>, thickness: Thickness) {
         let left_top = Vec2::new(rect.x + thickness.left * 0.5, rect.y + thickness.top);
-        let right_top = Vec2::new(rect.x + rect.w - thickness.right * 0.5, rect.y + thickness.top);
-        let right_bottom = Vec2::new(rect.x + rect.w - thickness.right * 0.5, rect.y + rect.h - thickness.bottom);
-        let left_bottom = Vec2::new(rect.x + thickness.left * 0.5, rect.y + rect.h - thickness.bottom);
+        let right_top = Vec2::new(
+            rect.x + rect.w - thickness.right * 0.5,
+            rect.y + thickness.top,
+        );
+        let right_bottom = Vec2::new(
+            rect.x + rect.w - thickness.right * 0.5,
+            rect.y + rect.h - thickness.bottom,
+        );
+        let left_bottom = Vec2::new(
+            rect.x + thickness.left * 0.5,
+            rect.y + rect.h - thickness.bottom,
+        );
         let left_top_off = Vec2::new(rect.x, rect.y + thickness.top * 0.5);
         let right_top_off = Vec2::new(rect.x + rect.w, rect.y + thickness.top * 0.5);
         let right_bottom_off = Vec2::new(rect.x + rect.w, rect.y + rect.h - thickness.bottom * 0.5);
@@ -242,10 +246,22 @@ impl DrawingContext {
     }
 
     pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>) {
-        self.push_vertex(Vec2::new(rect.x, rect.y), tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]));
-        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y), tex_coords.map_or(Vec2::new(1.0, 0.0), |t| t[1]));
-        self.push_vertex(Vec2::new(rect.x + rect.w, rect.y + rect.h), tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]));
-        self.push_vertex(Vec2::new(rect.x, rect.y + rect.h), tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]));
+        self.push_vertex(
+            Vec2::new(rect.x, rect.y),
+            tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]),
+        );
+        self.push_vertex(
+            Vec2::new(rect.x + rect.w, rect.y),
+            tex_coords.map_or(Vec2::new(1.0, 0.0), |t| t[1]),
+        );
+        self.push_vertex(
+            Vec2::new(rect.x + rect.w, rect.y + rect.h),
+            tex_coords.map_or(Vec2::new(1.0, 1.0), |t| t[2]),
+        );
+        self.push_vertex(
+            Vec2::new(rect.x, rect.y + rect.h),
+            tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]),
+        );
 
         let index = self.index_origin();
         self.push_triangle(index, index + 1, index + 2);
@@ -319,19 +335,30 @@ impl DrawingContext {
             let bounds = element.get_bounds();
 
             let final_bounds = Rect::new(
-                position.x + bounds.x, position.y + bounds.y,
-                bounds.w, bounds.h);
+                position.x + bounds.x,
+                position.y + bounds.y,
+                bounds.w,
+                bounds.h,
+            );
 
             self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()));
         }
 
-        self.commit(CommandKind::Geometry, formatted_text.brush(), CommandTexture::Font(font))
+        self.commit(
+            CommandKind::Geometry,
+            formatted_text.brush(),
+            CommandTexture::Font(font),
+        )
     }
 
     pub fn commit_clip_rect(&mut self, clip_rect: &Rect<f32>) {
         self.push_rect_filled(clip_rect, None);
         let index = self.command_buffer.len();
-        self.commit(CommandKind::Clip, Brush::Solid(Color::WHITE), CommandTexture::None);
+        self.commit(
+            CommandKind::Clip,
+            Brush::Solid(Color::WHITE),
+            CommandTexture::None,
+        );
         self.clip_cmd_stack.push(index);
     }
 

@@ -1,36 +1,18 @@
 use crate::{
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-        color::Color,
-    },
-    VerticalAlignment,
-    HorizontalAlignment,
-    draw::DrawingContext,
-    formatted_text::{
-        FormattedText,
-        FormattedTextBuilder,
-    },
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UINode,
-    Control,
-    ttf::Font,
-    UserInterface,
     brush::Brush,
+    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    draw::DrawingContext,
+    formatted_text::{FormattedText, FormattedTextBuilder},
     message::UiMessage,
-    BuildContext,
-    message::{UiMessageData, TextMessage}
+    message::{TextMessage, UiMessageData},
+    ttf::Font,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
 use std::{
-    sync::{
-        Mutex,
-        Arc,
-    },
     cell::RefCell,
-    ops::{Deref, DerefMut}
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
 };
 
 pub struct Text<M: 'static, C: 'static + Control<M, C>> {
@@ -73,30 +55,28 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
         drawing_context.draw_text(Vec2::new(bounds.x, bounds.y), &self.formatted_text.borrow());
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination == self.handle() {
             if let UiMessageData::Text(msg) = &message.data {
                 match msg {
                     TextMessage::Text(text) => {
-                        self.formatted_text
-                            .borrow_mut()
-                            .set_text(text);
+                        self.formatted_text.borrow_mut().set_text(text);
                         self.invalidate_layout();
-                    },
+                    }
                     &TextMessage::Wrap(wrap) => {
                         if self.formatted_text.borrow().is_wrap() != wrap {
-                            self.formatted_text
-                                .borrow_mut()
-                                .set_wrap(wrap);
+                            self.formatted_text.borrow_mut().set_wrap(wrap);
                             self.invalidate_layout();
                         }
-                    },
+                    }
                     TextMessage::Font(font) => {
-                        self.formatted_text
-                            .borrow_mut()
-                            .set_font(font.clone());
+                        self.formatted_text.borrow_mut().set_font(font.clone());
                         self.invalidate_layout();
                     }
                     &TextMessage::HorizontalAlignment(horizontal_alignment) => {
@@ -104,7 +84,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
                             .borrow_mut()
                             .set_horizontal_alignment(horizontal_alignment);
                         self.invalidate_layout();
-                    },
+                    }
                     &TextMessage::VerticalAlignment(vertical_alignment) => {
                         self.formatted_text
                             .borrow_mut()
@@ -121,41 +101,32 @@ impl<M: 'static, C: 'static + Control<M, C>> Text<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
-            formatted_text: RefCell::new(FormattedTextBuilder::new()
-                .with_font(crate::DEFAULT_FONT.clone())
-                .build()),
+            formatted_text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_font(crate::DEFAULT_FONT.clone())
+                    .build(),
+            ),
         }
     }
 
     pub fn is_wrap(&self) -> bool {
-        self.formatted_text
-            .borrow()
-            .is_wrap()
+        self.formatted_text.borrow().is_wrap()
     }
 
     pub fn text(&self) -> String {
-        self.formatted_text
-            .borrow()
-            .text()
+        self.formatted_text.borrow().text()
     }
 
     pub fn font(&self) -> Arc<Mutex<Font>> {
-        self.formatted_text
-            .borrow()
-            .get_font()
-            .unwrap()
+        self.formatted_text.borrow().get_font().unwrap()
     }
 
     pub fn vertical_alignment(&self) -> VerticalAlignment {
-        self.formatted_text
-            .borrow()
-            .vertical_alignment()
+        self.formatted_text.borrow().vertical_alignment()
     }
 
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
-        self.formatted_text
-            .borrow()
-            .horizontal_alignment()
+        self.formatted_text.borrow().horizontal_alignment()
     }
 }
 
@@ -223,13 +194,15 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBuilder<M, C> {
 
         let text = Text {
             widget: self.widget_builder.build(),
-            formatted_text: RefCell::new(FormattedTextBuilder::new()
-                .with_text(self.text.unwrap_or_default())
-                .with_vertical_alignment(self.vertical_text_alignment)
-                .with_horizontal_alignment(self.horizontal_text_alignment)
-                .with_font(font)
-                .with_wrap(self.wrap)
-                .build()),
+            formatted_text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_text(self.text.unwrap_or_default())
+                    .with_vertical_alignment(self.vertical_text_alignment)
+                    .with_horizontal_alignment(self.horizontal_text_alignment)
+                    .with_font(font)
+                    .with_wrap(self.wrap)
+                    .build(),
+            ),
         };
         ui.add_node(UINode::Text(text))
     }

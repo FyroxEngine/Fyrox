@@ -1,31 +1,18 @@
 use crate::{
+    border::Border,
+    border::BorderBuilder,
+    brush::{Brush, GradientPoint},
     core::{
         color::Color,
+        math::{vec2::Vec2, Rect},
         pool::Handle,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
     },
-    border::Border,
-    message::{
-        UiMessage,
-        UiMessageData,
-        WidgetMessage,
-    },
-    node::UINode,
-    Control,
-    UserInterface,
-    widget::Widget,
     draw::DrawingContext,
-    brush::{
-        Brush,
-        GradientPoint,
-    },
-    border::BorderBuilder,
-    NodeHandleMapping,
-    BuildContext,
-    message::DecoratorMessage
+    message::DecoratorMessage,
+    message::{UiMessage, UiMessageData, WidgetMessage},
+    node::UINode,
+    widget::Widget,
+    BuildContext, Control, NodeHandleMapping, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -113,45 +100,73 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.update(dt)
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.border.handle_routed_message(ui, message);
 
         match &message.data {
-            UiMessageData::Decorator(msg) => {
-                match *msg {
-                    DecoratorMessage::Select(value) => {
-                        if self.is_selected != value {
-                            self.is_selected = value;
-                            if self.is_selected {
-                                ui.send_message(WidgetMessage::background(self.handle(), self.selected_brush.clone()));
-                            } else {
-                                ui.send_message(WidgetMessage::background(self.handle(), self.normal_brush.clone()));
-                            }
+            UiMessageData::Decorator(msg) => match *msg {
+                DecoratorMessage::Select(value) => {
+                    if self.is_selected != value {
+                        self.is_selected = value;
+                        if self.is_selected {
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                self.selected_brush.clone(),
+                            ));
+                        } else {
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                self.normal_brush.clone(),
+                            ));
                         }
-                    },
+                    }
                 }
-            }
+            },
             UiMessageData::Widget(msg) => {
-                if message.destination == self.handle() || self.has_descendant(message.destination, ui) {
+                if message.destination == self.handle()
+                    || self.has_descendant(message.destination, ui)
+                {
                     match msg {
                         WidgetMessage::MouseLeave => {
                             if self.is_selected {
-                                ui.send_message(WidgetMessage::background(self.handle(), self.selected_brush.clone()));
+                                ui.send_message(WidgetMessage::background(
+                                    self.handle(),
+                                    self.selected_brush.clone(),
+                                ));
                             } else {
-                                ui.send_message(WidgetMessage::background(self.handle(), self.normal_brush.clone()));
+                                ui.send_message(WidgetMessage::background(
+                                    self.handle(),
+                                    self.normal_brush.clone(),
+                                ));
                             }
                         }
                         WidgetMessage::MouseEnter => {
-                            ui.send_message(WidgetMessage::background(self.handle(), self.hover_brush.clone()));
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                self.hover_brush.clone(),
+                            ));
                         }
                         WidgetMessage::MouseDown { .. } => {
-                            ui.send_message(WidgetMessage::background(self.handle(), self.pressed_brush.clone()));
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                self.pressed_brush.clone(),
+                            ));
                         }
                         WidgetMessage::MouseUp { .. } => {
                             if self.is_selected {
-                                ui.send_message(WidgetMessage::background(self.handle(), self.selected_brush.clone()));
+                                ui.send_message(WidgetMessage::background(
+                                    self.handle(),
+                                    self.selected_brush.clone(),
+                                ));
                             } else {
-                                ui.send_message(WidgetMessage::background(self.handle(), self.normal_brush.clone()));
+                                ui.send_message(WidgetMessage::background(
+                                    self.handle(),
+                                    self.normal_brush.clone(),
+                                ));
                             }
                         }
                         _ => {}
@@ -207,66 +222,120 @@ impl<M: 'static, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
     }
 
     pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let normal_brush = self.normal_brush.unwrap_or_else(|| {
-            Brush::LinearGradient {
-                from: Vec2::new(0.5, 0.0),
-                to: Vec2::new(0.5, 1.0),
-                stops: vec![
-                    GradientPoint { stop: 0.0, color: Color::opaque(85, 85, 85) },
-                    GradientPoint { stop: 0.46, color: Color::opaque(85, 85, 85) },
-                    GradientPoint { stop: 0.5, color: Color::opaque(65, 65, 65) },
-                    GradientPoint { stop: 0.54, color: Color::opaque(75, 75, 75) },
-                    GradientPoint { stop: 1.0, color: Color::opaque(75, 75, 75) },
-                ],
-            }
+        let normal_brush = self.normal_brush.unwrap_or_else(|| Brush::LinearGradient {
+            from: Vec2::new(0.5, 0.0),
+            to: Vec2::new(0.5, 1.0),
+            stops: vec![
+                GradientPoint {
+                    stop: 0.0,
+                    color: Color::opaque(85, 85, 85),
+                },
+                GradientPoint {
+                    stop: 0.46,
+                    color: Color::opaque(85, 85, 85),
+                },
+                GradientPoint {
+                    stop: 0.5,
+                    color: Color::opaque(65, 65, 65),
+                },
+                GradientPoint {
+                    stop: 0.54,
+                    color: Color::opaque(75, 75, 75),
+                },
+                GradientPoint {
+                    stop: 1.0,
+                    color: Color::opaque(75, 75, 75),
+                },
+            ],
         });
 
         let mut border = self.border_builder.build_border();
 
         border.set_background(normal_brush.clone());
 
-        let node = UINode::Decorator( Decorator {
+        let node = UINode::Decorator(Decorator {
             border,
             normal_brush,
-            hover_brush: self.hover_brush.unwrap_or_else(|| {
-                Brush::LinearGradient {
+            hover_brush: self.hover_brush.unwrap_or_else(|| Brush::LinearGradient {
+                from: Vec2::new(0.5, 0.0),
+                to: Vec2::new(0.5, 1.0),
+                stops: vec![
+                    GradientPoint {
+                        stop: 0.0,
+                        color: Color::opaque(105, 95, 85),
+                    },
+                    GradientPoint {
+                        stop: 0.46,
+                        color: Color::opaque(105, 95, 85),
+                    },
+                    GradientPoint {
+                        stop: 0.5,
+                        color: Color::opaque(85, 75, 65),
+                    },
+                    GradientPoint {
+                        stop: 0.54,
+                        color: Color::opaque(95, 85, 75),
+                    },
+                    GradientPoint {
+                        stop: 1.0,
+                        color: Color::opaque(95, 85, 75),
+                    },
+                ],
+            }),
+            pressed_brush: self.pressed_brush.unwrap_or_else(|| Brush::LinearGradient {
+                from: Vec2::new(0.5, 0.0),
+                to: Vec2::new(0.5, 1.0),
+                stops: vec![
+                    GradientPoint {
+                        stop: 0.0,
+                        color: Color::opaque(65, 65, 65),
+                    },
+                    GradientPoint {
+                        stop: 0.46,
+                        color: Color::opaque(65, 65, 65),
+                    },
+                    GradientPoint {
+                        stop: 0.5,
+                        color: Color::opaque(45, 45, 45),
+                    },
+                    GradientPoint {
+                        stop: 0.54,
+                        color: Color::opaque(55, 55, 55),
+                    },
+                    GradientPoint {
+                        stop: 1.0,
+                        color: Color::opaque(55, 55, 55),
+                    },
+                ],
+            }),
+            selected_brush: self
+                .selected_brush
+                .unwrap_or_else(|| Brush::LinearGradient {
                     from: Vec2::new(0.5, 0.0),
                     to: Vec2::new(0.5, 1.0),
                     stops: vec![
-                        GradientPoint { stop: 0.0, color: Color::opaque(105, 95, 85) },
-                        GradientPoint { stop: 0.46, color: Color::opaque(105, 95, 85) },
-                        GradientPoint { stop: 0.5, color: Color::opaque(85, 75, 65) },
-                        GradientPoint { stop: 0.54, color: Color::opaque(95, 85, 75) },
-                        GradientPoint { stop: 1.0, color: Color::opaque(95, 85, 75) },
+                        GradientPoint {
+                            stop: 0.0,
+                            color: Color::opaque(170, 108, 57),
+                        },
+                        GradientPoint {
+                            stop: 0.46,
+                            color: Color::opaque(170, 108, 57),
+                        },
+                        GradientPoint {
+                            stop: 0.5,
+                            color: Color::opaque(150, 88, 37),
+                        },
+                        GradientPoint {
+                            stop: 0.54,
+                            color: Color::opaque(160, 98, 47),
+                        },
+                        GradientPoint {
+                            stop: 1.0,
+                            color: Color::opaque(160, 98, 47),
+                        },
                     ],
-                }
-            }),
-            pressed_brush: self.pressed_brush.unwrap_or_else(|| {
-                Brush::LinearGradient {
-                    from: Vec2::new(0.5, 0.0),
-                    to: Vec2::new(0.5, 1.0),
-                    stops: vec![
-                        GradientPoint { stop: 0.0, color: Color::opaque(65, 65, 65) },
-                        GradientPoint { stop: 0.46, color: Color::opaque(65, 65, 65) },
-                        GradientPoint { stop: 0.5, color: Color::opaque(45, 45, 45) },
-                        GradientPoint { stop: 0.54, color: Color::opaque(55, 55, 55) },
-                        GradientPoint { stop: 1.0, color: Color::opaque(55, 55, 55) },
-                    ],
-                }
-            }),
-            selected_brush: self.selected_brush.unwrap_or_else(|| {
-                Brush::LinearGradient {
-                    from: Vec2::new(0.5, 0.0),
-                    to: Vec2::new(0.5, 1.0),
-                    stops: vec![
-                        GradientPoint { stop: 0.0, color: Color::opaque(170, 108, 57) },
-                        GradientPoint { stop: 0.46, color: Color::opaque(170, 108, 57) },
-                        GradientPoint { stop: 0.5, color: Color::opaque(150, 88, 37) },
-                        GradientPoint { stop: 0.54, color: Color::opaque(160, 98, 47) },
-                        GradientPoint { stop: 1.0, color: Color::opaque(160, 98, 47) },
-                    ],
-                }
-            }),
+                }),
             is_selected: false,
         });
         ui.add_node(node)

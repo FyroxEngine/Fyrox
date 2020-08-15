@@ -1,35 +1,12 @@
 use crate::{
-    UserInterface,
+    core::{math::vec2::Vec2, pool::Handle},
+    grid::{Column, GridBuilder, Row},
+    message::ScrollPanelMessage,
+    message::{ScrollBarMessage, ScrollViewerMessage, UiMessage, UiMessageData, WidgetMessage},
+    scroll_bar::ScrollBarBuilder,
     scroll_panel::ScrollPanelBuilder,
-    scroll_bar::{
-        ScrollBarBuilder,
-    },
-    grid::{
-        Row,
-        GridBuilder,
-        Column,
-    },
-    message::{
-        UiMessageData,
-        UiMessage,
-        ScrollBarMessage,
-        WidgetMessage,
-        ScrollViewerMessage,
-    },
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
-    UINode,
-    core::{
-        pool::Handle,
-        math::vec2::Vec2,
-    },
-    NodeHandleMapping,
-    Orientation,
-    BuildContext,
-    message::ScrollPanelMessage
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, NodeHandleMapping, Orientation, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -120,7 +97,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
         size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         match &message.data {
@@ -138,31 +119,49 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
                     }
                 }
             }
-            UiMessageData::ScrollBar(msg) => {
-                match msg {
-                    ScrollBarMessage::Value(new_value) => {
-                        if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
-                            ui.send_message(ScrollPanelMessage::vertical_scroll(self.content_presenter, *new_value));
-                        } else if message.destination == self.h_scroll_bar && self.h_scroll_bar.is_some() {
-                            ui.send_message(ScrollPanelMessage::horizontal_scroll(self.content_presenter, *new_value));
-                        }
+            UiMessageData::ScrollBar(msg) => match msg {
+                ScrollBarMessage::Value(new_value) => {
+                    if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
+                        ui.send_message(ScrollPanelMessage::vertical_scroll(
+                            self.content_presenter,
+                            *new_value,
+                        ));
+                    } else if message.destination == self.h_scroll_bar
+                        && self.h_scroll_bar.is_some()
+                    {
+                        ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                            self.content_presenter,
+                            *new_value,
+                        ));
                     }
-                    &ScrollBarMessage::MaxValue(_) => {
-                        if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
-                            if let UINode::ScrollBar(scroll_bar) = ui.node(self.v_scroll_bar) {
-                                let visibility = (scroll_bar.max_value() - scroll_bar.min_value()).abs() >= std::f32::EPSILON;
-                                ui.send_message(WidgetMessage::visibility(self.v_scroll_bar, visibility));
-                            }
-                        } else if message.destination == self.h_scroll_bar && self.h_scroll_bar.is_some() {
-                            if let UINode::ScrollBar(scroll_bar) = ui.node(self.h_scroll_bar) {
-                                let visibility = (scroll_bar.max_value() - scroll_bar.min_value()).abs() >= std::f32::EPSILON;
-                                ui.send_message(WidgetMessage::visibility(self.h_scroll_bar, visibility));
-                            }
-                        }
-                    }
-                    _ => ()
                 }
-            }
+                &ScrollBarMessage::MaxValue(_) => {
+                    if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
+                        if let UINode::ScrollBar(scroll_bar) = ui.node(self.v_scroll_bar) {
+                            let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
+                                .abs()
+                                >= std::f32::EPSILON;
+                            ui.send_message(WidgetMessage::visibility(
+                                self.v_scroll_bar,
+                                visibility,
+                            ));
+                        }
+                    } else if message.destination == self.h_scroll_bar
+                        && self.h_scroll_bar.is_some()
+                    {
+                        if let UINode::ScrollBar(scroll_bar) = ui.node(self.h_scroll_bar) {
+                            let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
+                                .abs()
+                                >= std::f32::EPSILON;
+                            ui.send_message(WidgetMessage::visibility(
+                                self.h_scroll_bar,
+                                visibility,
+                            ));
+                        }
+                    }
+                }
+                _ => (),
+            },
             UiMessageData::ScrollViewer(msg) => {
                 if message.destination == self.handle() {
                     if let ScrollViewerMessage::Content(content) = msg {
@@ -226,39 +225,44 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let content_presenter = ScrollPanelBuilder::new(WidgetBuilder::new()
-            .with_child(self.content)
-            .on_row(0)
-            .on_column(0))
-            .build(ctx);
+        let content_presenter = ScrollPanelBuilder::new(
+            WidgetBuilder::new()
+                .with_child(self.content)
+                .on_row(0)
+                .on_column(0),
+        )
+        .build(ctx);
 
         let v_scroll_bar = self.v_scroll_bar.unwrap_or_else(|| {
-            ScrollBarBuilder::new(WidgetBuilder::new()
-                .with_width(28.0))
+            ScrollBarBuilder::new(WidgetBuilder::new().with_width(28.0))
                 .with_orientation(Orientation::Vertical)
                 .build(ctx)
         });
         ctx[v_scroll_bar].set_row(0).set_column(1);
 
         let h_scroll_bar = self.h_scroll_bar.unwrap_or_else(|| {
-            ScrollBarBuilder::new(WidgetBuilder::new()
-                .with_height(28.0))
+            ScrollBarBuilder::new(WidgetBuilder::new().with_height(28.0))
                 .with_orientation(Orientation::Horizontal)
                 .build(ctx)
         });
         ctx[h_scroll_bar].set_row(1).set_column(0);
 
         let sv = ScrollViewer {
-            widget: self.widget_builder
-                .with_child(GridBuilder::new(WidgetBuilder::new()
-                    .with_child(content_presenter)
-                    .with_child(h_scroll_bar)
-                    .with_child(v_scroll_bar))
+            widget: self
+                .widget_builder
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_child(content_presenter)
+                            .with_child(h_scroll_bar)
+                            .with_child(v_scroll_bar),
+                    )
                     .add_row(Row::stretch())
                     .add_row(Row::auto())
                     .add_column(Column::stretch())
                     .add_column(Column::auto())
-                    .build(ctx))
+                    .build(ctx),
+                )
                 .build(),
             content: self.content,
             v_scroll_bar,

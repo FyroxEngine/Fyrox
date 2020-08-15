@@ -1,24 +1,11 @@
 use crate::{
     core::{
+        math::{vec2::Vec2, Rect},
         pool::Handle,
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
     },
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UserInterface,
-    Control,
-    UINode,
-    message::{
-        UiMessage,
-        UiMessageData,
-        ScrollPanelMessage
-    },
-    BuildContext,
+    message::{ScrollPanelMessage, UiMessage, UiMessageData},
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -101,8 +88,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollPanel<M, C>
         final_size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        self.widget.handle_routed_message( ui, message);
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
+        self.widget.handle_routed_message(ui, message);
 
         if message.destination == self.handle() {
             if let UiMessageData::ScrollPanel(msg) = &message.data {
@@ -110,11 +101,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollPanel<M, C>
                     ScrollPanelMessage::VerticalScroll(scroll) => {
                         self.scroll.y = scroll;
                         self.invalidate_layout();
-                    },
+                    }
                     ScrollPanelMessage::HorizontalScroll(scroll) => {
                         self.scroll.x = scroll;
                         self.invalidate_layout();
-                    },
+                    }
                 }
             }
         }

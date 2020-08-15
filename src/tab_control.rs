@@ -1,31 +1,12 @@
 use crate::{
-    core::{
-        pool::Handle,
-        color::Color,
-    },
-    UserInterface,
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    Control,
-    UINode,
     border::BorderBuilder,
-    button::ButtonBuilder,
-    grid::{
-        GridBuilder,
-        Column,
-        Row,
-    },
     brush::Brush,
-    message::{
-        ButtonMessage,
-        UiMessage,
-        UiMessageData,
-        WidgetMessage
-    },
-    NodeHandleMapping,
-    BuildContext,
+    button::ButtonBuilder,
+    core::{color::Color, pool::Handle},
+    grid::{Column, GridBuilder, Row},
+    message::{ButtonMessage, UiMessage, UiMessageData, WidgetMessage},
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, NodeHandleMapping, UINode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -68,13 +49,20 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> 
         }
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if let UiMessageData::Button(msg) = &message.data {
             if let ButtonMessage::Click = msg {
                 for (i, tab) in self.tabs.iter().enumerate() {
-                    if message.destination == tab.header_button && tab.header_button.is_some() && tab.content.is_some() {
+                    if message.destination == tab.header_button
+                        && tab.header_button.is_some()
+                        && tab.content.is_some()
+                    {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
                             ui.send_message(WidgetMessage::visibility(other_tab.content, j == i));
                         }
@@ -137,48 +125,49 @@ impl<M: 'static, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
             .into_iter()
             .enumerate()
             .map(|(i, header)| {
-                ButtonBuilder::new(WidgetBuilder::new()
-                    .on_column(i))
+                ButtonBuilder::new(WidgetBuilder::new().on_column(i))
                     .with_content(header)
                     .build(ctx)
-            }).collect::<Vec<Handle<UINode<M, C>>>>();
+            })
+            .collect::<Vec<Handle<UINode<M, C>>>>();
 
-        let headers_grid = GridBuilder::new(WidgetBuilder::new()
-            .with_children(&tab_buttons)
-            .on_row(0))
-            .add_row(Row::auto())
-            .add_columns((0..tab_count)
-                .map(|_| Column::auto())
-                .collect())
-            .build(ctx);
+        let headers_grid =
+            GridBuilder::new(WidgetBuilder::new().with_children(&tab_buttons).on_row(0))
+                .add_row(Row::auto())
+                .add_columns((0..tab_count).map(|_| Column::auto()).collect())
+                .build(ctx);
 
-        let content_grid = GridBuilder::new(WidgetBuilder::new()
-            .with_children(&content)
-            .on_row(1))
-            .build(ctx);
+        let content_grid =
+            GridBuilder::new(WidgetBuilder::new().with_children(&content).on_row(1)).build(ctx);
 
-        let grid = GridBuilder::new(WidgetBuilder::new()
-            .with_child(headers_grid)
-            .with_child(content_grid))
-            .add_column(Column::auto())
-            .add_row(Row::strict(30.0))
-            .add_row(Row::auto())
-            .build(ctx);
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(headers_grid)
+                .with_child(content_grid),
+        )
+        .add_column(Column::auto())
+        .add_row(Row::strict(30.0))
+        .add_row(Row::auto())
+        .build(ctx);
 
         let tc = TabControl {
-            widget: self.widget_builder
-                .with_child(BorderBuilder::new(WidgetBuilder::new()
-                    .with_background(Brush::Solid(Color::from_rgba(0, 0, 0, 0)))
-                    .with_child(grid))
-                    .build(ctx))
+            widget: self
+                .widget_builder
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_background(Brush::Solid(Color::from_rgba(0, 0, 0, 0)))
+                            .with_child(grid),
+                    )
+                    .build(ctx),
+                )
                 .build(),
-            tabs: tab_buttons.iter()
+            tabs: tab_buttons
+                .iter()
                 .zip(content)
-                .map(|(tab_button, content)| {
-                    Tab {
-                        header_button: *tab_button,
-                        content,
-                    }
+                .map(|(tab_button, content)| Tab {
+                    header_button: *tab_button,
+                    content,
                 })
                 .collect(),
         };

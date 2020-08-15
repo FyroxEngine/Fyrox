@@ -1,32 +1,18 @@
-use std::ops::{Deref, DerefMut};
 use crate::{
+    button::ButtonBuilder,
+    core::pool::Handle,
+    grid::{Column, GridBuilder, Row},
+    message::ButtonMessage,
     message::{
-        UiMessage,
-        UiMessageData,
-        TextBoxMessage,
-        WidgetMessage,
-        NumericUpDownMessage,
-        KeyCode,
+        KeyCode, NumericUpDownMessage, TextBoxMessage, UiMessage, UiMessageData, WidgetMessage,
     },
     node::UINode,
-    Control,
-    UserInterface,
-    widget::{Widget, WidgetBuilder},
-    core::pool::Handle,
-    NodeHandleMapping,
-    grid::{
-        GridBuilder,
-        Row,
-        Column,
-    },
     text_box::TextBoxBuilder,
-    button::ButtonBuilder,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UserInterface,
     VerticalAlignment,
-    HorizontalAlignment,
-    Thickness,
-    BuildContext,
-    message::ButtonMessage
 };
+use std::ops::{Deref, DerefMut};
 
 pub struct NumericUpDown<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
@@ -95,9 +81,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, 
         self.decrease = *node_map.get(&self.decrease).unwrap();
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
-
 
         match &message.data {
             UiMessageData::Widget(msg) => {
@@ -124,7 +113,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, 
                             // Sync text field.
                             ui.send_message(UiMessage {
                                 handled: false,
-                                data: UiMessageData::TextBox(TextBoxMessage::Text(self.value.to_string())),
+                                data: UiMessageData::TextBox(TextBoxMessage::Text(
+                                    self.value.to_string(),
+                                )),
                                 destination: self.field,
                             });
                         }
@@ -134,14 +125,18 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, 
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
                     if message.destination == self.decrease {
-                        let value = (self.value - self.step).min(self.max_value).max(self.min_value);
+                        let value = (self.value - self.step)
+                            .min(self.max_value)
+                            .max(self.min_value);
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
                             destination: self.handle(),
                         });
                     } else if message.destination == self.increase {
-                        let value = (self.value + self.step).min(self.max_value).max(self.min_value);
+                        let value = (self.value + self.step)
+                            .min(self.max_value)
+                            .max(self.min_value);
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
@@ -205,49 +200,55 @@ impl<M: 'static, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
         let increase;
         let decrease;
         let field;
-        let grid = GridBuilder::new(WidgetBuilder::new()
-            .with_child({
-                field = TextBoxBuilder::new(WidgetBuilder::new()
-                    .on_row(0)
-                    .on_column(0))
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                    .with_wrap(true)
-                    .with_text(self.value.to_string())
-                    .build(ctx);
-                field
-            })
-            .with_child(GridBuilder::new(WidgetBuilder::new()
-                .on_column(1)
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
                 .with_child({
-                    increase = ButtonBuilder::new(WidgetBuilder::new()
-                        .with_margin(Thickness::right(1.0))
-                        .on_row(0))
-                        .with_text("^")
+                    field = TextBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                        .with_wrap(true)
+                        .with_text(self.value.to_string())
                         .build(ctx);
-                    increase
+                    field
                 })
-                .with_child({
-                    decrease = ButtonBuilder::new(WidgetBuilder::new()
-                        .with_margin(Thickness::right(1.0))
-                        .on_row(1))
-                        .with_text("v")
-                        .build(ctx);
-                    decrease
-                }))
-                .add_column(Column::auto())
-                .add_row(Row::stretch())
-                .add_row(Row::stretch())
-                .build(ctx)))
-            .add_row(Row::stretch())
-            .add_column(Column::stretch())
-            .add_column(Column::auto())
-            .build(ctx);
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .on_column(1)
+                            .with_child({
+                                increase = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::right(1.0))
+                                        .on_row(0),
+                                )
+                                .with_text("^")
+                                .build(ctx);
+                                increase
+                            })
+                            .with_child({
+                                decrease = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::right(1.0))
+                                        .on_row(1),
+                                )
+                                .with_text("v")
+                                .build(ctx);
+                                decrease
+                            }),
+                    )
+                    .add_column(Column::auto())
+                    .add_row(Row::stretch())
+                    .add_row(Row::stretch())
+                    .build(ctx),
+                ),
+        )
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .build(ctx);
 
         let node = NumericUpDown {
-            widget: self.widget_builder
-                .with_child(grid)
-                .build(),
+            widget: self.widget_builder.with_child(grid).build(),
             increase,
             decrease,
             field,

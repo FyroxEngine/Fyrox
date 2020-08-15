@@ -1,25 +1,15 @@
 use crate::{
-    widget::{
-        Widget,
-        WidgetBuilder,
-    },
-    UINode,
-    Control,
     core::{
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
+        math::{vec2::Vec2, Rect},
         pool::Handle,
     },
     message::UiMessage,
-    Orientation,
-    BuildContext,
-    UserInterface
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, Orientation, UINode, UserInterface,
 };
 use std::{
-    ops::{Deref, DerefMut, Range},
     cell::RefCell,
+    ops::{Deref, DerefMut, Range},
 };
 
 pub struct WrapPanel<M: 'static, C: 'static + Control<M, C>> {
@@ -238,7 +228,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         full_size
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
     }
 }

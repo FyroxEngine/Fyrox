@@ -1,50 +1,26 @@
-use std::{
-    cmp,
-    sync::{Mutex, Arc},
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
 use crate::{
     brush::Brush,
     core::{
-        math::{
-            vec2::Vec2,
-            Rect,
-        },
-        pool::Handle,
         color::Color,
+        math::{vec2::Vec2, Rect},
+        pool::Handle,
     },
-    widget::{
-        WidgetBuilder,
-        Widget,
-    },
-    draw::{
-        DrawingContext,
-        CommandKind,
-    },
-    formatted_text::{
-        FormattedText,
-        FormattedTextBuilder,
-    },
-    UINode,
-    Control,
-    message::{
-        UiMessage,
-        UiMessageData,
-        MouseButton,
-        KeyCode,
-        WidgetMessage,
-        TextBoxMessage,
-    },
-    ttf::Font,
-    VerticalAlignment,
-    HorizontalAlignment,
     draw::CommandTexture,
-    BuildContext,
-    UserInterface
+    draw::{CommandKind, DrawingContext},
+    formatted_text::{FormattedText, FormattedTextBuilder},
+    message::{KeyCode, MouseButton, TextBoxMessage, UiMessage, UiMessageData, WidgetMessage},
+    ttf::Font,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
-use std::rc::Rc;
 use std::fmt::{Debug, Formatter};
+use std::rc::Rc;
+use std::{
+    cell::RefCell,
+    cmp,
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
@@ -117,9 +93,11 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
             caret_visible: false,
             blink_timer: 0.0,
             blink_interval: 0.0,
-            formatted_text: RefCell::new(FormattedTextBuilder::new()
-                .with_font(crate::DEFAULT_FONT.clone())
-                .build()),
+            formatted_text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_font(crate::DEFAULT_FONT.clone())
+                    .build(),
+            ),
             selection_range: None,
             selecting: false,
             has_focus: false,
@@ -207,7 +185,12 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 
     pub fn get_absolute_position(&self) -> Option<usize> {
-        if let Some(line) = self.formatted_text.borrow().get_lines().get(self.caret_line) {
+        if let Some(line) = self
+            .formatted_text
+            .borrow()
+            .get_lines()
+            .get(self.caret_line)
+        {
             Some(line.begin + cmp::min(self.caret_offset, line.len()))
         } else {
             None
@@ -225,7 +208,9 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
             self.move_caret_x(1, HorizontalDirection::Right);
             ui.send_message(UiMessage {
                 handled: false,
-                data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
+                data: UiMessageData::TextBox(TextBoxMessage::Text(
+                    self.formatted_text.borrow().text(),
+                )), // Requires allocation
                 destination: self.handle(),
             });
         }
@@ -258,7 +243,9 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
 
                 ui.send_message(UiMessage {
                     handled: false,
-                    data: UiMessageData::TextBox(TextBoxMessage::Text(self.formatted_text.borrow().text())), // Requires allocation
+                    data: UiMessageData::TextBox(TextBoxMessage::Text(
+                        self.formatted_text.borrow().text(),
+                    )), // Requires allocation
                     destination: self.handle(),
                 });
 
@@ -274,15 +261,23 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
         if let Some(font) = self.formatted_text.borrow().get_font() {
             let font = font.lock().unwrap();
             for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
-                let line_bounds =
-                    Rect::new(caret_pos.x + line.x_offset, caret_pos.y, line.width, font.get_ascender());
+                let line_bounds = Rect::new(
+                    caret_pos.x + line.x_offset,
+                    caret_pos.y,
+                    line.width,
+                    font.get_ascender(),
+                );
                 if line_bounds.contains(screen_pos.x, screen_pos.y) {
                     let mut x = line_bounds.x;
                     // Check each character in line.
                     for (offset, index) in (line.begin..line.end).enumerate() {
                         let symbol = self.formatted_text.borrow().get_raw_text()[index];
                         let (width, height, advance) = if let Some(glyph) = font.get_glyph(symbol) {
-                            (glyph.get_bitmap_width(), glyph.get_bitmap_height(), glyph.get_advance())
+                            (
+                                glyph.get_bitmap_width(),
+                                glyph.get_bitmap_height(),
+                                glyph.get_advance(),
+                            )
                         } else {
                             // Stub
                             let h = font.get_height();
@@ -290,7 +285,10 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
                         };
                         let char_bounds = Rect::new(x, line_bounds.y, width, height);
                         if char_bounds.contains(screen_pos.x, screen_pos.y) {
-                            return Some(Position { line: line_index, offset });
+                            return Some(Position {
+                                line: line_index,
+                                offset,
+                            });
                         }
                         x += advance;
                     }
@@ -303,52 +301,45 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
 
     pub fn set_text<P: AsRef<str>>(&mut self, text: P) -> &mut Self {
         let mut equals = false;
-        for (&new, old) in self.formatted_text.borrow().get_raw_text().iter().zip(text.as_ref().chars()) {
+        for (&new, old) in self
+            .formatted_text
+            .borrow()
+            .get_raw_text()
+            .iter()
+            .zip(text.as_ref().chars())
+        {
             if old as u32 != new {
                 equals = false;
                 break;
             }
         }
         if !equals {
-            self.formatted_text
-                .borrow_mut()
-                .set_text(text);
+            self.formatted_text.borrow_mut().set_text(text);
             self.invalidate_layout();
         }
         self
     }
 
     pub fn text(&self) -> String {
-        self.formatted_text
-            .borrow()
-            .text()
+        self.formatted_text.borrow().text()
     }
 
     pub fn set_wrap(&mut self, wrap: bool) -> &mut Self {
-        self.formatted_text
-            .borrow_mut()
-            .set_wrap(wrap);
+        self.formatted_text.borrow_mut().set_wrap(wrap);
         self
     }
 
     pub fn is_wrap(&self) -> bool {
-        self.formatted_text
-            .borrow()
-            .is_wrap()
+        self.formatted_text.borrow().is_wrap()
     }
 
     pub fn set_font(&mut self, font: Arc<Mutex<Font>>) -> &mut Self {
-        self.formatted_text
-            .borrow_mut()
-            .set_font(font);
+        self.formatted_text.borrow_mut().set_font(font);
         self
     }
 
     pub fn font(&self) -> Arc<Mutex<Font>> {
-        self.formatted_text
-            .borrow()
-            .get_font()
-            .unwrap()
+        self.formatted_text.borrow().get_font().unwrap()
     }
 
     pub fn set_vertical_alignment(&mut self, valign: VerticalAlignment) -> &mut Self {
@@ -359,9 +350,7 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 
     pub fn vertical_alignment(&self) -> VerticalAlignment {
-        self.formatted_text
-            .borrow()
-            .vertical_alignment()
+        self.formatted_text.borrow().vertical_alignment()
     }
 
     pub fn set_horizontal_alignment(&mut self, halign: HorizontalAlignment) -> &mut Self {
@@ -372,9 +361,7 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
-        self.formatted_text
-            .borrow()
-            .horizontal_alignment()
+        self.formatted_text.borrow().horizontal_alignment()
     }
 }
 
@@ -387,8 +374,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
             caret_visible: self.caret_visible,
             blink_timer: self.blink_timer,
             blink_interval: self.blink_interval,
-            formatted_text: RefCell::new(FormattedTextBuilder::new()
-                .with_font(self.formatted_text.borrow().get_font().unwrap()).build()),
+            formatted_text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_font(self.formatted_text.borrow().get_font().unwrap())
+                    .build(),
+            ),
             selection_range: self.selection_range,
             selecting: self.selecting,
             selection_brush: self.selection_brush.clone(),
@@ -408,7 +398,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);
-        drawing_context.commit(CommandKind::Geometry, self.widget.background(), CommandTexture::None);
+        drawing_context.commit(
+            CommandKind::Geometry,
+            self.widget.background(),
+            CommandTexture::None,
+        );
 
         self.formatted_text
             .borrow_mut()
@@ -426,42 +420,60 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                 // Begin line
                 let offset = text.get_range_width(line.begin..(line.begin + begin));
                 let width = text.get_range_width((line.begin + begin)..(line.begin + end));
-                let bounds = Rect::new(bounds.x + line.x_offset + offset,
-                                       bounds.y + line.y_offset,
-                                       width,
-                                       line.height);
+                let bounds = Rect::new(
+                    bounds.x + line.x_offset + offset,
+                    bounds.y + line.y_offset,
+                    width,
+                    line.height,
+                );
                 drawing_context.push_rect_filled(&bounds, None);
             } else {
                 for (i, line) in text.get_lines().iter().enumerate() {
                     if i >= selection_range.begin.line && i <= selection_range.end.line {
                         let bounds = if i == selection_range.begin.line {
                             // Begin line
-                            let offset = text.get_range_width(line.begin..(line.begin + selection_range.begin.offset));
-                            let width = text.get_range_width((line.begin + selection_range.begin.offset)..line.end);
-                            Rect::new(bounds.x + line.x_offset + offset,
-                                      bounds.y + line.y_offset,
-                                      width,
-                                      line.height)
+                            let offset = text.get_range_width(
+                                line.begin..(line.begin + selection_range.begin.offset),
+                            );
+                            let width = text.get_range_width(
+                                (line.begin + selection_range.begin.offset)..line.end,
+                            );
+                            Rect::new(
+                                bounds.x + line.x_offset + offset,
+                                bounds.y + line.y_offset,
+                                width,
+                                line.height,
+                            )
                         } else if i == selection_range.end.line {
                             // End line
-                            let width = text.get_range_width(line.begin..(line.begin + selection_range.end.offset));
-                            Rect::new(bounds.x + line.x_offset,
-                                      bounds.y + line.y_offset,
-                                      width,
-                                      line.height)
+                            let width = text.get_range_width(
+                                line.begin..(line.begin + selection_range.end.offset),
+                            );
+                            Rect::new(
+                                bounds.x + line.x_offset,
+                                bounds.y + line.y_offset,
+                                width,
+                                line.height,
+                            )
                         } else {
                             // Everything between
-                            Rect::new(bounds.x + line.x_offset,
-                                      bounds.y + line.y_offset,
-                                      line.width,
-                                      line.height)
+                            Rect::new(
+                                bounds.x + line.x_offset,
+                                bounds.y + line.y_offset,
+                                line.width,
+                                line.height,
+                            )
                         };
                         drawing_context.push_rect_filled(&bounds, None);
                     }
                 }
             }
         }
-        drawing_context.commit(CommandKind::Geometry, self.selection_brush.clone(), CommandTexture::None);
+        drawing_context.commit(
+            CommandKind::Geometry,
+            self.selection_brush.clone(),
+            CommandTexture::None,
+        );
 
         let screen_position = Vec2::new(bounds.x, bounds.y);
         drawing_context.draw_text(screen_position, &self.formatted_text.borrow());
@@ -474,7 +486,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
                     let text = text.get_raw_text();
                     let mut caret_pos = Vec2::new(
                         screen_position.x + line.x_offset,
-                        screen_position.y + line.y_offset + self.caret_line as f32 * font.get_ascender(),
+                        screen_position.y
+                            + line.y_offset
+                            + self.caret_line as f32 * font.get_ascender(),
                     );
                     for (offset, char_index) in (line.begin..line.end).enumerate() {
                         if offset >= self.caret_offset {
@@ -489,7 +503,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
 
                     let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.get_height());
                     drawing_context.push_rect_filled(&caret_bounds, None);
-                    drawing_context.commit(CommandKind::Geometry, self.caret_brush.clone(), CommandTexture::None);
+                    drawing_context.commit(
+                        CommandKind::Geometry,
+                        self.caret_brush.clone(),
+                        CommandTexture::None,
+                    );
                 }
             }
         }
@@ -507,89 +525,89 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
         }
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination == self.handle() {
             match &message.data {
-                UiMessageData::Widget(msg) => {
-                    match msg {
-                        &WidgetMessage::Text(symbol) => {
-                            let insert = if let Some(filter) = self.filter.as_ref() {
-                                let filter = &mut *filter.borrow_mut();
-                                filter(symbol)
-                            } else {
-                                true
-                            };
-                            if insert {
-                                self.insert_char(symbol, ui);
-                            }
+                UiMessageData::Widget(msg) => match msg {
+                    &WidgetMessage::Text(symbol) => {
+                        let insert = if let Some(filter) = self.filter.as_ref() {
+                            let filter = &mut *filter.borrow_mut();
+                            filter(symbol)
+                        } else {
+                            true
+                        };
+                        if insert {
+                            self.insert_char(symbol, ui);
                         }
-                        WidgetMessage::KeyDown(code) => {
-                            match code {
-                                KeyCode::Up => {
-                                    self.move_caret_y(1, VerticalDirection::Up);
-                                }
-                                KeyCode::Down => {
-                                    self.move_caret_y(1, VerticalDirection::Down);
-                                }
-                                KeyCode::Right => {
-                                    self.move_caret_x(1, HorizontalDirection::Right);
-                                }
-                                KeyCode::Left => {
-                                    self.move_caret_x(1, HorizontalDirection::Left);
-                                }
-                                KeyCode::Delete => {
-                                    self.remove_char(HorizontalDirection::Right, ui);
-                                }
-                                KeyCode::Backspace => {
-                                    self.remove_char(HorizontalDirection::Left, ui);
-                                }
-                                _ => ()
-                            }
-                        }
-                        WidgetMessage::GotFocus => {
-                            self.reset_blink();
-                            self.has_focus = true;
-                        }
-                        WidgetMessage::LostFocus => {
-                            self.has_focus = false;
-                        }
-                        WidgetMessage::MouseDown { pos, button } => {
-                            if *button == MouseButton::Left {
-                                self.selection_range = None;
-                                self.selecting = true;
-
-                                if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                    self.caret_line = position.line;
-                                    self.caret_offset = position.offset;
-
-                                    self.selection_range = Some(SelectionRange {
-                                        begin: position,
-                                        end: position,
-                                    })
-                                }
-
-                                ui.capture_mouse(self.handle());
-                            }
-                        }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            if self.selecting {
-                                if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                    if let Some(ref mut sel_range) = self.selection_range {
-                                        sel_range.end = position;
-                                    }
-                                }
-                            }
-                        }
-                        WidgetMessage::MouseUp { .. } => {
-                            self.selecting = false;
-
-                            ui.release_mouse_capture();
-                        }
-                        _ => {}
                     }
-                }
+                    WidgetMessage::KeyDown(code) => match code {
+                        KeyCode::Up => {
+                            self.move_caret_y(1, VerticalDirection::Up);
+                        }
+                        KeyCode::Down => {
+                            self.move_caret_y(1, VerticalDirection::Down);
+                        }
+                        KeyCode::Right => {
+                            self.move_caret_x(1, HorizontalDirection::Right);
+                        }
+                        KeyCode::Left => {
+                            self.move_caret_x(1, HorizontalDirection::Left);
+                        }
+                        KeyCode::Delete => {
+                            self.remove_char(HorizontalDirection::Right, ui);
+                        }
+                        KeyCode::Backspace => {
+                            self.remove_char(HorizontalDirection::Left, ui);
+                        }
+                        _ => (),
+                    },
+                    WidgetMessage::GotFocus => {
+                        self.reset_blink();
+                        self.has_focus = true;
+                    }
+                    WidgetMessage::LostFocus => {
+                        self.has_focus = false;
+                    }
+                    WidgetMessage::MouseDown { pos, button } => {
+                        if *button == MouseButton::Left {
+                            self.selection_range = None;
+                            self.selecting = true;
+
+                            if let Some(position) = self.screen_pos_to_text_pos(*pos) {
+                                self.caret_line = position.line;
+                                self.caret_offset = position.offset;
+
+                                self.selection_range = Some(SelectionRange {
+                                    begin: position,
+                                    end: position,
+                                })
+                            }
+
+                            ui.capture_mouse(self.handle());
+                        }
+                    }
+                    WidgetMessage::MouseMove { pos, .. } => {
+                        if self.selecting {
+                            if let Some(position) = self.screen_pos_to_text_pos(*pos) {
+                                if let Some(ref mut sel_range) = self.selection_range {
+                                    sel_range.end = position;
+                                }
+                            }
+                        }
+                    }
+                    WidgetMessage::MouseUp { .. } => {
+                        self.selecting = false;
+
+                        ui.release_mouse_capture();
+                    }
+                    _ => {}
+                },
                 UiMessageData::TextBox(msg) => {
                     if let TextBoxMessage::Text(new_text) = msg {
                         self.set_text(new_text);
@@ -683,13 +701,15 @@ impl<M: 'static, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
             caret_visible: false,
             blink_timer: 0.0,
             blink_interval: 0.5,
-            formatted_text: RefCell::new(FormattedTextBuilder::new()
-                .with_text(self.text)
-                .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
-                .with_horizontal_alignment(self.horizontal_alignment)
-                .with_vertical_alignment(self.vertical_alignment)
-                .with_wrap(self.wrap)
-                .build()),
+            formatted_text: RefCell::new(
+                FormattedTextBuilder::new()
+                    .with_text(self.text)
+                    .with_font(self.font.unwrap_or_else(|| crate::DEFAULT_FONT.clone()))
+                    .with_horizontal_alignment(self.horizontal_alignment)
+                    .with_vertical_alignment(self.vertical_alignment)
+                    .with_wrap(self.wrap)
+                    .build(),
+            ),
             selection_range: None,
             selecting: false,
             selection_brush: self.selection_brush,

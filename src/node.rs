@@ -1,16 +1,26 @@
 use crate::{
-    popup::Popup,
-    message::{
-        UiMessage,
-        OsEvent,
-    },
-    draw::DrawingContext,
-    image::Image,
-    grid::Grid,
-    check_box::CheckBox,
-    canvas::Canvas,
-    button::Button,
     border::Border,
+    button::Button,
+    canvas::Canvas,
+    check_box::CheckBox,
+    core::{
+        math::{vec2::Vec2, Rect},
+        pool::Handle,
+    },
+    decorator::Decorator,
+    dock::{DockingManager, Tile},
+    draw::DrawingContext,
+    dropdown_list::DropdownList,
+    file_browser::FileBrowser,
+    grid::Grid,
+    image::Image,
+    list_view::{ListView, ListViewItem},
+    menu::{Menu, MenuItem},
+    message::{OsEvent, UiMessage},
+    messagebox::MessageBox,
+    numeric::NumericUpDown,
+    popup::Popup,
+    progress_bar::ProgressBar,
     scroll_bar::ScrollBar,
     scroll_panel::ScrollPanel,
     scroll_viewer::ScrollViewer,
@@ -18,42 +28,12 @@ use crate::{
     tab_control::TabControl,
     text::Text,
     text_box::TextBox,
-    window::Window,
-    Control,
-    UserInterface,
-    widget::Widget,
-    core::{
-        math::{
-            Rect,
-            vec2::Vec2,
-        },
-        pool::Handle,
-    },
-    dropdown_list::DropdownList,
-    list_view::{
-        ListView,
-        ListViewItem,
-    },
-    decorator::Decorator,
-    NodeHandleMapping,
-    progress_bar::ProgressBar,
-    tree::{
-        Tree,
-        TreeRoot,
-    },
-    file_browser::FileBrowser,
-    dock::{
-        DockingManager,
-        Tile,
-    },
+    tree::{Tree, TreeRoot},
     vec::Vec3Editor,
-    numeric::NumericUpDown,
-    menu::{
-        Menu,
-        MenuItem,
-    },
-    messagebox::MessageBox,
+    widget::Widget,
+    window::Window,
     wrap_panel::WrapPanel,
+    Control, NodeHandleMapping, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -218,7 +198,11 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, update, dt)
     }
 
-    fn handle_routed_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
         static_dispatch!(self, handle_routed_message, ui, message)
     }
 
@@ -226,7 +210,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, preview_message, ui, message)
     }
 
-    fn handle_os_event(&mut self, self_handle: Handle<UINode<M, C>>, ui: &mut UserInterface<M, C>, event: &OsEvent) {
+    fn handle_os_event(
+        &mut self,
+        self_handle: Handle<UINode<M, C>>,
+        ui: &mut UserInterface<M, C>,
+        event: &OsEvent,
+    ) {
         static_dispatch!(self, handle_os_event, self_handle, ui, event)
     }
 
@@ -243,7 +232,11 @@ impl Control<(), StubNode> for StubNode {
         unimplemented!()
     }
 
-    fn handle_routed_message(&mut self, _: &mut UserInterface<(), StubNode>, _: &mut UiMessage<(), StubNode>) {
+    fn handle_routed_message(
+        &mut self,
+        _: &mut UserInterface<(), StubNode>,
+        _: &mut UiMessage<(), StubNode>,
+    ) {
         unimplemented!()
     }
 }
