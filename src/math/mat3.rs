@@ -1,31 +1,33 @@
-use crate::math::vec3::Vec3;
 use crate::math::quat::Quat;
+use crate::math::vec3::Vec3;
 
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Mat3 {
-    pub f: [f32; 9]
+    pub f: [f32; 9],
 }
 
 impl Mat3 {
     pub fn identity() -> Self {
         Self {
-            f: [1.0, 0.0, 0.0,
-                0.0, 1.0, 0.0,
-                0.0, 0.0, 1.0]
+            f: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
         }
     }
 
     pub fn from_vectors(xaxis: Vec3, yaxis: Vec3, zaxis: Vec3) -> Self {
-        let xaxis = xaxis.normalized().unwrap_or_else(|| Vec3::new(1.0, 0.0, 0.0));
-        let yaxis = yaxis.normalized().unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
-        let zaxis = zaxis.normalized().unwrap_or_else(|| Vec3::new(0.0, 0.0, 1.0));
+        let xaxis = xaxis
+            .normalized()
+            .unwrap_or_else(|| Vec3::new(1.0, 0.0, 0.0));
+        let yaxis = yaxis
+            .normalized()
+            .unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
+        let zaxis = zaxis
+            .normalized()
+            .unwrap_or_else(|| Vec3::new(0.0, 0.0, 1.0));
         Self {
             f: [
-                xaxis.x, yaxis.x, zaxis.x,
-                xaxis.y, yaxis.y, zaxis.y,
-                xaxis.z, yaxis.z, zaxis.z,
-            ]
+                xaxis.x, yaxis.x, zaxis.x, xaxis.y, yaxis.y, zaxis.y, xaxis.z, yaxis.z, zaxis.z,
+            ],
         }
     }
 
@@ -50,10 +52,18 @@ impl Mat3 {
 
         Self {
             f: {
-                [1.0 - (yy + zz), xy + wz, xz - wy,
-                    xy - wz, 1.0 - (xx + zz), yz + wx,
-                    xz + wy, yz - wx, 1.0 - (xx + yy)]
-            }
+                [
+                    1.0 - (yy + zz),
+                    xy + wz,
+                    xz - wy,
+                    xy - wz,
+                    1.0 - (xx + zz),
+                    yz + wx,
+                    xz + wy,
+                    yz - wx,
+                    1.0 - (xx + yy),
+                ]
+            },
         }
     }
 

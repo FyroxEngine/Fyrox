@@ -1,22 +1,23 @@
 use crate::{
-    math::{
-        mat4::Mat4,
-        plane::Plane,
-        vec3::Vec3,
-        aabb::AxisAlignedBoundingBox,
-    },
-    visitor::{Visit, Visitor, VisitResult}
+    math::{aabb::AxisAlignedBoundingBox, mat4::Mat4, plane::Plane, vec3::Vec3},
+    visitor::{Visit, VisitResult, Visitor},
 };
 
 #[derive(Copy, Clone)]
 pub struct Frustum {
     /// 0 - left, 1 - right, 2 - top, 3 - bottom, 4 - far, 5 - near
-    planes: [Plane; 6]
+    planes: [Plane; 6],
 }
 
 impl Default for Frustum {
     fn default() -> Self {
-        Self::from(Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, 1024.0)).unwrap()
+        Self::from(Mat4::perspective(
+            std::f32::consts::FRAC_PI_2,
+            1.0,
+            0.01,
+            1024.0,
+        ))
+        .unwrap()
     }
 }
 
@@ -24,13 +25,43 @@ impl Frustum {
     pub fn from(m: Mat4) -> Result<Self, ()> {
         Ok(Self {
             planes: [
-                Plane::from_abcd(m.f[3] + m.f[0], m.f[7] + m.f[4], m.f[11] + m.f[8], m.f[15] + m.f[12])?,
-                Plane::from_abcd(m.f[3] - m.f[0], m.f[7] - m.f[4], m.f[11] - m.f[8], m.f[15] - m.f[12])?,
-                Plane::from_abcd(m.f[3] - m.f[1], m.f[7] - m.f[5], m.f[11] - m.f[9], m.f[15] - m.f[13])?,
-                Plane::from_abcd(m.f[3] + m.f[1], m.f[7] + m.f[5], m.f[11] + m.f[9], m.f[15] + m.f[13])?,
-                Plane::from_abcd(m.f[3] - m.f[2], m.f[7] - m.f[6], m.f[11] - m.f[10], m.f[15] - m.f[14])?,
-                Plane::from_abcd(m.f[3] + m.f[2], m.f[7] + m.f[6], m.f[11] + m.f[10], m.f[15] + m.f[14])?,
-            ]
+                Plane::from_abcd(
+                    m.f[3] + m.f[0],
+                    m.f[7] + m.f[4],
+                    m.f[11] + m.f[8],
+                    m.f[15] + m.f[12],
+                )?,
+                Plane::from_abcd(
+                    m.f[3] - m.f[0],
+                    m.f[7] - m.f[4],
+                    m.f[11] - m.f[8],
+                    m.f[15] - m.f[12],
+                )?,
+                Plane::from_abcd(
+                    m.f[3] - m.f[1],
+                    m.f[7] - m.f[5],
+                    m.f[11] - m.f[9],
+                    m.f[15] - m.f[13],
+                )?,
+                Plane::from_abcd(
+                    m.f[3] + m.f[1],
+                    m.f[7] + m.f[5],
+                    m.f[11] + m.f[9],
+                    m.f[15] + m.f[13],
+                )?,
+                Plane::from_abcd(
+                    m.f[3] - m.f[2],
+                    m.f[7] - m.f[6],
+                    m.f[11] - m.f[10],
+                    m.f[15] - m.f[14],
+                )?,
+                Plane::from_abcd(
+                    m.f[3] + m.f[2],
+                    m.f[7] + m.f[6],
+                    m.f[11] + m.f[10],
+                    m.f[15] + m.f[14],
+                )?,
+            ],
         })
     }
 
@@ -155,7 +186,11 @@ impl Frustum {
         self.is_intersects_point_cloud(&corners)
     }
 
-    pub fn is_intersects_aabb_transform(&self, aabb: &AxisAlignedBoundingBox, transform: &Mat4) -> bool {
+    pub fn is_intersects_aabb_transform(
+        &self,
+        aabb: &AxisAlignedBoundingBox,
+        transform: &Mat4,
+    ) -> bool {
         let corners = [
             transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z)),
             transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z)),

@@ -1,8 +1,8 @@
+use crate::math::mat4::Mat4;
 use crate::{
     math::vec3::Vec3,
-    visitor::{Visit, Visitor, VisitResult}
+    visitor::{Visit, VisitResult, Visitor},
 };
-use crate::math::mat4::Mat4;
 
 #[derive(Copy, Clone, Debug)]
 pub struct AxisAlignedBoundingBox {
@@ -14,20 +14,17 @@ impl Default for AxisAlignedBoundingBox {
     fn default() -> Self {
         Self {
             min: Vec3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
-            max: Vec3::new(-std::f32::MAX, -std::f32::MAX, -std::f32::MAX)
+            max: Vec3::new(-std::f32::MAX, -std::f32::MAX, -std::f32::MAX),
         }
     }
 }
 
 impl AxisAlignedBoundingBox {
-    pub const UNIT: AxisAlignedBoundingBox = AxisAlignedBoundingBox::from_min_max(
-        Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5));
+    pub const UNIT: AxisAlignedBoundingBox =
+        AxisAlignedBoundingBox::from_min_max(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5));
 
     pub const fn from_min_max(min: Vec3, max: Vec3) -> Self {
-        Self {
-            min,
-            max,
-        }
+        Self { min, max }
     }
 
     pub fn from_points(points: &[Vec3]) -> Self {
@@ -91,9 +88,12 @@ impl AxisAlignedBoundingBox {
     }
 
     pub fn is_contains_point(&self, point: Vec3) -> bool {
-        point.x >= self.min.x && point.x <= self.max.x &&
-            point.y >= self.min.y && point.y <= self.max.y &&
-            point.z >= self.min.z && point.z <= self.max.z
+        point.x >= self.min.x
+            && point.x <= self.max.x
+            && point.y >= self.min.y
+            && point.y <= self.max.y
+            && point.z >= self.min.z
+            && point.z <= self.max.z
     }
 
     pub fn is_intersects_sphere(&self, position: Vec3, radius: f32) -> bool {
@@ -118,9 +118,13 @@ impl AxisAlignedBoundingBox {
             dmin += (position.z - self.max.z).powi(2);
         }
 
-        dmin <= r2 ||
-            ((position.x >= self.min.x) && (position.x <= self.max.x) && (position.y >= self.min.y) &&
-                (position.y <= self.max.y) && (position.z >= self.min.z) && (position.z <= self.max.z))
+        dmin <= r2
+            || ((position.x >= self.min.x)
+                && (position.x <= self.max.x)
+                && (position.y >= self.min.y)
+                && (position.y <= self.max.y)
+                && (position.z >= self.min.z)
+                && (position.z <= self.max.z))
     }
 
     pub fn intersect_aabb(&self, other: &Self) -> bool {

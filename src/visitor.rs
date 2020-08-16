@@ -1,33 +1,25 @@
-use std::{
-    rc::{Rc},
-    collections::HashMap,
-    fs::File,
-    any::Any,
-    path::{Path, PathBuf},
-    cell::{RefCell, Cell},
-    io::{Write, Read, BufReader, BufWriter},
-    string::FromUtf8Error,
-    fmt::{Display, Formatter},
-    sync::{Arc, Mutex},
-    hash::Hash,
-    collections::hash_map::Entry
-};
-use byteorder::{
-    ReadBytesExt,
-    WriteBytesExt,
-    LittleEndian,
-};
-use crate::{
-    math::{
-        vec3::Vec3,
-        quat::Quat,
-        mat4::Mat4,
-    },
-    pool::{Handle, Pool},
-};
 use crate::math::mat3::Mat3;
 use crate::math::vec2::Vec2;
 use crate::math::vec4::Vec4;
+use crate::{
+    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
+    pool::{Handle, Pool},
+};
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::{
+    any::Any,
+    cell::{Cell, RefCell},
+    collections::hash_map::Entry,
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    fs::File,
+    hash::Hash,
+    io::{BufReader, BufWriter, Read, Write},
+    path::{Path, PathBuf},
+    rc::Rc,
+    string::FromUtf8Error,
+    sync::{Arc, Mutex},
+};
 
 pub enum FieldKind {
     Bool(bool),
@@ -64,9 +56,7 @@ impl FieldKind {
             FieldKind::I64(data) => format!("<i64 = {}>, ", data),
             FieldKind::F32(data) => format!("<f32 = {}>, ", data),
             FieldKind::F64(data) => format!("<f64 = {}>, ", data),
-            FieldKind::Vec3(data) => {
-                format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z)
-            }
+            FieldKind::Vec3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
             FieldKind::Quat(data) => {
                 format!("<quat = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
@@ -80,7 +70,7 @@ impl FieldKind {
             FieldKind::Data(data) => {
                 let out = match String::from_utf8(data.clone()) {
                     Ok(s) => s,
-                    Err(_) => base64::encode(data)
+                    Err(_) => base64::encode(data),
                 };
                 format!("<data = {}>, ", out)
             }
@@ -91,9 +81,7 @@ impl FieldKind {
                 }
                 out
             }
-            FieldKind::Vec2(data) => {
-                format!("<vec2 = {}; {}>, ", data.x, data.y)
-            },
+            FieldKind::Vec2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
             FieldKind::Vec4(data) => {
                 format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
@@ -127,7 +115,7 @@ macro_rules! impl_field_data (($type_name:ty, $($kind:tt)*) => {
 /// Proxy struct for plain data, we can't use Vec<u8> directly,
 /// because it will serialize each byte as separate node.
 pub struct Data<'a> {
-    vec: &'a mut Vec<u8>
+    vec: &'a mut Vec<u8>,
 }
 
 impl_field_data!(u64, FieldKind::U64);
@@ -148,7 +136,10 @@ impl_field_data!(Mat3, FieldKind::Mat3);
 impl_field_data!(Vec2, FieldKind::Vec2);
 impl_field_data!(Vec4, FieldKind::Vec4);
 
-impl<T> Visit for T where T: FieldData + 'static {
+impl<T> Visit for T
+where
+    T: FieldData + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.reading {
             if let Some(field) = visitor.find_field(name) {
@@ -175,7 +166,7 @@ impl<'a> Visit for Data<'a> {
                         *self.vec = data.clone();
                         Ok(())
                     }
-                    _ => Err(VisitError::FieldTypeDoesNotMatch)
+                    _ => Err(VisitError::FieldTypeDoesNotMatch),
                 }
             } else {
                 Err(VisitError::FieldDoesNotExist(name.to_owned()))
@@ -184,7 +175,8 @@ impl<'a> Visit for Data<'a> {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
         } else {
             let node = visitor.current_node();
-            node.fields.push(Field::new(name, FieldKind::Data(self.vec.clone())));
+            node.fields
+                .push(Field::new(name, FieldKind::Data(self.vec.clone())));
             Ok(())
         }
     }
@@ -219,7 +211,9 @@ impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             VisitError::Io(io) => write!(f, "io error: {}", io),
-            VisitError::UnknownFieldType(type_index) => write!(f, "unknown field type {}", type_index),
+            VisitError::UnknownFieldType(type_index) => {
+                write!(f, "unknown field type {}", type_index)
+            }
             VisitError::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
             VisitError::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
             VisitError::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
@@ -230,7 +224,9 @@ impl Display for VisitError {
             VisitError::NotSupportedFormat => write!(f, "not supported format"),
             VisitError::InvalidName => write!(f, "invalid name"),
             VisitError::TypeMismatch => write!(f, "type mismatch"),
-            VisitError::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
+            VisitError::RefCellAlreadyMutableBorrowed => {
+                write!(f, "ref cell already mutable borrowed")
+            }
             VisitError::User(msg) => write!(f, "user defined error: {}", msg),
             VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
             VisitError::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
@@ -373,66 +369,69 @@ impl Field {
         unsafe { raw_name.set_len(name_len) };
         file.read_exact(raw_name.as_mut_slice())?;
         let id = file.read_u8()?;
-        Ok(Field::new(String::from_utf8(raw_name)?.as_str(), match id {
-            1 => FieldKind::U8(file.read_u8()?),
-            2 => FieldKind::I8(file.read_i8()?),
-            3 => FieldKind::U16(file.read_u16::<LittleEndian>()?),
-            4 => FieldKind::I16(file.read_i16::<LittleEndian>()?),
-            5 => FieldKind::U32(file.read_u32::<LittleEndian>()?),
-            6 => FieldKind::I32(file.read_i32::<LittleEndian>()?),
-            7 => FieldKind::U64(file.read_u64::<LittleEndian>()?),
-            8 => FieldKind::I64(file.read_i64::<LittleEndian>()?),
-            9 => FieldKind::F32(file.read_f32::<LittleEndian>()?),
-            10 => FieldKind::F64(file.read_f64::<LittleEndian>()?),
-            11 => FieldKind::Vec3({
-                let x = file.read_f32::<LittleEndian>()?;
-                let y = file.read_f32::<LittleEndian>()?;
-                let z = file.read_f32::<LittleEndian>()?;
-                Vec3 { x, y, z }
-            }),
-            12 => FieldKind::Quat({
-                let x = file.read_f32::<LittleEndian>()?;
-                let y = file.read_f32::<LittleEndian>()?;
-                let z = file.read_f32::<LittleEndian>()?;
-                let w = file.read_f32::<LittleEndian>()?;
-                Quat { x, y, z, w }
-            }),
-            13 => FieldKind::Mat4({
-                let mut f = [0.0f32; 16];
-                for n in &mut f {
-                    *n = file.read_f32::<LittleEndian>()?;
-                }
-                Mat4 { f }
-            }),
-            14 => FieldKind::Data({
-                let len = file.read_u32::<LittleEndian>()? as usize;
-                let mut vec = Vec::with_capacity(len);
-                unsafe { vec.set_len(len) };
-                file.read_exact(vec.as_mut_slice())?;
-                vec
-            }),
-            15 => FieldKind::Bool(file.read_u8()? != 0),
-            16 => FieldKind::Mat3({
-                let mut f = [0.0f32; 9];
-                for n in &mut f {
-                    *n = file.read_f32::<LittleEndian>()?;
-                }
-                Mat3 { f }
-            }),
-            17 => FieldKind::Vec2({
-                let x = file.read_f32::<LittleEndian>()?;
-                let y = file.read_f32::<LittleEndian>()?;
-                Vec2 { x, y }
-            }),
-            18 => FieldKind::Vec4({
-                let x = file.read_f32::<LittleEndian>()?;
-                let y = file.read_f32::<LittleEndian>()?;
-                let z = file.read_f32::<LittleEndian>()?;
-                let w = file.read_f32::<LittleEndian>()?;
-                Vec4 { x, y, z, w }
-            }),
-            _ => return Err(VisitError::UnknownFieldType(id))
-        }))
+        Ok(Field::new(
+            String::from_utf8(raw_name)?.as_str(),
+            match id {
+                1 => FieldKind::U8(file.read_u8()?),
+                2 => FieldKind::I8(file.read_i8()?),
+                3 => FieldKind::U16(file.read_u16::<LittleEndian>()?),
+                4 => FieldKind::I16(file.read_i16::<LittleEndian>()?),
+                5 => FieldKind::U32(file.read_u32::<LittleEndian>()?),
+                6 => FieldKind::I32(file.read_i32::<LittleEndian>()?),
+                7 => FieldKind::U64(file.read_u64::<LittleEndian>()?),
+                8 => FieldKind::I64(file.read_i64::<LittleEndian>()?),
+                9 => FieldKind::F32(file.read_f32::<LittleEndian>()?),
+                10 => FieldKind::F64(file.read_f64::<LittleEndian>()?),
+                11 => FieldKind::Vec3({
+                    let x = file.read_f32::<LittleEndian>()?;
+                    let y = file.read_f32::<LittleEndian>()?;
+                    let z = file.read_f32::<LittleEndian>()?;
+                    Vec3 { x, y, z }
+                }),
+                12 => FieldKind::Quat({
+                    let x = file.read_f32::<LittleEndian>()?;
+                    let y = file.read_f32::<LittleEndian>()?;
+                    let z = file.read_f32::<LittleEndian>()?;
+                    let w = file.read_f32::<LittleEndian>()?;
+                    Quat { x, y, z, w }
+                }),
+                13 => FieldKind::Mat4({
+                    let mut f = [0.0f32; 16];
+                    for n in &mut f {
+                        *n = file.read_f32::<LittleEndian>()?;
+                    }
+                    Mat4 { f }
+                }),
+                14 => FieldKind::Data({
+                    let len = file.read_u32::<LittleEndian>()? as usize;
+                    let mut vec = Vec::with_capacity(len);
+                    unsafe { vec.set_len(len) };
+                    file.read_exact(vec.as_mut_slice())?;
+                    vec
+                }),
+                15 => FieldKind::Bool(file.read_u8()? != 0),
+                16 => FieldKind::Mat3({
+                    let mut f = [0.0f32; 9];
+                    for n in &mut f {
+                        *n = file.read_f32::<LittleEndian>()?;
+                    }
+                    Mat3 { f }
+                }),
+                17 => FieldKind::Vec2({
+                    let x = file.read_f32::<LittleEndian>()?;
+                    let y = file.read_f32::<LittleEndian>()?;
+                    Vec2 { x, y }
+                }),
+                18 => FieldKind::Vec4({
+                    let x = file.read_f32::<LittleEndian>()?;
+                    let y = file.read_f32::<LittleEndian>()?;
+                    let z = file.read_f32::<LittleEndian>()?;
+                    let w = file.read_f32::<LittleEndian>()?;
+                    Vec4 { x, y, z, w }
+                }),
+                _ => return Err(VisitError::UnknownFieldType(id)),
+            },
+        ))
     }
 
     fn as_string(&self) -> String {
@@ -550,7 +549,10 @@ impl Visitor {
             }
 
             let node_handle = self.nodes.spawn(Node::new(name, self.current_node));
-            self.nodes.borrow_mut(self.current_node).children.push(node_handle);
+            self.nodes
+                .borrow_mut(self.current_node)
+                .children
+                .push(node_handle);
             self.current_node = node_handle;
 
             Ok(())
@@ -567,9 +569,16 @@ impl Visitor {
     }
 
     fn print_node(&self, node_handle: Handle<Node>, nesting: usize, out_string: &mut String) {
-        let offset = (0..nesting).map(|_| { "\t" }).collect::<String>();
+        let offset = (0..nesting).map(|_| "\t").collect::<String>();
         let node = self.nodes.borrow(node_handle);
-        *out_string += format!("{}{}[Fields={}, Children={}]: ", offset, node.name, node.fields.len(), node.children.len()).as_str();
+        *out_string += format!(
+            "{}{}[Fields={}, Children={}]: ",
+            offset,
+            node.name,
+            node.fields.len(),
+            node.children.len()
+        )
+        .as_str();
         for field in node.fields.iter() {
             *out_string += field.as_string().as_str();
         }
@@ -662,7 +671,10 @@ impl Visitor {
     }
 }
 
-impl<T> Visit for RefCell<T> where T: Visit + 'static {
+impl<T> Visit for RefCell<T>
+where
+    T: Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if let Ok(mut data) = self.try_borrow_mut() {
             data.visit(name, visitor)
@@ -672,7 +684,10 @@ impl<T> Visit for RefCell<T> where T: Visit + 'static {
     }
 }
 
-impl<T> Visit for Vec<T> where T: Default + Visit + 'static {
+impl<T> Visit for Vec<T>
+where
+    T: Default + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -701,7 +716,10 @@ impl<T> Visit for Vec<T> where T: Default + Visit + 'static {
     }
 }
 
-impl<T> Visit for Option<T> where T: Default + Visit + 'static {
+impl<T> Visit for Option<T>
+where
+    T: Default + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -776,7 +794,10 @@ impl Visit for PathBuf {
     }
 }
 
-impl<T> Visit for Cell<T> where T: Copy + Clone + Visit + 'static {
+impl<T> Visit for Cell<T>
+where
+    T: Copy + Clone + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut value = self.get();
         value.visit(name, visitor)?;
@@ -787,7 +808,10 @@ impl<T> Visit for Cell<T> where T: Copy + Clone + Visit + 'static {
     }
 }
 
-impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
+impl<T> Visit for Rc<T>
+where
+    T: Default + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -830,7 +854,10 @@ impl<T> Visit for Rc<T> where T: Default + Visit + 'static {
     }
 }
 
-impl<T> Visit for Mutex<T> where T: Default + Visit + Send {
+impl<T> Visit for Mutex<T>
+where
+    T: Default + Visit + Send,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.lock()?.visit(name, visitor)
     }
@@ -838,17 +865,24 @@ impl<T> Visit for Mutex<T> where T: Default + Visit + Send {
 
 fn arc_to_raw<T>(arc: Arc<T>) -> *mut T {
     let raw = Arc::into_raw(arc) as *const T as *mut T;
-    unsafe { Arc::from_raw(raw); };
+    unsafe {
+        Arc::from_raw(raw);
+    };
     raw
 }
 
 fn rc_to_raw<T>(arc: Rc<T>) -> *mut T {
     let raw = Rc::into_raw(arc) as *const T as *mut T;
-    unsafe { Rc::from_raw(raw); };
+    unsafe {
+        Rc::from_raw(raw);
+    };
     raw
 }
 
-impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
+impl<T> Visit for Arc<T>
+where
+    T: Default + Visit + Send + Sync + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -891,7 +925,10 @@ impl<T> Visit for Arc<T> where T: Default + Visit + Send + Sync + 'static {
     }
 }
 
-impl<T> Visit for std::rc::Weak<T> where T: Default + Visit + 'static {
+impl<T> Visit for std::rc::Weak<T>
+where
+    T: Default + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -940,7 +977,10 @@ impl<T> Visit for std::rc::Weak<T> where T: Default + Visit + 'static {
     }
 }
 
-impl<T> Visit for std::sync::Weak<T> where T: Default + Visit + Send + Sync + 'static  {
+impl<T> Visit for std::sync::Weak<T>
+where
+    T: Default + Visit + Send + Sync + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -989,7 +1029,11 @@ impl<T> Visit for std::sync::Weak<T> where T: Default + Visit + Send + Sync + 's
     }
 }
 
-impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S> where K: Visit + Default + Clone + Hash + Eq, V: Visit + Default {
+impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S>
+where
+    K: Visit + Default + Clone + Hash + Eq,
+    V: Visit + Default,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -1033,26 +1077,23 @@ impl<K, V, S: std::hash::BuildHasher> Visit for HashMap<K, V, S> where K: Visit 
 
 #[cfg(test)]
 mod test {
-    use std::{
-        rc::Rc,
-        path::Path,
-        fs::File,
-        io::Write,
-    };
-    use crate::visitor::{Visitor, Visit, VisitResult, VisitError, Data};
+    use crate::visitor::{Data, Visit, VisitError, VisitResult, Visitor};
+    use std::{fs::File, io::Write, path::Path, rc::Rc};
 
     pub struct Model {
-        data: u64
+        data: u64,
     }
 
     pub struct Texture {
-        data: Vec<u8>
+        data: Vec<u8>,
     }
 
     impl Visit for Texture {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             visitor.enter_region(name)?;
-            let mut proxy = Data { vec: &mut self.data };
+            let mut proxy = Data {
+                vec: &mut self.data,
+            };
             proxy.visit("Data", visitor)?;
             visitor.leave_region()
         }
@@ -1071,7 +1112,7 @@ mod test {
             match self {
                 ResourceKind::Unknown => Err(VisitError::User(format!("invalid resource type"))),
                 ResourceKind::Texture(tex) => tex.visit(name, visitor),
-                ResourceKind::Model(model) => model.visit(name, visitor)
+                ResourceKind::Model(model) => model.visit(name, visitor),
             }
         }
     }
@@ -1089,10 +1130,7 @@ mod test {
 
     impl Resource {
         fn new(kind: ResourceKind) -> Self {
-            Self {
-                kind,
-                data: 0,
-            }
+            Self { kind, data: 0 }
         }
     }
 
@@ -1108,11 +1146,14 @@ mod test {
     impl Visit for Resource {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             visitor.enter_region(name)?;
-            if visitor.reading {} else {
+            if visitor.reading {
+            } else {
                 let mut kind_id: u8 = match &self.kind {
-                    ResourceKind::Unknown => return Err(VisitError::User(format!("Invalid resource!"))),
+                    ResourceKind::Unknown => {
+                        return Err(VisitError::User(format!("Invalid resource!")))
+                    }
                     ResourceKind::Model(_) => 0,
-                    ResourceKind::Texture(_) => 1
+                    ResourceKind::Texture(_) => 1,
                 };
                 kind_id.visit("KindId", visitor)?;
                 self.kind.visit("KindData", visitor)?;
@@ -1164,10 +1205,7 @@ mod test {
             let mut resource = Rc::new(Resource::new(ResourceKind::Model(Model { data: 555 })));
             resource.visit("SharedResource", &mut visitor).unwrap();
 
-            let mut objects = vec![
-                Foo::new(resource.clone()),
-                Foo::new(resource)
-            ];
+            let mut objects = vec![Foo::new(resource.clone()), Foo::new(resource)];
 
             objects.visit("Objects", &mut visitor).unwrap();
 

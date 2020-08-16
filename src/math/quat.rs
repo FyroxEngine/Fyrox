@@ -1,9 +1,6 @@
 #![allow(clippy::len_without_is_empty)]
 
-use crate::math::{
-    vec3::*,
-    mat3::Mat3,
-};
+use crate::math::{mat3::Mat3, vec3::*};
 use std::ops;
 
 #[derive(Copy, Clone, Debug)]
@@ -136,7 +133,7 @@ impl Quat {
         let sinp = 2.0 * (self.w * self.y - self.z * self.x);
         let pitch = if sinp.abs() >= 1.0 {
             std::f32::consts::FRAC_PI_2.copysign(sinp)
-        }  else {
+        } else {
             sinp.asin()
         };
 
@@ -212,10 +209,10 @@ impl Quat {
     }
 
     pub fn approx_eq(&self, other: Self, precision: f32) -> bool {
-        (self.x - other.x).abs() <= precision &&
-        (self.y - other.y).abs() <= precision &&
-        (self.z - other.z).abs() <= precision &&
-        (self.w - other.w).abs() <= precision
+        (self.x - other.x).abs() <= precision
+            && (self.y - other.y).abs() <= precision
+            && (self.z - other.z).abs() <= precision
+            && (self.w - other.w).abs() <= precision
     }
 }
 

@@ -5,16 +5,9 @@
 #![allow(dead_code)]
 
 use std::{
-    collections::{
-        hash_map::DefaultHasher,
-        HashMap,
-        HashSet,
-    },
-    sync::{
-        Arc,
-        Mutex,
-    },
+    collections::{hash_map::DefaultHasher, HashMap, HashSet},
     hash::{Hash, Hasher},
+    sync::{Arc, Mutex},
 };
 
 #[cfg(feature = "enable_profiler")]
@@ -63,7 +56,11 @@ struct Profiler {
     scope_stack: Vec<ScopeMark>,
 }
 
-const ENTRY_SCOPE_MARK: ScopeMark = ScopeMark { parent_scope_hash: 0, function_name: "EntryPoint", line: 0 };
+const ENTRY_SCOPE_MARK: ScopeMark = ScopeMark {
+    parent_scope_hash: 0,
+    function_name: "EntryPoint",
+    line: 0,
+};
 
 impl Default for Profiler {
     #[inline]
@@ -95,15 +92,16 @@ impl Profiler {
         scope.parent_scope_hash = calculate_hash(&parent_scope_mark);
         self.scope_stack.push(*scope);
         self.samples.entry(*scope).or_default();
-        self.samples.get_mut(&parent_scope_mark).unwrap().children.insert(*scope);
+        self.samples
+            .get_mut(&parent_scope_mark)
+            .unwrap()
+            .children
+            .insert(*scope);
     }
 
     fn leave_scope(&mut self, scope: ScopeMark, elapsed: f64) {
         self.scope_stack.pop();
-        self.samples
-            .get_mut(&scope)
-            .unwrap()
-            .collect(elapsed);
+        self.samples.get_mut(&scope).unwrap().collect(elapsed);
     }
 
     fn print(&self) {
@@ -120,16 +118,25 @@ impl Profiler {
             println!("Profiling took {} seconds. Please note that profiling itself takes time so results are not 100% accurate.", full_time);
             println!("Entry Point");
         } else {
-            println!("{}{:.4}% - {} at line {} was called {} times and took {} seconds individually.",
-                     "\t".repeat(offset),
-                     (sample.time / full_time) * 100.0,
-                     scope_mark.function_name,
-                     scope_mark.line,
-                     sample.count,
-                     sample.time);
+            println!(
+                "{}{:.4}% - {} at line {} was called {} times and took {} seconds individually.",
+                "\t".repeat(offset),
+                (sample.time / full_time) * 100.0,
+                scope_mark.function_name,
+                scope_mark.line,
+                sample.count,
+                sample.time
+            );
         }
 
-        for child_scope in self.samples.get(&scope_mark).as_ref().unwrap().children.iter() {
+        for child_scope in self
+            .samples
+            .get(&scope_mark)
+            .as_ref()
+            .unwrap()
+            .children
+            .iter()
+        {
             self.recursive_print(child_scope, offset + 1, full_time);
         }
     }
@@ -148,7 +155,11 @@ impl ScopeDefinition {
     #[cfg(feature = "enable_profiler")]
     #[inline]
     pub fn new(function_name: &'static str, line: u32) -> Self {
-        let mut scope = ScopeMark { parent_scope_hash: 0, function_name, line };
+        let mut scope = ScopeMark {
+            parent_scope_hash: 0,
+            function_name,
+            line,
+        };
 
         PROFILER.lock().unwrap().enter_scope(&mut scope);
 
@@ -185,13 +196,13 @@ macro_rules! scope_profile {
             $crate::profiler::type_name_of(scope)
         };
         let _scope_guard = $crate::profiler::ScopeDefinition::new(function_name, line!());
-    }
+    };
 }
 
 #[cfg(not(feature = "enable_profiler"))]
 #[macro_export]
 macro_rules! scope_profile {
-    () => {}
+    () => {};
 }
 
 #[cfg(test)]

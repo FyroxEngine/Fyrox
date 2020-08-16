@@ -1,6 +1,6 @@
 use crate::{
-    visitor::{Visit, Visitor, VisitResult},
     color::Color,
+    visitor::{Visit, VisitResult, Visitor},
 };
 use std::cmp::Ordering;
 
@@ -23,10 +23,7 @@ impl Visit for GradientPoint {
 
 impl GradientPoint {
     pub fn new(location: f32, color: Color) -> Self {
-        Self {
-            location,
-            color,
-        }
+        Self { location, color }
     }
 }
 
@@ -50,13 +47,13 @@ impl Clone for GradientPoint {
 
 #[derive(Debug)]
 pub struct ColorGradient {
-    points: Vec<GradientPoint>
+    points: Vec<GradientPoint>,
 }
 
 impl Clone for ColorGradient {
     fn clone(&self) -> Self {
         Self {
-            points: self.points.clone()
+            points: self.points.clone(),
         }
     }
 }
@@ -79,15 +76,15 @@ impl Default for ColorGradient {
 
 impl ColorGradient {
     pub fn new() -> Self {
-        Self {
-            points: Vec::new()
-        }
+        Self { points: Vec::new() }
     }
 
     pub fn add_point(&mut self, pt: GradientPoint) {
         self.points.push(pt);
         self.points.sort_by(|a, b| {
-            a.location.partial_cmp(&b.location).unwrap_or(Ordering::Equal)
+            a.location
+                .partial_cmp(&b.location)
+                .unwrap_or(Ordering::Equal)
         });
     }
 

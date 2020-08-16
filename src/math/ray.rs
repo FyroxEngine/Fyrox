@@ -1,14 +1,9 @@
 // Clippy complains about normal mathematical symbols like A, B, C for quadratic equation.
 #![allow(clippy::many_single_char_names)]
 
-use crate::math::{
-    plane::Plane,
-    vec3::Vec3,
-    is_point_inside_triangle,
-    solve_quadratic,
-};
 use crate::math::aabb::AxisAlignedBoundingBox;
 use crate::math::mat4::Mat4;
+use crate::math::{is_point_inside_triangle, plane::Plane, solve_quadratic, vec3::Vec3};
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
@@ -40,10 +35,7 @@ impl IntersectionResult {
             min = min.min(*n);
             max = max.max(*n);
         }
-        Self {
-            min,
-            max,
-        }
+        Self { min, max }
     }
 
     pub fn from_set(results: &[Option<IntersectionResult>]) -> Option<Self> {
@@ -92,7 +84,10 @@ impl Ray {
     pub fn from_two_points(begin: &Vec3, end: &Vec3) -> Option<Ray> {
         let dir = *end - *begin;
         if dir.len() >= std::f32::EPSILON {
-            Some(Ray { origin: *begin, dir })
+            Some(Ray {
+                origin: *begin,
+                dir,
+            })
         } else {
             None
         }
@@ -142,19 +137,27 @@ impl Ray {
 
     pub fn box_intersection(&self, min: &Vec3, max: &Vec3) -> Option<IntersectionResult> {
         let (mut tmin, mut tmax) = if self.dir.x >= 0.0 {
-            ((min.x - self.origin.x) / self.dir.x,
-             (max.x - self.origin.x) / self.dir.x)
+            (
+                (min.x - self.origin.x) / self.dir.x,
+                (max.x - self.origin.x) / self.dir.x,
+            )
         } else {
-            ((max.x - self.origin.x) / self.dir.x,
-             (min.x - self.origin.x) / self.dir.x)
+            (
+                (max.x - self.origin.x) / self.dir.x,
+                (min.x - self.origin.x) / self.dir.x,
+            )
         };
 
         let (tymin, tymax) = if self.dir.y >= 0.0 {
-            ((min.y - self.origin.y) / self.dir.y,
-             (max.y - self.origin.y) / self.dir.y)
+            (
+                (min.y - self.origin.y) / self.dir.y,
+                (max.y - self.origin.y) / self.dir.y,
+            )
         } else {
-            ((max.y - self.origin.y) / self.dir.y,
-             (min.y - self.origin.y) / self.dir.y)
+            (
+                (max.y - self.origin.y) / self.dir.y,
+                (min.y - self.origin.y) / self.dir.y,
+            )
         };
 
         if tmin > tymax || (tymin > tmax) {
@@ -167,11 +170,15 @@ impl Ray {
             tmax = tymax;
         }
         let (tzmin, tzmax) = if self.dir.z >= 0.0 {
-            ((min.z - self.origin.z) / self.dir.z,
-             (max.z - self.origin.z) / self.dir.z)
+            (
+                (min.z - self.origin.z) / self.dir.z,
+                (max.z - self.origin.z) / self.dir.z,
+            )
         } else {
-            ((max.z - self.origin.z) / self.dir.z,
-             (min.z - self.origin.z) / self.dir.z)
+            (
+                (max.z - self.origin.z) / self.dir.z,
+                (min.z - self.origin.z) / self.dir.z,
+            )
         };
 
         if (tmin > tzmax) || (tzmin > tmax) {
@@ -201,7 +208,7 @@ impl Ray {
         self.box_intersection(&aabb.min, &aabb.max)
     }
 
-    pub fn aabb_intersection_points(&self, aabb: &AxisAlignedBoundingBox) -> Option<[Vec3; 2]>  {
+    pub fn aabb_intersection_points(&self, aabb: &AxisAlignedBoundingBox) -> Option<[Vec3; 2]> {
         self.box_intersection_points(&aabb.min, &aabb.max)
     }
 
@@ -250,8 +257,16 @@ impl Ray {
     ///     where dp = p - pa
     ///  to find intersection points we have to solve quadratic equation
     ///  to get root which will be t parameter of ray equation.
-    pub fn cylinder_intersection(&self, pa: &Vec3, pb: &Vec3, r: f32, kind: CylinderKind) -> Option<IntersectionResult> {
-        let va = (*pb - *pa).normalized().unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
+    pub fn cylinder_intersection(
+        &self,
+        pa: &Vec3,
+        pb: &Vec3,
+        r: f32,
+        kind: CylinderKind,
+    ) -> Option<IntersectionResult> {
+        let va = (*pb - *pa)
+            .normalized()
+            .unwrap_or_else(|| Vec3::new(0.0, 1.0, 0.0));
         let vl = self.dir - va.scale(self.dir.dot(&va));
         let dp = self.origin - *pa;
         let dpva = dp - va.scale(dp.dot(&va));
@@ -268,7 +283,8 @@ impl Ray {
                     let mut result = IntersectionResult::from_slice(&cylinder_roots);
                     // In case of cylinder with caps we have to check intersection with caps
                     for (cap_center, cap_normal) in [(pa, -va), (pb, va)].iter() {
-                        let cap_plane = Plane::from_normal_and_point(cap_normal, cap_center).unwrap();
+                        let cap_plane =
+                            Plane::from_normal_and_point(cap_normal, cap_center).unwrap();
                         let t = self.plane_intersection(&cap_plane);
                         if t > 0.0 {
                             let intersection = self.get_point(t);
@@ -289,7 +305,12 @@ impl Ray {
                         let int_point = self.get_point(*root);
                         if (int_point - *pa).dot(&va) >= 0.0 && (*pb - int_point).dot(&va) >= 0.0 {
                             match &mut result {
-                                None => result = Some(IntersectionResult { min: *root, max: *root }),
+                                None => {
+                                    result = Some(IntersectionResult {
+                                        min: *root,
+                                        max: *root,
+                                    })
+                                }
                                 Some(result) => result.merge(*root),
                             }
                         }
@@ -323,11 +344,11 @@ impl Ray {
                     None => match b {
                         None => None,
                         Some(b) => Some([b, b]),
-                    }
+                    },
                     Some(a) => match b {
                         None => Some([a, a]),
-                        Some(b) => Some([a, b])
-                    }
+                        Some(b) => Some([a, b]),
+                    },
                 }
             }
         }
@@ -365,11 +386,13 @@ mod test {
 
     #[test]
     fn intersection() {
-        let triangle = [Vec3::new(0.0, 0.5, 0.0),
+        let triangle = [
+            Vec3::new(0.0, 0.5, 0.0),
             Vec3::new(-0.5, -0.5, 0.0),
-            Vec3::new(0.5, -0.5, 0.0)];
-        let ray = Ray::from_two_points(&Vec3::new(0.0, 0.0, -2.0),
-                                       &Vec3::new(0.0, 0.0, -1.0)).unwrap();
+            Vec3::new(0.5, -0.5, 0.0),
+        ];
+        let ray =
+            Ray::from_two_points(&Vec3::new(0.0, 0.0, -2.0), &Vec3::new(0.0, 0.0, -1.0)).unwrap();
         assert!(ray.triangle_intersection(&triangle).is_none());
     }
 }

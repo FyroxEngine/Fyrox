@@ -1,6 +1,6 @@
 use crate::{
     math::vec4::Vec4,
-    visitor::{Visitor, VisitResult, Visit}
+    visitor::{Visit, VisitResult, Visitor},
 };
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
@@ -26,12 +26,42 @@ impl Into<u32> for Color {
 }
 
 impl Color {
-    pub const WHITE: Self = Self { r: 255, g: 255, b: 255, a: 255 };
-    pub const BLACK: Self = Self { r: 0, g: 0, b: 0, a: 255 };
-    pub const RED: Self = Self { r: 255, g: 0, b: 0, a: 255 };
-    pub const GREEN: Self = Self { r: 0, g: 255, b: 0, a: 255 };
-    pub const BLUE: Self = Self { r: 0, g: 0, b: 255, a: 255 };
-    pub const TRANSPARENT: Self = Self { r: 0, g: 0, b: 0, a: 0 };
+    pub const WHITE: Self = Self {
+        r: 255,
+        g: 255,
+        b: 255,
+        a: 255,
+    };
+    pub const BLACK: Self = Self {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const RED: Self = Self {
+        r: 255,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+    pub const GREEN: Self = Self {
+        r: 0,
+        g: 255,
+        b: 0,
+        a: 255,
+    };
+    pub const BLUE: Self = Self {
+        r: 0,
+        g: 0,
+        b: 255,
+        a: 255,
+    };
+    pub const TRANSPARENT: Self = Self {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 0,
+    };
 
     pub const fn opaque(r: u8, g: u8, b: u8) -> Color {
         Color { r, g, b, a: 255 }

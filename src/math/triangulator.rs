@@ -1,10 +1,4 @@
-use crate::{
-    math::{
-        vec2::*,
-        vec3::*,
-        self,
-    }
-};
+use crate::math::{self, vec2::*, vec3::*};
 use std::fmt;
 
 ///
@@ -56,7 +50,11 @@ impl fmt::Debug for Polygon {
         let mut i = self.head;
         loop {
             let vertex = &self.vertices[i];
-            writeln!(f, "Vertex {:?}; {} {} {}", vertex.position, vertex.prev, vertex.index, vertex.next)?;
+            writeln!(
+                f,
+                "Vertex {:?}; {} {} {}",
+                vertex.position, vertex.prev, vertex.index, vertex.next
+            )?;
             i = self.vertices[i].next;
             if i == self.head {
                 break;
@@ -76,8 +74,16 @@ fn is_ear(poly: &Polygon, prev: &Vertex, ear: &Vertex, next: &Vertex) -> bool {
     let mut i = poly.head;
     loop {
         let vertex = &poly.vertices[i];
-        if i != prev.index && i != ear.index && i != next.index &&
-            math::is_point_inside_2d_triangle(vertex.position, prev.position, ear.position, next.position) {
+        if i != prev.index
+            && i != ear.index
+            && i != next.index
+            && math::is_point_inside_2d_triangle(
+                vertex.position,
+                prev.position,
+                ear.position,
+                next.position,
+            )
+        {
             return false;
         }
         i = vertex.next;
@@ -126,14 +132,16 @@ pub fn triangulate(vertices: &[Vec3], out_triangles: &mut Vec<[usize; 3]>) {
         if let Ok(normal) = math::get_polygon_normal(&vertices) {
             let plane_class = math::classify_plane(normal);
             let mut polygon = Polygon {
-                vertices: vertices.iter().enumerate().map(|(i, point)| {
-                    Vertex {
+                vertices: vertices
+                    .iter()
+                    .enumerate()
+                    .map(|(i, point)| Vertex {
                         position: math::vec3_to_vec2_by_plane(plane_class, normal, *point),
                         index: i,
                         prev: if i == 0 { vertices.len() - 1 } else { i - 1 },
                         next: if i == vertices.len() - 1 { 0 } else { i + 1 },
-                    }
-                }).collect(),
+                    })
+                    .collect(),
                 head: 0,
                 tail: vertices.len() - 1,
             };
@@ -163,7 +171,7 @@ fn quadrilaterals_triangulation_non_concave() {
         Vec3::new(0.0, 0.0, 1.0),
         Vec3::new(1.0, 2.0, 1.0),
         Vec3::new(2.0, 3.0, 1.0),
-        Vec3::new(3.0, 2.0, 1.0)
+        Vec3::new(3.0, 2.0, 1.0),
     ];
 
     let mut ref_indices = Vec::new();
@@ -177,7 +185,7 @@ fn quadrilaterals_triangulation_concave() {
         Vec3::new(0.0, 2.0, 1.0),
         Vec3::new(3.0, 3.0, 1.0),
         Vec3::new(2.0, 2.0, 1.0),
-        Vec3::new(3.0, 1.0, 1.0)
+        Vec3::new(3.0, 1.0, 1.0),
     ];
 
     let mut ref_indices = Vec::new();
@@ -214,7 +222,8 @@ fn ear_clip_test() {
         Vec3::new(1.0, 0.0, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         Vec3::new(0.0, 0.0, 1.0),
-        Vec3::new(1.0, 1.0, 1.0)] {
+        Vec3::new(1.0, 1.0, 1.0),
+    ] {
         let mut angle: f32 = 0.0;
         while angle <= 360.0 {
             let mrot = Mat4::from_quat(Quat::from_axis_angle(*axis, angle.to_radians()));

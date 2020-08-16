@@ -1,7 +1,4 @@
-use crate::math::{
-    vec3::Vec3,
-    vec2::Vec2,
-};
+use crate::math::{vec2::Vec2, vec3::Vec3};
 use std::hash::{Hash, Hasher};
 
 #[derive(Copy, Clone, Debug)]
@@ -27,13 +24,19 @@ impl Hash for Vec4 {
         unsafe {
             state.write(std::slice::from_raw_parts(
                 self as *const Self as *const _,
-                std::mem::size_of::<Self>()))
+                std::mem::size_of::<Self>(),
+            ))
         }
     }
 }
 
 impl Vec4 {
-    pub const ZERO: Self = Self { x: 0.0, y: 0.0, z: 0.0, w: 0.0 };
+    pub const ZERO: Self = Self {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+        w: 0.0,
+    };
 
     pub const fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
         Self { x, y, z, w }
@@ -56,11 +59,18 @@ impl Vec4 {
     }
 
     pub const fn xyz(&self) -> Vec3 {
-        Vec3 { x: self.x, y: self.y, z: self.z }
+        Vec3 {
+            x: self.x,
+            y: self.y,
+            z: self.z,
+        }
     }
 
     pub const fn xy(&self) -> Vec2 {
-        Vec2 { x: self.x, y: self.y }
+        Vec2 {
+            x: self.x,
+            y: self.y,
+        }
     }
 }
 

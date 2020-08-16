@@ -18,17 +18,13 @@
 
 #![allow(clippy::unneeded_field_pattern)]
 
-use std::{
-    marker::PhantomData,
-    hash::{Hash, Hasher},
-    fmt::{Debug, Formatter},
-};
-use crate::visitor::{
-    Visit,
-    VisitResult,
-    Visitor,
-};
+use crate::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Index, IndexMut};
+use std::{
+    fmt::{Debug, Formatter},
+    hash::{Hash, Hasher},
+    marker::PhantomData,
+};
 
 const INVALID_GENERATION: u32 = 0;
 
@@ -135,7 +131,10 @@ impl<T> Default for PoolRecord<T> {
     }
 }
 
-impl<T> Visit for PoolRecord<T> where T: Visit + Default + 'static {
+impl<T> Visit for PoolRecord<T>
+where
+    T: Visit + Default + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -166,7 +165,10 @@ impl<T> PartialEq for Handle<T> {
     }
 }
 
-impl<T> Visit for Pool<T> where T: Default + Visit + 'static {
+impl<T> Visit for Pool<T>
+where
+    T: Default + Visit + 'static,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
         self.records.visit("Records", visitor)?;
@@ -234,7 +236,7 @@ impl<T: Clone> Clone for PoolRecord<T> {
     fn clone(&self) -> Self {
         Self {
             generation: self.generation,
-            payload: self.payload.clone()
+            payload: self.payload.clone(),
         }
     }
 }
@@ -243,7 +245,7 @@ impl<T: Clone> Clone for Pool<T> {
     fn clone(&self) -> Self {
         Self {
             records: self.records.clone(),
-            free_stack: self.free_stack.clone()
+            free_stack: self.free_stack.clone(),
         }
     }
 }
@@ -264,7 +266,10 @@ impl<T> Pool<T> {
             let record = &mut self.records[free_index as usize];
 
             if record.payload.is_some() {
-                panic!("Attempt to spawn an object at pool record with payload! Record index is {}", free_index);
+                panic!(
+                    "Attempt to spawn an object at pool record with payload! Record index is {}",
+                    free_index
+                );
             }
 
             record.generation += 1;
@@ -311,10 +316,17 @@ impl<T> Pool<T> {
                     panic!("Attempt to borrow destroyed object at {:?} handle.", handle);
                 }
             } else {
-                panic!("Attempt to use dangling handle {:?}. Record has {} generation!", handle, record.generation);
+                panic!(
+                    "Attempt to use dangling handle {:?}. Record has {} generation!",
+                    handle, record.generation
+                );
             }
         } else {
-            panic!("Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
+            panic!(
+                "Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}",
+                handle,
+                self.records.len()
+            );
         }
     }
 
@@ -350,7 +362,10 @@ impl<T> Pool<T> {
                 panic!("Attempt to borrow object using dangling handle {:?}. Record has {} generation!", handle, record.generation);
             }
         } else {
-            panic!("Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}", handle, record_count);
+            panic!(
+                "Attempt to borrow object using out-of-bounds handle {:?}! Record count is {}",
+                handle, record_count
+            );
         }
     }
 
@@ -362,12 +377,13 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn try_borrow(&self, handle: Handle<T>) -> Option<&T> {
-        self.records.get(handle.index as usize)
-            .and_then(|r| if r.generation == handle.generation {
+        self.records.get(handle.index as usize).and_then(|r| {
+            if r.generation == handle.generation {
                 r.payload.as_ref()
             } else {
                 None
-            })
+            }
+        })
     }
 
     /// Borrows mutable reference to an object by its handle.
@@ -378,12 +394,13 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn try_borrow_mut(&mut self, handle: Handle<T>) -> Option<&mut T> {
-        self.records.get_mut(handle.index as usize)
-            .and_then(|r| if r.generation == handle.generation {
+        self.records.get_mut(handle.index as usize).and_then(|r| {
+            if r.generation == handle.generation {
                 r.payload.as_mut()
             } else {
                 None
-            })
+            }
+        })
     }
 
     /// Borrows mutable references of objects at the same time. This method will succeed only
@@ -407,8 +424,7 @@ impl<T> Pool<T> {
     /// ```
     #[inline]
     #[must_use = "Handle set must not be ignored"]
-    pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>))
-                              -> (&mut T, &mut T) {
+    pub fn borrow_two_mut(&mut self, handles: (Handle<T>, Handle<T>)) -> (&mut T, &mut T) {
         // Prevent giving two mutable references to same record.
         assert_ne!(handles.0.index, handles.1.index);
         unsafe {
@@ -440,17 +456,21 @@ impl<T> Pool<T> {
     /// ```
     #[inline]
     #[must_use = "Handle set must not be ignored"]
-    pub fn borrow_three_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>))
-                            -> (&mut T, &mut T, &mut T) {
+    pub fn borrow_three_mut(
+        &mut self,
+        handles: (Handle<T>, Handle<T>, Handle<T>),
+    ) -> (&mut T, &mut T, &mut T) {
         // Prevent giving mutable references to same record.
         assert_ne!(handles.0.index, handles.1.index);
         assert_ne!(handles.0.index, handles.2.index);
         assert_ne!(handles.1.index, handles.2.index);
         unsafe {
             let this = self as *mut Self;
-            ((*this).borrow_mut(handles.0),
-             (*this).borrow_mut(handles.1),
-             (*this).borrow_mut(handles.2))
+            (
+                (*this).borrow_mut(handles.0),
+                (*this).borrow_mut(handles.1),
+                (*this).borrow_mut(handles.2),
+            )
         }
     }
 
@@ -479,8 +499,10 @@ impl<T> Pool<T> {
     /// ```
     #[inline]
     #[must_use = "Handle set must not be ignored"]
-    pub fn borrow_four_mut(&mut self, handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>))
-                           -> (&mut T, &mut T, &mut T, &mut T) {
+    pub fn borrow_four_mut(
+        &mut self,
+        handles: (Handle<T>, Handle<T>, Handle<T>, Handle<T>),
+    ) -> (&mut T, &mut T, &mut T, &mut T) {
         // Prevent giving mutable references to same record.
         // This is kinda clunky since const generics are not stabilized yet.
         assert_ne!(handles.0.index, handles.1.index);
@@ -491,10 +513,12 @@ impl<T> Pool<T> {
         assert_ne!(handles.2.index, handles.3.index);
         unsafe {
             let this = self as *mut Self;
-            ((*this).borrow_mut(handles.0),
-             (*this).borrow_mut(handles.1),
-             (*this).borrow_mut(handles.2),
-             (*this).borrow_mut(handles.3))
+            (
+                (*this).borrow_mut(handles.0),
+                (*this).borrow_mut(handles.1),
+                (*this).borrow_mut(handles.2),
+                (*this).borrow_mut(handles.3),
+            )
         }
     }
 
@@ -517,7 +541,10 @@ impl<T> Pool<T> {
                     panic!("Attempt to double free object at handle {:?}!", handle);
                 }
             } else {
-                panic!("Attempt to free object using dangling handle {:?}! Record generation is {}", handle, record.generation);
+                panic!(
+                    "Attempt to free object using dangling handle {:?}! Record generation is {}",
+                    handle, record.generation
+                );
             }
         } else {
             panic!("Attempt to free destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
@@ -557,7 +584,10 @@ impl<T> Pool<T> {
                     panic!("Attempt to double free object at handle {:?}!", handle);
                 }
             } else {
-                panic!("Attempt to free object using dangling handle {:?}! Record generation is {}", handle, record.generation);
+                panic!(
+                    "Attempt to free object using dangling handle {:?}! Record generation is {}",
+                    handle, record.generation
+                );
             }
         } else {
             panic!("Attempt to free destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
@@ -628,17 +658,13 @@ impl<T> Pool<T> {
     #[inline]
     #[must_use]
     pub fn at_mut(&mut self, n: usize) -> Option<&mut T> {
-        self.records
-            .get_mut(n)
-            .and_then(|rec| rec.payload.as_mut())
+        self.records.get_mut(n).and_then(|rec| rec.payload.as_mut())
     }
 
     #[inline]
     #[must_use]
     pub fn at(&self, n: usize) -> Option<&T> {
-        self.records
-            .get(n)
-            .and_then(|rec| rec.payload.as_ref())
+        self.records.get(n).and_then(|rec| rec.payload.as_ref())
     }
 
     #[inline]
@@ -775,7 +801,10 @@ impl<T> Pool<T> {
 
     /// Retains pool records selected by `pred`. Useful when you need to remove all pool records
     /// by some criteria.
-    pub fn retain<F>(&mut self, mut pred: F) where F: FnMut(&T) -> bool {
+    pub fn retain<F>(&mut self, mut pred: F)
+    where
+        F: FnMut(&T) -> bool,
+    {
         for (i, record) in self.records.iter_mut().enumerate() {
             if record.generation == INVALID_GENERATION {
                 continue;
@@ -795,9 +824,7 @@ impl<T> Pool<T> {
     }
 
     fn end(&self) -> *const PoolRecord<T> {
-        unsafe {
-            self.records.as_ptr().add(self.records.len())
-        }
+        unsafe { self.records.as_ptr().add(self.records.len()) }
     }
 
     fn begin(&self) -> *const PoolRecord<T> {
@@ -878,7 +905,7 @@ impl<'a, T> Iterator for PoolPairIterator<'a, T> {
                     }
                     self.current += 1;
                 }
-                None => return None
+                None => return None,
             }
         }
     }
@@ -908,7 +935,6 @@ impl<'a, T> Iterator for PoolIteratorMut<'a, T> {
         }
     }
 }
-
 
 pub struct PoolPairIteratorMut<'a, T> {
     ptr: *mut PoolRecord<T>,
@@ -981,13 +1007,19 @@ mod test {
     #[test]
     fn handle_of() {
         struct Value {
-            data: String
+            data: String,
         }
 
         let mut pool = Pool::new();
-        let foobar = pool.spawn(Value { data: format!("Foobar") });
-        let bar = pool.spawn(Value { data: format!("Bar") });
-        let baz = pool.spawn(Value { data: format!("Baz") });
+        let foobar = pool.spawn(Value {
+            data: format!("Foobar"),
+        });
+        let bar = pool.spawn(Value {
+            data: format!("Bar"),
+        });
+        let baz = pool.spawn(Value {
+            data: format!("Baz"),
+        });
         assert_eq!(pool.handle_of(pool.borrow(foobar)), foobar);
         assert_eq!(pool.handle_of(pool.borrow(bar)), bar);
         assert_eq!(pool.handle_of(pool.borrow(baz)), baz);

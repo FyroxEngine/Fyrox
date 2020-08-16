@@ -1,6 +1,6 @@
 use crate::{
     math::vec3::Vec3,
-    visitor::{Visit, Visitor, VisitResult},
+    visitor::{Visit, VisitResult, Visitor},
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -86,8 +86,7 @@ impl Visit for Plane {
 #[test]
 fn plane_sanity_tests() {
     // Computation test
-    let plane = Plane::from_normal_and_point(
-        &Vec3::new(0.0, 10.0, 0.0), &Vec3::new(0.0, 3.0, 0.0));
+    let plane = Plane::from_normal_and_point(&Vec3::new(0.0, 10.0, 0.0), &Vec3::new(0.0, 3.0, 0.0));
     assert!(plane.is_ok());
     let plane = plane.unwrap();
     assert_eq!(plane.normal.x, 0.0);
@@ -96,8 +95,7 @@ fn plane_sanity_tests() {
     assert_eq!(plane.d, -3.0);
 
     // Degenerated normal case
-    let plane = Plane::from_normal_and_point(
-        &Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 0.0, 0.0));
+    let plane = Plane::from_normal_and_point(&Vec3::new(0.0, 0.0, 0.0), &Vec3::new(0.0, 0.0, 0.0));
     assert!(plane.is_err());
 
     let plane = Plane::from_abcd(0.0, 0.0, 0.0, 0.0);

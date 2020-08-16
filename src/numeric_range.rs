@@ -1,5 +1,5 @@
+use crate::visitor::{Visit, VisitResult, Visitor};
 use rand::Rng;
-use crate::visitor::{Visitor, Visit, VisitResult};
 
 #[derive(Debug)]
 pub struct NumericRange<T> {
@@ -7,18 +7,24 @@ pub struct NumericRange<T> {
     pub max: T,
 }
 
-impl<T> Clone for NumericRange<T> where T: Clone + Copy {
+impl<T> Clone for NumericRange<T>
+where
+    T: Clone + Copy,
+{
     fn clone(&self) -> Self {
         Self {
             min: self.min,
-            max: self.max
+            max: self.max,
         }
     }
 }
 
 impl<T> Copy for NumericRange<T> where T: Copy {}
 
-impl<T> Default for NumericRange<T> where T: Default {
+impl<T> Default for NumericRange<T>
+where
+    T: Default,
+{
     fn default() -> Self {
         Self {
             min: Default::default(),
@@ -27,16 +33,16 @@ impl<T> Default for NumericRange<T> where T: Default {
     }
 }
 
-impl<T> NumericRange<T> where T: Copy + Sized + rand::distributions::uniform::SampleUniform + Send + PartialOrd {
+impl<T> NumericRange<T>
+where
+    T: Copy + Sized + rand::distributions::uniform::SampleUniform + Send + PartialOrd,
+{
     pub fn new(mut min: T, mut max: T) -> Self {
         if min > max {
             std::mem::swap(&mut min, &mut max);
         }
 
-        Self {
-            min,
-            max,
-        }
+        Self { min, max }
     }
 
     pub fn random(&self) -> T {
@@ -44,7 +50,10 @@ impl<T> NumericRange<T> where T: Copy + Sized + rand::distributions::uniform::Sa
     }
 }
 
-impl<T> Visit for NumericRange<T> where T: Copy + Clone + Default + Visit {
+impl<T> Visit for NumericRange<T>
+where
+    T: Copy + Clone + Default + Visit,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
