@@ -27,29 +27,19 @@
 //! This reverberator has little "metallic" tone, but since this is one of the simplest reverberators this
 //! is acceptable. To remove this effect, more complex reverberator should be implemented.
 
-use std::time::Duration;
+use crate::{
+    context::DistanceModel,
+    dsp::filters::{AllPass, LpfComb},
+    effects::{BaseEffect, EffectRenderTrait},
+    listener::Listener,
+    source::SoundSource,
+};
 use rg3d_core::{
     pool::Pool,
-    visitor::{
-        Visit,
-        Visitor,
-        VisitResult
-    }
-};
-use crate::{
-    listener::Listener,
-    effects::{
-        BaseEffect,
-        EffectRenderTrait
-    },
-    dsp::filters::{
-        LpfComb,
-        AllPass,
-    },
-    source::SoundSource,
-    context::DistanceModel
+    visitor::{Visit, VisitResult, Visitor},
 };
 use std::ops::{Deref, DerefMut};
+use std::time::Duration;
 
 #[derive(Default)]
 struct ChannelReverb {
@@ -82,10 +72,12 @@ impl ChannelReverb {
             fc,
             stereo_spread,
             sample_rate: DESIGN_SAMPLE_RATE,
-            lp_fb_comb_filters: Self::COMB_LENGTHS.iter()
+            lp_fb_comb_filters: Self::COMB_LENGTHS
+                .iter()
                 .map(|len| LpfComb::new(*len + stereo_spread as usize, fc, feedback))
                 .collect(),
-            all_pass_filters: Self::ALLPASS_LENGTHS.iter()
+            all_pass_filters: Self::ALLPASS_LENGTHS
+                .iter()
                 .map(|len| AllPass::new(*len + stereo_spread as usize, 0.5))
                 .collect(),
         }
@@ -98,11 +90,24 @@ impl ChannelReverb {
         // TODO: According to many papers delay line lengths should be prime numbers to
         //       remove metallic ringing effect. But still not sure why then initial lengths
         //       are not 100% prime, for example 1422 is not prime number.
-        self.lp_fb_comb_filters = Self::COMB_LENGTHS.iter()
-            .map(|len| LpfComb::new((scale * (*len) as f32) as usize + self.stereo_spread as usize, self.fc, feedback))
+        self.lp_fb_comb_filters = Self::COMB_LENGTHS
+            .iter()
+            .map(|len| {
+                LpfComb::new(
+                    (scale * (*len) as f32) as usize + self.stereo_spread as usize,
+                    self.fc,
+                    feedback,
+                )
+            })
             .collect();
-        self.all_pass_filters = Self::ALLPASS_LENGTHS.iter()
-            .map(|len| AllPass::new((scale * (*len) as f32) as usize + self.stereo_spread as usize, 0.5))
+        self.all_pass_filters = Self::ALLPASS_LENGTHS
+            .iter()
+            .map(|len| {
+                AllPass::new(
+                    (scale * (*len) as f32) as usize + self.stereo_spread as usize,
+                    0.5,
+                )
+            })
             .collect();
     }
 
@@ -257,13 +262,22 @@ impl Visit for Reverb {
 }
 
 impl EffectRenderTrait for Reverb {
-    fn render(&mut self, sources: &Pool<SoundSource>, listener: &Listener, distance_model: DistanceModel, mix_buf: &mut [(f32, f32)]) {
-        self.base.render(sources, listener, distance_model, mix_buf.len());
+    fn render(
+        &mut self,
+        sources: &Pool<SoundSource>,
+        listener: &Listener,
+        distance_model: DistanceModel,
+        mix_buf: &mut [(f32, f32)],
+    ) {
+        self.base
+            .render(sources, listener, distance_model, mix_buf.len());
 
         let wet1 = self.wet;
         let wet2 = 1.0 - self.wet;
 
-        for ((out_left, out_right), &(left, right)) in mix_buf.iter_mut().zip(self.base.frame_samples.iter()) {
+        for ((out_left, out_right), &(left, right)) in
+            mix_buf.iter_mut().zip(self.base.frame_samples.iter())
+        {
             let mid = (left + right) * 0.5;
             let input = mid * Self::GAIN;
 

@@ -1,18 +1,9 @@
-use std::{
-    thread,
-    time::Duration
-};
 use rg3d_sound::{
-    source::{
-        generic::GenericSourceBuilder,
-        Status
-    },
+    buffer::{DataSource, SoundBuffer},
     context::Context,
-    buffer::{
-        DataSource,
-        SoundBuffer
-    },
+    source::{generic::GenericSourceBuilder, Status},
 };
+use std::{thread, time::Duration};
 
 fn main() {
     // Initialize new sound context with default output device.
@@ -26,9 +17,14 @@ fn main() {
         samples: {
             let frequency = 440.0;
             let amplitude = 0.75;
-            (0..44100).map(|i| amplitude * ((2.0 * std::f32::consts::PI * i as f32 * frequency) / sample_rate as f32).sin())
+            (0..44100)
+                .map(|i| {
+                    amplitude
+                        * ((2.0 * std::f32::consts::PI * i as f32 * frequency) / sample_rate as f32)
+                            .sin()
+                })
                 .collect()
-        }
+        },
     };
 
     let sine_wave_buffer = SoundBuffer::new_generic(sine_wave).unwrap();
@@ -40,9 +36,7 @@ fn main() {
         .build_source()
         .unwrap();
 
-    context.lock()
-        .unwrap()
-        .add_source(source);
+    context.lock().unwrap().add_source(source);
 
     // Play sound for some time.
     thread::sleep(Duration::from_secs(10));

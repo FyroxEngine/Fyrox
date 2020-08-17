@@ -7,7 +7,7 @@
 //! description of each filter. There is no need to describe them all here.
 
 use crate::dsp::DelayLine;
-use rg3d_core::visitor::{Visit, Visitor, VisitResult};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 /// One-pole Filter.
 /// For details see - https://www.earlevel.com/main/2012/12/15/a-one-pole-filter/
@@ -22,7 +22,7 @@ impl Default for OnePole {
         Self {
             a0: 1.0,
             b1: 0.0,
-            last: 0.0
+            last: 0.0,
         }
     }
 }
@@ -87,7 +87,7 @@ impl Default for LpfComb {
         Self {
             low_pass: Default::default(),
             delay_line: Default::default(),
-            feedback: 0.0
+            feedback: 0.0,
         }
     }
 }
@@ -153,7 +153,7 @@ impl Default for AllPass {
     fn default() -> Self {
         Self {
             delay_line: Default::default(),
-            gain: 1.0
+            gain: 1.0,
         }
     }
 }
@@ -259,7 +259,7 @@ impl Biquad {
             a1,
             a2,
             prev1: 0.0,
-            prev2: 0.0
+            prev2: 0.0,
         }
     }
 

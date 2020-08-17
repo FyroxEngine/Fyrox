@@ -1,10 +1,7 @@
 use crate::{
-    error::SoundError,
     buffer::DataSource,
-    decoder::{
-        wav::WavDecoder,
-        vorbis::OggDecoder
-    }
+    decoder::{vorbis::OggDecoder, wav::WavDecoder},
+    error::SoundError,
 };
 use std::time::Duration;
 
@@ -56,7 +53,7 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.time_seek(location),
             Decoder::Ogg(ogg) => ogg.time_seek(location),
-            Decoder::Null => ()
+            Decoder::Null => (),
         }
     }
 
@@ -64,7 +61,7 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.channel_count,
             Decoder::Ogg(ogg) => ogg.channel_count,
-            Decoder::Null => 0
+            Decoder::Null => 0,
         }
     }
 
@@ -72,7 +69,7 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.sample_rate,
             Decoder::Ogg(ogg) => ogg.sample_rate,
-            Decoder::Null => 0
+            Decoder::Null => 0,
         }
     }
 
@@ -84,7 +81,7 @@ impl Decoder {
         match self {
             Decoder::Wav(wav) => wav.duration(),
             Decoder::Ogg(ogg) => ogg.duration(),
-            Decoder::Null => None
+            Decoder::Null => None,
         }
     }
 }

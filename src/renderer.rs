@@ -6,14 +6,11 @@
 //! behaviour of renderer depends of variant being used.
 
 use crate::{
-    hrtf::HrtfRenderer,
-    source::{
-        SoundSource,
-        generic::GenericSource,
-    },
-    listener::Listener,
     context::DistanceModel,
+    hrtf::HrtfRenderer,
+    listener::Listener,
     math,
+    source::{generic::GenericSource, SoundSource},
 };
 
 /// See module docs.
@@ -41,7 +38,9 @@ fn render_with_params(
     let last_left_gain = *source.last_left_gain.get_or_insert(left_gain);
     let last_right_gain = *source.last_right_gain.get_or_insert(right_gain);
 
-    for ((out_left, out_right), &(raw_left, raw_right)) in mix_buffer.iter_mut().zip(source.frame_samples()) {
+    for ((out_left, out_right), &(raw_left, raw_right)) in
+        mix_buffer.iter_mut().zip(source.frame_samples())
+    {
         // Interpolation of gain is very important to remove clicks which appears
         // when gain changes by significant value between frames.
         *out_left += math::lerpf(last_left_gain, left_gain, t) * raw_left;

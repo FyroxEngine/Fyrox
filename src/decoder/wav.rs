@@ -1,16 +1,6 @@
-use crate::{
-    buffer::DataSource,
-    error::SoundError
-};
-use std::io::{
-    Read,
-    SeekFrom,
-    Seek
-};
-use byteorder::{
-    ReadBytesExt,
-    LittleEndian
-};
+use crate::{buffer::DataSource, error::SoundError};
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::io::{Read, Seek, SeekFrom};
 use std::time::Duration;
 
 struct WavHeader {
@@ -115,13 +105,19 @@ impl WavDecoder {
     }
 
     pub fn time_seek(&mut self, location: Duration) {
-        let byte_index = self.channel_count as f64 * location.as_secs_f64() *
-            self.sample_rate as f64 * self.byte_per_sample as f64;
-        let _ = self.source.seek(SeekFrom::Start(Self::HEADER_SIZE + byte_index as u64));
+        let byte_index = self.channel_count as f64
+            * location.as_secs_f64()
+            * self.sample_rate as f64
+            * self.byte_per_sample as f64;
+        let _ = self
+            .source
+            .seek(SeekFrom::Start(Self::HEADER_SIZE + byte_index as u64));
     }
 
     pub fn duration(&self) -> Option<Duration> {
-        Some(Duration::from_secs_f64((self.total_samples / (self.sample_rate * self.channel_count)) as f64))
+        Some(Duration::from_secs_f64(
+            (self.total_samples / (self.sample_rate * self.channel_count)) as f64,
+        ))
     }
 }
 

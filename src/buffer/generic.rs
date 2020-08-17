@@ -20,19 +20,9 @@
 //! }
 //! ```
 
-use std::{
-    path::PathBuf,
-    time::Duration
-};
-use rg3d_core::visitor::{
-    Visitor,
-    VisitResult,
-    Visit,
-};
-use crate::{
-    buffer::DataSource,
-    decoder::Decoder,
-};
+use crate::{buffer::DataSource, decoder::Decoder};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use std::{path::PathBuf, time::Duration};
 
 /// Generic sound buffer that contains decoded samples and allows random access.
 pub struct GenericBuffer {
@@ -76,12 +66,16 @@ impl GenericBuffer {
     /// function will return `Err`.
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
         match source {
-            DataSource::Raw { sample_rate, channel_count, samples } => {
+            DataSource::Raw {
+                sample_rate,
+                channel_count,
+                samples,
+            } => {
                 if samples.len() % channel_count != 0 {
                     Err(DataSource::Raw {
                         sample_rate,
                         channel_count,
-                        samples
+                        samples,
                     })
                 } else {
                     Ok(Self {
@@ -91,14 +85,13 @@ impl GenericBuffer {
                         external_source_path: None,
                     })
                 }
-            },
+            }
             _ => {
-                let external_source_path =
-                    if let DataSource::File { path, .. } = &source {
-                        Some(path.clone())
-                    } else {
-                        None
-                    };
+                let external_source_path = if let DataSource::File { path, .. } = &source {
+                    Some(path.clone())
+                } else {
+                    None
+                };
 
                 let decoder = Decoder::new(source)?;
 
@@ -152,7 +145,9 @@ impl GenericBuffer {
     /// Returns exact duration of the buffer.
     #[inline]
     pub fn duration(&self) -> Duration {
-        Duration::from_secs_f64((self.samples.len() / (self.channel_count * self.sample_rate)) as f64)
+        Duration::from_secs_f64(
+            (self.samples.len() / (self.channel_count * self.sample_rate)) as f64,
+        )
     }
 
     #[inline]

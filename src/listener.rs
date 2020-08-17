@@ -6,28 +6,21 @@
 //! system which is used to compute spatial properties of sound sources.
 
 use rg3d_core::{
-    math::{
-        vec3::Vec3,
-        mat3::Mat3
-    },
-    visitor::{
-        Visit,
-        VisitResult,
-        Visitor
-    },
+    math::{mat3::Mat3, vec3::Vec3},
+    visitor::{Visit, VisitResult, Visitor},
 };
 
 /// See module docs.
 pub struct Listener {
     basis: Mat3,
-    position: Vec3
+    position: Vec3,
 }
 
 impl Listener {
     pub(in crate) fn new() -> Self {
         Self {
             basis: Default::default(),
-            position: Default::default()
+            position: Default::default(),
         }
     }
 

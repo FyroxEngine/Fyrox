@@ -8,35 +8,15 @@
 //! is just inefficient memory-wise. Sound samples are very heavy: for example a mono sound that lasts
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
-use rg3d_core::visitor::{
-    Visit,
-    VisitResult,
-    Visitor,
-    VisitError,
-};
+use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
+use rg3d_core::visitor::{Visit, VisitError, VisitResult, Visitor};
+use std::ops::{Deref, DerefMut};
 use std::{
-    io::{
-        BufReader,
-        Cursor,
-        SeekFrom,
-        Seek,
-        Read,
-    },
-    path::{
-        PathBuf,
-        Path,
-    },
     fs::File,
-    sync::{
-        Arc,
-        Mutex,
-    },
+    io::{BufReader, Cursor, Read, Seek, SeekFrom},
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
-use crate::buffer::{
-    streaming::StreamingBuffer,
-    generic::GenericBuffer,
-};
-use std::ops::{DerefMut, Deref};
 
 pub mod generic;
 pub mod streaming;
@@ -79,7 +59,10 @@ pub enum DataSource {
 
 impl DataSource {
     /// Tries to create new `File` data source from given path. May fail if file does not exists.
-    pub fn from_file<P>(path: P) -> Result<Self, std::io::Error> where P: AsRef<Path> {
+    pub fn from_file<P>(path: P) -> Result<Self, std::io::Error>
+    where
+        P: AsRef<Path>,
+    {
         Ok(DataSource::File {
             path: path.as_ref().to_path_buf(),
             data: BufReader::new(File::open(path)?),
@@ -98,7 +81,7 @@ impl Read for DataSource {
         match self {
             DataSource::File { data, .. } => data.read(buf),
             DataSource::Memory(b) => b.read(buf),
-            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Read trait!")
+            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Read trait!"),
         }
     }
 }
@@ -108,7 +91,7 @@ impl Seek for DataSource {
         match self {
             DataSource::File { data, .. } => data.seek(pos),
             DataSource::Memory(b) => b.seek(pos),
-            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Seek trait!")
+            DataSource::Raw { .. } => unreachable!("Raw data source does not supports Seek trait!"),
         }
     }
 }
@@ -136,13 +119,17 @@ impl SoundBuffer {
     /// Tries to create new streaming sound buffer from a given data source. Returns sound source
     /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
     pub fn new_streaming(data_source: DataSource) -> Result<Arc<Mutex<Self>>, DataSource> {
-        Ok(Arc::new(Mutex::new(SoundBuffer::Streaming(StreamingBuffer::new(data_source)?))))
+        Ok(Arc::new(Mutex::new(SoundBuffer::Streaming(
+            StreamingBuffer::new(data_source)?,
+        ))))
     }
 
     /// Tries to create new generic sound buffer from a given data source. Returns sound source
     /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
     pub fn new_generic(data_source: DataSource) -> Result<Arc<Mutex<Self>>, DataSource> {
-        Ok(Arc::new(Mutex::new(SoundBuffer::Generic(GenericBuffer::new(data_source)?))))
+        Ok(Arc::new(Mutex::new(SoundBuffer::Generic(
+            GenericBuffer::new(data_source)?,
+        ))))
     }
 
     /// Tries to create new streaming sound buffer from a given data source. It returns raw sound
@@ -197,7 +184,7 @@ impl Visit for SoundBuffer {
             *self = match kind {
                 0 => SoundBuffer::Generic(Default::default()),
                 1 => SoundBuffer::Streaming(Default::default()),
-                _ => return Err(VisitError::User("invalid buffer kind".to_string()))
+                _ => return Err(VisitError::User("invalid buffer kind".to_string())),
             }
         }
 
@@ -209,4 +196,3 @@ impl Visit for SoundBuffer {
         visitor.leave_region()
     }
 }
-

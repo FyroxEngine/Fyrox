@@ -5,16 +5,16 @@
 //! Provides unified way of creating and using effects.
 
 use crate::{
-    effects::reverb::Reverb,
-    source::{SoundSource, Status},
+    context::DistanceModel,
     dsp::filters::Biquad,
+    effects::reverb::Reverb,
     listener::Listener,
-    context::DistanceModel
+    source::{SoundSource, Status},
 };
 use rg3d_core::{
+    math,
     pool::{Handle, Pool},
-    visitor::{Visit, Visitor, VisitResult},
-    math
+    visitor::{Visit, VisitResult, Visitor},
 };
 use std::ops::{Deref, DerefMut};
 
@@ -23,7 +23,7 @@ pub mod reverb;
 /// Stub effect that does nothing.
 #[derive(Default)]
 pub struct StubEffect {
-    base: BaseEffect
+    base: BaseEffect,
 }
 
 impl Visit for StubEffect {
@@ -37,7 +37,14 @@ impl Visit for StubEffect {
 }
 
 impl EffectRenderTrait for StubEffect {
-    fn render(&mut self, _sources: &Pool<SoundSource>, _listener: &Listener, _distance_model: DistanceModel, _mix_buf: &mut [(f32, f32)]) {}
+    fn render(
+        &mut self,
+        _sources: &Pool<SoundSource>,
+        _listener: &Listener,
+        _distance_model: DistanceModel,
+        _mix_buf: &mut [(f32, f32)],
+    ) {
+    }
 }
 
 impl Deref for StubEffect {
@@ -80,7 +87,7 @@ impl Effect {
         match id {
             0 => Ok(Effect::Stub(Default::default())),
             1 => Ok(Effect::Reverb(Default::default())),
-            _ => Err(format!("Unknown effect id {}", id))
+            _ => Err(format!("Unknown effect id {}", id)),
         }
     }
 }
@@ -103,7 +110,13 @@ impl Visit for Effect {
 }
 
 pub(in crate) trait EffectRenderTrait {
-    fn render(&mut self, sources: &Pool<SoundSource>, listener: &Listener, distance_model: DistanceModel, mix_buf: &mut [(f32, f32)]);
+    fn render(
+        &mut self,
+        sources: &Pool<SoundSource>,
+        listener: &Listener,
+        distance_model: DistanceModel,
+        mix_buf: &mut [(f32, f32)],
+    );
 }
 
 /// Base effect for all other kinds of effects. It contains set of inputs (direct
@@ -117,14 +130,19 @@ pub struct BaseEffect {
 }
 
 impl BaseEffect {
-    pub(in crate) fn render(&mut self, sources: &Pool<SoundSource>, listener: &Listener, distance_model: DistanceModel, amount: usize) {
+    pub(in crate) fn render(
+        &mut self,
+        sources: &Pool<SoundSource>,
+        listener: &Listener,
+        distance_model: DistanceModel,
+        amount: usize,
+    ) {
         // First of all check that inputs are still lead to valid sound sources.
         // We use some sort of weak coupling here - it is ok to leave sound source
         // connected to effect and delete source, such "dangling" inputs will be
         // automatically removed.
-        self.inputs.retain(|input| {
-            sources.is_valid_handle(input.source)
-        });
+        self.inputs
+            .retain(|input| sources.is_valid_handle(input.source));
 
         // Accumulate samples from inputs into accumulation buffer.
         if self.frame_samples.capacity() < amount {
@@ -145,7 +163,9 @@ impl BaseEffect {
 
             let distance_gain = match source {
                 SoundSource::Generic(_) => 1.0,
-                SoundSource::Spatial(spatial) => spatial.get_distance_gain(listener, distance_model),
+                SoundSource::Spatial(spatial) => {
+                    spatial.get_distance_gain(listener, distance_model)
+                }
             };
 
             let prev_distance_gain = input.last_distance_gain.unwrap_or(distance_gain);
@@ -157,24 +177,26 @@ impl BaseEffect {
 
             match self.filters.try_borrow_mut(input.filter) {
                 None => {
-                    for ((accum_left, accum_right), &(input_left, input_right)) in self
-                        .frame_samples.iter_mut().zip(source.frame_samples()) {
+                    for ((accum_left, accum_right), &(input_left, input_right)) in
+                        self.frame_samples.iter_mut().zip(source.frame_samples())
+                    {
                         let g = math::lerpf(prev_distance_gain, distance_gain, k);
                         *accum_left += input_left * g;
                         *accum_right += input_right * g;
                         k += step;
                     }
-                },
+                }
                 Some(filter) => {
-                    for ((accum_left, accum_right), &(input_left, input_right)) in self
-                        .frame_samples.iter_mut().zip(source.frame_samples()) {
+                    for ((accum_left, accum_right), &(input_left, input_right)) in
+                        self.frame_samples.iter_mut().zip(source.frame_samples())
+                    {
                         let (filtered_left, filtered_right) = filter.feed(input_left, input_right);
                         let g = math::lerpf(prev_distance_gain, distance_gain, k);
                         *accum_left += filtered_left * g;
                         *accum_right += filtered_right * g;
                         k += step;
                     }
-                },
+                }
             }
         }
     }
@@ -282,7 +304,7 @@ impl EffectInput {
         Self {
             source,
             filter: Handle::NONE,
-            last_distance_gain: None
+            last_distance_gain: None,
         }
     }
 
@@ -296,7 +318,7 @@ impl EffectInput {
         Self {
             source,
             filter,
-            last_distance_gain: None
+            last_distance_gain: None,
         }
     }
 }
@@ -322,7 +344,13 @@ macro_rules! static_dispatch {
 }
 
 impl EffectRenderTrait for Effect {
-    fn render(&mut self, sources: &Pool<SoundSource>, listener: &Listener, distance_model: DistanceModel, mix_buf: &mut [(f32, f32)]) {
+    fn render(
+        &mut self,
+        sources: &Pool<SoundSource>,
+        listener: &Listener,
+        distance_model: DistanceModel,
+        mix_buf: &mut [(f32, f32)],
+    ) {
         static_dispatch!(self, render, sources, listener, distance_model, mix_buf)
     }
 }

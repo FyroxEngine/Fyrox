@@ -1,27 +1,19 @@
 use rg3d_sound::{
+    buffer::{DataSource, SoundBuffer},
     context::Context,
-    buffer::{
-        DataSource,
-        SoundBuffer,
-    },
     pool::Handle,
-    source::{
-        generic::GenericSourceBuilder,
-        SoundSource,
-        Status,
-    },
+    source::{generic::GenericSourceBuilder, SoundSource, Status},
 };
-use std::{
-    thread,
-    time::Duration,
-};
+use std::{thread, time::Duration};
 
 fn main() {
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
 
     // Load sound buffer.
-    let waterfall_buffer = SoundBuffer::new_streaming(DataSource::from_file("examples/data/waterfall.ogg").unwrap()).unwrap();
+    let waterfall_buffer =
+        SoundBuffer::new_streaming(DataSource::from_file("examples/data/waterfall.ogg").unwrap())
+            .unwrap();
 
     // Create flat source (without spatial effects) using that buffer.
     let source = GenericSourceBuilder::new(waterfall_buffer)

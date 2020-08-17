@@ -1,38 +1,15 @@
-use std::{
-    time::{
-        self,
-        Duration,
-    },
-    thread,
-};
 use rg3d_sound::{
-    hrtf::{
-        HrtfRenderer,
-        HrtfSphere,
-    },
+    buffer::{DataSource, SoundBuffer},
     context::Context,
-    buffer::{
-        DataSource,
-        SoundBuffer,
-    },
+    effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
+    hrtf::{HrtfRenderer, HrtfSphere},
+    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
     renderer::Renderer,
-    effects::{
-        reverb::Reverb,
-        Effect,
-        BaseEffect,
-        EffectInput
-    },
-    source::{
-        SoundSource,
-        spatial::SpatialSourceBuilder,
-        generic::GenericSourceBuilder,
-        Status,
-    },
-    math::{
-        mat4::Mat4,
-        vec3::Vec3,
-        quat::Quat,
-    },
+    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
+};
+use std::{
+    thread,
+    time::{self, Duration},
 };
 
 fn main() {
@@ -42,7 +19,8 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Set HRTF renderer instead of default for binaural sound.
-    context.lock()
+    context
+        .lock()
         .unwrap()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
@@ -51,42 +29,43 @@ fn main() {
     // Create reverb effect and set its decay time.
     let mut reverb = Reverb::new(base_effect);
     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-    let reverb_handle = context.lock()
-        .unwrap()
-        .add_effect(Effect::Reverb(reverb));
+    let reverb_handle = context.lock().unwrap().add_effect(Effect::Reverb(reverb));
 
     // Create some sounds.
-    let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap()).unwrap();
+    let sound_buffer =
+        SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap())
+            .unwrap();
     let source = SpatialSourceBuilder::new(
         GenericSourceBuilder::new(sound_buffer)
             .with_status(Status::Playing)
             .build()
-            .unwrap())
-        .build_source();
-    let door_sound = context.lock()
-        .unwrap()
-        .add_source(source);
+            .unwrap(),
+    )
+    .build_source();
+    let door_sound = context.lock().unwrap().add_source(source);
 
     // Each sound source must be attached to effect, otherwise sound won't be passed to effect
     // and you'll hear sound without any difference.
-    context.lock()
+    context
+        .lock()
         .unwrap()
         .effect_mut(reverb_handle)
         .add_input(EffectInput::direct(door_sound));
 
-    let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
+    let sound_buffer =
+        SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
     let source = SpatialSourceBuilder::new(
         GenericSourceBuilder::new(sound_buffer)
             .with_status(Status::Playing)
             .with_looping(true)
             .build()
-            .unwrap())
-        .build_source();
-    let drop_sound_handle = context.lock()
-        .unwrap()
-        .add_source(source);
+            .unwrap(),
+    )
+    .build_source();
+    let drop_sound_handle = context.lock().unwrap().add_source(source);
 
-    context.lock()
+    context
+        .lock()
         .unwrap()
         .effect_mut(reverb_handle)
         .add_input(EffectInput::direct(drop_sound_handle));
@@ -102,7 +81,8 @@ fn main() {
 
             if let SoundSource::Spatial(sound) = context.source_mut(drop_sound_handle) {
                 let axis = Vec3::new(0.0, 1.0, 0.0);
-                let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
+                let rotation_matrix =
+                    Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
                 sound.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 1.0)));
             }
 

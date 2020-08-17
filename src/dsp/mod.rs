@@ -8,7 +8,7 @@
 //!
 //! `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
 
-use rg3d_core::visitor::{Visit, Visitor, VisitResult};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 pub mod filters;
 
@@ -16,7 +16,7 @@ pub mod filters;
 pub struct DelayLine {
     samples: Vec<f32>,
     last: f32,
-    pos: u32
+    pos: u32,
 }
 
 impl DelayLine {
@@ -25,7 +25,7 @@ impl DelayLine {
         Self {
             samples: vec![0.0; len],
             last: 0.0,
-            pos: 0
+            pos: 0,
         }
     }
 
@@ -56,7 +56,7 @@ impl Default for DelayLine {
         Self {
             samples: vec![0.0],
             last: 0.0,
-            pos: 0
+            pos: 0,
         }
     }
 }

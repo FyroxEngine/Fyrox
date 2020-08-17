@@ -25,10 +25,7 @@ pub struct NativeSample {
 
 impl Default for NativeSample {
     fn default() -> Self {
-        Self {
-            left: 0,
-            right: 0,
-        }
+        Self { left: 0, right: 0 }
     }
 }
 
@@ -80,15 +77,16 @@ trait Device {
 
 /// Transfer ownership of device to separate mixer thread. It will
 /// call the callback with a specified rate to get data to send to a physical device.
-pub(in crate) fn run_device(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<(), SoundError> {
+pub(in crate) fn run_device(
+    buffer_len_bytes: u32,
+    callback: Box<FeedCallback>,
+) -> Result<(), SoundError> {
     #[cfg(target_os = "windows")]
-        let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback)?;
+    let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback)?;
     #[cfg(target_os = "linux")]
-        let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
-    std::thread::spawn(move || {
-        loop {
-            device.feed()
-        }
+    let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
+    std::thread::spawn(move || loop {
+        device.feed()
     });
     Ok(())
 }

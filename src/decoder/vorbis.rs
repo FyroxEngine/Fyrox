@@ -1,19 +1,9 @@
-use lewton::{
-    inside_ogg::OggStreamReader,
-    samples::InterleavedSamples
-};
-use crate::{
-    buffer::DataSource,
-    error::SoundError
-};
+use crate::{buffer::DataSource, error::SoundError};
+use lewton::{inside_ogg::OggStreamReader, samples::InterleavedSamples};
 use std::{
-    io::{
-        Seek,
-        SeekFrom,
-        Read
-    },
+    io::{Read, Seek, SeekFrom},
+    time::Duration,
     vec,
-    time::Duration
 };
 
 pub struct OggDecoder {
@@ -86,11 +76,7 @@ impl OggDecoder {
     pub fn rewind(&mut self) -> Result<(), SoundError> {
         // We have to create completely new instance of decoder because of bug in seek_absgp_pg
         // For more info see - https://github.com/RustAudio/lewton/issues/73
-        let mut source = self.reader
-            .take()
-            .unwrap()
-            .into_inner()
-            .into_inner();
+        let mut source = self.reader.take().unwrap().into_inner().into_inner();
         source.seek(SeekFrom::Start(0))?;
         *self = match Self::new(source) {
             Ok(ogg_decoder) => ogg_decoder,
@@ -105,8 +91,15 @@ impl OggDecoder {
     pub fn time_seek(&mut self, location: Duration) {
         // seek_absgp_pg seems to be bugged - it fails at seeking when all packets were read already.
         // For more info see - https://github.com/RustAudio/lewton/issues/73
-        let sample_index = self.channel_count as f64 * location.as_secs_f64() * self.sample_rate as f64;
-        if self.reader.as_mut().unwrap().seek_absgp_pg(sample_index as u64).is_err() {
+        let sample_index =
+            self.channel_count as f64 * location.as_secs_f64() * self.sample_rate as f64;
+        if self
+            .reader
+            .as_mut()
+            .unwrap()
+            .seek_absgp_pg(sample_index as u64)
+            .is_err()
+        {
             println!("Failed to seek vorbis/ogg, see https://github.com/RustAudio/lewton/issues/73")
         }
     }

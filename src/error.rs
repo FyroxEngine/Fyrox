@@ -1,11 +1,7 @@
 //! Contains all possible errors that can occur in the engine.
 
-use std::fmt::{
-    Display,
-    Formatter,
-    Error
-};
 use lewton::VorbisError;
+use std::fmt::{Display, Error, Formatter};
 
 /// Decoder specific error.
 #[derive(Debug)]
@@ -14,7 +10,7 @@ pub enum DecoderError {
     Wav,
 
     /// Ogg/vorbis (lewton) specific error.
-    Ogg(lewton::VorbisError)
+    Ogg(lewton::VorbisError),
 }
 
 /// Generic error enumeration for each error in this engine.
@@ -76,12 +72,18 @@ impl Display for SoundError {
         match self {
             SoundError::Io(io) => write!(f, "io error: {}", io)?,
             SoundError::NoBackend => write!(f, "no backend implemented for current platform")?,
-            SoundError::FailedToInitializeDevice(reason) => write!(f, "failed to initialize device. reason: {}", reason)?,
+            SoundError::FailedToInitializeDevice(reason) => {
+                write!(f, "failed to initialize device. reason: {}", reason)?
+            }
             SoundError::InvalidHeader => write!(f, "invalid header of sound file")?,
             SoundError::UnsupportedFormat => write!(f, "unsupported format of sound file")?,
             SoundError::PoisonedMutex => write!(f, "attempt to use poisoned mutex")?,
-            SoundError::MathError(reason) => write!(f, "math error has occurred. reason: {}", reason)?,
-            SoundError::StreamingBufferAlreadyInUse => write!(f, "streaming buffer in already in use")?,
+            SoundError::MathError(reason) => {
+                write!(f, "math error has occurred. reason: {}", reason)?
+            }
+            SoundError::StreamingBufferAlreadyInUse => {
+                write!(f, "streaming buffer in already in use")?
+            }
             SoundError::DecoderError(de) => write!(f, "internal decoder error: {:?}", de)?,
         }
         Ok(())

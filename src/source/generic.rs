@@ -27,28 +27,15 @@
 //!
 //! ```
 
-use std::{
-    sync::{
-        Arc,
-        Mutex,
-    },
-    time::Duration,
-};
 use crate::{
-    buffer::{
-        SoundBuffer,
-        streaming::StreamingBuffer,
-    },
-    source::{
-        Status,
-        SoundSource
-    },
+    buffer::{streaming::StreamingBuffer, SoundBuffer},
     error::SoundError,
+    source::{SoundSource, Status},
 };
-use rg3d_core::visitor::{
-    Visit,
-    VisitResult,
-    Visitor,
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
 /// See module info.
@@ -83,7 +70,7 @@ pub struct GenericSource {
     // will start interpolation of gain.
     pub(in crate) last_left_gain: Option<f32>,
     pub(in crate) last_right_gain: Option<f32>,
-    frame_samples: Vec<(f32, f32)>
+    frame_samples: Vec<(f32, f32)>,
 }
 
 impl Default for GenericSource {
@@ -101,7 +88,7 @@ impl Default for GenericSource {
             play_once: false,
             last_left_gain: None,
             last_right_gain: None,
-            frame_samples: Default::default()
+            frame_samples: Default::default(),
         }
     }
 }
@@ -133,7 +120,10 @@ fn position_to_index(position: f64, channel_count: usize) -> usize {
 impl GenericSource {
     /// Changes buffer of source. Returns old buffer. Source will continue playing from beginning, old
     /// position will be discarded.
-    pub fn set_buffer(&mut self, buffer: Arc<Mutex<SoundBuffer>>) -> Result<Option<Arc<Mutex<SoundBuffer>>>, SoundError> {
+    pub fn set_buffer(
+        &mut self,
+        buffer: Arc<Mutex<SoundBuffer>>,
+    ) -> Result<Option<Arc<Mutex<SoundBuffer>>>, SoundError> {
         self.buf_read_pos = 0.0;
         self.playback_pos = 0.0;
 
@@ -283,20 +273,20 @@ impl GenericSource {
             self.playback_pos = (time.as_secs_f64() * buffer.channel_count() as f64)
                 .min(buffer.index_of_last_sample() as f64);
             // Then adjust buffer read position.
-            self.buf_read_pos =
-                match *buffer {
-                    SoundBuffer::Streaming(ref mut streaming) => {
-                        // Make sure to load correct data into buffer from decoder.
-                        streaming.read_next_block();
-                        // Streaming sources has different buffer read position because
-                        // buffer contains only small portion of data.
-                        self.playback_pos % streaming.generic.samples.len() as f64
-                    }
-                    SoundBuffer::Generic(_) => {
-                        self.playback_pos
-                    }
-                };
-            assert!(position_to_index(self.buf_read_pos, buffer.channel_count()) < buffer.samples().len());
+            self.buf_read_pos = match *buffer {
+                SoundBuffer::Streaming(ref mut streaming) => {
+                    // Make sure to load correct data into buffer from decoder.
+                    streaming.read_next_block();
+                    // Streaming sources has different buffer read position because
+                    // buffer contains only small portion of data.
+                    self.playback_pos % streaming.generic.samples.len() as f64
+                }
+                SoundBuffer::Generic(_) => self.playback_pos,
+            };
+            assert!(
+                position_to_index(self.buf_read_pos, buffer.channel_count())
+                    < buffer.samples().len()
+            );
         }
     }
 
@@ -349,7 +339,11 @@ impl GenericSource {
 
         self.frame_samples.clear();
 
-        if let Some(mut buffer) = self.buffer.clone().as_ref().and_then(|b| b.lock().ok().and_then(|b| if b.is_empty() { None } else { Some(b) })) {
+        if let Some(mut buffer) = self.buffer.clone().as_ref().and_then(|b| {
+            b.lock()
+                .ok()
+                .and_then(|b| if b.is_empty() { None } else { Some(b) })
+        }) {
             for _ in 0..amount {
                 if self.status == Status::Playing {
                     let pair = self.next_sample_pair(&mut buffer);
@@ -391,7 +385,8 @@ impl Visit for GenericSource {
         self.pitch.visit("Pitch", visitor)?;
         self.gain.visit("Gain", visitor)?;
         self.looping.visit("Looping", visitor)?;
-        self.resampling_multiplier.visit("ResamplingMultiplier", visitor)?;
+        self.resampling_multiplier
+            .visit("ResamplingMultiplier", visitor)?;
         self.status.visit("Status", visitor)?;
         self.play_once.visit("PlayOnce", visitor)?;
 

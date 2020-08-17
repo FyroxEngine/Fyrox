@@ -1,26 +1,13 @@
-use std::{
-    time::{
-        self,
-        Duration,
-    },
-    thread,
-};
 use rg3d_sound::{
-    source::{
-        generic::GenericSourceBuilder,
-        spatial::SpatialSourceBuilder,
-        Status
-    },
-    context::Context,
-    buffer::{
-        DataSource,
-    },
+    buffer::DataSource,
     buffer::SoundBuffer,
-    math::{
-        mat4::Mat4,
-        vec3::Vec3,
-        quat::Quat,
-    },
+    context::Context,
+    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
+    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
+};
+use std::{
+    thread,
+    time::{self, Duration},
 };
 
 fn main() {
@@ -28,7 +15,8 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Load sound buffer.
-    let drop_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
+    let drop_buffer =
+        SoundBuffer::new_generic(DataSource::from_file("examples/data/drop.wav").unwrap()).unwrap();
 
     // Create spatial source - spatial sources can be positioned in space.
     let source = SpatialSourceBuilder::new(
@@ -36,8 +24,9 @@ fn main() {
             .with_looping(true)
             .with_status(Status::Playing)
             .build()
-            .unwrap())
-        .build_source();
+            .unwrap(),
+    )
+    .build_source();
 
     // Each sound sound must be added to context, context takes ownership on source
     // and returns pool handle to it by which it can be accessed later on if needed.

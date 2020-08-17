@@ -27,20 +27,13 @@
 //! buffer that already in use you'll get error.
 
 use crate::{
+    buffer::{generic::GenericBuffer, DataSource},
     decoder::Decoder,
-    buffer::{
-        generic::GenericBuffer,
-        DataSource
-    },
-    error::SoundError
+    error::SoundError,
 };
-use std::time::Duration;
-use rg3d_core::visitor::{
-    Visit,
-    Visitor,
-    VisitResult
-};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
+use std::time::Duration;
 
 /// Streaming buffer for long sounds. Does not support random access.
 pub struct StreamingBuffer {
@@ -89,21 +82,24 @@ impl StreamingBuffer {
     /// is already loaded into memory. Use Generic source instead!
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
         if let DataSource::Raw { .. } = source {
-            return Err(source)
+            return Err(source);
         };
 
-        let external_source_path =
-            if let DataSource::File { path, .. } = &source {
-                Some(path.clone())
-            } else {
-                None
-            };
+        let external_source_path = if let DataSource::File { path, .. } = &source {
+            Some(path.clone())
+        } else {
+            None
+        };
 
         let mut decoder = Decoder::new(source)?;
 
         let mut samples = Vec::new();
         let channel_count = decoder.get_channel_count();
-        read_samples(&mut samples, &mut decoder, Self::STREAM_SAMPLE_COUNT * channel_count);
+        read_samples(
+            &mut samples,
+            &mut decoder,
+            Self::STREAM_SAMPLE_COUNT * channel_count,
+        );
         debug_assert_eq!(samples.len() % channel_count, 0);
 
         Ok(Self {
@@ -125,7 +121,11 @@ impl StreamingBuffer {
 
     #[inline]
     pub(in crate) fn read_next_block(&mut self) {
-        read_samples(&mut self.generic.samples, &mut self.decoder, self.generic.channel_count * Self::STREAM_SAMPLE_COUNT);
+        read_samples(
+            &mut self.generic.samples,
+            &mut self.decoder,
+            self.generic.channel_count * Self::STREAM_SAMPLE_COUNT,
+        );
     }
 
     #[inline]

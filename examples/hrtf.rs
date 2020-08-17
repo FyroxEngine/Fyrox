@@ -1,32 +1,14 @@
-use std::{
-    time::{
-        self,
-        Duration,
-    },
-    thread,
-};
 use rg3d_sound::{
-    math::{
-        mat4::Mat4,
-        vec3::Vec3,
-        quat::Quat,
-    },
-    hrtf::{
-        HrtfRenderer,
-        HrtfSphere,
-    },
+    buffer::{DataSource, SoundBuffer},
     context::Context,
-    buffer::{
-        DataSource,
-        SoundBuffer,
-    },
+    hrtf::{HrtfRenderer, HrtfSphere},
+    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
     renderer::Renderer,
-    source::{
-        generic::GenericSourceBuilder,
-        SoundSource,
-        spatial::SpatialSourceBuilder,
-        Status,
-    },
+    source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
+};
+use std::{
+    thread,
+    time::{self, Duration},
 };
 
 fn main() {
@@ -36,33 +18,36 @@ fn main() {
     let context = Context::new().unwrap();
 
     // Set HRTF renderer instead of default.
-    context.lock()
+    context
+        .lock()
         .unwrap()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
 
     // Create some sounds.
-    let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap()).unwrap();
+    let sound_buffer =
+        SoundBuffer::new_generic(DataSource::from_file("examples/data/door_open.wav").unwrap())
+            .unwrap();
     let source = SpatialSourceBuilder::new(
         GenericSourceBuilder::new(sound_buffer)
             .with_status(Status::Playing)
             .build()
-            .unwrap())
-        .build_source();
-    context.lock()
-        .unwrap()
-        .add_source(source);
+            .unwrap(),
+    )
+    .build_source();
+    context.lock().unwrap().add_source(source);
 
-    let sound_buffer = SoundBuffer::new_generic(DataSource::from_file("examples/data/helicopter.wav").unwrap()).unwrap();
+    let sound_buffer =
+        SoundBuffer::new_generic(DataSource::from_file("examples/data/helicopter.wav").unwrap())
+            .unwrap();
     let source = SpatialSourceBuilder::new(
         GenericSourceBuilder::new(sound_buffer)
             .with_status(Status::Playing)
             .with_looping(true)
             .build()
-            .unwrap())
-        .build_source();
-    let source_handle = context.lock()
-        .unwrap()
-        .add_source(source);
+            .unwrap(),
+    )
+    .build_source();
+    let source_handle = context.lock().unwrap().add_source(source);
 
     // Move source sound around listener for some time.
     let start_time = time::Instant::now();
@@ -75,7 +60,8 @@ fn main() {
             let sound = context.source_mut(source_handle);
             if let SoundSource::Spatial(spatial) = sound {
                 let axis = Vec3::new(0.0, 1.0, 0.0);
-                let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
+                let rotation_matrix =
+                    Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
                 spatial.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 3.0)));
             }
 

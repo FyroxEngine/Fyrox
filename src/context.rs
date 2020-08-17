@@ -5,37 +5,22 @@
 //! Context holds all sound sources, feeds renderer with samples, applies effects, applies master gain, etc.
 //!
 
-use std::{
-    sync::{
-        Arc,
-        Mutex,
-    },
-    time::{
-        self,
-        Duration,
-    },
-};
 use crate::{
-    error::SoundError,
-    device::run_device,
-    listener::Listener,
-    source::{
-        Status,
-        SoundSource,
-    },
-    renderer::{
-        Renderer,
-        render_source_default,
-    },
-    effects::{
-        Effect,
-        EffectRenderTrait,
-    },
     device,
+    device::run_device,
+    effects::{Effect, EffectRenderTrait},
+    error::SoundError,
+    listener::Listener,
+    renderer::{render_source_default, Renderer},
+    source::{SoundSource, Status},
 };
 use rg3d_core::{
-    pool::{Pool, Handle},
+    pool::{Handle, Pool},
     visitor::{Visit, VisitResult, Visitor},
+};
+use std::{
+    sync::{Arc, Mutex},
+    time::{self, Duration},
 };
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
@@ -100,7 +85,8 @@ impl Context {
 
     pub(in crate) const HRTF_INTERPOLATION_STEPS: usize = 8;
 
-    pub(in crate) const SAMPLES_PER_CHANNEL: usize = Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
+    pub(in crate) const SAMPLES_PER_CHANNEL: usize =
+        Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
 
     /// Creates new instance of context. Internally context starts new thread which will call render all
     /// sound source and send samples to default output device. This method returns Arc<Mutex<Context>>
@@ -245,9 +231,11 @@ impl Context {
             }
         }
 
-        for source in self.sources
+        for source in self
+            .sources
             .iter_mut()
-            .filter(|s| s.status() == Status::Playing) {
+            .filter(|s| s.status() == Status::Playing)
+        {
             source.render(buf.len());
 
             match self.renderer {

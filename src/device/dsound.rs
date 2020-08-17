@@ -1,38 +1,41 @@
 #![allow(non_snake_case)]
 
+use crate::{
+    device::{Device, FeedCallback, MixContext, NativeSample, SAMPLE_RATE},
+    error::SoundError,
+};
 use std::mem::size_of;
 use winapi::{
+    ctypes::c_void,
+    shared::{
+        guiddef::IID_NULL,
+        minwindef::DWORD,
+        mmreg::{WAVEFORMATEX, WAVE_FORMAT_PCM},
+        ntdef::{HANDLE, PVOID},
+        winerror::HRESULT,
+    },
     um::{
         dsound::*,
-        winuser::GetForegroundWindow,
         synchapi::{CreateEventA, WaitForMultipleObjects},
-        unknwnbase::{IUnknownVtbl, IUnknown},
+        unknwnbase::{IUnknown, IUnknownVtbl},
         winbase::{INFINITE, WAIT_OBJECT_0},
+        winuser::GetForegroundWindow,
     },
-    shared::{
-        guiddef::IID_NULL, mmreg::{WAVEFORMATEX, WAVE_FORMAT_PCM},
-        ntdef::{HANDLE, PVOID}, minwindef::DWORD, winerror::HRESULT,
-    },
-    ctypes::c_void,
-};
-use crate::{
-    device::{NativeSample, FeedCallback, SAMPLE_RATE, Device, MixContext},
-    error::SoundError,
 };
 
 // Declare missing structs and interfaces.
 STRUCT! {struct DSBPOSITIONNOTIFY {
-        dwOffset: DWORD,
-        hEventNotify: HANDLE,
-    }}
+    dwOffset: DWORD,
+    hEventNotify: HANDLE,
+}}
 
 RIDL! {#[uuid(0xb021_0783, 0x89cd, 0x11d0, 0xaf, 0x8, 0x0, 0xa0, 0xc9, 0x25, 0xcd, 0x16)]
-    interface IDirectSoundNotify(IDirectSoundNotifyVtbl): IUnknown(IUnknownVtbl) {
-        fn SetNotificationPositions(
-            dwPositionNotifies : DWORD,
-            pcPositionNotifies : PVOID,
-            ) -> HRESULT,
-    }}
+interface IDirectSoundNotify(IDirectSoundNotifyVtbl): IUnknown(IUnknownVtbl) {
+    fn SetNotificationPositions(
+        dwPositionNotifies : DWORD,
+        pcPositionNotifies : PVOID,
+        ) -> HRESULT,
+}}
 
 pub struct DirectSoundDevice {
     direct_sound: *mut IDirectSound,
@@ -58,11 +61,15 @@ impl DirectSoundDevice {
     pub fn new(buffer_len_bytes: u32, callback: Box<FeedCallback>) -> Result<Self, SoundError> {
         unsafe {
             let mut direct_sound = std::ptr::null_mut();
-            check(DirectSoundCreate(std::ptr::null(), &mut direct_sound, std::ptr::null_mut()),
-                  "Failed to initialize DirectSound")?;
+            check(
+                DirectSoundCreate(std::ptr::null(), &mut direct_sound, std::ptr::null_mut()),
+                "Failed to initialize DirectSound",
+            )?;
 
-            check((*direct_sound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY),
-                  "Failed to set cooperative level")?;
+            check(
+                (*direct_sound).SetCooperativeLevel(GetForegroundWindow(), DSSCL_PRIORITY),
+                "Failed to set cooperative level",
+            )?;
 
             let channels_count = 2;
             let byte_per_sample = size_of::<i16>() as u16;
@@ -88,16 +95,23 @@ impl DirectSoundDevice {
             };
 
             let mut buffer = std::ptr::null_mut();
-            check((*direct_sound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()),
-                  "Failed to create back buffer.")?;
+            check(
+                (*direct_sound).CreateSoundBuffer(&buffer_desc, &mut buffer, std::ptr::null_mut()),
+                "Failed to create back buffer.",
+            )?;
 
             let mut notify: *mut IDirectSoundNotify = std::ptr::null_mut();
-            check((*buffer).QueryInterface(&IID_IDirectSoundNotify, ((&mut notify) as *mut *mut _) as *mut *mut c_void),
-                "Failed to obtain IDirectSoundNotify interface.")?;
+            check(
+                (*buffer).QueryInterface(
+                    &IID_IDirectSoundNotify,
+                    ((&mut notify) as *mut *mut _) as *mut *mut c_void,
+                ),
+                "Failed to obtain IDirectSoundNotify interface.",
+            )?;
 
             let notify_points = [
                 CreateEventA(std::ptr::null_mut(), 0, 0, std::ptr::null()),
-                CreateEventA(std::ptr::null_mut(), 0, 0, std::ptr::null())
+                CreateEventA(std::ptr::null_mut(), 0, 0, std::ptr::null()),
             ];
 
             let mut pos = [
@@ -108,13 +122,19 @@ impl DirectSoundDevice {
                 DSBPOSITIONNOTIFY {
                     dwOffset: buffer_desc.dwBufferBytes / 2,
                     hEventNotify: notify_points[1],
-                }
+                },
             ];
 
-            check((*notify).SetNotificationPositions(pos.len() as u32, &mut pos as *mut _ as *mut c_void),
-                "Failed to set notification positions.")?;
+            check(
+                (*notify)
+                    .SetNotificationPositions(pos.len() as u32, &mut pos as *mut _ as *mut c_void),
+                "Failed to set notification positions.",
+            )?;
 
-            check((*buffer).Play(0, 0, DSBPLAY_LOOPING), "Failed to begin playing back buffer.")?;
+            check(
+                (*buffer).Play(0, 0, DSBPLAY_LOOPING),
+                "Failed to begin playing back buffer.",
+            )?;
 
             let samples_per_channel = buffer_len_bytes as usize / size_of::<NativeSample>();
 
@@ -139,11 +159,28 @@ impl Drop for DirectSoundDevice {
     }
 }
 
-unsafe fn write(ds_buffer: *mut IDirectSoundBuffer, offset_bytes: u32, len_bytes: u32, data: &[NativeSample]) {
+unsafe fn write(
+    ds_buffer: *mut IDirectSoundBuffer,
+    offset_bytes: u32,
+    len_bytes: u32,
+    data: &[NativeSample],
+) {
     let mut size = 0;
     let mut device_buffer = std::ptr::null_mut();
-    (*ds_buffer).Lock(offset_bytes, len_bytes, &mut device_buffer, &mut size, std::ptr::null_mut(), std::ptr::null_mut(), 0);
-    std::ptr::copy_nonoverlapping(data.as_ptr() as *mut u8, device_buffer as *mut u8, size as usize);
+    (*ds_buffer).Lock(
+        offset_bytes,
+        len_bytes,
+        &mut device_buffer,
+        &mut size,
+        std::ptr::null_mut(),
+        std::ptr::null_mut(),
+        0,
+    );
+    std::ptr::copy_nonoverlapping(
+        data.as_ptr() as *mut u8,
+        device_buffer as *mut u8,
+        size as usize,
+    );
     (*ds_buffer).Unlock(device_buffer, size, std::ptr::null_mut(), 0);
 }
 
@@ -163,9 +200,14 @@ impl Device for DirectSoundDevice {
         unsafe {
             const WAIT_OBJECT_1: u32 = WAIT_OBJECT_0 + 1;
             match WaitForMultipleObjects(2, self.notify_points.as_ptr(), 0, INFINITE) {
-                WAIT_OBJECT_0 => write(self.buffer, self.buffer_len_bytes, self.buffer_len_bytes, &self.out_data),
+                WAIT_OBJECT_0 => write(
+                    self.buffer,
+                    self.buffer_len_bytes,
+                    self.buffer_len_bytes,
+                    &self.out_data,
+                ),
                 WAIT_OBJECT_1 => write(self.buffer, 0, self.buffer_len_bytes, &self.out_data),
-                _ => panic!("Unknown buffer point!")
+                _ => panic!("Unknown buffer point!"),
             }
         }
     }

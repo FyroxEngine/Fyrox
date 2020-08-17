@@ -6,16 +6,8 @@
 //! etc.), control volume, pitch, panning and other. Exact behaviour defined by a variant of sound buffer (generic or
 //! spatial). See docs at those modules for more info.
 
-use crate::source::{
-    generic::GenericSource,
-    spatial::SpatialSource,
-};
-use rg3d_core::visitor::{
-    Visit,
-    Visitor,
-    VisitResult,
-    VisitError,
-};
+use crate::source::{generic::GenericSource, spatial::SpatialSource};
+use rg3d_core::visitor::{Visit, VisitError, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
 pub mod generic;
@@ -106,7 +98,7 @@ impl Visit for Status {
                 0 => Status::Stopped,
                 1 => Status::Playing,
                 2 => Status::Paused,
-                _ => return Err(VisitError::User("invalid status".to_string()))
+                _ => return Err(VisitError::User("invalid status".to_string())),
             }
         }
 
@@ -129,7 +121,7 @@ impl Visit for SoundSource {
             *self = match kind {
                 0 => SoundSource::Generic(GenericSource::default()),
                 1 => SoundSource::Spatial(SpatialSource::default()),
-                _ => return Err(VisitError::User("invalid source kind".to_string()))
+                _ => return Err(VisitError::User("invalid source kind".to_string())),
             }
         }
 
@@ -147,4 +139,3 @@ impl Default for SoundSource {
         SoundSource::Generic(Default::default())
     }
 }
-

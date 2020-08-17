@@ -26,20 +26,13 @@
 //! }
 //! ```
 
-use rg3d_core::visitor::{
-    Visitor,
-    VisitResult,
-    Visit,
-};
 use crate::{
-    math::vec3::Vec3,
-    source::{
-        generic::GenericSource,
-        SoundSource,
-    },
-    listener::Listener,
     context::DistanceModel,
+    listener::Listener,
+    math::vec3::Vec3,
+    source::{generic::GenericSource, SoundSource},
 };
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
@@ -119,8 +112,13 @@ impl SpatialSource {
     // Distance models were taken from OpenAL Specification because it looks like they're
     // standard in industry and there is no need to reinvent it.
     // https://www.openal.org/documentation/openal-1.1-specification.pdf
-    pub(in crate) fn get_distance_gain(&self, listener: &Listener, distance_model: DistanceModel) -> f32 {
-        let distance = self.position
+    pub(in crate) fn get_distance_gain(
+        &self,
+        listener: &Listener,
+        distance_model: DistanceModel,
+    ) -> f32 {
+        let distance = self
+            .position
             .distance(&listener.position())
             .max(self.radius)
             .min(self.max_distance);
@@ -132,9 +130,7 @@ impl SpatialSource {
             DistanceModel::LinearDistance => {
                 1.0 - self.radius * (distance - self.radius) / (self.max_distance - self.radius)
             }
-            DistanceModel::ExponentDistance => {
-                (distance / self.radius).powf(-self.rolloff_factor)
-            }
+            DistanceModel::ExponentDistance => (distance / self.radius).powf(-self.rolloff_factor),
         }
     }
 
@@ -148,7 +144,8 @@ impl SpatialSource {
     }
 
     pub(in crate) fn get_sampling_vector(&self, listener: &Listener) -> Vec3 {
-        listener.basis()
+        listener
+            .basis()
             .transform_vector(self.position - listener.position())
             .normalized()
             // This is ok to fallback to (0, 0, 1) vector because it's given
@@ -193,7 +190,7 @@ impl Default for SpatialSource {
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
             prev_sampling_vector: Vec3::new(0.0, 0.0, 1.0),
-            prev_distance_gain: None
+            prev_distance_gain: None,
         }
     }
 }
@@ -254,7 +251,7 @@ impl SpatialSourceBuilder {
             rolloff_factor: self.rolloff_factor,
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
-            .. Default::default()
+            ..Default::default()
         }
     }
 
