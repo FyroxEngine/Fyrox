@@ -14,9 +14,7 @@ use crate::{
         pool::Handle,
     },
     grid::{Column, GridBuilder, Row},
-    message::TileMessage,
-    message::WidgetMessage,
-    message::{UiMessage, UiMessageData, WindowMessage},
+    message::{TileMessage, UiMessage, UiMessageData, WidgetMessage, WindowMessage},
     node::UINode,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UserInterface,
@@ -431,7 +429,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                 }
             }
             UiMessageData::Window(msg) => {
-                // Can panic if tile is used not as part of docking manager.
                 if let Some(docking_manager) = ui.try_borrow_by_criteria_up(self.parent(), |n| {
                     if let UINode::DockingManager(_) = n {
                         true
