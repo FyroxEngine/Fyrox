@@ -1,3 +1,4 @@
+use crate::file_browser::FileSelector;
 use crate::{
     border::Border,
     button::Button,
@@ -62,6 +63,7 @@ pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
     Tree(Tree<M, C>),
     TreeRoot(TreeRoot<M, C>),
     FileBrowser(FileBrowser<M, C>),
+    FileSelector(FileSelector<M, C>),
     DockingManager(DockingManager<M, C>),
     Tile(Tile<M, C>),
     Vec3Editor(Vec3Editor<M, C>),
@@ -100,6 +102,7 @@ macro_rules! static_dispatch {
             UINode::Tree(v) => v.$func($($args),*),
             UINode::TreeRoot(v) => v.$func($($args),*),
             UINode::FileBrowser(v) => v.$func($($args),*),
+            UINode::FileSelector(v) => v.$func($($args),*),
             UINode::DockingManager(v) => v.$func($($args),*),
             UINode::Tile(v) => v.$func($($args),*),
             UINode::Vec3Editor(v) => v.$func($($args),*),
@@ -112,56 +115,17 @@ macro_rules! static_dispatch {
     };
 }
 
-macro_rules! static_dispatch_deref {
-    ($self:ident) => {
-        match $self {
-            UINode::Border(v) => v,
-            UINode::Button(v) => v,
-            UINode::Canvas(v) => v,
-            UINode::CheckBox(v) => v,
-            UINode::Grid(v) => v,
-            UINode::Image(v) => v,
-            UINode::ScrollBar(v) => v,
-            UINode::ScrollContentPresenter(v) => v,
-            UINode::ScrollViewer(v) => v,
-            UINode::StackPanel(v) => v,
-            UINode::TabControl(v) => v,
-            UINode::Text(v) => v,
-            UINode::TextBox(v) => v,
-            UINode::Window(v) => v,
-            UINode::User(v) => v,
-            UINode::Popup(v) => v,
-            UINode::DropdownList(v) => v,
-            UINode::ListView(v) => v,
-            UINode::ListViewItem(v) => v,
-            UINode::ProgressBar(v) => v,
-            UINode::Decorator(v) => v,
-            UINode::Tree(v) => v,
-            UINode::TreeRoot(v) => v,
-            UINode::FileBrowser(v) => v,
-            UINode::DockingManager(v) => v,
-            UINode::Tile(v) => v,
-            UINode::Vec3Editor(v) => v,
-            UINode::NumericUpDown(v) => v,
-            UINode::Menu(v) => v,
-            UINode::MenuItem(v) => v,
-            UINode::MessageBox(v) => v,
-            UINode::WrapPanel(v) => v,
-        }
-    };
-}
-
 impl<M: 'static, C: 'static + Control<M, C>> Deref for UINode<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
-        static_dispatch_deref!(self)
+        static_dispatch!(self, deref,)
     }
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> DerefMut for UINode<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        static_dispatch_deref!(self)
+        static_dispatch!(self, deref_mut,)
     }
 }
 

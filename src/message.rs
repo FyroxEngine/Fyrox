@@ -133,6 +133,11 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetMessage<M, C> {
         Self::make(destination, WidgetMessage::Center)
     }
 
+    /// Creates message to make given widget topmost.
+    pub fn topmost(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+        Self::make(destination, WidgetMessage::TopMost)
+    }
+
     // TODO: Add rest items.
 }
 
@@ -286,6 +291,46 @@ pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
     Placement(Placement),
 }
 
+#[derive(Debug)]
+pub enum FileSelectorMessage {
+    Path(PathBuf),
+    Commit(PathBuf),
+    Cancel,
+}
+
+impl FileSelectorMessage {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: FileSelectorMessage,
+    ) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::FileSelector(msg),
+            destination,
+        }
+    }
+
+    pub fn commit<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        path: PathBuf,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, FileSelectorMessage::Commit(path))
+    }
+
+    pub fn path<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        path: PathBuf,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, FileSelectorMessage::Path(path))
+    }
+
+    pub fn cancel<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, FileSelectorMessage::Cancel)
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct SelectionState(pub(in crate) bool);
 
@@ -386,8 +431,35 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
 
 #[derive(Debug)]
 pub enum FileBrowserMessage {
+    Root(PathBuf),
     Path(PathBuf),
-    SelectionChanged(PathBuf),
+}
+
+impl FileBrowserMessage {
+    fn make<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        msg: FileBrowserMessage,
+    ) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::FileBrowser(msg),
+            destination,
+        }
+    }
+
+    pub fn path<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        path: PathBuf,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, FileBrowserMessage::Path(path))
+    }
+
+    pub fn root<M: 'static, C: 'static + Control<M, C>>(
+        destination: Handle<UINode<M, C>>,
+        path: PathBuf,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, FileBrowserMessage::Root(path))
+    }
 }
 
 #[derive(Debug)]
@@ -655,6 +727,7 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     Tree(TreeMessage<M, C>),
     TreeRoot(TreeRootMessage<M, C>),
     FileBrowser(FileBrowserMessage),
+    FileSelector(FileSelectorMessage),
     TextBox(TextBoxMessage),
     NumericUpDown(NumericUpDownMessage),
     Vec3Editor(Vec3EditorMessage),

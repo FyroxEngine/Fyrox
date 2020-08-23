@@ -349,6 +349,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Window<M, C> {
                         WindowMessage::OpenModal => {
                             if !self.visibility() {
                                 ui.send_message(WidgetMessage::visibility(self.handle(), true));
+                                ui.send_message(WidgetMessage::topmost(self.handle()));
                                 ui.push_picking_restriction(self.handle());
                             }
                         }
