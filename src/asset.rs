@@ -259,7 +259,7 @@ impl AssetBrowser {
         let resource_manager = &mut engine.resource_manager.lock().unwrap();
         if message.destination == self.folder_browser {
             if let UiMessageData::FileBrowser(msg) = &message.data {
-                if let FileBrowserMessage::SelectionChanged(path) = msg {
+                if let FileBrowserMessage::Path(path) = msg {
                     // Clean content panel first.
                     for &child in ui.node(self.content_panel).children() {
                         ui.send_message(WidgetMessage::remove(child));

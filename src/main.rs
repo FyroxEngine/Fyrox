@@ -27,6 +27,7 @@ use crate::{
     },
     world_outliner::WorldOutliner,
 };
+use rg3d::gui::message::FileSelectorMessage;
 use rg3d::{
     core::{
         color::Color,
@@ -42,10 +43,11 @@ use rg3d::{
         button::ButtonBuilder,
         canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
-        file_browser::FileBrowserBuilder,
+        file_browser::FileSelectorBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
+        message::WindowMessage,
         message::{
             ButtonMessage, ImageMessage, KeyCode, MenuItemMessage, MouseButton, UiMessageData,
             WidgetMessage,
@@ -55,7 +57,7 @@ use rg3d::{
         ttf::Font,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        HorizontalAlignment, Orientation, Thickness,
+        Thickness,
     },
     renderer::surface::{Surface, SurfaceSharedData},
     resource::texture::TextureKind,
@@ -69,11 +71,9 @@ use rg3d::{
     utils::{into_any_arc, translate_event},
 };
 use std::{
-    cell::RefCell,
     fs::File,
     io::Write,
-    path::{Path, PathBuf},
-    rc::Rc,
+    path::PathBuf,
     sync::{
         mpsc,
         mpsc::{Receiver, Sender},
@@ -86,87 +86,6 @@ type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
 
 // Hardcoded for now. Will be fixed when I'll finish scene selector.
 pub const SCENE_PATH: &'static str = "test_scene.rgs";
-
-pub struct FileSelector {
-    browser: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
-}
-
-impl FileSelector {
-    pub fn new(ctx: &mut BuildContext) -> Self {
-        let browser;
-        let ok;
-        let cancel;
-        WindowBuilder::new(WidgetBuilder::new())
-            .open(false)
-            .with_title(WindowTitle::text("Select File"))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child({
-                            browser = FileBrowserBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_height(400.0)
-                                    .on_column(0)
-                                    .on_column(0),
-                            )
-                            .with_filter(Rc::new(RefCell::new(|path: &Path| {
-                                path.extension().map_or(false, |ext| {
-                                    ext.to_string_lossy().to_owned().to_lowercase() == "fbx"
-                                })
-                            })))
-                            .with_path("./data")
-                            .build(ctx);
-                            browser
-                        })
-                        .with_child(
-                            StackPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .on_column(0)
-                                    .on_row(1)
-                                    .with_child({
-                                        ok = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_width(100.0)
-                                                .with_height(30.0),
-                                        )
-                                        .with_text("OK")
-                                        .build(ctx);
-                                        ok
-                                    })
-                                    .with_child({
-                                        cancel = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_width(100.0)
-                                                .with_height(30.0),
-                                        )
-                                        .with_text("Cancel")
-                                        .build(ctx);
-                                        cancel
-                                    }),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx),
-                        ),
-                )
-                .add_column(Column::auto())
-                .add_row(Row::stretch())
-                .add_row(Row::auto())
-                .build(ctx),
-            )
-            .build(ctx);
-
-        Self {
-            browser,
-            ok,
-            cancel,
-        }
-    }
-}
 
 pub struct ScenePreview {
     frame: Handle<UiNode>,
@@ -405,6 +324,7 @@ pub enum Message {
     SaveScene(PathBuf),
     LoadScene(PathBuf),
     SetInteractionMode(InteractionModeKind),
+    Log(String),
     Exit,
 }
 
@@ -419,7 +339,6 @@ struct Editor {
     current_interaction_mode: Option<InteractionModeKind>,
     world_outliner: WorldOutliner,
     root_grid: Handle<UiNode>,
-    file_selector: FileSelector,
     preview: ScenePreview,
     asset_browser: AssetBrowser,
     menu: Menu,
@@ -441,6 +360,7 @@ struct Menu {
     create_spot_light: Handle<UiNode>,
     exit: Handle<UiNode>,
     message_sender: Sender<Message>,
+    file_selector: Handle<UiNode>,
 }
 
 impl Menu {
@@ -594,6 +514,10 @@ impl Menu {
             ])
             .build(ctx);
 
+        let file_selector =
+            FileSelectorBuilder::new(WindowBuilder::new(WidgetBuilder::new()).open(false))
+                .build(ctx);
+
         Self {
             menu,
             save,
@@ -609,11 +533,20 @@ impl Menu {
             create_spot_light,
             exit,
             message_sender,
+            file_selector,
         }
     }
 
-    fn handle_message(&mut self, message: &UiMessage) {
+    fn handle_message(&mut self, engine: &mut GameEngine, message: &UiMessage) {
         match &message.data {
+            UiMessageData::FileSelector(msg) => match msg {
+                FileSelectorMessage::Commit(path) => {
+                    self.message_sender
+                        .send(Message::SaveScene(path.to_owned()))
+                        .unwrap();
+                }
+                _ => (),
+            },
             UiMessageData::MenuItem(msg) => {
                 if let MenuItemMessage::Click = msg {
                     if message.destination == self.create_cube {
@@ -698,6 +631,10 @@ impl Menu {
                         self.message_sender
                             .send(Message::SaveScene(SCENE_PATH.into()))
                             .unwrap();
+                    } else if message.destination == self.save_as {
+                        engine
+                            .user_interface
+                            .send_message(WindowMessage::open_modal(self.file_selector));
                     } else if message.destination == self.load {
                         self.message_sender
                             .send(Message::LoadScene(SCENE_PATH.into()))
@@ -798,8 +735,6 @@ impl Editor {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let file_selector = FileSelector::new(ctx);
-
         let msg = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_max_size(Vec2::new(430.0, 220.0)))
                 .with_title(WindowTitle::Text("Welcome".to_owned())),
@@ -858,7 +793,6 @@ impl Editor {
             current_interaction_mode: None,
             world_outliner,
             root_grid,
-            file_selector,
             menu,
             exit: false,
             asset_browser,
@@ -930,7 +864,7 @@ impl Editor {
 
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         self.sidebar.handle_message(message, &self.scene, engine);
-        self.menu.handle_message(message);
+        self.menu.handle_message(engine, message);
         self.asset_browser.handle_ui_message(message, engine);
 
         let ui = &mut engine.user_interface;
@@ -1109,26 +1043,42 @@ impl Editor {
                     let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
                     let mut visitor = Visitor::new();
                     pure_scene.visit("Scene", &mut visitor).unwrap();
-                    visitor.save_binary(&path).unwrap();
+                    if let Err(e) = visitor.save_binary(&path) {
+                        self.message_sender
+                            .send(Message::Log(e.to_string()))
+                            .unwrap();
+                    }
                     // Add text output for debugging.
                     path.set_extension("txt");
                     if let Ok(mut file) = File::create(path) {
-                        file.write(visitor.save_text().as_bytes()).unwrap();
+                        if let Err(e) = file.write(visitor.save_text().as_bytes()) {
+                            self.message_sender
+                                .send(Message::Log(e.to_string()))
+                                .unwrap();
+                        }
                     }
                 }
-                Message::LoadScene(path) => {
-                    if let Ok(mut visitor) = Visitor::load_binary(&path) {
+                Message::LoadScene(path) => match Visitor::load_binary(&path) {
+                    Ok(mut visitor) => {
                         let mut scene = Scene::default();
                         scene.visit("Scene", &mut visitor).unwrap();
                         self.set_scene(engine, scene);
                         engine.renderer.flush();
                     }
-                }
+                    Err(e) => {
+                        self.message_sender
+                            .send(Message::Log(e.to_string()))
+                            .unwrap();
+                    }
+                },
                 Message::SetInteractionMode(mode_kind) => {
                     self.set_interaction_mode(Some(mode_kind), engine);
                 }
                 Message::Exit => {
                     self.exit = true;
+                }
+                Message::Log(msg) => {
+                    println!("{}", msg);
                 }
             }
         }
