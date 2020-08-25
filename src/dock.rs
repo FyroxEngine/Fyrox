@@ -255,35 +255,53 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                 if message.destination == self.handle() {
                     match msg {
                         TileMessage::Content(content) => {
-                            // Remove old content first.
-                            match self.content {
-                                TileContent::Empty => {}
-                                TileContent::Window(_) => {}
-                                TileContent::VerticalTiles { tiles, .. }
-                                | TileContent::HorizontalTiles { tiles, .. } => {
+                            self.content = content.clone();
+
+                            match content {
+                                TileContent::Empty => {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.splitter,
                                         false,
                                     ));
-
-                                    // Remove sub-tiles.
-                                    for &tile in &tiles {
-                                        ui.send_message(WidgetMessage::remove(tile));
-                                    }
                                 }
-                            }
-
-                            self.content = content.clone();
-
-                            match content {
-                                TileContent::Empty => {}
                                 &TileContent::Window(window) => {
                                     ui.send_message(WidgetMessage::link(window, self.handle()));
+
+                                    ui.send_message(WidgetMessage::visibility(
+                                        self.splitter,
+                                        false,
+                                    ));
                                 }
                                 TileContent::VerticalTiles { tiles, .. }
                                 | TileContent::HorizontalTiles { tiles, .. } => {
                                     for &tile in tiles {
                                         ui.send_message(WidgetMessage::link(tile, self.handle()));
+                                    }
+
+                                    ui.send_message(WidgetMessage::visibility(self.splitter, true));
+
+                                    match content {
+                                        TileContent::HorizontalTiles { .. } => {
+                                            ui.send_message(WidgetMessage::width(
+                                                self.splitter,
+                                                DEFAULT_SPLITTER_SIZE,
+                                            ));
+                                            ui.send_message(WidgetMessage::height(
+                                                self.splitter,
+                                                std::f32::INFINITY,
+                                            ));
+                                        }
+                                        TileContent::VerticalTiles { .. } => {
+                                            ui.send_message(WidgetMessage::width(
+                                                self.splitter,
+                                                std::f32::INFINITY,
+                                            ));
+                                            ui.send_message(WidgetMessage::height(
+                                                self.splitter,
+                                                DEFAULT_SPLITTER_SIZE,
+                                            ));
+                                        }
+                                        _ => (),
                                     }
                                 }
                             }
@@ -332,35 +350,83 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                         match self.content {
                             TileContent::VerticalTiles { tiles, .. }
                             | TileContent::HorizontalTiles { tiles, .. } => {
-                                let mut empty_count = 0;
+                                let mut has_empty_sub_tile = false;
                                 for &tile in &tiles {
                                     if let UINode::Tile(sub_tile) = ui.node(tile) {
                                         if let TileContent::Empty = sub_tile.content {
-                                            empty_count += 1;
+                                            has_empty_sub_tile = true;
+                                            break;
                                         }
                                     }
                                 }
-
-                                if empty_count == 2 {
-                                    ui.send_message(TileMessage::content(
-                                        self.handle,
-                                        TileContent::Empty,
-                                    ));
-                                } else if empty_count == 1 {
-                                    let mut payload = Handle::NONE;
+                                if has_empty_sub_tile {
                                     for &tile in &tiles {
                                         if let UINode::Tile(sub_tile) = ui.node(tile) {
-                                            if let TileContent::Window(wnd) = sub_tile.content {
-                                                payload = wnd;
-                                                break;
+                                            match sub_tile.content {
+                                                TileContent::Window(sub_tile_wnd) => {
+                                                    // If we have only a tile with a window, then detach window and schedule
+                                                    // linking with current tile.
+                                                    ui.send_message(WidgetMessage::unlink(
+                                                        sub_tile_wnd,
+                                                    ));
+
+                                                    ui.send_message(TileMessage::content(
+                                                        self.handle,
+                                                        TileContent::Window(sub_tile_wnd),
+                                                    ));
+                                                    // Splitter must be hidden.
+                                                    ui.send_message(WidgetMessage::visibility(
+                                                        self.splitter,
+                                                        false,
+                                                    ));
+                                                }
+                                                // In case if we have a split tile (vertically or horizontally) left in current tile
+                                                // (which is split too) we must set content of current tile to content of sub tile.
+                                                TileContent::VerticalTiles {
+                                                    splitter,
+                                                    tiles: sub_tiles,
+                                                } => {
+                                                    for &sub_tile in &sub_tiles {
+                                                        ui.send_message(WidgetMessage::unlink(
+                                                            sub_tile,
+                                                        ));
+                                                    }
+                                                    // Transfer sub tiles to current tile.
+                                                    ui.send_message(TileMessage::content(
+                                                        self.handle,
+                                                        TileContent::VerticalTiles {
+                                                            splitter,
+                                                            tiles: sub_tiles,
+                                                        },
+                                                    ));
+                                                }
+                                                TileContent::HorizontalTiles {
+                                                    splitter,
+                                                    tiles: sub_tiles,
+                                                } => {
+                                                    for &sub_tile in &sub_tiles {
+                                                        ui.send_message(WidgetMessage::unlink(
+                                                            sub_tile,
+                                                        ));
+                                                    }
+                                                    // Transfer sub tiles to current tile.
+                                                    ui.send_message(TileMessage::content(
+                                                        self.handle,
+                                                        TileContent::HorizontalTiles {
+                                                            splitter,
+                                                            tiles: sub_tiles,
+                                                        },
+                                                    ));
+                                                }
+                                                _ => {}
                                             }
                                         }
                                     }
-                                    ui.send_message(WidgetMessage::unlink(payload));
-                                    ui.send_message(TileMessage::content(
-                                        self.handle,
-                                        TileContent::Window(payload),
-                                    ));
+
+                                    // Destroy tiles.
+                                    for &tile in &tiles {
+                                        ui.send_message(WidgetMessage::remove(tile));
+                                    }
                                 }
                             }
                             _ => (),
@@ -381,15 +447,16 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                     if content_moved {
                         if let UINode::Window(window) = ui.node(message.destination) {
                             if window.drag_delta().len() > 20.0 {
-                                // Schedule unlink, we can't unlink node here directly because it attached
-                                // to node that currently moved out of pool, and if we'd try we'd get panic.
+                                ui.send_message(TileMessage::content(
+                                    self.handle,
+                                    TileContent::Empty,
+                                ));
+
                                 ui.send_message(UiMessage {
                                     handled: false,
                                     data: UiMessageData::Widget(WidgetMessage::Unlink),
                                     destination: message.destination,
                                 });
-
-                                self.content = TileContent::Empty;
 
                                 if let Some(docking_manager) =
                                     ui.try_borrow_by_criteria_up_mut(self.parent(), |n| {
@@ -403,6 +470,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                                     if let UINode::DockingManager(docking_manager) = docking_manager
                                     {
                                         docking_manager.floating_windows.push(message.destination);
+                                    } else {
+                                        unreachable!();
                                     }
                                 }
                             }
@@ -532,26 +601,23 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
                                     // Drop if has any drop anchor.
                                     if self.drop_anchor.is_some() {
                                         match self.content {
-                                            TileContent::Empty | TileContent::Window(_) => {
+                                            TileContent::Empty => {
                                                 if self.drop_anchor == self.center_anchor {
-                                                    if let TileContent::Window(_) = self.content {
-                                                        // TODO: This most likely will require some sort of tab control to
-                                                        //  be able to choose windows.
-                                                    } else {
-                                                        self.content = TileContent::Window(
-                                                            message.destination,
-                                                        );
-                                                        ui.send_message(UiMessage {
-                                                            handled: false,
-                                                            data: UiMessageData::Widget(
-                                                                WidgetMessage::LinkWith(
-                                                                    self.handle(),
-                                                                ),
-                                                            ),
-                                                            destination: message.destination,
-                                                        });
-                                                    }
-                                                } else if self.drop_anchor == self.left_anchor {
+                                                    ui.send_message(TileMessage::content(
+                                                        self.handle,
+                                                        TileContent::Window(message.destination),
+                                                    ));
+                                                    ui.send_message(UiMessage {
+                                                        handled: false,
+                                                        data: UiMessageData::Widget(
+                                                            WidgetMessage::LinkWith(self.handle()),
+                                                        ),
+                                                        destination: message.destination,
+                                                    });
+                                                }
+                                            }
+                                            TileContent::Window(_) => {
+                                                if self.drop_anchor == self.left_anchor {
                                                     // Split horizontally, dock to left.
                                                     self.split(
                                                         ui,
@@ -649,55 +715,26 @@ impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
             })
             .build(&mut ui.build_ctx());
 
-        if !first && existing_content.is_some() {
+        if existing_content.is_some() {
             ui.send_message(TileMessage::content(
-                first_tile,
+                if first { second_tile } else { first_tile },
                 TileContent::Window(existing_content),
             ));
         }
 
-        if first && existing_content.is_some() {
-            ui.send_message(TileMessage::content(
-                second_tile,
-                TileContent::Window(existing_content),
-            ));
-        }
-
-        self.content = match direction {
-            SplitDirection::Horizontal => TileContent::HorizontalTiles {
-                tiles: [first_tile, second_tile],
-                splitter: 0.5,
+        ui.send_message(TileMessage::content(
+            self.handle,
+            match direction {
+                SplitDirection::Horizontal => TileContent::HorizontalTiles {
+                    tiles: [first_tile, second_tile],
+                    splitter: 0.5,
+                },
+                SplitDirection::Vertical => TileContent::VerticalTiles {
+                    tiles: [first_tile, second_tile],
+                    splitter: 0.5,
+                },
             },
-            SplitDirection::Vertical => TileContent::VerticalTiles {
-                tiles: [first_tile, second_tile],
-                splitter: 0.5,
-            },
-        };
-
-        // All messages must be sent *after* all nodes are created, otherwise it will panic!
-        ui.send_message(UiMessage {
-            handled: false,
-            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle())),
-            destination: first_tile,
-        });
-        ui.send_message(UiMessage {
-            handled: false,
-            data: UiMessageData::Widget(WidgetMessage::LinkWith(self.handle())),
-            destination: second_tile,
-        });
-
-        ui.send_message(WidgetMessage::visibility(self.splitter, true));
-
-        match direction {
-            SplitDirection::Horizontal => {
-                ui.send_message(WidgetMessage::width(self.splitter, DEFAULT_SPLITTER_SIZE));
-                ui.send_message(WidgetMessage::height(self.splitter, std::f32::INFINITY));
-            }
-            SplitDirection::Vertical => {
-                ui.send_message(WidgetMessage::width(self.splitter, std::f32::INFINITY));
-                ui.send_message(WidgetMessage::height(self.splitter, DEFAULT_SPLITTER_SIZE));
-            }
-        }
+        ));
     }
 }
 
