@@ -11,7 +11,6 @@ pub mod scene;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::sidebar::SideBar;
 use crate::{
     asset::AssetBrowser,
     camera::CameraController,
@@ -25,9 +24,9 @@ use crate::{
         AddNodeCommand, ChangeSelectionCommand, DeleteNodeCommand, EditorScene, SceneCommand,
         SceneContext, Selection,
     },
+    sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::gui::message::FileSelectorMessage;
 use rg3d::{
     core::{
         color::Color,
@@ -47,10 +46,9 @@ use rg3d::{
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
-        message::WindowMessage,
         message::{
-            ButtonMessage, ImageMessage, KeyCode, MenuItemMessage, MouseButton, UiMessageData,
-            WidgetMessage,
+            ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MenuItemMessage,
+            MouseButton, UiMessageData, WidgetMessage, WindowMessage,
         },
         messagebox::{MessageBoxBuilder, MessageBoxButtons},
         stack_panel::StackPanelBuilder,
@@ -71,9 +69,11 @@ use rg3d::{
     utils::{into_any_arc, translate_event},
 };
 use std::{
+    cell::RefCell,
     fs::File,
     io::Write,
-    path::PathBuf,
+    path::{Path, PathBuf},
+    rc::Rc,
     sync::{
         mpsc,
         mpsc::{Receiver, Sender},
@@ -83,9 +83,6 @@ use std::{
 };
 
 type GameEngine = rg3d::engine::Engine<EditorUiMessage, EditorUiNode>;
-
-// Hardcoded for now. Will be fixed when I'll finish scene selector.
-pub const SCENE_PATH: &'static str = "test_scene.rgs";
 
 pub struct ScenePreview {
     frame: Handle<UiNode>,
@@ -350,6 +347,7 @@ struct Menu {
     save: Handle<UiNode>,
     save_as: Handle<UiNode>,
     load: Handle<UiNode>,
+    close_scene: Handle<UiNode>,
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
     create_cube: Handle<UiNode>,
@@ -360,7 +358,8 @@ struct Menu {
     create_spot_light: Handle<UiNode>,
     exit: Handle<UiNode>,
     message_sender: Sender<Message>,
-    file_selector: Handle<UiNode>,
+    save_file_selector: Handle<UiNode>,
+    load_file_selector: Handle<UiNode>,
 }
 
 impl Menu {
@@ -369,6 +368,7 @@ impl Menu {
         let min_size_menu = Vec2::new(40.0, 20.0);
         let save;
         let save_as;
+        let close_scene;
         let load;
         let redo;
         let undo;
@@ -413,6 +413,16 @@ impl Menu {
                                     ))
                                     .build(ctx);
                             load
+                        },
+                        {
+                            close_scene =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text_with_shortcut(
+                                        "Close Scene",
+                                        "Ctrl+Q",
+                                    ))
+                                    .build(ctx);
+                            close_scene
                         },
                         {
                             exit =
@@ -514,14 +524,35 @@ impl Menu {
             ])
             .build(ctx);
 
-        let file_selector =
-            FileSelectorBuilder::new(WindowBuilder::new(WidgetBuilder::new()).open(false))
-                .build(ctx);
+        let filter = Rc::new(RefCell::new(|p: &Path| {
+            if let Some(ext) = p.extension() {
+                ext.to_string_lossy().as_ref() == "rgs"
+            } else {
+                false
+            }
+        }));
+
+        let save_file_selector = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new())
+                .with_title(WindowTitle::Text("Save Scene As".into()))
+                .open(false),
+        )
+        .with_filter(filter.clone())
+        .build(ctx);
+
+        let load_file_selector = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new())
+                .with_title(WindowTitle::Text("Load Scene".into()))
+                .open(false),
+        )
+        .with_filter(filter)
+        .build(ctx);
 
         Self {
             menu,
             save,
             save_as,
+            close_scene,
             load,
             undo,
             redo,
@@ -533,17 +564,29 @@ impl Menu {
             create_spot_light,
             exit,
             message_sender,
-            file_selector,
+            save_file_selector,
+            load_file_selector,
         }
     }
 
-    fn handle_message(&mut self, engine: &mut GameEngine, message: &UiMessage) {
+    fn handle_message(
+        &mut self,
+        engine: &mut GameEngine,
+        editor_scene: &EditorScene,
+        message: &UiMessage,
+    ) {
         match &message.data {
             UiMessageData::FileSelector(msg) => match msg {
                 FileSelectorMessage::Commit(path) => {
-                    self.message_sender
-                        .send(Message::SaveScene(path.to_owned()))
-                        .unwrap();
+                    if message.destination == self.save_file_selector {
+                        self.message_sender
+                            .send(Message::SaveScene(path.to_owned()))
+                            .unwrap();
+                    } else {
+                        self.message_sender
+                            .send(Message::LoadScene(path.to_owned()))
+                            .unwrap();
+                    }
                 }
                 _ => (),
             },
@@ -628,17 +671,24 @@ impl Menu {
                             )))
                             .unwrap();
                     } else if message.destination == self.save {
-                        self.message_sender
-                            .send(Message::SaveScene(SCENE_PATH.into()))
-                            .unwrap();
+                        if let Some(scene_path) = editor_scene.path.as_ref() {
+                            self.message_sender
+                                .send(Message::SaveScene(scene_path.clone()))
+                                .unwrap();
+                        } else {
+                            // If scene wasn't saved yet - open Save As window.
+                            engine
+                                .user_interface
+                                .send_message(WindowMessage::open_modal(self.save_file_selector));
+                        }
                     } else if message.destination == self.save_as {
                         engine
                             .user_interface
-                            .send_message(WindowMessage::open_modal(self.file_selector));
+                            .send_message(WindowMessage::open_modal(self.save_file_selector));
                     } else if message.destination == self.load {
-                        self.message_sender
-                            .send(Message::LoadScene(SCENE_PATH.into()))
-                            .unwrap();
+                        engine
+                            .user_interface
+                            .send_message(WindowMessage::open_modal(self.load_file_selector));
                     } else if message.destination == self.undo {
                         self.message_sender.send(Message::UndoSceneCommand).unwrap();
                     } else if message.destination == self.redo {
@@ -666,6 +716,7 @@ impl Editor {
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
 
         let editor_scene = EditorScene {
+            path: None,
             root,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
@@ -752,11 +803,9 @@ impl Editor {
         )
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
-        engine.user_interface.send_message(UiMessage {
-            handled: false,
-            data: UiMessageData::Widget(WidgetMessage::Center),
-            destination: msg,
-        });
+        engine
+            .user_interface
+            .send_message(WidgetMessage::center(msg));
 
         let interaction_modes: Vec<Box<dyn InteractionMode>> = vec![
             Box::new(SelectInteractionMode::new(
@@ -803,7 +852,7 @@ impl Editor {
         editor
     }
 
-    fn set_scene(&mut self, engine: &mut GameEngine, mut scene: Scene) {
+    fn set_scene(&mut self, engine: &mut GameEngine, mut scene: Scene, path: PathBuf) {
         engine.scenes.remove(self.scene.scene);
 
         scene.render_target = Some(Default::default());
@@ -815,6 +864,7 @@ impl Editor {
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
 
         self.scene = EditorScene {
+            path: Some(path),
             root,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
@@ -864,7 +914,7 @@ impl Editor {
 
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         self.sidebar.handle_message(message, &self.scene, engine);
-        self.menu.handle_message(engine, message);
+        self.menu.handle_message(engine, &self.scene, message);
         self.asset_browser.handle_ui_message(message, engine);
 
         let ui = &mut engine.user_interface;
@@ -968,9 +1018,10 @@ impl Editor {
                             }
                             KeyCode::L => {
                                 if ui.keyboard_modifiers().control {
+                                    /*
                                     self.message_sender
                                         .send(Message::LoadScene(SCENE_PATH.into()))
-                                        .unwrap();
+                                        .unwrap();*/
                                 }
                             }
                             KeyCode::Delete => {
@@ -1038,6 +1089,7 @@ impl Editor {
                     self.sync_to_model(engine);
                 }
                 Message::SaveScene(mut path) => {
+                    self.scene.path = Some(path.clone());
                     let scene = &mut engine.scenes[self.scene.scene];
                     let editor_root = self.scene.root;
                     let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
@@ -1062,7 +1114,7 @@ impl Editor {
                     Ok(mut visitor) => {
                         let mut scene = Scene::default();
                         scene.visit("Scene", &mut visitor).unwrap();
-                        self.set_scene(engine, scene);
+                        self.set_scene(engine, scene, path);
                         engine.renderer.flush();
                     }
                     Err(e) => {

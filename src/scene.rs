@@ -6,9 +6,10 @@ use rg3d::{
     },
     scene::{graph::Graph, node::Node, Scene},
 };
-use std::sync::mpsc::Sender;
+use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct EditorScene {
+    pub path: Option<PathBuf>,
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub root: Handle<Node>,
