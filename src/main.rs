@@ -786,27 +786,6 @@ impl Editor {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let msg = MessageBoxBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_max_size(Vec2::new(430.0, 220.0)))
-                .with_title(WindowTitle::Text("Welcome".to_owned())),
-        )
-        .with_text(
-            "Hello! Welcome to rusty editor - scene editor for rg3d engine.\n\
-                      This editor is far from completion, some parts may (and probably\n\
-                      will) work weird or even not work, currently editor is in active\n\
-                      development as well as the rg3d-ui library it is based on.\n\n\
-                      [W][S][A][D] - move camera\n\
-                      [RMB] - rotate camera\n\
-                      [LMB] - pick entities\n\n\
-                      To start you can use Create menu option to make some basic\n\
-                      objects.",
-        )
-        .with_buttons(MessageBoxButtons::Ok)
-        .build(ctx);
-        engine
-            .user_interface
-            .send_message(WidgetMessage::center(msg));
-
         let interaction_modes: Vec<Box<dyn InteractionMode>> = vec![
             Box::new(SelectInteractionMode::new(
                 preview.frame,
