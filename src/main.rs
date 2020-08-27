@@ -528,23 +528,25 @@ impl Menu {
             if let Some(ext) = p.extension() {
                 ext.to_string_lossy().as_ref() == "rgs"
             } else {
-                false
+                p.is_dir()
             }
         }));
 
         let save_file_selector = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new())
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .with_title(WindowTitle::Text("Save Scene As".into()))
                 .open(false),
         )
+        .with_path("./")
         .with_filter(filter.clone())
         .build(ctx);
 
         let load_file_selector = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new())
-                .with_title(WindowTitle::Text("Load Scene".into()))
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .with_title(WindowTitle::Text("Select a Scene to Load".into()))
                 .open(false),
         )
+        .with_path("./")
         .with_filter(filter)
         .build(ctx);
 
