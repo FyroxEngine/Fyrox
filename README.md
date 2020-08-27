@@ -68,6 +68,10 @@ let scene_handle = engine.scenes.add(scene);
 
 ```
 
+## Goals
+
+- Current goal is to make editor suitable to edit scenes for [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter). 
+
 ## Plan
 
 - [x] Interaction modes.
@@ -86,7 +90,7 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Menu
 	- [x] File
 		- [x] Save
-		- [ ] Save as
+		- [x] Save as
 		- [x] Load (still needs file selector to open to select desired scene to load)
 		- [x] Exit
 	- [x] Edit
@@ -116,6 +120,8 @@ let scene_handle = engine.scenes.add(scene);
 	- [x] Syncing with graph.
 	- [x] Syncing selection with scene selection and vice versa.
 	- [x] Drag'n'drop hierarchy edit.
+	- [x] Icons for nodes
+	- [x] Visibility switch
 	- [ ] Nodes context menu
 - [ ] Node properties editor
 	- [ ] Base node
