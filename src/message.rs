@@ -431,7 +431,6 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
 
 #[derive(Debug)]
 pub enum FileBrowserMessage {
-    Root(PathBuf),
     Path(PathBuf),
 }
 
@@ -452,13 +451,6 @@ impl FileBrowserMessage {
         path: PathBuf,
     ) -> UiMessage<M, C> {
         Self::make(destination, FileBrowserMessage::Path(path))
-    }
-
-    pub fn root<M: 'static, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        path: PathBuf,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, FileBrowserMessage::Root(path))
     }
 }
 

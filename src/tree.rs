@@ -240,6 +240,20 @@ impl<M: 'static, C: 'static + Control<M, C>> Tree<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
+
+    /// Adds new item to given tree. This method is meant to be used only on widget build stage,
+    /// any runtime actions should be done via messages.
+    pub fn add_item(
+        tree: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+        ctx: &mut BuildContext<M, C>,
+    ) {
+        if let UINode::Tree(tree) = &mut ctx[tree] {
+            tree.items.push(item);
+            let panel = tree.panel;
+            ctx.link(item, panel);
+        }
+    }
 }
 
 pub struct TreeBuilder<M: 'static, C: 'static + Control<M, C>> {

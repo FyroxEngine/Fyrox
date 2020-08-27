@@ -13,6 +13,7 @@ readme = "README.md"
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.8.0" }
 lazy_static = "1.4.0"
+sysinfo = "0.15.1"
 
 [features]
 enable_profiler = ["rg3d-core/enable_profiler"]

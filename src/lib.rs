@@ -7,6 +7,7 @@
 
 #[macro_use]
 extern crate lazy_static;
+extern crate sysinfo;
 
 pub use rg3d_core as core;
 
@@ -64,11 +65,9 @@ use crate::{
 };
 use std::{
     collections::HashMap,
-    ops::{Deref, DerefMut},
-    ops::{Index, IndexMut},
-    sync::mpsc::TryRecvError,
+    ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Receiver, Sender, TryRecvError},
         Arc, Mutex,
     },
 };

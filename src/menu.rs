@@ -531,7 +531,9 @@ impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, 
             MenuItemContent::Node(node) => node,
         };
 
-        let back = BorderBuilder::new(WidgetBuilder::new().with_child(content)).build(ctx);
+        let back = BorderBuilder::new(WidgetBuilder::new().with_child(content))
+            .with_stroke_thickness(Thickness::uniform(0.0))
+            .build(ctx);
 
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vec2::new(10.0, 10.0)))
             .with_content(
