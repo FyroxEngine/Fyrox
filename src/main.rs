@@ -50,7 +50,6 @@ use rg3d::{
             ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MenuItemMessage,
             MouseButton, UiMessageData, WidgetMessage, WindowMessage,
         },
-        messagebox::{MessageBoxBuilder, MessageBoxButtons},
         stack_panel::StackPanelBuilder,
         ttf::Font,
         widget::WidgetBuilder,
@@ -320,6 +319,7 @@ pub enum Message {
     SetSelection(Selection),
     SaveScene(PathBuf),
     LoadScene(PathBuf),
+    CloseScene,
     SetInteractionMode(InteractionModeKind),
     Log(String),
     Exit,
@@ -328,7 +328,7 @@ pub enum Message {
 struct Editor {
     sidebar: SideBar,
     camera_controller: CameraController,
-    scene: EditorScene,
+    scene: Option<EditorScene>,
     command_stack: CommandStack<SceneCommand>,
     message_sender: Sender<Message>,
     message_receiver: Receiver<Message>,
@@ -574,7 +574,7 @@ impl Menu {
     fn handle_message(
         &mut self,
         engine: &mut GameEngine,
-        editor_scene: &EditorScene,
+        editor_scene: &Option<EditorScene>,
         message: &UiMessage,
     ) {
         match &message.data {
@@ -673,7 +673,9 @@ impl Menu {
                             )))
                             .unwrap();
                     } else if message.destination == self.save {
-                        if let Some(scene_path) = editor_scene.path.as_ref() {
+                        if let Some(scene_path) =
+                            editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
+                        {
                             self.message_sender
                                 .send(Message::SaveScene(scene_path.clone()))
                                 .unwrap();
@@ -691,6 +693,8 @@ impl Menu {
                         engine
                             .user_interface
                             .send_message(WindowMessage::open_modal(self.load_file_selector));
+                    } else if message.destination == self.close_scene {
+                        self.message_sender.send(Message::CloseScene).unwrap();
                     } else if message.destination == self.undo {
                         self.message_sender.send(Message::UndoSceneCommand).unwrap();
                     } else if message.destination == self.redo {
@@ -815,7 +819,7 @@ impl Editor {
             sidebar: node_editor,
             preview,
             camera_controller: CameraController::new(&editor_scene, engine),
-            scene: editor_scene,
+            scene: Some(editor_scene),
             command_stack: CommandStack::new(),
             message_sender,
             message_receiver,
@@ -834,17 +838,19 @@ impl Editor {
     }
 
     fn set_scene(&mut self, engine: &mut GameEngine, mut scene: Scene, path: PathBuf) {
-        engine.scenes.remove(self.scene.scene);
+        if let Some(previous_editor_scene) = self.scene.as_ref() {
+            engine.scenes.remove(previous_editor_scene.scene);
+        }
 
         scene.render_target = Some(Default::default());
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
-            scene.render_target.clone().unwrap(),
+            into_any_arc(scene.render_target.clone()),
         ));
 
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
 
-        self.scene = EditorScene {
+        let editor_scene = EditorScene {
             path: Some(path),
             root,
             scene: engine.scenes.add(scene),
@@ -858,236 +864,269 @@ impl Editor {
                 self.message_sender.clone(),
             )),
             Box::new(MoveInteractionMode::new(
-                &self.scene,
+                &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
             Box::new(ScaleInteractionMode::new(
-                &self.scene,
+                &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
             Box::new(RotateInteractionMode::new(
-                &self.scene,
+                &editor_scene,
                 engine,
                 self.message_sender.clone(),
             )),
         ];
 
         self.world_outliner.clear(&mut engine.user_interface);
-        self.camera_controller = CameraController::new(&self.scene, engine);
+        self.camera_controller = CameraController::new(&editor_scene, engine);
         self.command_stack = CommandStack::new();
+        self.scene = Some(editor_scene);
 
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
         self.sync_to_model(engine);
     }
 
     fn set_interaction_mode(&mut self, mode: Option<InteractionModeKind>, engine: &mut GameEngine) {
-        if self.current_interaction_mode != mode {
-            // Deactivate current first.
-            if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode as usize].deactivate(&self.scene, engine);
-            }
+        if let Some(editor_scene) = self.scene.as_ref() {
+            if self.current_interaction_mode != mode {
+                // Deactivate current first.
+                if let Some(current_mode) = self.current_interaction_mode {
+                    self.interaction_modes[current_mode as usize].deactivate(editor_scene, engine);
+                }
 
-            self.current_interaction_mode = mode;
+                self.current_interaction_mode = mode;
+            }
         }
     }
 
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
-        self.sidebar.handle_message(message, &self.scene, engine);
         self.menu.handle_message(engine, &self.scene, message);
-        self.asset_browser.handle_ui_message(message, engine);
 
-        let ui = &mut engine.user_interface;
-        self.world_outliner
-            .handle_ui_message(message, ui, &self.scene.selection);
-        self.preview.handle_message(message);
+        if let Some(editor_scene) = self.scene.as_ref() {
+            self.sidebar.handle_message(message, editor_scene, engine);
+            self.asset_browser.handle_ui_message(message, engine);
 
-        if message.destination == self.preview.frame {
-            match &message.data {
-                UiMessageData::Widget(msg) => match msg {
-                    &WidgetMessage::MouseDown { button, pos, .. } => {
-                        ui.capture_mouse(self.preview.frame);
-                        if button == MouseButton::Left {
+            let ui = &mut engine.user_interface;
+            self.world_outliner
+                .handle_ui_message(message, ui, &editor_scene.selection);
+            self.preview.handle_message(message);
+
+            if message.destination == self.preview.frame {
+                match &message.data {
+                    UiMessageData::Widget(msg) => match msg {
+                        &WidgetMessage::MouseDown { button, pos, .. } => {
+                            ui.capture_mouse(self.preview.frame);
+                            if button == MouseButton::Left {
+                                if let Some(current_im) = self.current_interaction_mode {
+                                    let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                                    let rel_pos =
+                                        Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+
+                                    self.preview.click_mouse_pos = Some(rel_pos);
+
+                                    self.interaction_modes[current_im as usize]
+                                        .on_left_mouse_button_down(
+                                            editor_scene,
+                                            &mut self.camera_controller,
+                                            engine,
+                                            rel_pos,
+                                        );
+                                }
+                            }
+                            self.camera_controller.on_mouse_button_down(button);
+                        }
+                        &WidgetMessage::MouseUp { button, pos, .. } => {
+                            ui.release_mouse_capture();
+
+                            if button == MouseButton::Left {
+                                self.preview.click_mouse_pos = None;
+                                if let Some(current_im) = self.current_interaction_mode {
+                                    let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                                    let rel_pos =
+                                        Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+                                    self.interaction_modes[current_im as usize]
+                                        .on_left_mouse_button_up(
+                                            editor_scene,
+                                            &mut self.camera_controller,
+                                            engine,
+                                            rel_pos,
+                                        );
+                                }
+                            }
+                            self.camera_controller.on_mouse_button_up(button);
+                        }
+                        &WidgetMessage::MouseWheel { amount, .. } => {
+                            self.camera_controller
+                                .on_mouse_wheel(amount, editor_scene, engine);
+                        }
+                        &WidgetMessage::MouseMove { pos, .. } => {
+                            let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
+                            let mouse_offset = pos - last_pos;
+                            self.camera_controller.on_mouse_move(mouse_offset);
+                            let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                            let rel_pos =
+                                Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+
                             if let Some(current_im) = self.current_interaction_mode {
-                                let screen_bounds = ui.node(self.preview.frame).screen_bounds();
-                                let rel_pos =
-                                    Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
-
-                                self.preview.click_mouse_pos = Some(rel_pos);
-
-                                self.interaction_modes[current_im as usize]
-                                    .on_left_mouse_button_down(
-                                        &self.scene,
-                                        &mut self.camera_controller,
-                                        engine,
-                                        rel_pos,
-                                    );
+                                self.interaction_modes[current_im as usize].on_mouse_move(
+                                    mouse_offset,
+                                    rel_pos,
+                                    self.camera_controller.camera,
+                                    editor_scene,
+                                    engine,
+                                );
                             }
+                            self.preview.last_mouse_pos = Some(pos);
                         }
-                        self.camera_controller.on_mouse_button_down(button);
-                    }
-                    &WidgetMessage::MouseUp { button, pos, .. } => {
-                        ui.release_mouse_capture();
-
-                        if button == MouseButton::Left {
-                            self.preview.click_mouse_pos = None;
-                            if let Some(current_im) = self.current_interaction_mode {
-                                let screen_bounds = ui.node(self.preview.frame).screen_bounds();
-                                let rel_pos =
-                                    Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
-                                self.interaction_modes[current_im as usize]
-                                    .on_left_mouse_button_up(
-                                        &self.scene,
-                                        &mut self.camera_controller,
-                                        engine,
-                                        rel_pos,
-                                    );
-                            }
+                        &WidgetMessage::KeyUp(key) => {
+                            self.camera_controller.on_key_up(key);
                         }
-                        self.camera_controller.on_mouse_button_up(button);
-                    }
-                    &WidgetMessage::MouseWheel { amount, .. } => {
-                        self.camera_controller
-                            .on_mouse_wheel(amount, &self.scene, engine);
-                    }
-                    &WidgetMessage::MouseMove { pos, .. } => {
-                        let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
-                        let mouse_offset = pos - last_pos;
-                        self.camera_controller.on_mouse_move(mouse_offset);
-                        let screen_bounds = ui.node(self.preview.frame).screen_bounds();
-                        let rel_pos = Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
-
-                        if let Some(current_im) = self.current_interaction_mode {
-                            self.interaction_modes[current_im as usize].on_mouse_move(
-                                mouse_offset,
-                                rel_pos,
-                                self.camera_controller.camera,
-                                &self.scene,
-                                engine,
-                            );
-                        }
-                        self.preview.last_mouse_pos = Some(pos);
-                    }
-                    &WidgetMessage::KeyUp(key) => {
-                        self.camera_controller.on_key_up(key);
-                    }
-                    &WidgetMessage::KeyDown(key) => {
-                        self.camera_controller.on_key_down(key);
-                        match key {
-                            KeyCode::Y => {
-                                if ui.keyboard_modifiers().control {
-                                    self.message_sender.send(Message::RedoSceneCommand).unwrap();
-                                }
-                            }
-                            KeyCode::Z => {
-                                if ui.keyboard_modifiers().control {
-                                    self.message_sender.send(Message::UndoSceneCommand).unwrap();
-                                }
-                            }
-                            KeyCode::Key1 => {
-                                self.set_interaction_mode(Some(InteractionModeKind::Select), engine)
-                            }
-                            KeyCode::Key2 => {
-                                self.set_interaction_mode(Some(InteractionModeKind::Move), engine)
-                            }
-                            KeyCode::Key3 => {
-                                self.set_interaction_mode(Some(InteractionModeKind::Rotate), engine)
-                            }
-                            KeyCode::Key4 => {
-                                self.set_interaction_mode(Some(InteractionModeKind::Scale), engine)
-                            }
-                            KeyCode::L => {
-                                if ui.keyboard_modifiers().control {
-                                    /*
-                                    self.message_sender
-                                        .send(Message::LoadScene(SCENE_PATH.into()))
-                                        .unwrap();*/
-                                }
-                            }
-                            KeyCode::Delete => {
-                                if !self.scene.selection.is_empty() {
-                                    let mut commands = vec![SceneCommand::ChangeSelection(
-                                        ChangeSelectionCommand::new(
-                                            Default::default(),
-                                            self.scene.selection.clone(),
-                                        ),
-                                    )];
-                                    for &node in self.scene.selection.nodes().iter() {
-                                        commands.push(SceneCommand::DeleteNode(
-                                            DeleteNodeCommand::new(node),
-                                        ));
+                        &WidgetMessage::KeyDown(key) => {
+                            self.camera_controller.on_key_down(key);
+                            match key {
+                                KeyCode::Y => {
+                                    if ui.keyboard_modifiers().control {
+                                        self.message_sender
+                                            .send(Message::RedoSceneCommand)
+                                            .unwrap();
                                     }
-
-                                    self.message_sender
-                                        .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
-                                            commands,
-                                        )))
-                                        .unwrap();
                                 }
+                                KeyCode::Z => {
+                                    if ui.keyboard_modifiers().control {
+                                        self.message_sender
+                                            .send(Message::UndoSceneCommand)
+                                            .unwrap();
+                                    }
+                                }
+                                KeyCode::Key1 => self.set_interaction_mode(
+                                    Some(InteractionModeKind::Select),
+                                    engine,
+                                ),
+                                KeyCode::Key2 => self
+                                    .set_interaction_mode(Some(InteractionModeKind::Move), engine),
+                                KeyCode::Key3 => self.set_interaction_mode(
+                                    Some(InteractionModeKind::Rotate),
+                                    engine,
+                                ),
+                                KeyCode::Key4 => self
+                                    .set_interaction_mode(Some(InteractionModeKind::Scale), engine),
+                                KeyCode::L => {
+                                    if ui.keyboard_modifiers().control {
+                                        /*
+                                        self.message_sender
+                                            .send(Message::LoadScene(SCENE_PATH.into()))
+                                            .unwrap();*/
+                                    }
+                                }
+                                KeyCode::Delete => {
+                                    if !editor_scene.selection.is_empty() {
+                                        let mut commands = vec![SceneCommand::ChangeSelection(
+                                            ChangeSelectionCommand::new(
+                                                Default::default(),
+                                                editor_scene.selection.clone(),
+                                            ),
+                                        )];
+                                        for &node in editor_scene.selection.nodes().iter() {
+                                            commands.push(SceneCommand::DeleteNode(
+                                                DeleteNodeCommand::new(node),
+                                            ));
+                                        }
+
+                                        self.message_sender
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::CommandGroup(commands),
+                                            ))
+                                            .unwrap();
+                                    }
+                                }
+                                _ => (),
                             }
-                            _ => (),
                         }
-                    }
-                    _ => {}
-                },
-                _ => (),
+                        _ => {}
+                    },
+                    _ => (),
+                }
             }
         }
     }
 
     fn sync_to_model(&mut self, engine: &mut GameEngine) {
-        self.world_outliner.sync_to_model(&self.scene, engine);
-        self.sidebar.sync_to_model(&self.scene, engine);
+        if let Some(editor_scene) = self.scene.as_ref() {
+            self.world_outliner.sync_to_model(editor_scene, engine);
+            self.sidebar.sync_to_model(editor_scene, engine);
+        } else {
+            self.world_outliner.clear(&mut engine.user_interface);
+        }
     }
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         while let Ok(message) = self.message_receiver.try_recv() {
             self.world_outliner.handle_message(&message, engine);
 
-            let scene = &mut engine.scenes[self.scene.scene];
-            let context = SceneContext {
-                graph: &mut scene.graph,
-                message_sender: self.message_sender.clone(),
-                current_selection: self.scene.selection.clone(),
-            };
-
             match message {
                 Message::DoSceneCommand(command) => {
-                    self.command_stack.do_command(command, context);
-                    self.sync_to_model(engine);
+                    if let Some(editor_scene) = self.scene.as_ref() {
+                        self.command_stack.do_command(
+                            command,
+                            SceneContext {
+                                graph: &mut engine.scenes[editor_scene.scene].graph,
+                                message_sender: self.message_sender.clone(),
+                                current_selection: editor_scene.selection.clone(),
+                            },
+                        );
+                        self.sync_to_model(engine);
+                    }
                 }
                 Message::UndoSceneCommand => {
-                    self.command_stack.undo(context);
-                    self.sync_to_model(engine);
+                    if let Some(editor_scene) = self.scene.as_ref() {
+                        self.command_stack.undo(SceneContext {
+                            graph: &mut engine.scenes[editor_scene.scene].graph,
+                            message_sender: self.message_sender.clone(),
+                            current_selection: editor_scene.selection.clone(),
+                        });
+                        self.sync_to_model(engine);
+                    }
                 }
                 Message::RedoSceneCommand => {
-                    self.command_stack.redo(context);
-                    self.sync_to_model(engine);
+                    if let Some(editor_scene) = self.scene.as_ref() {
+                        self.command_stack.redo(SceneContext {
+                            graph: &mut engine.scenes[editor_scene.scene].graph,
+                            message_sender: self.message_sender.clone(),
+                            current_selection: editor_scene.selection.clone(),
+                        });
+                        self.sync_to_model(engine);
+                    }
                 }
                 Message::SetSelection(selection) => {
-                    self.scene.selection = selection;
-                    self.sync_to_model(engine);
+                    if let Some(editor_scene) = self.scene.as_mut() {
+                        editor_scene.selection = selection;
+                        self.sync_to_model(engine);
+                    }
                 }
                 Message::SaveScene(mut path) => {
-                    self.scene.path = Some(path.clone());
-                    let scene = &mut engine.scenes[self.scene.scene];
-                    let editor_root = self.scene.root;
-                    let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
-                    let mut visitor = Visitor::new();
-                    pure_scene.visit("Scene", &mut visitor).unwrap();
-                    if let Err(e) = visitor.save_binary(&path) {
-                        self.message_sender
-                            .send(Message::Log(e.to_string()))
-                            .unwrap();
-                    }
-                    // Add text output for debugging.
-                    path.set_extension("txt");
-                    if let Ok(mut file) = File::create(path) {
-                        if let Err(e) = file.write(visitor.save_text().as_bytes()) {
+                    if let Some(editor_scene) = self.scene.as_mut() {
+                        editor_scene.path = Some(path.clone());
+                        let scene = &mut engine.scenes[editor_scene.scene];
+                        let editor_root = editor_scene.root;
+                        let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
+                        let mut visitor = Visitor::new();
+                        pure_scene.visit("Scene", &mut visitor).unwrap();
+                        if let Err(e) = visitor.save_binary(&path) {
                             self.message_sender
                                 .send(Message::Log(e.to_string()))
                                 .unwrap();
+                        }
+                        // Add text output for debugging.
+                        path.set_extension("txt");
+                        if let Ok(mut file) = File::create(path) {
+                            if let Err(e) = file.write(visitor.save_text().as_bytes()) {
+                                self.message_sender
+                                    .send(Message::Log(e.to_string()))
+                                    .unwrap();
+                            }
                         }
                     }
                 }
@@ -1113,39 +1152,53 @@ impl Editor {
                 Message::Log(msg) => {
                     println!("{}", msg);
                 }
-            }
-        }
+                Message::CloseScene => {
+                    if let Some(editor_scene) = self.scene.take() {
+                        engine.scenes.remove(editor_scene.scene);
+                        self.sync_to_model(engine);
 
-        // Adjust camera viewport to size of frame.
-        let frame_size = engine.renderer.get_frame_size();
-        let scene = &mut engine.scenes[self.scene.scene];
-        if let Node::Camera(camera) = &mut scene.graph[self.camera_controller.camera] {
-            let frame_size = Vec2::new(frame_size.0 as f32, frame_size.1 as f32);
-            let viewport = camera.viewport_pixels(frame_size);
-
-            if let UiNode::Image(frame) = engine.user_interface.node(self.preview.frame) {
-                let preview_frame_size = frame.actual_size();
-                if viewport.w != preview_frame_size.x as i32
-                    || viewport.h != preview_frame_size.y as i32
-                {
-                    camera.set_viewport(Rect {
-                        x: 0.0,
-                        y: 0.0,
-                        w: preview_frame_size.x / frame_size.x,
-                        h: preview_frame_size.y / frame_size.y,
-                    });
+                        // Preview frame has scene frame texture assigned, it must be cleared explicitly,
+                        // otherwise it will show last rendered frame in preview which is not what we want.
+                        engine
+                            .user_interface
+                            .send_message(ImageMessage::texture(self.preview.frame, None));
+                    }
                 }
             }
         }
 
-        self.camera_controller.update(&self.scene, engine, dt);
+        if let Some(editor_scene) = self.scene.as_ref() {
+            // Adjust camera viewport to size of frame.
+            let frame_size = engine.renderer.get_frame_size();
+            let scene = &mut engine.scenes[editor_scene.scene];
+            if let Node::Camera(camera) = &mut scene.graph[self.camera_controller.camera] {
+                let frame_size = Vec2::new(frame_size.0 as f32, frame_size.1 as f32);
+                let viewport = camera.viewport_pixels(frame_size);
 
-        if let Some(mode) = self.current_interaction_mode {
-            self.interaction_modes[mode as usize].update(
-                &self.scene,
-                self.camera_controller.camera,
-                engine,
-            );
+                if let UiNode::Image(frame) = engine.user_interface.node(self.preview.frame) {
+                    let preview_frame_size = frame.actual_size();
+                    if viewport.w != preview_frame_size.x as i32
+                        || viewport.h != preview_frame_size.y as i32
+                    {
+                        camera.set_viewport(Rect {
+                            x: 0.0,
+                            y: 0.0,
+                            w: preview_frame_size.x / frame_size.x,
+                            h: preview_frame_size.y / frame_size.y,
+                        });
+                    }
+                }
+            }
+
+            self.camera_controller.update(editor_scene, engine, dt);
+
+            if let Some(mode) = self.current_interaction_mode {
+                self.interaction_modes[mode as usize].update(
+                    editor_scene,
+                    self.camera_controller.camera,
+                    engine,
+                );
+            }
         }
     }
 }

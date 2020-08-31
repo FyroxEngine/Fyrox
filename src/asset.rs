@@ -245,6 +245,10 @@ impl AssetBrowser {
             )
             .build(&mut ctx);
 
+        engine
+            .user_interface
+            .send_message(FileBrowserMessage::path(folder_browser, path));
+
         Self {
             window,
             content_panel,
