@@ -274,6 +274,33 @@ impl<M: 'static, C: 'static + Control<M, C>> WindowMessage<M, C> {
 #[derive(Debug)]
 pub enum ScrollViewerMessage<M: 'static, C: 'static + Control<M, C>> {
     Content(Handle<UINode<M, C>>),
+    /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
+    /// of scroll viewer.
+    BringIntoView(Handle<UINode<M, C>>),
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> ScrollViewerMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: ScrollViewerMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::ScrollViewer(msg),
+            destination,
+        }
+    }
+
+    pub fn content(
+        destination: Handle<UINode<M, C>>,
+        content: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, ScrollViewerMessage::Content(content))
+    }
+
+    pub fn bring_into_view(
+        destination: Handle<UINode<M, C>>,
+        handle: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, ScrollViewerMessage::BringIntoView(handle))
+    }
 }
 
 #[derive(Debug)]
@@ -470,7 +497,7 @@ pub enum TextMessage {
 
 #[derive(Debug)]
 pub enum ImageMessage {
-    Texture(Arc<Texture>),
+    Texture(Option<Arc<Texture>>),
     Flip(bool),
 }
 
@@ -488,7 +515,7 @@ impl ImageMessage {
 
     pub fn texture<M: 'static, C: 'static + Control<M, C>>(
         destination: Handle<UINode<M, C>>,
-        value: Arc<Texture>,
+        value: Option<Arc<Texture>>,
     ) -> UiMessage<M, C> {
         Self::make(destination, ImageMessage::Texture(value))
     }
@@ -602,16 +629,16 @@ pub enum Vec3EditorMessage {
 }
 
 #[derive(Debug)]
-pub enum ScrollPanelMessage {
+pub enum ScrollPanelMessage<M: 'static, C: 'static + Control<M, C>> {
     VerticalScroll(f32),
     HorizontalScroll(f32),
+    /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
+    /// of scroll panel.
+    BringIntoView(Handle<UINode<M, C>>),
 }
 
-impl ScrollPanelMessage {
-    fn make<M: 'static, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: ScrollPanelMessage,
-    ) -> UiMessage<M, C> {
+impl<M: 'static, C: 'static + Control<M, C>> ScrollPanelMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: ScrollPanelMessage<M, C>) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
             data: UiMessageData::ScrollPanel(msg),
@@ -619,18 +646,19 @@ impl ScrollPanelMessage {
         }
     }
 
-    pub fn vertical_scroll<M: 'static, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: f32,
-    ) -> UiMessage<M, C> {
+    pub fn vertical_scroll(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
         Self::make(destination, ScrollPanelMessage::VerticalScroll(value))
     }
 
-    pub fn horizontal_scroll<M: 'static, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: f32,
-    ) -> UiMessage<M, C> {
+    pub fn horizontal_scroll(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
         Self::make(destination, ScrollPanelMessage::HorizontalScroll(value))
+    }
+
+    pub fn bring_into_view(
+        destination: Handle<UINode<M, C>>,
+        handle: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, ScrollPanelMessage::BringIntoView(handle))
     }
 }
 
@@ -728,7 +756,7 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     MessageBox(MessageBoxMessage),
     Decorator(DecoratorMessage),
     Text(TextMessage),
-    ScrollPanel(ScrollPanelMessage),
+    ScrollPanel(ScrollPanelMessage<M, C>),
     Tile(TileMessage<M, C>),
     ProgressBar(ProgressBarMessage),
     Image(ImageMessage),

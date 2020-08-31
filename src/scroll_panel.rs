@@ -106,6 +106,40 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollPanel<M, C>
                         self.scroll.x = scroll;
                         self.invalidate_layout();
                     }
+                    ScrollPanelMessage::BringIntoView(handle) => {
+                        let mut parent = handle;
+                        let mut relative_position = Vec2::ZERO;
+                        while parent.is_some() && parent != self.handle {
+                            let node = ui.node(parent);
+                            relative_position += node.actual_local_position();
+                            parent = node.parent();
+                        }
+                        // Check if requested item already in "view box", this will prevent weird "jumping" effect
+                        // when bring into view was requested on already visible element.
+                        if relative_position.x < 0.0
+                            || relative_position.y < 0.0
+                            || relative_position.x > self.actual_size().x
+                            || relative_position.y > self.actual_size().y
+                        {
+                            relative_position += self.scroll;
+                            // This check is needed because it possible that given handle is not in
+                            // sub-tree of current scroll panel.
+                            if parent == self.handle {
+                                if self.vertical_scroll_allowed {
+                                    ui.send_message(ScrollPanelMessage::vertical_scroll(
+                                        self.handle,
+                                        relative_position.y,
+                                    ));
+                                }
+                                if self.horizontal_scroll_allowed {
+                                    ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                                        self.handle,
+                                        relative_position.x,
+                                    ));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

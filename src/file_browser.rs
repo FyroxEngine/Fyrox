@@ -3,8 +3,6 @@
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
 
-use crate::message::WidgetMessage;
-use crate::tree::Tree;
 use crate::{
     button::ButtonBuilder,
     core::{
@@ -14,26 +12,26 @@ use crate::{
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, FileBrowserMessage, FileSelectorMessage, OsEvent, TextBoxMessage,
-        TreeMessage, TreeRootMessage, UiMessage, UiMessageData, WindowMessage,
+        ButtonMessage, FileBrowserMessage, FileSelectorMessage, OsEvent, ScrollViewerMessage,
+        TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
+        WindowMessage,
     },
     node::UINode,
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     text_box::TextBoxBuilder,
-    tree::{TreeBuilder, TreeRootBuilder},
+    tree::{Tree, TreeBuilder, TreeRootBuilder},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowTitle},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
     UserInterface,
 };
-use std::collections::HashMap;
-use std::path::{Component, Prefix};
 use std::{
     cell::RefCell,
+    collections::HashMap,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
 };
 use sysinfo::{DiskExt, SystemExt};
@@ -44,6 +42,7 @@ pub struct FileBrowser<M: 'static, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     tree_root: Handle<UINode<M, C>>,
     path_text: Handle<UINode<M, C>>,
+    scroll_viewer: Handle<UINode<M, C>>,
     path: PathBuf,
     filter: Option<Rc<RefCell<Filter>>>,
 }
@@ -68,6 +67,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for FileBrowser<M, C> {
             widget: self.widget.raw_copy(),
             tree_root: self.tree_root,
             path_text: self.path_text,
+            scroll_viewer: self.scroll_viewer,
             path: self.path.clone(),
             filter: self.filter.clone(),
         }
@@ -82,6 +82,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C>
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.tree_root = *node_map.get(&self.tree_root).unwrap();
         self.path_text = *node_map.get(&self.path_text).unwrap();
+        self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
     }
 
     fn handle_routed_message(
@@ -97,18 +98,37 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C>
                     match msg {
                         FileBrowserMessage::Path(path) => {
                             if &self.path != path {
-                                // TODO: Maybe its better to make new tree if new path exists in
-                                //  file system?
-                                let tree = find_tree(self.tree_root, path, ui);
-                                if tree.is_some() {
-                                    self.path = path.clone();
-                                    ui.send_message(TextBoxMessage::text(
-                                        self.path_text,
-                                        path.to_string_lossy().to_string(),
-                                    ));
+                                let mut item = find_tree(self.tree_root, path, ui);
+                                if item.is_none() {
+                                    // Generate new tree contents.
+                                    let (items, path_item) =
+                                        build_all(path, self.filter.clone(), &mut ui.build_ctx());
+
+                                    // Replace tree contents.
+                                    ui.send_message(TreeRootMessage::items(self.tree_root, items));
+
+                                    item = path_item;
+                                }
+
+                                self.path = path.clone();
+
+                                // Set value of text field.
+                                ui.send_message(TextBoxMessage::text(
+                                    self.path_text,
+                                    path.to_string_lossy().to_string(),
+                                ));
+
+                                // Path can be invalid, so we shouldn't do anything in such case.
+                                if item.is_some() {
+                                    // Select item of new path.
                                     ui.send_message(TreeRootMessage::select(
                                         self.tree_root,
-                                        vec![tree],
+                                        vec![item],
+                                    ));
+                                    // Bring item of new path into view.
+                                    ui.send_message(ScrollViewerMessage::bring_into_view(
+                                        self.scroll_viewer,
+                                        item,
                                     ));
                                 }
                             }
@@ -120,11 +140,6 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C>
                 if message.destination == self.path_text {
                     if let TextBoxMessage::Text(txt) = msg {
                         self.path = txt.into();
-                        // Try to find tree corresponding to path.
-                        let tree = find_tree(self.tree_root, txt, ui);
-                        if tree.is_some() {
-                            ui.send_message(TreeRootMessage::select(self.tree_root, vec![tree]));
-                        }
                     }
                 }
             }
@@ -202,10 +217,7 @@ fn find_tree<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(
     match ui.node(node) {
         UINode::Tree(tree) => {
             let tree_path = tree.user_data_ref::<PathBuf>();
-            if tree_path
-                .to_string_lossy()
-                .starts_with(path.as_ref().to_string_lossy().deref())
-            {
+            if tree_path == path.as_ref() {
                 tree_handle = node;
             }
             for &item in tree.items() {
@@ -272,11 +284,12 @@ fn build_tree<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(
     tree
 }
 
+/// Builds entire file system tree to given final_path.
 fn build_all<M: 'static, C: 'static + Control<M, C>>(
-    path: &Path,
+    final_path: &Path,
     filter: Option<Rc<RefCell<Filter>>>,
     ctx: &mut BuildContext<M, C>,
-) -> Vec<Handle<UINode<M, C>>> {
+) -> (Vec<Handle<UINode<M, C>>>, Handle<UINode<M, C>>) {
     // Create items for disks.
     let mut root_items = HashMap::new();
     for disk in sysinfo::System::new_all()
@@ -290,8 +303,10 @@ fn build_all<M: 'static, C: 'static + Control<M, C>>(
         );
     }
 
+    let mut path_item = Handle::NONE;
+
     // Try to build tree only for given path.
-    if let Ok(absolute_path) = path.canonicalize() {
+    if let Ok(absolute_path) = final_path.canonicalize() {
         if absolute_path.has_root() {
             let components = absolute_path.components().collect::<Vec<Component>>();
             if let Component::Prefix(prefix) = components.get(0).unwrap() {
@@ -304,27 +319,30 @@ fn build_all<M: 'static, C: 'static + Control<M, C>>(
                             full_path = full_path.join(component.as_os_str());
                             let next = components.get(i + 1).map(|p| full_path.join(p));
 
+                            let mut new_parent = parent;
                             if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
                                 for p in dir_iter {
                                     if let Ok(entry) = p {
                                         let path = entry.path();
-                                        let build = if let Some(filter) = filter.as_ref() {
-                                            filter.deref().borrow_mut().deref_mut()(&path)
-                                        } else {
-                                            true
-                                        };
-                                        if build {
+                                        if filter.as_ref().map_or(true, |f| {
+                                            f.deref().borrow_mut().deref_mut()(&path)
+                                        }) {
                                             let item = build_tree_item(&path, &full_path, ctx);
                                             Tree::add_item(parent, item, ctx);
                                             if let Some(next) = next.as_ref() {
                                                 if *next == path {
-                                                    parent = item;
+                                                    new_parent = item;
                                                 }
+                                            }
+
+                                            if path == absolute_path {
+                                                path_item = item;
                                             }
                                         }
                                     }
                                 }
                             }
+                            parent = new_parent;
                         }
                     }
                 }
@@ -332,7 +350,7 @@ fn build_all<M: 'static, C: 'static + Control<M, C>>(
         }
     }
 
-    root_items.values().copied().collect()
+    (root_items.values().copied().collect(), path_item)
 }
 
 pub struct FileBrowserBuilder<M: 'static, C: 'static + Control<M, C>> {
@@ -360,18 +378,29 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
         self
     }
 
+    /// Sets desired path which will be used to build file system tree.
+    ///
+    /// # Notes
+    ///
+    /// It does **not** bring tree item with given path into view because it is impossible
+    /// during construction stage - there is not enough layout information to do so. You
+    /// can send FileBrowserMessage::Path right after creation and it will bring tree item
+    /// into view without any problems. It is possible because all widgets were created at
+    /// that moment and layout system can give correct offsets to bring item into view.  
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.path = path.as_ref().to_owned();
         self
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let (items, _) = build_all(self.path.as_path(), self.filter.clone(), ctx);
+
         let path_text;
         let tree_root;
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
             .with_content({
                 tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                    .with_items(build_all(self.path.as_path(), self.filter.clone(), ctx))
+                    .with_items(items)
                     .build(ctx);
                 tree_root
             })
@@ -403,6 +432,7 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
             path_text,
             path: self.path,
             filter: self.filter,
+            scroll_viewer,
         };
 
         ctx.add_node(UINode::FileBrowser(browser))
@@ -591,12 +621,10 @@ impl<M: 'static, C: 'static + Control<M, C>> FileSelectorBuilder<M, C> {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
-                            browser = FileBrowserBuilder::new(
-                                WidgetBuilder::new().with_height(400.0).on_column(0),
-                            )
-                            .with_opt_filter(self.filter)
-                            .with_path(self.path)
-                            .build(ctx);
+                            browser = FileBrowserBuilder::new(WidgetBuilder::new().on_column(0))
+                                .with_opt_filter(self.filter)
+                                .with_path(self.path)
+                                .build(ctx);
                             browser
                         })
                         .with_child(

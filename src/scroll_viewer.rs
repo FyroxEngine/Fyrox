@@ -1,8 +1,10 @@
 use crate::{
     core::{math::vec2::Vec2, pool::Handle},
     grid::{Column, GridBuilder, Row},
-    message::ScrollPanelMessage,
-    message::{ScrollBarMessage, ScrollViewerMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage, UiMessage, UiMessageData,
+        WidgetMessage,
+    },
     scroll_bar::ScrollBarBuilder,
     scroll_panel::ScrollPanelBuilder,
     widget::{Widget, WidgetBuilder},
@@ -13,7 +15,7 @@ use std::ops::{Deref, DerefMut};
 pub struct ScrollViewer<M: 'static, C: 'static + Control<M, C>> {
     pub widget: Widget<M, C>,
     pub content: Handle<UINode<M, C>>,
-    pub content_presenter: Handle<UINode<M, C>>,
+    pub scroll_panel: Handle<UINode<M, C>>,
     pub v_scroll_bar: Handle<UINode<M, C>>,
     pub h_scroll_bar: Handle<UINode<M, C>>,
 }
@@ -43,14 +45,14 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollViewer<M, C> {
         Self {
             widget,
             content,
-            content_presenter,
+            scroll_panel: content_presenter,
             v_scroll_bar,
             h_scroll_bar,
         }
     }
 
     pub fn content_presenter(&self) -> Handle<UINode<M, C>> {
-        self.content_presenter
+        self.scroll_panel
     }
 
     pub fn content(&self) -> Handle<UINode<M, C>> {
@@ -67,7 +69,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
         UINode::ScrollViewer(Self {
             widget: self.widget.raw_copy(),
             content: self.content,
-            content_presenter: self.content_presenter,
+            scroll_panel: self.scroll_panel,
             v_scroll_bar: self.v_scroll_bar,
             h_scroll_bar: self.h_scroll_bar,
         })
@@ -75,7 +77,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
 
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.content = *node_map.get(&self.content).unwrap();
-        self.content_presenter = *node_map.get(&self.content_presenter).unwrap();
+        self.scroll_panel = *node_map.get(&self.scroll_panel).unwrap();
         self.v_scroll_bar = *node_map.get(&self.v_scroll_bar).unwrap();
         self.h_scroll_bar = *node_map.get(&self.h_scroll_bar).unwrap();
     }
@@ -85,7 +87,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
 
         if self.content.is_some() {
             let content_size = ui.node(self.content).desired_size();
-            let available_size_for_content = ui.node(self.content_presenter).desired_size();
+            let available_size_for_content = ui.node(self.scroll_panel).desired_size();
 
             let x_max = (content_size.x - available_size_for_content.x).max(0.0);
             ui.send_message(ScrollBarMessage::max_value(self.h_scroll_bar, x_max));
@@ -119,20 +121,38 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
                     }
                 }
             }
+            UiMessageData::ScrollPanel(msg) => {
+                if message.destination == self.scroll_panel {
+                    let mut msg = match *msg {
+                        ScrollPanelMessage::VerticalScroll(value) => {
+                            ScrollBarMessage::value(self.v_scroll_bar, value)
+                        }
+                        ScrollPanelMessage::HorizontalScroll(value) => {
+                            ScrollBarMessage::value(self.h_scroll_bar, value)
+                        }
+                        _ => return,
+                    };
+                    // handle flag here is raised to prevent infinite message loop with the branch down below (ScrollBar::value).
+                    msg.handled = true;
+                    ui.send_message(msg);
+                }
+            }
             UiMessageData::ScrollBar(msg) => match msg {
                 ScrollBarMessage::Value(new_value) => {
-                    if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
-                        ui.send_message(ScrollPanelMessage::vertical_scroll(
-                            self.content_presenter,
-                            *new_value,
-                        ));
-                    } else if message.destination == self.h_scroll_bar
-                        && self.h_scroll_bar.is_some()
-                    {
-                        ui.send_message(ScrollPanelMessage::horizontal_scroll(
-                            self.content_presenter,
-                            *new_value,
-                        ));
+                    if !message.handled {
+                        if message.destination == self.v_scroll_bar && self.v_scroll_bar.is_some() {
+                            ui.send_message(ScrollPanelMessage::vertical_scroll(
+                                self.scroll_panel,
+                                *new_value,
+                            ));
+                        } else if message.destination == self.h_scroll_bar
+                            && self.h_scroll_bar.is_some()
+                        {
+                            ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                                self.scroll_panel,
+                                *new_value,
+                            ));
+                        }
                     }
                 }
                 &ScrollBarMessage::MaxValue(_) => {
@@ -164,11 +184,20 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
             },
             UiMessageData::ScrollViewer(msg) => {
                 if message.destination == self.handle() {
-                    if let ScrollViewerMessage::Content(content) = msg {
-                        for child in ui.node(self.content_presenter).children().to_vec() {
-                            ui.send_message(WidgetMessage::remove(child));
+                    match msg {
+                        ScrollViewerMessage::Content(content) => {
+                            for child in ui.node(self.scroll_panel).children().to_vec() {
+                                ui.send_message(WidgetMessage::remove(child));
+                            }
+                            ui.link_nodes(*content, self.scroll_panel);
                         }
-                        ui.link_nodes(*content, self.content_presenter);
+                        &ScrollViewerMessage::BringIntoView(handle) => {
+                            // Re-cast message to inner panel.
+                            ui.send_message(ScrollPanelMessage::bring_into_view(
+                                self.scroll_panel,
+                                handle,
+                            ));
+                        }
                     }
                 }
             }
@@ -186,8 +215,8 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollViewer<M, C
         if self.h_scroll_bar == handle {
             self.h_scroll_bar = Handle::NONE;
         }
-        if self.content_presenter == handle {
-            self.content_presenter = Handle::NONE;
+        if self.scroll_panel == handle {
+            self.scroll_panel = Handle::NONE;
         }
     }
 }
@@ -267,7 +296,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
             content: self.content,
             v_scroll_bar,
             h_scroll_bar,
-            content_presenter,
+            scroll_panel: content_presenter,
         };
         ctx.add_node(UINode::ScrollViewer(sv))
     }

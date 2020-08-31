@@ -94,7 +94,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
             if let UiMessageData::Image(msg) = &message.data {
                 match msg {
                     ImageMessage::Texture(tex) => {
-                        self.texture = Some(tex.clone());
+                        self.texture = tex.clone();
                     }
                     &ImageMessage::Flip(flip) => {
                         self.flip = flip;

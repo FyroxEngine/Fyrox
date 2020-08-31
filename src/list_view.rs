@@ -265,7 +265,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
         });
         if let UINode::ScrollViewer(scroll_viewer) = &mut ctx[scroll_viewer] {
             scroll_viewer.set_content(panel);
-            let content_presenter = scroll_viewer.content_presenter;
+            let content_presenter = scroll_viewer.scroll_panel;
             ctx.link(panel, content_presenter);
         } else {
             panic!("must be scroll viewer!");
