@@ -309,7 +309,7 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
                 .on_row(0)
                 .on_column(0),
         )
-        .with_text("+")
+        .with_text(if self.is_expanded { "-" } else { "+" })
         .build(ctx);
 
         if self.content.is_some() {

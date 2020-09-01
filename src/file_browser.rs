@@ -25,7 +25,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowTitle},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-    UserInterface,
+    UserInterface, VerticalAlignment,
 };
 use std::{
     cell::RefCell,
@@ -259,7 +259,8 @@ fn build_tree_item<M: 'static, C: 'static + Control<M, C>, P: AsRef<Path>>(
                 .with_text(
                     path.as_ref()
                         .to_string_lossy()
-                        .replace(&parent_path.as_ref().to_string_lossy().to_string(), ""),
+                        .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
+                        .replace("\\", ""),
                 )
                 .build(ctx),
         )
@@ -415,6 +416,7 @@ impl<M: 'static, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
                             .on_column(0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(self.path.to_string_lossy().as_ref())
                     .build(ctx);
                     path_text
