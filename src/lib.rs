@@ -727,7 +727,7 @@ impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
     ) -> Handle<UINode<M, C>> {
         let widget = self.nodes.borrow(node_handle);
 
-        if !widget.is_hit_test_visible() {
+        if !widget.is_hit_test_visible() || !widget.enabled() {
             return Handle::NONE;
         }
 

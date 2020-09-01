@@ -58,6 +58,7 @@ pub struct Widget<M: 'static, C: 'static + Control<M, C>> {
     pub user_data: Option<Rc<dyn Any>>,
     draw_on_top: bool,
     marker: PhantomData<M>,
+    enabled: bool,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -263,6 +264,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
             user_data: self.user_data.clone(),
             draw_on_top: self.draw_on_top,
             marker: PhantomData,
+            enabled: true,
         }
     }
 
@@ -460,6 +462,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
                             self.invalidate_layout();
                         }
                     }
+                    &WidgetMessage::Enabled(enabled) => {
+                        self.enabled = enabled;
+                    }
                     _ => (),
                 }
             }
@@ -584,8 +589,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Widget<M, C> {
         self.global_visibility
     }
 
+    #[inline]
     pub fn visibility(&self) -> bool {
         self.visibility
+    }
+
+    #[inline]
+    pub fn enabled(&self) -> bool {
+        self.enabled
     }
 
     #[inline]
@@ -620,6 +631,7 @@ pub struct WidgetBuilder<M: 'static, C: 'static + Control<M, C>> {
     pub allow_drop: bool,
     pub user_data: Option<Rc<dyn Any>>,
     pub draw_on_top: bool,
+    pub enabled: bool,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -652,6 +664,7 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             allow_drop: false,
             user_data: None,
             draw_on_top: false,
+            enabled: true,
         }
     }
 
@@ -662,6 +675,11 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
 
     pub fn with_height(mut self, height: f32) -> Self {
         self.height = height;
+        self
+    }
+
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
         self
     }
 
@@ -818,6 +836,7 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
             user_data: self.user_data.clone(),
             draw_on_top: self.draw_on_top,
             marker: PhantomData,
+            enabled: self.enabled,
         }
     }
 }

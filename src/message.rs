@@ -4,6 +4,14 @@
 //! This is very simple and reliable mechanism that effectively decouples widgets
 //! from each other. There is no direct way of modify something during runtime,
 //! you have to use messages to change state of ui elements.
+//!
+//! # Direction
+//!
+//! Each message marked with "Direction" field, which means supported routes for
+//! message. For example [ButtonMessage::Click](enum.ButtonMessage.html) has "Direction: To/From UI" which
+//! means that it can be sent either from internals of library or from user code.
+//! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
+//! internal library code can send such messages without a risk of breaking anything.
 
 use crate::{
     brush::Brush,
@@ -24,55 +32,237 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+/// A set of messages for any kind of widgets (including user controls). These messages provides basic
+/// communication elements of the UI library.
 #[derive(Debug)]
 pub enum WidgetMessage<M: 'static, C: 'static + Control<M, C>> {
+    /// Initiated when user clicks on a widget's geometry.
+    ///
+    /// Direction: **From UI**.
     MouseDown {
+        /// Position of cursor.
         pos: Vec2,
+        /// A button that was pressed.
         button: MouseButton,
     },
+
+    /// Initiated when user releases mouse button while cursor is over widget's geometry.
+    ///
+    /// Direction: **From UI**.
     MouseUp {
+        /// Position of cursor.
         pos: Vec2,
+        /// A button that was released.
         button: MouseButton,
     },
+
+    /// Initiated when user moves cursor over widget's geometry.
+    ///
+    /// Direction: **From/To UI**.
     MouseMove {
+        /// New position of cursor in screen coordinates.
         pos: Vec2,
+        /// State of mouse buttons.
         state: MouseState,
     },
-    Text(char),
-    KeyDown(KeyCode),
-    KeyUp(KeyCode),
+
+    /// Initiated when user scrolls mouse wheel while cursor is over widget's geometry.
+    ///
+    /// Direction: **From/To UI**.
     MouseWheel {
+        /// Position of cursor.
         pos: Vec2,
+        /// Amount of lines per mouse wheel turn.
         amount: f32,
     },
-    GotFocus,
-    LostFocus,
+
+    /// Initiated when cursor leaves geometry of a widget.
+    ///
+    /// Direction: **From UI**.
     MouseLeave,
+
+    /// Initiated when cursor enters geometry of a widget.
+    ///
+    /// Direction: **From UI**.
     MouseEnter,
-    TopMost,
-    Unlink,
-    Remove,
-    LinkWith(Handle<UINode<M, C>>),
+
+    /// Initiated when widget is in focus and user types something on a keyboard.
+    ///
+    /// Direction: **From/To UI**.
+    Text(char),
+
+    /// Initiated when widget is in focus and user presses a button on a keyboard.
+    ///
+    /// Direction: **From UI**.
+    KeyDown(KeyCode),
+
+    /// Initiated when widget is in focus and user releases a button on a keyboard.
+    ///
+    /// Direction: **From UI**.
+    KeyUp(KeyCode),
+
+    /// Initiated when widget received focus. In most cases focus is received by clicking on
+    /// widget.
+    ///
+    /// Direction: **From UI**.
+    GotFocus,
+
+    /// Initiated when dragging of a widget has started.
+    ///
+    /// Direction: **From UI**.
     DragStarted(Handle<UINode<M, C>>),
+
+    /// Initiated when user drags a widget over some other widget.
+    ///
+    /// Direction: **From UI**.
     DragOver(Handle<UINode<M, C>>),
+
+    /// Initiated when user drops a widget onto some other widget.
+    ///
+    /// Direction: **From UI**.
     Drop(Handle<UINode<M, C>>),
+
+    /// Initiated when widget has lost its focus.
+    ///
+    /// Direction: **From UI**.
+    LostFocus,
+
+    /// A request to make widget topmost. Widget can be made topmost only in the same hierarchy
+    /// level only!
+    ///
+    /// Direction: **From/To UI**.
+    TopMost,
+
+    /// A request to detach widget from its current parent and attach to root canvas.
+    ///
+    /// Direction: **From/To UI**.
+    Unlink,
+
+    /// A request to delete widget with all its children widgets. All handles to a node and its
+    /// children will be invalid after processing such message!
+    ///
+    /// Direction: **From/To UI**.
+    Remove,
+
+    /// A request to link initiator with specified widget.
+    ///
+    /// Direction: **From/To UI**.
+    LinkWith(Handle<UINode<M, C>>),
+
+    /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
+    ///
+    /// Direction: **From/To UI**
     Background(Brush),
+
+    /// A request to change foreground brush of a widget. Foreground brushes are used for text, borders and so on.
+    ///
+    /// Direction: **From/To UI**
     Foreground(Brush),
+
+    /// A request to change name of a widget. Name is given to widget mostly for debugging purposes.
+    ///
+    /// Direction: **From/To UI**
     Name(String),
+
+    /// A request to set width of a widget. In most cases there is no need to explicitly set width of a widget,
+    /// because rg3d-ui uses automatic layout engine which will correctly calculate desired width of a widget.
+    ///
+    /// Direction: **From/To UI**
     Width(f32),
+
+    /// A request to set height of a widget. In most cases there is no need to explicitly set height of a widget,
+    /// because rg3d-ui uses automatic layout engine which will correctly calculate desired height of a widget.
+    ///
+    /// Direction: **From/To UI**
     Height(f32),
+
+    /// A request to set vertical alignment of a widget. Vertical alignment tells where to put widget in the parent
+    /// widget's bounds in vertical direction.
+    ///
+    /// Direction: **From/To UI**
     VerticalAlignment(VerticalAlignment),
+
+    /// A request to set horizontal alignment of a widget. Horizontal alignment tells where to put widget in the parent
+    /// widget's bounds in horizontal direction.
+    ///
+    /// Direction: **From/To UI**
     HorizontalAlignment(HorizontalAlignment),
+
+    /// A request to set maximum size of widget. Maximum size restricts size of a widget during layout pass. For example
+    /// you can set maximum size to a button which was placed into a grid's cell, if maximum size wouldn't be set, button
+    /// would be stretched to fill entire cell.
+    ///
+    /// Direction: **From/To UI**
     MaxSize(Vec2),
+
+    /// A request to set minimum size of widget. Minimum size restricts size of a widget during layout pass. For example
+    /// you can set minimum size to a button which was placed into a grid's cell, if minimum size wouldn't be set, button
+    /// would be compressed to fill entire cell.
+    ///
+    /// Direction: **From/To UI**
     MinSize(Vec2),
+
+    /// A request to set row number of a grid to which widget should belong to.
+    ///
+    /// Direction: **From/To UI**
+    ///
+    /// # Notes
+    ///
+    /// This is bad API and it should be changed in future. Grid should have explicit list of pairs (row, child) instead
+    /// of this indirect attachment.
     Row(usize),
+
+    /// A request to set column number of a grid to which widget should belong to.
+    ///
+    /// Direction: **From/To UI**
+    ///
+    /// # Notes
+    ///
+    /// This is bad API and it should be changed in future. Grid should have explicit list of pairs (column, child) instead
+    /// of this indirect attachment.
     Column(usize),
+
+    /// A request to set new margin of widget. Margin could be used to add some free space around widget to make UI look less
+    /// dense.
+    ///
+    /// Direction: **From/To UI**
     Margin(Thickness),
+
+    /// A request to set new state hit test visibility. If set to false, widget will become "non-clickable". It is useful for
+    /// decorations which should be transparent for mouse events.
+    ///
+    /// Direction: **From/To UI**
     HitTestVisibility(bool),
+
+    /// A request to set new visibility of a widget. Widget can be either visible or not. Invisible widgets does not take space
+    /// in layout pass and collapsed to a point.
+    ///
+    /// Direction: **From/To UI**
     Visibility(bool),
+
+    /// A request to set new z index of a widget. Z index is used to change drawing order of widgets. Please note that it works
+    /// only in same hierarchy level, which means that it is impossible to set z index to 9999 (or similar huge value) to force
+    /// widget to be drawn on top of everything.
+    ///
+    /// Direction: **From/To UI**
     ZIndex(usize),
+
+    /// A request to set new desired position of a widget. It is called "desired" because layout system may ignore it and set
+    /// some other position. Desired position works with a combination of a layout panel that supports direct coordinated
+    /// (Canvas for example).
+    ///
+    /// Direction: **From/To UI**
     DesiredPosition(Vec2),
-    /// Set desired position at center in local coordinates.
+
+    /// A request to enable or disable widget. Disabled widget won't receive mouse events and may look differently (it is defined
+    /// by internal styling).
+    ///
+    /// Direction: **From/To UI**
+    Enabled(bool),
+
+    /// A request to set desired position at center in local coordinates.
+    ///
+    /// Direction: **From/To UI**
     Center,
 }
 
@@ -136,6 +326,11 @@ impl<M: 'static, C: 'static + Control<M, C>> WidgetMessage<M, C> {
     /// Creates message to make given widget topmost.
     pub fn topmost(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
         Self::make(destination, WidgetMessage::TopMost)
+    }
+
+    /// Creates message to enable or disable given widget.
+    pub fn enabled(destination: Handle<UINode<M, C>>, enabled: bool) -> UiMessage<M, C> {
+        Self::make(destination, WidgetMessage::Enabled(enabled))
     }
 
     // TODO: Add rest items.
