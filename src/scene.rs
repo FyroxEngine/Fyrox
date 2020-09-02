@@ -1,4 +1,7 @@
 use crate::{command::Command, Message};
+use rg3d::physics::rigid_body::RigidBody;
+use rg3d::physics::Physics;
+use rg3d::scene::PhysicsBinder;
 use rg3d::{
     core::{
         math::{quat::Quat, vec3::Vec3},
@@ -28,9 +31,13 @@ pub enum SceneCommand {
     LinkNodes(LinkNodesCommand),
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
+    SetBody(SetBodyCommand),
+    DeleteBody(DeleteBodyCommand),
 }
 
 pub struct SceneContext<'a> {
+    pub physics: &'a mut Physics,
+    pub physics_binder: &'a mut PhysicsBinder,
     pub graph: &'a mut Graph,
     pub message_sender: Sender<Message>,
     pub current_selection: Selection,
@@ -53,6 +60,8 @@ macro_rules! static_dispatch {
             SceneCommand::LinkNodes(v) => v.$func($($args),*),
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
+            SceneCommand::SetBody(v) => v.$func($($args),*),
+            SceneCommand::DeleteBody(v) => v.$func($($args),*),
         }
     };
 }
@@ -423,6 +432,100 @@ impl<'a> Command<'a> for SetNameCommand {
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.apply(context.graph);
+    }
+}
+
+#[derive(Debug)]
+pub struct SetBodyCommand {
+    node: Handle<Node>,
+    ticket: Option<Ticket<RigidBody>>,
+    handle: Handle<RigidBody>,
+    body: Option<RigidBody>,
+}
+
+impl SetBodyCommand {
+    pub fn new(node: Handle<Node>, body: RigidBody) -> Self {
+        Self {
+            node,
+            ticket: None,
+            handle: Default::default(),
+            body: Some(body),
+        }
+    }
+}
+
+impl<'a> Command<'a> for SetBodyCommand {
+    type Context = SceneContext<'a>;
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        match self.ticket.take() {
+            None => {
+                self.handle = context.physics.add_body(self.body.take().unwrap());
+            }
+            Some(ticket) => {
+                context
+                    .physics
+                    .put_body_back(ticket, self.body.take().unwrap());
+            }
+        }
+        context.physics_binder.bind(self.node, self.handle);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context.physics.take_reserve_body(self.handle);
+        self.ticket = Some(ticket);
+        self.body = Some(node);
+        context.physics_binder.unbind(self.node);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.physics.forget_ticket(ticket);
+            context.physics_binder.unbind(self.node);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteBodyCommand {
+    handle: Handle<RigidBody>,
+    ticket: Option<Ticket<RigidBody>>,
+    body: Option<RigidBody>,
+    node: Handle<Node>,
+}
+
+impl DeleteBodyCommand {
+    pub fn new(handle: Handle<RigidBody>) -> Self {
+        Self {
+            handle,
+            ticket: None,
+            body: None,
+            node: Handle::NONE,
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteBodyCommand {
+    type Context = SceneContext<'a>;
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context.physics.take_reserve_body(self.handle);
+        self.body = Some(node);
+        self.ticket = Some(ticket);
+        self.node = context.physics_binder.unbind_by_body(self.handle);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.handle = context
+            .physics
+            .put_body_back(self.ticket.take().unwrap(), self.body.take().unwrap());
+        context.physics_binder.bind(self.node, self.handle);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.physics.forget_ticket(ticket)
+        }
     }
 }
 

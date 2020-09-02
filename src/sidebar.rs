@@ -1,3 +1,4 @@
+use crate::scene::{DeleteBodyCommand, SetBodyCommand};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{
@@ -6,6 +7,9 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::DropdownListMessage;
+use rg3d::physics::convex_shape::{BoxShape, CapsuleShape, ConvexShape, SphereShape};
+use rg3d::physics::rigid_body::RigidBody;
 use rg3d::{
     core::{
         math::{
@@ -15,6 +19,9 @@ use rg3d::{
         pool::Handle,
     },
     gui::{
+        border::BorderBuilder,
+        decorator::DecoratorBuilder,
+        dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{TextBoxMessage, UiMessageData, Vec3EditorMessage},
         text::TextBuilder,
@@ -22,7 +29,7 @@ use rg3d::{
         vec::Vec3EditorBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        Thickness, VerticalAlignment,
+        HorizontalAlignment, Thickness, VerticalAlignment,
     },
 };
 use std::sync::mpsc::Sender;
@@ -34,6 +41,7 @@ pub struct SideBar {
     rotation: Handle<UiNode>,
     scale: Handle<UiNode>,
     sender: Sender<Message>,
+    body: Handle<UiNode>,
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
@@ -58,12 +66,26 @@ fn make_vec3_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     .build(ctx)
 }
 
+fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
+    DecoratorBuilder::new(BorderBuilder::new(
+        WidgetBuilder::new().with_height(26.0).with_child(
+            TextBuilder::new(WidgetBuilder::new())
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_text(name)
+                .build(ctx),
+        ),
+    ))
+    .build(ctx)
+}
+
 impl SideBar {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let node_name;
         let position;
         let rotation;
         let scale;
+        let body;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content(
                 GridBuilder::new(
@@ -93,10 +115,29 @@ impl SideBar {
                         .with_child({
                             scale = make_vec3_input_field(ctx, 3);
                             scale
+                        })
+                        .with_child(make_text_mark(ctx, "Body", 4))
+                        .with_child({
+                            body = DropdownListBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(4)
+                                    .on_column(1)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_items(vec![
+                                make_dropdown_list_option(ctx, "None"),
+                                make_dropdown_list_option(ctx, "Sphere"),
+                                make_dropdown_list_option(ctx, "Cube"),
+                                make_dropdown_list_option(ctx, "Capsule"),
+                                make_dropdown_list_option(ctx, "Static Mesh"),
+                            ])
+                            .build(ctx);
+                            body
                         }),
                 )
                 .add_column(Column::strict(70.0))
                 .add_column(Column::stretch())
+                .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
@@ -114,15 +155,16 @@ impl SideBar {
             rotation,
             sender,
             scale,
+            body,
         }
     }
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &engine.scenes[editor_scene.scene];
         if editor_scene.selection.is_single_selection() {
-            let node = editor_scene.selection.nodes()[0];
-            if scene.graph.is_valid_handle(node) {
-                let node = &scene.graph[node];
+            let node_handle = editor_scene.selection.nodes()[0];
+            if scene.graph.is_valid_handle(node_handle) {
+                let node = &scene.graph[node_handle];
 
                 let ui = &mut engine.user_interface;
 
@@ -162,6 +204,28 @@ impl SideBar {
                     )),
                     destination: self.scale,
                 });
+
+                // Sync physical body info.
+                let body_handle = scene.physics_binder.body_of(node_handle);
+                let index = if body_handle.is_some() {
+                    let body = scene.physics.borrow_body(body_handle);
+                    match body.get_shape() {
+                        ConvexShape::Sphere(_) => 1,
+                        ConvexShape::Box(_) => 2,
+                        ConvexShape::Capsule(_) => 3,
+                        _ => 0,
+                    }
+                } else {
+                    0
+                };
+
+                ui.send_message(UiMessage {
+                    handled: true,
+                    data: UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
+                        index,
+                    ))),
+                    destination: self.body,
+                });
             }
         }
     }
@@ -172,7 +236,8 @@ impl SideBar {
         editor_scene: &EditorScene,
         engine: &GameEngine,
     ) {
-        let graph = &engine.scenes[editor_scene.scene].graph;
+        let scene = &engine.scenes[editor_scene.scene];
+        let graph = &scene.graph;
 
         if editor_scene.selection.is_single_selection() && !message.handled {
             let node = editor_scene.selection.nodes()[0];
@@ -212,6 +277,52 @@ impl SideBar {
                                         ScaleNodeCommand::new(node, old_scale, value),
                                     )))
                                     .unwrap();
+                            }
+                        }
+                    }
+                }
+                UiMessageData::DropdownList(msg) => {
+                    if message.destination == self.body {
+                        if let DropdownListMessage::SelectionChanged(index) = msg {
+                            if let Some(index) = index {
+                                match index {
+                                    0 => {
+                                        let body_handle = scene.physics_binder.body_of(node);
+                                        if body_handle.is_some() {
+                                            self.sender
+                                                .send(Message::DoSceneCommand(
+                                                    SceneCommand::DeleteBody(
+                                                        DeleteBodyCommand::new(body_handle),
+                                                    ),
+                                                ))
+                                                .unwrap();
+                                        }
+                                    }
+                                    1 | 2 | 3 => {
+                                        let mut body = match index {
+                                            1 => RigidBody::new(ConvexShape::Sphere(
+                                                SphereShape::default(),
+                                            )),
+                                            2 => RigidBody::new(ConvexShape::Box(
+                                                BoxShape::default(),
+                                            )),
+                                            3 => RigidBody::new(ConvexShape::Capsule(
+                                                CapsuleShape::default(),
+                                            )),
+                                            _ => unreachable!(),
+                                        };
+                                        body.set_position(graph[node].global_position());
+                                        self.sender
+                                            .send(Message::DoSceneCommand(SceneCommand::SetBody(
+                                                SetBodyCommand::new(node, body),
+                                            )))
+                                            .unwrap();
+                                    }
+                                    4 => {
+                                        println!("implement me!");
+                                    }
+                                    _ => unreachable!(),
+                                };
                             }
                         }
                     }

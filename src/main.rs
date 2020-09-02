@@ -322,6 +322,7 @@ pub enum Message {
     CloseScene,
     SetInteractionMode(InteractionModeKind),
     Log(String),
+    NewScene,
     Exit,
 }
 
@@ -344,6 +345,7 @@ struct Editor {
 
 struct Menu {
     menu: Handle<UiNode>,
+    new_scene: Handle<UiNode>,
     save: Handle<UiNode>,
     save_as: Handle<UiNode>,
     load: Handle<UiNode>,
@@ -366,6 +368,7 @@ impl Menu {
     pub fn new(ctx: &mut BuildContext, message_sender: Sender<Message>) -> Self {
         let min_size = Vec2::new(120.0, 20.0);
         let min_size_menu = Vec2::new(40.0, 20.0);
+        let new_scene;
         let save;
         let save_as;
         let close_scene;
@@ -384,6 +387,16 @@ impl Menu {
                 MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size_menu))
                     .with_content(MenuItemContent::text("File"))
                     .with_items(vec![
+                        {
+                            new_scene =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text_with_shortcut(
+                                        "New Scene",
+                                        "Ctrl+N",
+                                    ))
+                                    .build(ctx);
+                            new_scene
+                        },
                         {
                             save =
                                 MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
@@ -552,6 +565,7 @@ impl Menu {
 
         Self {
             menu,
+            new_scene,
             save,
             save_as,
             close_scene,
@@ -701,6 +715,8 @@ impl Menu {
                         self.message_sender.send(Message::RedoSceneCommand).unwrap();
                     } else if message.destination == self.exit {
                         self.message_sender.send(Message::Exit).unwrap();
+                    } else if message.destination == self.new_scene {
+                        self.message_sender.send(Message::NewScene).unwrap();
                     }
                 }
             }
@@ -837,10 +853,13 @@ impl Editor {
         editor
     }
 
-    fn set_scene(&mut self, engine: &mut GameEngine, mut scene: Scene, path: PathBuf) {
+    fn set_scene(&mut self, engine: &mut GameEngine, mut scene: Scene, path: Option<PathBuf>) {
         if let Some(previous_editor_scene) = self.scene.as_ref() {
             engine.scenes.remove(previous_editor_scene.scene);
         }
+
+        // We must explicitly turn off physics, otherwise all objects with physics will fly away.
+        scene.physics.set_enabled(false);
 
         scene.render_target = Some(Default::default());
         engine.user_interface.send_message(ImageMessage::texture(
@@ -851,7 +870,7 @@ impl Editor {
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
 
         let editor_scene = EditorScene {
-            path: Some(path),
+            path,
             root,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
@@ -1069,10 +1088,13 @@ impl Editor {
             match message {
                 Message::DoSceneCommand(command) => {
                     if let Some(editor_scene) = self.scene.as_ref() {
+                        let scene = &mut engine.scenes[editor_scene.scene];
                         self.command_stack.do_command(
                             command,
                             SceneContext {
-                                graph: &mut engine.scenes[editor_scene.scene].graph,
+                                physics: &mut scene.physics,
+                                physics_binder: &mut scene.physics_binder,
+                                graph: &mut scene.graph,
                                 message_sender: self.message_sender.clone(),
                                 current_selection: editor_scene.selection.clone(),
                             },
@@ -1082,8 +1104,11 @@ impl Editor {
                 }
                 Message::UndoSceneCommand => {
                     if let Some(editor_scene) = self.scene.as_ref() {
+                        let scene = &mut engine.scenes[editor_scene.scene];
                         self.command_stack.undo(SceneContext {
-                            graph: &mut engine.scenes[editor_scene.scene].graph,
+                            physics: &mut scene.physics,
+                            physics_binder: &mut scene.physics_binder,
+                            graph: &mut scene.graph,
                             message_sender: self.message_sender.clone(),
                             current_selection: editor_scene.selection.clone(),
                         });
@@ -1092,8 +1117,11 @@ impl Editor {
                 }
                 Message::RedoSceneCommand => {
                     if let Some(editor_scene) = self.scene.as_ref() {
+                        let scene = &mut engine.scenes[editor_scene.scene];
                         self.command_stack.redo(SceneContext {
-                            graph: &mut engine.scenes[editor_scene.scene].graph,
+                            physics: &mut scene.physics,
+                            physics_binder: &mut scene.physics_binder,
+                            graph: &mut scene.graph,
                             message_sender: self.message_sender.clone(),
                             current_selection: editor_scene.selection.clone(),
                         });
@@ -1112,6 +1140,9 @@ impl Editor {
                         let scene = &mut engine.scenes[editor_scene.scene];
                         let editor_root = editor_scene.root;
                         let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
+                        // Physics must be enabled before saving, otherwise physics will be frozen when scene will be
+                        // loaded in engine.
+                        pure_scene.physics.set_enabled(true);
                         let mut visitor = Visitor::new();
                         pure_scene.visit("Scene", &mut visitor).unwrap();
                         if let Err(e) = visitor.save_binary(&path) {
@@ -1134,7 +1165,7 @@ impl Editor {
                     Ok(mut visitor) => {
                         let mut scene = Scene::default();
                         scene.visit("Scene", &mut visitor).unwrap();
-                        self.set_scene(engine, scene, path);
+                        self.set_scene(engine, scene, Some(path));
                         engine.renderer.flush();
                     }
                     Err(e) => {
@@ -1163,6 +1194,9 @@ impl Editor {
                             .user_interface
                             .send_message(ImageMessage::texture(self.preview.frame, None));
                     }
+                }
+                Message::NewScene => {
+                    self.set_scene(engine, Scene::new(), None);
                 }
             }
         }
