@@ -24,7 +24,9 @@ use rg3d::{
         decorator::DecoratorBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{ButtonMessage, ListViewMessage, ScrollBarMessage, TextMessage, UiMessageData},
+        message::{
+            ButtonMessage, DropdownListMessage, ScrollBarMessage, TextMessage, UiMessageData,
+        },
         node::StubNode,
         scroll_bar::ScrollBarBuilder,
         stack_panel::StackPanelBuilder,
@@ -436,9 +438,9 @@ fn main() {
                 // from UI elements and works well with borrow checker.
                 while let Some(ui_message) = engine.user_interface.poll_message() {
                     match &ui_message.data {
-                        UiMessageData::ScrollBar(sb) => {
+                        UiMessageData::ScrollBar(msg) => {
                             // Some of our scroll bars has changed its value. Check which one.
-                            if let &ScrollBarMessage::Value(value) = sb {
+                            if let &ScrollBarMessage::Value(value) = msg {
                                 // Each message has source - a handle of UI element that created this message.
                                 // It is used to understand from which UI element message has come.
                                 if ui_message.destination == interface.scale {
@@ -448,8 +450,8 @@ fn main() {
                                 }
                             }
                         }
-                        UiMessageData::Button(btn) => {
-                            if let ButtonMessage::Click = btn {
+                        UiMessageData::Button(msg) => {
+                            if let ButtonMessage::Click = msg {
                                 // Once we received Click event from Reset button, we have to reset angle and scale
                                 // of model. To do that we borrow each UI element in engine and set its value directly.
                                 // This is not ideal because there is tight coupling between UI code and model values,
@@ -466,8 +468,8 @@ fn main() {
                                 }
                             }
                         }
-                        UiMessageData::ListView(ic) => {
-                            if let ListViewMessage::SelectionChanged(idx) = ic {
+                        UiMessageData::DropdownList(msg) => {
+                            if let DropdownListMessage::SelectionChanged(idx) = msg {
                                 // Video mode has changed and we must change video mode to what user wants.
                                 if let &Some(idx) = idx {
                                     if ui_message.destination == interface.resolutions {

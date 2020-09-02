@@ -62,6 +62,34 @@ impl PhysicsBinder {
         self.node_rigid_body_map.remove(&node)
     }
 
+    /// Unlinks given body from a node that is linked with the body.
+    ///
+    /// # Performance
+    ///
+    /// This method is slow because of two reasons:
+    ///
+    /// 1) Search is linear
+    /// 2) Additional memory is allocated
+    ///
+    /// So it is not advised to call it in performance critical places.
+    pub fn unbind_by_body(&mut self, body: Handle<RigidBody>) -> Handle<Node> {
+        let mut node = Handle::NONE;
+        self.node_rigid_body_map = self
+            .node_rigid_body_map
+            .clone()
+            .into_iter()
+            .filter(|&(n, b)| {
+                if b == body {
+                    node = n;
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+        node
+    }
+
     /// Returns handle of rigid body associated with given node. It will return
     /// Handle::NONE if given node isn't linked to a rigid body.
     pub fn body_of(&self, node: Handle<Node>) -> Handle<RigidBody> {
