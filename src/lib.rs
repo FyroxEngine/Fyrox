@@ -29,6 +29,7 @@ use crate::{
         CircumRadius
     }
 };
+use rg3d_core::pool::Ticket;
 
 pub mod gjk_epa;
 pub mod convex_shape;
@@ -71,7 +72,8 @@ pub struct RayCastResult {
 pub struct Physics {
     bodies: Pool<RigidBody>,
     static_geoms: Pool<StaticGeometry>,
-    query_buffer: RefCell<Vec<u32>>
+    query_buffer: RefCell<Vec<u32>>,
+    enabled: bool
 }
 
 impl Visit for Physics {
@@ -80,6 +82,7 @@ impl Visit for Physics {
 
         self.bodies.visit("Bodies", visitor)?;
         self.static_geoms.visit("StaticGeoms", visitor)?;
+        let _ = self.enabled.visit("Enabled", visitor); // let _ for backward compatibility.
 
         visitor.leave_region()
     }
@@ -96,7 +99,8 @@ impl Clone for Physics {
         Self {
             bodies: self.bodies.clone(),
             static_geoms: self.static_geoms.clone(),
-            query_buffer: Default::default()
+            query_buffer: Default::default(),
+            enabled: self.enabled
         }
     }
 }
@@ -107,6 +111,7 @@ impl Physics {
             bodies: Pool::new(),
             static_geoms: Pool::new(),
             query_buffer: Default::default(),
+            enabled: true
         }
     }
 
@@ -138,7 +143,31 @@ impl Physics {
         self.bodies.is_valid_handle(handle)
     }
 
+    pub fn take_reserve_body(&mut self, handle: Handle<RigidBody>) -> (Ticket<RigidBody>, RigidBody) {
+        self.bodies.take_reserve(handle)
+    }
+
+    pub fn put_body_back(&mut self, ticket: Ticket<RigidBody>, body: RigidBody) -> Handle<RigidBody> {
+        self.bodies.put_back(ticket, body)
+    }
+
+    pub fn forget_ticket(&mut self, ticket: Ticket<RigidBody>) {
+        self.bodies.forget_ticket(ticket)
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+    }
+
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
     pub fn step(&mut self, delta_time: f32) {
+        if !self.enabled {
+            return;
+        }
+
         let dt2 = delta_time * delta_time;
         let air_friction = 0.003;
 
