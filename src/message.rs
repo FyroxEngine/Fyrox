@@ -505,6 +505,78 @@ pub enum ListViewMessage<M: 'static, C: 'static + Control<M, C>> {
     AddItem(Handle<UINode<M, C>>),
 }
 
+impl<M: 'static, C: 'static + Control<M, C>> ListViewMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: ListViewMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::ListView(msg),
+            destination,
+        }
+    }
+
+    pub fn selection(
+        destination: Handle<UINode<M, C>>,
+        selection: Option<usize>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, ListViewMessage::SelectionChanged(selection))
+    }
+
+    pub fn items(
+        destination: Handle<UINode<M, C>>,
+        items: Vec<Handle<UINode<M, C>>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, ListViewMessage::Items(items))
+    }
+
+    pub fn add_item(
+        destination: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, ListViewMessage::AddItem(item))
+    }
+}
+
+#[derive(Debug)]
+pub enum DropdownListMessage<M: 'static, C: 'static + Control<M, C>> {
+    SelectionChanged(Option<usize>),
+    Items(Vec<Handle<UINode<M, C>>>),
+    AddItem(Handle<UINode<M, C>>),
+}
+
+impl<M: 'static, C: 'static + Control<M, C>> DropdownListMessage<M, C> {
+    fn make(destination: Handle<UINode<M, C>>, msg: DropdownListMessage<M, C>) -> UiMessage<M, C> {
+        UiMessage {
+            handled: false,
+            data: UiMessageData::DropdownList(msg),
+            destination,
+        }
+    }
+
+    pub fn selection(
+        destination: Handle<UINode<M, C>>,
+        selection: Option<usize>,
+    ) -> UiMessage<M, C> {
+        Self::make(
+            destination,
+            DropdownListMessage::SelectionChanged(selection),
+        )
+    }
+
+    pub fn items(
+        destination: Handle<UINode<M, C>>,
+        items: Vec<Handle<UINode<M, C>>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, DropdownListMessage::Items(items))
+    }
+
+    pub fn add_item(
+        destination: Handle<UINode<M, C>>,
+        item: Handle<UINode<M, C>>,
+    ) -> UiMessage<M, C> {
+        Self::make(destination, DropdownListMessage::AddItem(item))
+    }
+}
+
 #[derive(Debug)]
 pub enum PopupMessage<M: 'static, C: 'static + Control<M, C>> {
     Open,
@@ -937,6 +1009,7 @@ pub enum UiMessageData<M: 'static, C: 'static + Control<M, C>> {
     CheckBox(CheckBoxMessage),
     Window(WindowMessage<M, C>),
     ListView(ListViewMessage<M, C>),
+    DropdownList(DropdownListMessage<M, C>),
     Popup(PopupMessage<M, C>),
     ScrollViewer(ScrollViewerMessage<M, C>),
     Tree(TreeMessage<M, C>),
@@ -973,7 +1046,7 @@ pub struct UiMessage<M: 'static, C: 'static + Control<M, C>> {
     pub data: UiMessageData<M, C>,
 
     /// Handle of node that will receive message. Please note that all nodes in hierarchy will
-    /// also receive this message, order is defined by routing strategy.
+    /// also receive this message, order is "up-on-tree".
     ///
     /// # Notes
     ///

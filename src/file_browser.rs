@@ -549,7 +549,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for FileSelector<M, C
                             ui.send_message(WindowMessage::close(self.handle))
                         }
                         FileSelectorMessage::Path(path) => {
-                            //ui.send_message(FileBrowserMessage::root(self.browser, path.clone()))
+                            ui.send_message(FileBrowserMessage::path(self.browser, path.clone()))
                         }
                     }
                 }

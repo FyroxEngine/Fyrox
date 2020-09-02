@@ -1,6 +1,7 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
+use crate::message::DropdownListMessage;
 use crate::{
     border::BorderBuilder,
     core::{math::vec2::Vec2, pool::Handle},
@@ -21,6 +22,7 @@ pub struct DropdownList<M: 'static, C: 'static + Control<M, C>> {
     items: Vec<Handle<UINode<M, C>>>,
     list_view: Handle<UINode<M, C>>,
     current: Handle<UINode<M, C>>,
+    selection: Option<usize>,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> Deref for DropdownList<M, C> {
@@ -45,6 +47,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
             items: self.items.clone(),
             list_view: self.list_view,
             current: self.current,
+            selection: None,
         })
     }
 
@@ -88,28 +91,21 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
                     }
                 }
             }
-            UiMessageData::ListView(msg) => match msg {
-                ListViewMessage::Items(items) => {
-                    if message.destination == self.handle() {
-                        ui.send_message(UiMessage {
-                            destination: self.list_view,
-                            data: UiMessageData::ListView(ListViewMessage::Items(items.clone())),
-                            handled: false,
-                        });
-                        self.items = items.clone();
+            UiMessageData::DropdownList(msg) if message.destination == self.handle() => match msg {
+                DropdownListMessage::Items(items) => {
+                    ListViewMessage::items(self.list_view, items.clone());
+                    self.items = items.clone();
+                }
+                &DropdownListMessage::AddItem(item) => {
+                    ListViewMessage::add_item(self.list_view, item);
+                    self.items.push(item);
+                }
+                &DropdownListMessage::SelectionChanged(selection) => {
+                    if selection != self.selection {
+                        self.selection = selection.clone();
+                        ui.send_message(ListViewMessage::selection(self.list_view, selection));
                     }
                 }
-                &ListViewMessage::AddItem(item) => {
-                    if message.destination == self.handle() {
-                        ui.send_message(UiMessage {
-                            destination: self.list_view,
-                            data: UiMessageData::ListView(ListViewMessage::AddItem(item)),
-                            handled: false,
-                        });
-                        self.items.push(item);
-                    }
-                }
-                _ => (),
             },
             _ => {}
         }
@@ -119,7 +115,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
         if let UiMessageData::ListView(msg) = &message.data {
             if let ListViewMessage::SelectionChanged(selection) = msg {
                 if message.destination == self.list_view {
-                    // Copy node from current selection in items controls. This is not
+                    // Copy node from current selection in list view. This is not
                     // always suitable because if an item has some visual behaviour
                     // (change color on mouse hover, change something on click, etc)
                     // it will be also reflected in selected item.
@@ -137,15 +133,15 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
                     } else {
                         self.current = Handle::NONE;
                     }
-                    // Post message again but from name of this drop-down list so user can catch
-                    // message and respond properly.
-                    ui.send_message(UiMessage {
-                        data: UiMessageData::ListView(ListViewMessage::SelectionChanged(
-                            *selection,
-                        )),
-                        destination: self.handle(),
-                        handled: false,
-                    })
+
+                    if &self.selection != selection {
+                        // Post message again but from name of this drop-down list so user can catch
+                        // message and respond properly.
+                        ui.send_message(DropdownListMessage::selection(
+                            self.handle,
+                            selection.clone(),
+                        ));
+                    }
                 }
             }
         }
@@ -155,6 +151,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
 pub struct DropdownListBuilder<M: 'static, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
+    selected: usize,
 }
 
 impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
@@ -162,11 +159,17 @@ impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
         Self {
             widget_builder,
             items: Default::default(),
+            selected: 0,
         }
     }
 
     pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
         self.items = items;
+        self
+    }
+
+    pub fn with_selected(mut self, index: usize) -> Self {
+        self.selected = index;
         self
     }
 
@@ -184,11 +187,10 @@ impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
             .with_content(items_control)
             .build(ctx);
 
-        let current = if let Some(first) = self.items.get(0) {
-            ctx.copy(*first)
-        } else {
-            Handle::NONE
-        };
+        let current = self
+            .items
+            .get(self.selected)
+            .map_or(Handle::NONE, |&f| ctx.copy(f));
 
         let dropdown_list = UINode::DropdownList(DropdownList {
             widget: self
@@ -199,6 +201,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
             items: self.items,
             list_view: items_control,
             current,
+            selection: Some(self.selected),
         });
 
         ctx.add_node(dropdown_list)
