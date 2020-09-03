@@ -26,7 +26,7 @@ use std::{
 };
 
 /// See module docs.
-pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
+pub struct Engine<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     context: glutin::WindowedContext<PossiblyCurrent>,
     /// Current renderer. You should call at least [render] method to see your scene on screen.
     pub renderer: Renderer,
@@ -51,7 +51,7 @@ pub struct Engine<M: 'static, C: 'static + Control<M, C>> {
     pub ui_time: Duration,
 }
 
-impl<M, C: 'static + Control<M, C>> Engine<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Engine<M, C> {
     /// Creates new instance of engine from given window builder and events loop.
     ///
     /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
@@ -146,7 +146,7 @@ impl<M, C: 'static + Control<M, C>> Engine<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Visit for Engine<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Visit for Engine<M, C> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
