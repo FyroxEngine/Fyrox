@@ -102,10 +102,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
             }
             UiMessageData::Vec3Editor(msg) => {
                 if let Vec3EditorMessage::Value(value) = *msg {
-                    if self.value != value {
-                        self.value = value;
-                        self.invalidate_layout();
-
+                    if self.value.x != value.x {
+                        self.value.x = value.x;
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
@@ -113,6 +111,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
                             )),
                             destination: self.x_field,
                         });
+                    }
+                    if self.value.y != value.y {
+                        self.value.y = value.y;
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
@@ -120,6 +121,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
                             )),
                             destination: self.y_field,
                         });
+                    }
+                    if self.value.z != value.z {
+                        self.value.z = value.z;
                         ui.send_message(UiMessage {
                             handled: false,
                             data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
