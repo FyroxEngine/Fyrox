@@ -20,7 +20,7 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
+pub struct ScrollBar<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     pub widget: Widget<M, C>,
     pub min: f32,
     pub max: f32,
@@ -37,7 +37,7 @@ pub struct ScrollBar<M: 'static, C: 'static + Control<M, C>> {
     pub value_precision: usize,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollBar<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for ScrollBar<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -45,13 +45,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for ScrollBar<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ScrollBar<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for ScrollBar<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ScrollBar(Self {
             widget: self.widget.raw_copy(),
@@ -270,7 +270,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> ScrollBar<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollBar<M, C> {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
     pub fn new(
@@ -321,7 +321,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ScrollBar<M, C> {
     }
 }
 
-pub struct ScrollBarBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct ScrollBarBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     min: Option<f32>,
     max: Option<f32>,
@@ -336,7 +336,7 @@ pub struct ScrollBarBuilder<M: 'static, C: 'static + Control<M, C>> {
     value_precision: usize,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

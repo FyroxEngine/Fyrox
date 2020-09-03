@@ -11,7 +11,7 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct ListView<M: 'static, C: 'static + Control<M, C>> {
+pub struct ListView<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     selected_index: Option<usize>,
     item_containers: Vec<Handle<UINode<M, C>>>,
@@ -19,7 +19,7 @@ pub struct ListView<M: 'static, C: 'static + Control<M, C>> {
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for ListView<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for ListView<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -27,13 +27,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for ListView<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ListView<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for ListView<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> ListView<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ListView<M, C> {
     pub fn new(widget: Widget<M, C>, items: Vec<Handle<UINode<M, C>>>) -> Self {
         Self {
             widget,
@@ -57,12 +57,12 @@ impl<M: 'static, C: 'static + Control<M, C>> ListView<M, C> {
     }
 }
 
-pub struct ListViewItem<M: 'static, C: 'static + Control<M, C>> {
+pub struct ListViewItem<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     index: usize,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for ListViewItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for ListViewItem<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -70,19 +70,21 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for ListViewItem<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for ListViewItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for ListViewItem<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> ListViewItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ListViewItem<M, C> {
     pub fn index(&self) -> usize {
         self.index
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListViewItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+    for ListViewItem<M, C>
+{
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ListViewItem(Self {
             widget: self.widget.raw_copy(),
@@ -134,7 +136,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListViewItem<M, C
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::ListView(Self {
             widget: self.widget.raw_copy(),
@@ -220,14 +222,14 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for ListView<M, C> {
     }
 }
 
-pub struct ListViewBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct ListViewBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     panel: Option<Handle<UINode<M, C>>>,
     scroll_viewer: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -283,7 +285,7 @@ impl<M: 'static, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
     }
 }
 
-fn generate_item_container<M: 'static, C: 'static + Control<M, C>>(
+fn generate_item_container<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     item: Handle<UINode<M, C>>,
     index: usize,
@@ -296,7 +298,7 @@ fn generate_item_container<M: 'static, C: 'static + Control<M, C>>(
     ctx.add_node(UINode::ListViewItem(item))
 }
 
-fn generate_item_containers<M: 'static, C: 'static + Control<M, C>>(
+fn generate_item_containers<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     items: &[Handle<UINode<M, C>>],
 ) -> Vec<Handle<UINode<M, C>>> {

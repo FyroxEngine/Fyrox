@@ -22,7 +22,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
-pub enum TileContent<M: 'static, C: 'static + Control<M, C>> {
+pub enum TileContent<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     Empty,
     Window(Handle<UINode<M, C>>),
     VerticalTiles {
@@ -41,7 +41,7 @@ pub enum TileContent<M: 'static, C: 'static + Control<M, C>> {
     },
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for TileContent<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for TileContent<M, C> {
     fn clone(&self) -> Self {
         match self {
             TileContent::Empty => TileContent::Empty,
@@ -58,7 +58,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for TileContent<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TileContent<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TileContent<M, C> {
     pub fn is_empty(&self) -> bool {
         match self {
             TileContent::Empty => true,
@@ -67,7 +67,7 @@ impl<M: 'static, C: 'static + Control<M, C>> TileContent<M, C> {
     }
 }
 
-pub struct Tile<M: 'static, C: 'static + Control<M, C>> {
+pub struct Tile<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     left_anchor: Handle<UINode<M, C>>,
     right_anchor: Handle<UINode<M, C>>,
@@ -80,7 +80,7 @@ pub struct Tile<M: 'static, C: 'static + Control<M, C>> {
     drop_anchor: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for Tile<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Tile<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -97,7 +97,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Tile<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Tile<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Tile<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -105,13 +105,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Tile<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Tile<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Tile<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Tile<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Tile(self.clone())
     }
@@ -672,7 +672,7 @@ enum SplitDirection {
     Vertical,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Tile<M, C> {
     pub fn anchors(&self) -> [Handle<UINode<M, C>>; 5] {
         [
             self.left_anchor,
@@ -738,12 +738,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Tile<M, C> {
     }
 }
 
-pub struct DockingManager<M: 'static, C: 'static + Control<M, C>> {
+pub struct DockingManager<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     floating_windows: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for DockingManager<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for DockingManager<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -751,13 +751,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for DockingManager<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for DockingManager<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for DockingManager<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for DockingManager<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for DockingManager<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -766,7 +766,9 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for DockingManager<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DockingManager<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+    for DockingManager<M, C>
+{
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::DockingManager(self.clone())
     }
@@ -794,12 +796,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DockingManager<M,
     }
 }
 
-pub struct DockingManagerBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct DockingManagerBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     floating_windows: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -822,7 +824,7 @@ impl<M: 'static, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
     }
 }
 
-pub struct TileBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct TileBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: TileContent<M, C>,
 }
@@ -830,7 +832,7 @@ pub struct TileBuilder<M: 'static, C: 'static + Control<M, C>> {
 pub const DEFAULT_SPLITTER_SIZE: f32 = 6.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
-pub fn make_default_anchor<M: 'static, C: 'static + Control<M, C>>(
+pub fn make_default_anchor<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     row: usize,
     column: usize,
@@ -849,7 +851,7 @@ pub fn make_default_anchor<M: 'static, C: 'static + Control<M, C>>(
     .build(ctx)
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TileBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TileBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

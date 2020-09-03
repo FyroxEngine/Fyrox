@@ -20,12 +20,12 @@ use std::{
     rc::Rc,
 };
 
-pub struct Menu<M: 'static, C: 'static + Control<M, C>> {
+pub struct Menu<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     active: bool,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Menu<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Menu<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -33,13 +33,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Menu<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Menu<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Menu<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for Menu<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Menu<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -48,7 +48,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Menu<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Menu<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Menu(self.clone())
     }
@@ -152,7 +152,7 @@ enum MenuItemPlacement {
     Right,
 }
 
-pub struct MenuItem<M: 'static, C: 'static + Control<M, C>> {
+pub struct MenuItem<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     popup: Handle<UINode<M, C>>,
@@ -160,7 +160,7 @@ pub struct MenuItem<M: 'static, C: 'static + Control<M, C>> {
     placement: MenuItemPlacement,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for MenuItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for MenuItem<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -168,13 +168,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for MenuItem<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for MenuItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for MenuItem<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for MenuItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for MenuItem<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -191,7 +191,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for MenuItem<M, C> {
 // of parent menu - we can't just traverse the tree because popup is not a child
 // of menu item, instead we trying to fetch handle to parent menu item from popup's
 // user data and continue up-search until we find menu.
-fn find_menu<M: 'static, C: 'static + Control<M, C>>(
+fn find_menu<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     from: Handle<UINode<M, C>>,
     ui: &UserInterface<M, C>,
 ) -> Handle<UINode<M, C>> {
@@ -224,7 +224,7 @@ fn find_menu<M: 'static, C: 'static + Control<M, C>>(
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::MenuItem(self.clone())
     }
@@ -386,12 +386,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for MenuItem<M, C> {
     }
 }
 
-pub struct MenuBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct MenuBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> MenuBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> MenuBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -429,7 +429,7 @@ impl<M: 'static, C: 'static + Control<M, C>> MenuBuilder<M, C> {
     }
 }
 
-pub enum MenuItemContent<'a, 'b, M: 'static, C: 'static + Control<M, C>> {
+pub enum MenuItemContent<'a, 'b, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     /// Empty menu item.
     None,
     /// Quick-n-dirty way of building elements. It can cover most of use
@@ -448,7 +448,9 @@ pub enum MenuItemContent<'a, 'b, M: 'static, C: 'static + Control<M, C>> {
     Node(Handle<UINode<M, C>>),
 }
 
-impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemContent<'a, 'b, M, C> {
+impl<'a, 'b, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>
+    MenuItemContent<'a, 'b, M, C>
+{
     pub fn text_with_shortcut(text: &'a str, shortcut: &'b str) -> Self {
         MenuItemContent::Text {
             text,
@@ -466,13 +468,15 @@ impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemContent<'a, 'b, M, 
     }
 }
 
-pub struct MenuItemBuilder<'a, 'b, M: 'static, C: 'static + Control<M, C>> {
+pub struct MenuItemBuilder<'a, 'b, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     content: MenuItemContent<'a, 'b, M, C>,
 }
 
-impl<'a, 'b, M: 'static, C: 'static + Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
+impl<'a, 'b, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>
+    MenuItemBuilder<'a, 'b, M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

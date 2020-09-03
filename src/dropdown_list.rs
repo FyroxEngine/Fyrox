@@ -1,13 +1,12 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
-use crate::message::DropdownListMessage;
 use crate::{
     border::BorderBuilder,
     core::{math::vec2::Vec2, pool::Handle},
     list_view::ListViewBuilder,
     message::PopupMessage,
-    message::{ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{DropdownListMessage, ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
     node::UINode,
     popup::{Placement, PopupBuilder},
     widget::Widget,
@@ -16,7 +15,7 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct DropdownList<M: 'static, C: 'static + Control<M, C>> {
+pub struct DropdownList<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     popup: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
@@ -25,7 +24,7 @@ pub struct DropdownList<M: 'static, C: 'static + Control<M, C>> {
     selection: Option<usize>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for DropdownList<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for DropdownList<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -33,13 +32,15 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for DropdownList<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for DropdownList<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for DropdownList<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+    for DropdownList<M, C>
+{
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::DropdownList(Self {
             widget: self.widget.raw_copy(),
@@ -148,13 +149,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for DropdownList<M, C
     }
 }
 
-pub struct DropdownListBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct DropdownListBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: usize,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

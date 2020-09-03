@@ -16,7 +16,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug)]
-pub struct Tree<M: 'static, C: 'static + Control<M, C>> {
+pub struct Tree<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     expander: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
@@ -31,7 +31,7 @@ pub struct Tree<M: 'static, C: 'static + Control<M, C>> {
     always_show_expander: bool,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Tree<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Tree<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -39,13 +39,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Tree<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Tree<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Tree<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for Tree<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Tree<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -64,7 +64,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Tree<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Tree(self.clone())
     }
@@ -232,7 +232,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Tree<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Tree<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Tree<M, C> {
     pub fn content(&self) -> Handle<UINode<M, C>> {
         self.content
     }
@@ -256,7 +256,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Tree<M, C> {
     }
 }
 
-pub struct TreeBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct TreeBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     content: Handle<UINode<M, C>>,
@@ -267,7 +267,7 @@ pub struct TreeBuilder<M: 'static, C: 'static + Control<M, C>> {
     always_show_expander: bool,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TreeBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -392,14 +392,14 @@ impl<M: 'static, C: 'static + Control<M, C>> TreeBuilder<M, C> {
 }
 
 #[derive(Debug)]
-pub struct TreeRoot<M: 'static, C: 'static + Control<M, C>> {
+pub struct TreeRoot<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for TreeRoot<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -407,13 +407,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for TreeRoot<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for TreeRoot<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for TreeRoot<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -424,7 +424,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for TreeRoot<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::TreeRoot(self.clone())
     }
@@ -497,18 +497,18 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TreeRoot<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TreeRoot<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
 }
 
-pub struct TreeRootBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct TreeRootBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TreeRootBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TreeRootBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

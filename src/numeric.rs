@@ -14,7 +14,7 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct NumericUpDown<M: 'static, C: 'static + Control<M, C>> {
+pub struct NumericUpDown<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     field: Handle<UINode<M, C>>,
     increase: Handle<UINode<M, C>>,
@@ -25,7 +25,7 @@ pub struct NumericUpDown<M: 'static, C: 'static + Control<M, C>> {
     max_value: f32,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for NumericUpDown<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -33,13 +33,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for NumericUpDown<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for NumericUpDown<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for NumericUpDown<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -54,7 +54,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for NumericUpDown<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDown<M, C> {
     fn try_parse_value(&mut self, ui: &mut UserInterface<M, C>) {
         // Parse input only when focus is lost from text field.
         if let UINode::TextBox(field) = ui.node(self.field) {
@@ -70,7 +70,9 @@ impl<M: 'static, C: 'static + Control<M, C>> NumericUpDown<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+    for NumericUpDown<M, C>
+{
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::NumericUpDown(self.clone())
     }
@@ -150,7 +152,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for NumericUpDown<M, 
     }
 }
 
-pub struct NumericUpDownBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     value: f32,
     step: f32,
@@ -158,7 +160,7 @@ pub struct NumericUpDownBuilder<M: 'static, C: 'static + Control<M, C>> {
     max_value: f32,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

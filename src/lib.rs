@@ -176,7 +176,7 @@ impl Thickness {
 pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
 
 /// Trait for all UI controls in library.
-pub trait Control<M: 'static, C: 'static + Control<M, C>>:
+pub trait Control<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>:
     Deref<Target = Widget<M, C>> + DerefMut
 {
     fn raw_copy(&self) -> UINode<M, C>;
@@ -354,13 +354,13 @@ pub trait Control<M: 'static, C: 'static + Control<M, C>>:
     fn remove_ref(&mut self, _handle: Handle<UINode<M, C>>) {}
 }
 
-pub struct DragContext<M: 'static, C: 'static + Control<M, C>> {
+pub struct DragContext<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     is_dragging: bool,
     drag_node: Handle<UINode<M, C>>,
     click_pos: Vec2,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Default for DragContext<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Default for DragContext<M, C> {
     fn default() -> Self {
         Self {
             is_dragging: false,
@@ -388,11 +388,11 @@ impl Default for MouseState {
     }
 }
 
-pub struct BuildContext<'a, M: 'static, C: 'static + Control<M, C>> {
+pub struct BuildContext<'a, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     ui: &'a mut UserInterface<M, C>,
 }
 
-impl<'a, M: 'static, C: 'static + Control<M, C>> BuildContext<'a, M, C> {
+impl<'a, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> BuildContext<'a, M, C> {
     pub fn add_node(&mut self, node: UINode<M, C>) -> Handle<UINode<M, C>> {
         self.ui.add_node(node)
     }
@@ -406,7 +406,7 @@ impl<'a, M: 'static, C: 'static + Control<M, C>> BuildContext<'a, M, C> {
     }
 }
 
-impl<'a, M: 'static, C: 'static + Control<M, C>> Index<Handle<UINode<M, C>>>
+impl<'a, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Index<Handle<UINode<M, C>>>
     for BuildContext<'a, M, C>
 {
     type Output = UINode<M, C>;
@@ -416,7 +416,7 @@ impl<'a, M: 'static, C: 'static + Control<M, C>> Index<Handle<UINode<M, C>>>
     }
 }
 
-impl<'a, M: 'static, C: 'static + Control<M, C>> IndexMut<Handle<UINode<M, C>>>
+impl<'a, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> IndexMut<Handle<UINode<M, C>>>
     for BuildContext<'a, M, C>
 {
     fn index_mut(&mut self, index: Handle<UINode<M, C>>) -> &mut Self::Output {
@@ -424,7 +424,7 @@ impl<'a, M: 'static, C: 'static + Control<M, C>> IndexMut<Handle<UINode<M, C>>>
     }
 }
 
-pub struct UserInterface<M: 'static, C: 'static + Control<M, C>> {
+pub struct UserInterface<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     screen_size: Vec2,
     nodes: Pool<UINode<M, C>>,
     drawing_context: DrawingContext,
@@ -452,7 +452,7 @@ lazy_static! {
     };
 }
 
-fn draw_node<M: 'static, C: 'static + Control<M, C>>(
+fn draw_node<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     nodes: &Pool<UINode<M, C>>,
     node_handle: Handle<UINode<M, C>>,
     drawing_context: &mut DrawingContext,
@@ -499,7 +499,7 @@ fn draw_node<M: 'static, C: 'static + Control<M, C>>(
     drawing_context.revert_clip_geom();
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> UserInterface<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, C> {
     pub fn new(screen_size: Vec2) -> UserInterface<M, C> {
         let (sender, receiver) = mpsc::channel();
         let mut ui = UserInterface {

@@ -15,12 +15,12 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-pub struct Text<M: 'static, C: 'static + Control<M, C>> {
+pub struct Text<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     formatted_text: RefCell<FormattedText>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Text<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Text<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -28,13 +28,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Text<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Text<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Text<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Text(Self {
             widget: self.widget.raw_copy(),
@@ -97,7 +97,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Text<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Text<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Text<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -130,7 +130,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Text<M, C> {
     }
 }
 
-pub struct TextBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct TextBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     text: Option<String>,
     font: Option<Arc<Mutex<Font>>>,
@@ -139,7 +139,7 @@ pub struct TextBuilder<M: 'static, C: 'static + Control<M, C>> {
     wrap: bool,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TextBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TextBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

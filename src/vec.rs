@@ -12,7 +12,7 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct Vec3Editor<M: 'static, C: 'static + Control<M, C>> {
+pub struct Vec3Editor<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     x_field: Handle<UINode<M, C>>,
     y_field: Handle<UINode<M, C>>,
@@ -20,7 +20,7 @@ pub struct Vec3Editor<M: 'static, C: 'static + Control<M, C>> {
     value: Vec3,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Vec3Editor<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Vec3Editor<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -28,13 +28,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Vec3Editor<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Vec3Editor<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Vec3Editor<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for Vec3Editor<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Vec3Editor<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -46,7 +46,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Vec3Editor<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Vec3Editor(self.clone())
     }
@@ -135,12 +135,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Vec3Editor<M, C> 
     }
 }
 
-pub struct Vec3EditorBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct Vec3EditorBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     value: Vec3,
 }
 
-pub fn make_numeric_input<M: 'static, C: 'static + Control<M, C>>(
+pub fn make_numeric_input<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     column: usize,
 ) -> Handle<UINode<M, C>> {
@@ -158,7 +158,7 @@ pub fn make_numeric_input<M: 'static, C: 'static + Control<M, C>>(
     .build(ctx)
 }
 
-pub fn make_mark<M: 'static, C: 'static + Control<M, C>>(
+pub fn make_mark<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     text: &str,
     column: usize,
@@ -181,7 +181,7 @@ pub fn make_mark<M: 'static, C: 'static + Control<M, C>>(
     .build(ctx)
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Vec3EditorBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Vec3EditorBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

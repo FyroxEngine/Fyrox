@@ -113,7 +113,7 @@ impl Row {
 }
 
 /// Automatically arranges children by rows and columns
-pub struct Grid<M: 'static, C: 'static + Control<M, C>> {
+pub struct Grid<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     rows: RefCell<Vec<Row>>,
     columns: RefCell<Vec<Column>>,
@@ -121,7 +121,7 @@ pub struct Grid<M: 'static, C: 'static + Control<M, C>> {
     border_thickness: f32,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Grid<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Grid<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -129,13 +129,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Grid<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Grid<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Grid<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Grid(Self {
             widget: self.widget.raw_copy(),
@@ -262,7 +262,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Grid<M, C> {
     }
 }
 
-pub struct GridBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct GridBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     rows: Vec<Row>,
     columns: Vec<Column>,
@@ -270,7 +270,7 @@ pub struct GridBuilder<M: 'static, C: 'static + Control<M, C>> {
     border_thickness: f32,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> GridBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> GridBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         GridBuilder {
             widget_builder,
@@ -323,7 +323,7 @@ impl<M: 'static, C: 'static + Control<M, C>> GridBuilder<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Grid<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Grid<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,

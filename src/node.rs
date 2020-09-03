@@ -39,7 +39,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[allow(clippy::large_enum_variant)]
-pub enum UINode<M: 'static, C: 'static + Control<M, C>> {
+pub enum UINode<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     Border(Border<M, C>),
     Button(Button<M, C>),
     Canvas(Canvas<M, C>),
@@ -115,7 +115,7 @@ macro_rules! static_dispatch {
     };
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for UINode<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for UINode<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -123,13 +123,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for UINode<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for UINode<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for UINode<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         static_dispatch!(self, deref_mut,)
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         static_dispatch!(self, raw_copy,)
     }

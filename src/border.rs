@@ -13,12 +13,12 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct Border<M: 'static, C: 'static + Control<M, C>> {
+pub struct Border<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     stroke_thickness: Thickness,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for Border<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Border<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -26,13 +26,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for Border<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for Border<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Border<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Clone for Border<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Border<M, C> {
     fn clone(&self) -> Self {
         Self {
             widget: self.widget.raw_copy(),
@@ -41,7 +41,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Clone for Border<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::Border(self.clone())
     }
@@ -112,7 +112,7 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for Border<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Border<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Border<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -129,12 +129,12 @@ impl<M: 'static, C: 'static + Control<M, C>> Border<M, C> {
     }
 }
 
-pub struct BorderBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct BorderBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     pub widget_builder: WidgetBuilder<M, C>,
     pub stroke_thickness: Option<Thickness>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> BorderBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> BorderBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

@@ -10,17 +10,17 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct Tab<M: 'static, C: 'static + Control<M, C>> {
+pub struct Tab<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     header_button: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
 }
 
-pub struct TabControl<M: 'static, C: 'static + Control<M, C>> {
+pub struct TabControl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     tabs: Vec<Tab<M, C>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Deref for TabControl<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for TabControl<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -28,13 +28,13 @@ impl<M: 'static, C: 'static + Control<M, C>> Deref for TabControl<M, C> {
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> DerefMut for TabControl<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for TabControl<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
         UINode::TabControl(Self {
             widget: self.widget.raw_copy(),
@@ -85,17 +85,17 @@ impl<M: 'static, C: 'static + Control<M, C>> Control<M, C> for TabControl<M, C> 
     }
 }
 
-pub struct TabControlBuilder<M: 'static, C: 'static + Control<M, C>> {
+pub struct TabControlBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     tabs: Vec<TabDefinition<M, C>>,
 }
 
-pub struct TabDefinition<M: 'static, C: 'static + Control<M, C>> {
+pub struct TabDefinition<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     pub header: Handle<UINode<M, C>>,
     pub content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
