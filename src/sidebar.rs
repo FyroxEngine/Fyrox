@@ -1,15 +1,11 @@
-use crate::scene::{DeleteBodyCommand, SetBodyCommand};
 use crate::{
     gui::{BuildContext, UiMessage, UiNode},
     scene::{
-        EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand, SceneCommand,
-        SetNameCommand,
+        DeleteBodyCommand, EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
+        SceneCommand, SetBodyCommand, SetNameCommand,
     },
     GameEngine, Message,
 };
-use rg3d::gui::message::DropdownListMessage;
-use rg3d::physics::convex_shape::{BoxShape, CapsuleShape, ConvexShape, SphereShape};
-use rg3d::physics::rigid_body::RigidBody;
 use rg3d::{
     core::{
         math::{
@@ -23,7 +19,10 @@ use rg3d::{
         decorator::DecoratorBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
-        message::{TextBoxMessage, UiMessageData, Vec3EditorMessage},
+        message::{
+            DropdownListMessage, TextBoxMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
+        },
+        scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
         text_box::TextBoxBuilder,
         vec::Vec3EditorBuilder,
@@ -31,11 +30,16 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
+    physics::{
+        convex_shape::{BoxShape, CapsuleShape, ConvexShape, SphereShape},
+        rigid_body::RigidBody,
+    },
 };
 use std::sync::mpsc::Sender;
 
 pub struct SideBar {
     pub window: Handle<UiNode>,
+    scroll_viewer: Handle<UiNode>,
     node_name: Handle<UiNode>,
     position: Handle<UiNode>,
     rotation: Handle<UiNode>,
@@ -81,74 +85,82 @@ fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNod
 
 impl SideBar {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let scroll_viewer;
         let node_name;
         let position;
         let rotation;
         let scale;
         let body;
         let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(make_text_mark(ctx, "Name", 0))
-                        .with_child({
-                            node_name = TextBoxBuilder::new(
+            .with_content({
+                scroll_viewer =
+                    ScrollViewerBuilder::new(WidgetBuilder::new().with_visibility(false))
+                        .with_content(
+                            GridBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0)),
+                                    .with_child(make_text_mark(ctx, "Name", 0))
+                                    .with_child({
+                                        node_name = TextBoxBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(1)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .build(ctx);
+                                        node_name
+                                    })
+                                    .with_child(make_text_mark(ctx, "Position", 1))
+                                    .with_child({
+                                        position = make_vec3_input_field(ctx, 1);
+                                        position
+                                    })
+                                    .with_child(make_text_mark(ctx, "Rotation", 2))
+                                    .with_child({
+                                        rotation = make_vec3_input_field(ctx, 2);
+                                        rotation
+                                    })
+                                    .with_child(make_text_mark(ctx, "Scale", 3))
+                                    .with_child({
+                                        scale = make_vec3_input_field(ctx, 3);
+                                        scale
+                                    })
+                                    .with_child(make_text_mark(ctx, "Body", 4))
+                                    .with_child({
+                                        body = DropdownListBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(4)
+                                                .on_column(1)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_items(vec![
+                                            make_dropdown_list_option(ctx, "None"),
+                                            make_dropdown_list_option(ctx, "Sphere"),
+                                            make_dropdown_list_option(ctx, "Cube"),
+                                            make_dropdown_list_option(ctx, "Capsule"),
+                                            make_dropdown_list_option(ctx, "Static Mesh"),
+                                        ])
+                                        .build(ctx);
+                                        body
+                                    }),
                             )
-                            .build(ctx);
-                            node_name
-                        })
-                        .with_child(make_text_mark(ctx, "Position", 1))
-                        .with_child({
-                            position = make_vec3_input_field(ctx, 1);
-                            position
-                        })
-                        .with_child(make_text_mark(ctx, "Rotation", 2))
-                        .with_child({
-                            rotation = make_vec3_input_field(ctx, 2);
-                            rotation
-                        })
-                        .with_child(make_text_mark(ctx, "Scale", 3))
-                        .with_child({
-                            scale = make_vec3_input_field(ctx, 3);
-                            scale
-                        })
-                        .with_child(make_text_mark(ctx, "Body", 4))
-                        .with_child({
-                            body = DropdownListBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(4)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_items(vec![
-                                make_dropdown_list_option(ctx, "None"),
-                                make_dropdown_list_option(ctx, "Sphere"),
-                                make_dropdown_list_option(ctx, "Cube"),
-                                make_dropdown_list_option(ctx, "Capsule"),
-                                make_dropdown_list_option(ctx, "Static Mesh"),
-                            ])
-                            .build(ctx);
-                            body
-                        }),
-                )
-                .add_column(Column::strict(70.0))
-                .add_column(Column::stretch())
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::stretch())
-                .build(ctx),
-            )
+                            .add_column(Column::strict(70.0))
+                            .add_column(Column::stretch())
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::stretch())
+                            .build(ctx),
+                        )
+                        .build(ctx);
+                scroll_viewer
+            })
             .with_title(WindowTitle::text("Node Properties"))
             .build(ctx);
 
         Self {
+            scroll_viewer,
             window,
             node_name,
             position,
@@ -161,6 +173,12 @@ impl SideBar {
 
     pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
         let scene = &engine.scenes[editor_scene.scene];
+        engine
+            .user_interface
+            .send_message(WidgetMessage::visibility(
+                self.scroll_viewer,
+                editor_scene.selection.is_single_selection(),
+            ));
         if editor_scene.selection.is_single_selection() {
             let node_handle = editor_scene.selection.nodes()[0];
             if scene.graph.is_valid_handle(node_handle) {

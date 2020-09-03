@@ -193,10 +193,20 @@ impl MoveNodeCommand {
         position
     }
 
-    fn set_position(&self, graph: &mut Graph, position: Vec3) {
+    fn set_position(
+        &self,
+        graph: &mut Graph,
+        physics: &mut Physics,
+        binder: &PhysicsBinder,
+        position: Vec3,
+    ) {
         graph[self.node]
             .local_transform_mut()
             .set_position(position);
+        let body = binder.body_of(self.node);
+        if body.is_some() {
+            physics.borrow_body_mut(body).set_position(position);
+        }
     }
 }
 
@@ -205,12 +215,22 @@ impl<'a> Command<'a> for MoveNodeCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let position = self.swap();
-        self.set_position(context.graph, position);
+        self.set_position(
+            context.graph,
+            context.physics,
+            context.physics_binder,
+            position,
+        );
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let position = self.swap();
-        self.set_position(context.graph, position);
+        self.set_position(
+            context.graph,
+            context.physics,
+            context.physics_binder,
+            position,
+        );
     }
 }
 

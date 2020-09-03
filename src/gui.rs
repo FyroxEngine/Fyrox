@@ -70,26 +70,17 @@ macro_rules! static_dispatch {
     }
 }
 
-macro_rules! static_dispatch_deref {
-    ($self:ident) => {
-        match $self {
-            EditorUiNode::AssetItem(v) => v,
-            EditorUiNode::SceneItem(v) => v,
-        }
-    };
-}
-
 impl Deref for EditorUiNode {
     type Target = CustomWidget;
 
     fn deref(&self) -> &Self::Target {
-        static_dispatch_deref!(self)
+        static_dispatch!(self, deref,)
     }
 }
 
 impl DerefMut for EditorUiNode {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        static_dispatch_deref!(self)
+        static_dispatch!(self, deref_mut,)
     }
 }
 
