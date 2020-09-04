@@ -99,7 +99,7 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
                         if self.selected != select && message.destination == self.handle() {
                             self.selected = select;
                             let brush = if select {
-                                Brush::Solid(Color::WHITE)
+                                Brush::Solid(Color::TRANSPARENT)
                             } else {
                                 Brush::Solid(Color::RED)
                             };
@@ -141,8 +141,12 @@ impl AssetItemBuilder {
             .extension()
             .map(|ext| match ext.to_string_lossy().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
-                    into_any_arc(resource_manager.request_texture(&path, TextureKind::RGBA8))
+                    Some(resource_manager.request_texture_async(&path, TextureKind::RGBA8))
                 }
+                "fbx" | "rgs" => Some(
+                    resource_manager
+                        .request_texture_async("resources/model.png", TextureKind::RGBA8),
+                ),
                 _ => None,
             })
             .flatten();
@@ -153,7 +157,7 @@ impl AssetItemBuilder {
                 .with_width(64.0)
                 .with_height(64.0),
         )
-        .with_opt_texture(texture)
+        .with_opt_texture(into_any_arc(texture))
         .build(ctx);
 
         let item = AssetItem {
