@@ -177,12 +177,12 @@ impl UiRenderer {
                         CommandTexture::Font(font_arc) => {
                             let mut font = font_arc.lock().unwrap();
                             if font.texture.is_none() {
-                                let size = font.get_atlas_size() as u32;
+                                let size = font.atlas_size() as u32;
                                 if let Ok(tex) = Texture::from_bytes(
                                     size,
                                     size,
                                     TextureKind::R8,
-                                    font.get_atlas_pixels().to_vec(),
+                                    font.atlas_pixels().to_vec(),
                                 ) {
                                     font.texture = Some(Arc::new(Mutex::new(tex)));
                                 }
