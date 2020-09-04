@@ -152,7 +152,7 @@ impl FormattedText {
         if let Some(ref font) = self.font {
             let font = font.lock().unwrap();
             for index in range {
-                width += font.get_glyph_advance(self.text[index]);
+                width += font.glyph_advance(self.text[index]);
             }
         }
         width
@@ -203,9 +203,9 @@ impl FormattedText {
         let mut current_line = TextLine::new();
         self.lines.clear();
         for (i, code) in self.text.iter().enumerate() {
-            let advance = match font.get_glyph(*code) {
-                Some(glyph) => glyph.get_advance(),
-                None => font.get_height(),
+            let advance = match font.glyph(*code) {
+                Some(glyph) => glyph.advance,
+                None => font.height(),
             };
             let is_new_line = *code == u32::from(b'\n') || *code == u32::from(b'\r');
             let new_width = current_line.width + advance;
@@ -214,7 +214,7 @@ impl FormattedText {
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin + 1;
                 current_line.width = advance;
-                total_height += font.get_ascender();
+                total_height += font.ascender();
             } else {
                 current_line.width = new_width;
                 current_line.end += 1;
@@ -224,7 +224,7 @@ impl FormattedText {
         if current_line.begin != current_line.end {
             current_line.end = self.text.len();
             self.lines.push(current_line);
-            total_height += font.get_ascender();
+            total_height += font.ascender();
         }
 
         // Align lines according to desired alignment.
@@ -284,33 +284,32 @@ impl FormattedText {
             for code_index in line.begin..line.end {
                 let code = self.text[code_index];
 
-                match font.get_glyph(code) {
+                match font.glyph(code) {
                     Some(glyph) => {
                         // Insert glyph
-                        if glyph.has_outline() {
-                            let rect = Rect {
-                                x: cursor.x + glyph.get_bitmap_left(),
-                                y: cursor.y + font.get_ascender()
-                                    - glyph.get_bitmap_top()
-                                    - glyph.get_bitmap_height(),
-                                w: glyph.get_bitmap_width(),
-                                h: glyph.get_bitmap_height(),
-                            };
-                            let text_glyph = TextGlyph {
-                                bounds: rect,
-                                tex_coords: *glyph.get_tex_coords(),
-                            };
-                            self.glyphs.push(text_glyph);
-                        }
-                        cursor.x += glyph.get_advance();
+                        let rect = Rect {
+                            x: cursor.x + glyph.left.floor(),
+                            y: cursor.y + font.ascender().floor()
+                                - glyph.top.floor()
+                                - glyph.bitmap_height as f32,
+                            w: glyph.bitmap_width as f32,
+                            h: glyph.bitmap_height as f32,
+                        };
+                        let text_glyph = TextGlyph {
+                            bounds: rect,
+                            tex_coords: glyph.tex_coords,
+                        };
+                        self.glyphs.push(text_glyph);
+
+                        cursor.x += glyph.advance;
                     }
                     None => {
                         // Insert invalid symbol
                         let rect = Rect {
                             x: cursor.x,
-                            y: cursor.y + font.get_ascender(),
-                            w: font.get_height(),
-                            h: font.get_height(),
+                            y: cursor.y + font.ascender(),
+                            w: font.height(),
+                            h: font.height(),
                         };
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
@@ -320,9 +319,9 @@ impl FormattedText {
                     }
                 }
             }
-            line.height = font.get_ascender();
+            line.height = font.ascender();
             line.y_offset = cursor.y;
-            cursor.y += font.get_ascender();
+            cursor.y += font.ascender();
         }
 
         let mut full_size = Vec2::new(0.0, total_height);

@@ -2,11 +2,13 @@
 //!
 //! See examples here - https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs
 
+#![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
 #![allow(clippy::float_cmp)]
 
 #[macro_use]
 extern crate lazy_static;
+extern crate fontdue;
 extern crate sysinfo;
 
 pub use rg3d_core as core;

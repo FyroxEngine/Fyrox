@@ -5,20 +5,19 @@ use crate::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
     },
-    draw::CommandTexture,
-    draw::{CommandKind, DrawingContext},
+    draw::{CommandKind, CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{KeyCode, MouseButton, TextBoxMessage, UiMessage, UiMessageData, WidgetMessage},
     ttf::Font,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
-use std::fmt::{Debug, Formatter};
-use std::rc::Rc;
 use std::{
     cell::RefCell,
     cmp,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    rc::Rc,
     sync::{Arc, Mutex},
 };
 
@@ -265,22 +264,18 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TextBox<M, C> {
                     caret_pos.x + line.x_offset,
                     caret_pos.y,
                     line.width,
-                    font.get_ascender(),
+                    font.ascender(),
                 );
                 if line_bounds.contains(screen_pos.x, screen_pos.y) {
                     let mut x = line_bounds.x;
                     // Check each character in line.
                     for (offset, index) in (line.begin..line.end).enumerate() {
                         let symbol = self.formatted_text.borrow().get_raw_text()[index];
-                        let (width, height, advance) = if let Some(glyph) = font.get_glyph(symbol) {
-                            (
-                                glyph.get_bitmap_width(),
-                                glyph.get_bitmap_height(),
-                                glyph.get_advance(),
-                            )
+                        let (width, height, advance) = if let Some(glyph) = font.glyph(symbol) {
+                            (glyph.width, glyph.height, glyph.advance)
                         } else {
                             // Stub
-                            let h = font.get_height();
+                            let h = font.height();
                             (h, h, h)
                         };
                         let char_bounds = Rect::new(x, line_bounds.y, width, height);
@@ -488,20 +483,20 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
                         screen_position.x + line.x_offset,
                         screen_position.y
                             + line.y_offset
-                            + self.caret_line as f32 * font.get_ascender(),
+                            + self.caret_line as f32 * font.ascender(),
                     );
                     for (offset, char_index) in (line.begin..line.end).enumerate() {
                         if offset >= self.caret_offset {
                             break;
                         }
-                        if let Some(glyph) = font.get_glyph(text[char_index]) {
-                            caret_pos.x += glyph.get_advance();
+                        if let Some(glyph) = font.glyph(text[char_index]) {
+                            caret_pos.x += glyph.advance;
                         } else {
-                            caret_pos.x += font.get_height();
+                            caret_pos.x += font.height();
                         }
                     }
 
-                    let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.get_height());
+                    let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, font.height());
                     drawing_context.push_rect_filled(&caret_bounds, None);
                     drawing_context.commit(
                         CommandKind::Geometry,
