@@ -439,6 +439,48 @@ impl Graph {
         }
     }
 
+    /// Returns capacity of internal pool. Can be used to iterate over all **potentially**
+    /// available indices and try to convert them to handles.
+    ///
+    /// ```
+    /// use rg3d::scene::node::Node;
+    /// use rg3d::scene::graph::Graph;
+    /// let mut graph = Graph::new();
+    /// graph.add_node(Node::Base(Default::default()));
+    /// graph.add_node(Node::Base(Default::default()));
+    /// for i in 0..graph.capacity() {
+    ///     let handle = graph.handle_from_index(i);
+    ///     if handle.is_some() {
+    ///         let node = &mut graph[handle];
+    ///         // Do something with node.
+    ///     }
+    /// }
+    /// ```
+    pub fn capacity(&self) -> usize {
+        self.pool.get_capacity()
+    }
+
+    /// Makes new handle from given index. Handle will be none if index was either out-of-bounds
+    /// or point to a vacant pool entry.
+    ///
+    /// ```
+    /// use rg3d::scene::node::Node;
+    /// use rg3d::scene::graph::Graph;
+    /// let mut graph = Graph::new();
+    /// graph.add_node(Node::Base(Default::default()));
+    /// graph.add_node(Node::Base(Default::default()));
+    /// for i in 0..graph.capacity() {
+    ///     let handle = graph.handle_from_index(i);
+    ///     if handle.is_some() {
+    ///         let node = &mut graph[handle];
+    ///         // Do something with node.
+    ///     }
+    /// }
+    /// ```
+    pub fn handle_from_index(&self, index: usize) -> Handle<Node> {
+        self.pool.handle_from_index(index)
+    }
+
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
     pub fn linear_iter(&self) -> PoolIterator<Node> {

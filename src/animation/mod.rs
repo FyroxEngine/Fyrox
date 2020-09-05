@@ -1,5 +1,6 @@
 pub mod machine;
 
+use crate::core::pool::Ticket;
 use crate::{
     core::{
         math::{clampf, quat::Quat, vec3::Vec3, wrapf},
@@ -664,6 +665,26 @@ impl AnimationContainer {
     #[inline]
     pub fn remove(&mut self, handle: Handle<Animation>) {
         self.pool.free(handle);
+    }
+
+    /// Extracts animation from container and reserves its handle. It is used to temporarily take
+    /// ownership over animation, and then put animation back using given ticket.
+    pub fn take_reserve(&mut self, handle: Handle<Animation>) -> (Ticket<Animation>, Animation) {
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts animation back by given ticket.
+    pub fn put_back(
+        &mut self,
+        ticket: Ticket<Animation>,
+        animation: Animation,
+    ) -> Handle<Animation> {
+        self.pool.put_back(ticket, animation)
+    }
+
+    /// Makes animation handle vacant again.
+    pub fn forget_ticket(&mut self, ticket: Ticket<Animation>) {
+        self.pool.forget_ticket(ticket)
     }
 
     #[inline]
