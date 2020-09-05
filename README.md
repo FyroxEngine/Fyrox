@@ -45,7 +45,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Navmesh.
 - FBX Loader.
 - Full TTF/OTF fonts support (thanks to [fontdue](https://github.com/mooman219/fontdue) and [ttf-parser](https://github.com/RazrFalcon/ttf-parser) crates).
-- PNG, JPG, TGA, DDS, etc. textures (thanks to (image)[https://github.com/image-rs/image] crate).
+- PNG, JPG, TGA, DDS, etc. textures (thanks to [image](https://github.com/image-rs/image) crate).
 - [Advanced node-based UI](https://github.com/mrDIMAS/rg3d-ui) with lots of widgets.
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
