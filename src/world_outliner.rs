@@ -231,55 +231,60 @@ impl SceneItemBuilder {
 
         let visibility_toggle;
         let item = SceneItem {
-            tree: TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_content(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(
-                                ImageBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(16.0)
-                                        .with_height(16.0)
-                                        .on_column(0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_opt_texture(self.icon)
-                                .build(ctx),
+            tree: TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                left: 1.0,
+                top: 1.0,
+                right: 0.0,
+                bottom: 0.0,
+            }))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            ImageBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_width(16.0)
+                                    .with_height(16.0)
+                                    .on_column(0)
+                                    .with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_child(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .with_vertical_alignment(VerticalAlignment::Center),
-                                )
-                                .with_text(self.name)
-                                .build(ctx),
+                            .with_opt_texture(self.icon)
+                            .build(ctx),
+                        )
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .with_vertical_alignment(VerticalAlignment::Center),
                             )
-                            .with_child({
-                                visibility_toggle = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_width(22.0)
-                                        .with_height(16.0)
-                                        .with_horizontal_alignment(HorizontalAlignment::Right)
-                                        .on_column(2),
-                                )
-                                .with_content(
-                                    ImageBuilder::new(WidgetBuilder::new())
-                                        .with_opt_texture(visible_texture)
-                                        .build(ctx),
-                                )
-                                .build(ctx);
-                                visibility_toggle
-                            }),
-                    )
-                    .add_row(Row::stretch())
-                    .add_column(Column::auto())
-                    .add_column(Column::auto())
-                    .add_column(Column::stretch())
-                    .build(ctx),
+                            .with_text(self.name)
+                            .build(ctx),
+                        )
+                        .with_child({
+                            visibility_toggle = ButtonBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .with_width(22.0)
+                                    .with_height(16.0)
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .on_column(2),
+                            )
+                            .with_content(
+                                ImageBuilder::new(WidgetBuilder::new())
+                                    .with_opt_texture(visible_texture)
+                                    .build(ctx),
+                            )
+                            .build(ctx);
+                            visibility_toggle
+                        }),
                 )
-                .build_tree(ctx),
+                .add_row(Row::stretch())
+                .add_column(Column::auto())
+                .add_column(Column::auto())
+                .add_column(Column::stretch())
+                .build(ctx),
+            )
+            .build_tree(ctx),
             node: self.node,
             visibility_toggle,
             sender,

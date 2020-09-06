@@ -29,6 +29,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::utils::translate_cursor_icon;
 use rg3d::{
     core::{
         color::Color,
@@ -1151,7 +1152,6 @@ impl Editor {
                 }
                 Message::SetSelection(selection) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
-                        dbg!(&selection);
                         editor_scene.selection = selection;
                         self.sync_to_model(engine);
                     }
@@ -1307,7 +1307,9 @@ fn main() {
                 }
             }
 
-            engine.get_window().request_redraw();
+            let window = engine.get_window();
+            window.set_cursor_icon(translate_cursor_icon(engine.user_interface.cursor()));
+            window.request_redraw();
 
             if editor.exit {
                 *control_flow = ControlFlow::Exit;

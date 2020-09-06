@@ -6,6 +6,7 @@ use crate::{
     GameEngine,
 };
 use rg3d::gui::text::TextBuilder;
+use rg3d::gui::HorizontalAlignment;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -179,6 +180,7 @@ impl AssetItemBuilder {
         let item = AssetItem {
             widget: self
                 .widget_builder
+                .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_foreground(Brush::Solid(Color::opaque(50, 50, 50)))
                 .with_child(
@@ -192,6 +194,7 @@ impl AssetItemBuilder {
                                         .with_margin(Thickness::uniform(1.0))
                                         .on_row(1),
                                 )
+                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
                                 .with_text(
                                     path.file_name()
                                         .unwrap_or_default()
