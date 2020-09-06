@@ -1183,19 +1183,21 @@ impl Editor {
                         }
                     }
                 }
-                Message::LoadScene(path) => match Visitor::load_binary(&path) {
-                    Ok(mut visitor) => {
-                        let mut scene = Scene::default();
-                        scene.visit("Scene", &mut visitor).unwrap();
-                        self.set_scene(engine, scene, Some(path));
-                        engine.renderer.flush();
+                Message::LoadScene(path) => {
+                    let result =
+                        { Scene::from_file(&path, &mut engine.resource_manager.lock().unwrap()) };
+                    match result {
+                        Ok(scene) => {
+                            self.set_scene(engine, scene, Some(path));
+                            engine.renderer.flush();
+                        }
+                        Err(e) => {
+                            self.message_sender
+                                .send(Message::Log(e.to_string()))
+                                .unwrap();
+                        }
                     }
-                    Err(e) => {
-                        self.message_sender
-                            .send(Message::Log(e.to_string()))
-                            .unwrap();
-                    }
-                },
+                }
                 Message::SetInteractionMode(mode_kind) => {
                     self.set_interaction_mode(Some(mode_kind), engine);
                 }

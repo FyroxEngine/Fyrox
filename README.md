@@ -57,9 +57,7 @@ use rg3d::core::visitor::Visitor;
 use rg3d::scene::Scene;
 
 // Load scene
-let mut visitor = Visitor::load_binary("your_scene.rgs").unwrap();
-let mut scene = Scene::default();
-scene.visit("Scene", &mut visitor).unwrap();
+let mut scene = Scene::from_file("your_scene.rgs", &mut engine.resource_manager.lock().unwrap()).unwrap();
 
 ...
 
