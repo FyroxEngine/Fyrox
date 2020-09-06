@@ -48,6 +48,7 @@ pub mod widget;
 pub mod window;
 pub mod wrap_panel;
 
+use crate::message::CursorIcon;
 use crate::{
     brush::Brush,
     canvas::Canvas,
@@ -444,6 +445,7 @@ pub struct UserInterface<M: 'static + std::fmt::Debug, C: 'static + Control<M, C
     drag_context: DragContext<M, C>,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
+    cursor_icon: CursorIcon,
 }
 
 lazy_static! {
@@ -522,6 +524,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
             drag_context: Default::default(),
             mouse_state: Default::default(),
             keyboard_modifiers: Default::default(),
+            cursor_icon: Default::default(),
         };
         ui.root_canvas = ui.add_node(UINode::Canvas(Canvas::new(WidgetBuilder::new().build())));
         ui
@@ -618,6 +621,23 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
         for node in self.nodes.iter_mut() {
             node.update(dt)
         }
+
+        // Try to fetch new cursor icon starting from current picked node. Traverse
+        // tree up until cursor with different value is found.
+        self.cursor_icon = CursorIcon::default();
+        let mut handle = self.picked_node;
+        while handle.is_some() {
+            let node = &self.nodes[handle];
+            if let Some(cursor) = node.cursor() {
+                self.cursor_icon = cursor;
+                break;
+            }
+            handle = node.parent();
+        }
+    }
+
+    pub fn cursor(&self) -> CursorIcon {
+        self.cursor_icon
     }
 
     pub fn draw(&mut self) -> &DrawingContext {

@@ -8,9 +8,10 @@ use crate::{
         pool::Handle,
     },
     grid::{Column, GridBuilder, Row},
-    message::TextMessage,
-    message::{ButtonMessage, WidgetMessage, WindowMessage},
-    message::{UiMessage, UiMessageData},
+    message::{
+        ButtonMessage, CursorIcon, TextMessage, UiMessage, UiMessageData, WidgetMessage,
+        WindowMessage,
+    },
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
@@ -64,14 +65,16 @@ struct Grip {
     kind: GripKind,
     bounds: Rect<f32>,
     is_dragging: bool,
+    cursor: CursorIcon,
 }
 
 impl Grip {
-    fn new(kind: GripKind) -> Self {
+    fn new(kind: GripKind, cursor: CursorIcon) -> Self {
         Self {
             kind,
             bounds: Default::default(),
             is_dragging: false,
+            cursor,
         }
     }
 }
@@ -233,7 +236,15 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
                             }
                         }
                         &WidgetMessage::MouseMove { pos, .. } => {
+                            let mut new_cursor = None;
+
                             for grip in self.grips.borrow().iter() {
+                                let offset = self.screen_position;
+                                let screen_bounds = grip.bounds.translate(offset.x, offset.y);
+                                if screen_bounds.contains(pos.x, pos.y) {
+                                    new_cursor = Some(grip.cursor);
+                                }
+
                                 if grip.is_dragging {
                                     let delta = self.mouse_click_pos - pos;
                                     let (dx, dy, dw, dh) = match grip.kind {
@@ -274,6 +285,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
                                     break;
                                 }
                             }
+
+                            self.set_cursor(new_cursor);
                         }
                         _ => {}
                     }
@@ -729,14 +742,14 @@ impl<'a, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WindowBuilder
             content: self.content,
             grips: RefCell::new([
                 // Corners have priority
-                Grip::new(GripKind::LeftTopCorner),
-                Grip::new(GripKind::RightTopCorner),
-                Grip::new(GripKind::RightBottomCorner),
-                Grip::new(GripKind::LeftBottomCorner),
-                Grip::new(GripKind::Left),
-                Grip::new(GripKind::Top),
-                Grip::new(GripKind::Right),
-                Grip::new(GripKind::Bottom),
+                Grip::new(GripKind::LeftTopCorner, CursorIcon::NwResize),
+                Grip::new(GripKind::RightTopCorner, CursorIcon::NeResize),
+                Grip::new(GripKind::RightBottomCorner, CursorIcon::SeResize),
+                Grip::new(GripKind::LeftBottomCorner, CursorIcon::SwResize),
+                Grip::new(GripKind::Left, CursorIcon::WResize),
+                Grip::new(GripKind::Top, CursorIcon::NResize),
+                Grip::new(GripKind::Right, CursorIcon::EResize),
+                Grip::new(GripKind::Bottom, CursorIcon::SResize),
             ]),
             title,
             title_grid,

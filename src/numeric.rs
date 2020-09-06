@@ -23,6 +23,7 @@ pub struct NumericUpDown<M: 'static + std::fmt::Debug, C: 'static + Control<M, C
     step: f32,
     min_value: f32,
     max_value: f32,
+    precision: usize,
 }
 
 impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for NumericUpDown<M, C> {
@@ -50,6 +51,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Numeric
             step: self.step,
             min_value: self.min_value,
             max_value: self.max_value,
+            precision: self.precision,
         }
     }
 }
@@ -115,9 +117,10 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
                             // Sync text field.
                             ui.send_message(UiMessage {
                                 handled: false,
-                                data: UiMessageData::TextBox(TextBoxMessage::Text(
-                                    self.value.to_string(),
-                                )),
+                                data: UiMessageData::TextBox(TextBoxMessage::Text(format!(
+                                    "{:.1$}",
+                                    self.value, self.precision
+                                ))),
                                 destination: self.field,
                             });
                         }
@@ -158,6 +161,7 @@ pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug, C: 'static + Contr
     step: f32,
     min_value: f32,
     max_value: f32,
+    precision: usize,
 }
 
 impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
@@ -168,6 +172,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDownBuil
             step: 0.1,
             min_value: -std::f32::MAX,
             max_value: std::f32::MAX,
+            precision: 3,
         }
     }
 
@@ -195,6 +200,11 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDownBuil
 
     pub fn with_step(mut self, step: f32) -> Self {
         self.step = step;
+        self
+    }
+
+    pub fn with_precision(mut self, precision: usize) -> Self {
+        self.precision = precision;
         self
     }
 
@@ -258,6 +268,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDownBuil
             step: self.step,
             min_value: self.min_value,
             max_value: self.max_value,
+            precision: self.precision,
         };
 
         ctx.add_node(UINode::NumericUpDown(node))

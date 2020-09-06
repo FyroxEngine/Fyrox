@@ -5,6 +5,7 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
+use crate::message::CursorIcon;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -910,6 +911,11 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TileBuilder<M, C>
                 .with_visibility(match self.content {
                     TileContent::VerticalTiles { .. } | TileContent::HorizontalTiles { .. } => true,
                     _ => false,
+                })
+                .with_cursor(match self.content {
+                    TileContent::HorizontalTiles { .. } => Some(CursorIcon::WResize),
+                    TileContent::VerticalTiles { .. } => Some(CursorIcon::NResize),
+                    _ => None,
                 })
                 .with_margin(Thickness::uniform(1.0)),
         )

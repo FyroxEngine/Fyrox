@@ -5,7 +5,7 @@ use crate::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
     },
-    message::{UiMessage, UiMessageData, WidgetMessage},
+    message::{CursorIcon, UiMessage, UiMessageData, WidgetMessage},
     Control, HorizontalAlignment, Thickness, UINode, UserInterface, VerticalAlignment,
 };
 use std::{
@@ -59,6 +59,7 @@ pub struct Widget<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     draw_on_top: bool,
     marker: PhantomData<M>,
     enabled: bool,
+    cursor: Option<CursorIcon>,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -265,6 +266,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Widget<M, C> {
             draw_on_top: self.draw_on_top,
             marker: PhantomData,
             enabled: true,
+            cursor: None,
         }
     }
 
@@ -465,6 +467,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Widget<M, C> {
                     &WidgetMessage::Enabled(enabled) => {
                         self.enabled = enabled;
                     }
+                    &WidgetMessage::Cursor(icon) => {
+                        self.cursor = icon;
+                    }
                     _ => (),
                 }
             }
@@ -600,6 +605,16 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Widget<M, C> {
     }
 
     #[inline]
+    pub fn set_cursor(&mut self, cursor: Option<CursorIcon>) {
+        self.cursor = cursor;
+    }
+
+    #[inline]
+    pub fn cursor(&self) -> Option<CursorIcon> {
+        self.cursor
+    }
+
+    #[inline]
     pub fn user_data_ref<T: 'static>(&self) -> &T {
         self.user_data
             .as_ref()
@@ -632,6 +647,7 @@ pub struct WidgetBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C
     pub user_data: Option<Rc<dyn Any>>,
     pub draw_on_top: bool,
     pub enabled: bool,
+    pub cursor: Option<CursorIcon>,
 }
 
 impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
@@ -665,6 +681,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WidgetBuilder<M, 
             user_data: None,
             draw_on_top: false,
             enabled: true,
+            cursor: None,
         }
     }
 
@@ -792,6 +809,11 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WidgetBuilder<M, 
         self
     }
 
+    pub fn with_cursor(mut self, cursor: Option<CursorIcon>) -> Self {
+        self.cursor = cursor;
+        self
+    }
+
     pub fn build(self) -> Widget<M, C> {
         Widget {
             handle: Default::default(),
@@ -837,6 +859,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WidgetBuilder<M, 
             draw_on_top: self.draw_on_top,
             marker: PhantomData,
             enabled: self.enabled,
+            cursor: self.cursor,
         }
     }
 }
