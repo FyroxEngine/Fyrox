@@ -215,6 +215,47 @@ pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
     }
 }
 
+/// Translates cursor icon from rg3d-ui library to glutin format.
+pub fn translate_cursor_icon(icon: crate::gui::message::CursorIcon) -> crate::window::CursorIcon {
+    match icon {
+        crate::gui::message::CursorIcon::Default => crate::window::CursorIcon::Default,
+        crate::gui::message::CursorIcon::Crosshair => crate::window::CursorIcon::Crosshair,
+        crate::gui::message::CursorIcon::Hand => crate::window::CursorIcon::Hand,
+        crate::gui::message::CursorIcon::Arrow => crate::window::CursorIcon::Arrow,
+        crate::gui::message::CursorIcon::Move => crate::window::CursorIcon::Move,
+        crate::gui::message::CursorIcon::Text => crate::window::CursorIcon::Text,
+        crate::gui::message::CursorIcon::Wait => crate::window::CursorIcon::Wait,
+        crate::gui::message::CursorIcon::Help => crate::window::CursorIcon::Help,
+        crate::gui::message::CursorIcon::Progress => crate::window::CursorIcon::Progress,
+        crate::gui::message::CursorIcon::NotAllowed => crate::window::CursorIcon::NotAllowed,
+        crate::gui::message::CursorIcon::ContextMenu => crate::window::CursorIcon::ContextMenu,
+        crate::gui::message::CursorIcon::Cell => crate::window::CursorIcon::Cell,
+        crate::gui::message::CursorIcon::VerticalText => crate::window::CursorIcon::VerticalText,
+        crate::gui::message::CursorIcon::Alias => crate::window::CursorIcon::Alias,
+        crate::gui::message::CursorIcon::Copy => crate::window::CursorIcon::Copy,
+        crate::gui::message::CursorIcon::NoDrop => crate::window::CursorIcon::NoDrop,
+        crate::gui::message::CursorIcon::Grab => crate::window::CursorIcon::Grab,
+        crate::gui::message::CursorIcon::Grabbing => crate::window::CursorIcon::Grabbing,
+        crate::gui::message::CursorIcon::AllScroll => crate::window::CursorIcon::AllScroll,
+        crate::gui::message::CursorIcon::ZoomIn => crate::window::CursorIcon::ZoomIn,
+        crate::gui::message::CursorIcon::ZoomOut => crate::window::CursorIcon::ZoomOut,
+        crate::gui::message::CursorIcon::EResize => crate::window::CursorIcon::EResize,
+        crate::gui::message::CursorIcon::NResize => crate::window::CursorIcon::NResize,
+        crate::gui::message::CursorIcon::NeResize => crate::window::CursorIcon::NeResize,
+        crate::gui::message::CursorIcon::NwResize => crate::window::CursorIcon::NwResize,
+        crate::gui::message::CursorIcon::SResize => crate::window::CursorIcon::SResize,
+        crate::gui::message::CursorIcon::SeResize => crate::window::CursorIcon::SeResize,
+        crate::gui::message::CursorIcon::SwResize => crate::window::CursorIcon::SwResize,
+        crate::gui::message::CursorIcon::WResize => crate::window::CursorIcon::WResize,
+        crate::gui::message::CursorIcon::EwResize => crate::window::CursorIcon::EwResize,
+        crate::gui::message::CursorIcon::NsResize => crate::window::CursorIcon::NsResize,
+        crate::gui::message::CursorIcon::NeswResize => crate::window::CursorIcon::NeswResize,
+        crate::gui::message::CursorIcon::NwseResize => crate::window::CursorIcon::NwseResize,
+        crate::gui::message::CursorIcon::ColResize => crate::window::CursorIcon::ColResize,
+        crate::gui::message::CursorIcon::RowResize => crate::window::CursorIcon::RowResize,
+    }
+}
+
 /// Translates window mouse button into rg3d-ui mouse button.
 pub fn translate_button(button: crate::event::MouseButton) -> crate::gui::message::MouseButton {
     match button {
