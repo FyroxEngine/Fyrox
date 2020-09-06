@@ -24,7 +24,7 @@
 
 use crate::{
     core::{
-        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3},
+        math::{mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
             Ticket,
@@ -34,7 +34,6 @@ use crate::{
     scene::node::Node,
     utils::log::Log,
 };
-use rg3d_core::math::quat::Quat;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -56,6 +55,21 @@ impl Default for Graph {
             stack: Vec::new(),
         }
     }
+}
+
+/// Sub-graph is a piece of graph that was extracted from a graph. It has ownership
+/// over its nodes. It is used to temporarily take ownership of a sub-graph. This could
+/// be used if you making a scene editor with a command stack - once you reverted a command,
+/// that created a complex nodes hierarchy (for example you loaded a model) you must store
+/// all added nodes somewhere to be able put nodes back into graph when user decide to re-do
+/// command. Sub-graph allows you to do this without invalidating handles to nodes.
+#[derive(Debug)]
+pub struct SubGraph {
+    /// A root node and its [ticket](/rg3d-core/model/struct.Ticket.html).
+    pub root: (Ticket<Node>, Node),
+
+    /// A set of descendant nodes with their tickets.
+    pub descendants: Vec<(Ticket<Node>, Node)>,
 }
 
 impl Graph {
@@ -523,7 +537,48 @@ impl Graph {
         self.pool.forget_ticket(ticket)
     }
 
-    /// Returns amount of nodes in graph.
+    /// Extracts sub-graph starting from a given node. All handles to extracted nodes
+    /// becomes reserved and will be marked as "occupied", an attempt to borrow a node
+    /// at such handle will result in panic!. Please note that root node will be
+    /// detached from its parent!
+    pub fn take_reserve_sub_graph(&mut self, root: Handle<Node>) -> SubGraph {
+        // Take out descendants first.
+        let mut descendants = Vec::new();
+        let mut stack = self[root].children().to_vec();
+        while let Some(handle) = stack.pop() {
+            stack.extend_from_slice(self[handle].children());
+            descendants.push(self.pool.take_reserve(handle));
+        }
+
+        SubGraph {
+            // Root must be extracted with detachment from its parent (if any).
+            root: self.take_reserve(root),
+            descendants,
+        }
+    }
+
+    /// Puts previously extracted sub-graph into graph. Handles to nodes will become valid
+    /// again. After that you probably want to re-link returned handle with its previous
+    /// parent.
+    pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<Node> {
+        for (ticket, node) in sub_graph.descendants {
+            self.pool.put_back(ticket, node);
+        }
+
+        let (ticket, node) = sub_graph.root;
+        self.put_back(ticket, node)
+    }
+
+    /// Forgets entire sub-graph making handles to nodes invalid.
+    pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
+        for (ticket, _) in sub_graph.descendants {
+            self.pool.forget_ticket(ticket);
+        }
+        let (ticket, _) = sub_graph.root;
+        self.pool.forget_ticket(ticket);
+    }
+
+    /// Returns amount of nodes in graph.s
     pub fn node_count(&self) -> usize {
         self.pool.alive_count()
     }
