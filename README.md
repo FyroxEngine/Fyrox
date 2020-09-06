@@ -50,7 +50,7 @@ let scene_handle = engine.scenes.add(scene);
 	
 ```
 
-Alternatively `rgs` can be loaded by standard object visitor like this:
+Alternatively `rgs` can be loaded by `Scene::from_file` method:
 
 ```rust
 use rg3d::core::visitor::Visitor;
