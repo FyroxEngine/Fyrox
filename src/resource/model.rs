@@ -131,13 +131,7 @@ impl Model {
             }
             // Scene can be used directly as model resource. Such scenes can be created from
             // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
-            "rgs" => {
-                // Just try to deserialize scene from file.
-                let mut scene = Scene::default();
-                let mut visitor = Visitor::load_binary(path.as_ref())?;
-                scene.visit("Scene", &mut visitor)?;
-                scene
-            }
+            "rgs" => Scene::from_file(path.as_ref(), resource_manager)?,
             // TODO: Add more formats.
             _ => {
                 return Err(ModelLoadError::NotSupported(format!(

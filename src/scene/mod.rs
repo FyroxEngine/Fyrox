@@ -19,8 +19,9 @@ use crate::{
     core::{
         math::vec2::Vec2,
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::{Visit, VisitError, VisitResult, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     physics::{rigid_body::RigidBody, Physics},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node},
@@ -29,6 +30,7 @@ use crate::{
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
+    path::Path,
     sync::{Arc, Mutex},
 };
 
@@ -173,6 +175,31 @@ impl Scene {
             render_target: None,
             lightmap: None,
         }
+    }
+
+    /// Tries to load scene from given file. File can contain any scene in native engine format.
+    /// Such scenes can be made in rusty editor.
+    pub fn from_file<P: AsRef<Path>>(
+        path: P,
+        resource_manager: &mut ResourceManager,
+    ) -> Result<Self, VisitError> {
+        let mut scene = Scene::default();
+        let mut visitor = Visitor::load_binary(path.as_ref())?;
+        scene.visit("Scene", &mut visitor)?;
+
+        // Restore pointers to resources. Scene saves only paths to resources, here we must
+        // find real resources instead.
+        for node in scene.graph.linear_iter_mut() {
+            if let Some(shallow_resource) = node.resource.clone() {
+                node.resource =
+                    resource_manager.request_model(&shallow_resource.lock().unwrap().path);
+            }
+        }
+
+        // And do resolve to extract correct graphical data and so on.
+        scene.resolve();
+
+        Ok(scene)
     }
 
     fn update_physics(&mut self, dt: f32) {
