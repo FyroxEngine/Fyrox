@@ -1,3 +1,4 @@
+use crate::scene::CommandGroup;
 use crate::{
     camera::CameraController,
     gui::UiNode,
@@ -439,15 +440,17 @@ impl InteractionMode for MoveInteractionMode {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let current_positions = editor_scene.selection.local_positions(graph);
                 if current_positions != self.initial_positions {
-                    let commands = editor_scene
-                        .selection
-                        .nodes()
-                        .iter()
-                        .zip(current_positions.iter().zip(self.initial_positions.iter()))
-                        .map(|(&node, (&new_pos, &old_pos))| {
-                            SceneCommand::MoveNode(MoveNodeCommand::new(node, old_pos, new_pos))
-                        })
-                        .collect();
+                    let commands = CommandGroup::from(
+                        editor_scene
+                            .selection
+                            .nodes()
+                            .iter()
+                            .zip(current_positions.iter().zip(self.initial_positions.iter()))
+                            .map(|(&node, (&new_pos, &old_pos))| {
+                                SceneCommand::MoveNode(MoveNodeCommand::new(node, old_pos, new_pos))
+                            })
+                            .collect::<Vec<SceneCommand>>(),
+                    );
                     // Commit changes.
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
@@ -847,17 +850,19 @@ impl InteractionMode for ScaleInteractionMode {
                 let current_scales = editor_scene.selection.local_scales(graph);
                 if current_scales != self.initial_scales {
                     // Commit changes.
-                    let commands = editor_scene
-                        .selection
-                        .nodes()
-                        .iter()
-                        .zip(self.initial_scales.iter().zip(current_scales.iter()))
-                        .map(|(&node, (&old_scale, &new_scale))| {
-                            SceneCommand::ScaleNode(ScaleNodeCommand::new(
-                                node, old_scale, new_scale,
-                            ))
-                        })
-                        .collect();
+                    let commands = CommandGroup::from(
+                        editor_scene
+                            .selection
+                            .nodes()
+                            .iter()
+                            .zip(self.initial_scales.iter().zip(current_scales.iter()))
+                            .map(|(&node, (&old_scale, &new_scale))| {
+                                SceneCommand::ScaleNode(ScaleNodeCommand::new(
+                                    node, old_scale, new_scale,
+                                ))
+                            })
+                            .collect::<Vec<SceneCommand>>(),
+                    );
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
                             commands,
@@ -1211,19 +1216,21 @@ impl InteractionMode for RotateInteractionMode {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let current_rotation = editor_scene.selection.local_rotations(graph);
                 if current_rotation != self.initial_rotations {
-                    let commands = editor_scene
-                        .selection
-                        .nodes()
-                        .iter()
-                        .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
-                        .map(|(&node, (&old_rotation, &new_rotation))| {
-                            SceneCommand::RotateNode(RotateNodeCommand::new(
-                                node,
-                                old_rotation,
-                                new_rotation,
-                            ))
-                        })
-                        .collect();
+                    let commands = CommandGroup::from(
+                        editor_scene
+                            .selection
+                            .nodes()
+                            .iter()
+                            .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
+                            .map(|(&node, (&old_rotation, &new_rotation))| {
+                                SceneCommand::RotateNode(RotateNodeCommand::new(
+                                    node,
+                                    old_rotation,
+                                    new_rotation,
+                                ))
+                            })
+                            .collect::<Vec<SceneCommand>>(),
+                    );
                     // Commit changes.
                     self.message_sender
                         .send(Message::DoSceneCommand(SceneCommand::CommandGroup(

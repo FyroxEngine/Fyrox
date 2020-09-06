@@ -1,15 +1,18 @@
 use crate::{command::Command, Message};
-use rg3d::physics::rigid_body::RigidBody;
-use rg3d::physics::Physics;
-use rg3d::scene::PhysicsBinder;
+use rg3d::scene::graph::SubGraph;
 use rg3d::{
     core::{
         math::{quat::Quat, vec3::Vec3},
         pool::{Handle, Ticket},
     },
-    scene::{graph::Graph, node::Node, Scene},
+    engine::resource_manager::ResourceManager,
+    physics::{rigid_body::RigidBody, Physics},
+    scene::{graph::Graph, node::Node, PhysicsBinder, Scene},
 };
-use std::{path::PathBuf, sync::mpsc::Sender};
+use std::{
+    path::PathBuf,
+    sync::{mpsc::Sender, Arc, Mutex},
+};
 
 pub struct EditorScene {
     pub path: Option<PathBuf>,
@@ -21,7 +24,7 @@ pub struct EditorScene {
 
 #[derive(Debug)]
 pub enum SceneCommand {
-    CommandGroup(Vec<SceneCommand>),
+    CommandGroup(CommandGroup),
     AddNode(AddNodeCommand),
     DeleteNode(DeleteNodeCommand),
     ChangeSelection(ChangeSelectionCommand),
@@ -33,24 +36,20 @@ pub enum SceneCommand {
     SetName(SetNameCommand),
     SetBody(SetBodyCommand),
     DeleteBody(DeleteBodyCommand),
+    LoadModel(LoadModelCommand),
 }
 
 pub struct SceneContext<'a> {
-    pub physics: &'a mut Physics,
-    pub physics_binder: &'a mut PhysicsBinder,
-    pub graph: &'a mut Graph,
+    pub scene: &'a mut Scene,
     pub message_sender: Sender<Message>,
     pub current_selection: Selection,
+    pub resource_manager: Arc<Mutex<ResourceManager>>,
 }
 
 macro_rules! static_dispatch {
     ($self:ident, $func:ident, $($args:expr),*) => {
         match $self {
-            SceneCommand::CommandGroup(v) => {
-                for cmd in v {
-                    cmd.$func($($args),*)
-                }
-            },
+            SceneCommand::CommandGroup(v) => v.$func($($args),*),
             SceneCommand::AddNode(v) => v.$func($($args),*),
             SceneCommand::DeleteNode(v) => v.$func($($args),*),
             SceneCommand::ChangeSelection(v) => v.$func($($args),*),
@@ -62,12 +61,66 @@ macro_rules! static_dispatch {
             SceneCommand::SetName(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
+            SceneCommand::LoadModel(v) => v.$func($($args),*),
         }
     };
 }
 
+#[derive(Debug)]
+pub struct CommandGroup {
+    commands: Vec<SceneCommand>,
+}
+
+impl From<Vec<SceneCommand>> for CommandGroup {
+    fn from(commands: Vec<SceneCommand>) -> Self {
+        Self { commands }
+    }
+}
+
+impl CommandGroup {
+    pub fn push(&mut self, command: SceneCommand) {
+        self.commands.push(command)
+    }
+}
+
+impl<'a> Command<'a> for CommandGroup {
+    type Context = SceneContext<'a>;
+
+    fn name(&self, context: &Self::Context) -> String {
+        let mut name = String::from("Command group: ");
+        for cmd in self.commands.iter() {
+            name.push_str(&cmd.name(context));
+            name.push_str(", ");
+        }
+        name
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        for cmd in self.commands.iter_mut() {
+            cmd.execute(context);
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        // revert must be done in reverse order.
+        for cmd in self.commands.iter_mut().rev() {
+            cmd.revert(context);
+        }
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        for mut cmd in self.commands.drain(..) {
+            cmd.finalize(context);
+        }
+    }
+}
+
 impl<'a> Command<'a> for SceneCommand {
     type Context = SceneContext<'a>;
+
+    fn name(&self, context: &Self::Context) -> String {
+        static_dispatch!(self, name, context)
+    }
 
     fn execute(&mut self, context: &mut Self::Context) {
         static_dispatch!(self, execute, context);
@@ -102,26 +155,33 @@ impl AddNodeCommand {
 impl<'a> Command<'a> for AddNodeCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Add Node".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
         match self.ticket.take() {
             None => {
-                self.handle = context.graph.add_node(self.node.take().unwrap());
+                self.handle = context.scene.graph.add_node(self.node.take().unwrap());
             }
             Some(ticket) => {
-                context.graph.put_back(ticket, self.node.take().unwrap());
+                context
+                    .scene
+                    .graph
+                    .put_back(ticket, self.node.take().unwrap());
             }
         }
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.graph.take_reserve(self.handle);
+        let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.node = Some(node);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.graph.forget_ticket(ticket)
+            context.scene.graph.forget_ticket(ticket)
         }
     }
 }
@@ -149,6 +209,10 @@ impl ChangeSelectionCommand {
 
 impl<'a> Command<'a> for ChangeSelectionCommand {
     type Context = SceneContext<'a>;
+
+    fn name(&self, _context: &Self::Context) -> String {
+        "Change Selection".to_owned()
+    }
 
     fn execute(&mut self, context: &mut Self::Context) {
         let new_selection = self.swap();
@@ -213,12 +277,16 @@ impl MoveNodeCommand {
 impl<'a> Command<'a> for MoveNodeCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Move Node".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
         let position = self.swap();
         self.set_position(
-            context.graph,
-            context.physics,
-            context.physics_binder,
+            &mut context.scene.graph,
+            &mut context.scene.physics,
+            &context.scene.physics_binder,
             position,
         );
     }
@@ -226,9 +294,9 @@ impl<'a> Command<'a> for MoveNodeCommand {
     fn revert(&mut self, context: &mut Self::Context) {
         let position = self.swap();
         self.set_position(
-            context.graph,
-            context.physics,
-            context.physics_binder,
+            &mut context.scene.graph,
+            &mut context.scene.physics,
+            &context.scene.physics_binder,
             position,
         );
     }
@@ -264,14 +332,18 @@ impl ScaleNodeCommand {
 impl<'a> Command<'a> for ScaleNodeCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Scale Node".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
         let scale = self.swap();
-        self.set_scale(context.graph, scale);
+        self.set_scale(&mut context.scene.graph, scale);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let scale = self.swap();
-        self.set_scale(context.graph, scale);
+        self.set_scale(&mut context.scene.graph, scale);
     }
 }
 
@@ -307,14 +379,18 @@ impl RotateNodeCommand {
 impl<'a> Command<'a> for RotateNodeCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Rotate Node".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
         let rotation = self.swap();
-        self.set_scale(context.graph, rotation);
+        self.set_scale(&mut context.scene.graph, rotation);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let rotation = self.swap();
-        self.set_scale(context.graph, rotation);
+        self.set_scale(&mut context.scene.graph, rotation);
     }
 }
 
@@ -339,12 +415,16 @@ impl LinkNodesCommand {
 impl<'a> Command<'a> for LinkNodesCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Link Nodes".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
-        self.link(context.graph);
+        self.link(&mut context.scene.graph);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        self.link(context.graph);
+        self.link(&mut context.scene.graph);
     }
 }
 
@@ -353,6 +433,7 @@ pub struct DeleteNodeCommand {
     handle: Handle<Node>,
     ticket: Option<Ticket<Node>>,
     node: Option<Node>,
+    parent: Handle<Node>,
 }
 
 impl DeleteNodeCommand {
@@ -361,6 +442,7 @@ impl DeleteNodeCommand {
             handle,
             ticket: None,
             node: None,
+            parent: Default::default(),
         }
     }
 }
@@ -368,21 +450,28 @@ impl DeleteNodeCommand {
 impl<'a> Command<'a> for DeleteNodeCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Delete Node".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.graph.take_reserve(self.handle);
+        self.parent = context.scene.graph[self.handle].parent();
+        let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.node = Some(node);
         self.ticket = Some(ticket);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.handle = context
+            .scene
             .graph
             .put_back(self.ticket.take().unwrap(), self.node.take().unwrap());
+        context.scene.graph.link_nodes(self.handle, self.parent);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.graph.forget_ticket(ticket)
+            context.scene.graph.forget_ticket(ticket)
         }
     }
 }
@@ -412,12 +501,16 @@ impl SetVisibleCommand {
 impl<'a> Command<'a> for SetVisibleCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Set Node Visible".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
-        self.apply(context.graph);
+        self.apply(&mut context.scene.graph);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        self.apply(context.graph);
+        self.apply(&mut context.scene.graph);
     }
 }
 
@@ -446,12 +539,16 @@ impl SetNameCommand {
 impl<'a> Command<'a> for SetNameCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Set Node Name".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
-        self.apply(context.graph);
+        self.apply(&mut context.scene.graph);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        self.apply(context.graph);
+        self.apply(&mut context.scene.graph);
     }
 }
 
@@ -477,31 +574,93 @@ impl SetBodyCommand {
 impl<'a> Command<'a> for SetBodyCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Set Node Body".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
         match self.ticket.take() {
             None => {
-                self.handle = context.physics.add_body(self.body.take().unwrap());
+                self.handle = context.scene.physics.add_body(self.body.take().unwrap());
             }
             Some(ticket) => {
                 context
+                    .scene
                     .physics
                     .put_body_back(ticket, self.body.take().unwrap());
             }
         }
-        context.physics_binder.bind(self.node, self.handle);
+        context.scene.physics_binder.bind(self.node, self.handle);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.physics.take_reserve_body(self.handle);
+        let (ticket, node) = context.scene.physics.take_reserve_body(self.handle);
         self.ticket = Some(ticket);
         self.body = Some(node);
-        context.physics_binder.unbind(self.node);
+        context.scene.physics_binder.unbind(self.node);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.physics.forget_ticket(ticket);
-            context.physics_binder.unbind(self.node);
+            context.scene.physics.forget_ticket(ticket);
+            context.scene.physics_binder.unbind(self.node);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct LoadModelCommand {
+    path: PathBuf,
+    model: Handle<Node>,
+    sub_graph: Option<SubGraph>,
+}
+
+impl LoadModelCommand {
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            model: Default::default(),
+            sub_graph: None,
+        }
+    }
+}
+
+impl<'a> Command<'a> for LoadModelCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&self, _context: &Self::Context) -> String {
+        "Load Model".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        if self.model.is_none() {
+            // No model was loaded yet, do it.
+            if let Some(model) = context
+                .resource_manager
+                .lock()
+                .unwrap()
+                .request_model(&self.path)
+            {
+                let model = model.lock().unwrap();
+                self.model = model.instantiate(context.scene).root;
+            }
+        } else {
+            // A model was loaded, but change was reverted and here we must put all nodes
+            // back to graph.
+            self.model = context
+                .scene
+                .graph
+                .put_sub_graph_back(self.sub_graph.take().unwrap());
+        }
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.sub_graph = Some(context.scene.graph.take_reserve_sub_graph(self.model));
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(sub_graph) = self.sub_graph.take() {
+            context.scene.graph.forget_sub_graph(sub_graph)
         }
     }
 }
@@ -528,23 +687,28 @@ impl DeleteBodyCommand {
 impl<'a> Command<'a> for DeleteBodyCommand {
     type Context = SceneContext<'a>;
 
+    fn name(&self, _context: &Self::Context) -> String {
+        "Delete Body".to_owned()
+    }
+
     fn execute(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.physics.take_reserve_body(self.handle);
+        let (ticket, node) = context.scene.physics.take_reserve_body(self.handle);
         self.body = Some(node);
         self.ticket = Some(ticket);
-        self.node = context.physics_binder.unbind_by_body(self.handle);
+        self.node = context.scene.physics_binder.unbind_by_body(self.handle);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.handle = context
+            .scene
             .physics
             .put_body_back(self.ticket.take().unwrap(), self.body.take().unwrap());
-        context.physics_binder.bind(self.node, self.handle);
+        context.scene.physics_binder.bind(self.node, self.handle);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.physics.forget_ticket(ticket)
+            context.scene.physics.forget_ticket(ticket)
         }
     }
 }
@@ -556,7 +720,9 @@ pub struct Selection {
 
 impl Selection {
     pub fn from_list(nodes: Vec<Handle<Node>>) -> Self {
-        Self { nodes }
+        Self {
+            nodes: nodes.into_iter().filter(|h| h.is_some()).collect(),
+        }
     }
 
     /// Creates new selection as single if node handle is not none, and empty if it is.

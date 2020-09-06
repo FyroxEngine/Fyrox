@@ -11,6 +11,8 @@ pub mod scene;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::asset::AssetKind;
+use crate::scene::{CommandGroup, LoadModelCommand};
 use crate::{
     asset::AssetBrowser,
     camera::CameraController,
@@ -123,10 +125,15 @@ impl ScenePreview {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
-                            frame = ImageBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
-                                .with_flip(true)
-                                .with_texture(frame_texture)
-                                .build(ctx);
+                            frame = ImageBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .on_column(1)
+                                    .with_allow_drop(true),
+                            )
+                            .with_flip(true)
+                            .with_texture(frame_texture)
+                            .build(ctx);
                             frame
                         })
                         .with_child(
@@ -836,7 +843,7 @@ impl Editor {
             preview,
             camera_controller: CameraController::new(&editor_scene, engine),
             scene: Some(editor_scene),
-            command_stack: CommandStack::new(),
+            command_stack: CommandStack::new(false),
             message_sender,
             message_receiver,
             interaction_modes,
@@ -901,7 +908,7 @@ impl Editor {
 
         self.world_outliner.clear(&mut engine.user_interface);
         self.camera_controller = CameraController::new(&editor_scene, engine);
-        self.command_stack = CommandStack::new();
+        self.command_stack = CommandStack::new(false);
         self.scene = Some(editor_scene);
 
         self.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -1042,26 +1049,46 @@ impl Editor {
                                 }
                                 KeyCode::Delete => {
                                     if !editor_scene.selection.is_empty() {
-                                        let mut commands = vec![SceneCommand::ChangeSelection(
-                                            ChangeSelectionCommand::new(
-                                                Default::default(),
-                                                editor_scene.selection.clone(),
+                                        let mut command_group = CommandGroup::from(vec![
+                                            SceneCommand::ChangeSelection(
+                                                ChangeSelectionCommand::new(
+                                                    Default::default(),
+                                                    editor_scene.selection.clone(),
+                                                ),
                                             ),
-                                        )];
+                                        ]);
                                         for &node in editor_scene.selection.nodes().iter() {
-                                            commands.push(SceneCommand::DeleteNode(
+                                            command_group.push(SceneCommand::DeleteNode(
                                                 DeleteNodeCommand::new(node),
                                             ));
                                         }
 
                                         self.message_sender
                                             .send(Message::DoSceneCommand(
-                                                SceneCommand::CommandGroup(commands),
+                                                SceneCommand::CommandGroup(command_group),
                                             ))
                                             .unwrap();
                                     }
                                 }
                                 _ => (),
+                            }
+                        }
+                        &WidgetMessage::Drop(handle) => {
+                            if handle.is_some() {
+                                if let UiNode::User(u) = ui.node(handle) {
+                                    if let EditorUiNode::AssetItem(item) = u {
+                                        if let AssetKind::Model = item.kind {
+                                            // Import model.
+                                            self.message_sender
+                                                .send(Message::DoSceneCommand(
+                                                    SceneCommand::LoadModel(LoadModelCommand::new(
+                                                        item.path.clone(),
+                                                    )),
+                                                ))
+                                                .unwrap();
+                                        }
+                                    }
+                                }
                             }
                         }
                         _ => {}
@@ -1088,15 +1115,13 @@ impl Editor {
             match message {
                 Message::DoSceneCommand(command) => {
                     if let Some(editor_scene) = self.scene.as_ref() {
-                        let scene = &mut engine.scenes[editor_scene.scene];
                         self.command_stack.do_command(
                             command,
                             SceneContext {
-                                physics: &mut scene.physics,
-                                physics_binder: &mut scene.physics_binder,
-                                graph: &mut scene.graph,
+                                scene: &mut engine.scenes[editor_scene.scene],
                                 message_sender: self.message_sender.clone(),
                                 current_selection: editor_scene.selection.clone(),
+                                resource_manager: engine.resource_manager.clone(),
                             },
                         );
                         self.sync_to_model(engine);
@@ -1104,32 +1129,29 @@ impl Editor {
                 }
                 Message::UndoSceneCommand => {
                     if let Some(editor_scene) = self.scene.as_ref() {
-                        let scene = &mut engine.scenes[editor_scene.scene];
                         self.command_stack.undo(SceneContext {
-                            physics: &mut scene.physics,
-                            physics_binder: &mut scene.physics_binder,
-                            graph: &mut scene.graph,
+                            scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
                             current_selection: editor_scene.selection.clone(),
+                            resource_manager: engine.resource_manager.clone(),
                         });
                         self.sync_to_model(engine);
                     }
                 }
                 Message::RedoSceneCommand => {
                     if let Some(editor_scene) = self.scene.as_ref() {
-                        let scene = &mut engine.scenes[editor_scene.scene];
                         self.command_stack.redo(SceneContext {
-                            physics: &mut scene.physics,
-                            physics_binder: &mut scene.physics_binder,
-                            graph: &mut scene.graph,
+                            scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
                             current_selection: editor_scene.selection.clone(),
+                            resource_manager: engine.resource_manager.clone(),
                         });
                         self.sync_to_model(engine);
                     }
                 }
                 Message::SetSelection(selection) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
+                        dbg!(&selection);
                         editor_scene.selection = selection;
                         self.sync_to_model(engine);
                     }

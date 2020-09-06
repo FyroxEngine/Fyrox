@@ -3,6 +3,7 @@ use std::fmt::Debug;
 pub trait Command<'a> {
     type Context;
 
+    fn name(&self, context: &Self::Context) -> String;
     fn execute(&mut self, context: &mut Self::Context);
     fn revert(&mut self, context: &mut Self::Context);
     fn finalize(&mut self, _: &mut Self::Context) {}
@@ -11,13 +12,15 @@ pub trait Command<'a> {
 pub struct CommandStack<C> {
     commands: Vec<C>,
     top: Option<usize>,
+    debug: bool,
 }
 
 impl<C> CommandStack<C> {
-    pub fn new() -> Self {
+    pub fn new(debug: bool) -> Self {
         Self {
             commands: Default::default(),
             top: None,
+            debug,
         }
     }
 
@@ -37,13 +40,17 @@ impl<C> CommandStack<C> {
             let top = self.top.unwrap_or(0);
             if top < self.commands.len() {
                 for mut dropped_command in self.commands.drain(top..) {
-                    println!("Finalizing command {:?}", dropped_command);
+                    if self.debug {
+                        println!("Finalizing command {:?}", dropped_command);
+                    }
                     dropped_command.finalize(&mut context);
                 }
             }
         }
 
-        println!("Executing command {:?}", command);
+        if self.debug {
+            println!("Executing command {:?}", command);
+        }
 
         command.execute(&mut context);
 
@@ -57,7 +64,9 @@ impl<C> CommandStack<C> {
         if !self.commands.is_empty() {
             if let Some(top) = self.top.as_mut() {
                 if let Some(command) = self.commands.get_mut(*top) {
-                    println!("Undo command {:?}", command);
+                    if self.debug {
+                        println!("Undo command {:?}", command);
+                    }
                     command.revert(&mut context)
                 }
                 if *top == 0 {
@@ -92,7 +101,9 @@ impl<C> CommandStack<C> {
             };
 
             if let Some(command) = command {
-                println!("Redo command {:?}", command);
+                if self.debug {
+                    println!("Redo command {:?}", command);
+                }
                 command.execute(&mut context)
             }
         }

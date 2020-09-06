@@ -5,6 +5,7 @@ use crate::{
     },
     GameEngine,
 };
+use rg3d::gui::text::TextBuilder;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -36,9 +37,18 @@ use std::{
 #[derive(Debug)]
 pub struct AssetItem {
     widget: CustomWidget,
-    path: PathBuf,
+    pub path: PathBuf,
+    pub kind: AssetKind,
     preview: Handle<UiNode>,
     selected: bool,
+}
+
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub enum AssetKind {
+    Unknown,
+    Model,
+    Texture,
+    Sound,
 }
 
 impl Deref for AssetItem {
@@ -60,6 +70,7 @@ impl Clone for AssetItem {
         Self {
             widget: self.widget.raw_copy(),
             path: self.path.clone(),
+            kind: AssetKind::Unknown,
             preview: self.preview,
             selected: self.selected,
         }
@@ -137,16 +148,21 @@ impl AssetItemBuilder {
         resource_manager: &mut ResourceManager,
     ) -> Handle<UiNode> {
         let path = self.path.unwrap_or_default();
+        let mut kind = AssetKind::Unknown;
         let texture = path
             .extension()
-            .map(|ext| match ext.to_string_lossy().as_ref() {
+            .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
+                    kind = AssetKind::Texture;
                     Some(resource_manager.request_texture_async(&path, TextureKind::RGBA8))
                 }
-                "fbx" | "rgs" => Some(
-                    resource_manager
-                        .request_texture_async("resources/model.png", TextureKind::RGBA8),
-                ),
+                "fbx" | "rgs" => {
+                    kind = AssetKind::Model;
+                    Some(
+                        resource_manager
+                            .request_texture_async("resources/model.png", TextureKind::RGBA8),
+                    )
+                }
                 _ => None,
             })
             .flatten();
@@ -163,10 +179,37 @@ impl AssetItemBuilder {
         let item = AssetItem {
             widget: self
                 .widget_builder
+                .with_allow_drag(true)
                 .with_foreground(Brush::Solid(Color::opaque(50, 50, 50)))
-                .with_child(preview)
+                .with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(64.0)
+                            .with_child(preview)
+                            .with_child(
+                                TextBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .on_row(1),
+                                )
+                                .with_text(
+                                    path.file_name()
+                                        .unwrap_or_default()
+                                        .to_string_lossy()
+                                        .to_string(),
+                                )
+                                .with_wrap(true)
+                                .build(ctx),
+                            ),
+                    )
+                    .add_column(Column::auto())
+                    .add_row(Row::stretch())
+                    .add_row(Row::auto())
+                    .build(ctx),
+                )
                 .build(),
             path,
+            kind,
             preview,
             selected: false,
         };
@@ -278,13 +321,21 @@ impl AssetBrowser {
                             if let Ok(entry) = p {
                                 let entry_path = entry.path();
                                 if !entry_path.is_dir() {
-                                    let content = AssetItemBuilder::new(WidgetBuilder::new())
-                                        .with_path(entry_path)
-                                        .build(&mut ui.build_ctx(), resource_manager);
-                                    ui.send_message(WidgetMessage::link(
-                                        content,
-                                        self.content_panel,
-                                    ));
+                                    if entry_path.extension().map_or(false, |ext| {
+                                        let ext = ext.to_string_lossy().to_lowercase();
+                                        match ext.as_str() {
+                                            "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" => true,
+                                            _ => false,
+                                        }
+                                    }) {
+                                        let content = AssetItemBuilder::new(WidgetBuilder::new())
+                                            .with_path(entry_path)
+                                            .build(&mut ui.build_ctx(), resource_manager);
+                                        ui.send_message(WidgetMessage::link(
+                                            content,
+                                            self.content_panel,
+                                        ));
+                                    }
                                 }
                             }
                         }
