@@ -11,10 +11,10 @@ pub mod scene;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::asset::AssetKind;
-use crate::scene::{CommandGroup, LoadModelCommand};
+use rg3d::core::scope_profile;
+
 use crate::{
-    asset::AssetBrowser,
+    asset::{AssetBrowser, AssetKind},
     camera::CameraController,
     command::CommandStack,
     gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
@@ -23,13 +23,12 @@ use crate::{
         ScaleInteractionMode, SelectInteractionMode,
     },
     scene::{
-        AddNodeCommand, ChangeSelectionCommand, DeleteNodeCommand, EditorScene, SceneCommand,
-        SceneContext, Selection,
+        AddNodeCommand, ChangeSelectionCommand, CommandGroup, DeleteNodeCommand, EditorScene,
+        LoadModelCommand, SceneCommand, SceneContext, Selection,
     },
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::utils::translate_cursor_icon;
 use rg3d::{
     core::{
         color::Color,
@@ -68,7 +67,7 @@ use rg3d::{
         node::Node,
         Scene,
     },
-    utils::{into_any_arc, translate_event},
+    utils::{into_any_arc, translate_cursor_icon, translate_event},
 };
 use std::{
     cell::RefCell,
@@ -1110,6 +1109,8 @@ impl Editor {
     }
 
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
+        scope_profile!();
+
         while let Ok(message) = self.message_receiver.try_recv() {
             self.world_outliner.handle_message(&message, engine);
 
@@ -1261,6 +1262,38 @@ impl Editor {
     }
 }
 
+fn poll_ui_messages(editor: &mut Editor, engine: &mut GameEngine) {
+    scope_profile!();
+
+    while let Some(ui_message) = engine.user_interface.poll_message() {
+        editor.handle_message(&ui_message, engine);
+    }
+}
+
+fn update(
+    editor: &mut Editor,
+    engine: &mut GameEngine,
+    elapsed_time: &mut f32,
+    fixed_timestep: f32,
+    clock: &Instant,
+) {
+    scope_profile!();
+
+    let mut dt = clock.elapsed().as_secs_f32() - *elapsed_time;
+    while dt >= fixed_timestep {
+        dt -= fixed_timestep;
+        *elapsed_time += fixed_timestep;
+        engine.update(fixed_timestep);
+        editor.update(engine, fixed_timestep);
+
+        poll_ui_messages(editor, engine);
+    }
+
+    let window = engine.get_window();
+    window.set_cursor_icon(translate_cursor_icon(engine.user_interface.cursor()));
+    window.request_redraw();
+}
+
 fn main() {
     let event_loop = EventLoop::new();
 
@@ -1295,21 +1328,13 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
-            let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-            while dt >= fixed_timestep {
-                dt -= fixed_timestep;
-                elapsed_time += fixed_timestep;
-                engine.update(fixed_timestep);
-                editor.update(&mut engine, fixed_timestep);
-
-                while let Some(ui_message) = engine.user_interface.poll_message() {
-                    editor.handle_message(&ui_message, &mut engine);
-                }
-            }
-
-            let window = engine.get_window();
-            window.set_cursor_icon(translate_cursor_icon(engine.user_interface.cursor()));
-            window.request_redraw();
+            update(
+                &mut editor,
+                &mut engine,
+                &mut elapsed_time,
+                fixed_timestep,
+                &clock,
+            );
 
             if editor.exit {
                 *control_flow = ControlFlow::Exit;
@@ -1336,6 +1361,9 @@ fn main() {
             if let Some(os_event) = translate_event(&event) {
                 engine.user_interface.process_os_event(&os_event);
             }
+        }
+        Event::LoopDestroyed => {
+            rg3d::core::profiler::print();
         }
         _ => *control_flow = ControlFlow::Poll,
     });

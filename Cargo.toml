@@ -6,3 +6,6 @@ edition = "2018"
 
 [dependencies]
 rg3d = { version = "0.12.0", path = "../rg3d" }
+
+[features]
+enable_profiler = ["rg3d/enable_profiler"]
