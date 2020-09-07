@@ -2,6 +2,7 @@ use crate::{
     core::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
+        scope_profile,
     },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -57,6 +58,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let mut child_constraint = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
 
         match self.orientation {
@@ -113,6 +116,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let mut width = final_size.x;
         let mut height = final_size.y;
 

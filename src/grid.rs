@@ -2,6 +2,7 @@ use crate::{
     core::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
+        scope_profile,
     },
     draw::{CommandKind, CommandTexture, DrawingContext},
     message::UiMessage,
@@ -147,6 +148,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         // In case of no rows or columns, grid acts like default panel.
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             return self.widget.measure_override(ui, available_size);
@@ -188,6 +191,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         if self.columns.borrow().is_empty() || self.rows.borrow().is_empty() {
             let rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
             for child_handle in self.widget.children() {

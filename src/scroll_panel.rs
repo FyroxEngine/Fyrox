@@ -2,6 +2,7 @@ use crate::{
     core::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
+        scope_profile,
     },
     message::{ScrollPanelMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
@@ -42,6 +43,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let size_for_child = Vec2::new(
             if self.horizontal_scroll_allowed {
                 std::f32::INFINITY
@@ -74,6 +77,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let child_rect = Rect::new(
             -self.scroll.x,
             -self.scroll.y,

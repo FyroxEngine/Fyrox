@@ -56,6 +56,7 @@ use crate::{
         color::Color,
         math::{vec2::Vec2, Rect},
         pool::{Handle, Pool},
+        scope_profile,
     },
     draw::{CommandKind, CommandTexture, DrawingContext},
     message::{
@@ -187,14 +188,20 @@ pub trait Control<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>:
     fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         self.deref().measure_override(ui, available_size)
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         self.deref().arrange_override(ui, final_size)
     }
 
     fn arrange(&self, ui: &UserInterface<M, C>, final_rect: &Rect<f32>) {
+        scope_profile!();
+
         if self.is_arrange_valid(ui) && self.prev_arrange.get() == *final_rect {
             return;
         }
@@ -277,6 +284,8 @@ pub trait Control<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>:
     }
 
     fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+        scope_profile!();
+
         if self.is_measure_valid(ui) && self.prev_measure.get() == available_size {
             return;
         }
@@ -462,6 +471,8 @@ fn draw_node<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     drawing_context: &mut DrawingContext,
     nesting: u8,
 ) {
+    scope_profile!();
+
     let node = &nodes[node_handle];
     if !node.is_globally_visible() {
         return;
@@ -564,6 +575,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     fn update_visibility(&mut self) {
+        scope_profile!();
+
         self.stack.clear();
         self.stack.push(self.root_canvas);
         while let Some(node_handle) = self.stack.pop() {
@@ -581,6 +594,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     fn update_transform(&mut self) {
+        scope_profile!();
+
         self.stack.clear();
         self.stack.push(self.root_canvas);
         while let Some(node_handle) = self.stack.pop() {
@@ -603,6 +618,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     pub fn update(&mut self, screen_size: Vec2, dt: f32) {
+        scope_profile!();
+
         self.screen_size = screen_size;
         self.update_visibility();
 
@@ -641,6 +658,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     pub fn draw(&mut self) -> &DrawingContext {
+        scope_profile!();
+
         self.drawing_context.clear();
 
         for node in self.nodes.iter_mut() {
@@ -693,6 +712,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     fn is_node_clipped(&self, node_handle: Handle<UINode<M, C>>, pt: Vec2) -> bool {
+        scope_profile!();
+
         let mut clipped = true;
 
         let widget = self.nodes.borrow(node_handle);
@@ -720,6 +741,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     fn is_node_contains_point(&self, node_handle: Handle<UINode<M, C>>, pt: Vec2) -> bool {
+        scope_profile!();
+
         let widget = self.nodes.borrow(node_handle);
 
         if !widget.is_globally_visible() {
@@ -747,6 +770,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
         pt: Vec2,
         level: &mut i32,
     ) -> Handle<UINode<M, C>> {
+        scope_profile!();
+
         let widget = self.nodes.borrow(node_handle);
 
         if !widget.is_hit_test_visible() || !widget.enabled() {
@@ -777,6 +802,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UserInterface<M, 
     }
 
     pub fn hit_test(&self, pt: Vec2) -> Handle<UINode<M, C>> {
+        scope_profile!();
+
         if self.nodes.is_valid_handle(self.captured_node) {
             self.captured_node
         } else if self.picking_stack.is_empty() {

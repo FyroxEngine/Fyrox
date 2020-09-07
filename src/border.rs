@@ -4,9 +4,9 @@ use crate::{
         color::Color,
         math::{vec2::Vec2, Rect},
         pool::Handle,
+        scope_profile,
     },
-    draw::CommandTexture,
-    draw::{CommandKind, DrawingContext},
+    draw::{CommandKind, CommandTexture, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UINode, UserInterface,
@@ -47,6 +47,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
@@ -72,6 +74,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let rect_for_child = Rect::new(
             self.stroke_thickness.left,
             self.stroke_thickness.top,

@@ -2,6 +2,7 @@ use crate::{
     core::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
+        scope_profile,
     },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -36,6 +37,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         let size_for_child = Vec2::new(std::f32::INFINITY, std::f32::INFINITY);
 
         for child_handle in self.widget.children() {
@@ -46,6 +49,8 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+        scope_profile!();
+
         for child_handle in self.widget.children() {
             let child = ui.nodes.borrow(*child_handle);
             child.arrange(
