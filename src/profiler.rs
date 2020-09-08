@@ -20,6 +20,16 @@ pub fn print() {
     println!("Performance profiling results are not available, because feature 'enable_profiler' wan't defined!")
 }
 
+#[cfg(feature = "enable_profiler")]
+pub fn print_hot_path() {
+    PROFILER.lock().unwrap().print_hot_path();
+}
+
+#[cfg(not(feature = "enable_profiler"))]
+pub fn print_hot_path() {
+    println!("Performance profiling results are not available, because feature 'enable_profiler' wan't defined!")
+}
+
 struct Sample {
     count: u64,
     time: f64,
@@ -138,6 +148,53 @@ impl Profiler {
             .iter()
         {
             self.recursive_print(child_scope, offset + 1, full_time);
+        }
+    }
+
+    fn print_hot_path(&self) {
+        let full_time = (std::time::Instant::now() - self.start_time).as_secs_f64();
+        self.print_hot_path_recursive(&ENTRY_SCOPE_MARK, 0, full_time);
+        println!("=========================================================================================================");
+    }
+
+    fn print_hot_path_recursive(&self, scope_mark: &ScopeMark, offset: usize, full_time: f64) {
+        let sample = self.samples.get(&scope_mark).unwrap();
+
+        if scope_mark == &ENTRY_SCOPE_MARK {
+            println!("=========================================================================================================");
+            println!("Showing hot path only! Profiling took {} seconds. Please note that profiling itself takes time so results are not 100% accurate.", full_time);
+            println!("Entry Point");
+        } else {
+            println!(
+                "{}{:.4}% - {} at line {} was called {} times and took {} seconds individually.",
+                "\t".repeat(offset),
+                (sample.time / full_time) * 100.0,
+                scope_mark.function_name,
+                scope_mark.line,
+                sample.count,
+                sample.time
+            );
+        }
+
+        let mut hot = None;
+        let mut hot_time = 0.0;
+        for child_scope in self
+            .samples
+            .get(&scope_mark)
+            .as_ref()
+            .unwrap()
+            .children
+            .iter()
+        {
+            let time = self.samples.get(child_scope).as_ref().unwrap().time;
+            if time > hot_time {
+                hot_time = time;
+                hot = Some(*child_scope);
+            }
+        }
+
+        if let Some(hot) = hot.as_ref() {
+            self.print_hot_path_recursive(hot, offset + 1, full_time);
         }
     }
 }

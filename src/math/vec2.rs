@@ -157,3 +157,14 @@ impl ops::SubAssign<Self> for Vec2 {
         self.y -= b.y;
     }
 }
+
+impl ops::Neg for Vec2 {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
