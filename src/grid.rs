@@ -173,8 +173,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
             let child = ui.nodes.borrow(*child_handle);
             if let Some(column) = self.columns.borrow().get(child.column()) {
                 if let Some(row) = self.rows.borrow().get(child.row()) {
-                    ui.node(*child_handle)
-                        .measure(ui, Vec2::new(column.actual_width, row.actual_height));
+                    // Contents of Auto cells must *not* be measured twice: Auto cells will be
+                    // fit to content size anyways, this check saves millions of calls on nested
+                    // grids.
+                    if column.size_mode != SizeMode::Auto && row.size_mode != SizeMode::Auto {
+                        let cell_size = Vec2::new(column.actual_width, row.actual_height);
+                        ui.node(*child_handle).measure(ui, cell_size);
+                    }
                 }
             }
         }
