@@ -29,6 +29,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder};
 use rg3d::{
     core::{
         color::Color,
@@ -62,7 +63,7 @@ use rg3d::{
     resource::texture::TextureKind,
     scene::{
         base::BaseBuilder,
-        light::{LightBuilder, LightKind, PointLight, SpotLight},
+        light::{PointLight, SpotLight},
         mesh::Mesh,
         node::Node,
         Scene,
@@ -628,24 +629,26 @@ impl Menu {
                             )))
                             .unwrap();
                     } else if message.destination == self.create_spot_light {
-                        let kind = LightKind::Spot(SpotLight::new(
-                            10.0,
-                            45.0f32.to_radians(),
-                            2.0f32.to_radians(),
-                        ));
-                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
-                        light.set_name("SpotLight");
-                        let node = Node::Light(light);
+                        let mut node = SpotLightBuilder::new(BaseLightBuilder::new(
+                            BaseBuilder::new().with_name("SpotLight"),
+                        ))
+                        .with_distance(10.0)
+                        .with_hotspot_cone_angle(45.0f32.to_radians())
+                        .with_falloff_angle_delta(2.0f32.to_radians())
+                        .build_node();
+
                         self.message_sender
                             .send(Message::DoSceneCommand(SceneCommand::AddNode(
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
                     } else if message.destination == self.create_point_light {
-                        let kind = LightKind::Point(PointLight::new(10.0));
-                        let mut light = LightBuilder::new(kind, BaseBuilder::new()).build();
-                        light.set_name("PointLight");
-                        let node = Node::Light(light);
+                        let node = PointLightBuilder::new(BaseLightBuilder::new(
+                            BaseBuilder::new().with_name("PointLight"),
+                        ))
+                        .with_radius(10.0)
+                        .build_node();
+
                         self.message_sender
                             .send(Message::DoSceneCommand(SceneCommand::AddNode(
                                 AddNodeCommand::new(node),
