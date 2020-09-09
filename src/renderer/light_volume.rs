@@ -16,7 +16,7 @@ use crate::{
         surface::SurfaceSharedData,
         GeometryCache, RenderPassStatistics,
     },
-    scene::light::{Light, LightKind},
+    scene::light::Light,
 };
 
 struct SpotLightShader {
@@ -131,8 +131,8 @@ impl LightVolumeRenderer {
 
         let position = view.transform_vector(light.global_position());
 
-        match light.kind() {
-            LightKind::Spot(spot) => {
+        match light {
+            Light::Spot(spot) => {
                 let direction = view
                     .basis()
                     .transform_vector(-light.up_vector().normalized().unwrap_or(Vec3::LOOK));
@@ -238,7 +238,7 @@ impl LightVolumeRenderer {
                     ],
                 )
             }
-            LightKind::Point(point) => {
+            Light::Point(point) => {
                 gbuffer
                     .final_frame
                     .clear(state, viewport, None, None, Some(0));

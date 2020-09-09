@@ -16,7 +16,7 @@ use crate::{
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
     resource::texture::{Texture, TextureKind},
-    scene::{light::LightKind, node::Node, Scene},
+    scene::{light::Light, node::Node, Scene},
 };
 use image::ImageError;
 use std::{
@@ -80,8 +80,8 @@ impl Lightmap {
         let mut lights = Vec::new();
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Light(light) = node {
-                match light.kind() {
-                    LightKind::Directional => lights.push((
+                match light {
+                    Light::Directional(_) => lights.push((
                         handle,
                         LightDefinition::Directional(DirectionalLightDefinition {
                             intensity: 1.0,
@@ -89,7 +89,7 @@ impl Lightmap {
                             color: light.color(),
                         }),
                     )),
-                    LightKind::Spot(spot) => lights.push((
+                    Light::Spot(spot) => lights.push((
                         handle,
                         LightDefinition::Spot(SpotLightDefinition {
                             intensity: 1.0,
@@ -101,7 +101,7 @@ impl Lightmap {
                             distance: spot.distance(),
                         }),
                     )),
-                    LightKind::Point(point) => lights.push((
+                    Light::Point(point) => lights.push((
                         handle,
                         LightDefinition::Point(PointLightDefinition {
                             intensity: 1.0,

@@ -22,7 +22,10 @@ use crate::{
         math::vec3::Vec3,
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::base::{Base, BaseBuilder},
+    scene::{
+        base::{Base, BaseBuilder},
+        node::Node,
+    },
 };
 use std::ops::{Deref, DerefMut};
 
@@ -55,14 +58,30 @@ pub const DEFAULT_SCATTER: Vec3 = Vec3::new(0.03, 0.03, 0.03);
 /// hardware!
 #[derive(Clone, Debug)]
 pub struct SpotLight {
+    base_light: BaseLight,
     hotspot_cone_angle: f32,
     falloff_angle_delta: f32,
     distance: f32,
 }
 
+impl Deref for SpotLight {
+    type Target = BaseLight;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base_light
+    }
+}
+
+impl DerefMut for SpotLight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base_light
+    }
+}
+
 impl Default for SpotLight {
     fn default() -> Self {
         Self {
+            base_light: Default::default(),
             hotspot_cone_angle: 90.0f32.to_radians(),
             falloff_angle_delta: 5.0f32.to_radians(),
             distance: 10.0,
@@ -71,16 +90,6 @@ impl Default for SpotLight {
 }
 
 impl SpotLight {
-    /// Creates new instance of spot light with given parameters. For more info about
-    /// parameters see struct docs.
-    pub fn new(distance: f32, hotspot_cone_angle: f32, falloff_angle_delta: f32) -> Self {
-        Self {
-            hotspot_cone_angle: hotspot_cone_angle.abs(),
-            falloff_angle_delta: falloff_angle_delta.abs(),
-            distance,
-        }
-    }
-
     /// Returns hotspot angle of light.
     #[inline]
     pub fn hotspot_cone_angle(&self) -> f32 {
@@ -132,12 +141,66 @@ impl Visit for SpotLight {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.base_light.visit("BaseLight", visitor)?;
         self.hotspot_cone_angle.visit("HotspotConeAngle", visitor)?;
         self.falloff_angle_delta
             .visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+/// Allows you to build spot light in declarative manner.
+pub struct SpotLightBuilder {
+    base_light_builder: BaseLightBuilder,
+    hotspot_cone_angle: f32,
+    falloff_angle_delta: f32,
+    distance: f32,
+}
+
+impl SpotLightBuilder {
+    /// Creates new builder instance.
+    pub fn new(base_light_builder: BaseLightBuilder) -> Self {
+        Self {
+            base_light_builder,
+            hotspot_cone_angle: 90.0f32.to_radians(),
+            falloff_angle_delta: 5.0f32.to_radians(),
+            distance: 10.0,
+        }
+    }
+
+    /// Sets desired hot spot cone angle.
+    pub fn with_hotspot_cone_angle(mut self, hotspot_cone_angle: f32) -> Self {
+        self.hotspot_cone_angle = hotspot_cone_angle;
+        self
+    }
+
+    /// Sets desired falloff angle delta.
+    pub fn with_falloff_angle_delta(mut self, falloff_angle_delta: f32) -> Self {
+        self.falloff_angle_delta = falloff_angle_delta;
+        self
+    }
+
+    /// Sets desired light distance.
+    pub fn with_distance(mut self, distance: f32) -> Self {
+        self.distance = distance;
+        self
+    }
+
+    /// Builds new spot light instance.
+    pub fn build(self) -> SpotLight {
+        SpotLight {
+            base_light: self.base_light_builder.build(),
+            hotspot_cone_angle: self.hotspot_cone_angle,
+            falloff_angle_delta: self.falloff_angle_delta,
+            distance: self.distance,
+        }
+    }
+
+    /// Creates new node.
+    pub fn build_node(self) -> Node {
+        Node::Light(Light::Spot(self.build()))
     }
 }
 
@@ -161,15 +224,25 @@ impl Visit for SpotLight {
 /// scattering is relatively heavy too.
 #[derive(Clone, Debug)]
 pub struct PointLight {
+    base_light: BaseLight,
     radius: f32,
 }
 
-impl PointLight {
-    /// Creates new point light with given radius.
-    pub fn new(radius: f32) -> Self {
-        Self { radius }
-    }
+impl Deref for PointLight {
+    type Target = BaseLight;
 
+    fn deref(&self) -> &Self::Target {
+        &self.base_light
+    }
+}
+
+impl DerefMut for PointLight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base_light
+    }
+}
+
+impl PointLight {
     /// Sets radius of point light. This parameter also affects radius of spherical
     /// light volume that is used in light scattering.
     #[inline]
@@ -188,6 +261,7 @@ impl Visit for PointLight {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.base_light.visit("BaseLight", visitor)?;
         self.radius.visit("Radius", visitor)?;
 
         visitor.leave_region()
@@ -196,95 +270,171 @@ impl Visit for PointLight {
 
 impl Default for PointLight {
     fn default() -> Self {
-        Self { radius: 10.0 }
+        Self {
+            base_light: Default::default(),
+            radius: 10.0,
+        }
+    }
+}
+
+/// Allows you to build point light in declarative manner.
+pub struct PointLightBuilder {
+    base_light_builder: BaseLightBuilder,
+    radius: f32,
+}
+
+impl PointLightBuilder {
+    /// Creates new builder instance.
+    pub fn new(base_light_builder: BaseLightBuilder) -> Self {
+        Self {
+            base_light_builder,
+            radius: 10.0,
+        }
+    }
+
+    /// Sets desired radius.
+    pub fn with_radius(mut self, radius: f32) -> Self {
+        self.radius = radius;
+        self
+    }
+
+    /// Builds new instance of point light.
+    pub fn build(self) -> PointLight {
+        PointLight {
+            base_light: self.base_light_builder.build(),
+            radius: self.radius,
+        }
+    }
+
+    /// Creates new scene node.
+    pub fn build_node(self) -> Node {
+        Node::Light(Light::Point(self.build()))
+    }
+}
+
+/// Directional light is a light source with parallel rays, it has
+/// excellent example in real life - Sun. It does not have position,
+/// only direction which defined by parent light scene node.
+///
+/// # Notes
+///
+/// Current directional light does *not* support shadows, it is still
+/// on list of features that should be implemented.
+#[derive(Default, Clone, Debug)]
+pub struct DirectionalLight {
+    base_light: BaseLight,
+}
+
+impl From<BaseLight> for DirectionalLight {
+    fn from(base_light: BaseLight) -> Self {
+        Self { base_light }
+    }
+}
+
+impl Deref for DirectionalLight {
+    type Target = BaseLight;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base_light
+    }
+}
+
+impl DerefMut for DirectionalLight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base_light
+    }
+}
+
+impl Visit for DirectionalLight {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.base_light.visit("BaseLight", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+/// Allows you to build directional light in declarative manner.
+pub struct DirectionalLightBuilder {
+    base_light_builder: BaseLightBuilder,
+}
+
+impl DirectionalLightBuilder {
+    /// Creates new builder instance.
+    pub fn new(base_light_builder: BaseLightBuilder) -> Self {
+        Self { base_light_builder }
+    }
+
+    /// Builds new instance of directional light.
+    pub fn build(self) -> DirectionalLight {
+        DirectionalLight {
+            base_light: self.base_light_builder.build(),
+        }
+    }
+
+    /// Creates new scene node.
+    pub fn build_node(self) -> Node {
+        Node::Light(Light::Directional(self.build()))
     }
 }
 
 /// Engine supports limited amount of light source kinds
 #[derive(Clone, Debug)]
-pub enum LightKind {
-    /// Directional light is a light source with parallel rays, it has
-    /// excellent example in real life - Sun. It does not have position,
-    /// only direction which defined by parent light scene node.
-    ///
-    /// # Notes
-    ///
-    /// Current directional light does *not* support shadows, it is still
-    /// on list of features that should be implemented.
-    Directional,
+pub enum Light {
+    /// See [DirectionalLight](struct.DirectionalLight.html)
+    Directional(DirectionalLight),
 
-    /// See SpotLight struct docs.
+    /// See [SpotLight](struct.SpotLight.html)
     Spot(SpotLight),
 
-    /// See PointLight struct docs.
+    /// See [PointLight](struct.PointLight.html)
     Point(PointLight),
 }
 
-impl LightKind {
+impl Default for Light {
+    fn default() -> Self {
+        Light::Directional(Default::default())
+    }
+}
+
+impl Light {
     fn new(id: u32) -> Result<Self, String> {
         match id {
-            0 => Ok(LightKind::Spot(Default::default())),
-            1 => Ok(LightKind::Point(Default::default())),
-            2 => Ok(LightKind::Directional),
+            0 => Ok(Light::Spot(Default::default())),
+            1 => Ok(Light::Point(Default::default())),
+            2 => Ok(Light::Directional(Default::default())),
             _ => Err(format!("Invalid light kind {}", id)),
         }
     }
 
     fn id(&self) -> u32 {
         match self {
-            LightKind::Spot(_) => 0,
-            LightKind::Point(_) => 1,
-            LightKind::Directional => 2,
+            Light::Spot(_) => 0,
+            Light::Point(_) => 1,
+            Light::Directional(_) => 2,
         }
     }
-}
-
-impl Visit for LightKind {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        match self {
-            LightKind::Spot(spot_light) => spot_light.visit(name, visitor),
-            LightKind::Point(point_light) => point_light.visit(name, visitor),
-            LightKind::Directional => Ok(()),
-        }
-    }
-}
-
-/// Light scene node. It contains common properties of light such as color,
-/// scattering factor (per color channel) and other useful properties. Exact
-/// behavior defined by specific light kind.
-#[derive(Clone, Debug)]
-pub struct Light {
-    base: Base,
-    kind: LightKind,
-    color: Color,
-    cast_shadows: bool,
-    scatter: Vec3,
-    scatter_enabled: bool,
 }
 
 impl Deref for Light {
-    type Target = Base;
+    type Target = BaseLight;
 
     fn deref(&self) -> &Self::Target {
-        &self.base
+        match self {
+            Light::Directional(v) => v.deref(),
+            Light::Spot(v) => v.deref(),
+            Light::Point(v) => v.deref(),
+        }
     }
 }
 
 impl DerefMut for Light {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
-
-impl Default for Light {
-    fn default() -> Self {
-        Self {
-            base: Default::default(),
-            kind: LightKind::Point(Default::default()),
-            color: Color::WHITE,
-            cast_shadows: true,
-            scatter: DEFAULT_SCATTER,
-            scatter_enabled: true,
+        match self {
+            Light::Directional(v) => v.deref_mut(),
+            Light::Spot(v) => v.deref_mut(),
+            Light::Point(v) => v.deref_mut(),
         }
     }
 }
@@ -293,12 +443,64 @@ impl Visit for Light {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut kind_id = self.kind.id();
+        let mut kind_id = self.id();
         kind_id.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            self.kind = LightKind::new(kind_id)?;
+            *self = Light::new(kind_id)?;
         }
-        self.kind.visit("Kind", visitor)?;
+
+        match self {
+            Light::Spot(spot_light) => spot_light.visit("Data", visitor)?,
+            Light::Point(point_light) => point_light.visit("Data", visitor)?,
+            Light::Directional(directional_light) => directional_light.visit("Data", visitor)?,
+        }
+
+        visitor.leave_region()
+    }
+}
+
+/// Light scene node. It contains common properties of light such as color,
+/// scattering factor (per color channel) and other useful properties. Exact
+/// behavior defined by specific light kind.
+#[derive(Clone, Debug)]
+pub struct BaseLight {
+    base: Base,
+    color: Color,
+    cast_shadows: bool,
+    scatter: Vec3,
+    scatter_enabled: bool,
+}
+
+impl Deref for BaseLight {
+    type Target = Base;
+
+    fn deref(&self) -> &Self::Target {
+        &self.base
+    }
+}
+
+impl DerefMut for BaseLight {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.base
+    }
+}
+
+impl Default for BaseLight {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            color: Color::WHITE,
+            cast_shadows: true,
+            scatter: DEFAULT_SCATTER,
+            scatter_enabled: true,
+        }
+    }
+}
+
+impl Visit for BaseLight {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
         self.color.visit("Color", visitor)?;
         self.base.visit("Base", visitor)?;
         self.cast_shadows.visit("CastShadows", visitor)?;
@@ -309,15 +511,7 @@ impl Visit for Light {
     }
 }
 
-impl Light {
-    /// Creates new light of given kind.
-    pub fn new(kind: LightKind) -> Self {
-        Self {
-            kind,
-            ..Default::default()
-        }
-    }
-
+impl BaseLight {
     /// Sets color of light, alpha component of color is ignored.
     #[inline]
     pub fn set_color(&mut self, color: Color) {
@@ -328,20 +522,6 @@ impl Light {
     #[inline]
     pub fn color(&self) -> Color {
         self.color
-    }
-
-    /// Returns shared reference to light kind. It can be used to
-    /// read properties of specific kind of light source.
-    #[inline]
-    pub fn kind(&self) -> &LightKind {
-        &self.kind
-    }
-
-    /// Returns mutable reference to light kind. It can be used to
-    /// modify parameters of specific kind of light source.
-    #[inline]
-    pub fn kind_mut(&mut self) -> &mut LightKind {
-        &mut self.kind
     }
 
     /// Enables or disables shadows for light source.
@@ -390,24 +570,22 @@ impl Light {
 
 /// Light scene node builder. Provides easy declarative way of creating light scene
 /// nodes.
-pub struct LightBuilder {
+pub struct BaseLightBuilder {
     base_builder: BaseBuilder,
-    kind: LightKind,
     color: Color,
     cast_shadows: bool,
     scatter_factor: Vec3,
     scatter_enabled: bool,
 }
 
-impl LightBuilder {
+impl BaseLightBuilder {
     /// Creates new instance of light scene node builder, you must pass desired
     /// light kind and base scene node builder as parameters. Latter one is needed
     /// because engine uses composition and light scene node built on top of base
     /// scene node.
-    pub fn new(kind: LightKind, base_builder: BaseBuilder) -> Self {
+    pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            kind,
             color: Color::WHITE,
             cast_shadows: true,
             scatter_factor: DEFAULT_SCATTER,
@@ -442,10 +620,9 @@ impl LightBuilder {
     /// Creates new instance of light scene node. Warning: each scene node
     /// must be added to scene, otherwise it won't have any effect and most
     /// likely will be dropped as soon as it go out of scope.
-    pub fn build(self) -> Light {
-        Light {
+    pub fn build(self) -> BaseLight {
+        BaseLight {
             base: self.base_builder.build(),
-            kind: self.kind,
             color: self.color,
             cast_shadows: self.cast_shadows,
             scatter: self.scatter_factor,

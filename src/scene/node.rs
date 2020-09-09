@@ -91,7 +91,7 @@ impl Default for Node {
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 macro_rules! define_is_as {
     ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
-        /// Returns true if node is intance of given type.
+        /// Returns true if node is instance of given type.
         pub fn $is(&self) -> bool {
             match self {
                 Node::$kind(_) => true,

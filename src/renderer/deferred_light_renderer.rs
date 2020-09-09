@@ -23,7 +23,7 @@ use crate::{
         surface::SurfaceSharedData,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, light::LightKind, node::Node, Scene},
+    scene::{camera::Camera, light::Light, node::Node, Scene},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -377,10 +377,10 @@ impl DeferredLightRenderer {
                 continue;
             }
 
-            let raw_radius = match light.kind() {
-                LightKind::Spot(spot_light) => spot_light.distance(),
-                LightKind::Point(point_light) => point_light.radius(),
-                LightKind::Directional => std::f32::MAX,
+            let raw_radius = match light {
+                Light::Spot(spot_light) => spot_light.distance(),
+                Light::Point(point_light) => point_light.radius(),
+                Light::Directional(_) => std::f32::MAX,
             };
 
             let light_position = light.global_position();
@@ -398,8 +398,8 @@ impl DeferredLightRenderer {
 
             let mut light_view_projection = Mat4::IDENTITY;
             let shadows_enabled = light.is_cast_shadows()
-                && match light.kind() {
-                    LightKind::Spot(spot)
+                && match light {
+                    Light::Spot(spot)
                         if distance_to_camera <= settings.spot_shadows_distance
                             && settings.spot_shadows_enabled =>
                     {
@@ -427,7 +427,7 @@ impl DeferredLightRenderer {
 
                         true
                     }
-                    LightKind::Point(_)
+                    Light::Point(_)
                         if distance_to_camera <= settings.point_shadows_distance
                             && settings.point_shadows_enabled =>
                     {
@@ -445,7 +445,7 @@ impl DeferredLightRenderer {
 
                         true
                     }
-                    LightKind::Directional => {
+                    Light::Directional(_) => {
                         // TODO: Add cascaded shadow map.
                         false
                     }
@@ -543,8 +543,8 @@ impl DeferredLightRenderer {
 
             let quad = geometry_cache.get(state, &self.quad);
 
-            statistics += match light.kind() {
-                LightKind::Spot(spot_light) => {
+            statistics += match light {
+                Light::Spot(spot_light) => {
                     let shader = &self.spot_light_shader;
 
                     let uniforms = [
@@ -621,7 +621,7 @@ impl DeferredLightRenderer {
                         &uniforms,
                     )
                 }
-                LightKind::Point(_) => {
+                Light::Point(_) => {
                     let shader = &self.point_light_shader;
 
                     let uniforms = [
@@ -681,7 +681,7 @@ impl DeferredLightRenderer {
                         &uniforms,
                     )
                 }
-                LightKind::Directional => {
+                Light::Directional(_) => {
                     let shader = &self.directional_light_shader;
 
                     let uniforms = [

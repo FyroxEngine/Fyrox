@@ -1,7 +1,10 @@
 use crate::{
     core::{color::Color, pool::Handle},
     resource::fbx::document::{FbxNode, FbxNodeContainer},
-    scene::light::{Light, LightKind, PointLight, SpotLight},
+    scene::{
+        base::BaseBuilder,
+        light::{BaseLightBuilder, DirectionalLight, Light, PointLightBuilder, SpotLightBuilder},
+    },
     utils::log::Log,
 };
 
@@ -78,22 +81,28 @@ impl FbxLight {
     }
 
     pub fn convert(&self) -> Light {
-        let light_kind = match self.actual_type {
-            FbxLightType::Point | FbxLightType::Area | FbxLightType::Volume => {
-                LightKind::Point(PointLight::new(self.radius))
-            }
-            FbxLightType::Spot => LightKind::Spot(SpotLight::new(
-                self.radius,
-                self.hotspot_cone_angle,
-                self.falloff_cone_angle_delta,
+        match self.actual_type {
+            FbxLightType::Point | FbxLightType::Area | FbxLightType::Volume => Light::Point(
+                PointLightBuilder::new(
+                    BaseLightBuilder::new(BaseBuilder::new()).with_color(self.color.to_opaque()),
+                )
+                .with_radius(self.radius)
+                .build(),
+            ),
+            FbxLightType::Spot => Light::Spot(
+                SpotLightBuilder::new(
+                    BaseLightBuilder::new(BaseBuilder::new()).with_color(self.color.to_opaque()),
+                )
+                .with_distance(self.radius)
+                .with_hotspot_cone_angle(self.hotspot_cone_angle)
+                .with_falloff_angle_delta(self.falloff_cone_angle_delta)
+                .build(),
+            ),
+            FbxLightType::Directional => Light::Directional(DirectionalLight::from(
+                BaseLightBuilder::new(BaseBuilder::new())
+                    .with_color(self.color.to_opaque())
+                    .build(),
             )),
-            FbxLightType::Directional => LightKind::Directional,
-        };
-
-        let mut light = Light::new(light_kind);
-
-        light.set_color(Color::opaque(self.color.r, self.color.g, self.color.b));
-
-        light
+        }
     }
 }
