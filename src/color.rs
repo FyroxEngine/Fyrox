@@ -80,6 +80,15 @@ impl Color {
         }
     }
 
+    pub fn to_opaque(self) -> Self {
+        Self {
+            r: self.r,
+            g: self.g,
+            b: self.b,
+            a: 255,
+        }
+    }
+
     pub fn lerp(self, other: Self, t: f32) -> Self {
         let dr = (t * (i32::from(other.r) - i32::from(self.r)) as f32) as i32;
         let dg = (t * (i32::from(other.g) - i32::from(self.g)) as f32) as i32;
