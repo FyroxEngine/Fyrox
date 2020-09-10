@@ -19,6 +19,7 @@
 use crate::{
     core::{
         color::Color,
+        define_is_as,
         math::vec3::Vec3,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -415,6 +416,10 @@ impl Light {
             Light::Directional(_) => 2,
         }
     }
+
+    define_is_as!(Light : Directional -> ref DirectionalLight => fn is_directional, fn as_directional, fn as_directional_mut);
+    define_is_as!(Light : Spot -> ref SpotLight => fn is_spot, fn as_spot, fn as_spot_mut);
+    define_is_as!(Light : Point -> ref PointLight => fn is_point, fn as_point, fn as_point_mut);
 }
 
 impl Deref for Light {

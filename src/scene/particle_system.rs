@@ -68,6 +68,7 @@
 //! }
 //! ```
 
+use crate::scene::node::Node;
 use crate::{
     core::{
         color::Color,
@@ -1352,5 +1353,10 @@ impl ParticleSystemBuilder {
             acceleration: self.acceleration,
             color_over_lifetime: self.color_over_lifetime,
         }
+    }
+
+    /// Creates new node instance.
+    pub fn build_node(self) -> Node {
+        Node::ParticleSystem(self.build())
     }
 }

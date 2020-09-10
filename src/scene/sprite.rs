@@ -8,6 +8,7 @@
 //! Huge amount of sprites may cause performance issues, also uou should
 //! not use sprites to make particle systems, use ParticleSystem instead.
 
+use crate::scene::node::Node;
 use crate::{
     core::{
         color::Color,
@@ -170,5 +171,10 @@ impl SpriteBuilder {
             size: self.size,
             rotation: self.rotation,
         }
+    }
+
+    /// Creates new node instance.
+    pub fn build_node(self) -> Node {
+        Node::Sprite(self.build())
     }
 }

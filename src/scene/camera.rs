@@ -14,6 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::scene::node::Node;
 use crate::{
     core::{
         math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec3::Vec3, vec4::Vec4, Rect},
@@ -297,5 +298,10 @@ impl CameraBuilder {
             view_matrix: Mat4::IDENTITY,
             projection_matrix: Mat4::IDENTITY,
         }
+    }
+
+    /// Creates new node instance.
+    pub fn build_node(self) -> Node {
+        Node::Camera(self.build())
     }
 }

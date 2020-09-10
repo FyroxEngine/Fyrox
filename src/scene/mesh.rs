@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::scene::node::Node;
 use crate::{
     core::{
         color::Color,
@@ -186,5 +187,10 @@ impl MeshBuilder {
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
         }
+    }
+
+    /// Creates new node instance.
+    pub fn build_node(self) -> Node {
+        Node::Mesh(self.build())
     }
 }

@@ -3,6 +3,7 @@
 //! Node is enumeration of possible types of scene nodes.
 
 use crate::{
+    core::define_is_as,
     core::visitor::{Visit, VisitResult, Visitor},
     scene::{
         base::Base, camera::Camera, light::Light, mesh::Mesh, particle_system::ParticleSystem,
@@ -88,37 +89,6 @@ impl Default for Node {
     }
 }
 
-/// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
-macro_rules! define_is_as {
-    ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
-        /// Returns true if node is instance of given type.
-        pub fn $is(&self) -> bool {
-            match self {
-                Node::$kind(_) => true,
-                _ => false,
-            }
-        }
-
-        /// Tries to cast shared reference to a node to given type, panics if
-        /// cast is not possible.
-        pub fn $as_ref(&self) -> &$result {
-            match self {
-                Node::$kind(ref val) => val,
-                _ => panic!("Cast to {} failed!", stringify!($kind)),
-            }
-        }
-
-        /// Tries to cast mutable reference to a node to given type, panics if
-        /// cast is not possible.
-        pub fn $as_mut(&mut self) -> &mut $result {
-            match self {
-                Node::$kind(ref mut val) => val,
-                _ => panic!("Cast to {} failed!", stringify!($kind)),
-            }
-        }
-    };
-}
-
 impl Node {
     /// Creates new Node based on variant id.
     pub fn from_id(id: u8) -> Result<Self, String> {
@@ -145,15 +115,9 @@ impl Node {
         }
     }
 
-    define_is_as!(is_mesh, as_mesh, as_mesh_mut, Mesh, Mesh);
-    define_is_as!(is_camera, as_camera, as_camera_mut, Camera, Camera);
-    define_is_as!(is_light, as_light, as_light_mut, Light, Light);
-    define_is_as!(
-        is_particle_system,
-        as_particle_system,
-        as_particle_system_mut,
-        ParticleSystem,
-        ParticleSystem
-    );
-    define_is_as!(is_sprite, as_sprite, as_sprite_mut, Sprite, Sprite);
+    define_is_as!(Node : Mesh -> ref Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
+    define_is_as!(Node : Camera -> ref Camera => fn is_camera, fn as_camera, fn as_camera_mut);
+    define_is_as!(Node : Light -> ref Light => fn is_light, fn as_light, fn as_light_mut);
+    define_is_as!(Node : ParticleSystem -> ref ParticleSystem => fn is_particle_system, fn as_particle_system, fn as_particle_system_mut);
+    define_is_as!(Node : Sprite -> ref Sprite => fn is_sprite, fn as_sprite, fn as_sprite_mut);
 }
