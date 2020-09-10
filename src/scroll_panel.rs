@@ -34,7 +34,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Scro
 
 impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     fn raw_copy(&self) -> UINode<M, C> {
-        UINode::ScrollContentPresenter(Self {
+        UINode::ScrollPanel(Self {
             widget: self.widget.raw_copy(),
             scroll: self.scroll,
             vertical_scroll_allowed: self.vertical_scroll_allowed,
@@ -202,7 +202,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollPanelBuilde
     }
 
     pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        ui.add_node(UINode::ScrollContentPresenter(ScrollPanel {
+        ui.add_node(UINode::ScrollPanel(ScrollPanel {
             widget: self.widget_builder.build(),
             scroll: Vec2::ZERO,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),

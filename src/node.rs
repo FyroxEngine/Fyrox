@@ -5,6 +5,7 @@ use crate::{
     canvas::Canvas,
     check_box::CheckBox,
     core::{
+        define_is_as,
         math::{vec2::Vec2, Rect},
         pool::Handle,
     },
@@ -49,7 +50,7 @@ pub enum UINode<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     ListView(ListView<M, C>),
     ListViewItem(ListViewItem<M, C>),
     ScrollBar(ScrollBar<M, C>),
-    ScrollContentPresenter(ScrollPanel<M, C>),
+    ScrollPanel(ScrollPanel<M, C>),
     ScrollViewer(ScrollViewer<M, C>),
     StackPanel(StackPanel<M, C>),
     TabControl(TabControl<M, C>),
@@ -85,14 +86,13 @@ macro_rules! static_dispatch {
             UINode::Grid(v) => v.$func($($args),*),
             UINode::Image(v) => v.$func($($args),*),
             UINode::ScrollBar(v) => v.$func($($args),*),
-            UINode::ScrollContentPresenter(v) => v.$func($($args),*),
+            UINode::ScrollPanel(v) => v.$func($($args),*),
             UINode::ScrollViewer(v) => v.$func($($args),*),
             UINode::StackPanel(v) => v.$func($($args),*),
             UINode::TabControl(v) => v.$func($($args),*),
             UINode::Text(v) => v.$func($($args),*),
             UINode::TextBox(v) => v.$func($($args),*),
             UINode::Window(v) => v.$func($($args),*),
-            UINode::User(v) => v.$func($($args),*),
             UINode::Popup(v) => v.$func($($args),*),
             UINode::DropdownList(v) => v.$func($($args),*),
             UINode::ListView(v) => v.$func($($args),*),
@@ -111,6 +111,7 @@ macro_rules! static_dispatch {
             UINode::MenuItem(v) => v.$func($($args),*),
             UINode::MessageBox(v) => v.$func($($args),*),
             UINode::WrapPanel(v) => v.$func($($args),*),
+            UINode::User(v) => v.$func($($args),*),
         }
     };
 }
@@ -127,6 +128,42 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for UINo
     fn deref_mut(&mut self) -> &mut Self::Target {
         static_dispatch!(self, deref_mut,)
     }
+}
+
+impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> UINode<M, C> {
+    define_is_as!(UINode : Border -> ref Border<M, C> => fn is_border, fn as_border, fn as_border_mut);
+    define_is_as!(UINode : Button -> ref Button<M, C> => fn is_button, fn as_button, fn as_button_mut);
+    define_is_as!(UINode : Canvas -> ref Canvas<M, C> => fn is_canvas, fn as_canvas, fn as_canvas_mut);
+    define_is_as!(UINode : CheckBox -> ref CheckBox<M, C> => fn is_check_box, fn as_check_box, fn as_check_box_mut);
+    define_is_as!(UINode : Grid -> ref Grid<M, C> => fn is_grid, fn as_grid, fn as_grid_mut);
+    define_is_as!(UINode : Image -> ref Image<M, C> => fn is_image, fn as_image, fn as_image_mut);
+    define_is_as!(UINode : ScrollBar -> ref ScrollBar<M, C> => fn is_scroll_bar, fn as_scroll_bar, fn as_scroll_bar_mut);
+    define_is_as!(UINode : ScrollPanel -> ref ScrollPanel<M, C> => fn is_scroll_panel, fn as_scroll_panel, fn as_scroll_panel_mut);
+    define_is_as!(UINode : ScrollViewer -> ref ScrollViewer<M, C> => fn is_scroll_viewer, fn as_scroll_viewer, fn as_scroll_viewer_mut);
+    define_is_as!(UINode : StackPanel -> ref StackPanel<M, C> => fn is_stack_panel, fn as_stack_panel, fn as_stack_panel_mut);
+    define_is_as!(UINode : TabControl -> ref TabControl<M, C> => fn is_tab_control, fn as_tab_control, fn as_tab_control_mut);
+    define_is_as!(UINode : Text -> ref Text<M, C> => fn is_text, fn as_text, fn as_text_mut);
+    define_is_as!(UINode : TextBox -> ref TextBox<M, C> => fn is_text_box, fn as_text_box, fn as_text_box_mut);
+    define_is_as!(UINode : Window -> ref Window<M, C> => fn is_window, fn as_window, fn as_window_mut);
+    define_is_as!(UINode : Popup -> ref Popup<M, C> => fn is_popup, fn as_popup, fn as_popup_mut);
+    define_is_as!(UINode : DropdownList -> ref DropdownList<M, C> => fn is_dropdown_list, fn as_dropdown_list, fn as_dropdown_list_mut);
+    define_is_as!(UINode : ListView -> ref ListView<M, C> => fn is_list_view, fn as_list_view_list, fn as_list_view_mut);
+    define_is_as!(UINode : ListViewItem -> ref ListViewItem<M, C> => fn is_list_view_item, fn as_list_view_item, fn as_list_view_item_mut);
+    define_is_as!(UINode : ProgressBar -> ref ProgressBar<M, C> => fn is_progress_bar, fn as_progress_bar, fn as_progress_bar_mut);
+    define_is_as!(UINode : Decorator -> ref Decorator<M, C> => fn is_decorator, fn as_decorator, fn as_decorator_mut);
+    define_is_as!(UINode : Tree -> ref Tree<M, C> => fn is_tree, fn as_tree, fn as_tree_mut);
+    define_is_as!(UINode : TreeRoot -> ref TreeRoot<M, C> => fn is_tree_root, fn as_tree_root, fn as_tree_root_mut);
+    define_is_as!(UINode : FileBrowser -> ref FileBrowser<M, C> => fn is_file_browser, fn as_file_browser, fn as_file_browser_mut);
+    define_is_as!(UINode : FileSelector -> ref FileSelector<M, C> => fn is_file_selector, fn as_file_selector, fn as_file_selector_mut);
+    define_is_as!(UINode : DockingManager -> ref DockingManager<M, C> => fn is_docking_manager, fn as_docking_manager, fn as_docking_manager_mut);
+    define_is_as!(UINode : Tile -> ref Tile<M, C> => fn is_tile, fn as_tile, fn as_tile_mut);
+    define_is_as!(UINode : Vec3Editor -> ref Vec3Editor<M, C> => fn is_vec3_editor, fn as_vec3_editor, fn as_vec3_editor_mut);
+    define_is_as!(UINode : NumericUpDown -> ref NumericUpDown<M, C> => fn is_numeric_up_down, fn as_numeric_up_down, fn as_numeric_up_down_mut);
+    define_is_as!(UINode : Menu -> ref Menu<M, C> => fn is_menu, fn as_menu, fn as_menu_mut);
+    define_is_as!(UINode : MenuItem -> ref MenuItem<M, C> => fn is_menu_item, fn as_menu_item, fn as_menu_item_mut);
+    define_is_as!(UINode : MessageBox -> ref MessageBox<M, C> => fn is_message_box, fn as_message_box, fn as_message_box_mut);
+    define_is_as!(UINode : WrapPanel -> ref WrapPanel<M, C> => fn is_wrap_panel, fn as_wrap_panel, fn as_wrap_panel_mut);
+    define_is_as!(UINode : User -> ref C => fn is_user, fn as_user, fn as_user_mut);
 }
 
 impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for UINode<M, C> {
