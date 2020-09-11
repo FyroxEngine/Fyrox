@@ -7,8 +7,8 @@ use crate::{
     node::UINode,
     numeric::NumericUpDownBuilder,
     text::TextBuilder,
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UserInterface,
-    VerticalAlignment, Widget, WidgetBuilder,
+    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface, VerticalAlignment, Widget,
+    WidgetBuilder,
 };
 use std::ops::{Deref, DerefMut};
 
