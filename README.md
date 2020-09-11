@@ -87,9 +87,11 @@ let scene_handle = engine.scenes.add(scene);
 - [x] Multi selection
 - [x] Menu
 	- [x] File
+		- [x] New scene
 		- [x] Save
 		- [x] Save as
-		- [x] Load (still needs file selector to open to select desired scene to load)
+		- [x] Load
+		- [x] Close scene
 		- [x] Exit
 	- [x] Edit
 		- [x] Undo
@@ -103,17 +105,9 @@ let scene_handle = engine.scenes.add(scene);
 		- [x] Light
 			- [x] Spot light
 			- [x] Point light
-- [ ] Commands
-	- [x] Move.
-	- [x] Scale.
-	- [x] Rotate.
-	- [x] Delete node.
-	- [x] Create node.
-	- [x] Link nodes.
-	- [x] Select nodes.
-	- [x] Set name.
-	- [x] Set visible.
-	- [ ] Other?
+		- [x] Particle system
+		- [x] Camera
+		- [x] Sprite
 - [ ] World outliner
 	- [x] Syncing with graph.
 	- [x] Syncing selection with scene selection and vice versa.
@@ -122,19 +116,32 @@ let scene_handle = engine.scenes.add(scene);
 	- [x] Visibility switch
 	- [ ] Nodes context menu
 - [ ] Node properties editor
-	- [ ] Base node
-		- [x] Show name.
-		- [x] Edit name.
-		- [x] Edit position.
-		- [x] Edit rotation.
-		- [x] Edit scale.
-	- [ ] Light node
+	- [x] Base node
+		- [x] Name
+		- [x] Position
+		- [x] Rotation
+		- [x] Scale
+		- [x] Physical body
+	- [x] Light node
+		- [x] Cast shadows
+		- [x] Enable scatter
+		- [x] Scatter
+		- [x] Color
+		- [x] Point light
+			- [x] Radius
+		- [x] Spot light
+			- [x] Hotspot angle
+			- [x] Falloff angle delta
+			- [x] Distance
+	- [x] Camera node
+		- [x] Fov
+		- [x] Z near
+		- [x] Z far
 	- [ ] Particle system node.
-		- [ ] Particle system properties.
+		- [x] Acceleration
+		- [ ] Other
 	- [ ] Sprite node.
 		- [ ] Sprite properties.
-	- [ ] Mesh node.
-		- [ ] Mesh properties.
 - [ ] Asset browser.
 	- [x] Proof-of-concept version
 - [ ] Animation graph editor

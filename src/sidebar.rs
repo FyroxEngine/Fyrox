@@ -370,7 +370,7 @@ impl SpotLightSection {
                     })
                     .with_child(make_text_mark(ctx, "Radius", 2))
                     .with_child({
-                        distance = make_vec3_input_field(ctx, 2);
+                        distance = make_f32_input_field(ctx, 2);
                         distance
                     }),
             )
