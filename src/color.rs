@@ -1,3 +1,4 @@
+use crate::math::vec3::Vec3;
 use crate::{
     math::vec4::Vec4,
     visitor::{Visit, VisitResult, Visitor},
@@ -22,6 +23,28 @@ impl Default for Color {
 impl Into<u32> for Color {
     fn into(self) -> u32 {
         ((self.r as u32) << 24) | ((self.g as u32) << 16) | ((self.b as u32) << 8) | (self.a as u32)
+    }
+}
+
+impl From<Vec3> for Color {
+    fn from(v: Vec3) -> Self {
+        Self {
+            r: (v.x.max(0.0).min(1.0) * 255.0) as u8,
+            g: (v.y.max(0.0).min(1.0) * 255.0) as u8,
+            b: (v.z.max(0.0).min(1.0) * 255.0) as u8,
+            a: 255,
+        }
+    }
+}
+
+impl From<Vec4> for Color {
+    fn from(v: Vec4) -> Self {
+        Self {
+            r: (v.x.max(0.0).min(1.0) * 255.0) as u8,
+            g: (v.y.max(0.0).min(1.0) * 255.0) as u8,
+            b: (v.z.max(0.0).min(1.0) * 255.0) as u8,
+            a: (v.w.max(0.0).min(1.0) * 255.0) as u8,
+        }
     }
 }
 
