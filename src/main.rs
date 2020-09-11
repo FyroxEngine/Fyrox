@@ -29,7 +29,13 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::scene::camera::CameraBuilder;
 use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder};
+use rg3d::scene::mesh::MeshBuilder;
+use rg3d::scene::particle_system::{
+    BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder,
+};
+use rg3d::scene::sprite::SpriteBuilder;
 use rg3d::{
     core::{
         color::Color,
@@ -61,13 +67,7 @@ use rg3d::{
     },
     renderer::surface::{Surface, SurfaceSharedData},
     resource::texture::TextureKind,
-    scene::{
-        base::BaseBuilder,
-        light::{PointLight, SpotLight},
-        mesh::Mesh,
-        node::Node,
-        Scene,
-    },
+    scene::{base::BaseBuilder, mesh::Mesh, node::Node, Scene},
     utils::{into_any_arc, translate_cursor_icon, translate_event},
 };
 use std::{
@@ -370,6 +370,9 @@ struct Menu {
     message_sender: Sender<Message>,
     save_file_selector: Handle<UiNode>,
     load_file_selector: Handle<UiNode>,
+    create_camera: Handle<UiNode>,
+    create_sprite: Handle<UiNode>,
+    create_particle_system: Handle<UiNode>,
 }
 
 impl Menu {
@@ -390,6 +393,9 @@ impl Menu {
         let create_point_light;
         let create_spot_light;
         let exit;
+        let create_camera;
+        let create_sprite;
+        let create_particle_system;
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
                 MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size_menu))
@@ -540,6 +546,27 @@ impl Menu {
                                 },
                             ])
                             .build(ctx),
+                        {
+                            create_camera =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Camera"))
+                                    .build(ctx);
+                            create_camera
+                        },
+                        {
+                            create_sprite =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Sprite"))
+                                    .build(ctx);
+                            create_sprite
+                        },
+                        {
+                            create_particle_system =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Particle System"))
+                                    .build(ctx);
+                            create_particle_system
+                        },
                     ])
                     .build(ctx),
             ])
@@ -590,6 +617,9 @@ impl Menu {
             message_sender,
             save_file_selector,
             load_file_selector,
+            create_camera,
+            create_sprite,
+            create_particle_system,
         }
     }
 
@@ -629,7 +659,7 @@ impl Menu {
                             )))
                             .unwrap();
                     } else if message.destination == self.create_spot_light {
-                        let mut node = SpotLightBuilder::new(BaseLightBuilder::new(
+                        let node = SpotLightBuilder::new(BaseLightBuilder::new(
                             BaseBuilder::new().with_name("SpotLight"),
                         ))
                         .with_distance(10.0)
@@ -655,42 +685,75 @@ impl Menu {
                             )))
                             .unwrap();
                     } else if message.destination == self.create_cone {
-                        let mut mesh = Mesh::default();
-                        mesh.set_name("Cone");
-                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(
-                            SurfaceSharedData::make_cone(16, 1.0, 1.0, Default::default()),
-                        ))));
-                        let node = Node::Mesh(mesh);
+                        let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
+                            .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                SurfaceSharedData::make_cone(16, 1.0, 1.0, Default::default()),
+                            )))])
+                            .build_node();
                         self.message_sender
                             .send(Message::DoSceneCommand(SceneCommand::AddNode(
-                                AddNodeCommand::new(node),
+                                AddNodeCommand::new(mesh),
                             )))
                             .unwrap();
                     } else if message.destination == self.create_cylinder {
-                        let mut mesh = Mesh::default();
-                        mesh.set_name("Cylinder");
-                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(
-                            SurfaceSharedData::make_cylinder(
-                                16,
-                                1.0,
-                                1.0,
-                                true,
-                                Default::default(),
-                            ),
-                        ))));
-                        let node = Node::Mesh(mesh);
+                        let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
+                            .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                SurfaceSharedData::make_cylinder(
+                                    16,
+                                    1.0,
+                                    1.0,
+                                    true,
+                                    Default::default(),
+                                ),
+                            )))])
+                            .build_node();
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                                AddNodeCommand::new(mesh),
+                            )))
+                            .unwrap();
+                    } else if message.destination == self.create_sphere {
+                        let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
+                            .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                                SurfaceSharedData::make_sphere(16, 16, 1.0),
+                            )))])
+                            .build_node();
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                                AddNodeCommand::new(mesh),
+                            )))
+                            .unwrap();
+                    } else if message.destination == self.create_camera {
+                        let node =
+                            CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node();
+
                         self.message_sender
                             .send(Message::DoSceneCommand(SceneCommand::AddNode(
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_sphere {
-                        let mut mesh = Mesh::default();
-                        mesh.set_name("Sphere");
-                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(
-                            SurfaceSharedData::make_sphere(16, 16, 1.0),
-                        ))));
-                        let node = Node::Mesh(mesh);
+                    } else if message.destination == self.create_sprite {
+                        let node =
+                            SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
+
+                        self.message_sender
+                            .send(Message::DoSceneCommand(SceneCommand::AddNode(
+                                AddNodeCommand::new(node),
+                            )))
+                            .unwrap();
+                    } else if message.destination == self.create_particle_system {
+                        let node = ParticleSystemBuilder::new(
+                            BaseBuilder::new().with_name("ParticleSystem"),
+                        )
+                        .with_emitters(vec![SphereEmitterBuilder::new(
+                            BaseEmitterBuilder::new()
+                                .with_max_particles(100)
+                                .resurrect_particles(true),
+                        )
+                        .with_radius(1.0)
+                        .build()])
+                        .build_node();
+
                         self.message_sender
                             .send(Message::DoSceneCommand(SceneCommand::AddNode(
                                 AddNodeCommand::new(node),
