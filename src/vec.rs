@@ -175,8 +175,7 @@ pub fn make_mark<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
             .with_background(Brush::Solid(color))
             .with_foreground(Brush::Solid(Color::TRANSPARENT))
             .with_child(
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                TextBuilder::new(WidgetBuilder::new())
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(text)
                     .build(ctx),

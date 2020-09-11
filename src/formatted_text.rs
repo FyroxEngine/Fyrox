@@ -222,6 +222,13 @@ impl FormattedText {
         }
         // Commit rest of text.
         if current_line.begin != current_line.end {
+            for code in self.text.iter().skip(current_line.end) {
+                let advance = match font.glyph(*code) {
+                    Some(glyph) => glyph.advance,
+                    None => font.height(),
+                };
+                current_line.width += advance;
+            }
             current_line.end = self.text.len();
             self.lines.push(current_line);
             total_height += font.ascender();
@@ -235,14 +242,14 @@ impl FormattedText {
                     if self.constraint.x.is_infinite() {
                         line.x_offset = 0.0;
                     } else {
-                        line.x_offset = 0.5 * (self.constraint.x - line.width);
+                        line.x_offset = 0.5 * (self.constraint.x - line.width).max(0.0);
                     }
                 }
                 HorizontalAlignment::Right => {
                     if self.constraint.x.is_infinite() {
                         line.x_offset = 0.0;
                     } else {
-                        line.x_offset = self.constraint.x - line.width
+                        line.x_offset = (self.constraint.x - line.width).max(0.0)
                     }
                 }
                 HorizontalAlignment::Stretch => line.x_offset = 0.0,
@@ -258,14 +265,14 @@ impl FormattedText {
                 if self.constraint.y.is_infinite() {
                     0.0
                 } else {
-                    (self.constraint.y - total_height) * 0.5
+                    (self.constraint.y - total_height).max(0.0) * 0.5
                 }
             }
             VerticalAlignment::Bottom => {
                 if self.constraint.y.is_infinite() {
                     0.0
                 } else {
-                    self.constraint.y - total_height
+                    (self.constraint.y - total_height).max(0.0)
                 }
             }
             VerticalAlignment::Stretch => 0.0,
