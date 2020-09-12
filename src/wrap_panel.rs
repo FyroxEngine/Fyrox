@@ -12,13 +12,14 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
-pub struct WrapPanel<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct WrapPanel<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     orientation: Orientation,
     lines: RefCell<Vec<Line>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for WrapPanel<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for WrapPanel<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -26,13 +27,15 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for WrapPan
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for WrapPanel<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for WrapPanel<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WrapPanel<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WrapPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -68,21 +71,9 @@ impl Default for Line {
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for WrapPanel<M, C> {
-    fn clone(&self) -> Self {
-        Self {
-            widget: self.widget.raw_copy(),
-            orientation: self.orientation,
-            lines: self.lines.clone(),
-        }
-    }
-}
-
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for WrapPanel<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::WrapPanel(self.clone())
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for WrapPanel<M, C>
+{
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let mut measured_size = Vec2::ZERO;
         let mut line_size = Vec2::ZERO;
@@ -237,12 +228,12 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub struct WrapPanelBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct WrapPanelBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     orientation: Option<Orientation>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WrapPanelBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WrapPanelBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

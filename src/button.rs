@@ -10,16 +10,19 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, UINode, UserInterface,
     VerticalAlignment,
 };
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::{Arc, Mutex},
+};
 
-pub struct Button<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct Button<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     decorator: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Button<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Button<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -27,23 +30,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Button<
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Button<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Button<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Button<M, C> {
-    fn clone(&self) -> Self {
-        Self {
-            widget: self.widget.raw_copy(),
-            decorator: self.decorator,
-            content: self.content,
-        }
-    }
-}
-
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Button<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Button<M, C> {
     pub fn new(
         widget: Widget<M, C>,
         body: Handle<UINode<M, C>>,
@@ -66,11 +59,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Button<M, C> {
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Button<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Button(self.clone())
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for Button<M, C>
+{
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         if let Some(content) = node_map.get(&self.content) {
             self.content = *content;
@@ -133,12 +124,12 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub enum ButtonContent<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub enum ButtonContent<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Text(String),
     Node(Handle<UINode<M, C>>),
 }
 
-pub struct ButtonBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct ButtonBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: Option<ButtonContent<M, C>>,
     font: Option<Arc<Mutex<Font>>>,
@@ -147,7 +138,7 @@ pub struct ButtonBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C
     decorator: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

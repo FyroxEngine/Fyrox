@@ -29,7 +29,8 @@ use std::ops::{Deref, DerefMut};
 ///
 /// This element is widely used to provide some generic visual behaviour for various
 /// widgets. For example it used to decorate button, items in items control.
-pub struct Decorator<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct Decorator<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     border: Border<M, C>,
     normal_brush: Brush,
     hover_brush: Brush,
@@ -38,7 +39,7 @@ pub struct Decorator<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     is_selected: bool,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Decorator<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Decorator<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -46,24 +47,17 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Decorat
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Decorator<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for Decorator<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.border
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Decorator<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Decorator(Self {
-            border: self.border.clone(),
-            normal_brush: self.normal_brush.clone(),
-            hover_brush: self.hover_brush.clone(),
-            pressed_brush: self.pressed_brush.clone(),
-            selected_brush: self.selected_brush.clone(),
-            is_selected: self.is_selected,
-        })
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for Decorator<M, C>
+{
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.border.resolve(node_map)
     }
@@ -182,7 +176,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub struct DecoratorBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct DecoratorBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     border_builder: BorderBuilder<M, C>,
     normal_brush: Option<Brush>,
     hover_brush: Option<Brush>,
@@ -190,7 +184,7 @@ pub struct DecoratorBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M
     selected_brush: Option<Brush>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
     pub fn new(border_builder: BorderBuilder<M, C>) -> Self {
         Self {
             border_builder,

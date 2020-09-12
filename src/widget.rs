@@ -15,8 +15,8 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Debug)]
-pub struct Widget<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub struct Widget<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     pub(in crate) handle: Handle<UINode<M, C>>,
     name: String,
     /// Desired position relative to parent node
@@ -76,7 +76,7 @@ pub struct Widget<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     pub(in crate) prev_global_visibility: bool,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Widget<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Widget<M, C> {
     pub fn handle(&self) -> Handle<UINode<M, C>> {
         self.handle
     }
@@ -225,49 +225,6 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Widget<M, C> {
     #[inline]
     pub fn screen_position(&self) -> Vec2 {
         self.screen_position
-    }
-
-    pub fn raw_copy(&self) -> Self {
-        Self {
-            handle: Default::default(),
-            name: self.name.clone(),
-            desired_local_position: self.desired_local_position,
-            width: self.width,
-            height: self.height,
-            screen_position: self.screen_position,
-            desired_size: self.desired_size.clone(),
-            actual_local_position: self.actual_local_position.clone(),
-            actual_size: self.actual_size.clone(),
-            min_size: self.min_size,
-            max_size: self.max_size,
-            background: self.background.clone(),
-            foreground: self.foreground.clone(),
-            row: self.row,
-            column: self.column,
-            vertical_alignment: self.vertical_alignment,
-            horizontal_alignment: self.horizontal_alignment,
-            margin: self.margin,
-            visibility: self.visibility,
-            global_visibility: self.global_visibility,
-            prev_global_visibility: false,
-            children: self.children.clone(),
-            parent: self.parent,
-            command_indices: Default::default(),
-            is_mouse_directly_over: self.is_mouse_directly_over,
-            measure_valid: Cell::new(false),
-            arrange_valid: Cell::new(false),
-            hit_test_visibility: self.hit_test_visibility,
-            prev_measure: Default::default(),
-            prev_arrange: Default::default(),
-            z_index: self.z_index,
-            allow_drop: self.allow_drop,
-            allow_drag: self.allow_drag,
-            user_data: self.user_data.clone(),
-            draw_on_top: self.draw_on_top,
-            marker: PhantomData,
-            enabled: true,
-            cursor: None,
-        }
     }
 
     #[inline]
@@ -624,7 +581,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Widget<M, C> {
     }
 }
 
-pub struct WidgetBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct WidgetBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     pub name: String,
     pub width: f32,
     pub height: f32,
@@ -650,13 +607,15 @@ pub struct WidgetBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C
     pub cursor: Option<CursorIcon>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Default for WidgetBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Default
+    for WidgetBuilder<M, C>
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WidgetBuilder<M, C> {
     pub fn new() -> Self {
         Self {
             name: Default::default(),

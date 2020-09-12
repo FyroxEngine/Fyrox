@@ -30,7 +30,8 @@ pub enum MessageBoxButtons {
     YesNoCancel,
 }
 
-pub struct MessageBox<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct MessageBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     window: Window<M, C>,
     buttons: MessageBoxButtons,
     ok_yes: Handle<UINode<M, C>>,
@@ -39,7 +40,7 @@ pub struct MessageBox<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> 
     text: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for MessageBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for MessageBox<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -47,32 +48,19 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Message
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for MessageBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for MessageBox<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.window
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for MessageBox<M, C> {
-    fn clone(&self) -> Self {
-        Self {
-            window: self.window.clone(),
-            buttons: self.buttons,
-            ok_yes: self.ok_yes,
-            no: self.no,
-            cancel: self.cancel,
-            text: self.text,
-        }
-    }
-}
-
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for MessageBox<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::MessageBox(self.clone())
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for MessageBox<M, C>
+{
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.window.resolve(node_map);
         self.ok_yes = *node_map.get(&self.ok_yes).unwrap();
@@ -204,13 +192,15 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub struct MessageBoxBuilder<'b, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct MessageBoxBuilder<'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     window_builder: WindowBuilder<M, C>,
     buttons: MessageBoxButtons,
     text: &'b str,
 }
 
-impl<'a, 'b, M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> MessageBoxBuilder<'b, M, C> {
+impl<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
+    MessageBoxBuilder<'b, M, C>
+{
     pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
         Self {
             window_builder,

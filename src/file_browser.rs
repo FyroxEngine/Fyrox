@@ -38,7 +38,8 @@ use sysinfo::{DiskExt, SystemExt};
 
 pub type Filter = dyn FnMut(&Path) -> bool;
 
-pub struct FileBrowser<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct FileBrowser<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     tree_root: Handle<UINode<M, C>>,
     path_text: Handle<UINode<M, C>>,
@@ -47,7 +48,7 @@ pub struct FileBrowser<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for FileBrowser<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for FileBrowser<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -55,30 +56,17 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for FileBro
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for FileBrowser<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for FileBrowser<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for FileBrowser<M, C> {
-    fn clone(&self) -> Self {
-        Self {
-            widget: self.widget.raw_copy(),
-            tree_root: self.tree_root,
-            path_text: self.path_text,
-            scroll_viewer: self.scroll_viewer,
-            path: self.path.clone(),
-            filter: self.filter.clone(),
-        }
-    }
-}
-
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for FileBrowser<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::FileBrowser(self.clone())
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for FileBrowser<M, C>
+{
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.tree_root = *node_map.get(&self.tree_root).unwrap();
         self.path_text = *node_map.get(&self.path_text).unwrap();
@@ -208,7 +196,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-fn find_tree<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>, P: AsRef<Path>>(
+fn find_tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>, P: AsRef<Path>>(
     node: Handle<UINode<M, C>>,
     path: &P,
     ui: &UserInterface<M, C>,
@@ -242,7 +230,11 @@ fn find_tree<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>, P: AsRef<
     tree_handle
 }
 
-fn build_tree_item<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>, P: AsRef<Path>>(
+fn build_tree_item<
+    M: 'static + std::fmt::Debug + Clone,
+    C: 'static + Control<M, C>,
+    P: AsRef<Path>,
+>(
     path: P,
     parent_path: P,
     ctx: &mut BuildContext<M, C>,
@@ -267,7 +259,7 @@ fn build_tree_item<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>, P: 
         .build(ctx)
 }
 
-fn build_tree<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>, P: AsRef<Path>>(
+fn build_tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>, P: AsRef<Path>>(
     parent: Handle<UINode<M, C>>,
     is_parent_root: bool,
     path: P,
@@ -286,7 +278,7 @@ fn build_tree<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>, P: AsRef
 }
 
 /// Builds entire file system tree to given final_path.
-fn build_all<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
+fn build_all<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
     final_path: &Path,
     filter: Option<Rc<RefCell<Filter>>>,
     ctx: &mut BuildContext<M, C>,
@@ -354,13 +346,13 @@ fn build_all<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
     (root_items.values().copied().collect(), path_item)
 }
 
-pub struct FileBrowserBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct FileBrowserBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     path: PathBuf,
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -443,14 +435,16 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> FileBrowserBuilde
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-pub struct FileSelector<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct FileSelector<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     window: Window<M, C>,
     browser: Handle<UINode<M, C>>,
     ok: Handle<UINode<M, C>>,
     cancel: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for FileSelector<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+    for FileSelector<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -458,13 +452,17 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for FileSel
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for FileSelector<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for FileSelector<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.window
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for FileSelector<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Clone
+    for FileSelector<M, C>
+{
     fn clone(&self) -> Self {
         Self {
             window: self.window.clone(),
@@ -477,13 +475,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for FileSel
 
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
     for FileSelector<M, C>
 {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::FileSelector(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.window.resolve(node_map);
         self.ok = *node_map.get(&self.ok).unwrap();
@@ -585,13 +579,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
     }
 }
 
-pub struct FileSelectorBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct FileSelectorBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     window_builder: WindowBuilder<M, C>,
     filter: Option<Rc<RefCell<Filter>>>,
     path: PathBuf,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> FileSelectorBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> FileSelectorBuilder<M, C> {
     pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
         Self {
             window_builder,

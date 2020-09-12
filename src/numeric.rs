@@ -14,7 +14,8 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct NumericUpDown<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct NumericUpDown<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     field: Handle<UINode<M, C>>,
     increase: Handle<UINode<M, C>>,
@@ -26,7 +27,9 @@ pub struct NumericUpDown<M: 'static + std::fmt::Debug, C: 'static + Control<M, C
     precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+    for NumericUpDown<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -34,29 +37,15 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Numeric
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for NumericUpDown<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for NumericUpDown<M, C> {
-    fn clone(&self) -> Self {
-        Self {
-            widget: self.widget.raw_copy(),
-            field: self.field,
-            increase: self.increase,
-            decrease: self.decrease,
-            value: self.value,
-            step: self.step,
-            min_value: self.min_value,
-            max_value: self.max_value,
-            precision: self.precision,
-        }
-    }
-}
-
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> NumericUpDown<M, C> {
     fn try_parse_value(&mut self, ui: &mut UserInterface<M, C>) {
         // Parse input only when focus is lost from text field.
         if let UINode::TextBox(field) = ui.node(self.field) {
@@ -72,13 +61,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDown<M, 
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
     for NumericUpDown<M, C>
 {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::NumericUpDown(self.clone())
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.field = *node_map.get(&self.field).unwrap();
         self.increase = *node_map.get(&self.increase).unwrap();
@@ -155,7 +140,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
     }
 }
 
-pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     value: f32,
     step: f32,
@@ -164,7 +149,7 @@ pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug, C: 'static + Contr
     precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

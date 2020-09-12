@@ -10,14 +10,15 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct ProgressBar<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct ProgressBar<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     progress: f32,
     indicator: Handle<UINode<M, C>>,
     body: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for ProgressBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for ProgressBar<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -25,22 +26,17 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Progres
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for ProgressBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for ProgressBar<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for ProgressBar<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::ProgressBar(Self {
-            widget: self.widget.raw_copy(),
-            progress: self.progress,
-            indicator: self.indicator,
-            body: self.body,
-        })
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for ProgressBar<M, C>
+{
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 
@@ -81,7 +77,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ProgressBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ProgressBar<M, C> {
     pub fn set_progress(&mut self, progress: f32) {
         self.progress = progress.min(1.0).max(0.0);
     }
@@ -91,14 +87,14 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ProgressBar<M, C>
     }
 }
 
-pub struct ProgressBarBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct ProgressBarBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     body: Option<Handle<UINode<M, C>>>,
     indicator: Option<Handle<UINode<M, C>>>,
     progress: f32,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

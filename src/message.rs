@@ -32,10 +32,74 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+macro_rules! define_constructor {
+    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident()) => {
+        pub fn $name(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+            UiMessage {
+                handled: false,
+                data: UiMessageData::$var($inner::$inner_var),
+                destination,
+            }
+        }
+    };
+
+    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident($typ:ty)) => {
+        pub fn $name(destination: Handle<UINode<M, C>>, value:$typ) -> UiMessage<M, C> {
+            UiMessage {
+                handled: false,
+                data: UiMessageData::$var($inner::$inner_var(value)),
+                destination,
+            }
+        }
+    };
+
+    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident( $($params:ident : $types:ty),+ )) => {
+        pub fn $name(destination: Handle<UINode<M, C>>, $($params : $types),+) -> UiMessage<M, C> {
+            UiMessage {
+                handled: false,
+                data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
+                destination,
+            }
+        }
+    }
+}
+
+macro_rules! define_constructor_unbound {
+    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident()) => {
+        pub fn $name<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
+            UiMessage {
+                handled: false,
+                data: UiMessageData::$var($inner::$inner_var),
+                destination,
+            }
+        }
+    };
+
+    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident($typ:ty)) => {
+        pub fn $name<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, value:$typ) -> UiMessage<M, C> {
+            UiMessage {
+                handled: false,
+                data: UiMessageData::$var($inner::$inner_var(value)),
+                destination,
+            }
+        }
+    };
+
+    ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident( $($params:ident : $types:ty),+ )) => {
+        pub fn $name<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(destination: Handle<UINode<M, C>>, $($params : $types),+) -> UiMessage<M, C> {
+            UiMessage {
+                handled: false,
+                data: UiMessageData::$var($inner::$inner_var { $($params),+ } ),
+                destination,
+            }
+        }
+    }
+}
+
 /// A set of messages for any kind of widgets (including user controls). These messages provides basic
 /// communication elements of the UI library.
-#[derive(Debug)]
-pub enum WidgetMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum WidgetMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     /// Initiated when user clicks on a widget's geometry.
     ///
     /// Direction: **From UI**.
@@ -271,104 +335,33 @@ pub enum WidgetMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>
     Cursor(Option<CursorIcon>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WidgetMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: WidgetMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Widget(msg),
-            destination,
-        }
-    }
-
-    /// Creates a message to remove `destination` node.
-    pub fn remove(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Remove)
-    }
-
-    /// Creates a message to unlink `destination` node from its current parent.
-    pub fn unlink(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Unlink)
-    }
-
-    /// Creates message to link `destination` node with specified `parent` node.
-    pub fn link(
-        destination: Handle<UINode<M, C>>,
-        parent: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::LinkWith(parent))
-    }
-
-    /// Creates message to set background of `destination` node.
-    pub fn background(destination: Handle<UINode<M, C>>, background: Brush) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Background(background))
-    }
-
-    /// Creates message to set visibility of `destination` node.
-    pub fn visibility(destination: Handle<UINode<M, C>>, visibility: bool) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Visibility(visibility))
-    }
-
-    /// Creates message to set width of `destination` node.
-    pub fn width(destination: Handle<UINode<M, C>>, width: f32) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Width(width))
-    }
-
-    /// Creates message to set height of `destination` node.
-    pub fn height(destination: Handle<UINode<M, C>>, height: f32) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Height(height))
-    }
-
-    /// Creates message to set desired position of `destination` node.
-    pub fn desired_position(destination: Handle<UINode<M, C>>, position: Vec2) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::DesiredPosition(position))
-    }
-
-    /// Creates message to set desired position of `destination` node.
-    pub fn center(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Center)
-    }
-
-    /// Creates message to make given widget topmost.
-    pub fn topmost(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::TopMost)
-    }
-
-    /// Creates message to enable or disable given widget.
-    pub fn enabled(destination: Handle<UINode<M, C>>, enabled: bool) -> UiMessage<M, C> {
-        Self::make(destination, WidgetMessage::Enabled(enabled))
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WidgetMessage<M, C> {
+    define_constructor!(Widget(WidgetMessage:Remove) => fn remove());
+    define_constructor!(Widget(WidgetMessage:Unlink) => fn unlink());
+    define_constructor!(Widget(WidgetMessage:LinkWith) => fn link(Handle<UINode<M, C>>));
+    define_constructor!(Widget(WidgetMessage:Background) => fn background(Brush));
+    define_constructor!(Widget(WidgetMessage:Visibility) => fn visibility(bool));
+    define_constructor!(Widget(WidgetMessage:Width) => fn width(f32));
+    define_constructor!(Widget(WidgetMessage:Height) => fn height(f32));
+    define_constructor!(Widget(WidgetMessage:DesiredPosition) => fn desired_position(Vec2));
+    define_constructor!(Widget(WidgetMessage:Center) => fn center());
+    define_constructor!(Widget(WidgetMessage:TopMost) => fn topmost());
+    define_constructor!(Widget(WidgetMessage:Enabled) => fn enabled(bool));
     // TODO: Add rest items.
 }
 
-#[derive(Debug)]
-pub enum ButtonMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum ButtonMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Click,
     Content(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ButtonMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: ButtonMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Button(msg),
-            destination,
-        }
-    }
-
-    pub fn click(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, ButtonMessage::Click)
-    }
-
-    pub fn content(
-        destination: Handle<UINode<M, C>>,
-        content: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ButtonMessage::Content(content))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ButtonMessage<M, C> {
+    define_constructor!(Button(ButtonMessage:Click) => fn click());
+    define_constructor!(Button(ButtonMessage:Content) => fn content(Handle<UINode<M, C>>));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ScrollBarMessage {
     Value(f32),
     MinValue(f32),
@@ -376,66 +369,22 @@ pub enum ScrollBarMessage {
 }
 
 impl ScrollBarMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: ScrollBarMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::ScrollBar(msg),
-            destination,
-        }
-    }
-
-    pub fn value<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: f32,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ScrollBarMessage::Value(value))
-    }
-
-    pub fn max_value<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: f32,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ScrollBarMessage::MaxValue(value))
-    }
-
-    pub fn min_value<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: f32,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ScrollBarMessage::MinValue(value))
-    }
+    define_constructor_unbound!(ScrollBar(ScrollBarMessage:Value) => fn value(f32));
+    define_constructor_unbound!(ScrollBar(ScrollBarMessage:MaxValue) => fn max_value(f32));
+    define_constructor_unbound!(ScrollBar(ScrollBarMessage:MinValue) => fn min_value(f32));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CheckBoxMessage {
     Check(Option<bool>),
 }
 
 impl CheckBoxMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: CheckBoxMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::CheckBox(msg),
-            destination,
-        }
-    }
-
-    pub fn check<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: Option<bool>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, CheckBoxMessage::Check(value))
-    }
+    define_constructor_unbound!(CheckBox(CheckBoxMessage:Check) => fn value(Option<bool>));
 }
 
-#[derive(Debug)]
-pub enum WindowMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum WindowMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Open,
     OpenModal,
     Close,
@@ -449,148 +398,74 @@ pub enum WindowMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>
     Title(WindowTitle<M, C>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> WindowMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: WindowMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Window(msg),
-            destination,
-        }
-    }
-
-    pub fn open(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WindowMessage::Open)
-    }
-
-    pub fn open_modal(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WindowMessage::OpenModal)
-    }
-
-    pub fn close(destination: Handle<UINode<M, C>>) -> UiMessage<M, C> {
-        Self::make(destination, WindowMessage::Close)
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WindowMessage<M, C> {
+    define_constructor!(Window(WindowMessage:Open) => fn open());
+    define_constructor!(Window(WindowMessage:OpenModal) => fn open_modal());
+    define_constructor!(Window(WindowMessage:Close) => fn close());
+    define_constructor!(Window(WindowMessage:Minimize) => fn minimize(bool));
+    define_constructor!(Window(WindowMessage:CanMinimize) => fn can_minimize(bool));
+    define_constructor!(Window(WindowMessage:CanClose) => fn can_close(bool));
+    define_constructor!(Window(WindowMessage:MoveStart) => fn move_start());
+    define_constructor!(Window(WindowMessage:Move) => fn move_to(Vec2));
+    define_constructor!(Window(WindowMessage:MoveEnd) => fn move_end());
+    define_constructor!(Window(WindowMessage:Title) => fn title(WindowTitle<M, C>));
 }
 
-#[derive(Debug)]
-pub enum ScrollViewerMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum ScrollViewerMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Content(Handle<UINode<M, C>>),
     /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
     /// of scroll viewer.
     BringIntoView(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollViewerMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: ScrollViewerMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::ScrollViewer(msg),
-            destination,
-        }
-    }
-
-    pub fn content(
-        destination: Handle<UINode<M, C>>,
-        content: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ScrollViewerMessage::Content(content))
-    }
-
-    pub fn bring_into_view(
-        destination: Handle<UINode<M, C>>,
-        handle: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ScrollViewerMessage::BringIntoView(handle))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollViewerMessage<M, C> {
+    define_constructor!(ScrollViewer(ScrollViewerMessage:Content) => fn content(Handle<UINode<M, C>>));
+    define_constructor!(ScrollViewer(ScrollViewerMessage:BringIntoView) => fn bring_into_view(Handle<UINode<M, C>>));
 }
 
-#[derive(Debug)]
-pub enum ListViewMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum ListViewMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     SelectionChanged(Option<usize>),
     Items(Vec<Handle<UINode<M, C>>>),
     AddItem(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ListViewMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: ListViewMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::ListView(msg),
-            destination,
-        }
-    }
-
-    pub fn selection(
-        destination: Handle<UINode<M, C>>,
-        selection: Option<usize>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ListViewMessage::SelectionChanged(selection))
-    }
-
-    pub fn items(
-        destination: Handle<UINode<M, C>>,
-        items: Vec<Handle<UINode<M, C>>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ListViewMessage::Items(items))
-    }
-
-    pub fn add_item(
-        destination: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ListViewMessage::AddItem(item))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ListViewMessage<M, C> {
+    define_constructor!(ListView(ListViewMessage:SelectionChanged) => fn selection(Option<usize>));
+    define_constructor!(ListView(ListViewMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>));
+    define_constructor!(ListView(ListViewMessage:AddItem) => fn add_item(Handle<UINode<M, C>>));
 }
 
-#[derive(Debug)]
-pub enum DropdownListMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum DropdownListMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     SelectionChanged(Option<usize>),
     Items(Vec<Handle<UINode<M, C>>>),
     AddItem(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DropdownListMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: DropdownListMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::DropdownList(msg),
-            destination,
-        }
-    }
-
-    pub fn selection(
-        destination: Handle<UINode<M, C>>,
-        selection: Option<usize>,
-    ) -> UiMessage<M, C> {
-        Self::make(
-            destination,
-            DropdownListMessage::SelectionChanged(selection),
-        )
-    }
-
-    pub fn items(
-        destination: Handle<UINode<M, C>>,
-        items: Vec<Handle<UINode<M, C>>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, DropdownListMessage::Items(items))
-    }
-
-    pub fn add_item(
-        destination: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, DropdownListMessage::AddItem(item))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DropdownListMessage<M, C> {
+    define_constructor!(DropdownList(DropdownListMessage:SelectionChanged) => fn selection(Option<usize>));
+    define_constructor!(DropdownList(DropdownListMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>));
+    define_constructor!(DropdownList(DropdownListMessage:AddItem) => fn add_item(Handle<UINode<M, C>>));
 }
 
-#[derive(Debug)]
-pub enum PopupMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum PopupMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Open,
     Close,
     Content(Handle<UINode<M, C>>),
     Placement(Placement),
 }
 
-#[derive(Debug)]
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> PopupMessage<M, C> {
+    define_constructor!(Popup(PopupMessage:Open) => fn open());
+    define_constructor!(Popup(PopupMessage:Close) => fn close());
+    define_constructor!(Popup(PopupMessage:Content) => fn content(Handle<UINode<M, C>>));
+    define_constructor!(Popup(PopupMessage:Placement) => fn placement(Placement));
+}
+
+#[derive(Debug, Clone)]
 pub enum FileSelectorMessage {
     Path(PathBuf),
     Commit(PathBuf),
@@ -598,43 +473,16 @@ pub enum FileSelectorMessage {
 }
 
 impl FileSelectorMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: FileSelectorMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::FileSelector(msg),
-            destination,
-        }
-    }
-
-    pub fn commit<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        path: PathBuf,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, FileSelectorMessage::Commit(path))
-    }
-
-    pub fn path<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        path: PathBuf,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, FileSelectorMessage::Path(path))
-    }
-
-    pub fn cancel<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, FileSelectorMessage::Cancel)
-    }
+    define_constructor_unbound!(FileSelector(FileSelectorMessage:Commit) => fn commit(PathBuf));
+    define_constructor_unbound!(FileSelector(FileSelectorMessage:Path) => fn path(PathBuf));
+    define_constructor_unbound!(FileSelector(FileSelectorMessage:Cancel) => fn cancel());
 }
 
 #[derive(Debug, Copy, Clone)]
 pub struct SelectionState(pub(in crate) bool);
 
-#[derive(Debug)]
-pub enum TreeMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum TreeMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Expand(bool),
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
@@ -643,122 +491,55 @@ pub enum TreeMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     Select(SelectionState),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TreeMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: TreeMessage<M, C>) -> UiMessage<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TreeMessage<M, C> {
+    define_constructor!(Tree(TreeMessage:AddItem) => fn add_item(Handle<UINode<M, C>>));
+    define_constructor!(Tree(TreeMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>));
+    define_constructor!(Tree(TreeMessage:SetItems) => fn set_items(Vec<Handle<UINode<M, C>>>));
+    define_constructor!(Tree(TreeMessage:Expand) => fn expand(bool));
+
+    pub(in crate) fn select(destination: Handle<UINode<M, C>>, select: bool) -> UiMessage<M, C> {
         UiMessage {
             handled: false,
-            data: UiMessageData::Tree(msg),
+            data: UiMessageData::Tree(TreeMessage::Select(SelectionState(select))),
             destination,
         }
     }
-
-    pub fn add_item(
-        destination: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeMessage::AddItem(item))
-    }
-
-    pub fn remove_item(
-        destination: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeMessage::RemoveItem(item))
-    }
-
-    pub fn set_items(
-        destination: Handle<UINode<M, C>>,
-        items: Vec<Handle<UINode<M, C>>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeMessage::SetItems(items))
-    }
-
-    pub fn expand(destination: Handle<UINode<M, C>>, expand: bool) -> UiMessage<M, C> {
-        Self::make(destination, TreeMessage::Expand(expand))
-    }
-
-    pub(in crate) fn select(destination: Handle<UINode<M, C>>, select: bool) -> UiMessage<M, C> {
-        Self::make(destination, TreeMessage::Select(SelectionState(select)))
-    }
 }
 
-#[derive(Debug)]
-pub enum TreeRootMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum TreeRootMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     AddItem(Handle<UINode<M, C>>),
     RemoveItem(Handle<UINode<M, C>>),
     Items(Vec<Handle<UINode<M, C>>>),
     Selected(Vec<Handle<UINode<M, C>>>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: TreeRootMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::TreeRoot(msg),
-            destination,
-        }
-    }
-
-    pub fn add_item(
-        destination: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeRootMessage::AddItem(item))
-    }
-
-    pub fn remove_item(
-        destination: Handle<UINode<M, C>>,
-        item: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeRootMessage::RemoveItem(item))
-    }
-
-    pub fn items(
-        destination: Handle<UINode<M, C>>,
-        items: Vec<Handle<UINode<M, C>>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeRootMessage::Items(items))
-    }
-
-    pub fn select(
-        destination: Handle<UINode<M, C>>,
-        items: Vec<Handle<UINode<M, C>>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TreeRootMessage::Selected(items))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TreeRootMessage<M, C> {
+    define_constructor!(TreeRoot(TreeRootMessage:AddItem) => fn add_item(Handle<UINode<M, C>>));
+    define_constructor!(TreeRoot(TreeRootMessage:RemoveItem) => fn remove_item(Handle<UINode<M, C>>));
+    define_constructor!(TreeRoot(TreeRootMessage:Items) => fn items(Vec<Handle<UINode<M, C>>>));
+    define_constructor!(TreeRoot(TreeRootMessage:Selected) => fn select(Vec<Handle<UINode<M, C>>>));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FileBrowserMessage {
     Path(PathBuf),
 }
 
 impl FileBrowserMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: FileBrowserMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::FileBrowser(msg),
-            destination,
-        }
-    }
-
-    pub fn path<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        path: PathBuf,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, FileBrowserMessage::Path(path))
-    }
+    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Path) => fn path(PathBuf));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TextBoxMessage {
     Text(String),
 }
 
-#[derive(Debug)]
+impl TextBoxMessage {
+    define_constructor_unbound!(TextBox(TextBoxMessage:Text) => fn text(String));
+}
+
+#[derive(Debug, Clone)]
 pub enum TextMessage {
     Text(String),
     Wrap(bool),
@@ -767,141 +548,54 @@ pub enum TextMessage {
     HorizontalAlignment(HorizontalAlignment),
 }
 
-#[derive(Debug)]
+impl TextMessage {
+    define_constructor_unbound!(Text(TextMessage:Text) => fn text(String));
+    define_constructor_unbound!(Text(TextMessage:Wrap) => fn wrap(bool));
+    define_constructor_unbound!(Text(TextMessage:Font) => fn font(Arc<Mutex<Font>>));
+    define_constructor_unbound!(Text(TextMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment));
+    define_constructor_unbound!(Text(TextMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment));
+}
+
+#[derive(Debug, Clone)]
 pub enum ImageMessage {
     Texture(Option<Arc<Texture>>),
     Flip(bool),
 }
 
 impl ImageMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: ImageMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Image(msg),
-            destination,
-        }
-    }
-
-    pub fn texture<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: Option<Arc<Texture>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ImageMessage::Texture(value))
-    }
-
-    pub fn flip<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: bool,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ImageMessage::Flip(value))
-    }
+    define_constructor_unbound!(Image(ImageMessage:Texture) => fn texture(Option<Arc<Texture>>));
+    define_constructor_unbound!(Image(ImageMessage:Flip) => fn flip(bool));
 }
 
-impl TextBoxMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: TextBoxMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::TextBox(msg),
-            destination,
-        }
-    }
-
-    pub fn text<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: String,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TextBoxMessage::Text(value))
-    }
-}
-
-impl TextMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: TextMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Text(msg),
-            destination,
-        }
-    }
-
-    pub fn text<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: String,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TextMessage::Text(value))
-    }
-
-    pub fn wrap<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: bool,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TextMessage::Wrap(value))
-    }
-
-    pub fn horizontal_alignment<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: HorizontalAlignment,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TextMessage::HorizontalAlignment(value))
-    }
-
-    pub fn vertical_alignment<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: VerticalAlignment,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TextMessage::VerticalAlignment(value))
-    }
-
-    pub fn font<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: Arc<Mutex<Font>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TextMessage::Font(value))
-    }
-}
-
-#[derive(Debug)]
-pub enum TileMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum TileMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Content(TileContent<M, C>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TileMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: TileMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Tile(msg),
-            destination,
-        }
-    }
-
-    pub fn content(
-        destination: Handle<UINode<M, C>>,
-        content: TileContent<M, C>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, TileMessage::Content(content))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TileMessage<M, C> {
+    define_constructor!(Tile(TileMessage:Content) => fn content(TileContent<M, C>));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NumericUpDownMessage {
     Value(f32),
 }
 
-#[derive(Debug)]
+impl NumericUpDownMessage {
+    define_constructor_unbound!(NumericUpDown(NumericUpDownMessage:Value) => fn value(f32));
+}
+
+#[derive(Debug, Clone)]
 pub enum Vec3EditorMessage {
     Value(Vec3),
 }
 
-#[derive(Debug)]
-pub enum ScrollPanelMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+impl Vec3EditorMessage {
+    define_constructor_unbound!(Vec3Editor(Vec3EditorMessage:Value) => fn value(Vec3));
+}
+
+#[derive(Debug, Clone)]
+pub enum ScrollPanelMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     VerticalScroll(f32),
     HorizontalScroll(f32),
     /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
@@ -909,45 +603,37 @@ pub enum ScrollPanelMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M
     BringIntoView(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollPanelMessage<M, C> {
-    fn make(destination: Handle<UINode<M, C>>, msg: ScrollPanelMessage<M, C>) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::ScrollPanel(msg),
-            destination,
-        }
-    }
-
-    pub fn vertical_scroll(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
-        Self::make(destination, ScrollPanelMessage::VerticalScroll(value))
-    }
-
-    pub fn horizontal_scroll(destination: Handle<UINode<M, C>>, value: f32) -> UiMessage<M, C> {
-        Self::make(destination, ScrollPanelMessage::HorizontalScroll(value))
-    }
-
-    pub fn bring_into_view(
-        destination: Handle<UINode<M, C>>,
-        handle: Handle<UINode<M, C>>,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ScrollPanelMessage::BringIntoView(handle))
-    }
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollPanelMessage<M, C> {
+    define_constructor!(ScrollPanel(ScrollPanelMessage:VerticalScroll) => fn vertical_scroll(f32));
+    define_constructor!(ScrollPanel(ScrollPanelMessage:HorizontalScroll) => fn horizontal_scroll(f32));
+    define_constructor!(ScrollPanel(ScrollPanelMessage:BringIntoView) => fn bring_into_view(Handle<UINode<M, C>>));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MenuMessage {
     Activate,
     Deactivate,
 }
 
-#[derive(Debug)]
+impl MenuMessage {
+    define_constructor_unbound!(Menu(MenuMessage:Activate) => fn activate());
+    define_constructor_unbound!(Menu(MenuMessage:Deactivate) => fn deactivate());
+}
+
+#[derive(Debug, Clone)]
 pub enum MenuItemMessage {
     Open,
     Close,
     Click,
 }
 
-#[derive(Debug)]
+impl MenuItemMessage {
+    define_constructor_unbound!(MenuItem(MenuItemMessage:Open) => fn open());
+    define_constructor_unbound!(MenuItem(MenuItemMessage:Close) => fn close());
+    define_constructor_unbound!(MenuItem(MenuItemMessage:Click) => fn click());
+}
+
+#[derive(Debug, Clone)]
 pub enum MessageBoxMessage {
     Open {
         title: Option<String>,
@@ -956,58 +642,31 @@ pub enum MessageBoxMessage {
     Close(MessageBoxResult),
 }
 
-#[derive(Debug)]
+impl MessageBoxMessage {
+    define_constructor_unbound!(MessageBox(MessageBoxMessage:Open) => fn open(title: Option<String>, text: Option<String>));
+    define_constructor_unbound!(MessageBox(MessageBoxMessage:Close) => fn close(MessageBoxResult));
+}
+
+#[derive(Debug, Clone)]
 pub enum DecoratorMessage {
     Select(bool),
 }
 
 impl DecoratorMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: DecoratorMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::Decorator(msg),
-            destination,
-        }
-    }
-
-    pub fn select<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: bool,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, DecoratorMessage::Select(value))
-    }
+    define_constructor_unbound!(Decorator(DecoratorMessage:Select) => fn select(bool));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ProgressBarMessage {
     Progress(f32),
 }
 
 impl ProgressBarMessage {
-    fn make<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        msg: ProgressBarMessage,
-    ) -> UiMessage<M, C> {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::ProgressBar(msg),
-            destination,
-        }
-    }
-
-    pub fn progress<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>(
-        destination: Handle<UINode<M, C>>,
-        value: f32,
-    ) -> UiMessage<M, C> {
-        Self::make(destination, ProgressBarMessage::Progress(value))
-    }
+    define_constructor_unbound!(ProgressBar(ProgressBarMessage:Progress) => fn select(f32));
 }
 
-#[derive(Debug)]
-pub enum UiMessageData<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone)]
+pub enum UiMessageData<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
     ScrollBar(ScrollBarMessage),
@@ -1039,7 +698,7 @@ pub enum UiMessageData<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>>
 /// Message is basic communication element that is used to deliver information to UI nodes
 /// or to user code.
 #[derive(Debug)]
-pub struct UiMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct UiMessage<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     /// Useful flag to check if a message was already handled.
     pub handled: bool,
 
@@ -1057,6 +716,18 @@ pub struct UiMessage<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     ///
     /// This field should be read-only.
     pub destination: Handle<UINode<M, C>>,
+}
+
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UiMessage<M, C> {
+    #[must_use = "method creates new value which must be used"]
+    pub fn reverse(&self) -> Self {
+        Self {
+            handled: self.handled,
+            data: self.data.clone(),
+            destination: self.destination,
+            // direction: self.destination.reverse(),
+        }
+    }
 }
 
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]

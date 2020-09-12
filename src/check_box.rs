@@ -8,13 +8,14 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct CheckBox<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct CheckBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     pub widget: Widget<M, C>,
     pub checked: Option<bool>,
     pub check_mark: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for CheckBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for CheckBox<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -22,21 +23,15 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for CheckBo
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for CheckBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for CheckBox<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for CheckBox<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::CheckBox(Self {
-            widget: self.widget.raw_copy(),
-            checked: self.checked,
-            check_mark: self.check_mark,
-        })
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for CheckBox<M, C>
+{
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.check_mark = *node_map.get(&self.check_mark).unwrap();
     }
@@ -126,13 +121,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub struct CheckBoxBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct CheckBoxBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     checked: Option<bool>,
     check_mark: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

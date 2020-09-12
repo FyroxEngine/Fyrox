@@ -15,7 +15,8 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct DropdownList<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct DropdownList<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     popup: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
@@ -24,7 +25,9 @@ pub struct DropdownList<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>
     selection: Option<usize>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for DropdownList<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+    for DropdownList<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -32,26 +35,17 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Dropdow
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for DropdownList<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for DropdownList<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
     for DropdownList<M, C>
 {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::DropdownList(Self {
-            widget: self.widget.raw_copy(),
-            popup: self.popup,
-            items: self.items.clone(),
-            list_view: self.list_view,
-            current: self.current,
-            selection: None,
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.popup = *node_map.get(&self.popup).unwrap();
         self.list_view = *node_map.get(&self.list_view).unwrap();
@@ -149,13 +143,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
     }
 }
 
-pub struct DropdownListBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct DropdownListBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: usize,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

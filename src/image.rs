@@ -14,13 +14,14 @@ use std::{
     sync::Arc,
 };
 
-pub struct Image<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct Image<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     texture: Option<Arc<Texture>>,
     flip: bool,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Image<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Image<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -28,13 +29,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for Image<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for Image<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Image<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Image<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Image<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -48,21 +49,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Image<M, C> {
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Clone for Image<M, C> {
-    fn clone(&self) -> Self {
-        Self {
-            widget: self.widget.raw_copy(),
-            texture: self.texture.clone(),
-            flip: false,
-        }
-    }
-}
-
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for Image<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::Image(self.clone())
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for Image<M, C>
+{
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.screen_bounds();
         let tex_coords = if self.flip {
@@ -105,13 +94,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub struct ImageBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct ImageBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     texture: Option<Arc<Texture>>,
     flip: bool,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ImageBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ImageBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

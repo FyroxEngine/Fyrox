@@ -12,7 +12,8 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-pub struct ScrollViewer<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct ScrollViewer<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     pub widget: Widget<M, C>,
     pub content: Handle<UINode<M, C>>,
     pub scroll_panel: Handle<UINode<M, C>>,
@@ -20,7 +21,9 @@ pub struct ScrollViewer<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>
     pub h_scroll_bar: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for ScrollViewer<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+    for ScrollViewer<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -28,13 +31,15 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for ScrollV
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for ScrollViewer<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+    for ScrollViewer<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollViewer<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollViewer<M, C> {
     pub fn new(
         widget: Widget<M, C>,
         content: Handle<UINode<M, C>>,
@@ -64,19 +69,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollViewer<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
     for ScrollViewer<M, C>
 {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::ScrollViewer(Self {
-            widget: self.widget.raw_copy(),
-            content: self.content,
-            scroll_panel: self.scroll_panel,
-            v_scroll_bar: self.v_scroll_bar,
-            h_scroll_bar: self.h_scroll_bar,
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.content = *node_map.get(&self.content).unwrap();
         self.scroll_panel = *node_map.get(&self.scroll_panel).unwrap();
@@ -223,14 +218,14 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C>
     }
 }
 
-pub struct ScrollViewerBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct ScrollViewerBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: Handle<UINode<M, C>>,
     h_scroll_bar: Option<Handle<UINode<M, C>>>,
     v_scroll_bar: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollViewerBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

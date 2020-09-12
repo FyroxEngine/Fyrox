@@ -47,7 +47,8 @@ pub struct SelectionRange {
 
 pub type FilterCallback = dyn FnMut(char) -> bool;
 
-pub struct TextBox<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct TextBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     caret_line: usize,
     caret_offset: usize,
@@ -63,13 +64,13 @@ pub struct TextBox<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
     filter: Option<Rc<RefCell<FilterCallback>>>,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Debug for TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Debug for TextBox<M, C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("TextBox")
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for TextBox<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -77,13 +78,13 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Deref for TextBox
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> DerefMut for TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for TextBox<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -360,29 +361,9 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TextBox<M, C> {
     }
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for TextBox<M, C> {
-    fn raw_copy(&self) -> UINode<M, C> {
-        UINode::TextBox(Self {
-            widget: self.widget.raw_copy(),
-            caret_line: self.caret_line,
-            caret_offset: self.caret_offset,
-            caret_visible: self.caret_visible,
-            blink_timer: self.blink_timer,
-            blink_interval: self.blink_interval,
-            formatted_text: RefCell::new(
-                FormattedTextBuilder::new()
-                    .with_font(self.formatted_text.borrow().get_font().unwrap())
-                    .build(),
-            ),
-            selection_range: self.selection_range,
-            selecting: self.selecting,
-            selection_brush: self.selection_brush.clone(),
-            caret_brush: self.caret_brush.clone(),
-            has_focus: false,
-            filter: None,
-        })
-    }
-
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+    for TextBox<M, C>
+{
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
@@ -614,7 +595,7 @@ impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> Control<M, C> for
     }
 }
 
-pub struct TextBoxBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> {
+pub struct TextBoxBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     font: Option<Arc<Mutex<Font>>>,
     text: String,
@@ -626,7 +607,7 @@ pub struct TextBoxBuilder<M: 'static + std::fmt::Debug, C: 'static + Control<M, 
     wrap: bool,
 }
 
-impl<M: 'static + std::fmt::Debug, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
