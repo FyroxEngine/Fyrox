@@ -380,7 +380,7 @@ pub enum CheckBoxMessage {
 }
 
 impl CheckBoxMessage {
-    define_constructor_unbound!(CheckBox(CheckBoxMessage:Check) => fn value(Option<bool>));
+    define_constructor_unbound!(CheckBox(CheckBoxMessage:Check) => fn checked(Option<bool>));
 }
 
 #[derive(Debug, Clone)]
