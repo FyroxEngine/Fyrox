@@ -5,8 +5,6 @@ use crate::{
     },
     GameEngine,
 };
-use rg3d::gui::text::TextBuilder;
-use rg3d::gui::HorizontalAlignment;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -18,10 +16,11 @@ use rg3d::{
         image::ImageBuilder,
         message::{FileBrowserMessage, UiMessageData, WidgetMessage},
         scroll_viewer::ScrollViewerBuilder,
+        text::TextBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        Control, Orientation, Thickness,
+        Control, HorizontalAlignment, Orientation, Thickness,
     },
     resource::{texture::Texture, texture::TextureKind},
     scene::{base::BaseBuilder, camera::CameraBuilder, node::Node, Scene},
@@ -35,7 +34,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AssetItem {
     widget: CustomWidget,
     pub path: PathBuf,
@@ -66,23 +65,7 @@ impl DerefMut for AssetItem {
     }
 }
 
-impl Clone for AssetItem {
-    fn clone(&self) -> Self {
-        Self {
-            widget: self.widget.raw_copy(),
-            path: self.path.clone(),
-            kind: AssetKind::Unknown,
-            preview: self.preview,
-            selected: self.selected,
-        }
-    }
-}
-
 impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
-    fn raw_copy(&self) -> UiNode {
-        UiNode::User(EditorUiNode::AssetItem(self.clone()))
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
         drawing_context.push_rect_filled(&bounds, None);

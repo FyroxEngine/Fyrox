@@ -48,6 +48,7 @@ pub struct WorldOutliner {
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
 }
 
+#[derive(Clone)]
 pub struct SceneItem {
     tree: Tree<EditorUiMessage, EditorUiNode>,
     node: Handle<Node>,
@@ -60,19 +61,6 @@ pub struct SceneItem {
 impl Debug for SceneItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "SceneItem")
-    }
-}
-
-impl Clone for SceneItem {
-    fn clone(&self) -> Self {
-        Self {
-            tree: self.tree.clone(),
-            node: self.node,
-            visibility_toggle: self.visibility_toggle,
-            sender: self.sender.clone(),
-            visibility: self.visibility,
-            resource_manager: self.resource_manager.clone(),
-        }
     }
 }
 
@@ -91,10 +79,6 @@ impl DerefMut for SceneItem {
 }
 
 impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
-    fn raw_copy(&self) -> UiNode {
-        UiNode::User(EditorUiNode::SceneItem(self.clone()))
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
         self.tree.resolve(node_map);
     }

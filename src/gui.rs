@@ -10,17 +10,17 @@ use rg3d::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AssetItemMessage {
     Select(bool),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum SceneItemMessage {
     NodeVisibility(bool),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EditorUiMessage {
     AssetItem(AssetItemMessage),
     SceneItem(SceneItemMessage),
@@ -55,7 +55,7 @@ pub type UiMessage = rg3d::gui::message::UiMessage<EditorUiMessage, EditorUiNode
 pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, EditorUiMessage, EditorUiNode>;
 pub type UiWidgetBuilder = rg3d::gui::widget::WidgetBuilder<EditorUiMessage, EditorUiNode>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EditorUiNode {
     AssetItem(AssetItem),
     SceneItem(SceneItem),
@@ -85,10 +85,6 @@ impl DerefMut for EditorUiNode {
 }
 
 impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
-    fn raw_copy(&self) -> UiNode {
-        static_dispatch!(self, raw_copy,)
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping<EditorUiMessage, EditorUiNode>) {
         static_dispatch!(self, resolve, node_map);
     }
