@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     core::{math::vec2::Vec2, pool::Handle},
@@ -20,7 +21,7 @@ pub enum Placement {
 }
 
 #[derive(Clone)]
-pub struct Popup<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Popup<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     placement: Placement,
     stays_open: bool,
@@ -29,7 +30,9 @@ pub struct Popup<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C
     body: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Popup<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Popup<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -37,13 +40,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Popup<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Popup<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Popup<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -60,18 +65,21 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
-            UiMessageData::Popup(msg) if message.destination == self.handle() => match msg {
+        match &message.data() {
+            UiMessageData::Popup(msg) if message.destination() == self.handle() => match msg {
                 PopupMessage::Open => {
                     if !self.is_open {
                         self.is_open = true;
-                        ui.send_message(WidgetMessage::visibility(self.handle(), true));
+                        ui.send_message(WidgetMessage::visibility(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
                         ui.push_picking_restriction(self.handle());
-                        ui.send_message(UiMessage {
-                            data: UiMessageData::Widget(WidgetMessage::TopMost),
-                            destination: self.handle(),
-                            handled: false,
-                        });
+                        ui.send_message(WidgetMessage::topmost(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
                         let position = match self.placement {
                             Placement::LeftTop => Vec2::ZERO,
                             Placement::RightTop => {
@@ -97,13 +105,21 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                             Placement::Cursor => ui.cursor_position(),
                             Placement::Position(position) => position,
                         };
-                        ui.send_message(WidgetMessage::desired_position(self.handle(), position));
+                        ui.send_message(WidgetMessage::desired_position(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            position,
+                        ));
                     }
                 }
                 PopupMessage::Close => {
                     if self.is_open {
                         self.is_open = false;
-                        ui.send_message(WidgetMessage::visibility(self.handle(), false));
+                        ui.send_message(WidgetMessage::visibility(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            false,
+                        ));
                         ui.remove_picking_restriction(self.handle());
                         if ui.captured_node() == self.handle() {
                             ui.release_mouse_capture();
@@ -112,10 +128,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                 }
                 PopupMessage::Content(content) => {
                     if self.content.is_some() {
-                        ui.send_message(WidgetMessage::remove(self.content));
+                        ui.send_message(WidgetMessage::remove(
+                            self.content,
+                            MessageDirection::ToWidget,
+                        ));
                     }
                     self.content = *content;
-                    ui.link_nodes(self.content, self.body);
+
+                    ui.send_message(WidgetMessage::link(
+                        self.content,
+                        MessageDirection::ToWidget,
+                        self.body,
+                    ));
                 }
                 &PopupMessage::Placement(placement) => {
                     self.placement = placement;
@@ -139,25 +163,29 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
             {
                 let pos = ui.cursor_position();
                 if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
-                    ui.send_message(UiMessage {
-                        data: UiMessageData::Popup(PopupMessage::Close),
-                        destination: self.handle(),
-                        handled: false,
-                    });
+                    ui.send_message(PopupMessage::close(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                    ));
                 }
             }
         }
     }
 }
 
-pub struct PopupBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct PopupBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     placement: Placement,
     stays_open: bool,
     content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> PopupBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    PopupBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

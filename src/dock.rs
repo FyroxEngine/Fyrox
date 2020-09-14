@@ -5,7 +5,7 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
-use crate::message::CursorIcon;
+use crate::message::{CursorIcon, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -22,8 +22,8 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug)]
-pub enum TileContent<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+#[derive(Debug, PartialEq)]
+pub enum TileContent<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     Empty,
     Window(Handle<UINode<M, C>>),
     VerticalTiles {
@@ -42,7 +42,9 @@ pub enum TileContent<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<
     },
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Clone for TileContent<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Clone
+    for TileContent<M, C>
+{
     fn clone(&self) -> Self {
         match self {
             TileContent::Empty => TileContent::Empty,
@@ -59,7 +61,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Clone for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TileContent<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TileContent<M, C>
+{
     pub fn is_empty(&self) -> bool {
         match self {
             TileContent::Empty => true,
@@ -69,7 +73,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TileConte
 }
 
 #[derive(Clone)]
-pub struct Tile<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Tile<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     left_anchor: Handle<UINode<M, C>>,
     right_anchor: Handle<UINode<M, C>>,
@@ -82,7 +86,9 @@ pub struct Tile<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>
     drop_anchor: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Tile<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Tile<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -90,13 +96,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Tile<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Tile<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Tile<M, C>
 {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -218,8 +226,16 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
             // library is that tile has to explicitly set width of child windows, otherwise
             // layout will be weird - window will most likely will stay at its previous size.
             if child_handle != self.splitter {
-                ui.send_message(WidgetMessage::width(child_handle, bounds.w));
-                ui.send_message(WidgetMessage::height(child_handle, bounds.h));
+                ui.send_message(WidgetMessage::width(
+                    child_handle,
+                    MessageDirection::ToWidget,
+                    bounds.w,
+                ));
+                ui.send_message(WidgetMessage::height(
+                    child_handle,
+                    MessageDirection::ToWidget,
+                    bounds.h,
+                ));
             }
         }
 
@@ -233,9 +249,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Tile(msg) => {
-                if message.destination == self.handle() {
+                if message.destination() == self.handle() {
                     match msg {
                         TileMessage::Content(content) => {
                             self.content = content.clone();
@@ -244,43 +260,61 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 TileContent::Empty => {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.splitter,
+                                        MessageDirection::ToWidget,
                                         false,
                                     ));
                                 }
                                 &TileContent::Window(window) => {
-                                    ui.send_message(WidgetMessage::link(window, self.handle()));
+                                    ui.send_message(WidgetMessage::link(
+                                        window,
+                                        MessageDirection::ToWidget,
+                                        self.handle(),
+                                    ));
 
                                     ui.send_message(WidgetMessage::visibility(
                                         self.splitter,
+                                        MessageDirection::ToWidget,
                                         false,
                                     ));
                                 }
                                 TileContent::VerticalTiles { tiles, .. }
                                 | TileContent::HorizontalTiles { tiles, .. } => {
                                     for &tile in tiles {
-                                        ui.send_message(WidgetMessage::link(tile, self.handle()));
+                                        ui.send_message(WidgetMessage::link(
+                                            tile,
+                                            MessageDirection::ToWidget,
+                                            self.handle(),
+                                        ));
                                     }
 
-                                    ui.send_message(WidgetMessage::visibility(self.splitter, true));
+                                    ui.send_message(WidgetMessage::visibility(
+                                        self.splitter,
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ));
 
                                     match content {
                                         TileContent::HorizontalTiles { .. } => {
                                             ui.send_message(WidgetMessage::width(
                                                 self.splitter,
+                                                MessageDirection::ToWidget,
                                                 DEFAULT_SPLITTER_SIZE,
                                             ));
                                             ui.send_message(WidgetMessage::height(
                                                 self.splitter,
+                                                MessageDirection::ToWidget,
                                                 std::f32::INFINITY,
                                             ));
                                         }
                                         TileContent::VerticalTiles { .. } => {
                                             ui.send_message(WidgetMessage::width(
                                                 self.splitter,
+                                                MessageDirection::ToWidget,
                                                 std::f32::INFINITY,
                                             ));
                                             ui.send_message(WidgetMessage::height(
                                                 self.splitter,
+                                                MessageDirection::ToWidget,
                                                 DEFAULT_SPLITTER_SIZE,
                                             ));
                                         }
@@ -295,15 +329,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
             UiMessageData::Widget(msg) => {
                 match msg {
                     &WidgetMessage::MouseDown { .. } => {
-                        if !message.handled && message.destination == self.splitter {
-                            message.handled = true;
+                        if !message.handled() && message.destination() == self.splitter {
+                            message.set_handled(true);
                             self.dragging_splitter = true;
                             ui.capture_mouse(self.splitter);
                         }
                     }
                     &WidgetMessage::MouseUp { .. } => {
-                        if !message.handled && message.destination == self.splitter {
-                            message.handled = true;
+                        if !message.handled() && message.destination() == self.splitter {
+                            message.set_handled(true);
                             self.dragging_splitter = false;
                             ui.release_mouse_capture();
                         }
@@ -351,15 +385,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     // linking with current tile.
                                                     ui.send_message(WidgetMessage::unlink(
                                                         sub_tile_wnd,
+                                                        MessageDirection::ToWidget,
                                                     ));
 
                                                     ui.send_message(TileMessage::content(
                                                         self.handle,
+                                                        MessageDirection::ToWidget,
                                                         TileContent::Window(sub_tile_wnd),
                                                     ));
                                                     // Splitter must be hidden.
                                                     ui.send_message(WidgetMessage::visibility(
                                                         self.splitter,
+                                                        MessageDirection::ToWidget,
                                                         false,
                                                     ));
                                                 }
@@ -372,11 +409,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     for &sub_tile in &sub_tiles {
                                                         ui.send_message(WidgetMessage::unlink(
                                                             sub_tile,
+                                                            MessageDirection::ToWidget,
                                                         ));
                                                     }
                                                     // Transfer sub tiles to current tile.
                                                     ui.send_message(TileMessage::content(
                                                         self.handle,
+                                                        MessageDirection::ToWidget,
                                                         TileContent::VerticalTiles {
                                                             splitter,
                                                             tiles: sub_tiles,
@@ -390,11 +429,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     for &sub_tile in &sub_tiles {
                                                         ui.send_message(WidgetMessage::unlink(
                                                             sub_tile,
+                                                            MessageDirection::ToWidget,
                                                         ));
                                                     }
                                                     // Transfer sub tiles to current tile.
                                                     ui.send_message(TileMessage::content(
                                                         self.handle,
+                                                        MessageDirection::ToWidget,
                                                         TileContent::HorizontalTiles {
                                                             splitter,
                                                             tiles: sub_tiles,
@@ -408,7 +449,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
 
                                     // Destroy tiles.
                                     for &tile in &tiles {
-                                        ui.send_message(WidgetMessage::remove(tile));
+                                        ui.send_message(WidgetMessage::remove(
+                                            tile,
+                                            MessageDirection::ToWidget,
+                                        ));
                                     }
                                 }
                             }
@@ -423,23 +467,23 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                 if let WindowMessage::Move(_) = msg {
                     // Check if we dragging child window.
                     let content_moved = match self.content {
-                        TileContent::Window(window) => window == message.destination,
+                        TileContent::Window(window) => window == message.destination(),
                         _ => false,
                     };
 
                     if content_moved {
-                        if let UINode::Window(window) = ui.node(message.destination) {
+                        if let UINode::Window(window) = ui.node(message.destination()) {
                             if window.drag_delta().len() > 20.0 {
                                 ui.send_message(TileMessage::content(
                                     self.handle,
+                                    MessageDirection::ToWidget,
                                     TileContent::Empty,
                                 ));
 
-                                ui.send_message(UiMessage {
-                                    handled: false,
-                                    data: UiMessageData::Widget(WidgetMessage::Unlink),
-                                    destination: message.destination,
-                                });
+                                ui.send_message(WidgetMessage::unlink(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                ));
 
                                 if let Some(docking_manager) =
                                     ui.try_borrow_by_criteria_up_mut(self.parent(), |n| {
@@ -452,7 +496,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 {
                                     if let UINode::DockingManager(docking_manager) = docking_manager
                                     {
-                                        docking_manager.floating_windows.push(message.destination);
+                                        docking_manager
+                                            .floating_windows
+                                            .push(message.destination());
                                     } else {
                                         unreachable!();
                                     }
@@ -469,13 +515,17 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     // We have to use preview_message for docking purposes because dragged window detached
     // from docking manager and handle_routed_message won't receive any messages from window.
     fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::Unlink = msg {
                     if let TileContent::Empty | TileContent::Window(_) = self.content {
                         // Show anchors.
                         for &anchor in &self.anchors() {
-                            ui.send_message(WidgetMessage::visibility(anchor, true));
+                            ui.send_message(WidgetMessage::visibility(
+                                anchor,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
                         }
                     }
                 }
@@ -492,7 +542,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         // Make sure we are dragging one of floating windows of parent docking manager.
                         if docking_manager
                             .floating_windows
-                            .contains(&message.destination)
+                            .contains(&message.destination())
                         {
                             match msg {
                                 &WindowMessage::Move(_) => {
@@ -505,6 +555,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         for &anchor in &self.anchors() {
                                             ui.send_message(WidgetMessage::background(
                                                 anchor,
+                                                MessageDirection::ToWidget,
                                                 Brush::Solid(DEFAULT_ANCHOR_COLOR),
                                             ))
                                         }
@@ -515,6 +566,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.left_anchor,
+                                                MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
                                             self.drop_anchor = self.left_anchor;
@@ -525,6 +577,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.right_anchor,
+                                                MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
                                             self.drop_anchor = self.right_anchor;
@@ -535,6 +588,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.top_anchor,
+                                                MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
                                             self.drop_anchor = self.top_anchor;
@@ -545,6 +599,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.bottom_anchor,
+                                                MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
                                             self.drop_anchor = self.bottom_anchor;
@@ -555,6 +610,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         {
                                             ui.send_message(WidgetMessage::background(
                                                 self.center_anchor,
+                                                MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
                                             self.drop_anchor = self.center_anchor;
@@ -570,7 +626,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         // Show anchors.
                                         for &anchor in &self.anchors() {
                                             ui.send_message(WidgetMessage::visibility(
-                                                anchor, true,
+                                                anchor,
+                                                MessageDirection::ToWidget,
+                                                true,
                                             ));
                                         }
                                     }
@@ -578,7 +636,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 WindowMessage::MoveEnd => {
                                     // Hide anchors.
                                     for &anchor in &self.anchors() {
-                                        ui.send_message(WidgetMessage::visibility(anchor, false));
+                                        ui.send_message(WidgetMessage::visibility(
+                                            anchor,
+                                            MessageDirection::ToWidget,
+                                            false,
+                                        ));
                                     }
 
                                     // Drop if has any drop anchor.
@@ -588,15 +650,14 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                 if self.drop_anchor == self.center_anchor {
                                                     ui.send_message(TileMessage::content(
                                                         self.handle,
-                                                        TileContent::Window(message.destination),
+                                                        MessageDirection::ToWidget,
+                                                        TileContent::Window(message.destination()),
                                                     ));
-                                                    ui.send_message(UiMessage {
-                                                        handled: false,
-                                                        data: UiMessageData::Widget(
-                                                            WidgetMessage::LinkWith(self.handle()),
-                                                        ),
-                                                        destination: message.destination,
-                                                    });
+                                                    ui.send_message(WidgetMessage::link(
+                                                        message.destination(),
+                                                        MessageDirection::ToWidget,
+                                                        self.handle,
+                                                    ));
                                                 }
                                             }
                                             TileContent::Window(_) => {
@@ -604,7 +665,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     // Split horizontally, dock to left.
                                                     self.split(
                                                         ui,
-                                                        message.destination,
+                                                        message.destination(),
                                                         SplitDirection::Horizontal,
                                                         true,
                                                     );
@@ -612,7 +673,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     // Split horizontally, dock to right.
                                                     self.split(
                                                         ui,
-                                                        message.destination,
+                                                        message.destination(),
                                                         SplitDirection::Horizontal,
                                                         false,
                                                     );
@@ -620,7 +681,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     // Split vertically, dock to top.
                                                     self.split(
                                                         ui,
-                                                        message.destination,
+                                                        message.destination(),
                                                         SplitDirection::Vertical,
                                                         true,
                                                     );
@@ -628,7 +689,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                                     // Split vertically, dock to bottom.
                                                     self.split(
                                                         ui,
-                                                        message.destination,
+                                                        message.destination(),
                                                         SplitDirection::Vertical,
                                                         false,
                                                     );
@@ -655,7 +716,7 @@ enum SplitDirection {
     Vertical,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Tile<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Tile<M, C> {
     pub fn anchors(&self) -> [Handle<UINode<M, C>>; 5] {
         [
             self.left_anchor,
@@ -701,12 +762,14 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Tile<M, C
         if existing_content.is_some() {
             ui.send_message(TileMessage::content(
                 if first { second_tile } else { first_tile },
+                MessageDirection::ToWidget,
                 TileContent::Window(existing_content),
             ));
         }
 
         ui.send_message(TileMessage::content(
             self.handle,
+            MessageDirection::ToWidget,
             match direction {
                 SplitDirection::Horizontal => TileContent::HorizontalTiles {
                     tiles: [first_tile, second_tile],
@@ -722,12 +785,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Tile<M, C
 }
 
 #[derive(Clone)]
-pub struct DockingManager<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct DockingManager<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget: Widget<M, C>,
     floating_windows: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
     for DockingManager<M, C>
 {
     type Target = Widget<M, C>;
@@ -737,7 +803,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for DockingManager<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -745,7 +811,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for DockingManager<M, C>
 {
     fn handle_routed_message(
@@ -757,12 +823,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 
     fn preview_message(&mut self, _ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        if let UiMessageData::Widget(msg) = &message.data {
+        if let UiMessageData::Widget(msg) = &message.data() {
             if let WidgetMessage::LinkWith(_) = msg {
                 if let Some(pos) = self
                     .floating_windows
                     .iter()
-                    .position(|&i| i == message.destination)
+                    .position(|&i| i == message.destination())
                 {
                     self.floating_windows.remove(pos);
                 }
@@ -771,12 +837,17 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct DockingManagerBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct DockingManagerBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     floating_windows: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DockingManagerBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    DockingManagerBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -799,7 +870,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DockingMa
     }
 }
 
-pub struct TileBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TileBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget_builder: WidgetBuilder<M, C>,
     content: TileContent<M, C>,
 }
@@ -807,7 +879,10 @@ pub struct TileBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Contro
 pub const DEFAULT_SPLITTER_SIZE: f32 = 6.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
-pub fn make_default_anchor<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+pub fn make_default_anchor<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+>(
     ctx: &mut BuildContext<M, C>,
     row: usize,
     column: usize,
@@ -826,7 +901,9 @@ pub fn make_default_anchor<M: 'static + std::fmt::Debug + Clone, C: 'static + Co
     .build(ctx)
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TileBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TileBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

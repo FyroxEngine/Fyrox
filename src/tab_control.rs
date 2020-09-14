@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -10,19 +11,22 @@ use crate::{
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Clone)]
-pub struct Tab<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+#[derive(Clone, PartialEq)]
+pub struct Tab<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     header_button: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
 }
 
 #[derive(Clone)]
-pub struct TabControl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TabControl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget: Widget<M, C>,
     tabs: Vec<Tab<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for TabControl<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for TabControl<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -30,7 +34,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for TabControl<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -38,7 +42,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for TabControl<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -55,15 +59,19 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Button(msg) = &message.data {
+        if let UiMessageData::Button(msg) = &message.data() {
             if let ButtonMessage::Click = msg {
                 for (i, tab) in self.tabs.iter().enumerate() {
-                    if message.destination == tab.header_button
+                    if message.destination() == tab.header_button
                         && tab.header_button.is_some()
                         && tab.content.is_some()
                     {
                         for (j, other_tab) in self.tabs.iter().enumerate() {
-                            ui.send_message(WidgetMessage::visibility(other_tab.content, j == i));
+                            ui.send_message(WidgetMessage::visibility(
+                                other_tab.content,
+                                MessageDirection::ToWidget,
+                                j == i,
+                            ));
                         }
                         break;
                     }
@@ -84,17 +92,25 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct TabControlBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TabControlBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     tabs: Vec<TabDefinition<M, C>>,
 }
 
-pub struct TabDefinition<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TabDefinition<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     pub header: Handle<UINode<M, C>>,
     pub content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TabControlBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TabControlBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

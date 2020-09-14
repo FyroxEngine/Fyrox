@@ -12,11 +12,13 @@ use std::ops::{Deref, DerefMut};
 
 /// Allows user to directly set position and size of a node
 #[derive(Clone)]
-pub struct Canvas<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Canvas<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Canvas<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Canvas<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -24,13 +26,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Canvas<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Canvas<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Canvas<M, C>
 {
     fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {
@@ -73,17 +77,22 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Canvas<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Canvas<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self { widget }
     }
 }
 
-pub struct CanvasBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct CanvasBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> CanvasBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    CanvasBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self { widget_builder }
     }

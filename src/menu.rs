@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -21,12 +22,14 @@ use std::{
 };
 
 #[derive(Clone)]
-pub struct Menu<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Menu<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     active: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Menu<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Menu<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -34,13 +37,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Menu<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Menu<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Menu<M, C>
 {
     fn handle_routed_message(
@@ -50,7 +55,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::Menu(msg) = &message.data {
+        if let UiMessageData::Menu(msg) = &message.data() {
             match msg {
                 MenuMessage::Activate => {
                     if !self.active {
@@ -68,11 +73,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         while let Some(handle) = stack.pop() {
                             let node = ui.node(handle);
                             if let UINode::MenuItem(item) = node {
-                                ui.send_message(UiMessage {
-                                    handled: false,
-                                    data: UiMessageData::MenuItem(MenuItemMessage::Close),
-                                    destination: handle,
-                                });
+                                ui.send_message(MenuItemMessage::close(
+                                    handle,
+                                    MessageDirection::ToWidget,
+                                ));
                                 // We have to search in popup content too because menu shows its content
                                 // in popup and content could be another menu item.
                                 stack.push(item.popup);
@@ -124,11 +128,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     }
 
                     if !any_picked {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Menu(MenuMessage::Deactivate),
-                            destination: self.handle(),
-                        });
+                        ui.send_message(MenuMessage::deactivate(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
                     }
                 }
             }
@@ -143,7 +146,7 @@ enum MenuItemPlacement {
 }
 
 #[derive(Clone)]
-pub struct MenuItem<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct MenuItem<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     popup: Handle<UINode<M, C>>,
@@ -151,7 +154,9 @@ pub struct MenuItem<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M
     placement: MenuItemPlacement,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for MenuItem<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for MenuItem<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -159,7 +164,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for MenuItem<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for MenuItem<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
@@ -170,7 +177,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut 
 // of parent menu - we can't just traverse the tree because popup is not a child
 // of menu item, instead we trying to fetch handle to parent menu item from popup's
 // user data and continue up-search until we find menu.
-fn find_menu<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+fn find_menu<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
     from: Handle<UINode<M, C>>,
     ui: &UserInterface<M, C>,
 ) -> Handle<UINode<M, C>> {
@@ -203,7 +210,7 @@ fn find_menu<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for MenuItem<M, C>
 {
     fn handle_routed_message(
@@ -213,7 +220,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
                 match msg {
                     WidgetMessage::MouseDown { .. } => {
@@ -221,48 +228,46 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         if menu.is_some() {
                             // Activate menu so it user will be able to open submenus by
                             // mouse hover.
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Menu(MenuMessage::Activate),
-                                destination: menu,
-                            });
+                            ui.send_message(MenuMessage::activate(
+                                menu,
+                                MessageDirection::ToWidget,
+                            ));
 
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::MenuItem(MenuItemMessage::Open),
-                                destination: self.handle(),
-                            });
+                            ui.send_message(MenuItemMessage::open(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if !message.handled {
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::MenuItem(MenuItemMessage::Click),
-                                destination: self.handle(),
-                            });
+                        if !message.handled() {
+                            ui.send_message(MenuItemMessage::click(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
                             if self.items.is_empty() {
                                 let menu = find_menu(self.parent(), ui);
                                 if menu.is_some() {
-                                    ui.send_message(UiMessage {
-                                        handled: false,
-                                        data: UiMessageData::Menu(MenuMessage::Deactivate),
-                                        destination: menu,
-                                    });
+                                    ui.send_message(MenuMessage::deactivate(
+                                        menu,
+                                        MessageDirection::ToWidget,
+                                    ));
                                 }
                             }
-                            message.handled = true;
+                            message.set_handled(true);
                         }
                     }
                     WidgetMessage::MouseLeave => {
                         ui.send_message(WidgetMessage::background(
                             self.back,
+                            MessageDirection::ToWidget,
                             Brush::Solid(Color::opaque(50, 50, 50)),
                         ));
                     }
                     WidgetMessage::MouseEnter => {
                         ui.send_message(WidgetMessage::background(
                             self.back,
+                            MessageDirection::ToWidget,
                             Brush::Solid(Color::opaque(130, 130, 130)),
                         ));
 
@@ -272,11 +277,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         if menu.is_some() {
                             if let UINode::Menu(menu) = ui.node(menu) {
                                 if menu.active {
-                                    ui.send_message(UiMessage {
-                                        handled: false,
-                                        data: UiMessageData::MenuItem(MenuItemMessage::Open),
-                                        destination: self.handle(),
-                                    });
+                                    ui.send_message(MenuItemMessage::open(
+                                        self.handle(),
+                                        MessageDirection::ToWidget,
+                                    ));
                                 }
                             }
                         }
@@ -298,26 +302,22 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                             };
 
                             // Open popup.
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Popup(PopupMessage::Placement(
-                                    Placement::Position(position),
-                                )),
-                                destination: self.popup,
-                            });
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Popup(PopupMessage::Open),
-                                destination: self.popup,
-                            });
+                            ui.send_message(PopupMessage::placement(
+                                self.popup,
+                                MessageDirection::ToWidget,
+                                Placement::Position(position),
+                            ));
+                            ui.send_message(PopupMessage::open(
+                                self.popup,
+                                MessageDirection::ToWidget,
+                            ));
                         }
                     }
                     MenuItemMessage::Close => {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Popup(PopupMessage::Close),
-                            destination: self.popup,
-                        });
+                        ui.send_message(PopupMessage::close(
+                            self.popup,
+                            MessageDirection::ToWidget,
+                        ));
                     }
                     MenuItemMessage::Click => {}
                 }
@@ -329,11 +329,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
-        if message.destination != self.handle() {
-            if let UiMessageData::MenuItem(msg) = &message.data {
+        if message.destination() != self.handle() {
+            if let UiMessageData::MenuItem(msg) = &message.data() {
                 if let MenuItemMessage::Open = msg {
                     let mut found = false;
-                    let mut handle = message.destination;
+                    let mut handle = message.destination();
                     while handle.is_some() {
                         if handle == self.handle() {
                             found = true;
@@ -351,11 +351,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     }
 
                     if !found {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::MenuItem(MenuItemMessage::Close),
-                            destination: self.handle(),
-                        });
+                        ui.send_message(MenuItemMessage::close(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
                     }
                 }
             }
@@ -363,12 +362,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct MenuBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct MenuBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> MenuBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    MenuBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -406,7 +408,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> MenuBuild
     }
 }
 
-pub enum MenuItemContent<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub enum MenuItemContent<
+    'a,
+    'b,
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     /// Empty menu item.
     None,
     /// Quick-n-dirty way of building elements. It can cover most of use
@@ -425,7 +432,7 @@ pub enum MenuItemContent<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'stati
     Node(Handle<UINode<M, C>>),
 }
 
-impl<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
+impl<'a, 'b, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
     MenuItemContent<'a, 'b, M, C>
 {
     pub fn text_with_shortcut(text: &'a str, shortcut: &'b str) -> Self {
@@ -445,14 +452,18 @@ impl<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
     }
 }
 
-pub struct MenuItemBuilder<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
-{
+pub struct MenuItemBuilder<
+    'a,
+    'b,
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     content: MenuItemContent<'a, 'b, M, C>,
 }
 
-impl<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
+impl<'a, 'b, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
     MenuItemBuilder<'a, 'b, M, C>
 {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {

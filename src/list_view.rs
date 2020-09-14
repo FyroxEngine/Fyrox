@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
@@ -12,7 +13,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ListView<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ListView<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     selected_index: Option<usize>,
     item_containers: Vec<Handle<UINode<M, C>>>,
@@ -20,7 +21,9 @@ pub struct ListView<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for ListView<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for ListView<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -28,13 +31,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for ListView<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for ListView<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ListView<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> ListView<M, C> {
     pub fn new(widget: Widget<M, C>, items: Vec<Handle<UINode<M, C>>>) -> Self {
         Self {
             widget,
@@ -59,12 +64,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ListView<
 }
 
 #[derive(Clone)]
-pub struct ListViewItem<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ListViewItem<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget: Widget<M, C>,
     index: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
     for ListViewItem<M, C>
 {
     type Target = Widget<M, C>;
@@ -74,7 +82,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for ListViewItem<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -82,13 +90,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ListViewItem<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ListViewItem<M, C>
+{
     pub fn index(&self) -> usize {
         self.index
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for ListViewItem<M, C>
 {
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -116,26 +126,24 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
             }
         });
 
-        if let UiMessageData::Widget(msg) = &message.data {
+        if let UiMessageData::Widget(msg) = &message.data() {
             if let WidgetMessage::MouseUp { .. } = msg {
-                if !message.handled {
+                if !message.handled() {
                     // Explicitly set selection on parent items control. This will send
                     // SelectionChanged message and all items will react.
-                    ui.send_message(UiMessage {
-                        handled: false,
-                        data: UiMessageData::ListView(ListViewMessage::SelectionChanged(Some(
-                            self.index,
-                        ))),
-                        destination: items_control,
-                    });
-                    message.handled = true;
+                    ui.send_message(ListViewMessage::selection(
+                        items_control,
+                        MessageDirection::ToWidget,
+                        Some(self.index),
+                    ));
+                    message.set_handled(true);
                 }
             }
         }
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for ListView<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -155,20 +163,27 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::ListView(msg) = &message.data {
-            if message.destination == self.handle() {
+        if let UiMessageData::ListView(msg) = &message.data() {
+            if message.destination() == self.handle() {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Remove previous items.
                         for child in ui.node(self.panel).children().to_vec() {
-                            ui.send_message(WidgetMessage::remove(child));
+                            ui.send_message(WidgetMessage::remove(
+                                child,
+                                MessageDirection::ToWidget,
+                            ));
                         }
 
                         // Generate new items.
                         let item_containers = generate_item_containers(&mut ui.build_ctx(), items);
 
                         for item_container in item_containers.iter() {
-                            ui.link_nodes(*item_container, self.panel);
+                            ui.send_message(WidgetMessage::link(
+                                *item_container,
+                                MessageDirection::ToWidget,
+                                self.panel,
+                            ));
                         }
 
                         self.item_containers = item_containers;
@@ -178,7 +193,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         let item_container =
                             generate_item_container(&mut ui.build_ctx(), item, self.items.len());
 
-                        ui.link_nodes(item_container, self.panel);
+                        ui.send_message(WidgetMessage::link(
+                            item,
+                            MessageDirection::ToWidget,
+                            self.panel,
+                        ));
 
                         self.item_containers.push(item_container);
                         self.items.push(item);
@@ -194,7 +213,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         UINode::ListView(_) => {}
                                         UINode::Decorator(_) => {
                                             ui.send_message(DecoratorMessage::select(
-                                                handle, select,
+                                                handle,
+                                                MessageDirection::ToWidget,
+                                                select,
                                             ));
                                         }
                                         _ => stack.extend_from_slice(node.children()),
@@ -213,14 +234,19 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct ListViewBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ListViewBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     panel: Option<Handle<UINode<M, C>>>,
     scroll_viewer: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ListViewBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ListViewBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -276,7 +302,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ListViewB
     }
 }
 
-fn generate_item_container<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+fn generate_item_container<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+>(
     ctx: &mut BuildContext<M, C>,
     item: Handle<UINode<M, C>>,
     index: usize,
@@ -289,7 +318,10 @@ fn generate_item_container<M: 'static + std::fmt::Debug + Clone, C: 'static + Co
     ctx.add_node(UINode::ListViewItem(item))
 }
 
-fn generate_item_containers<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+fn generate_item_containers<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+>(
     ctx: &mut BuildContext<M, C>,
     items: &[Handle<UINode<M, C>>],
 ) -> Vec<Handle<UINode<M, C>>> {

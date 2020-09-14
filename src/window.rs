@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
@@ -26,7 +27,7 @@ use std::{
 /// It has scrollable region for content, content can be any desired node or even other window.
 /// Window can be dragged by its title.
 #[derive(Clone)]
-pub struct Window<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Window<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     mouse_click_pos: Vec2,
     initial_position: Vec2,
@@ -80,7 +81,9 @@ impl Grip {
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Window<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Window<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -88,13 +91,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Window<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Window<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Window<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -175,17 +180,16 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
                 // Grip interaction have higher priority than other actions.
                 if self.can_resize {
                     match msg {
                         &WidgetMessage::MouseDown { pos, .. } => {
-                            ui.send_message(UiMessage {
-                                data: UiMessageData::Widget(WidgetMessage::TopMost),
-                                destination: self.handle(),
-                                handled: false,
-                            });
+                            ui.send_message(WidgetMessage::topmost(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
 
                             // Check grips.
                             for grip in self.grips.borrow_mut().iter_mut() {
@@ -245,14 +249,17 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                     {
                                         ui.send_message(WidgetMessage::desired_position(
                                             self.handle(),
+                                            MessageDirection::ToWidget,
                                             new_pos,
                                         ));
                                         ui.send_message(WidgetMessage::width(
                                             self.handle(),
+                                            MessageDirection::ToWidget,
                                             new_size.x,
                                         ));
                                         ui.send_message(WidgetMessage::height(
                                             self.handle(),
+                                            MessageDirection::ToWidget,
                                             new_size.y,
                                         ));
                                     }
@@ -267,82 +274,96 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     }
                 }
 
-                if (message.destination == self.header
-                    || ui.node(self.header).has_descendant(message.destination, ui))
-                    && !message.handled
+                if (message.destination() == self.header
+                    || ui
+                        .node(self.header)
+                        .has_descendant(message.destination(), ui))
+                    && !message.handled()
                     && !self.has_active_grip()
                 {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
-                            message.handled = true;
                             self.mouse_click_pos = *pos;
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Window(WindowMessage::MoveStart),
-                                destination: self.handle(),
-                            });
+                            ui.send_message(WindowMessage::move_start(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                            ));
+                            message.set_handled(true);
                         }
                         WidgetMessage::MouseUp { .. } => {
-                            message.handled = true;
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Window(WindowMessage::MoveEnd),
-                                destination: self.handle(),
-                            });
+                            ui.send_message(WindowMessage::move_end(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                            ));
+                            message.set_handled(true);
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
                             if self.is_dragging {
                                 self.drag_delta = *pos - self.mouse_click_pos;
                                 let new_pos = self.initial_position + self.drag_delta;
-                                ui.send_message(UiMessage {
-                                    handled: false,
-                                    data: UiMessageData::Window(WindowMessage::Move(new_pos)),
-                                    destination: self.handle(),
-                                });
+                                ui.send_message(WindowMessage::move_to(
+                                    self.handle(),
+                                    MessageDirection::FromWidget,
+                                    new_pos,
+                                ));
                             }
-                            message.handled = true;
+                            message.set_handled(true);
                         }
                         _ => (),
                     }
                 }
                 if let WidgetMessage::Unlink = msg {
-                    if message.destination == self.handle() {
+                    if message.destination() == self.handle() {
                         self.initial_position = self.screen_position;
                     }
                 }
             }
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.minimize_button {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Window(WindowMessage::Minimize(!self.minimized)),
-                            destination: self.handle(),
-                        });
-                    } else if message.destination == self.close_button {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Window(WindowMessage::Close),
-                            destination: self.handle(),
-                        });
+                    if message.destination() == self.minimize_button {
+                        ui.send_message(WindowMessage::minimize(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                            !self.minimized,
+                        ));
+                    } else if message.destination() == self.close_button {
+                        ui.send_message(WindowMessage::close(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                        ));
                     }
                 }
             }
             UiMessageData::Window(msg) => {
-                if message.destination == self.handle() {
+                if message.destination() == self.handle() {
                     match msg {
                         WindowMessage::Open => {
-                            ui.send_message(WidgetMessage::visibility(self.handle(), true));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
                         }
                         WindowMessage::OpenModal => {
                             if !self.visibility() {
-                                ui.send_message(WidgetMessage::visibility(self.handle(), true));
-                                ui.send_message(WidgetMessage::topmost(self.handle()));
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
+                                ui.send_message(WidgetMessage::topmost(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                ));
                                 ui.push_picking_restriction(self.handle());
                             }
                         }
                         WindowMessage::Close => {
-                            ui.send_message(WidgetMessage::visibility(self.handle(), false));
+                            ui.send_message(WidgetMessage::visibility(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                false,
+                            ));
                             ui.remove_picking_restriction(self.handle());
                         }
                         &WindowMessage::Minimize(minimized) => {
@@ -352,6 +373,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 if self.content.is_some() {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.content,
+                                        MessageDirection::ToWidget,
                                         !minimized,
                                     ));
                                 }
@@ -364,6 +386,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 if self.minimize_button.is_some() {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.minimize_button,
+                                        MessageDirection::ToWidget,
                                         value,
                                     ));
                                 }
@@ -376,6 +399,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 if self.close_button.is_some() {
                                     ui.send_message(WidgetMessage::visibility(
                                         self.close_button,
+                                        MessageDirection::ToWidget,
                                         value,
                                     ));
                                 }
@@ -385,6 +409,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                             if self.desired_local_position() != new_pos {
                                 ui.send_message(WidgetMessage::desired_position(
                                     self.handle(),
+                                    MessageDirection::ToWidget,
                                     new_pos,
                                 ));
                             }
@@ -407,30 +432,35 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         // re-create text everytime.
                                         ui.send_message(TextMessage::text(
                                             self.title,
+                                            MessageDirection::ToWidget,
                                             text.clone(),
                                         ));
                                     } else {
-                                        ui.send_message(WidgetMessage::remove(self.title));
+                                        ui.send_message(WidgetMessage::remove(
+                                            self.title,
+                                            MessageDirection::ToWidget,
+                                        ));
                                         self.title = make_text_title(&mut ui.build_ctx(), text);
                                     }
                                 }
                                 WindowTitle::Node(node) => {
                                     if self.title.is_some() {
                                         // Remove old title.
-                                        ui.send_message(WidgetMessage::remove(self.title));
+                                        ui.send_message(WidgetMessage::remove(
+                                            self.title,
+                                            MessageDirection::ToWidget,
+                                        ));
                                     }
 
                                     if node.is_some() {
                                         self.title = *node;
 
                                         // Attach new one.
-                                        ui.send_message(UiMessage {
-                                            handled: false,
-                                            data: UiMessageData::Widget(WidgetMessage::LinkWith(
-                                                self.title_grid,
-                                            )),
-                                            destination: self.title,
-                                        });
+                                        ui.send_message(WidgetMessage::link(
+                                            self.title,
+                                            MessageDirection::ToWidget,
+                                            self.title_grid,
+                                        ));
                                     }
                                 }
                             }
@@ -464,7 +494,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Window<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Window<M, C> {
     pub fn is_dragging(&self) -> bool {
         self.is_dragging
     }
@@ -483,7 +513,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Window<M,
     }
 }
 
-pub struct WindowBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct WindowBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     pub widget_builder: WidgetBuilder<M, C>,
     pub content: Handle<UINode<M, C>>,
     pub title: Option<WindowTitle<M, C>>,
@@ -504,13 +537,15 @@ pub struct WindowBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Cont
 ///
 /// If you need more flexibility (i.e. put a picture near text) then `Node` option is for you:
 /// it allows to put any UI node hierarchy you want to.
-#[derive(Debug, Clone)]
-pub enum WindowTitle<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+#[derive(Debug, Clone, PartialEq)]
+pub enum WindowTitle<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     Text(String),
     Node(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WindowTitle<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    WindowTitle<M, C>
+{
     pub fn text<P: AsRef<str>>(text: P) -> Self {
         WindowTitle::Text(text.as_ref().to_owned())
     }
@@ -520,7 +555,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WindowTit
     }
 }
 
-fn make_text_title<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+fn make_text_title<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     text: &str,
 ) -> Handle<UINode<M, C>> {
@@ -534,7 +569,9 @@ fn make_text_title<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M,
     .build(ctx)
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> WindowBuilder<M, C> {
+impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    WindowBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

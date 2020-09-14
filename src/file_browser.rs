@@ -3,6 +3,7 @@
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
 
+use crate::message::MessageDirection;
 use crate::{
     button::ButtonBuilder,
     core::{
@@ -39,7 +40,8 @@ use sysinfo::{DiskExt, SystemExt};
 pub type Filter = dyn FnMut(&Path) -> bool;
 
 #[derive(Clone)]
-pub struct FileBrowser<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct FileBrowser<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget: Widget<M, C>,
     tree_root: Handle<UINode<M, C>>,
     path_text: Handle<UINode<M, C>>,
@@ -48,7 +50,9 @@ pub struct FileBrowser<M: 'static + std::fmt::Debug + Clone, C: 'static + Contro
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for FileBrowser<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for FileBrowser<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -56,7 +60,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for FileBrowser<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -64,7 +68,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for FileBrowser<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -80,9 +84,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::FileBrowser(msg) => {
-                if message.destination == self.handle() {
+                if message.destination() == self.handle() {
                     match msg {
                         FileBrowserMessage::Path(path) => {
                             if &self.path != path {
@@ -93,7 +97,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                         build_all(path, self.filter.clone(), &mut ui.build_ctx());
 
                                     // Replace tree contents.
-                                    ui.send_message(TreeRootMessage::items(self.tree_root, items));
+                                    ui.send_message(TreeRootMessage::items(
+                                        self.tree_root,
+                                        MessageDirection::ToWidget,
+                                        items,
+                                    ));
 
                                     item = path_item;
                                 }
@@ -103,6 +111,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 // Set value of text field.
                                 ui.send_message(TextBoxMessage::text(
                                     self.path_text,
+                                    MessageDirection::ToWidget,
                                     path.to_string_lossy().to_string(),
                                 ));
 
@@ -111,11 +120,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                     // Select item of new path.
                                     ui.send_message(TreeRootMessage::select(
                                         self.tree_root,
+                                        MessageDirection::ToWidget,
                                         vec![item],
                                     ));
                                     // Bring item of new path into view.
                                     ui.send_message(ScrollViewerMessage::bring_into_view(
                                         self.scroll_viewer,
+                                        MessageDirection::ToWidget,
                                         item,
                                     ));
                                 }
@@ -125,7 +136,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                 }
             }
             UiMessageData::TextBox(msg) => {
-                if message.destination == self.path_text {
+                if message.destination() == self.path_text {
                     if let TextBoxMessage::Text(txt) = msg {
                         self.path = txt.into();
                     }
@@ -136,7 +147,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     if expand {
                         // Look into internals of directory and build tree items.
                         let parent_path = ui
-                            .node(message.destination)
+                            .node(message.destination())
                             .user_data_ref::<PathBuf>()
                             .clone();
                         if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
@@ -150,7 +161,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                     };
                                     if build {
                                         build_tree(
-                                            message.destination,
+                                            message.destination(),
                                             false,
                                             &path,
                                             &parent_path,
@@ -163,18 +174,23 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     } else {
                         // Nuke everything in collapsed item. This also will free some resources
                         // and will speed up layout pass.
-                        ui.send_message(TreeMessage::set_items(message.destination, vec![]));
+                        ui.send_message(TreeMessage::set_items(
+                            message.destination(),
+                            MessageDirection::ToWidget,
+                            vec![],
+                        ));
                     }
                 }
             }
             UiMessageData::TreeRoot(msg) => {
-                if message.destination == self.tree_root {
+                if message.destination() == self.tree_root {
                     if let TreeRootMessage::Selected(selection) = msg {
                         if let Some(&first_selected) = selection.first() {
                             let path = ui.node(first_selected).user_data_ref::<PathBuf>();
                             if &self.path != path {
                                 ui.send_message(FileBrowserMessage::path(
                                     self.handle,
+                                    MessageDirection::ToWidget,
                                     path.as_path().to_owned(),
                                 ));
                             }
@@ -196,7 +212,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-fn find_tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>, P: AsRef<Path>>(
+fn find_tree<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+    P: AsRef<Path>,
+>(
     node: Handle<UINode<M, C>>,
     path: &P,
     ui: &UserInterface<M, C>,
@@ -231,7 +251,7 @@ fn find_tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>, P
 }
 
 fn build_tree_item<
-    M: 'static + std::fmt::Debug + Clone,
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
     C: 'static + Control<M, C>,
     P: AsRef<Path>,
 >(
@@ -259,7 +279,11 @@ fn build_tree_item<
         .build(ctx)
 }
 
-fn build_tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>, P: AsRef<Path>>(
+fn build_tree<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+    P: AsRef<Path>,
+>(
     parent: Handle<UINode<M, C>>,
     is_parent_root: bool,
     path: P,
@@ -269,16 +293,24 @@ fn build_tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>, 
     let tree = build_tree_item(path, parent_path, &mut ui.build_ctx());
 
     if is_parent_root {
-        ui.send_message(TreeRootMessage::add_item(parent, tree));
+        ui.send_message(TreeRootMessage::add_item(
+            parent,
+            MessageDirection::ToWidget,
+            tree,
+        ));
     } else {
-        ui.send_message(TreeMessage::add_item(parent, tree));
+        ui.send_message(TreeMessage::add_item(
+            parent,
+            MessageDirection::ToWidget,
+            tree,
+        ));
     }
 
     tree
 }
 
 /// Builds entire file system tree to given final_path.
-fn build_all<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+fn build_all<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
     final_path: &Path,
     filter: Option<Rc<RefCell<Filter>>>,
     ctx: &mut BuildContext<M, C>,
@@ -346,13 +378,18 @@ fn build_all<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
     (root_items.values().copied().collect(), path_item)
 }
 
-pub struct FileBrowserBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct FileBrowserBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     path: PathBuf,
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> FileBrowserBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    FileBrowserBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -435,14 +472,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> FileBrows
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-pub struct FileSelector<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+#[derive(Clone)]
+pub struct FileSelector<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     window: Window<M, C>,
     browser: Handle<UINode<M, C>>,
     ok: Handle<UINode<M, C>>,
     cancel: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
     for FileSelector<M, C>
 {
     type Target = Widget<M, C>;
@@ -452,7 +493,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for FileSelector<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -460,22 +501,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Clone
-    for FileSelector<M, C>
-{
-    fn clone(&self) -> Self {
-        Self {
-            window: self.window.clone(),
-            browser: self.browser,
-            ok: self.ok,
-            cancel: self.cancel,
-        }
-    }
-}
-
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for FileSelector<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -523,37 +551,53 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.window.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.ok {
+                    if message.destination() == self.ok {
                         let path = if let UINode::FileBrowser(browser) = ui.node(self.browser) {
                             &browser.path
                         } else {
                             unreachable!();
                         };
-                        ui.send_message(FileSelectorMessage::commit(self.handle, path.clone()));
-                    } else if message.destination == self.cancel {
-                        ui.send_message(FileSelectorMessage::cancel(self.handle))
+                        ui.send_message(FileSelectorMessage::commit(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            path.clone(),
+                        ));
+                    } else if message.destination() == self.cancel {
+                        ui.send_message(FileSelectorMessage::cancel(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                        ))
                     }
                 }
             }
             UiMessageData::FileSelector(msg) => {
-                if message.destination == self.handle {
+                if message.destination() == self.handle {
                     match msg {
-                        FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => {
-                            ui.send_message(WindowMessage::close(self.handle))
-                        }
+                        FileSelectorMessage::Commit(_) | FileSelectorMessage::Cancel => ui
+                            .send_message(WindowMessage::close(
+                                self.handle,
+                                MessageDirection::ToWidget,
+                            )),
                         FileSelectorMessage::Path(path) => {
-                            ui.send_message(FileBrowserMessage::path(self.browser, path.clone()))
+                            ui.send_message(FileBrowserMessage::path(
+                                self.browser,
+                                MessageDirection::ToWidget,
+                                path.clone(),
+                            ))
                         }
                     }
                 }
             }
             UiMessageData::Window(msg) => {
-                if message.destination == self.handle {
+                if message.destination() == self.handle {
                     if let WindowMessage::Open | WindowMessage::OpenModal = msg {
-                        ui.send_message(WidgetMessage::center(self.handle));
+                        ui.send_message(WidgetMessage::center(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                        ));
                     }
                 }
             }
@@ -579,13 +623,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct FileSelectorBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct FileSelectorBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     window_builder: WindowBuilder<M, C>,
     filter: Option<Rc<RefCell<Filter>>>,
     path: PathBuf,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> FileSelectorBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    FileSelectorBuilder<M, C>
+{
     pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
         Self {
             window_builder,

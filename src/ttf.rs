@@ -1,15 +1,15 @@
 use crate::{
     core::{math::vec2::Vec2, rectpack::RectPacker},
-    draw::Texture,
+    draw::SharedTexture,
 };
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     fs::File,
     io::Read,
-    ops::Range,
+    ops::{Deref, Range},
     path::Path,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -45,7 +45,22 @@ pub struct Font {
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
     atlas_size: i32,
-    pub texture: Option<Arc<Texture>>,
+    pub texture: Option<SharedTexture>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SharedFont(pub Arc<Mutex<Font>>);
+
+impl From<Arc<Mutex<Font>>> for SharedFont {
+    fn from(arc: Arc<Mutex<Font>>) -> Self {
+        SharedFont(arc)
+    }
+}
+
+impl PartialEq for SharedFont {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.deref(), other.0.deref())
+    }
 }
 
 impl Debug for Font {

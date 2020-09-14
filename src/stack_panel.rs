@@ -11,12 +11,15 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct StackPanel<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct StackPanel<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget: Widget<M, C>,
     orientation: Orientation,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for StackPanel<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for StackPanel<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -24,7 +27,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for StackPanel<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -32,7 +35,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> StackPanel<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    StackPanel<M, C>
+{
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -52,7 +57,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> StackPane
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for StackPanel<M, C>
 {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -173,12 +178,17 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct StackPanelBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct StackPanelBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     orientation: Option<Orientation>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> StackPanelBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    StackPanelBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

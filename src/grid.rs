@@ -21,7 +21,7 @@ pub enum SizeMode {
     Stretch,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Column {
     size_mode: SizeMode,
     desired_width: f32,
@@ -67,7 +67,7 @@ impl Column {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Row {
     size_mode: SizeMode,
     desired_height: f32,
@@ -115,7 +115,7 @@ impl Row {
 
 /// Automatically arranges children by rows and columns
 #[derive(Clone)]
-pub struct Grid<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Grid<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     rows: RefCell<Vec<Row>>,
     columns: RefCell<Vec<Column>>,
@@ -123,7 +123,9 @@ pub struct Grid<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>
     border_thickness: f32,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Grid<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Grid<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -131,13 +133,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Grid<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Grid<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Grid<M, C>
 {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -265,7 +269,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct GridBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct GridBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget_builder: WidgetBuilder<M, C>,
     rows: Vec<Row>,
     columns: Vec<Column>,
@@ -273,7 +278,9 @@ pub struct GridBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Contro
     border_thickness: f32,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> GridBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    GridBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         GridBuilder {
             widget_builder,
@@ -326,7 +333,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> GridBuild
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Grid<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Grid<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,

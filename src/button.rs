@@ -1,3 +1,5 @@
+use crate::message::MessageDirection;
+use crate::ttf::SharedFont;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -5,24 +7,22 @@ use crate::{
     decorator::DecoratorBuilder,
     message::{ButtonMessage, UiMessage, UiMessageData, WidgetMessage},
     text::TextBuilder,
-    ttf::Font,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, UINode, UserInterface,
     VerticalAlignment,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Button<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Button<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     decorator: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Button<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Button<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -30,13 +30,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Button<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Button<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Button<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Button<M, C> {
     pub fn new(
         widget: Widget<M, C>,
         body: Handle<UINode<M, C>>,
@@ -59,7 +61,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Button<M,
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Button<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -76,39 +78,45 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
-                if message.destination == self.handle()
-                    || self.has_descendant(message.destination, ui)
+                if message.destination() == self.handle()
+                    || self.has_descendant(message.destination(), ui)
                 {
                     match msg {
                         WidgetMessage::MouseUp { .. } => {
-                            ui.send_message(UiMessage {
-                                destination: self.handle(),
-                                data: UiMessageData::Button(ButtonMessage::Click),
-                                handled: false,
-                            });
+                            ui.send_message(ButtonMessage::click(
+                                self.handle(),
+                                MessageDirection::FromWidget,
+                            ));
                             ui.release_mouse_capture();
-                            message.handled = true;
+                            message.set_handled(true);
                         }
                         WidgetMessage::MouseDown { .. } => {
-                            ui.capture_mouse(message.destination);
-                            message.handled = true;
+                            ui.capture_mouse(message.destination());
+                            message.set_handled(true);
                         }
                         _ => (),
                     }
                 }
             }
             UiMessageData::Button(msg) => {
-                if message.destination == self.handle() {
+                if message.destination() == self.handle() {
                     match msg {
                         ButtonMessage::Click => (),
                         ButtonMessage::Content(content) => {
                             if self.content.is_some() {
-                                ui.send_message(WidgetMessage::remove(self.content));
+                                ui.send_message(WidgetMessage::remove(
+                                    self.content,
+                                    MessageDirection::ToWidget,
+                                ));
                             }
                             self.content = *content;
-                            ui.link_nodes(self.content, self.decorator);
+                            ui.send_message(WidgetMessage::link(
+                                self.content,
+                                MessageDirection::ToWidget,
+                                self.decorator,
+                            ));
                         }
                     }
                 }
@@ -124,21 +132,27 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub enum ButtonContent<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub enum ButtonContent<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     Text(String),
     Node(Handle<UINode<M, C>>),
 }
 
-pub struct ButtonBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ButtonBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     content: Option<ButtonContent<M, C>>,
-    font: Option<Arc<Mutex<Font>>>,
+    font: Option<SharedFont>,
     hover_brush: Option<Brush>,
     pressed_brush: Option<Brush>,
     decorator: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ButtonBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ButtonBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -160,7 +174,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ButtonBui
         self
     }
 
-    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
+    pub fn with_font(mut self, font: SharedFont) -> Self {
         self.font = Some(font);
         self
     }

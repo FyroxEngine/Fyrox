@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::Border,
     border::BorderBuilder,
@@ -30,7 +31,7 @@ use std::ops::{Deref, DerefMut};
 /// This element is widely used to provide some generic visual behaviour for various
 /// widgets. For example it used to decorate button, items in items control.
 #[derive(Clone)]
-pub struct Decorator<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Decorator<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     border: Border<M, C>,
     normal_brush: Brush,
     hover_brush: Brush,
@@ -39,7 +40,9 @@ pub struct Decorator<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<
     is_selected: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Decorator<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Decorator<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -47,7 +50,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for Decorator<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -55,7 +58,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Decorator<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -101,7 +104,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.border.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Decorator(msg) => match *msg {
                 DecoratorMessage::Select(value) => {
                     if self.is_selected != value {
@@ -109,11 +112,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         if self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
+                                MessageDirection::ToWidget,
                                 self.selected_brush.clone(),
                             ));
                         } else {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
+                                MessageDirection::ToWidget,
                                 self.normal_brush.clone(),
                             ));
                         }
@@ -121,19 +126,21 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                 }
             },
             UiMessageData::Widget(msg) => {
-                if message.destination == self.handle()
-                    || self.has_descendant(message.destination, ui)
+                if message.destination() == self.handle()
+                    || self.has_descendant(message.destination(), ui)
                 {
                     match msg {
                         WidgetMessage::MouseLeave => {
                             if self.is_selected {
                                 ui.send_message(WidgetMessage::background(
                                     self.handle(),
+                                    MessageDirection::ToWidget,
                                     self.selected_brush.clone(),
                                 ));
                             } else {
                                 ui.send_message(WidgetMessage::background(
                                     self.handle(),
+                                    MessageDirection::ToWidget,
                                     self.normal_brush.clone(),
                                 ));
                             }
@@ -141,12 +148,14 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         WidgetMessage::MouseEnter => {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
+                                MessageDirection::ToWidget,
                                 self.hover_brush.clone(),
                             ));
                         }
                         WidgetMessage::MouseDown { .. } => {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
+                                MessageDirection::ToWidget,
                                 self.pressed_brush.clone(),
                             ));
                         }
@@ -154,11 +163,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                             if self.is_selected {
                                 ui.send_message(WidgetMessage::background(
                                     self.handle(),
+                                    MessageDirection::ToWidget,
                                     self.selected_brush.clone(),
                                 ));
                             } else {
                                 ui.send_message(WidgetMessage::background(
                                     self.handle(),
+                                    MessageDirection::ToWidget,
                                     self.normal_brush.clone(),
                                 ));
                             }
@@ -176,7 +187,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct DecoratorBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct DecoratorBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     border_builder: BorderBuilder<M, C>,
     normal_brush: Option<Brush>,
     hover_brush: Option<Brush>,
@@ -184,7 +198,9 @@ pub struct DecoratorBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + C
     selected_brush: Option<Brush>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DecoratorBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    DecoratorBuilder<M, C>
+{
     pub fn new(border_builder: BorderBuilder<M, C>) -> Self {
         Self {
             border_builder,

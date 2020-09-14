@@ -1,6 +1,7 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     core::{math::vec2::Vec2, pool::Handle},
@@ -16,7 +17,10 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct DropdownList<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct DropdownList<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget: Widget<M, C>,
     popup: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
@@ -25,7 +29,7 @@ pub struct DropdownList<M: 'static + std::fmt::Debug + Clone, C: 'static + Contr
     selection: Option<usize>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
     for DropdownList<M, C>
 {
     type Target = Widget<M, C>;
@@ -35,7 +39,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for DropdownList<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -43,7 +47,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for DropdownList<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -62,43 +66,50 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::MouseDown { .. } = msg {
-                    if message.destination == self.handle()
-                        || self.widget.has_descendant(message.destination, ui)
+                    if message.destination() == self.handle()
+                        || self.widget.has_descendant(message.destination(), ui)
                     {
-                        ui.send_message(WidgetMessage::width(self.popup, self.actual_size().x));
+                        ui.send_message(WidgetMessage::width(
+                            self.popup,
+                            MessageDirection::ToWidget,
+                            self.actual_size().x,
+                        ));
                         let placement_position = self.widget.screen_position
                             + Vec2::new(0.0, self.widget.actual_size().y);
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Popup(PopupMessage::Placement(
-                                Placement::Position(placement_position),
-                            )),
-                            destination: self.popup,
-                        });
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Popup(PopupMessage::Open),
-                            destination: self.popup,
-                        });
+                        ui.send_message(PopupMessage::placement(
+                            self.popup,
+                            MessageDirection::ToWidget,
+                            Placement::Position(placement_position),
+                        ));
+                        ui.send_message(PopupMessage::open(self.popup, MessageDirection::ToWidget));
                     }
                 }
             }
-            UiMessageData::DropdownList(msg) if message.destination == self.handle() => match msg {
+            UiMessageData::DropdownList(msg) if message.destination() == self.handle() => match msg
+            {
                 DropdownListMessage::Items(items) => {
-                    ListViewMessage::items(self.list_view, items.clone());
+                    ListViewMessage::items(
+                        self.list_view,
+                        MessageDirection::ToWidget,
+                        items.clone(),
+                    );
                     self.items = items.clone();
                 }
                 &DropdownListMessage::AddItem(item) => {
-                    ListViewMessage::add_item(self.list_view, item);
+                    ListViewMessage::add_item(self.list_view, MessageDirection::ToWidget, item);
                     self.items.push(item);
                 }
                 &DropdownListMessage::SelectionChanged(selection) => {
                     if selection != self.selection {
                         self.selection = selection.clone();
-                        ui.send_message(ListViewMessage::selection(self.list_view, selection));
+                        ui.send_message(ListViewMessage::selection(
+                            self.list_view,
+                            MessageDirection::ToWidget,
+                            selection,
+                        ));
                     }
                 }
             },
@@ -107,21 +118,28 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 
     fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
-        if let UiMessageData::ListView(msg) = &message.data {
+        if let UiMessageData::ListView(msg) = &message.data() {
             if let ListViewMessage::SelectionChanged(selection) = msg {
-                if message.destination == self.list_view {
+                if message.destination() == self.list_view {
                     // Copy node from current selection in list view. This is not
                     // always suitable because if an item has some visual behaviour
                     // (change color on mouse hover, change something on click, etc)
                     // it will be also reflected in selected item.
                     if self.current.is_some() {
-                        ui.send_message(WidgetMessage::remove(self.current));
+                        ui.send_message(WidgetMessage::remove(
+                            self.current,
+                            MessageDirection::ToWidget,
+                        ));
                     }
                     if let Some(index) = selection {
                         if let Some(item) = self.items.get(*index) {
                             self.current = ui.copy_node(*item);
                             let body = self.widget.children()[0];
-                            ui.link_nodes(self.current, body);
+                            ui.send_message(WidgetMessage::link(
+                                self.current,
+                                MessageDirection::ToWidget,
+                                body,
+                            ));
                         } else {
                             self.current = Handle::NONE;
                         }
@@ -134,6 +152,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                         // message and respond properly.
                         ui.send_message(DropdownListMessage::selection(
                             self.handle,
+                            MessageDirection::ToWidget,
                             selection.clone(),
                         ));
                     }
@@ -143,13 +162,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct DropdownListBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct DropdownListBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DropdownListBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    DropdownListBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

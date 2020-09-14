@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     button::ButtonBuilder,
     core::{math::vec2::Vec2, math::Rect, pool::Handle},
@@ -31,7 +32,8 @@ pub enum MessageBoxButtons {
 }
 
 #[derive(Clone)]
-pub struct MessageBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct MessageBox<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     window: Window<M, C>,
     buttons: MessageBoxButtons,
     ok_yes: Handle<UINode<M, C>>,
@@ -40,7 +42,9 @@ pub struct MessageBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control
     text: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for MessageBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for MessageBox<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -48,7 +52,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for MessageBox<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -58,7 +62,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
 
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for MessageBox<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -108,36 +112,32 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.window.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.ok_yes {
+                    if message.destination() == self.ok_yes {
                         let result = match self.buttons {
                             MessageBoxButtons::Ok => MessageBoxResult::Ok,
                             MessageBoxButtons::YesNo => MessageBoxResult::Yes,
                             MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
                         };
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::MessageBox(MessageBoxMessage::Close(result)),
-                            destination: self.handle(),
-                        });
-                    } else if message.destination == self.cancel {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::MessageBox(MessageBoxMessage::Close(
-                                MessageBoxResult::Cancel,
-                            )),
-                            destination: self.handle(),
-                        });
-                    } else if message.destination == self.no {
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::MessageBox(MessageBoxMessage::Close(
-                                MessageBoxResult::No,
-                            )),
-                            destination: self.handle(),
-                        });
+                        ui.send_message(MessageBoxMessage::close(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            result,
+                        ));
+                    } else if message.destination() == self.cancel {
+                        ui.send_message(MessageBoxMessage::close(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            MessageBoxResult::Cancel,
+                        ));
+                    } else if message.destination() == self.no {
+                        ui.send_message(MessageBoxMessage::close(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            MessageBoxResult::No,
+                        ));
                     }
                 }
             }
@@ -145,28 +145,32 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                 match msg {
                     MessageBoxMessage::Open { title, text } => {
                         if let Some(title) = title {
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::Window(WindowMessage::Title(
-                                    WindowTitle::Text(title.clone()),
-                                )),
-                                destination: self.handle(),
-                            });
+                            ui.send_message(WindowMessage::title(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                WindowTitle::Text(title.clone()),
+                            ));
                         }
 
                         if let Some(text) = text {
-                            ui.send_message(TextMessage::text(self.text, text.clone()));
+                            ui.send_message(TextMessage::text(
+                                self.text,
+                                MessageDirection::ToWidget,
+                                text.clone(),
+                            ));
                         }
 
-                        ui.send_message(WindowMessage::open_modal(self.handle()));
+                        ui.send_message(WindowMessage::open_modal(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
                     }
                     MessageBoxMessage::Close(_) => {
                         // Translate message box message into window message.
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Window(WindowMessage::Close),
-                            destination: self.handle(),
-                        });
+                        ui.send_message(WindowMessage::close(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
                     }
                 }
             }
@@ -192,13 +196,17 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct MessageBoxBuilder<'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct MessageBoxBuilder<
+    'b,
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     window_builder: WindowBuilder<M, C>,
     buttons: MessageBoxButtons,
     text: &'b str,
 }
 
-impl<'a, 'b, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
+impl<'a, 'b, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
     MessageBoxBuilder<'b, M, C>
 {
     pub fn new(window_builder: WindowBuilder<M, C>) -> Self {

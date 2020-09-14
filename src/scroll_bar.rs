@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -21,7 +22,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ScrollBar<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ScrollBar<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     pub widget: Widget<M, C>,
     pub min: f32,
     pub max: f32,
@@ -38,7 +39,9 @@ pub struct ScrollBar<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<
     pub value_precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for ScrollBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for ScrollBar<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -46,7 +49,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for ScrollBar<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -54,7 +57,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for ScrollBar<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -76,20 +79,36 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
         let indicator = ui.node(self.indicator);
         match self.orientation {
             Orientation::Horizontal => {
-                ui.send_message(WidgetMessage::height(self.indicator, field_size.y));
+                ui.send_message(WidgetMessage::height(
+                    self.indicator,
+                    MessageDirection::ToWidget,
+                    field_size.y,
+                ));
                 let position = Vec2::new(
                     percent * (field_size.x - indicator.actual_size().x).max(0.0),
                     0.0,
                 );
-                ui.send_message(WidgetMessage::desired_position(self.indicator, position));
+                ui.send_message(WidgetMessage::desired_position(
+                    self.indicator,
+                    MessageDirection::ToWidget,
+                    position,
+                ));
             }
             Orientation::Vertical => {
-                ui.send_message(WidgetMessage::width(self.indicator, field_size.x));
+                ui.send_message(WidgetMessage::width(
+                    self.indicator,
+                    MessageDirection::ToWidget,
+                    field_size.x,
+                ));
                 let position = Vec2::new(
                     0.0,
                     percent * (field_size.y - indicator.actual_size().y).max(0.0),
                 );
-                ui.send_message(WidgetMessage::desired_position(self.indicator, position));
+                ui.send_message(WidgetMessage::desired_position(
+                    self.indicator,
+                    MessageDirection::ToWidget,
+                    position,
+                ));
             }
         }
 
@@ -103,24 +122,26 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.increase {
+                    if message.destination() == self.increase {
                         ui.send_message(ScrollBarMessage::value(
                             self.handle(),
+                            MessageDirection::ToWidget,
                             self.value + self.step,
                         ));
-                    } else if message.destination == self.decrease {
+                    } else if message.destination() == self.decrease {
                         ui.send_message(ScrollBarMessage::value(
                             self.handle(),
+                            MessageDirection::ToWidget,
                             self.value - self.step,
                         ));
                     }
                 }
             }
             UiMessageData::ScrollBar(msg) => {
-                if message.destination == self.handle() {
+                if message.destination() == self.handle() {
                     match *msg {
                         ScrollBarMessage::Value(value) => {
                             let old_value = self.value;
@@ -132,6 +153,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 if self.value_text.is_some() {
                                     ui.send_message(TextMessage::text(
                                         self.value_text,
+                                        MessageDirection::ToWidget,
                                         format!("{:.1$}", value, self.value_precision),
                                     ));
                                 }
@@ -149,6 +171,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
                                     ui.send_message(ScrollBarMessage::value(
                                         self.handle(),
+                                        MessageDirection::ToWidget,
                                         clamped_new_value,
                                     ));
                                 }
@@ -166,6 +189,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
                                     ui.send_message(ScrollBarMessage::value(
                                         self.handle(),
+                                        MessageDirection::ToWidget,
                                         clamped_new_value,
                                     ));
                                 }
@@ -175,7 +199,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                 }
             }
             UiMessageData::Widget(msg) => {
-                if message.destination == self.indicator {
+                if message.destination() == self.indicator {
                     match msg {
                         WidgetMessage::MouseDown { pos, .. } => {
                             if self.indicator.is_some() {
@@ -183,13 +207,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 self.is_dragging = true;
                                 self.offset = indicator_pos - *pos;
                                 ui.capture_mouse(self.indicator);
-                                message.handled = true;
+                                message.set_handled(true);
                             }
                         }
                         WidgetMessage::MouseUp { .. } => {
                             self.is_dragging = false;
                             ui.release_mouse_capture();
-                            message.handled = true;
+                            message.set_handled(true);
                         }
                         WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                             if self.indicator.is_some() {
@@ -223,9 +247,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                     };
                                     ui.send_message(ScrollBarMessage::value(
                                         self.handle(),
+                                        MessageDirection::ToWidget,
                                         percent * (self.max - self.min),
                                     ));
-                                    message.handled = true;
+                                    message.set_handled(true);
                                 }
                             }
                         }
@@ -256,7 +281,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> ScrollBar<M, C> {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
     pub fn new(
@@ -307,7 +332,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollBar
     }
 }
 
-pub struct ScrollBarBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ScrollBarBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     min: Option<f32>,
     max: Option<f32>,
@@ -322,7 +350,9 @@ pub struct ScrollBarBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + C
     value_precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ScrollBarBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ScrollBarBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -11,14 +12,17 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ProgressBar<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ProgressBar<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget: Widget<M, C>,
     progress: f32,
     indicator: Handle<UINode<M, C>>,
     body: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for ProgressBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for ProgressBar<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -26,7 +30,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for ProgressBar<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -34,23 +38,23 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for ProgressBar<M, C>
 {
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 
-        ui.send_message(UiMessage {
-            destination: self.indicator,
-            data: UiMessageData::Widget(WidgetMessage::Width(size.x * self.progress)),
-            handled: false,
-        });
+        ui.send_message(WidgetMessage::width(
+            self.indicator,
+            MessageDirection::ToWidget,
+            size.x * self.progress,
+        ));
 
-        ui.send_message(UiMessage {
-            destination: self.indicator,
-            data: UiMessageData::Widget(WidgetMessage::Height(size.y)),
-            handled: false,
-        });
+        ui.send_message(WidgetMessage::height(
+            self.indicator,
+            MessageDirection::ToWidget,
+            size.y,
+        ));
 
         size
     }
@@ -62,8 +66,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination == self.handle {
-            if let UiMessageData::ProgressBar(msg) = &message.data {
+        if message.destination() == self.handle {
+            if let UiMessageData::ProgressBar(msg) = &message.data() {
                 match *msg {
                     ProgressBarMessage::Progress(progress) => {
                         if progress != self.progress {
@@ -77,7 +81,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ProgressBar<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ProgressBar<M, C>
+{
     pub fn set_progress(&mut self, progress: f32) {
         self.progress = progress.min(1.0).max(0.0);
     }
@@ -87,14 +93,19 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ProgressB
     }
 }
 
-pub struct ProgressBarBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ProgressBarBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     body: Option<Handle<UINode<M, C>>>,
     indicator: Option<Handle<UINode<M, C>>>,
     progress: f32,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ProgressBarBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ProgressBarBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

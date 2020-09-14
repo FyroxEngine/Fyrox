@@ -1,27 +1,27 @@
+use crate::draw::SharedTexture;
 use crate::message::{ImageMessage, UiMessageData};
 use crate::{
     brush::Brush,
     core::math::vec2::Vec2,
     core::{color::Color, pool::Handle},
+    draw::CommandTexture,
     draw::{CommandKind, DrawingContext},
-    draw::{CommandTexture, Texture},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Image<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Image<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
-    texture: Option<Arc<Texture>>,
+    texture: Option<SharedTexture>,
     flip: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Image<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Image<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -29,13 +29,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Image<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Image<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Image<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Image<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -44,12 +46,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Image<M, 
         }
     }
 
-    pub fn set_texture(&mut self, texture: Arc<Texture>) {
+    pub fn set_texture(&mut self, texture: SharedTexture) {
         self.texture = Some(texture);
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Image<M, C>
 {
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -79,8 +81,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination == self.handle {
-            if let UiMessageData::Image(msg) = &message.data {
+        if message.destination() == self.handle {
+            if let UiMessageData::Image(msg) = &message.data() {
                 match msg {
                     ImageMessage::Texture(tex) => {
                         self.texture = tex.clone();
@@ -94,13 +96,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct ImageBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct ImageBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
-    texture: Option<Arc<Texture>>,
+    texture: Option<SharedTexture>,
     flip: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ImageBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    ImageBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -114,12 +121,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> ImageBuil
         self
     }
 
-    pub fn with_texture(mut self, texture: Arc<Texture>) -> Self {
+    pub fn with_texture(mut self, texture: SharedTexture) -> Self {
         self.texture = Some(texture);
         self
     }
 
-    pub fn with_opt_texture(mut self, texture: Option<Arc<Texture>>) -> Self {
+    pub fn with_opt_texture(mut self, texture: Option<SharedTexture>) -> Self {
         self.texture = texture;
         self
     }

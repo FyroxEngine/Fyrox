@@ -1,3 +1,4 @@
+use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{color::Color, math::vec2::Vec2, pool::Handle},
@@ -5,23 +6,23 @@ use crate::{
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::UiMessage,
     message::{TextMessage, UiMessageData},
-    ttf::Font,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
 };
 
 #[derive(Clone)]
-pub struct Text<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Text<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     formatted_text: RefCell<FormattedText>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Text<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Text<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -29,13 +30,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Text<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Text<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Text<M, C>
 {
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -58,8 +61,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination == self.handle() {
-            if let UiMessageData::Text(msg) = &message.data {
+        if message.destination() == self.handle() {
+            if let UiMessageData::Text(msg) = &message.data() {
                 match msg {
                     TextMessage::Text(text) => {
                         self.formatted_text.borrow_mut().set_text(text);
@@ -93,7 +96,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Text<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Text<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -113,7 +116,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Text<M, C
         self.formatted_text.borrow().text()
     }
 
-    pub fn font(&self) -> Arc<Mutex<Font>> {
+    pub fn font(&self) -> SharedFont {
         self.formatted_text.borrow().get_font().unwrap()
     }
 
@@ -126,16 +129,19 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Text<M, C
     }
 }
 
-pub struct TextBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TextBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget_builder: WidgetBuilder<M, C>,
     text: Option<String>,
-    font: Option<Arc<Mutex<Font>>>,
+    font: Option<SharedFont>,
     vertical_text_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
     wrap: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TextBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -152,12 +158,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBuild
         self
     }
 
-    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
+    pub fn with_font(mut self, font: SharedFont) -> Self {
         self.font = Some(font);
         self
     }
 
-    pub fn with_opt_font(mut self, font: Option<Arc<Mutex<Font>>>) -> Self {
+    pub fn with_opt_font(mut self, font: Option<SharedFont>) -> Self {
         self.font = font;
         self
     }

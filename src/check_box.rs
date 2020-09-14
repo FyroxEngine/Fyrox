@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -9,13 +10,15 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct CheckBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct CheckBox<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     pub widget: Widget<M, C>,
     pub checked: Option<bool>,
     pub check_mark: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for CheckBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for CheckBox<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -23,13 +26,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for CheckBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for CheckBox<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for CheckBox<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -43,65 +48,70 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match message.data {
+        match message.data() {
             UiMessageData::Widget(ref msg) => {
                 match msg {
                     WidgetMessage::MouseDown { .. } => {
-                        if message.destination == self.handle()
-                            || self.widget.has_descendant(message.destination, ui)
+                        if message.destination() == self.handle()
+                            || self.widget.has_descendant(message.destination(), ui)
                         {
                             ui.capture_mouse(self.handle());
                         }
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if message.destination == self.handle()
-                            || self.widget.has_descendant(message.destination, ui)
+                        if message.destination() == self.handle()
+                            || self.widget.has_descendant(message.destination(), ui)
                         {
                             ui.release_mouse_capture();
 
                             if let Some(value) = self.checked {
                                 // Invert state if it is defined.
-                                ui.send_message(UiMessage {
-                                    data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(
-                                        !value,
-                                    ))),
-                                    destination: self.handle(),
-                                    handled: false,
-                                });
+                                ui.send_message(CheckBoxMessage::checked(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    Some(!value),
+                                ));
                             } else {
                                 // Switch from undefined state to checked.
-                                ui.send_message(UiMessage {
-                                    data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(
-                                        true,
-                                    ))),
-                                    destination: self.handle(),
-                                    handled: false,
-                                });
+                                ui.send_message(CheckBoxMessage::checked(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    Some(true),
+                                ));
                             }
                         }
                     }
                     _ => (),
                 }
             }
-            UiMessageData::CheckBox(ref msg) => {
+            UiMessageData::CheckBox(ref msg)
+                if message.direction() == MessageDirection::ToWidget
+                    && message.destination() == self.handle() =>
+            {
                 if let CheckBoxMessage::Check(value) = *msg {
                     if self.checked != value {
                         self.checked = value;
-                        if message.destination == self.handle() && self.check_mark.is_some() {
+
+                        ui.send_message(message.reverse());
+
+                        if self.check_mark.is_some() {
                             match value {
                                 None => {
                                     ui.send_message(WidgetMessage::background(
                                         self.check_mark,
+                                        MessageDirection::ToWidget,
                                         Brush::Solid(Color::opaque(30, 30, 80)),
                                     ));
                                 }
                                 Some(value) => {
                                     ui.send_message(WidgetMessage::background(
                                         self.check_mark,
+                                        MessageDirection::ToWidget,
                                         Brush::Solid(Color::opaque(200, 200, 200)),
                                     ));
                                     ui.send_message(WidgetMessage::visibility(
                                         self.check_mark,
+                                        MessageDirection::ToWidget,
                                         value,
                                     ));
                                 }
@@ -121,13 +131,18 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct CheckBoxBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct CheckBoxBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     checked: Option<bool>,
     check_mark: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> CheckBoxBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    CheckBoxBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -175,5 +190,39 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> CheckBoxB
             check_mark,
         };
         ctx.add_node(UINode::CheckBox(cb))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        check_box::CheckBoxBuilder,
+        core::math::vec2::Vec2,
+        message::{CheckBoxMessage, MessageDirection},
+        node::StubNode,
+        widget::WidgetBuilder,
+        UserInterface,
+    };
+
+    #[test]
+    fn check_box() {
+        let mut ui = UserInterface::<(), StubNode>::new(Vec2::new(1000.0, 1000.0));
+
+        assert_eq!(ui.poll_message(), None);
+
+        let check_box = CheckBoxBuilder::new(WidgetBuilder::new()).build(&mut ui.build_ctx());
+
+        assert_eq!(ui.poll_message(), None);
+
+        // Check messages
+        let input_message =
+            CheckBoxMessage::checked(check_box, MessageDirection::ToWidget, Some(true));
+
+        ui.send_message(input_message.clone());
+
+        // This message that we just send.
+        assert_eq!(ui.poll_message(), Some(input_message.clone()));
+        // We must get response from check box.
+        assert_eq!(ui.poll_message(), Some(input_message.reverse()));
     }
 }

@@ -1,16 +1,13 @@
+use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{
         color::Color,
         math::{vec2::Vec2, Rect},
     },
-    ttf::Font,
     HorizontalAlignment, VerticalAlignment,
 };
-use std::{
-    ops::Range,
-    sync::{Arc, Mutex},
-};
+use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct TextGlyph {
@@ -67,7 +64,7 @@ impl TextLine {
 
 #[derive(Clone, Debug)]
 pub struct FormattedText {
-    font: Option<Arc<Mutex<Font>>>,
+    font: Option<SharedFont>,
     /// Text in UTF32 format.
     text: Vec<u32>,
     /// Temporary buffer used to split text on lines. We need it to reduce memory allocations
@@ -88,11 +85,11 @@ impl FormattedText {
         &self.glyphs
     }
 
-    pub fn get_font(&self) -> Option<Arc<Mutex<Font>>> {
+    pub fn get_font(&self) -> Option<SharedFont> {
         self.font.clone()
     }
 
-    pub fn set_font(&mut self, font: Arc<Mutex<Font>>) -> &mut Self {
+    pub fn set_font(&mut self, font: SharedFont) -> &mut Self {
         self.font = Some(font);
         self
     }
@@ -150,7 +147,7 @@ impl FormattedText {
     pub fn get_range_width(&self, range: Range<usize>) -> f32 {
         let mut width = 0.0;
         if let Some(ref font) = self.font {
-            let font = font.lock().unwrap();
+            let font = font.0.lock().unwrap();
             for index in range {
                 width += font.glyph_advance(self.text[index]);
             }
@@ -193,7 +190,7 @@ impl FormattedText {
 
     pub fn build(&mut self) -> Vec2 {
         let font = if let Some(font) = &self.font {
-            font.lock().unwrap()
+            font.0.lock().unwrap()
         } else {
             return Vec2::ZERO;
         };
@@ -340,7 +337,7 @@ impl FormattedText {
 }
 
 pub struct FormattedTextBuilder {
-    font: Option<Arc<Mutex<Font>>>,
+    font: Option<SharedFont>,
     brush: Brush,
     constraint: Vec2,
     text: String,
@@ -369,7 +366,7 @@ impl FormattedTextBuilder {
         }
     }
 
-    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
+    pub fn with_font(mut self, font: SharedFont) -> Self {
         self.font = Some(font);
         self
     }

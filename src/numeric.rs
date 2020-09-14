@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     button::ButtonBuilder,
     core::pool::Handle,
@@ -15,7 +16,10 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct NumericUpDown<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct NumericUpDown<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget: Widget<M, C>,
     field: Handle<UINode<M, C>>,
     increase: Handle<UINode<M, C>>,
@@ -27,7 +31,7 @@ pub struct NumericUpDown<M: 'static + std::fmt::Debug + Clone, C: 'static + Cont
     precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
     for NumericUpDown<M, C>
 {
     type Target = Widget<M, C>;
@@ -37,7 +41,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
     for NumericUpDown<M, C>
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
@@ -45,23 +49,25 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> NumericUpDown<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    NumericUpDown<M, C>
+{
     fn try_parse_value(&mut self, ui: &mut UserInterface<M, C>) {
         // Parse input only when focus is lost from text field.
         if let UINode::TextBox(field) = ui.node(self.field) {
             if let Ok(value) = field.text().parse::<f32>() {
                 let value = value.min(self.max_value).max(self.min_value);
-                ui.send_message(UiMessage {
-                    handled: false,
-                    data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
-                    destination: self.handle(),
-                });
+                ui.send_message(NumericUpDownMessage::value(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    value,
+                ));
             }
         }
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for NumericUpDown<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -77,9 +83,9 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
-                if message.destination == self.field {
+                if message.destination() == self.field {
                     match msg {
                         WidgetMessage::LostFocus => {
                             self.try_parse_value(ui);
@@ -93,45 +99,45 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     }
                 }
             }
-            UiMessageData::NumericUpDown(msg) => {
-                if message.destination == self.handle() {
-                    if let NumericUpDownMessage::Value(value) = *msg {
-                        if value != self.value {
-                            self.value = value;
+            UiMessageData::NumericUpDown(msg)
+                if message.direction() == MessageDirection::ToWidget
+                    && message.destination() == self.handle() =>
+            {
+                if let NumericUpDownMessage::Value(value) = *msg {
+                    if value != self.value {
+                        self.value = value;
 
-                            // Sync text field.
-                            ui.send_message(UiMessage {
-                                handled: false,
-                                data: UiMessageData::TextBox(TextBoxMessage::Text(format!(
-                                    "{:.1$}",
-                                    self.value, self.precision
-                                ))),
-                                destination: self.field,
-                            });
-                        }
+                        // Sync text field.
+                        ui.send_message(TextBoxMessage::text(
+                            self.field,
+                            MessageDirection::ToWidget,
+                            format!("{:.1$}", self.value, self.precision),
+                        ));
+
+                        ui.send_message(message.reverse());
                     }
                 }
             }
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.decrease {
+                    if message.destination() == self.decrease {
                         let value = (self.value - self.step)
                             .min(self.max_value)
                             .max(self.min_value);
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
-                            destination: self.handle(),
-                        });
-                    } else if message.destination == self.increase {
+                        ui.send_message(NumericUpDownMessage::value(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            value,
+                        ));
+                    } else if message.destination() == self.increase {
                         let value = (self.value + self.step)
                             .min(self.max_value)
                             .max(self.min_value);
-                        ui.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(value)),
-                            destination: self.handle(),
-                        });
+                        ui.send_message(NumericUpDownMessage::value(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            value,
+                        ));
                     }
                 }
             }
@@ -140,7 +146,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct NumericUpDownBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     value: f32,
     step: f32,
@@ -149,7 +158,9 @@ pub struct NumericUpDownBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static
     precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> NumericUpDownBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    NumericUpDownBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

@@ -48,7 +48,7 @@ pub mod widget;
 pub mod window;
 pub mod wrap_panel;
 
-use crate::message::CursorIcon;
+use crate::message::{CursorIcon, MessageDirection};
 use crate::{
     brush::Brush,
     canvas::Canvas,
@@ -64,7 +64,7 @@ use crate::{
         WidgetMessage,
     },
     node::UINode,
-    ttf::Font,
+    ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
 use std::{
@@ -182,7 +182,7 @@ pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M
 /// Trait for all UI controls in library.
 pub trait Control<M, C>: Deref<Target = Widget<M, C>> + DerefMut + Clone
 where
-    M: 'static + std::fmt::Debug + Clone,
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
     C: 'static + Control<M, C>,
 {
     fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
@@ -366,13 +366,14 @@ where
     fn remove_ref(&mut self, _handle: Handle<UINode<M, C>>) {}
 }
 
-pub struct DragContext<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct DragContext<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     is_dragging: bool,
     drag_node: Handle<UINode<M, C>>,
     click_pos: Vec2,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Default
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Default
     for DragContext<M, C>
 {
     fn default() -> Self {
@@ -384,7 +385,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Default
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct MouseState {
     left: ButtonState,
     right: ButtonState,
@@ -402,17 +403,23 @@ impl Default for MouseState {
     }
 }
 
-pub struct BuildContext<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct BuildContext<
+    'a,
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     ui: &'a mut UserInterface<M, C>,
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> BuildContext<'a, M, C> {
+impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    BuildContext<'a, M, C>
+{
     pub fn add_node(&mut self, node: UINode<M, C>) -> Handle<UINode<M, C>> {
         self.ui.add_node(node)
     }
 
     pub fn link(&mut self, child: Handle<UINode<M, C>>, parent: Handle<UINode<M, C>>) {
-        self.ui.link_nodes(child, parent)
+        self.ui.link_nodes_internal(child, parent)
     }
 
     pub fn copy(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
@@ -420,7 +427,7 @@ impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Build
     }
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
+impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
     Index<Handle<UINode<M, C>>> for BuildContext<'a, M, C>
 {
     type Output = UINode<M, C>;
@@ -430,7 +437,7 @@ impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
     }
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
+impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
     IndexMut<Handle<UINode<M, C>>> for BuildContext<'a, M, C>
 {
     fn index_mut(&mut self, index: Handle<UINode<M, C>>) -> &mut Self::Output {
@@ -438,7 +445,10 @@ impl<'a, M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>
     }
 }
 
-pub struct UserInterface<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct UserInterface<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     screen_size: Vec2,
     nodes: Pool<UINode<M, C>>,
     drawing_context: DrawingContext,
@@ -460,14 +470,14 @@ pub struct UserInterface<M: 'static + std::fmt::Debug + Clone, C: 'static + Cont
 }
 
 lazy_static! {
-    pub static ref DEFAULT_FONT: Arc<Mutex<Font>> = {
+    pub static ref DEFAULT_FONT: SharedFont = {
         let font_bytes = std::include_bytes!("./built_in_font.ttf").to_vec();
         let font = Font::from_memory(font_bytes, 20.0, Font::default_char_set()).unwrap();
-        Arc::new(Mutex::new(font))
+        Arc::new(Mutex::new(font)).into()
     };
 }
 
-fn draw_node<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
+fn draw_node<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
     nodes: &Pool<UINode<M, C>>,
     node_handle: Handle<UINode<M, C>>,
     drawing_context: &mut DrawingContext,
@@ -516,7 +526,9 @@ fn draw_node<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>>(
     drawing_context.revert_clip_geom();
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInterface<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    UserInterface<M, C>
+{
     pub fn new(screen_size: Vec2) -> UserInterface<M, C> {
         let (sender, receiver) = mpsc::channel();
         let mut ui = UserInterface {
@@ -1059,7 +1071,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
             Ok(mut message) => {
                 // Destination node may be destroyed at the time we receive message,
                 // we have to discard such messages.
-                if !self.nodes.is_valid_handle(message.destination) {
+                if !self.nodes.is_valid_handle(message.destination()) {
                     return None;
                 }
 
@@ -1083,12 +1095,13 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
 
                 // Dispatch event using bubble strategy. Bubble routing means that message will go
                 // from specified destination up on tree to tree root.
-                if message.destination.is_some() && self.nodes.is_valid_handle(message.destination)
+                if message.destination().is_some()
+                    && self.nodes.is_valid_handle(message.destination())
                 {
                     // Gather chain of nodes from source to root.
                     self.stack.clear();
-                    self.stack.push(message.destination);
-                    let mut parent = self.nodes[message.destination].parent();
+                    self.stack.push(message.destination());
+                    let mut parent = self.nodes[message.destination()].parent();
                     while parent.is_some() && self.nodes.is_valid_handle(parent) {
                         self.stack.push(parent);
                         parent = self.nodes[parent].parent();
@@ -1102,12 +1115,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                     }
                 }
 
-                if let UiMessageData::Widget(msg) = &message.data {
+                if let UiMessageData::Widget(msg) = &message.data() {
                     match msg {
                         WidgetMessage::ZIndex(_) => {
                             // Keep order of children of a parent node of a node that changed z-index
                             // the same as z-index of children.
-                            let parent = self.node(message.destination).parent();
+                            let parent = self.node(message.destination()).parent();
                             if parent.is_some() {
                                 self.stack.clear();
                                 for child in self.nodes.borrow(parent).children() {
@@ -1129,28 +1142,36 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                             }
                         }
                         WidgetMessage::TopMost => {
-                            if message.destination.is_some() {
-                                self.make_topmost(message.destination);
+                            if message.destination().is_some() {
+                                self.make_topmost(message.destination());
                             }
                         }
                         WidgetMessage::Unlink => {
-                            if message.destination.is_some() {
-                                self.unlink_node(message.destination);
+                            if message.destination().is_some() {
+                                self.unlink_node(message.destination());
+
+                                let node = &self.nodes[message.destination()];
+                                let new_position = node.screen_position;
+                                self.send_message(WidgetMessage::desired_position(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                    new_position,
+                                ));
                             }
                         }
                         &WidgetMessage::LinkWith(parent) => {
-                            if message.destination.is_some() {
-                                self.link_nodes(message.destination, parent);
+                            if message.destination().is_some() {
+                                self.link_nodes_internal(message.destination(), parent);
                             }
                         }
                         WidgetMessage::Remove => {
-                            if message.destination.is_some() {
-                                self.remove_node(message.destination);
+                            if message.destination().is_some() {
+                                self.remove_node(message.destination());
                             }
                         }
                         WidgetMessage::Center => {
-                            if message.destination.is_some() {
-                                let node = self.node(message.destination);
+                            if message.destination().is_some() {
+                                let node = self.node(message.destination());
                                 let size = node.actual_size();
                                 let parent = node.parent();
                                 let parent_size = if parent.is_some() {
@@ -1164,7 +1185,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                                 };
 
                                 self.send_message(WidgetMessage::desired_position(
-                                    message.destination,
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
                                     (parent_size - size).scale(0.5),
                                 ));
                             }
@@ -1224,33 +1246,29 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
 
                         if self.keyboard_focus_node != self.picked_node {
                             if self.keyboard_focus_node.is_some() {
-                                self.send_message(UiMessage {
-                                    data: UiMessageData::Widget(WidgetMessage::LostFocus),
-                                    destination: self.keyboard_focus_node,
-                                    handled: false,
-                                });
+                                self.send_message(WidgetMessage::lost_focus(
+                                    self.keyboard_focus_node,
+                                    MessageDirection::FromWidget,
+                                ));
                             }
 
                             self.keyboard_focus_node = self.picked_node;
 
                             if self.keyboard_focus_node.is_some() {
-                                self.send_message(UiMessage {
-                                    data: UiMessageData::Widget(WidgetMessage::GotFocus),
-                                    destination: self.keyboard_focus_node,
-                                    handled: false,
-                                });
+                                self.send_message(WidgetMessage::got_focus(
+                                    self.keyboard_focus_node,
+                                    MessageDirection::FromWidget,
+                                ));
                             }
                         }
 
                         if self.picked_node.is_some() {
-                            self.send_message(UiMessage {
-                                data: UiMessageData::Widget(WidgetMessage::MouseDown {
-                                    pos: self.cursor_position,
-                                    button,
-                                }),
-                                destination: self.picked_node,
-                                handled: false,
-                            });
+                            self.send_message(WidgetMessage::mouse_down(
+                                self.picked_node,
+                                MessageDirection::FromWidget,
+                                self.cursor_position,
+                                button,
+                            ));
                             event_processed = true;
                         }
                     }
@@ -1265,13 +1283,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                                 while let Some(handle) = self.stack.pop() {
                                     let node = &self.nodes[handle];
                                     if node.is_drop_allowed() {
-                                        self.send_message(UiMessage {
-                                            handled: false,
-                                            data: UiMessageData::Widget(WidgetMessage::Drop(
-                                                self.drag_context.drag_node,
-                                            )),
-                                            destination: handle,
-                                        });
+                                        self.send_message(WidgetMessage::drop(
+                                            handle,
+                                            MessageDirection::FromWidget,
+                                            self.drag_context.drag_node,
+                                        ));
                                         self.stack.clear();
                                         break;
                                     } else if node.parent().is_some() {
@@ -1281,14 +1297,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                             }
                             self.drag_context.drag_node = Handle::NONE;
 
-                            self.send_message(UiMessage {
-                                data: UiMessageData::Widget(WidgetMessage::MouseUp {
-                                    pos: self.cursor_position,
-                                    button,
-                                }),
-                                destination: self.picked_node,
-                                handled: false,
-                            });
+                            self.send_message(WidgetMessage::mouse_up(
+                                self.picked_node,
+                                MessageDirection::FromWidget,
+                                self.cursor_position,
+                                button,
+                            ));
                             event_processed = true;
                         }
                     }
@@ -1305,13 +1319,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                 {
                     self.drag_context.is_dragging = true;
 
-                    self.send_message(UiMessage {
-                        handled: false,
-                        data: UiMessageData::Widget(WidgetMessage::DragStarted(
-                            self.drag_context.drag_node,
-                        )),
-                        destination: self.picked_node,
-                    })
+                    self.send_message(WidgetMessage::drag_started(
+                        self.picked_node,
+                        MessageDirection::FromWidget,
+                        self.drag_context.drag_node,
+                    ));
                 }
 
                 // Fire mouse leave for previously picked node
@@ -1319,11 +1331,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                     let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node);
                     if prev_picked_node.is_mouse_directly_over {
                         prev_picked_node.is_mouse_directly_over = false;
-                        self.send_message(UiMessage {
-                            data: UiMessageData::Widget(WidgetMessage::MouseLeave),
-                            destination: self.prev_picked_node,
-                            handled: false,
-                        });
+                        self.send_message(WidgetMessage::mouse_leave(
+                            self.prev_picked_node,
+                            MessageDirection::FromWidget,
+                        ));
                     }
                 }
 
@@ -1331,31 +1342,26 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
                     let picked_node = self.nodes.borrow_mut(self.picked_node);
                     if !picked_node.is_mouse_directly_over {
                         picked_node.is_mouse_directly_over = true;
-                        self.send_message(UiMessage {
-                            data: UiMessageData::Widget(WidgetMessage::MouseEnter),
-                            destination: self.picked_node,
-                            handled: false,
-                        });
+                        self.send_message(WidgetMessage::mouse_enter(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                        ));
                     }
 
                     // Fire mouse move
-                    self.send_message(UiMessage {
-                        data: UiMessageData::Widget(WidgetMessage::MouseMove {
-                            pos: self.cursor_position,
-                            state: self.mouse_state,
-                        }),
-                        destination: self.picked_node,
-                        handled: false,
-                    });
+                    self.send_message(WidgetMessage::mouse_move(
+                        self.picked_node,
+                        MessageDirection::FromWidget,
+                        self.cursor_position,
+                        self.mouse_state,
+                    ));
 
                     if self.drag_context.is_dragging {
-                        self.send_message(UiMessage {
-                            handled: false,
-                            data: UiMessageData::Widget(WidgetMessage::DragOver(
-                                self.drag_context.drag_node,
-                            )),
-                            destination: self.picked_node,
-                        });
+                        self.send_message(WidgetMessage::drag_over(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.drag_context.drag_node,
+                        ));
                     }
 
                     event_processed = true;
@@ -1363,47 +1369,41 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
             }
             OsEvent::MouseWheel(_, y) => {
                 if self.picked_node.is_some() {
-                    self.send_message(UiMessage {
-                        data: UiMessageData::Widget(WidgetMessage::MouseWheel {
-                            pos: self.cursor_position,
-                            amount: *y,
-                        }),
-                        destination: self.picked_node,
-                        handled: false,
-                    });
+                    self.send_message(WidgetMessage::mouse_wheel(
+                        self.picked_node,
+                        MessageDirection::FromWidget,
+                        self.cursor_position,
+                        *y,
+                    ));
 
                     event_processed = true;
                 }
             }
             OsEvent::KeyboardInput { button, state } => {
                 if self.keyboard_focus_node.is_some() {
-                    let message = UiMessage {
-                        data: match state {
-                            ButtonState::Pressed => {
-                                UiMessageData::Widget(WidgetMessage::KeyDown(*button))
-                            }
-                            ButtonState::Released => {
-                                UiMessageData::Widget(WidgetMessage::KeyUp(*button))
-                            }
-                        },
-                        destination: self.keyboard_focus_node,
-                        handled: false,
-                    };
-
-                    self.send_message(message);
+                    self.send_message(match state {
+                        ButtonState::Pressed => WidgetMessage::key_down(
+                            self.keyboard_focus_node,
+                            MessageDirection::FromWidget,
+                            *button,
+                        ),
+                        ButtonState::Released => WidgetMessage::key_up(
+                            self.keyboard_focus_node,
+                            MessageDirection::FromWidget,
+                            *button,
+                        ),
+                    });
 
                     event_processed = true;
                 }
             }
             OsEvent::Character(unicode) => {
                 if self.keyboard_focus_node.is_some() {
-                    let message = UiMessage {
-                        data: UiMessageData::Widget(WidgetMessage::Text(*unicode)),
-                        destination: self.keyboard_focus_node,
-                        handled: false,
-                    };
-
-                    self.send_message(message);
+                    self.send_message(WidgetMessage::text(
+                        self.keyboard_focus_node,
+                        MessageDirection::FromWidget,
+                        *unicode,
+                    ));
 
                     event_processed = true;
                 }
@@ -1444,10 +1444,10 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
         node.clear_children();
         let node_handle = self.nodes.spawn(node);
         if self.root_canvas.is_some() {
-            self.link_nodes(node_handle, self.root_canvas);
+            self.link_nodes_internal(node_handle, self.root_canvas);
         }
         for child in children {
-            self.link_nodes(child, node_handle)
+            self.link_nodes_internal(child, node_handle)
         }
         let node = self.nodes[node_handle].deref_mut();
         node.handle = node_handle;
@@ -1516,7 +1516,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
 
     /// Links specified child with specified parent.
     #[inline]
-    pub fn link_nodes(
+    fn link_nodes_internal(
         &mut self,
         child_handle: Handle<UINode<M, C>>,
         parent_handle: Handle<UINode<M, C>>,
@@ -1529,26 +1529,26 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
 
     /// Unlinks specified node from its parent, so node will become root.
     #[inline]
-    pub(in crate) fn unlink_node_internal(&mut self, node_handle: Handle<UINode<M, C>>) {
-        let parent_handle;
+    fn unlink_node_internal(&mut self, node_handle: Handle<UINode<M, C>>) {
         // Replace parent handle of child
         let node = self.nodes.borrow_mut(node_handle);
-        parent_handle = node.parent();
-        node.set_parent(Handle::NONE);
-        let new_position = node.screen_position;
-        self.send_message(WidgetMessage::desired_position(node_handle, new_position));
-
-        // Remove child from parent's children list
+        let parent_handle = node.parent();
         if parent_handle.is_some() {
+            node.set_parent(Handle::NONE);
+
+            // Remove child from parent's children list
             self.nodes[parent_handle].remove_child(node_handle);
         }
     }
 
     /// Unlinks specified node from its parent and attaches back to root canvas.
+    ///
+    /// Use [WidgetMessage::remove](enum.WidgetMessage.html#method.remove) to unlink
+    /// a node at runtime!
     #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
+    fn unlink_node(&mut self, node_handle: Handle<UINode<M, C>>) {
         self.unlink_node_internal(node_handle);
-        self.link_nodes(node_handle, self.root_canvas);
+        self.link_nodes_internal(node_handle, self.root_canvas);
     }
 
     #[inline]
@@ -1585,108 +1585,5 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> UserInter
         let copy_handle = self.add_node(cloned);
         map.insert(node_handle, copy_handle);
         copy_handle
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::node::StubNode;
-    use crate::{
-        button::ButtonBuilder,
-        core::math::vec2::Vec2,
-        grid::{Column, GridBuilder, Row},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        Thickness, UserInterface,
-    };
-
-    #[test]
-    fn perf_test() {
-        let mut ui = UserInterface::<(), StubNode>::new(Vec2::new(1000.0, 1000.0));
-
-        GridBuilder::new(
-            WidgetBuilder::new()
-                .with_width(1000.0)
-                .with_height(1000.0)
-                .with_child(
-                    WindowBuilder::new(WidgetBuilder::new().on_row(1).on_column(1))
-                        .can_minimize(false)
-                        .can_close(false)
-                        .with_title(WindowTitle::text("Test"))
-                        .with_content(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(20.0))
-                                    .with_child({
-                                        ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .on_row(0)
-                                                .with_margin(Thickness::uniform(4.0)),
-                                        )
-                                        .with_text("New Game")
-                                        .build(&mut ui)
-                                    })
-                                    .with_child({
-                                        ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .on_row(1)
-                                                .with_margin(Thickness::uniform(4.0)),
-                                        )
-                                        .with_text("Save Game")
-                                        .build(&mut ui)
-                                    })
-                                    .with_child({
-                                        ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .on_row(2)
-                                                .with_margin(Thickness::uniform(4.0)),
-                                        )
-                                        .with_text("Load Game")
-                                        .build(&mut ui)
-                                    })
-                                    .with_child({
-                                        ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .on_row(3)
-                                                .with_margin(Thickness::uniform(4.0)),
-                                        )
-                                        .with_text("Settings")
-                                        .build(&mut ui)
-                                    })
-                                    .with_child({
-                                        ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .on_row(4)
-                                                .with_margin(Thickness::uniform(4.0)),
-                                        )
-                                        .with_text("Quit")
-                                        .build(&mut ui)
-                                    }),
-                            )
-                            .add_column(Column::stretch())
-                            .add_row(Row::strict(75.0))
-                            .add_row(Row::strict(75.0))
-                            .add_row(Row::strict(75.0))
-                            .add_row(Row::strict(75.0))
-                            .add_row(Row::strict(75.0))
-                            .build_node(),
-                        )
-                        .build(&mut ui),
-                ),
-        )
-        .add_row(Row::stretch())
-        .add_row(Row::strict(500.0))
-        .add_row(Row::stretch())
-        .add_column(Column::stretch())
-        .add_column(Column::strict(400.0))
-        .add_column(Column::stretch())
-        .build(&mut ui);
-
-        ui.update(Vec2::new(1000.0, 1000.0), 0.016);
     }
 }

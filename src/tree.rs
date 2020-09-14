@@ -1,3 +1,4 @@
+use crate::message::MessageDirection;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -16,7 +17,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
-pub struct Tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct Tree<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     expander: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
@@ -31,7 +32,9 @@ pub struct Tree<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>
     always_show_expander: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for Tree<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for Tree<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -39,13 +42,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for Tree<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for Tree<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for Tree<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -64,6 +69,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
             let expander_visibility = !self.items.is_empty();
             ui.send_message(WidgetMessage::visibility(
                 self.expander,
+                MessageDirection::ToWidget,
                 expander_visibility,
             ));
         }
@@ -78,17 +84,21 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.expander {
-                        ui.send_message(TreeMessage::expand(self.handle(), !self.is_expanded));
+                    if message.destination() == self.expander {
+                        ui.send_message(TreeMessage::expand(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            !self.is_expanded,
+                        ));
                     }
                 }
             }
             UiMessageData::Widget(msg) => match msg {
                 WidgetMessage::MouseDown { .. } => {
-                    if !message.handled {
+                    if !message.handled() {
                         let root = ui.find_by_criteria_up(self.parent(), |n| {
                             if let UINode::TreeRoot(_) = n {
                                 true
@@ -111,8 +121,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 } else {
                                     vec![self.handle()]
                                 };
-                                ui.send_message(TreeRootMessage::select(root, selection));
-                                message.handled = true;
+                                ui.send_message(TreeRootMessage::select(
+                                    root,
+                                    MessageDirection::ToWidget,
+                                    selection,
+                                ));
+                                message.set_handled(true);
                             } else {
                                 unreachable!();
                             }
@@ -120,60 +134,82 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                     }
                 }
                 WidgetMessage::MouseEnter => {
-                    if !message.handled {
+                    if !message.handled() {
                         if !self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.background,
+                                MessageDirection::ToWidget,
                                 self.hovered_brush.clone(),
                             ));
                         }
-                        message.handled = true;
+                        message.set_handled(true);
                     }
                 }
                 WidgetMessage::MouseLeave => {
-                    if !message.handled {
+                    if !message.handled() {
                         if !self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.background,
+                                MessageDirection::ToWidget,
                                 self.normal_brush.clone(),
                             ));
                         }
-                        message.handled = true;
+                        message.set_handled(true);
                     }
                 }
                 _ => {}
             },
             UiMessageData::Tree(msg) => {
-                if message.destination == self.handle() {
+                if message.destination() == self.handle() {
                     match msg {
                         &TreeMessage::Expand(expand) => {
                             self.is_expanded = expand;
                             ui.send_message(WidgetMessage::visibility(
                                 self.panel,
+                                MessageDirection::ToWidget,
                                 self.is_expanded,
                             ));
                             if let UINode::Button(expander) = ui.node(self.expander) {
                                 let content = expander.content();
                                 let text = if expand { "-" } else { "+" };
-                                ui.send_message(TextMessage::text(content, text.to_owned()));
+                                ui.send_message(TextMessage::text(
+                                    content,
+                                    MessageDirection::ToWidget,
+                                    text.to_owned(),
+                                ));
                             }
                         }
                         &TreeMessage::AddItem(item) => {
-                            ui.link_nodes(item, self.panel);
+                            ui.send_message(WidgetMessage::link(
+                                item,
+                                MessageDirection::ToWidget,
+                                self.panel,
+                            ));
+
                             self.items.push(item);
                         }
                         &TreeMessage::RemoveItem(item) => {
                             if let Some(pos) = self.items.iter().position(|&i| i == item) {
-                                ui.send_message(WidgetMessage::remove(item));
+                                ui.send_message(WidgetMessage::remove(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                ));
                                 self.items.remove(pos);
                             }
                         }
                         TreeMessage::SetItems(items) => {
                             for &item in self.items.iter() {
-                                ui.send_message(WidgetMessage::remove(item));
+                                ui.send_message(WidgetMessage::remove(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                ));
                             }
                             for &item in items {
-                                ui.link_nodes(item, self.panel);
+                                ui.send_message(WidgetMessage::link(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                    self.panel,
+                                ));
                             }
                             self.items = items.clone();
                         }
@@ -185,7 +221,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 } else {
                                     self.normal_brush.clone()
                                 };
-                                ui.send_message(WidgetMessage::background(self.background, brush));
+                                ui.send_message(WidgetMessage::background(
+                                    self.background,
+                                    MessageDirection::ToWidget,
+                                    brush,
+                                ));
                             }
                         }
                     }
@@ -211,7 +251,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Tree<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Tree<M, C> {
     pub fn content(&self) -> Handle<UINode<M, C>> {
         self.content
     }
@@ -235,7 +275,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Tree<M, C
     }
 }
 
-pub struct TreeBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TreeBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+{
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     content: Handle<UINode<M, C>>,
@@ -246,7 +287,9 @@ pub struct TreeBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Contro
     always_show_expander: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TreeBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TreeBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -371,14 +414,16 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TreeBuild
 }
 
 #[derive(Debug, Clone)]
-pub struct TreeRoot<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TreeRoot<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for TreeRoot<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -386,13 +431,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for TreeRoot<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for TreeRoot<M, C>
 {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -409,25 +456,40 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if let UiMessageData::TreeRoot(msg) = &message.data {
-            if message.destination == self.handle() {
+        if let UiMessageData::TreeRoot(msg) = &message.data() {
+            if message.destination() == self.handle() {
                 match msg {
                     &TreeRootMessage::AddItem(item) => {
-                        ui.link_nodes(item, self.panel);
+                        ui.send_message(WidgetMessage::link(
+                            item,
+                            MessageDirection::ToWidget,
+                            self.panel,
+                        ));
+
                         self.items.push(item);
                     }
                     &TreeRootMessage::RemoveItem(item) => {
                         if let Some(pos) = self.items.iter().position(|&i| i == item) {
-                            ui.send_message(WidgetMessage::remove(item));
+                            ui.send_message(WidgetMessage::remove(
+                                item,
+                                MessageDirection::ToWidget,
+                            ));
                             self.items.remove(pos);
                         }
                     }
                     TreeRootMessage::Items(items) => {
                         for &item in self.items.iter() {
-                            ui.send_message(WidgetMessage::remove(item));
+                            ui.send_message(WidgetMessage::remove(
+                                item,
+                                MessageDirection::ToWidget,
+                            ));
                         }
                         for &item in items {
-                            ui.link_nodes(item, self.panel);
+                            ui.send_message(WidgetMessage::link(
+                                item,
+                                MessageDirection::ToWidget,
+                                self.panel,
+                            ));
                         }
                         self.items = items.to_vec();
                     }
@@ -438,9 +500,17 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
                                 let node = ui.node(handle);
                                 stack.extend_from_slice(node.children());
                                 if selected.contains(&handle) {
-                                    ui.send_message(TreeMessage::select(handle, true));
+                                    ui.send_message(TreeMessage::select(
+                                        handle,
+                                        MessageDirection::ToWidget,
+                                        true,
+                                    ));
                                 } else {
-                                    ui.send_message(TreeMessage::select(handle, false));
+                                    ui.send_message(TreeMessage::select(
+                                        handle,
+                                        MessageDirection::ToWidget,
+                                        false,
+                                    ));
                                 }
                             }
                             self.selected = selected.clone();
@@ -463,18 +533,23 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TreeRoot<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> TreeRoot<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
 }
 
-pub struct TreeRootBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TreeRootBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TreeRootBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TreeRootBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

@@ -1,3 +1,5 @@
+use crate::message::MessageDirection;
+use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{
@@ -8,7 +10,6 @@ use crate::{
     draw::{CommandKind, CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{KeyCode, MouseButton, TextBoxMessage, UiMessage, UiMessageData, WidgetMessage},
-    ttf::Font,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
@@ -18,7 +19,6 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     rc::Rc,
-    sync::{Arc, Mutex},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -48,7 +48,7 @@ pub struct SelectionRange {
 pub type FilterCallback = dyn FnMut(char) -> bool;
 
 #[derive(Clone)]
-pub struct TextBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TextBox<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
     widget: Widget<M, C>,
     caret_line: usize,
     caret_offset: usize,
@@ -64,13 +64,17 @@ pub struct TextBox<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M,
     filter: Option<Rc<RefCell<FilterCallback>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Debug for TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Debug
+    for TextBox<M, C>
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("TextBox")
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
+    for TextBox<M, C>
+{
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -78,13 +82,15 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Deref for
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> DerefMut for TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
+    for TextBox<M, C>
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> TextBox<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -206,13 +212,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M
                 .insert_char(c, position)
                 .build();
             self.move_caret_x(1, HorizontalDirection::Right);
-            ui.send_message(UiMessage {
-                handled: false,
-                data: UiMessageData::TextBox(TextBoxMessage::Text(
-                    self.formatted_text.borrow().text(),
-                )), // Requires allocation
-                destination: self.handle(),
-            });
+            ui.send_message(TextBoxMessage::text(
+                self.handle,
+                MessageDirection::ToWidget,
+                self.formatted_text.borrow().text(),
+            ));
         }
     }
 
@@ -241,13 +245,11 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M
                 self.formatted_text.borrow_mut().remove_at(position);
                 self.formatted_text.borrow_mut().build();
 
-                ui.send_message(UiMessage {
-                    handled: false,
-                    data: UiMessageData::TextBox(TextBoxMessage::Text(
-                        self.formatted_text.borrow().text(),
-                    )), // Requires allocation
-                    destination: self.handle(),
-                });
+                ui.send_message(TextBoxMessage::text(
+                    self.handle(),
+                    MessageDirection::ToWidget,
+                    self.formatted_text.borrow().text(),
+                ));
 
                 if direction == HorizontalDirection::Left {
                     self.move_caret_x(1, direction);
@@ -259,7 +261,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M
     pub fn screen_pos_to_text_pos(&self, screen_pos: Vec2) -> Option<Position> {
         let mut caret_pos = self.widget.screen_position;
         if let Some(font) = self.formatted_text.borrow().get_font() {
-            let font = font.lock().unwrap();
+            let font = font.0.lock().unwrap();
             for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
                 let line_bounds = Rect::new(
                     caret_pos.x + line.x_offset,
@@ -329,12 +331,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M
         self.formatted_text.borrow().is_wrap()
     }
 
-    pub fn set_font(&mut self, font: Arc<Mutex<Font>>) -> &mut Self {
+    pub fn set_font(&mut self, font: SharedFont) -> &mut Self {
         self.formatted_text.borrow_mut().set_font(font);
         self
     }
 
-    pub fn font(&self) -> Arc<Mutex<Font>> {
+    pub fn font(&self) -> SharedFont {
         self.formatted_text.borrow().get_font().unwrap()
     }
 
@@ -361,7 +363,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBox<M
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M, C>
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
     for TextBox<M, C>
 {
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -457,7 +459,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
         if self.caret_visible {
             let text = self.formatted_text.borrow();
             if let Some(font) = text.get_font() {
-                let font = font.lock().unwrap();
+                let font = font.0.lock().unwrap();
                 if let Some(line) = text.get_lines().get(self.caret_line) {
                     let text = text.get_raw_text();
                     let mut caret_pos = Vec2::new(
@@ -508,8 +510,8 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination == self.handle() {
-            match &message.data {
+        if message.destination() == self.handle() {
+            match &message.data() {
                 UiMessageData::Widget(msg) => match msg {
                     &WidgetMessage::Text(symbol) => {
                         let insert = if let Some(filter) = self.filter.as_ref() {
@@ -595,9 +597,12 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> Control<M
     }
 }
 
-pub struct TextBoxBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> {
+pub struct TextBoxBuilder<
+    M: 'static + std::fmt::Debug + Clone + PartialEq,
+    C: 'static + Control<M, C>,
+> {
     widget_builder: WidgetBuilder<M, C>,
-    font: Option<Arc<Mutex<Font>>>,
+    font: Option<SharedFont>,
     text: String,
     caret_brush: Brush,
     selection_brush: Brush,
@@ -607,7 +612,9 @@ pub struct TextBoxBuilder<M: 'static + std::fmt::Debug + Clone, C: 'static + Con
     wrap: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBoxBuilder<M, C> {
+impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
+    TextBoxBuilder<M, C>
+{
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -622,7 +629,7 @@ impl<M: 'static + std::fmt::Debug + Clone, C: 'static + Control<M, C>> TextBoxBu
         }
     }
 
-    pub fn with_font(mut self, font: Arc<Mutex<Font>>) -> Self {
+    pub fn with_font(mut self, font: SharedFont) -> Self {
         self.font = Some(font);
         self
     }

@@ -1,3 +1,4 @@
+use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{
@@ -5,14 +6,10 @@ use crate::{
         math::{self, vec2::Vec2, Rect, TriangleDefinition},
     },
     formatted_text::FormattedText,
-    ttf::Font,
     Thickness,
 };
-use std::{
-    any::Any,
-    ops::Range,
-    sync::{Arc, Mutex},
-};
+use std::ops::Deref;
+use std::{any::Any, ops::Range, sync::Arc};
 
 #[repr(C)]
 pub struct Vertex {
@@ -34,11 +31,26 @@ pub enum CommandKind {
 
 pub type Texture = dyn Any + Sync + Send;
 
+#[derive(Debug, Clone)]
+pub struct SharedTexture(pub Arc<Texture>);
+
+impl<T: Any + Sync + Send> From<Arc<T>> for SharedTexture {
+    fn from(arc: Arc<T>) -> Self {
+        SharedTexture(arc)
+    }
+}
+
+impl PartialEq for SharedTexture {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.deref(), other.0.deref())
+    }
+}
+
 #[derive(Clone)]
 pub enum CommandTexture {
     None,
-    Texture(Arc<Texture>),
-    Font(Arc<Mutex<Font>>),
+    Texture(SharedTexture),
+    Font(SharedFont),
 }
 
 #[derive(Clone)]
