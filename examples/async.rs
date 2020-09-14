@@ -7,6 +7,7 @@
 
 extern crate rg3d;
 
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     animation::Animation,
     core::{
@@ -306,14 +307,14 @@ fn main() {
                             walk_animation = game_scene.walk_animation;
 
                             // Once scene is loaded, we should hide progress bar and text.
-                            engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_bar, false));
-                            engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_text, false));
+                            engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_bar, MessageDirection::ToWidget,false));
+                            engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_text,MessageDirection::ToWidget, false));
                         }
 
-                        // Report progress in UI.
-                        engine.user_interface.send_message(ProgressBarMessage::progress(interface.progress_bar, load_context.progress));
+                        // Report progress in UI. 
+                        engine.user_interface.send_message(ProgressBarMessage::progress(interface.progress_bar, MessageDirection::ToWidget,load_context.progress));
                         engine.user_interface.send_message(
-                            TextMessage::text(interface.progress_text,
+                            TextMessage::text(interface.progress_text,MessageDirection::ToWidget,
                                               format!("Loading scene: {}%\n{}", load_context.progress * 100.0, load_context.message)));
                     }
 
@@ -345,7 +346,7 @@ fn main() {
                     // While scene is loading, we will update progress bar.
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!("Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}", fps);
-                    engine.user_interface.send_message(TextMessage::text(interface.debug_text, debug_text));
+                    engine.user_interface.send_message(TextMessage::text(interface.debug_text, MessageDirection::ToWidget,debug_text));
 
                     // It is very important to "pump" messages from UI. Even if don't need to
                     // respond to such message, you should call this method, otherwise UI
@@ -382,8 +383,8 @@ fn main() {
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
                         let size = size.to_logical(engine.get_window().scale_factor());
-                        engine.user_interface.send_message(WidgetMessage::width(interface.root, size.width));
-                        engine.user_interface.send_message(WidgetMessage::height(interface.root, size.height));
+                        engine.user_interface.send_message(WidgetMessage::width(interface.root, MessageDirection::ToWidget,size.width));
+                        engine.user_interface.send_message(WidgetMessage::height(interface.root, MessageDirection::ToWidget,size.height));
                     }
                     _ => ()
                 }

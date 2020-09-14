@@ -9,6 +9,8 @@ pub mod navmesh;
 pub mod raw_mesh;
 pub mod uvgen;
 
+use crate::gui::draw;
+use crate::resource::texture::Texture;
 use crate::{
     core::math::vec2::Vec2,
     event::{ElementState, ModifiersState, MouseScrollDelta, VirtualKeyCode, WindowEvent},
@@ -16,6 +18,7 @@ use crate::{
     physics::static_geometry::{StaticGeometry, StaticTriangle},
     scene::mesh::Mesh,
 };
+use std::sync::Mutex;
 use std::{any::Any, sync::Arc};
 
 /// Small helper that creates static physics geometry from given mesh.
@@ -494,4 +497,9 @@ pub fn into_any_arc<T: Any + Send + Sync>(
         Some(r) => Some(r),
         None => None,
     }
+}
+
+/// Converts engine's optional texture "pointer" to rg3d-ui's.
+pub fn into_gui_texture(this: Option<Arc<Mutex<Texture>>>) -> Option<draw::SharedTexture> {
+    this.map(|v| draw::SharedTexture(v))
 }

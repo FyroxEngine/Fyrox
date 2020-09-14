@@ -32,6 +32,7 @@ use std::{
     rc::Rc,
     sync::{Arc, Mutex},
 };
+use rg3d_ui::draw::SharedTexture;
 
 struct UiShader {
     program: GpuProgram,
@@ -175,7 +176,7 @@ impl UiRenderer {
 
                     match &cmd.texture {
                         CommandTexture::Font(font_arc) => {
-                            let mut font = font_arc.lock().unwrap();
+                            let mut font = font_arc.0.lock().unwrap();
                             if font.texture.is_none() {
                                 let size = font.atlas_size() as u32;
                                 if let Ok(tex) = Texture::from_bytes(
@@ -184,7 +185,7 @@ impl UiRenderer {
                                     TextureKind::R8,
                                     font.atlas_pixels().to_vec(),
                                 ) {
-                                    font.texture = Some(Arc::new(Mutex::new(tex)));
+                                    font.texture = Some(SharedTexture(Arc::new(Mutex::new(tex))));
                                 }
                             }
                             if let Some(texture) = texture_cache.get(
@@ -192,6 +193,7 @@ impl UiRenderer {
                                 font.texture
                                     .clone()
                                     .unwrap()
+                                    .0
                                     .downcast::<Mutex<Texture>>()
                                     .unwrap(),
                             ) {
@@ -200,7 +202,7 @@ impl UiRenderer {
                             is_font_texture = true;
                         }
                         CommandTexture::Texture(texture) => {
-                            if let Ok(texture) = texture.clone().downcast::<Mutex<Texture>>() {
+                            if let Ok(texture) = texture.clone().0.downcast::<Mutex<Texture>>() {
                                 if let Some(texture) = texture_cache.get(state, texture) {
                                     diffuse_texture = texture;
                                 }

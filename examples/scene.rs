@@ -8,6 +8,7 @@
 
 extern crate rg3d;
 
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         color::Color,
@@ -164,9 +165,11 @@ fn main() {
                         "Example 05 - Scene\nUse [A][D] keys to rotate scene.\nFPS: {}",
                         fps
                     );
-                    engine
-                        .user_interface
-                        .send_message(TextMessage::text(debug_text, text));
+                    engine.user_interface.send_message(TextMessage::text(
+                        debug_text,
+                        MessageDirection::ToWidget,
+                        text,
+                    ));
 
                     engine.update(fixed_timestep);
                 }

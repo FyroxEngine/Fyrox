@@ -6,6 +6,7 @@
 
 extern crate rg3d;
 
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     animation::Animation,
     core::{
@@ -211,9 +212,11 @@ fn main() {
                         "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
                         fps
                     );
-                    engine
-                        .user_interface
-                        .send_message(TextMessage::text(debug_text, text));
+                    engine.user_interface.send_message(TextMessage::text(
+                        debug_text,
+                        MessageDirection::ToWidget,
+                        text,
+                    ));
 
                     engine.update(fixed_timestep);
                 }

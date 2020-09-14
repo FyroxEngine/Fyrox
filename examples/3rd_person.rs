@@ -55,6 +55,7 @@ use rg3d::{
     },
     utils::{mesh_to_static_geometry, translate_event},
 };
+use rg3d_ui::message::MessageDirection;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -753,12 +754,14 @@ fn main() {
                                 .user_interface
                                 .send_message(WidgetMessage::visibility(
                                     interface.progress_bar,
+                                    MessageDirection::ToWidget,
                                     false,
                                 ));
                             engine
                                 .user_interface
                                 .send_message(WidgetMessage::visibility(
                                     interface.progress_text,
+                                    MessageDirection::ToWidget,
                                     false,
                                 ));
                         }
@@ -768,10 +771,12 @@ fn main() {
                             .user_interface
                             .send_message(ProgressBarMessage::progress(
                                 interface.progress_bar,
+                                MessageDirection::ToWidget,
                                 load_context.progress,
                             ));
                         engine.user_interface.send_message(TextMessage::text(
                             interface.progress_text,
+                            MessageDirection::ToWidget,
                             format!(
                                 "Loading scene: {}%\n{}",
                                 load_context.progress * 100.0,
@@ -793,9 +798,11 @@ fn main() {
                         "Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}",
                         fps
                     );
-                    engine
-                        .user_interface
-                        .send_message(TextMessage::text(interface.debug_text, debug_text));
+                    engine.user_interface.send_message(TextMessage::text(
+                        interface.debug_text,
+                        MessageDirection::ToWidget,
+                        debug_text,
+                    ));
 
                     // It is very important to "pump" messages from UI. Even if don't need to
                     // respond to such message, you should call this method, otherwise UI
@@ -830,12 +837,16 @@ fn main() {
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
                         let size = size.to_logical(engine.get_window().scale_factor());
-                        engine
-                            .user_interface
-                            .send_message(WidgetMessage::width(interface.root, size.width));
-                        engine
-                            .user_interface
-                            .send_message(WidgetMessage::height(interface.root, size.height));
+                        engine.user_interface.send_message(WidgetMessage::width(
+                            interface.root,
+                            MessageDirection::ToWidget,
+                            size.width,
+                        ));
+                        engine.user_interface.send_message(WidgetMessage::height(
+                            interface.root,
+                            MessageDirection::ToWidget,
+                            size.height,
+                        ));
                     }
                     _ => (),
                 }

@@ -42,6 +42,7 @@ use rg3d::{
     utils::translate_event,
     window::Fullscreen,
 };
+use rg3d_ui::message::MessageDirection;
 use std::{
     sync::{Arc, Mutex},
     time::Instant,
@@ -426,6 +427,7 @@ fn main() {
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     engine.user_interface.send_message(TextMessage::text(
                         interface.debug_text,
+                        MessageDirection::ToWidget,
                         format!("Example 04 - User Interface\nFPS: {}", fps),
                     ));
 
@@ -437,15 +439,15 @@ fn main() {
                 // use messages to get information from UI elements. This provides perfect decoupling of logic
                 // from UI elements and works well with borrow checker.
                 while let Some(ui_message) = engine.user_interface.poll_message() {
-                    match &ui_message.data {
+                    match ui_message.data() {
                         UiMessageData::ScrollBar(msg) => {
                             // Some of our scroll bars has changed its value. Check which one.
                             if let &ScrollBarMessage::Value(value) = msg {
                                 // Each message has source - a handle of UI element that created this message.
                                 // It is used to understand from which UI element message has come.
-                                if ui_message.destination == interface.scale {
+                                if ui_message.destination() == interface.scale {
                                     model_scale = value;
-                                } else if ui_message.destination == interface.yaw {
+                                } else if ui_message.destination() == interface.yaw {
                                     model_angle = value;
                                 }
                             }
@@ -456,13 +458,15 @@ fn main() {
                                 // of model. To do that we borrow each UI element in engine and set its value directly.
                                 // This is not ideal because there is tight coupling between UI code and model values,
                                 // but still good enough for example.
-                                if ui_message.destination == interface.reset {
+                                if ui_message.destination() == interface.reset {
                                     engine.user_interface.send_message(ScrollBarMessage::value(
                                         interface.scale,
+                                        MessageDirection::ToWidget,
                                         DEFAULT_MODEL_SCALE,
                                     ));
                                     engine.user_interface.send_message(ScrollBarMessage::value(
                                         interface.yaw,
+                                        MessageDirection::ToWidget,
                                         DEFAULT_MODEL_ROTATION,
                                     ));
                                 }
@@ -472,7 +476,7 @@ fn main() {
                             if let DropdownListMessage::SelectionChanged(idx) = msg {
                                 // Video mode has changed and we must change video mode to what user wants.
                                 if let &Some(idx) = idx {
-                                    if ui_message.destination == interface.resolutions {
+                                    if ui_message.destination() == interface.resolutions {
                                         let video_mode = interface.video_modes.get(idx).unwrap();
                                         engine.get_window().set_fullscreen(Some(
                                             Fullscreen::Exclusive(video_mode.clone()),
