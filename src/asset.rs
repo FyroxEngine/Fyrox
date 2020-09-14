@@ -5,6 +5,8 @@ use crate::{
     },
     GameEngine,
 };
+use rg3d::gui::draw::SharedTexture;
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -24,7 +26,7 @@ use rg3d::{
     },
     resource::{texture::Texture, texture::TextureKind},
     scene::{base::BaseBuilder, camera::CameraBuilder, node::Node, Scene},
-    utils::into_any_arc,
+    utils::into_gui_texture,
 };
 use std::{
     cell::RefCell,
@@ -79,11 +81,11 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::MouseDown { .. } = msg {
-                    if !message.handled {
-                        message.handled = true;
+                    if !message.handled() {
+                        message.set_handled(true);
                         ui.send_message(AssetItemMessage::select(self.handle(), !self.selected));
                     }
                 }
@@ -91,14 +93,18 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::AssetItem(msg) = msg {
                     if let &AssetItemMessage::Select(select) = msg {
-                        if self.selected != select && message.destination == self.handle() {
+                        if self.selected != select && message.destination() == self.handle() {
                             self.selected = select;
                             let brush = if select {
                                 Brush::Solid(Color::TRANSPARENT)
                             } else {
                                 Brush::Solid(Color::RED)
                             };
-                            ui.send_message(WidgetMessage::background(self.handle(), brush));
+                            ui.send_message(WidgetMessage::background(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                brush,
+                            ));
                         }
                     }
                 }
@@ -157,7 +163,7 @@ impl AssetItemBuilder {
                 .with_width(64.0)
                 .with_height(64.0),
         )
-        .with_opt_texture(into_any_arc(texture))
+        .with_opt_texture(into_gui_texture(texture))
         .build(ctx);
 
         let item = AssetItem {
@@ -265,7 +271,7 @@ impl AssetBrowser {
                         .with_child({
                             preview = ImageBuilder::new(WidgetBuilder::new().on_column(2))
                                 .with_flip(true)
-                                .with_texture(render_target)
+                                .with_texture(SharedTexture(render_target))
                                 .build(&mut ctx);
                             preview
                         }),
@@ -278,9 +284,11 @@ impl AssetBrowser {
             )
             .build(&mut ctx);
 
-        engine
-            .user_interface
-            .send_message(FileBrowserMessage::path(folder_browser, path));
+        engine.user_interface.send_message(FileBrowserMessage::path(
+            folder_browser,
+            MessageDirection::ToWidget,
+            path,
+        ));
 
         Self {
             window,
@@ -294,12 +302,12 @@ impl AssetBrowser {
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         let ui = &mut engine.user_interface;
         let resource_manager = &mut engine.resource_manager.lock().unwrap();
-        if message.destination == self.folder_browser {
-            if let UiMessageData::FileBrowser(msg) = &message.data {
+        if message.destination() == self.folder_browser {
+            if let UiMessageData::FileBrowser(msg) = &message.data() {
                 if let FileBrowserMessage::Path(path) = msg {
                     // Clean content panel first.
                     for &child in ui.node(self.content_panel).children() {
-                        ui.send_message(WidgetMessage::remove(child));
+                        ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
                     }
                     // Get all supported assets from folder and generate previews for them.
                     if let Ok(dir_iter) = std::fs::read_dir(path) {
@@ -319,6 +327,7 @@ impl AssetBrowser {
                                             .build(&mut ui.build_ctx(), resource_manager);
                                         ui.send_message(WidgetMessage::link(
                                             content,
+                                            MessageDirection::ToWidget,
                                             self.content_panel,
                                         ));
                                     }

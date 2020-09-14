@@ -8,6 +8,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         color::Color,
@@ -1346,13 +1347,26 @@ impl InteractionMode for SelectInteractionMode {
     ) {
         self.click_pos = mouse_pos;
         let ui = &mut engine.user_interface;
-        ui.send_message(WidgetMessage::visibility(self.selection_frame, true));
+        ui.send_message(WidgetMessage::visibility(
+            self.selection_frame,
+            MessageDirection::ToWidget,
+            true,
+        ));
         ui.send_message(WidgetMessage::desired_position(
             self.selection_frame,
+            MessageDirection::ToWidget,
             mouse_pos,
         ));
-        ui.send_message(WidgetMessage::width(self.selection_frame, 0.0));
-        ui.send_message(WidgetMessage::height(self.selection_frame, 0.0));
+        ui.send_message(WidgetMessage::width(
+            self.selection_frame,
+            MessageDirection::ToWidget,
+            0.0,
+        ));
+        ui.send_message(WidgetMessage::height(
+            self.selection_frame,
+            MessageDirection::ToWidget,
+            0.0,
+        ));
     }
 
     fn on_left_mouse_button_up(
@@ -1418,7 +1432,11 @@ impl InteractionMode for SelectInteractionMode {
         }
         engine
             .user_interface
-            .send_message(WidgetMessage::visibility(self.selection_frame, false));
+            .send_message(WidgetMessage::visibility(
+                self.selection_frame,
+                MessageDirection::ToWidget,
+                false,
+            ));
     }
 
     fn on_mouse_move(
@@ -1447,10 +1465,19 @@ impl InteractionMode for SelectInteractionMode {
         };
         ui.send_message(WidgetMessage::desired_position(
             self.selection_frame,
+            MessageDirection::ToWidget,
             position,
         ));
-        ui.send_message(WidgetMessage::width(self.selection_frame, width.abs()));
-        ui.send_message(WidgetMessage::height(self.selection_frame, height.abs()));
+        ui.send_message(WidgetMessage::width(
+            self.selection_frame,
+            MessageDirection::ToWidget,
+            width.abs(),
+        ));
+        ui.send_message(WidgetMessage::height(
+            self.selection_frame,
+            MessageDirection::ToWidget,
+            height.abs(),
+        ));
     }
 
     fn update(

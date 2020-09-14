@@ -29,6 +29,8 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::gui::draw::SharedTexture;
+use rg3d::gui::message::MessageDirection;
 use rg3d::scene::camera::CameraBuilder;
 use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder};
 use rg3d::scene::mesh::MeshBuilder;
@@ -36,6 +38,7 @@ use rg3d::scene::particle_system::{
     BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder,
 };
 use rg3d::scene::sprite::SpriteBuilder;
+use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{
         color::Color,
@@ -68,7 +71,7 @@ use rg3d::{
     renderer::surface::{Surface, SurfaceSharedData},
     resource::texture::TextureKind,
     scene::{base::BaseBuilder, mesh::Mesh, node::Node, Scene},
-    utils::{into_any_arc, translate_cursor_icon, translate_event},
+    utils::{translate_cursor_icon, translate_event},
 };
 use std::{
     cell::RefCell,
@@ -133,7 +136,7 @@ impl ScenePreview {
                                     .with_allow_drop(true),
                             )
                             .with_flip(true)
-                            .with_texture(frame_texture)
+                            .with_texture(SharedTexture(frame_texture))
                             .build(ctx);
                             frame
                         })
@@ -170,7 +173,7 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(into_any_arc(
+                                            .with_opt_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
                                                     .lock()
@@ -196,7 +199,7 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(into_any_arc(
+                                            .with_opt_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
                                                     .lock()
@@ -222,7 +225,7 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(into_any_arc(
+                                            .with_opt_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
                                                     .lock()
@@ -248,7 +251,7 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(into_any_arc(
+                                            .with_opt_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
                                                     .lock()
@@ -292,22 +295,22 @@ impl ScenePreview {
 
 impl ScenePreview {
     fn handle_message(&mut self, message: &UiMessage) {
-        match &message.data {
+        match &message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
-                    if message.destination == self.scale_mode {
+                    if message.destination() == self.scale_mode {
                         self.sender
                             .send(Message::SetInteractionMode(InteractionModeKind::Scale))
                             .unwrap();
-                    } else if message.destination == self.rotate_mode {
+                    } else if message.destination() == self.rotate_mode {
                         self.sender
                             .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
                             .unwrap();
-                    } else if message.destination == self.move_mode {
+                    } else if message.destination() == self.move_mode {
                         self.sender
                             .send(Message::SetInteractionMode(InteractionModeKind::Move))
                             .unwrap();
-                    } else if message.destination == self.select_mode {
+                    } else if message.destination() == self.select_mode {
                         self.sender
                             .send(Message::SetInteractionMode(InteractionModeKind::Select))
                             .unwrap();
@@ -629,10 +632,10 @@ impl Menu {
         editor_scene: &Option<EditorScene>,
         message: &UiMessage,
     ) {
-        match &message.data {
+        match &message.data() {
             UiMessageData::FileSelector(msg) => match msg {
                 FileSelectorMessage::Commit(path) => {
-                    if message.destination == self.save_file_selector {
+                    if message.destination() == self.save_file_selector {
                         self.message_sender
                             .send(Message::SaveScene(path.to_owned()))
                             .unwrap();
@@ -646,7 +649,7 @@ impl Menu {
             },
             UiMessageData::MenuItem(msg) => {
                 if let MenuItemMessage::Click = msg {
-                    if message.destination == self.create_cube {
+                    if message.destination() == self.create_cube {
                         let mut mesh = Mesh::default();
                         mesh.set_name("Cube");
                         mesh.add_surface(Surface::new(Arc::new(Mutex::new(
@@ -658,7 +661,7 @@ impl Menu {
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_spot_light {
+                    } else if message.destination() == self.create_spot_light {
                         let node = SpotLightBuilder::new(BaseLightBuilder::new(
                             BaseBuilder::new().with_name("SpotLight"),
                         ))
@@ -672,7 +675,7 @@ impl Menu {
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_point_light {
+                    } else if message.destination() == self.create_point_light {
                         let node = PointLightBuilder::new(BaseLightBuilder::new(
                             BaseBuilder::new().with_name("PointLight"),
                         ))
@@ -684,7 +687,7 @@ impl Menu {
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_cone {
+                    } else if message.destination() == self.create_cone {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
                             .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                                 SurfaceSharedData::make_cone(16, 1.0, 1.0, Default::default()),
@@ -695,7 +698,7 @@ impl Menu {
                                 AddNodeCommand::new(mesh),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_cylinder {
+                    } else if message.destination() == self.create_cylinder {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
                             .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                                 SurfaceSharedData::make_cylinder(
@@ -712,7 +715,7 @@ impl Menu {
                                 AddNodeCommand::new(mesh),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_sphere {
+                    } else if message.destination() == self.create_sphere {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
                             .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
                                 SurfaceSharedData::make_sphere(16, 16, 1.0),
@@ -723,7 +726,7 @@ impl Menu {
                                 AddNodeCommand::new(mesh),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_camera {
+                    } else if message.destination() == self.create_camera {
                         let node =
                             CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node();
 
@@ -732,7 +735,7 @@ impl Menu {
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_sprite {
+                    } else if message.destination() == self.create_sprite {
                         let node =
                             SpriteBuilder::new(BaseBuilder::new().with_name("Sprite")).build_node();
 
@@ -741,7 +744,7 @@ impl Menu {
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.create_particle_system {
+                    } else if message.destination() == self.create_particle_system {
                         let node = ParticleSystemBuilder::new(
                             BaseBuilder::new().with_name("ParticleSystem"),
                         )
@@ -759,7 +762,7 @@ impl Menu {
                                 AddNodeCommand::new(node),
                             )))
                             .unwrap();
-                    } else if message.destination == self.save {
+                    } else if message.destination() == self.save {
                         if let Some(scene_path) =
                             editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
                         {
@@ -770,25 +773,34 @@ impl Menu {
                             // If scene wasn't saved yet - open Save As window.
                             engine
                                 .user_interface
-                                .send_message(WindowMessage::open_modal(self.save_file_selector));
+                                .send_message(WindowMessage::open_modal(
+                                    self.save_file_selector,
+                                    MessageDirection::ToWidget,
+                                ));
                         }
-                    } else if message.destination == self.save_as {
+                    } else if message.destination() == self.save_as {
                         engine
                             .user_interface
-                            .send_message(WindowMessage::open_modal(self.save_file_selector));
-                    } else if message.destination == self.load {
+                            .send_message(WindowMessage::open_modal(
+                                self.save_file_selector,
+                                MessageDirection::ToWidget,
+                            ));
+                    } else if message.destination() == self.load {
                         engine
                             .user_interface
-                            .send_message(WindowMessage::open_modal(self.load_file_selector));
-                    } else if message.destination == self.close_scene {
+                            .send_message(WindowMessage::open_modal(
+                                self.load_file_selector,
+                                MessageDirection::ToWidget,
+                            ));
+                    } else if message.destination() == self.close_scene {
                         self.message_sender.send(Message::CloseScene).unwrap();
-                    } else if message.destination == self.undo {
+                    } else if message.destination() == self.undo {
                         self.message_sender.send(Message::UndoSceneCommand).unwrap();
-                    } else if message.destination == self.redo {
+                    } else if message.destination() == self.redo {
                         self.message_sender.send(Message::RedoSceneCommand).unwrap();
-                    } else if message.destination == self.exit {
+                    } else if message.destination() == self.exit {
                         self.message_sender.send(Message::Exit).unwrap();
-                    } else if message.destination == self.new_scene {
+                    } else if message.destination() == self.new_scene {
                         self.message_sender.send(Message::NewScene).unwrap();
                     }
                 }
@@ -802,7 +814,7 @@ impl Editor {
     fn new(engine: &mut GameEngine) -> Self {
         let (message_sender, message_receiver) = mpsc::channel();
 
-        *rg3d::gui::DEFAULT_FONT.lock().unwrap() =
+        *rg3d::gui::DEFAULT_FONT.0.lock().unwrap() =
             Font::from_file("resources/arial.ttf", 14.0, Font::default_char_set()).unwrap();
 
         let mut scene = Scene::new();
@@ -937,7 +949,8 @@ impl Editor {
         scene.render_target = Some(Default::default());
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
-            into_any_arc(scene.render_target.clone()),
+            MessageDirection::ToWidget,
+            into_gui_texture(scene.render_target.clone()),
         ));
 
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
@@ -1006,8 +1019,8 @@ impl Editor {
                 .handle_ui_message(message, ui, &editor_scene.selection);
             self.preview.handle_message(message);
 
-            if message.destination == self.preview.frame {
-                match &message.data {
+            if message.destination() == self.preview.frame {
+                match &message.data() {
                     UiMessageData::Widget(msg) => match msg {
                         &WidgetMessage::MouseDown { button, pos, .. } => {
                             ui.capture_mouse(self.preview.frame);
@@ -1281,9 +1294,11 @@ impl Editor {
 
                         // Preview frame has scene frame texture assigned, it must be cleared explicitly,
                         // otherwise it will show last rendered frame in preview which is not what we want.
-                        engine
-                            .user_interface
-                            .send_message(ImageMessage::texture(self.preview.frame, None));
+                        engine.user_interface.send_message(ImageMessage::texture(
+                            self.preview.frame,
+                            MessageDirection::ToWidget,
+                            None,
+                        ));
                     }
                 }
                 Message::NewScene => {
@@ -1414,12 +1429,16 @@ fn main() {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 WindowEvent::Resized(size) => {
                     engine.renderer.set_frame_size(size.into());
-                    engine
-                        .user_interface
-                        .send_message(WidgetMessage::width(editor.root_grid, size.width as f32));
-                    engine
-                        .user_interface
-                        .send_message(WidgetMessage::height(editor.root_grid, size.height as f32));
+                    engine.user_interface.send_message(WidgetMessage::width(
+                        editor.root_grid,
+                        MessageDirection::ToWidget,
+                        size.width as f32,
+                    ));
+                    engine.user_interface.send_message(WidgetMessage::height(
+                        editor.root_grid,
+                        MessageDirection::ToWidget,
+                        size.height as f32,
+                    ));
                 }
                 _ => (),
             }

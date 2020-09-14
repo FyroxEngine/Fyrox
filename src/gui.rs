@@ -1,26 +1,23 @@
 use crate::{asset::AssetItem, world_outliner::SceneItem};
 use std::ops::{Deref, DerefMut};
 
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{math::vec2::Vec2, math::Rect, pool::Handle},
-    gui::{
-        draw::DrawingContext,
-        message::{OsEvent, UiMessageData},
-        Control, NodeHandleMapping,
-    },
+    gui::{draw::DrawingContext, message::OsEvent, Control, NodeHandleMapping},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AssetItemMessage {
     Select(bool),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum SceneItemMessage {
     NodeVisibility(bool),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum EditorUiMessage {
     AssetItem(AssetItemMessage),
     SceneItem(SceneItemMessage),
@@ -28,23 +25,21 @@ pub enum EditorUiMessage {
 
 impl SceneItemMessage {
     pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::User(EditorUiMessage::SceneItem(
-                SceneItemMessage::NodeVisibility(visibility),
-            )),
+        UiMessage::user(
             destination,
-        }
+            MessageDirection::ToWidget,
+            EditorUiMessage::SceneItem(SceneItemMessage::NodeVisibility(visibility)),
+        )
     }
 }
 
 impl AssetItemMessage {
     pub fn select(destination: Handle<UiNode>, select: bool) -> UiMessage {
-        UiMessage {
-            handled: false,
-            data: UiMessageData::User(EditorUiMessage::AssetItem(AssetItemMessage::Select(select))),
+        UiMessage::user(
             destination,
-        }
+            MessageDirection::ToWidget,
+            EditorUiMessage::AssetItem(AssetItemMessage::Select(select)),
+        )
     }
 }
 

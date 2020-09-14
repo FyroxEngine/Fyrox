@@ -13,6 +13,7 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         math::{
@@ -181,47 +182,45 @@ impl LightSection {
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         if let Node::Light(light) = node {
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(light.scatter())),
-                destination: self.light_scatter,
-            });
+            ui.send_message(Vec3EditorMessage::value(
+                self.light_scatter,
+                MessageDirection::ToWidget,
+                light.scatter(),
+            ));
 
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
-                    light.color().as_frgba().xyz(),
-                )),
-                destination: self.color,
-            });
+            ui.send_message(Vec3EditorMessage::value(
+                self.color,
+                MessageDirection::ToWidget,
+                light.color().as_frgba().xyz(),
+            ));
 
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(
-                    light.is_cast_shadows(),
-                ))),
-                destination: self.cast_shadows,
-            });
+            ui.send_message(CheckBoxMessage::checked(
+                self.cast_shadows,
+                MessageDirection::ToWidget,
+                Some(light.is_cast_shadows()),
+            ));
 
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::CheckBox(CheckBoxMessage::Check(Some(
-                    light.is_scatter_enabled(),
-                ))),
-                destination: self.enable_scatter,
-            });
+            ui.send_message(CheckBoxMessage::checked(
+                self.enable_scatter,
+                MessageDirection::ToWidget,
+                Some(light.is_scatter_enabled()),
+            ));
         }
-        ui.send_message(WidgetMessage::visibility(self.section, node.is_light()));
+        ui.send_message(WidgetMessage::visibility(
+            self.section,
+            MessageDirection::ToWidget,
+            node.is_light(),
+        ));
         self.point_light_section.sync_to_model(node, ui);
         self.spot_light_section.sync_to_model(node, ui);
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(light) = node {
-            match &message.data {
+            match &message.data() {
                 UiMessageData::Vec3Editor(msg) => {
                     if let &Vec3EditorMessage::Value(value) = msg {
-                        if message.destination == self.color
+                        if message.destination() == self.color
                             && light.color().as_frgba().xyz() != value
                         {
                             self.sender
@@ -229,7 +228,7 @@ impl LightSection {
                                     SetLightColorCommand::new(handle, value.into()),
                                 )))
                                 .unwrap();
-                        } else if message.destination == self.light_scatter
+                        } else if message.destination() == self.light_scatter
                             && light.scatter() != value
                         {
                             self.sender
@@ -244,7 +243,7 @@ impl LightSection {
                     if let CheckBoxMessage::Check(value) = msg {
                         let value = value.unwrap_or(false);
 
-                        if message.destination == self.enable_scatter
+                        if message.destination() == self.enable_scatter
                             && light.is_scatter_enabled() != value
                         {
                             self.sender
@@ -254,7 +253,7 @@ impl LightSection {
                                     ),
                                 ))
                                 .unwrap();
-                        } else if message.destination == self.cast_shadows
+                        } else if message.destination() == self.cast_shadows
                             && light.is_cast_shadows() != value
                         {
                             self.sender
@@ -307,11 +306,11 @@ impl PointLightSection {
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         let visible = if let Node::Light(light) = node {
             if let Light::Point(point) = light {
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(point.radius())),
-                    destination: self.radius,
-                });
+                ui.send_message(NumericUpDownMessage::value(
+                    self.radius,
+                    MessageDirection::ToWidget,
+                    point.radius(),
+                ));
 
                 true
             } else {
@@ -320,15 +319,19 @@ impl PointLightSection {
         } else {
             false
         };
-        ui.send_message(WidgetMessage::visibility(self.section, visible));
+        ui.send_message(WidgetMessage::visibility(
+            self.section,
+            MessageDirection::ToWidget,
+            visible,
+        ));
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(light) = node {
             if let Light::Point(point) = light {
-                if let UiMessageData::NumericUpDown(msg) = &message.data {
+                if let UiMessageData::NumericUpDown(msg) = &message.data() {
                     if let &NumericUpDownMessage::Value(value) = msg {
-                        if message.destination == self.radius && point.radius() != value {
+                        if message.destination() == self.radius && point.radius() != value {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
                                     SetPointLightRadiusCommand::new(handle, value),
@@ -390,29 +393,23 @@ impl SpotLightSection {
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         let visible = if let Node::Light(light) = node {
             if let Light::Spot(spot) = light {
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
-                        spot.hotspot_cone_angle(),
-                    )),
-                    destination: self.hotspot,
-                });
+                ui.send_message(NumericUpDownMessage::value(
+                    self.hotspot,
+                    MessageDirection::ToWidget,
+                    spot.hotspot_cone_angle(),
+                ));
 
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
-                        spot.falloff_angle_delta(),
-                    )),
-                    destination: self.falloff_delta,
-                });
+                ui.send_message(NumericUpDownMessage::value(
+                    self.falloff_delta,
+                    MessageDirection::ToWidget,
+                    spot.falloff_angle_delta(),
+                ));
 
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(
-                        spot.distance(),
-                    )),
-                    destination: self.distance,
-                });
+                ui.send_message(NumericUpDownMessage::value(
+                    self.distance,
+                    MessageDirection::ToWidget,
+                    spot.distance(),
+                ));
 
                 true
             } else {
@@ -421,22 +418,27 @@ impl SpotLightSection {
         } else {
             false
         };
-        ui.send_message(WidgetMessage::visibility(self.section, visible));
+        ui.send_message(WidgetMessage::visibility(
+            self.section,
+            MessageDirection::ToWidget,
+            visible,
+        ));
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Light(light) = node {
             if let Light::Spot(spot) = light {
-                if let UiMessageData::NumericUpDown(msg) = &message.data {
+                if let UiMessageData::NumericUpDown(msg) = &message.data() {
                     if let &NumericUpDownMessage::Value(value) = msg {
-                        if message.destination == self.hotspot && spot.hotspot_cone_angle() != value
+                        if message.destination() == self.hotspot
+                            && spot.hotspot_cone_angle() != value
                         {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpotLightHotspot(
                                     SetSpotLightHotspotCommand::new(handle, value),
                                 )))
                                 .unwrap();
-                        } else if message.destination == self.falloff_delta
+                        } else if message.destination() == self.falloff_delta
                             && spot.falloff_angle_delta() != value
                         {
                             self.sender
@@ -446,7 +448,8 @@ impl SpotLightSection {
                                     ),
                                 ))
                                 .unwrap();
-                        } else if message.destination == self.distance && spot.distance() != value {
+                        } else if message.destination() == self.distance && spot.distance() != value
+                        {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpotLightDistance(
                                     SetSpotLightDistanceCommand::new(handle, value),
@@ -506,46 +509,50 @@ impl CameraSection {
     }
 
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
-        ui.send_message(WidgetMessage::visibility(self.section, node.is_camera()));
+        ui.send_message(WidgetMessage::visibility(
+            self.section,
+            MessageDirection::ToWidget,
+            node.is_camera(),
+        ));
 
         if let Node::Camera(camera) = node {
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(camera.fov())),
-                destination: self.fov,
-            });
+            ui.send_message(NumericUpDownMessage::value(
+                self.fov,
+                MessageDirection::ToWidget,
+                camera.fov(),
+            ));
 
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(camera.z_near())),
-                destination: self.z_near,
-            });
+            ui.send_message(NumericUpDownMessage::value(
+                self.z_near,
+                MessageDirection::ToWidget,
+                camera.z_near(),
+            ));
 
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::NumericUpDown(NumericUpDownMessage::Value(camera.z_far())),
-                destination: self.z_far,
-            });
+            ui.send_message(NumericUpDownMessage::value(
+                self.z_far,
+                MessageDirection::ToWidget,
+                camera.z_far(),
+            ));
         }
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Camera(camera) = node {
-            if let UiMessageData::NumericUpDown(msg) = &message.data {
+            if let UiMessageData::NumericUpDown(msg) = &message.data() {
                 if let &NumericUpDownMessage::Value(value) = msg {
-                    if message.destination == self.fov && camera.fov() != value {
+                    if message.destination() == self.fov && camera.fov() != value {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetFov(
                                 SetFovCommand::new(handle, value),
                             )))
                             .unwrap();
-                    } else if message.destination == self.z_far && camera.z_far() != value {
+                    } else if message.destination() == self.z_far && camera.z_far() != value {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetZFar(
                                 SetZFarCommand::new(handle, value),
                             )))
                             .unwrap();
-                    } else if message.destination == self.z_near && camera.z_near() != value {
+                    } else if message.destination() == self.z_near && camera.z_near() != value {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetZNear(
                                 SetZNearCommand::new(handle, value),
@@ -588,26 +595,25 @@ impl ParticleSystemSection {
     pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
         ui.send_message(WidgetMessage::visibility(
             self.section,
+            MessageDirection::ToWidget,
             node.is_particle_system(),
         ));
 
         if let Node::ParticleSystem(particle_system) = node {
-            ui.send_message(UiMessage {
-                handled: true,
-                data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
-                    particle_system.acceleration(),
-                )),
-                destination: self.acceleration,
-            });
+            ui.send_message(Vec3EditorMessage::value(
+                self.acceleration,
+                MessageDirection::ToWidget,
+                particle_system.acceleration(),
+            ));
         }
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::ParticleSystem(particle_system) = node {
-            if let UiMessageData::Vec3Editor(msg) = &message.data {
+            if let UiMessageData::Vec3Editor(msg) = &message.data() {
                 if let &Vec3EditorMessage::Value(value) = msg {
                     if particle_system.acceleration() != value {
-                        if message.destination == self.acceleration {
+                        if message.destination() == self.acceleration {
                             self.sender
                                 .send(Message::DoSceneCommand(
                                     SceneCommand::SetParticleSystemAcceleration(
@@ -735,6 +741,7 @@ impl SideBar {
             .user_interface
             .send_message(WidgetMessage::visibility(
                 self.scroll_viewer,
+                MessageDirection::ToWidget,
                 editor_scene.selection.is_single_selection(),
             ));
         if editor_scene.selection.is_single_selection() {
@@ -744,22 +751,17 @@ impl SideBar {
 
                 let ui = &mut engine.user_interface;
 
-                // These messages created with `handled=true` flag to be able to filter such messages
-                // in `handle_message` method. Otherwise each syncing would create command, which is
-                // not what we want - we want to create command only when user types something in
-                // fields, and such messages comes from ui library and they're not handled by default.
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::TextBox(TextBoxMessage::Text(node.name().to_owned())),
-                    destination: self.node_name,
-                });
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
-                        node.local_transform().position(),
-                    )),
-                    destination: self.position,
-                });
+                ui.send_message(TextBoxMessage::text(
+                    self.node_name,
+                    MessageDirection::ToWidget,
+                    node.name().to_owned(),
+                ));
+
+                ui.send_message(Vec3EditorMessage::value(
+                    self.position,
+                    MessageDirection::ToWidget,
+                    node.local_transform().position(),
+                ));
 
                 let euler = node.local_transform().rotation().to_euler();
                 let euler_degrees = Vec3::new(
@@ -767,19 +769,17 @@ impl SideBar {
                     euler.y.to_degrees(),
                     euler.z.to_degrees(),
                 );
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(euler_degrees)),
-                    destination: self.rotation,
-                });
+                ui.send_message(Vec3EditorMessage::value(
+                    self.rotation,
+                    MessageDirection::ToWidget,
+                    euler_degrees,
+                ));
 
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::Vec3Editor(Vec3EditorMessage::Value(
-                        node.local_transform().scale(),
-                    )),
-                    destination: self.scale,
-                });
+                ui.send_message(Vec3EditorMessage::value(
+                    self.scale,
+                    MessageDirection::ToWidget,
+                    node.local_transform().scale(),
+                ));
 
                 // Sync physical body info.
                 let body_handle = scene.physics_binder.body_of(node_handle);
@@ -795,14 +795,11 @@ impl SideBar {
                     0
                 };
 
-                ui.send_message(UiMessage {
-                    handled: true,
-                    data: UiMessageData::DropdownList(DropdownListMessage::SelectionChanged(Some(
-                        index,
-                    ))),
-                    destination: self.body,
-                });
-
+                ui.send_message(DropdownListMessage::selection(
+                    self.body,
+                    MessageDirection::ToWidget,
+                    Some(index),
+                ));
                 self.light_section.sync_to_model(node, ui);
                 self.camera_section.sync_to_model(node, ui);
                 self.particle_system_section.sync_to_model(node, ui);
@@ -819,7 +816,9 @@ impl SideBar {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
 
-        if editor_scene.selection.is_single_selection() && !message.handled {
+        if editor_scene.selection.is_single_selection()
+            && message.direction() == MessageDirection::FromWidget
+        {
             let node_handle = editor_scene.selection.nodes()[0];
             let node = &graph[node_handle];
 
@@ -830,11 +829,11 @@ impl SideBar {
             self.particle_system_section
                 .handle_message(message, node, node_handle);
 
-            match &message.data {
+            match &message.data() {
                 UiMessageData::Vec3Editor(msg) => {
                     if let &Vec3EditorMessage::Value(value) = msg {
                         let transform = graph[node_handle].local_transform();
-                        if message.destination == self.rotation {
+                        if message.destination() == self.rotation {
                             let old_rotation = transform.rotation();
                             let euler = Vec3::new(
                                 value.x.to_radians(),
@@ -853,7 +852,7 @@ impl SideBar {
                                     )))
                                     .unwrap();
                             }
-                        } else if message.destination == self.position {
+                        } else if message.destination() == self.position {
                             let old_position = transform.position();
                             if old_position != value {
                                 self.sender
@@ -862,7 +861,7 @@ impl SideBar {
                                     )))
                                     .unwrap();
                             }
-                        } else if message.destination == self.scale {
+                        } else if message.destination() == self.scale {
                             let old_scale = transform.scale();
                             if old_scale != value {
                                 self.sender
@@ -875,7 +874,7 @@ impl SideBar {
                     }
                 }
                 UiMessageData::DropdownList(msg) => {
-                    if message.destination == self.body {
+                    if message.destination() == self.body {
                         if let DropdownListMessage::SelectionChanged(index) = msg {
                             if let Some(index) = index {
                                 match index {
@@ -921,7 +920,7 @@ impl SideBar {
                     }
                 }
                 UiMessageData::TextBox(msg) => {
-                    if message.destination == self.node_name {
+                    if message.destination() == self.node_name {
                         if let TextBoxMessage::Text(new_name) = msg {
                             let old_name = graph[node_handle].name();
                             if old_name != new_name {

@@ -9,6 +9,8 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::draw::SharedTexture;
+use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         math::{vec2::Vec2, Rect},
@@ -18,7 +20,6 @@ use rg3d::{
     gui::{
         button::ButtonBuilder,
         draw::DrawingContext,
-        draw::Texture,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
@@ -33,7 +34,7 @@ use rg3d::{
     },
     resource::texture::TextureKind,
     scene::node::Node,
-    utils::into_any_arc,
+    utils::into_gui_texture,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -110,9 +111,9 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
     fn handle_routed_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
         self.tree.handle_routed_message(ui, message);
 
-        match &message.data {
+        match &message.data() {
             UiMessageData::Button(msg) => {
-                if message.destination == self.visibility_toggle {
+                if message.destination() == self.visibility_toggle {
                     if let ButtonMessage::Click = msg {
                         let command = SceneCommand::SetVisible(SetVisibleCommand::new(
                             self.node,
@@ -125,7 +126,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::SceneItem(item) = msg {
                     if let &SceneItemMessage::NodeVisibility(visibility) = item {
-                        if self.visibility != visibility && message.destination == self.handle() {
+                        if self.visibility != visibility && message.destination() == self.handle() {
                             self.visibility = visibility;
 
                             let path = if visibility {
@@ -134,14 +135,18 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                                 "resources/invisible.png"
                             };
                             let image = ImageBuilder::new(WidgetBuilder::new())
-                                .with_opt_texture(into_any_arc(
+                                .with_opt_texture(into_gui_texture(
                                     self.resource_manager
                                         .lock()
                                         .unwrap()
                                         .request_texture(path, TextureKind::RGBA8),
                                 ))
                                 .build(&mut ui.build_ctx());
-                            ui.send_message(ButtonMessage::content(self.visibility_toggle, image));
+                            ui.send_message(ButtonMessage::content(
+                                self.visibility_toggle,
+                                MessageDirection::ToWidget,
+                                image,
+                            ));
                         }
                     }
                 }
@@ -167,7 +172,7 @@ pub struct SceneItemBuilder {
     node: Handle<Node>,
     name: String,
     visibility: bool,
-    icon: Option<Arc<Texture>>,
+    icon: Option<SharedTexture>,
 }
 
 impl SceneItemBuilder {
@@ -195,7 +200,7 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn with_icon(mut self, icon: Option<Arc<Texture>>) -> Self {
+    pub fn with_icon(mut self, icon: Option<SharedTexture>) -> Self {
         self.icon = icon;
         self
     }
@@ -206,7 +211,7 @@ impl SceneItemBuilder {
         sender: Sender<Message>,
         resource_manager: Arc<Mutex<ResourceManager>>,
     ) -> Handle<UiNode> {
-        let visible_texture = into_any_arc(
+        let visible_texture = into_gui_texture(
             resource_manager
                 .lock()
                 .unwrap()
@@ -292,7 +297,7 @@ fn make_tree(
         _ => "resources/cube.png",
     };
 
-    let icon = into_any_arc(
+    let icon = into_gui_texture(
         resource_manager
             .lock()
             .unwrap()
@@ -370,7 +375,11 @@ impl WorldOutliner {
                             for &item in items.iter() {
                                 let child_node = tree_node(ui, item);
                                 if !node.children().contains(&child_node) {
-                                    ui.send_message(TreeMessage::remove_item(tree_handle, item));
+                                    ui.send_message(TreeMessage::remove_item(
+                                        tree_handle,
+                                        MessageDirection::ToWidget,
+                                        item,
+                                    ));
                                 } else {
                                     self.stack.push((item, child_node));
                                 }
@@ -398,7 +407,11 @@ impl WorldOutliner {
                                         self.sender.clone(),
                                         engine.resource_manager.clone(),
                                     );
-                                    ui.send_message(TreeMessage::add_item(tree_handle, tree));
+                                    ui.send_message(TreeMessage::add_item(
+                                        tree_handle,
+                                        MessageDirection::ToWidget,
+                                        tree,
+                                    ));
                                     if editor_scene.selection.contains(child_handle) {
                                         selected_items.push(tree);
                                     }
@@ -422,7 +435,11 @@ impl WorldOutliner {
                             self.sender.clone(),
                             engine.resource_manager.clone(),
                         );
-                        ui.send_message(TreeRootMessage::add_item(tree_handle, tree));
+                        ui.send_message(TreeRootMessage::add_item(
+                            tree_handle,
+                            MessageDirection::ToWidget,
+                            tree,
+                        ));
                         self.stack.push((tree, node_handle));
                     } else {
                         self.stack.push((root.items()[0], node_handle));
@@ -433,7 +450,11 @@ impl WorldOutliner {
         }
 
         if !selected_items.is_empty() {
-            ui.send_message(TreeRootMessage::select(self.root, selected_items));
+            ui.send_message(TreeRootMessage::select(
+                self.root,
+                MessageDirection::ToWidget,
+                selected_items,
+            ));
         }
 
         // Sync items data.
@@ -472,9 +493,9 @@ impl WorldOutliner {
         ui: &Ui,
         current_selection: &Selection,
     ) {
-        match &message.data {
+        match &message.data() {
             UiMessageData::TreeRoot(msg) => {
-                if message.destination == self.root {
+                if message.destination() == self.root {
                     if let TreeRootMessage::Selected(selection) = msg {
                         let new_selection = Selection::from_list(
                             selection
@@ -498,11 +519,11 @@ impl WorldOutliner {
             UiMessageData::Widget(msg) => {
                 if let &WidgetMessage::Drop(node) = msg {
                     if ui.is_node_child_of(node, self.root)
-                        && ui.is_node_child_of(message.destination, self.root)
-                        && node != message.destination
+                        && ui.is_node_child_of(message.destination(), self.root)
+                        && node != message.destination()
                     {
                         let child = self.map_tree_to_node(node, ui);
-                        let parent = self.map_tree_to_node(message.destination, ui);
+                        let parent = self.map_tree_to_node(message.destination(), ui);
                         if child.is_some() && parent.is_some() {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
@@ -518,7 +539,11 @@ impl WorldOutliner {
     }
 
     pub fn clear(&mut self, ui: &mut Ui) {
-        ui.send_message(TreeRootMessage::items(self.root, vec![]));
+        ui.send_message(TreeRootMessage::items(
+            self.root,
+            MessageDirection::ToWidget,
+            vec![],
+        ));
     }
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {
@@ -531,7 +556,11 @@ impl WorldOutliner {
                     .iter()
                     .map(|&n| self.map_node_to_tree(ui, n))
                     .collect();
-                ui.send_message(TreeRootMessage::select(self.root, trees));
+                ui.send_message(TreeRootMessage::select(
+                    self.root,
+                    MessageDirection::ToWidget,
+                    trees,
+                ));
             }
             _ => (),
         }
