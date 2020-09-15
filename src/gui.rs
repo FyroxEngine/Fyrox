@@ -1,7 +1,7 @@
 use crate::{asset::AssetItem, world_outliner::SceneItem};
 use std::ops::{Deref, DerefMut};
 
-use rg3d::gui::message::MessageDirection;
+use rg3d::gui::message::{MessageData, MessageDirection};
 use rg3d::{
     core::{math::vec2::Vec2, math::Rect, pool::Handle},
     gui::{draw::DrawingContext, message::OsEvent, Control, NodeHandleMapping},
@@ -22,6 +22,8 @@ pub enum EditorUiMessage {
     AssetItem(AssetItemMessage),
     SceneItem(SceneItemMessage),
 }
+
+impl MessageData for EditorUiMessage {}
 
 impl SceneItemMessage {
     pub fn node_visibility(destination: Handle<UiNode>, visibility: bool) -> UiMessage {
