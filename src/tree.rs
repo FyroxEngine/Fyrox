@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -17,7 +17,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone)]
-pub struct Tree<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Tree<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     expander: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
@@ -32,9 +32,7 @@ pub struct Tree<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + C
     always_show_expander: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for Tree<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for Tree<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -42,17 +40,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for Tree<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for Tree<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for Tree<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         if let Some(&content) = node_map.get(&self.content) {
             self.content = content;
@@ -251,7 +245,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Tree<M, C> {
+impl<M: MessageData, C: Control<M, C>> Tree<M, C> {
     pub fn content(&self) -> Handle<UINode<M, C>> {
         self.content
     }
@@ -275,8 +269,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct TreeBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub struct TreeBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     content: Handle<UINode<M, C>>,
@@ -287,9 +280,7 @@ pub struct TreeBuilder<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'sta
     always_show_expander: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    TreeBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -414,16 +405,14 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
 }
 
 #[derive(Debug, Clone)]
-pub struct TreeRoot<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct TreeRoot<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     panel: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for TreeRoot<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for TreeRoot<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -431,17 +420,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for TreeRoot<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for TreeRoot<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for TreeRoot<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.panel = *node_map.get(&self.panel).unwrap();
         for handle in self.selected.iter_mut() {
@@ -533,23 +518,18 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> TreeRoot<M, C> {
+impl<M: MessageData, C: Control<M, C>> TreeRoot<M, C> {
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
 }
 
-pub struct TreeRootBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct TreeRootBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    TreeRootBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> TreeRootBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

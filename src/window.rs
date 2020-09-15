@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
@@ -27,7 +27,7 @@ use std::{
 /// It has scrollable region for content, content can be any desired node or even other window.
 /// Window can be dragged by its title.
 #[derive(Clone)]
-pub struct Window<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Window<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     mouse_click_pos: Vec2,
     initial_position: Vec2,
@@ -81,9 +81,7 @@ impl Grip {
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for Window<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for Window<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -91,17 +89,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for Window<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for Window<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for Window<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.header = *node_map.get(&self.header).unwrap();
         self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
@@ -494,7 +488,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Window<M, C> {
+impl<M: MessageData, C: Control<M, C>> Window<M, C> {
     pub fn is_dragging(&self) -> bool {
         self.is_dragging
     }
@@ -513,10 +507,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct WindowBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct WindowBuilder<M: MessageData, C: Control<M, C>> {
     pub widget_builder: WidgetBuilder<M, C>,
     pub content: Handle<UINode<M, C>>,
     pub title: Option<WindowTitle<M, C>>,
@@ -538,14 +529,12 @@ pub struct WindowBuilder<
 /// If you need more flexibility (i.e. put a picture near text) then `Node` option is for you:
 /// it allows to put any UI node hierarchy you want to.
 #[derive(Debug, Clone, PartialEq)]
-pub enum WindowTitle<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub enum WindowTitle<M: MessageData, C: Control<M, C>> {
     Text(String),
     Node(Handle<UINode<M, C>>),
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    WindowTitle<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> WindowTitle<M, C> {
     pub fn text<P: AsRef<str>>(text: P) -> Self {
         WindowTitle::Text(text.as_ref().to_owned())
     }
@@ -555,7 +544,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-fn make_text_title<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
+fn make_text_title<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     text: &str,
 ) -> Handle<UINode<M, C>> {
@@ -569,9 +558,7 @@ fn make_text_title<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static 
     .build(ctx)
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    WindowBuilder<M, C>
-{
+impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

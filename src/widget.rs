@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     brush::Brush,
     core::{
@@ -17,7 +17,7 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Widget<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Widget<M: MessageData, C: Control<M, C>> {
     pub(in crate) handle: Handle<UINode<M, C>>,
     name: String,
     /// Desired position relative to parent node
@@ -77,7 +77,7 @@ pub struct Widget<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static +
     pub(in crate) prev_global_visibility: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Widget<M, C> {
+impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn handle(&self) -> Handle<UINode<M, C>> {
         self.handle
     }
@@ -582,10 +582,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct WidgetBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub name: String,
     pub width: f32,
     pub height: f32,
@@ -611,17 +608,13 @@ pub struct WidgetBuilder<
     pub cursor: Option<CursorIcon>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Default
-    for WidgetBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Default for WidgetBuilder<M, C> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    WidgetBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
     pub fn new() -> Self {
         Self {
             name: Default::default(),

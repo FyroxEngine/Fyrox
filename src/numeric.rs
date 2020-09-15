@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     button::ButtonBuilder,
     core::pool::Handle,
@@ -16,10 +16,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct NumericUpDown<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct NumericUpDown<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     field: Handle<UINode<M, C>>,
     increase: Handle<UINode<M, C>>,
@@ -31,9 +28,7 @@ pub struct NumericUpDown<
     precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for NumericUpDown<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for NumericUpDown<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -41,17 +36,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for NumericUpDown<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for NumericUpDown<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    NumericUpDown<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> NumericUpDown<M, C> {
     fn try_parse_value(&mut self, ui: &mut UserInterface<M, C>) {
         // Parse input only when focus is lost from text field.
         if let UINode::TextBox(field) = ui.node(self.field) {
@@ -67,9 +58,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for NumericUpDown<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.field = *node_map.get(&self.field).unwrap();
         self.increase = *node_map.get(&self.increase).unwrap();
@@ -146,10 +135,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct NumericUpDownBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct NumericUpDownBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     value: f32,
     step: f32,
@@ -158,9 +144,7 @@ pub struct NumericUpDownBuilder<
     precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    NumericUpDownBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

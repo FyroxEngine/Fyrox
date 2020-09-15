@@ -48,7 +48,7 @@ pub mod widget;
 pub mod window;
 pub mod wrap_panel;
 
-use crate::message::{CursorIcon, MessageDirection};
+use crate::message::{CursorIcon, MessageData, MessageDirection};
 use crate::{
     brush::Brush,
     canvas::Canvas,
@@ -180,10 +180,10 @@ impl Thickness {
 pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
 
 /// Trait for all UI controls in library.
-pub trait Control<M, C>: Deref<Target = Widget<M, C>> + DerefMut + Clone
+pub trait Control<M, C>: 'static + Deref<Target = Widget<M, C>> + DerefMut + Clone
 where
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
+    M: MessageData,
+    C: Control<M, C>,
 {
     fn resolve(&mut self, _node_map: &NodeHandleMapping<M, C>) {}
 
@@ -366,16 +366,13 @@ where
     fn remove_ref(&mut self, _handle: Handle<UINode<M, C>>) {}
 }
 
-pub struct DragContext<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub struct DragContext<M: MessageData, C: Control<M, C>> {
     is_dragging: bool,
     drag_node: Handle<UINode<M, C>>,
     click_pos: Vec2,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Default
-    for DragContext<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Default for DragContext<M, C> {
     fn default() -> Self {
         Self {
             is_dragging: false,
@@ -403,17 +400,11 @@ impl Default for MouseState {
     }
 }
 
-pub struct BuildContext<
-    'a,
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct BuildContext<'a, M: MessageData, C: Control<M, C>> {
     ui: &'a mut UserInterface<M, C>,
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    BuildContext<'a, M, C>
-{
+impl<'a, M: MessageData, C: Control<M, C>> BuildContext<'a, M, C> {
     pub fn add_node(&mut self, node: UINode<M, C>) -> Handle<UINode<M, C>> {
         self.ui.add_node(node)
     }
@@ -427,9 +418,7 @@ impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<
     }
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    Index<Handle<UINode<M, C>>> for BuildContext<'a, M, C>
-{
+impl<'a, M: MessageData, C: Control<M, C>> Index<Handle<UINode<M, C>>> for BuildContext<'a, M, C> {
     type Output = UINode<M, C>;
 
     fn index(&self, index: Handle<UINode<M, C>>) -> &Self::Output {
@@ -437,18 +426,15 @@ impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<
     }
 }
 
-impl<'a, M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    IndexMut<Handle<UINode<M, C>>> for BuildContext<'a, M, C>
+impl<'a, M: MessageData, C: Control<M, C>> IndexMut<Handle<UINode<M, C>>>
+    for BuildContext<'a, M, C>
 {
     fn index_mut(&mut self, index: Handle<UINode<M, C>>) -> &mut Self::Output {
         &mut self.ui.nodes[index]
     }
 }
 
-pub struct UserInterface<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     screen_size: Vec2,
     nodes: Pool<UINode<M, C>>,
     drawing_context: DrawingContext,
@@ -477,7 +463,7 @@ lazy_static! {
     };
 }
 
-fn draw_node<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
+fn draw_node<M: MessageData, C: Control<M, C>>(
     nodes: &Pool<UINode<M, C>>,
     node_handle: Handle<UINode<M, C>>,
     drawing_context: &mut DrawingContext,
@@ -526,9 +512,7 @@ fn draw_node<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Cont
     drawing_context.revert_clip_geom();
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    UserInterface<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     pub fn new(screen_size: Vec2) -> UserInterface<M, C> {
         let (sender, receiver) = mpsc::channel();
         let mut ui = UserInterface {

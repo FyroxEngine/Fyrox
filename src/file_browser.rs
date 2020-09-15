@@ -3,7 +3,7 @@
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
 
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     button::ButtonBuilder,
     core::{
@@ -40,8 +40,7 @@ use sysinfo::{DiskExt, SystemExt};
 pub type Filter = dyn FnMut(&Path) -> bool;
 
 #[derive(Clone)]
-pub struct FileBrowser<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub struct FileBrowser<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     tree_root: Handle<UINode<M, C>>,
     path_text: Handle<UINode<M, C>>,
@@ -50,9 +49,7 @@ pub struct FileBrowser<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'sta
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for FileBrowser<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for FileBrowser<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -60,17 +57,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for FileBrowser<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for FileBrowser<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for FileBrowser<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.tree_root = *node_map.get(&self.tree_root).unwrap();
         self.path_text = *node_map.get(&self.path_text).unwrap();
@@ -212,11 +205,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-fn find_tree<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-    P: AsRef<Path>,
->(
+fn find_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     node: Handle<UINode<M, C>>,
     path: &P,
     ui: &UserInterface<M, C>,
@@ -250,11 +239,7 @@ fn find_tree<
     tree_handle
 }
 
-fn build_tree_item<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-    P: AsRef<Path>,
->(
+fn build_tree_item<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     path: P,
     parent_path: P,
     ctx: &mut BuildContext<M, C>,
@@ -279,11 +264,7 @@ fn build_tree_item<
         .build(ctx)
 }
 
-fn build_tree<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-    P: AsRef<Path>,
->(
+fn build_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     parent: Handle<UINode<M, C>>,
     is_parent_root: bool,
     path: P,
@@ -310,7 +291,7 @@ fn build_tree<
 }
 
 /// Builds entire file system tree to given final_path.
-fn build_all<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
+fn build_all<M: MessageData, C: Control<M, C>>(
     final_path: &Path,
     filter: Option<Rc<RefCell<Filter>>>,
     ctx: &mut BuildContext<M, C>,
@@ -378,18 +359,13 @@ fn build_all<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Cont
     (root_items.values().copied().collect(), path_item)
 }
 
-pub struct FileBrowserBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct FileBrowserBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     path: PathBuf,
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    FileBrowserBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
@@ -473,19 +449,14 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
 #[derive(Clone)]
-pub struct FileSelector<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct FileSelector<M: MessageData, C: Control<M, C>> {
     window: Window<M, C>,
     browser: Handle<UINode<M, C>>,
     ok: Handle<UINode<M, C>>,
     cancel: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for FileSelector<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for FileSelector<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -493,9 +464,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for FileSelector<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for FileSelector<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.window
     }
@@ -503,9 +472,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
 
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for FileSelector<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.window.resolve(node_map);
         self.ok = *node_map.get(&self.ok).unwrap();
@@ -623,18 +590,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct FileSelectorBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct FileSelectorBuilder<M: MessageData, C: Control<M, C>> {
     window_builder: WindowBuilder<M, C>,
     filter: Option<Rc<RefCell<Filter>>>,
     path: PathBuf,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    FileSelectorBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
     pub fn new(window_builder: WindowBuilder<M, C>) -> Self {
         Self {
             window_builder,

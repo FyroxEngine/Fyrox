@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -14,8 +14,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Vec3Editor<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub struct Vec3Editor<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     x_field: Handle<UINode<M, C>>,
     y_field: Handle<UINode<M, C>>,
@@ -23,9 +22,7 @@ pub struct Vec3Editor<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'stat
     value: Vec3,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for Vec3Editor<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for Vec3Editor<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -33,17 +30,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for Vec3Editor<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for Vec3Editor<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for Vec3Editor<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.x_field = *node_map.get(&self.x_field).unwrap();
         self.y_field = *node_map.get(&self.y_field).unwrap();
@@ -123,18 +116,12 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct Vec3EditorBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct Vec3EditorBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     value: Vec3,
 }
 
-pub fn make_numeric_input<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
->(
+pub fn make_numeric_input<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     column: usize,
 ) -> Handle<UINode<M, C>> {
@@ -152,7 +139,7 @@ pub fn make_numeric_input<
     .build(ctx)
 }
 
-pub fn make_mark<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>(
+pub fn make_mark<M: MessageData, C: Control<M, C>>(
     ctx: &mut BuildContext<M, C>,
     text: &str,
     column: usize,
@@ -174,9 +161,7 @@ pub fn make_mark<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + 
     .build(ctx)
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    Vec3EditorBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Vec3EditorBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -12,21 +12,18 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, PartialEq)]
-pub struct Tab<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Tab<M: MessageData, C: Control<M, C>> {
     header_button: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
 }
 
 #[derive(Clone)]
-pub struct TabControl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub struct TabControl<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     tabs: Vec<Tab<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for TabControl<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for TabControl<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -34,17 +31,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for TabControl<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for TabControl<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for TabControl<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for TabControl<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         for tab in self.tabs.iter_mut() {
             tab.header_button = *node_map.get(&tab.header_button).unwrap();
@@ -92,25 +85,17 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct TabControlBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct TabControlBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     tabs: Vec<TabDefinition<M, C>>,
 }
 
-pub struct TabDefinition<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct TabDefinition<M: MessageData, C: Control<M, C>> {
     pub header: Handle<UINode<M, C>>,
     pub content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    TabControlBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> TabControlBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

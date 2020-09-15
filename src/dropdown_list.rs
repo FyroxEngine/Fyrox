@@ -1,7 +1,7 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     core::{math::vec2::Vec2, pool::Handle},
@@ -17,10 +17,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct DropdownList<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct DropdownList<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     popup: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
@@ -29,9 +26,7 @@ pub struct DropdownList<
     selection: Option<usize>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for DropdownList<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for DropdownList<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -39,17 +34,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for DropdownList<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for DropdownList<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for DropdownList<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.popup = *node_map.get(&self.popup).unwrap();
         self.list_view = *node_map.get(&self.list_view).unwrap();
@@ -162,18 +153,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct DropdownListBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct DropdownListBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     selected: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    DropdownListBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

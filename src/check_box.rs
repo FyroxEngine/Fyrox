@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -10,15 +10,13 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct CheckBox<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct CheckBox<M: MessageData, C: Control<M, C>> {
     pub widget: Widget<M, C>,
     pub checked: Option<bool>,
     pub check_mark: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for CheckBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for CheckBox<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -26,17 +24,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for CheckBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for CheckBox<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for CheckBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.check_mark = *node_map.get(&self.check_mark).unwrap();
     }
@@ -131,18 +125,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct CheckBoxBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct CheckBoxBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     checked: Option<bool>,
     check_mark: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    CheckBoxBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

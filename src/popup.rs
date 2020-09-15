@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     core::{math::vec2::Vec2, pool::Handle},
@@ -21,7 +21,7 @@ pub enum Placement {
 }
 
 #[derive(Clone)]
-pub struct Popup<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Popup<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     placement: Placement,
     stays_open: bool,
@@ -30,9 +30,7 @@ pub struct Popup<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + 
     body: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for Popup<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for Popup<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -40,17 +38,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for Popup<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for Popup<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for Popup<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         if let Some(content) = node_map.get(&self.content) {
             self.content = *content;
@@ -173,19 +167,14 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct PopupBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct PopupBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     placement: Placement,
     stays_open: bool,
     content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    PopupBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> PopupBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

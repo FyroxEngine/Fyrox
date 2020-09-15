@@ -1,4 +1,5 @@
 use crate::file_browser::FileSelector;
+use crate::message::MessageData;
 use crate::{
     border::Border,
     button::Button,
@@ -41,7 +42,7 @@ use std::ops::{Deref, DerefMut};
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone)]
-pub enum UINode<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub enum UINode<M: MessageData, C: Control<M, C>> {
     Border(Border<M, C>),
     Button(Button<M, C>),
     Canvas(Canvas<M, C>),
@@ -117,9 +118,7 @@ macro_rules! static_dispatch {
     };
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for UINode<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for UINode<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -127,15 +126,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for UINode<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for UINode<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         static_dispatch!(self, deref_mut,)
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> UINode<M, C> {
+impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : Border -> ref Border<M, C> => fn is_border, fn as_border, fn as_border_mut);
     define_is_as!(UINode : Button -> ref Button<M, C> => fn is_button, fn as_button, fn as_button_mut);
     define_is_as!(UINode : Canvas -> ref Canvas<M, C> => fn is_canvas, fn as_canvas, fn as_canvas_mut);
@@ -171,9 +168,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     define_is_as!(UINode : User -> ref C => fn is_user, fn as_user, fn as_user_mut);
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for UINode<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for UINode<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         static_dispatch!(self, resolve, node_map);
     }
@@ -230,6 +225,8 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StubNode {}
+
+impl MessageData for () {}
 
 impl Control<(), StubNode> for StubNode {
     fn handle_routed_message(

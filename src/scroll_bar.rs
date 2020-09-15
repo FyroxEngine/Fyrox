@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -22,7 +22,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct ScrollBar<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct ScrollBar<M: MessageData, C: Control<M, C>> {
     pub widget: Widget<M, C>,
     pub min: f32,
     pub max: f32,
@@ -39,9 +39,7 @@ pub struct ScrollBar<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'stati
     pub value_precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for ScrollBar<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for ScrollBar<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -49,17 +47,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for ScrollBar<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for ScrollBar<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for ScrollBar<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.increase = *node_map.get(&self.increase).unwrap();
         self.decrease = *node_map.get(&self.decrease).unwrap();
@@ -281,7 +275,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> ScrollBar<M, C> {
+impl<M: MessageData, C: Control<M, C>> ScrollBar<M, C> {
     pub const PART_CANVAS: &'static str = "PART_Canvas";
 
     pub fn new(
@@ -332,10 +326,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct ScrollBarBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct ScrollBarBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     min: Option<f32>,
     max: Option<f32>,
@@ -350,9 +341,7 @@ pub struct ScrollBarBuilder<
     value_precision: usize,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    ScrollBarBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

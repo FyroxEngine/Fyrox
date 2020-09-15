@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::ttf::SharedFont;
 use crate::{
     border::BorderBuilder,
@@ -14,15 +14,13 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Button<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Button<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     decorator: Handle<UINode<M, C>>,
     content: Handle<UINode<M, C>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for Button<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for Button<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -30,15 +28,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for Button<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for Button<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Button<M, C> {
+impl<M: MessageData, C: Control<M, C>> Button<M, C> {
     pub fn new(
         widget: Widget<M, C>,
         body: Handle<UINode<M, C>>,
@@ -61,9 +57,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for Button<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Button<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         if let Some(content) = node_map.get(&self.content) {
             self.content = *content;
@@ -132,16 +126,12 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub enum ButtonContent<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub enum ButtonContent<M: MessageData, C: Control<M, C>> {
     Text(String),
     Node(Handle<UINode<M, C>>),
 }
 
-pub struct ButtonBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct ButtonBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: Option<ButtonContent<M, C>>,
     font: Option<SharedFont>,
@@ -150,9 +140,7 @@ pub struct ButtonBuilder<
     decorator: Option<Handle<UINode<M, C>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    ButtonBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

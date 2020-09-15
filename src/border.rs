@@ -1,3 +1,4 @@
+use crate::message::MessageData;
 use crate::{
     brush::Brush,
     core::{
@@ -14,14 +15,12 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone)]
-pub struct Border<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct Border<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     stroke_thickness: Thickness,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for Border<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for Border<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -29,17 +28,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for Border<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for Border<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for Border<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         scope_profile!();
 
@@ -110,7 +105,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Border<M, C> {
+impl<M: MessageData, C: Control<M, C>> Border<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -127,17 +122,12 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct BorderBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct BorderBuilder<M: MessageData, C: Control<M, C>> {
     pub widget_builder: WidgetBuilder<M, C>,
     pub stroke_thickness: Option<Thickness>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    BorderBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> BorderBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

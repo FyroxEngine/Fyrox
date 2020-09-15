@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::{
     core::{
         math::{vec2::Vec2, Rect},
@@ -13,17 +13,14 @@ use std::ops::{Deref, DerefMut};
 
 /// Allows user to scroll content
 #[derive(Clone)]
-pub struct ScrollPanel<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-{
+pub struct ScrollPanel<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     scroll: Vec2,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for ScrollPanel<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for ScrollPanel<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -31,17 +28,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for ScrollPanel<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for ScrollPanel<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for ScrollPanel<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         scope_profile!();
 
@@ -153,9 +146,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    ScrollPanel<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> ScrollPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -180,18 +171,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct ScrollPanelBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct ScrollPanelBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     vertical_scroll_allowed: Option<bool>,
     horizontal_scroll_allowed: Option<bool>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    ScrollPanelBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> ScrollPanelBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,

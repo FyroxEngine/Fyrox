@@ -1,4 +1,4 @@
-use crate::message::MessageDirection;
+use crate::message::{MessageData, MessageDirection};
 use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
@@ -48,7 +48,7 @@ pub struct SelectionRange {
 pub type FilterCallback = dyn FnMut(char) -> bool;
 
 #[derive(Clone)]
-pub struct TextBox<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> {
+pub struct TextBox<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     caret_line: usize,
     caret_offset: usize,
@@ -64,17 +64,13 @@ pub struct TextBox<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static 
     filter: Option<Rc<RefCell<FilterCallback>>>,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Debug
-    for TextBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Debug for TextBox<M, C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str("TextBox")
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Deref
-    for TextBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Deref for TextBox<M, C> {
     type Target = Widget<M, C>;
 
     fn deref(&self) -> &Self::Target {
@@ -82,15 +78,13 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> DerefMut
-    for TextBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> DerefMut for TextBox<M, C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> TextBox<M, C> {
+impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
         Self {
             widget,
@@ -363,9 +357,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>> Control<M, C>
-    for TextBox<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         self.formatted_text
             .borrow_mut()
@@ -597,10 +589,7 @@ impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C
     }
 }
 
-pub struct TextBoxBuilder<
-    M: 'static + std::fmt::Debug + Clone + PartialEq,
-    C: 'static + Control<M, C>,
-> {
+pub struct TextBoxBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     font: Option<SharedFont>,
     text: String,
@@ -612,9 +601,7 @@ pub struct TextBoxBuilder<
     wrap: bool,
 }
 
-impl<M: 'static + std::fmt::Debug + Clone + PartialEq, C: 'static + Control<M, C>>
-    TextBoxBuilder<M, C>
-{
+impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
             widget_builder,
