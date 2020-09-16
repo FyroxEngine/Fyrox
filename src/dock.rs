@@ -5,7 +5,6 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
-use crate::message::{CursorIcon, MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -15,14 +14,17 @@ use crate::{
         pool::Handle,
     },
     grid::{Column, GridBuilder, Row},
-    message::{TileMessage, UiMessage, UiMessageData, WidgetMessage, WindowMessage},
+    message::{
+        CursorIcon, MessageData, MessageDirection, TileMessage, UiMessage, UiMessageData,
+        WidgetMessage, WindowMessage,
+    },
     node::UINode,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum TileContent<M: MessageData, C: Control<M, C>> {
     Empty,
     Window(Handle<UINode<M, C>>),
@@ -40,23 +42,6 @@ pub enum TileContent<M: MessageData, C: Control<M, C>> {
         /// will most likely not work.
         tiles: [Handle<UINode<M, C>>; 2],
     },
-}
-
-impl<M: MessageData, C: Control<M, C>> Clone for TileContent<M, C> {
-    fn clone(&self) -> Self {
-        match self {
-            TileContent::Empty => TileContent::Empty,
-            TileContent::Window(v) => TileContent::Window(*v),
-            TileContent::VerticalTiles { splitter, tiles } => TileContent::VerticalTiles {
-                splitter: *splitter,
-                tiles: *tiles,
-            },
-            TileContent::HorizontalTiles { splitter, tiles } => TileContent::HorizontalTiles {
-                splitter: *splitter,
-                tiles: *tiles,
-            },
-        }
-    }
 }
 
 impl<M: MessageData, C: Control<M, C>> TileContent<M, C> {
@@ -263,6 +248,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
 
                                     ui.send_message(WidgetMessage::visibility(
                                         self.splitter,
+                                        MessageDirection::ToWidget,
+                                        false,
+                                    ));
+
+                                    ui.send_message(WindowMessage::can_resize(
+                                        window,
                                         MessageDirection::ToWidget,
                                         false,
                                     ));
@@ -473,6 +464,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                 ui.send_message(WidgetMessage::unlink(
                                     message.destination(),
                                     MessageDirection::ToWidget,
+                                ));
+
+                                ui.send_message(WindowMessage::can_resize(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                    true,
                                 ));
 
                                 if let Some(docking_manager) =
@@ -941,6 +938,14 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
                 .with_margin(Thickness::uniform(1.0)),
         )
         .build(ctx);
+
+        if let TileContent::Window(window) = self.content {
+            if let UINode::Window(window) = &mut ctx[window] {
+                // Every docked window must be non-resizable (it means that it cannot be resized by user
+                // and it still can be resized by a proper message).
+                window.set_can_resize(false);
+            }
+        }
 
         let children = match self.content {
             TileContent::Window(window) => vec![window],

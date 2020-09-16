@@ -13,8 +13,6 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
-use crate::draw::SharedTexture;
-use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{
@@ -22,13 +20,14 @@ use crate::{
         pool::Handle,
     },
     dock::TileContent,
+    draw::SharedTexture,
     messagebox::MessageBoxResult,
     popup::Placement,
+    ttf::SharedFont,
     window::WindowTitle,
     Control, HorizontalAlignment, MouseState, Thickness, UINode, VerticalAlignment,
 };
-use std::fmt::Debug;
-use std::{cell::Cell, path::PathBuf};
+use std::{cell::Cell, fmt::Debug, path::PathBuf};
 
 macro_rules! define_constructor {
     ($var:tt($inner:ident : $inner_var:tt) => fn $name:ident()) => {
@@ -416,16 +415,40 @@ impl CheckBoxMessage {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
+    /// Opens a window.
     Open,
+
+    /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
+    /// it just restricts mouse and keyboard events only to window so other content is not
+    /// clickable/type-able. Closing a window removes that restriction.
     OpenModal,
+
+    /// Closes a window.
     Close,
+
+    /// Minimizes a window - it differs from classic minimization in window managers,
+    /// instead of putting window in system tray, it just collapses internal content panel.
     Minimize(bool),
+
+    /// Whether or not window can be minimized by _ mark. false hides _ mark.
     CanMinimize(bool),
+
+    /// Whether or not window can be closed by X mark. false hides X mark.
     CanClose(bool),
+
+    /// Whether or not window can be resized by resize grips.
+    CanResize(bool),
+
+    /// Indicates that move has been started. You should never send this message by hand.
     MoveStart,
-    /// New position is in local coordinates.
+
+    /// Moves window to a new position in local coordinates.
     Move(Vec2),
+
+    /// Indicated that move has ended. You should never send this message by hand.
     MoveEnd,
+
+    /// Sets new window title.
     Title(WindowTitle<M, C>),
 }
 
@@ -436,6 +459,7 @@ impl<M: MessageData, C: Control<M, C>> WindowMessage<M, C> {
     define_constructor!(Window(WindowMessage:Minimize) => fn minimize(bool));
     define_constructor!(Window(WindowMessage:CanMinimize) => fn can_minimize(bool));
     define_constructor!(Window(WindowMessage:CanClose) => fn can_close(bool));
+    define_constructor!(Window(WindowMessage:CanResize) => fn can_resize(bool));
     define_constructor!(Window(WindowMessage:MoveStart) => fn move_start());
     define_constructor!(Window(WindowMessage:Move) => fn move_to(Vec2));
     define_constructor!(Window(WindowMessage:MoveEnd) => fn move_end());

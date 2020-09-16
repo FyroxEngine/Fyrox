@@ -1,4 +1,3 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
@@ -10,8 +9,8 @@ use crate::{
     },
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, CursorIcon, TextMessage, UiMessage, UiMessageData, WidgetMessage,
-        WindowMessage,
+        ButtonMessage, CursorIcon, MessageData, MessageDirection, TextMessage, UiMessage,
+        UiMessageData, WidgetMessage, WindowMessage,
     },
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
@@ -280,14 +279,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                             self.mouse_click_pos = *pos;
                             ui.send_message(WindowMessage::move_start(
                                 self.handle,
-                                MessageDirection::FromWidget,
+                                MessageDirection::ToWidget,
                             ));
                             message.set_handled(true);
                         }
                         WidgetMessage::MouseUp { .. } => {
                             ui.send_message(WindowMessage::move_end(
                                 self.handle,
-                                MessageDirection::FromWidget,
+                                MessageDirection::ToWidget,
                             ));
                             message.set_handled(true);
                         }
@@ -297,7 +296,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                 let new_pos = self.initial_position + self.drag_delta;
                                 ui.send_message(WindowMessage::move_to(
                                     self.handle(),
-                                    MessageDirection::FromWidget,
+                                    MessageDirection::ToWidget,
                                     new_pos,
                                 ));
                             }
@@ -329,7 +328,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                 }
             }
             UiMessageData::Window(msg) => {
-                if message.destination() == self.handle() {
+                if message.destination() == self.handle()
+                    && message.direction() == MessageDirection::ToWidget
+                {
                     match msg {
                         WindowMessage::Open => {
                             ui.send_message(WidgetMessage::visibility(
@@ -399,6 +400,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                 }
                             }
                         }
+                        &WindowMessage::CanResize(value) => {
+                            if self.can_resize != value {
+                                self.can_resize = value;
+                                ui.send_message(message.reverse());
+                            }
+                        }
                         &WindowMessage::Move(new_pos) => {
                             if self.desired_local_position() != new_pos {
                                 ui.send_message(WidgetMessage::desired_position(
@@ -406,17 +413,27 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                     MessageDirection::ToWidget,
                                     new_pos,
                                 ));
+
+                                ui.send_message(message.reverse());
                             }
                         }
                         WindowMessage::MoveStart => {
-                            ui.capture_mouse(self.header);
-                            let initial_position = self.actual_local_position();
-                            self.initial_position = initial_position;
-                            self.is_dragging = true;
+                            if !self.is_dragging {
+                                ui.capture_mouse(self.header);
+                                let initial_position = self.actual_local_position();
+                                self.initial_position = initial_position;
+                                self.is_dragging = true;
+
+                                ui.send_message(message.reverse());
+                            }
                         }
                         WindowMessage::MoveEnd => {
-                            ui.release_mouse_capture();
-                            self.is_dragging = false;
+                            if self.is_dragging {
+                                ui.release_mouse_capture();
+                                self.is_dragging = false;
+
+                                ui.send_message(message.reverse());
+                            }
                         }
                         WindowMessage::Title(title) => {
                             match title {
@@ -504,6 +521,14 @@ impl<M: MessageData, C: Control<M, C>> Window<M, C> {
             }
         }
         false
+    }
+
+    pub fn set_can_resize(&mut self, value: bool) {
+        self.can_resize = value;
+    }
+
+    pub fn can_resize(&self) -> bool {
+        self.can_resize
     }
 }
 

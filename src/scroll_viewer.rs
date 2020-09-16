@@ -1,10 +1,9 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     core::{math::vec2::Vec2, pool::Handle},
     grid::{Column, GridBuilder, Row},
     message::{
-        ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage, UiMessage, UiMessageData,
-        WidgetMessage,
+        MessageData, MessageDirection, ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage,
+        UiMessage, UiMessageData, WidgetMessage,
     },
     scroll_bar::ScrollBarBuilder,
     scroll_panel::ScrollPanelBuilder,
@@ -284,14 +283,14 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewerBuilder<M, C> {
         .build(ctx);
 
         let v_scroll_bar = self.v_scroll_bar.unwrap_or_else(|| {
-            ScrollBarBuilder::new(WidgetBuilder::new().with_width(28.0))
+            ScrollBarBuilder::new(WidgetBuilder::new().with_width(22.0))
                 .with_orientation(Orientation::Vertical)
                 .build(ctx)
         });
         ctx[v_scroll_bar].set_row(0).set_column(1);
 
         let h_scroll_bar = self.h_scroll_bar.unwrap_or_else(|| {
-            ScrollBarBuilder::new(WidgetBuilder::new().with_height(28.0))
+            ScrollBarBuilder::new(WidgetBuilder::new().with_height(22.0))
                 .with_orientation(Orientation::Horizontal)
                 .build(ctx)
         });
