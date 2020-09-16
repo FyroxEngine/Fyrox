@@ -316,13 +316,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                     if message.destination() == self.minimize_button {
                         ui.send_message(WindowMessage::minimize(
                             self.handle(),
-                            MessageDirection::FromWidget,
+                            MessageDirection::ToWidget,
                             !self.minimized,
                         ));
                     } else if message.destination() == self.close_button {
                         ui.send_message(WindowMessage::close(
                             self.handle(),
-                            MessageDirection::FromWidget,
+                            MessageDirection::ToWidget,
                         ));
                     }
                 }
