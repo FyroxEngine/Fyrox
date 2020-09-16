@@ -480,17 +480,9 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         let mut size = Vec2::ZERO;
 
-        for child_handle in self.children.iter() {
-            ui.node(*child_handle).measure(ui, available_size);
-
-            let child = ui.node(*child_handle);
-            let child_desired_size = child.desired_size.get();
-            if child_desired_size.x > size.x {
-                size.x = child_desired_size.x;
-            }
-            if child_desired_size.y > size.y {
-                size.y = child_desired_size.y;
-            }
+        for child in self.children.iter().map(|&h| ui.node(h)) {
+            child.measure(ui, available_size);
+            size = size.max(child.desired_size.get());
         }
 
         size
@@ -500,8 +492,8 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     pub fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
-        for child_handle in self.children.iter() {
-            ui.node(*child_handle).arrange(ui, &final_rect);
+        for child in self.children.iter().map(|&h| ui.node(h)) {
+            child.arrange(ui, &final_rect);
         }
 
         final_size

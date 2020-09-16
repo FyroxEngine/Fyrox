@@ -480,7 +480,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
-        self.window.arrange_override(ui, available_size)
+        self.window.measure_override(ui, available_size)
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {

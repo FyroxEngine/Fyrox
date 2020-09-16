@@ -1155,6 +1155,12 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                         }
                         WidgetMessage::Center => {
                             if message.destination().is_some() {
+                                // We must calculate layout first, otherwise node size can be different from
+                                // its real state. This especially important if a node was previously hidden
+                                // and it collapses into a point with (0,0) size, so on attempt to center
+                                // previously hidden node it won't be centered.
+                                self.update(self.screen_size, 0.0);
+
                                 let node = self.node(message.destination());
                                 let size = node.actual_size();
                                 let parent = node.parent();
@@ -1569,5 +1575,37 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         let copy_handle = self.add_node(cloned);
         map.insert(node_handle, copy_handle);
         copy_handle
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        border::BorderBuilder,
+        core::math::vec2::Vec2,
+        message::{MessageDirection, WidgetMessage},
+        node::StubNode,
+        widget::WidgetBuilder,
+        UserInterface,
+    };
+
+    #[test]
+    fn center() {
+        let screen_size = Vec2::new(1000.0, 1000.0);
+        let widget_size = Vec2::new(100.0, 100.0);
+        let mut ui = UserInterface::<(), StubNode>::new(screen_size);
+        let widget = BorderBuilder::new(
+            WidgetBuilder::new()
+                .with_width(widget_size.x)
+                .with_height(widget_size.y),
+        )
+        .build(&mut ui.build_ctx());
+        ui.update(screen_size, 0.0); // Make sure layout was calculated.
+        ui.send_message(WidgetMessage::center(widget, MessageDirection::ToWidget));
+        while let Some(_) = ui.poll_message() {}
+        ui.update(screen_size, 0.0);
+        let expected_position = (screen_size - widget_size).scale(0.5);
+        let actual_position = ui.node(widget).actual_local_position();
+        assert_eq!(actual_position, expected_position);
     }
 }
