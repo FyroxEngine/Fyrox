@@ -67,6 +67,7 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
+use std::collections::VecDeque;
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut, Index, IndexMut},
@@ -449,6 +450,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     sender: Sender<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
     picking_stack: Vec<Handle<UINode<M, C>>>,
+    bubble_queue: VecDeque<Handle<UINode<M, C>>>,
     drag_context: DragContext<M, C>,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
@@ -530,6 +532,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             keyboard_focus_node: Handle::NONE,
             stack: Default::default(),
             picking_stack: Default::default(),
+            bubble_queue: Default::default(),
             drag_context: Default::default(),
             mouse_state: Default::default(),
             keyboard_modifiers: Default::default(),
@@ -1069,9 +1072,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                     // but node was moved out of pool at that time and this will cause panic when we'll
                     // try to move node out of pool.
                     if let Ok((ticket, mut node)) = self.nodes.try_take_reserve(handle) {
-                        for &child in node.children() {
-                            self.stack.push(child);
-                        }
+                        self.stack.extend_from_slice(node.children());
                         node.preview_message(self, &mut message);
                         self.nodes.put_back(ticket, node);
                     }
@@ -1083,16 +1084,15 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                     && self.nodes.is_valid_handle(message.destination())
                 {
                     // Gather chain of nodes from source to root.
-                    self.stack.clear();
-                    self.stack.push(message.destination());
+                    self.bubble_queue.clear();
+                    self.bubble_queue.push_back(message.destination());
                     let mut parent = self.nodes[message.destination()].parent();
                     while parent.is_some() && self.nodes.is_valid_handle(parent) {
-                        self.stack.push(parent);
+                        self.bubble_queue.push_back(parent);
                         parent = self.nodes[parent].parent();
                     }
-                    self.stack.reverse();
 
-                    while let Some(handle) = self.stack.pop() {
+                    while let Some(handle) = self.bubble_queue.pop_front() {
                         let (ticket, mut node) = self.nodes.take_reserve(handle);
                         node.handle_routed_message(self, &mut message);
                         self.nodes.put_back(ticket, node);

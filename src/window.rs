@@ -333,11 +333,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                 {
                     match msg {
                         WindowMessage::Open => {
-                            ui.send_message(WidgetMessage::visibility(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            if !self.visibility() {
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
+                            }
                         }
                         WindowMessage::OpenModal => {
                             if !self.visibility() {
@@ -354,12 +356,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                             }
                         }
                         WindowMessage::Close => {
-                            ui.send_message(WidgetMessage::visibility(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                false,
-                            ));
-                            ui.remove_picking_restriction(self.handle());
+                            if self.visibility() {
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    false,
+                                ));
+                                ui.remove_picking_restriction(self.handle());
+                            }
                         }
                         &WindowMessage::Minimize(minimized) => {
                             if self.minimized != minimized {
