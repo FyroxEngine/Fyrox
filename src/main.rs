@@ -11,8 +11,7 @@ pub mod scene;
 pub mod sidebar;
 pub mod world_outliner;
 
-use rg3d::core::scope_profile;
-
+use crate::gui::Ui;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -29,21 +28,12 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::gui::draw::SharedTexture;
-use rg3d::gui::message::MessageDirection;
-use rg3d::scene::camera::CameraBuilder;
-use rg3d::scene::light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder};
-use rg3d::scene::mesh::MeshBuilder;
-use rg3d::scene::particle_system::{
-    BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder,
-};
-use rg3d::scene::sprite::SpriteBuilder;
-use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{
         color::Color,
         math::{vec2::Vec2, Rect},
         pool::Handle,
+        scope_profile,
         visitor::{Visit, Visitor},
     },
     event::{Event, WindowEvent},
@@ -54,13 +44,14 @@ use rg3d::{
         button::ButtonBuilder,
         canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
+        draw::SharedTexture,
         file_browser::FileSelectorBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
         message::{
             ButtonMessage, FileSelectorMessage, ImageMessage, KeyCode, MenuItemMessage,
-            MouseButton, UiMessageData, WidgetMessage, WindowMessage,
+            MessageDirection, MouseButton, UiMessageData, WidgetMessage, WindowMessage,
         },
         stack_panel::StackPanelBuilder,
         ttf::Font,
@@ -70,8 +61,18 @@ use rg3d::{
     },
     renderer::surface::{Surface, SurfaceSharedData},
     resource::texture::TextureKind,
-    scene::{base::BaseBuilder, mesh::Mesh, node::Node, Scene},
-    utils::{translate_cursor_icon, translate_event},
+    scene::{
+        base::BaseBuilder,
+        camera::CameraBuilder,
+        light::{BaseLightBuilder, PointLightBuilder, SpotLightBuilder},
+        mesh::Mesh,
+        mesh::MeshBuilder,
+        node::Node,
+        particle_system::{BaseEmitterBuilder, ParticleSystemBuilder, SphereEmitterBuilder},
+        sprite::SpriteBuilder,
+        Scene,
+    },
+    utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
 use std::{
     cell::RefCell,
@@ -376,12 +377,31 @@ struct Menu {
     create_camera: Handle<UiNode>,
     create_sprite: Handle<UiNode>,
     create_particle_system: Handle<UiNode>,
+    sidebar: Handle<UiNode>,
+    world_outliner: Handle<UiNode>,
+    asset_browser: Handle<UiNode>,
+}
+
+struct MenuContext<'a, 'b> {
+    engine: &'a mut GameEngine,
+    editor_scene: &'b Option<EditorScene>,
+    sidebar_window: Handle<UiNode>,
+    world_outliner_window: Handle<UiNode>,
+    asset_window: Handle<UiNode>,
+}
+
+fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui) {
+    let current_state = ui.node(window).visibility();
+    ui.send_message(if current_state {
+        WindowMessage::close(window, MessageDirection::ToWidget)
+    } else {
+        WindowMessage::open(window, MessageDirection::ToWidget)
+    })
 }
 
 impl Menu {
     pub fn new(ctx: &mut BuildContext, message_sender: Sender<Message>) -> Self {
         let min_size = Vec2::new(120.0, 20.0);
-        let min_size_menu = Vec2::new(40.0, 20.0);
         let new_scene;
         let save;
         let save_as;
@@ -399,9 +419,12 @@ impl Menu {
         let create_camera;
         let create_sprite;
         let create_particle_system;
+        let sidebar;
+        let asset_browser;
+        let world_outliner;
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
-                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size_menu))
+                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
                     .with_content(MenuItemContent::text("File"))
                     .with_items(vec![
                         {
@@ -465,7 +488,7 @@ impl Menu {
                         },
                     ])
                     .build(ctx),
-                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size_menu))
+                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
                     .with_content(MenuItemContent::text_with_shortcut("Edit", ""))
                     .with_items(vec![
                         {
@@ -488,7 +511,7 @@ impl Menu {
                         },
                     ])
                     .build(ctx),
-                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size_menu))
+                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
                     .with_content(MenuItemContent::text_with_shortcut("Create", ""))
                     .with_items(vec![
                         MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
@@ -572,6 +595,32 @@ impl Menu {
                         },
                     ])
                     .build(ctx),
+                MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
+                    .with_content(MenuItemContent::text_with_shortcut("View", ""))
+                    .with_items(vec![
+                        {
+                            sidebar =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Sidebar"))
+                                    .build(ctx);
+                            sidebar
+                        },
+                        {
+                            asset_browser =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Asset Browser"))
+                                    .build(ctx);
+                            asset_browser
+                        },
+                        {
+                            world_outliner =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("World Outliner"))
+                                    .build(ctx);
+                            world_outliner
+                        },
+                    ])
+                    .build(ctx),
             ])
             .build(ctx);
 
@@ -623,15 +672,13 @@ impl Menu {
             create_camera,
             create_sprite,
             create_particle_system,
+            sidebar,
+            world_outliner,
+            asset_browser,
         }
     }
 
-    fn handle_message(
-        &mut self,
-        engine: &mut GameEngine,
-        editor_scene: &Option<EditorScene>,
-        message: &UiMessage,
-    ) {
+    fn handle_message(&mut self, message: &UiMessage, ctx: MenuContext) {
         match &message.data() {
             UiMessageData::FileSelector(msg) => match msg {
                 FileSelectorMessage::Commit(path) => {
@@ -764,14 +811,14 @@ impl Menu {
                             .unwrap();
                     } else if message.destination() == self.save {
                         if let Some(scene_path) =
-                            editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
+                            ctx.editor_scene.as_ref().map(|s| s.path.as_ref()).flatten()
                         {
                             self.message_sender
                                 .send(Message::SaveScene(scene_path.clone()))
                                 .unwrap();
                         } else {
                             // If scene wasn't saved yet - open Save As window.
-                            engine
+                            ctx.engine
                                 .user_interface
                                 .send_message(WindowMessage::open_modal(
                                     self.save_file_selector,
@@ -779,14 +826,14 @@ impl Menu {
                                 ));
                         }
                     } else if message.destination() == self.save_as {
-                        engine
+                        ctx.engine
                             .user_interface
                             .send_message(WindowMessage::open_modal(
                                 self.save_file_selector,
                                 MessageDirection::ToWidget,
                             ));
                     } else if message.destination() == self.load {
-                        engine
+                        ctx.engine
                             .user_interface
                             .send_message(WindowMessage::open_modal(
                                 self.load_file_selector,
@@ -802,6 +849,15 @@ impl Menu {
                         self.message_sender.send(Message::Exit).unwrap();
                     } else if message.destination() == self.new_scene {
                         self.message_sender.send(Message::NewScene).unwrap();
+                    } else if message.destination() == self.asset_browser {
+                        switch_window_state(ctx.asset_window, &mut ctx.engine.user_interface);
+                    } else if message.destination() == self.world_outliner {
+                        switch_window_state(
+                            ctx.world_outliner_window,
+                            &mut ctx.engine.user_interface,
+                        );
+                    } else if message.destination() == self.sidebar {
+                        switch_window_state(ctx.sidebar_window, &mut ctx.engine.user_interface);
                     }
                 }
             }
@@ -1008,7 +1064,16 @@ impl Editor {
     }
 
     fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
-        self.menu.handle_message(engine, &self.scene, message);
+        self.menu.handle_message(
+            message,
+            MenuContext {
+                engine,
+                editor_scene: &self.scene,
+                sidebar_window: self.sidebar.window,
+                world_outliner_window: self.world_outliner.window,
+                asset_window: self.asset_browser.window,
+            },
+        );
 
         if let Some(editor_scene) = self.scene.as_ref() {
             self.sidebar.handle_message(message, editor_scene, engine);
