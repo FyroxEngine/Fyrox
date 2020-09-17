@@ -329,4 +329,9 @@ impl BaseBuilder {
             depth_offset: self.depth_offset,
         }
     }
+
+    /// Creates new node instance.
+    pub fn build_node(self) -> Node {
+        Node::Base(self.build())
+    }
 }

@@ -52,6 +52,9 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Asset management (textures, models, sound buffers).
 - [Simple physics](https://github.com/mrDIMAS/rg3d-physics).
 - [Core library](https://github.com/mrDIMAS/rg3d-core).
+- Fast iterative compilation 
+	- Debug: ~3 seconds
+	- Release: ~8 seconds
 
 ## Contributing
 
