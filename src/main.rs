@@ -7,16 +7,16 @@ pub mod camera;
 pub mod command;
 pub mod gui;
 pub mod interaction;
+pub mod preview;
 pub mod scene;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::gui::Ui;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
     command::CommandStack,
-    gui::{BuildContext, EditorUiMessage, EditorUiNode, UiMessage, UiNode},
+    gui::{BuildContext, EditorUiMessage, EditorUiNode, Ui, UiMessage, UiNode},
     interaction::{
         InteractionMode, InteractionModeKind, MoveInteractionMode, RotateInteractionMode,
         ScaleInteractionMode, SelectInteractionMode,

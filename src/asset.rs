@@ -3,10 +3,10 @@ use crate::{
         AssetItemMessage, BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, Ui, UiMessage,
         UiNode, UiWidgetBuilder,
     },
+    preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::gui::draw::SharedTexture;
-use rg3d::gui::message::MessageDirection;
+use rg3d::gui::border::BorderBuilder;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -16,7 +16,7 @@ use rg3d::{
         file_browser::FileBrowserBuilder,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{FileBrowserMessage, UiMessageData, WidgetMessage},
+        message::{FileBrowserMessage, MessageDirection, UiMessageData, WidgetMessage},
         scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -24,8 +24,7 @@ use rg3d::{
         wrap_panel::WrapPanelBuilder,
         Control, HorizontalAlignment, Orientation, Thickness,
     },
-    resource::{texture::Texture, texture::TextureKind},
-    scene::{base::BaseBuilder, camera::CameraBuilder, node::Node, Scene},
+    resource::texture::TextureKind,
     utils::into_gui_texture,
 };
 use std::{
@@ -33,7 +32,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
 };
 
 #[derive(Debug, Clone)]
@@ -70,10 +68,10 @@ impl DerefMut for AssetItem {
 impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.screen_bounds();
-        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.push_rect(&bounds, 1.0);
         drawing_context.commit(
             CommandKind::Geometry,
-            self.background(),
+            self.foreground(),
             CommandTexture::None,
         );
     }
@@ -86,7 +84,7 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
                 if let WidgetMessage::MouseDown { .. } = msg {
                     if !message.handled() {
                         message.set_handled(true);
-                        ui.send_message(AssetItemMessage::select(self.handle(), !self.selected));
+                        ui.send_message(AssetItemMessage::select(self.handle(), true));
                     }
                 }
             }
@@ -95,15 +93,14 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
                     if let &AssetItemMessage::Select(select) = msg {
                         if self.selected != select && message.destination() == self.handle() {
                             self.selected = select;
-                            let brush = if select {
-                                Brush::Solid(Color::TRANSPARENT)
-                            } else {
-                                Brush::Solid(Color::RED)
-                            };
-                            ui.send_message(WidgetMessage::background(
+                            ui.send_message(WidgetMessage::foreground(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                brush,
+                                if select {
+                                    Brush::Solid(Color::RED)
+                                } else {
+                                    Brush::Solid(Color::TRANSPARENT)
+                                },
                             ));
                         }
                     }
@@ -213,38 +210,19 @@ pub struct AssetBrowser {
     pub window: Handle<UiNode>,
     content_panel: Handle<UiNode>,
     folder_browser: Handle<UiNode>,
-    scene: Handle<Scene>,
-    preview: Handle<UiNode>,
+    preview: PreviewPanel,
+    items: Vec<Handle<UiNode>>,
 }
 
 impl AssetBrowser {
     pub fn new(engine: &mut GameEngine) -> Self {
-        let mut scene = Scene::new();
-        scene
-            .graph
-            .add_node(Node::Camera(CameraBuilder::new(BaseBuilder::new()).build()));
-
-        // Test model
-        if let Some(model) = engine
-            .resource_manager
-            .lock()
-            .unwrap()
-            .request_model("data/mutant.FBX")
-        {
-            model.lock().unwrap().instantiate_geometry(&mut scene);
-        }
-
-        let render_target = Arc::new(Mutex::new(Texture::default()));
-        scene.render_target = Some(render_target.clone());
-
-        let scene = engine.scenes.add(scene);
-
+        let preview = PreviewPanel::new(engine);
         let mut ctx = engine.user_interface.build_ctx();
-
+        ctx[preview.frame].set_margin(Thickness::uniform(2.0));
         let path = PathBuf::from("./data");
         let content_panel;
         let folder_browser;
-        let preview;
+
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Asset Browser"))
             .with_content(
@@ -268,13 +246,15 @@ impl AssetBrowser {
                                 })
                                 .build(&mut ctx)
                         })
-                        .with_child({
-                            preview = ImageBuilder::new(WidgetBuilder::new().on_column(2))
-                                .with_flip(true)
-                                .with_texture(SharedTexture(render_target))
-                                .build(&mut ctx);
-                            preview
-                        }),
+                        .with_child(
+                            BorderBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(2)
+                                    .with_background(Brush::Solid(Color::opaque(80, 80, 80)))
+                                    .with_child(preview.frame),
+                            )
+                            .build(&mut ctx),
+                        ),
                 )
                 .add_column(Column::strict(250.0))
                 .add_column(Column::stretch())
@@ -295,18 +275,43 @@ impl AssetBrowser {
             content_panel,
             folder_browser,
             preview,
-            scene,
+            items: Default::default(),
         }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        self.preview.handle_message(message, engine);
         let ui = &mut engine.user_interface;
-        let resource_manager = &mut engine.resource_manager.lock().unwrap();
-        if message.destination() == self.folder_browser {
-            if let UiMessageData::FileBrowser(msg) = &message.data() {
+
+        match &message.data() {
+            UiMessageData::User(msg) => {
+                if let EditorUiMessage::AssetItem(msg) = msg {
+                    if let &AssetItemMessage::Select(select) = msg {
+                        if select {
+                            for &item in self.items.iter() {
+                                if item != message.destination() {
+                                    ui.send_message(UiMessage::user(
+                                        item,
+                                        MessageDirection::ToWidget,
+                                        EditorUiMessage::AssetItem(AssetItemMessage::Select(false)),
+                                    ))
+                                }
+                            }
+
+                            if let EditorUiNode::AssetItem(item) =
+                                ui.node(message.destination()).as_user()
+                            {
+                                let path = item.path.clone();
+                                self.preview.set_model(&path, engine);
+                            }
+                        }
+                    }
+                }
+            }
+            UiMessageData::FileBrowser(msg) if message.destination() == self.folder_browser => {
                 if let FileBrowserMessage::Path(path) = msg {
                     // Clean content panel first.
-                    for &child in ui.node(self.content_panel).children() {
+                    for child in self.items.drain(..) {
                         ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
                     }
                     // Get all supported assets from folder and generate previews for them.
@@ -322,9 +327,12 @@ impl AssetBrowser {
                                             _ => false,
                                         }
                                     }) {
+                                        let resource_manager =
+                                            &mut engine.resource_manager.lock().unwrap();
                                         let content = AssetItemBuilder::new(WidgetBuilder::new())
                                             .with_path(entry_path)
                                             .build(&mut ui.build_ctx(), resource_manager);
+                                        self.items.push(content);
                                         ui.send_message(WidgetMessage::link(
                                             content,
                                             MessageDirection::ToWidget,
@@ -337,6 +345,7 @@ impl AssetBrowser {
                     }
                 }
             }
+            _ => {}
         }
     }
 }
