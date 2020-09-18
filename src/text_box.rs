@@ -269,7 +269,11 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                     for (offset, index) in (line.begin..line.end).enumerate() {
                         let symbol = self.formatted_text.borrow().get_raw_text()[index];
                         let (width, height, advance) = if let Some(glyph) = font.glyph(symbol) {
-                            (glyph.width, glyph.height, glyph.advance)
+                            (
+                                glyph.bitmap_width as f32,
+                                glyph.bitmap_height as f32,
+                                glyph.advance,
+                            )
                         } else {
                             // Stub
                             let h = font.height();

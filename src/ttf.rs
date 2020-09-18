@@ -28,8 +28,6 @@ struct Polygon {
 pub struct FontGlyph {
     pub top: f32,
     pub left: f32,
-    pub width: f32,
-    pub height: f32,
     pub advance: f32,
     pub tex_coords: [Vec2; 4],
     pub bitmap_width: usize,
@@ -100,10 +98,8 @@ impl Font {
                     let (metrics, bitmap) = fontdue_font.rasterize(character, height);
 
                     font.glyphs.push(FontGlyph {
-                        left: metrics.bounds.xmin,
-                        top: metrics.bounds.ymin,
-                        width: metrics.bounds.xmax - metrics.bounds.xmin,
-                        height: metrics.bounds.ymax - metrics.bounds.ymin,
+                        left: metrics.xmin as f32,
+                        top: metrics.ymin as f32,
                         pixels: bitmap,
                         advance: metrics.advance_width,
                         tex_coords: Default::default(),
