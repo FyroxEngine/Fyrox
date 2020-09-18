@@ -18,12 +18,12 @@ in vec2 secondTexCoord;
 
 void main()
 {
-    outColor = diffuseColor * texture2D(diffuseTexture, texCoord);
+    outColor = diffuseColor * texture(diffuseTexture, texCoord);
     if (outColor.a < 0.5) discard;
     outColor.a = 1;
-    vec4 n = normalize(texture2D(normalTexture, texCoord) * 2.0 - 1.0);
+    vec4 n = normalize(texture(normalTexture, texCoord) * 2.0 - 1.0);
     mat3 tangentSpace = mat3(tangent, binormal, normal);
     outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
-    outNormal.w = texture2D(specularTexture, texCoord).r;
-    outAmbient = vec4(texture2D(lightmapTexture, secondTexCoord).rgb, 1.0);
+    outNormal.w = texture(specularTexture, texCoord).r;
+    outAmbient = vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);
 }
