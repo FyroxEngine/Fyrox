@@ -4,21 +4,28 @@ use crate::{
 };
 use rg3d::{
     core::{
-        math::{quat::Quat, vec2::Vec2, vec3::Vec3},
+        math::{aabb::AxisAlignedBoundingBox, quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::Handle,
     },
     gui::{
+        button::ButtonBuilder,
+        grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        message::{MessageDirection, MouseButton, UiMessageData, WidgetMessage},
+        message::{
+            ButtonMessage, CursorIcon, MessageDirection, MouseButton, UiMessageData, WidgetMessage,
+        },
         widget::WidgetBuilder,
+        Thickness,
     },
     resource::texture::Texture,
     scene::{
         base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
     },
 };
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 enum Mode {
@@ -29,8 +36,10 @@ enum Mode {
 
 pub struct PreviewPanel {
     scene: Handle<Scene>,
-    pub frame: Handle<UiNode>,
+    pub root: Handle<UiNode>,
+    frame: Handle<UiNode>,
     camera_pivot: Handle<Node>,
+    fit: Handle<UiNode>,
     hinge: Handle<Node>,
     camera: Handle<Node>,
     prev_mouse_pos: Vec2,
@@ -67,11 +76,36 @@ impl PreviewPanel {
 
         let scene = engine.scenes.add(scene);
 
-        let frame = ImageBuilder::new(WidgetBuilder::new())
-            .with_texture(render_target.into())
-            .build(&mut engine.user_interface.build_ctx());
+        let frame;
+        let fit;
+        let root = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
+                .with_child({
+                    frame = ImageBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .with_cursor(Some(CursorIcon::Grab)),
+                    )
+                    .with_texture(render_target.into())
+                    .build(&mut engine.user_interface.build_ctx());
+                    frame
+                })
+                .with_child({
+                    fit = ButtonBuilder::new(WidgetBuilder::new().with_height(22.0).on_row(0))
+                        .with_text("Fit")
+                        .build(&mut engine.user_interface.build_ctx());
+                    fit
+                }),
+        )
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(&mut engine.user_interface.build_ctx());
 
         Self {
+            fit,
+            root,
             scene,
             frame,
             camera,
@@ -87,12 +121,39 @@ impl PreviewPanel {
         }
     }
 
+    pub fn fit_to_model(&mut self, scene: &mut Scene) {
+        let mut bounding_box = AxisAlignedBoundingBox::default();
+        for node in scene.graph.linear_iter() {
+            if let Node::Mesh(mesh) = node {
+                bounding_box.add_box(mesh.full_world_bounding_box(&scene.graph))
+            }
+        }
+
+        self.yaw = 0.0;
+        self.pitch = 45.0;
+
+        let fov = scene.graph[self.camera].as_camera().fov();
+        self.xz_position = bounding_box.center().xz();
+        self.distance = (bounding_box.max - bounding_box.min).len() * (fov * 0.5).tan();
+    }
+
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        let scene = &mut engine.scenes[self.scene];
+
+        match message.data() {
+            UiMessageData::Button(msg) if message.destination() == self.fit => {
+                if let ButtonMessage::Click = msg {
+                    self.fit_to_model(scene);
+                }
+            }
+            _ => (),
+        }
+
         if message.destination() == self.frame
             && message.direction() == MessageDirection::FromWidget
         {
-            if let UiMessageData::Widget(msg) = message.data() {
-                match msg {
+            match message.data() {
+                UiMessageData::Widget(msg) => match msg {
                     &WidgetMessage::MouseMove { pos, .. } => {
                         let delta = pos - self.prev_mouse_pos;
                         match self.mode {
@@ -128,21 +189,21 @@ impl PreviewPanel {
                         self.distance = (self.distance + amount).max(0.0);
                     }
                     _ => {}
-                }
+                },
+                _ => {}
             }
-
-            let scene = &mut engine.scenes[self.scene];
-            scene.graph[self.camera_pivot]
-                .local_transform_mut()
-                .set_position(Vec3::new(self.xz_position.x, 0.0, self.xz_position.y))
-                .set_rotation(Quat::from_axis_angle(Vec3::UP, self.yaw.to_radians()));
-            scene.graph[self.hinge]
-                .local_transform_mut()
-                .set_rotation(Quat::from_axis_angle(Vec3::RIGHT, self.pitch.to_radians()));
-            scene.graph[self.camera]
-                .local_transform_mut()
-                .set_position(Vec3::new(0.0, 0.0, self.distance));
         }
+
+        scene.graph[self.camera_pivot]
+            .local_transform_mut()
+            .set_position(Vec3::new(self.xz_position.x, 0.0, self.xz_position.y))
+            .set_rotation(Quat::from_axis_angle(Vec3::UP, self.yaw.to_radians()));
+        scene.graph[self.hinge]
+            .local_transform_mut()
+            .set_rotation(Quat::from_axis_angle(Vec3::RIGHT, self.pitch.to_radians()));
+        scene.graph[self.camera]
+            .local_transform_mut()
+            .set_position(Vec3::new(0.0, 0.0, self.distance));
     }
 
     pub fn set_model(&mut self, model: &Path, engine: &mut GameEngine) {
@@ -152,6 +213,7 @@ impl PreviewPanel {
                 scene.remove_node(self.model);
             }
             self.model = model.lock().unwrap().instantiate_geometry(scene);
+            self.fit_to_model(scene);
         }
     }
 }

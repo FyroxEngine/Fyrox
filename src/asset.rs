@@ -6,11 +6,11 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::gui::border::BorderBuilder;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
+        border::BorderBuilder,
         brush::Brush,
         draw::{CommandKind, CommandTexture, DrawingContext},
         file_browser::FileBrowserBuilder,
@@ -218,7 +218,7 @@ impl AssetBrowser {
     pub fn new(engine: &mut GameEngine) -> Self {
         let preview = PreviewPanel::new(engine);
         let mut ctx = engine.user_interface.build_ctx();
-        ctx[preview.frame].set_margin(Thickness::uniform(2.0));
+
         let path = PathBuf::from("./data");
         let content_panel;
         let folder_browser;
@@ -251,7 +251,7 @@ impl AssetBrowser {
                                 WidgetBuilder::new()
                                     .on_column(2)
                                     .with_background(Brush::Solid(Color::opaque(80, 80, 80)))
-                                    .with_child(preview.frame),
+                                    .with_child(preview.root),
                             )
                             .build(&mut ctx),
                         ),
