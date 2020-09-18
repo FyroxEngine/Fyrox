@@ -4,7 +4,7 @@
 
 ## Support
 
-If you want to support me click the link below.
+If you want to support the development of the project, click the link below.
 
 [![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
 
