@@ -13,6 +13,9 @@ mod dsound;
 #[cfg(target_os = "linux")]
 mod alsa;
 
+// The dummy target works on all platforms
+mod dummy;
+
 // TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
 pub const SAMPLE_RATE: u32 = 44100;
 
@@ -85,6 +88,8 @@ pub(in crate) fn run_device(
     let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback)?;
     #[cfg(target_os = "linux")]
     let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback)?;
     std::thread::spawn(move || loop {
         device.feed()
     });
