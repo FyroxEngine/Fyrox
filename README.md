@@ -2,6 +2,12 @@
 
 3D game engine written in Rust. 
 
+## Support
+
+If you want to support me click the link below.
+
+[![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
+
 ## Screenshots
 
 These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter) which is a big demo for the engine.
@@ -63,9 +69,3 @@ Contributions are very welcome! Please check Issues to see how you can help proj
 ## Limitations
 
 - FBX loader supports versions 7100 - 7400. Binary 7500 is not supported yet, but ASCII is.
-
-## Support
-
-If you want to support me click the link below.
-
-[![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
