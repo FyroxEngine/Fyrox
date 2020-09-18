@@ -57,6 +57,11 @@ impl AxisAlignedBoundingBox {
         }
     }
 
+    pub fn add_box(&mut self, other: Self) {
+        self.add_point(other.min);
+        self.add_point(other.max);
+    }
+
     pub fn corners(&self) -> [Vec3; 8] {
         [
             Vec3::new(self.min.x, self.min.y, self.min.z),
