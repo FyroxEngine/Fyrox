@@ -1432,7 +1432,7 @@ impl VertexWeightSet {
 
     /// Normalizes weights in the set so they form unit 4-d vector. This method is useful
     /// when mesh has more than 4 weights per vertex. Engine supports only 4 weights per
-    /// vertex so when there are more than 4 weights, first four weight may not give sum
+    /// vertex so when there are more than 4 weights, first four weights may not give sum
     /// equal to 1.0, we must fix that to prevent weirdly looking results.
     pub fn normalize(&mut self) {
         let len = self.iter().fold(0.0, |qs, w| qs + w.value * w.value).sqrt();
@@ -1553,6 +1553,12 @@ impl Surface {
     #[inline]
     pub fn color(&self) -> Color {
         self.color
+    }
+
+    /// Returns list of bones that affects the surface.
+    #[inline]
+    pub fn bones(&self) -> &[Handle<Node>] {
+        &self.bones
     }
 }
 

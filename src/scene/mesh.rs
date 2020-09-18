@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::core::math::vec3::Vec3;
 use crate::scene::node::Node;
 use crate::{
     core::{
@@ -18,6 +19,7 @@ use crate::{
     renderer::surface::Surface,
     scene::{base::Base, base::BaseBuilder, graph::Graph},
 };
+use rg3d_core::math::mat4::Mat4;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -133,6 +135,49 @@ impl Mesh {
             let data = data.lock().unwrap();
             for vertex in data.get_vertices() {
                 bounding_box.add_point(self.global_transform().transform_vector(vertex.position));
+            }
+        }
+        bounding_box
+    }
+
+    /// Calculate bounding box in *world coordinates* including influence of bones. This method
+    /// is very heavy and not intended to use every frame!
+    pub fn full_world_bounding_box(&self, graph: &Graph) -> AxisAlignedBoundingBox {
+        let mut bounding_box = AxisAlignedBoundingBox::default();
+        for surface in self.surfaces.iter() {
+            let data = surface.data();
+            let data = data.lock().unwrap();
+            if surface.bones().is_empty() {
+                for vertex in data.get_vertices() {
+                    bounding_box
+                        .add_point(self.global_transform().transform_vector(vertex.position));
+                }
+            } else {
+                // Special case for skinned surface. Its actual bounds defined only by bones
+                // influence.
+
+                // Precalculate bone matrices first to speed up calculations.
+                let bone_matrices = surface
+                    .bones()
+                    .iter()
+                    .map(|&b| {
+                        let bone_node = &graph[b];
+                        bone_node.global_transform() * bone_node.inv_bind_pose_transform()
+                    })
+                    .collect::<Vec<Mat4>>();
+
+                for vertex in data.get_vertices() {
+                    let mut position = Vec3::ZERO;
+                    for (&bone_index, &weight) in
+                        vertex.bone_indices.iter().zip(vertex.bone_weights.iter())
+                    {
+                        position += bone_matrices[bone_index as usize]
+                            .transform_vector(vertex.position)
+                            .scale(weight);
+                    }
+
+                    bounding_box.add_point(position);
+                }
             }
         }
         bounding_box
