@@ -151,23 +151,23 @@ pub enum Parameter {
 
 impl Default for Parameter {
     fn default() -> Self {
-        Parameter::Weight(0.0)
+        Self::Weight(0.0)
     }
 }
 
 impl Parameter {
     fn from_id(id: i32) -> Result<Self, String> {
         match id {
-            0 => Ok(Parameter::Weight(0.0)),
-            1 => Ok(Parameter::Rule(false)),
+            0 => Ok(Self::Weight(0.0)),
+            1 => Ok(Self::Rule(false)),
             _ => Err(format!("Invalid parameter id {}", id)),
         }
     }
 
     fn id(self) -> i32 {
         match self {
-            Parameter::Weight(_) => 0,
-            Parameter::Rule(_) => 1,
+            Self::Weight(_) => 0,
+            Self::Rule(_) => 1,
         }
     }
 }
@@ -183,8 +183,8 @@ impl Visit for Parameter {
         }
 
         match self {
-            Parameter::Weight(weight) => weight.visit("Value", visitor)?,
-            Parameter::Rule(rule) => rule.visit("Value", visitor)?,
+            Self::Weight(weight) => weight.visit("Value", visitor)?,
+            Self::Rule(rule) => rule.visit("Value", visitor)?,
         }
 
         visitor.leave_region()
@@ -203,23 +203,23 @@ pub enum PoseWeight {
 
 impl Default for PoseWeight {
     fn default() -> Self {
-        PoseWeight::Constant(0.0)
+        Self::Constant(0.0)
     }
 }
 
 impl PoseWeight {
     fn from_id(id: i32) -> Result<Self, String> {
         match id {
-            0 => Ok(PoseWeight::Parameter(Default::default())),
-            1 => Ok(PoseWeight::Constant(0.0)),
+            0 => Ok(Self::Parameter(Default::default())),
+            1 => Ok(Self::Constant(0.0)),
             _ => Err(format!("Invalid pose weight id {}", id)),
         }
     }
 
     fn id(&self) -> i32 {
         match self {
-            PoseWeight::Constant(_) => 0,
-            PoseWeight::Parameter(_) => 1,
+            Self::Constant(_) => 0,
+            Self::Parameter(_) => 1,
         }
     }
 }
@@ -335,33 +335,33 @@ pub enum PoseNode {
 
 impl Default for PoseNode {
     fn default() -> Self {
-        PoseNode::PlayAnimation(Default::default())
+        Self::PlayAnimation(Default::default())
     }
 }
 
 impl PoseNode {
     /// Creates new node that plays animation.
     pub fn make_play_animation(animation: Handle<Animation>) -> Self {
-        PoseNode::PlayAnimation(PlayAnimation::new(animation))
+        Self::PlayAnimation(PlayAnimation::new(animation))
     }
 
     /// Creates new node that blends multiple poses.
     pub fn make_blend_animations(poses: Vec<BlendPose>) -> Self {
-        PoseNode::BlendAnimations(BlendAnimation::new(poses))
+        Self::BlendAnimations(BlendAnimation::new(poses))
     }
 
     fn from_id(id: i32) -> Result<Self, String> {
         match id {
-            0 => Ok(PoseNode::PlayAnimation(Default::default())),
-            1 => Ok(PoseNode::BlendAnimations(Default::default())),
+            0 => Ok(Self::PlayAnimation(Default::default())),
+            1 => Ok(Self::BlendAnimations(Default::default())),
             _ => Err(format!("Invalid pose node id {}", id)),
         }
     }
 
     fn id(&self) -> i32 {
         match self {
-            PoseNode::PlayAnimation(_) => 0,
-            PoseNode::BlendAnimations(_) => 1,
+            Self::PlayAnimation(_) => 0,
+            Self::BlendAnimations(_) => 1,
         }
     }
 }

@@ -27,12 +27,12 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind},
 };
+use rg3d_ui::draw::SharedTexture;
 use std::{
     cell::RefCell,
     rc::Rc,
     sync::{Arc, Mutex},
 };
-use rg3d_ui::draw::SharedTexture;
 
 struct UiShader {
     program: GpuProgram,
