@@ -8,6 +8,9 @@ If you want to support the development of the project, click the link below.
 
 [![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
 
+## Community
+[Join the Discord channel](https://discord.gg/xENF5Uh)
+
 ## Screenshots
 
 These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter) which is a big demo for the engine.
