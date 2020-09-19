@@ -35,8 +35,8 @@ pub struct Mesh {
 }
 
 impl Default for Mesh {
-    fn default() -> Mesh {
-        Mesh {
+    fn default() -> Self {
+        Self {
             base: Default::default(),
             surfaces: Default::default(),
             bounding_box: Default::default(),
