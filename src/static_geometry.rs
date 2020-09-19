@@ -16,10 +16,10 @@ pub struct StaticGeometry {
 impl StaticGeometry {
     pub const OCTREE_THRESHOLD: usize = 64;
 
-    pub fn new(triangles: Vec<StaticTriangle>) -> StaticGeometry {
+    pub fn new(triangles: Vec<StaticTriangle>) -> Self {
         let raw_triangles: Vec<[Vec3; 3]> = triangles.iter().map(|st| st.points).collect();
 
-        StaticGeometry {
+        Self {
             octree: Octree::new(&raw_triangles, Self::OCTREE_THRESHOLD),
             triangles
         }

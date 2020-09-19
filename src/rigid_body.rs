@@ -97,8 +97,8 @@ impl Clone for RigidBody {
 }
 
 impl RigidBody {
-    pub fn new(shape: ConvexShape) -> RigidBody {
-        RigidBody {
+    pub fn new(shape: ConvexShape) -> Self {
+        Self {
             position: Vec3::ZERO,
             last_position: Vec3::ZERO,
             acceleration: Vec3::ZERO,

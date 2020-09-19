@@ -227,9 +227,9 @@ impl Visit for Axis {
         id.visit(name, visitor)?;
         if visitor.is_reading() {
             *self = match id {
-                0 => Axis::X,
-                1 => Axis::Y,
-                2 => Axis::Z,
+                0 => Self::X,
+                1 => Self::Y,
+                2 => Self::Z,
                 _ => return Err(VisitError::User("Invalid axis".to_owned()))
             }
         }
@@ -246,11 +246,7 @@ pub struct CapsuleShape {
 
 impl CircumRadius for CapsuleShape {
     fn circumradius(&self) -> f32 {
-        if self.radius > self.height {
-            self.radius
-        } else {
-            self.height
-        }
+        self.radius.max(self.height)
     }
 }
 
@@ -394,12 +390,12 @@ macro_rules! define_is_as {
 impl CircumRadius for ConvexShape {
     fn circumradius(&self) -> f32 {
         match self {
-            ConvexShape::Dummy => 0.0,
-            ConvexShape::Box(box_shape) => box_shape.circumradius(),
-            ConvexShape::Sphere(sphere) => sphere.circumradius(),
-            ConvexShape::Capsule(capsule) => capsule.circumradius(),
-            ConvexShape::Triangle(triangle) => triangle.circumradius(),
-            ConvexShape::PointCloud(point_cloud) => point_cloud.circumradius(),
+            Self::Dummy => 0.0,
+            Self::Box(box_shape) => box_shape.circumradius(),
+            Self::Sphere(sphere) => sphere.circumradius(),
+            Self::Capsule(capsule) => capsule.circumradius(),
+            Self::Triangle(triangle) => triangle.circumradius(),
+            Self::PointCloud(point_cloud) => point_cloud.circumradius(),
         }
     }
 }
@@ -407,34 +403,34 @@ impl CircumRadius for ConvexShape {
 impl ConvexShape {
     pub fn get_farthest_point(&self, position: Vec3, direction: Vec3) -> Vec3 {
         position + match self {
-            ConvexShape::Dummy => Vec3::ZERO,
-            ConvexShape::Box(box_shape) => box_shape.get_farthest_point(direction),
-            ConvexShape::Sphere(sphere) => sphere.get_farthest_point(direction),
-            ConvexShape::Capsule(capsule) => capsule.get_farthest_point(direction),
-            ConvexShape::Triangle(triangle) => triangle.get_farthest_point(direction),
-            ConvexShape::PointCloud(point_cloud) => point_cloud.get_farthest_point(direction),
+            Self::Dummy => Vec3::ZERO,
+            Self::Box(box_shape) => box_shape.get_farthest_point(direction),
+            Self::Sphere(sphere) => sphere.get_farthest_point(direction),
+            Self::Capsule(capsule) => capsule.get_farthest_point(direction),
+            Self::Triangle(triangle) => triangle.get_farthest_point(direction),
+            Self::PointCloud(point_cloud) => point_cloud.get_farthest_point(direction),
         }
     }
 
     pub fn id(&self) -> i32 {
         match self {
-            ConvexShape::Dummy => 0,
-            ConvexShape::Box(_) => 1,
-            ConvexShape::Sphere(_) => 2,
-            ConvexShape::Capsule(_) => 3,
-            ConvexShape::Triangle(_) => 4,
-            ConvexShape::PointCloud(_) => 5,
+            Self::Dummy => 0,
+            Self::Box(_) => 1,
+            Self::Sphere(_) => 2,
+            Self::Capsule(_) => 3,
+            Self::Triangle(_) => 4,
+            Self::PointCloud(_) => 5,
         }
     }
 
     pub fn new(id: i32) -> Result<Self, String> {
         match id {
-            0 => Ok(ConvexShape::Dummy),
-            1 => Ok(ConvexShape::Box(Default::default())),
-            2 => Ok(ConvexShape::Sphere(Default::default())),
-            3 => Ok(ConvexShape::Capsule(Default::default())),
-            4 => Ok(ConvexShape::Triangle(Default::default())),
-            5 => Ok(ConvexShape::PointCloud(Default::default())),
+            0 => Ok(Self::Dummy),
+            1 => Ok(Self::Box(Default::default())),
+            2 => Ok(Self::Sphere(Default::default())),
+            3 => Ok(Self::Capsule(Default::default())),
+            4 => Ok(Self::Triangle(Default::default())),
+            5 => Ok(Self::PointCloud(Default::default())),
             _ => Err("Invalid shape id!".to_owned())
         }
     }
@@ -449,12 +445,12 @@ impl ConvexShape {
 impl Visit for ConvexShape {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         match self {
-            ConvexShape::Dummy => Ok(()),
-            ConvexShape::Box(box_shape) => box_shape.visit(name, visitor),
-            ConvexShape::Sphere(sphere) => sphere.visit(name, visitor),
-            ConvexShape::Capsule(capsule) => capsule.visit(name, visitor),
-            ConvexShape::Triangle(triangle) => triangle.visit(name, visitor),
-            ConvexShape::PointCloud(point_cloud) => point_cloud.visit(name, visitor),
+            Self::Dummy => Ok(()),
+            Self::Box(box_shape) => box_shape.visit(name, visitor),
+            Self::Sphere(sphere) => sphere.visit(name, visitor),
+            Self::Capsule(capsule) => capsule.visit(name, visitor),
+            Self::Triangle(triangle) => triangle.visit(name, visitor),
+            Self::PointCloud(point_cloud) => point_cloud.visit(name, visitor),
         }
     }
 }
