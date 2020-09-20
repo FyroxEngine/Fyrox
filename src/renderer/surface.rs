@@ -516,8 +516,8 @@ impl SurfaceSharedData {
 
             // back cap
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)),
-                Vec2::new(0.0, 0.0),
+                transform.transform_vector(Vec3::ZERO),
+                Vec2::ZERO,
             ));
             builder.insert(Vertex::from_pos_uv(
                 transform.transform_vector(Vec3::new(x0, 0.0, z0)),
@@ -581,7 +581,7 @@ impl SurfaceSharedData {
                 ));
                 builder.insert(Vertex::from_pos_uv(
                     transform.transform_vector(Vec3::new(0.0, h, 0.0)),
-                    Vec2::new(0.0, 0.0),
+                    Vec2::ZERO,
                 ));
 
                 // back cap
@@ -594,8 +594,8 @@ impl SurfaceSharedData {
                     Vec2::new(tx0, 1.0),
                 ));
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)),
-                    Vec2::new(0.0, 0.0),
+                    transform.transform_vector(Vec3::ZERO),
+                    Vec2::ZERO,
                 ));
             }
 
@@ -908,11 +908,7 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
+                normal: -Vec3::Y,
                 tex_coord: Vec2::ZERO,
                 tangent: Vec4::ZERO,
                 bone_weights: [0.0; 4],
@@ -925,11 +921,7 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
+                normal: -Vec3::Y,
                 tex_coord: Vec2::Y,
                 tangent: Vec4::ZERO,
                 bone_weights: [0.0; 4],
@@ -942,11 +934,7 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
+                normal: -Vec3::Y,
                 tex_coord: Vec2::UNIT,
                 tangent: Vec4::ZERO,
                 bone_weights: [0.0; 4],
@@ -959,11 +947,7 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
+                normal: -Vec3::Y,
                 tex_coord: Vec2::X,
                 tangent: Vec4::ZERO,
                 bone_weights: [0.0; 4],
@@ -1133,7 +1117,7 @@ pub struct Surface {
 /// to use this clone to clone surfaces.
 impl Clone for Surface {
     fn clone(&self) -> Self {
-        Surface {
+        Self {
             data: self.data.clone(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
