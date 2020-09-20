@@ -52,21 +52,25 @@ impl Vec3 {
         y: 1.0,
         z: 1.0,
     };
-    pub const RIGHT: Self = Self {
+    pub const X: Self = Self {
         x: 1.0,
         y: 0.0,
         z: 0.0,
     };
-    pub const UP: Self = Self {
+    pub const Y: Self = Self {
         x: 0.0,
         y: 1.0,
         z: 0.0,
     };
-    pub const LOOK: Self = Self {
+    pub const Z: Self = Self {
         x: 0.0,
         y: 0.0,
         z: 1.0,
     };
+
+    pub const RIGHT: Self = Self::X;
+    pub const UP: Self = Self::Y;
+    pub const LOOK: Self = Self::Z;
 
     fn validate(&self) {
         debug_assert!(!self.x.is_nan());
@@ -76,7 +80,7 @@ impl Vec3 {
 
     #[inline]
     pub const fn new(x: f32, y: f32, z: f32) -> Self {
-        Vec3 { x, y, z }
+        Self { x, y, z }
     }
 
     pub const fn xy(&self) -> Vec2 {
@@ -105,7 +109,7 @@ impl Vec3 {
 
     #[inline]
     pub fn scale(&self, scalar: f32) -> Self {
-        Vec3 {
+        Self {
             x: self.x * scalar,
             y: self.y * scalar,
             z: self.z * scalar,
@@ -114,7 +118,7 @@ impl Vec3 {
 
     #[inline]
     pub fn sqr_len(&self) -> f32 {
-        self.x * self.x + self.y * self.y + self.z * self.z
+        self.dot(self)
     }
 
     #[inline]
@@ -206,24 +210,12 @@ impl Vec3 {
 
     #[inline]
     pub fn min_value(&self) -> f32 {
-        if self.x < self.y && self.x < self.z {
-            self.x
-        } else if self.y < self.z {
-            self.y
-        } else {
-            self.z
-        }
+        self.x.min(self.y).min(self.z)
     }
 
     #[inline]
     pub fn max_value(&self) -> f32 {
-        if self.x > self.y && self.x > self.z {
-            self.x
-        } else if self.y > self.z {
-            self.y
-        } else {
-            self.z
-        }
+        self.x.max(self.y).max(self.z)
     }
 
     pub fn follow(&mut self, other: &Self, fraction: f32) {
@@ -308,12 +300,11 @@ impl ops::Index<usize> for Vec3 {
     type Output = f32;
 
     fn index(&self, index: usize) -> &Self::Output {
-        if index == 0 {
-            &self.x
-        } else if index == 1 {
-            &self.y
-        } else {
-            &self.z
+        match index {
+            0 => &self.x,
+            1 => &self.y,
+            2 => &self.y,
+            _ => panic!("Invalid index {:?} for Vec3", index),
         }
     }
 }

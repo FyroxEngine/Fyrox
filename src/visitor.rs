@@ -210,51 +210,51 @@ pub enum VisitError {
 impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            VisitError::Io(io) => write!(f, "io error: {}", io),
-            VisitError::UnknownFieldType(type_index) => {
+            Self::Io(io) => write!(f, "io error: {}", io),
+            Self::UnknownFieldType(type_index) => {
                 write!(f, "unknown field type {}", type_index)
             }
-            VisitError::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
-            VisitError::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
-            VisitError::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
-            VisitError::InvalidCurrentNode => write!(f, "invalid current node"),
-            VisitError::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
-            VisitError::RegionDoesNotExist(name) => write!(f, "region does not exists {}", name),
-            VisitError::NoActiveNode => write!(f, "no active node"),
-            VisitError::NotSupportedFormat => write!(f, "not supported format"),
-            VisitError::InvalidName => write!(f, "invalid name"),
-            VisitError::TypeMismatch => write!(f, "type mismatch"),
-            VisitError::RefCellAlreadyMutableBorrowed => {
+            Self::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
+            Self::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
+            Self::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
+            Self::InvalidCurrentNode => write!(f, "invalid current node"),
+            Self::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
+            Self::RegionDoesNotExist(name) => write!(f, "region does not exists {}", name),
+            Self::NoActiveNode => write!(f, "no active node"),
+            Self::NotSupportedFormat => write!(f, "not supported format"),
+            Self::InvalidName => write!(f, "invalid name"),
+            Self::TypeMismatch => write!(f, "type mismatch"),
+            Self::RefCellAlreadyMutableBorrowed => {
                 write!(f, "ref cell already mutable borrowed")
             }
-            VisitError::User(msg) => write!(f, "user defined error: {}", msg),
-            VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
-            VisitError::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
+            Self::User(msg) => write!(f, "user defined error: {}", msg),
+            Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
+            Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
         }
     }
 }
 
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for VisitError {
     fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
-        VisitError::PoisonedMutex
+        Self::PoisonedMutex
     }
 }
 
 impl From<std::io::Error> for VisitError {
     fn from(io_err: std::io::Error) -> Self {
-        VisitError::Io(io_err)
+        Self::Io(io_err)
     }
 }
 
 impl From<FromUtf8Error> for VisitError {
     fn from(_: FromUtf8Error) -> Self {
-        VisitError::InvalidName
+        Self::InvalidName
     }
 }
 
 impl From<String> for VisitError {
     fn from(s: String) -> Self {
-        VisitError::User(s)
+        Self::User(s)
     }
 }
 
