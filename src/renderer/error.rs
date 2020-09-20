@@ -58,12 +58,12 @@ pub enum RendererError {
 
 impl From<NulError> for RendererError {
     fn from(_: NulError) -> Self {
-        RendererError::FaultyShaderSource
+        Self::FaultyShaderSource
     }
 }
 
 impl From<ContextError> for RendererError {
     fn from(err: ContextError) -> Self {
-        RendererError::Context(err)
+        Self::Context(err)
     }
 }

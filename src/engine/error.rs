@@ -18,24 +18,24 @@ pub enum EngineError {
 
 impl From<SoundError> for EngineError {
     fn from(sound: SoundError) -> Self {
-        EngineError::Sound(sound)
+        Self::Sound(sound)
     }
 }
 
 impl From<RendererError> for EngineError {
     fn from(renderer: RendererError) -> Self {
-        EngineError::Renderer(renderer)
+        Self::Renderer(renderer)
     }
 }
 
 impl From<CreationError> for EngineError {
     fn from(e: CreationError) -> Self {
-        EngineError::ContextCreationError(e)
+        Self::ContextCreationError(e)
     }
 }
 
 impl From<ContextError> for EngineError {
     fn from(e: ContextError) -> Self {
-        EngineError::ContextError(e)
+        Self::ContextError(e)
     }
 }

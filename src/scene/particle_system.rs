@@ -514,7 +514,10 @@ impl Emitter {
             Self::Sphere(_) => -3,
             Self::Custom(custom_emitter) => {
                 let id = custom_emitter.get_kind();
-                assert!(id >= 0, "Negative number for emitter kind are reserved for built-in types!");
+                assert!(
+                    id >= 0,
+                    "Negative number for emitter kind are reserved for built-in types!"
+                );
                 id
             }
         }
