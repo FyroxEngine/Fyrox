@@ -20,11 +20,11 @@ use crate::{
     window::{Window, WindowBuilder},
     Api, GlProfile, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };
+use rg3d_ui::message::MessageData;
 use std::{
     sync::{Arc, Mutex},
     time::{self, Duration},
 };
-use rg3d_ui::message::MessageData;
 
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {

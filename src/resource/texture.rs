@@ -74,18 +74,26 @@ pub enum TextureKind {
 impl TextureKind {
     fn new(id: u32) -> Result<Self, String> {
         match id {
-            0 => Ok(TextureKind::R8),
-            1 => Ok(TextureKind::RGB8),
-            2 => Ok(TextureKind::RGBA8),
+            0 => Ok(Self::R8),
+            1 => Ok(Self::RGB8),
+            2 => Ok(Self::RGBA8),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
 
     fn id(self) -> u32 {
         match self {
-            TextureKind::R8 => 0,
-            TextureKind::RGB8 => 1,
-            TextureKind::RGBA8 => 2,
+            Self::R8 => 0,
+            Self::RGB8 => 1,
+            Self::RGBA8 => 2,
+        }
+    }
+
+    fn bytes_per_pixel(&self) -> u32 {
+        match self {
+            Self::R8 => 1,
+            Self::RGB8 => 3,
+            Self::RGBA8 => 4,
         }
     }
 }
@@ -106,7 +114,7 @@ impl Texture {
             TextureKind::RGBA8 => dyn_img.to_rgba().into_raw(),
         };
 
-        Ok(Texture {
+        Ok(Self {
             kind,
             width,
             height,
@@ -123,12 +131,7 @@ impl Texture {
         kind: TextureKind,
         bytes: Vec<u8>,
     ) -> Result<Self, ()> {
-        let bpp = match kind {
-            TextureKind::R8 => 1,
-            TextureKind::RGB8 => 3,
-            TextureKind::RGBA8 => 4,
-        };
-
+        let bpp = kind.bytes_per_pixel();
         let required_bytes = width * height * bpp;
         if required_bytes != bytes.len() as u32 {
             Err(())

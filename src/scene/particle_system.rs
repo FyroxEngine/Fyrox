@@ -496,9 +496,9 @@ impl Emitter {
     /// Creates new emitter from given id.
     pub fn new(id: i32) -> Result<Self, String> {
         match id {
-            -1 => Ok(Emitter::Unknown),
-            -2 => Ok(Emitter::Box(Default::default())),
-            -3 => Ok(Emitter::Sphere(Default::default())),
+            -1 => Ok(Self::Unknown),
+            -2 => Ok(Self::Box(Default::default())),
+            -3 => Ok(Self::Sphere(Default::default())),
             _ => match CustomEmitterFactory::get() {
                 Ok(factory) => Ok(Emitter::Custom(factory.spawn(id)?)),
                 Err(_) => Err(String::from("Failed get custom emitter factory!")),
@@ -509,16 +509,12 @@ impl Emitter {
     /// Returns id of current emitter kind.
     pub fn id(&self) -> i32 {
         match self {
-            Emitter::Unknown => -1,
-            Emitter::Box(_) => -2,
-            Emitter::Sphere(_) => -3,
-            Emitter::Custom(custom_emitter) => {
+            Self::Unknown => -1,
+            Self::Box(_) => -2,
+            Self::Sphere(_) => -3,
+            Self::Custom(custom_emitter) => {
                 let id = custom_emitter.get_kind();
-
-                if id < 0 {
-                    panic!("Negative number for emitter kind are reserved for built-in types!")
-                }
-
+                assert!(id >= 0, "Negative number for emitter kind are reserved for built-in types!");
                 id
             }
         }
@@ -545,10 +541,10 @@ impl Emit for Emitter {
 impl Clone for Emitter {
     fn clone(&self) -> Self {
         match self {
-            Emitter::Unknown => panic!("Unknown emitter kind is not supported"),
-            Emitter::Box(box_emitter) => Emitter::Box(box_emitter.clone()),
-            Emitter::Sphere(sphere_emitter) => Emitter::Sphere(sphere_emitter.clone()),
-            Emitter::Custom(custom_emitter) => Emitter::Custom(custom_emitter.box_clone()),
+            Self::Unknown => panic!("Unknown emitter kind is not supported"),
+            Self::Box(box_emitter) => Self::Box(box_emitter.clone()),
+            Self::Sphere(sphere_emitter) => Self::Sphere(sphere_emitter.clone()),
+            Self::Custom(custom_emitter) => Self::Custom(custom_emitter.box_clone()),
         }
     }
 }
@@ -581,7 +577,7 @@ impl DerefMut for Emitter {
 
 impl Default for Emitter {
     fn default() -> Self {
-        Emitter::Unknown
+        Self::Unknown
     }
 }
 
@@ -599,17 +595,17 @@ impl Visit for ParticleLimit {
         visitor.enter_region(name)?;
 
         let mut amount = match self {
-            ParticleLimit::Unlimited => -1,
-            ParticleLimit::Strict(value) => *value as i32,
+            Self::Unlimited => -1,
+            Self::Strict(value) => *value as i32,
         };
 
         amount.visit("Amount", visitor)?;
 
         if visitor.is_reading() {
             *self = if amount < 0 {
-                ParticleLimit::Unlimited
+                Self::Unlimited
             } else {
-                ParticleLimit::Strict(amount as u32)
+                Self::Strict(amount as u32)
             };
         }
 

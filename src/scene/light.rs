@@ -395,25 +395,25 @@ pub enum Light {
 
 impl Default for Light {
     fn default() -> Self {
-        Light::Directional(Default::default())
+        Self::Directional(Default::default())
     }
 }
 
 impl Light {
     fn new(id: u32) -> Result<Self, String> {
         match id {
-            0 => Ok(Light::Spot(Default::default())),
-            1 => Ok(Light::Point(Default::default())),
-            2 => Ok(Light::Directional(Default::default())),
+            0 => Ok(Self::Spot(Default::default())),
+            1 => Ok(Self::Point(Default::default())),
+            2 => Ok(Self::Directional(Default::default())),
             _ => Err(format!("Invalid light kind {}", id)),
         }
     }
 
     fn id(&self) -> u32 {
         match self {
-            Light::Spot(_) => 0,
-            Light::Point(_) => 1,
-            Light::Directional(_) => 2,
+            Self::Spot(_) => 0,
+            Self::Point(_) => 1,
+            Self::Directional(_) => 2,
         }
     }
 
@@ -427,9 +427,9 @@ impl Deref for Light {
 
     fn deref(&self) -> &Self::Target {
         match self {
-            Light::Directional(v) => v.deref(),
-            Light::Spot(v) => v.deref(),
-            Light::Point(v) => v.deref(),
+            Self::Directional(v) => v.deref(),
+            Self::Spot(v) => v.deref(),
+            Self::Point(v) => v.deref(),
         }
     }
 }
@@ -437,9 +437,9 @@ impl Deref for Light {
 impl DerefMut for Light {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            Light::Directional(v) => v.deref_mut(),
-            Light::Spot(v) => v.deref_mut(),
-            Light::Point(v) => v.deref_mut(),
+            Self::Directional(v) => v.deref_mut(),
+            Self::Spot(v) => v.deref_mut(),
+            Self::Point(v) => v.deref_mut(),
         }
     }
 }
@@ -451,13 +451,13 @@ impl Visit for Light {
         let mut kind_id = self.id();
         kind_id.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            *self = Light::new(kind_id)?;
+            *self = Self::new(kind_id)?;
         }
 
         match self {
-            Light::Spot(spot_light) => spot_light.visit("Data", visitor)?,
-            Light::Point(point_light) => point_light.visit("Data", visitor)?,
-            Light::Directional(directional_light) => directional_light.visit("Data", visitor)?,
+            Self::Spot(spot_light) => spot_light.visit("Data", visitor)?,
+            Self::Point(point_light) => point_light.visit("Data", visitor)?,
+            Self::Directional(directional_light) => directional_light.visit("Data", visitor)?,
         }
 
         visitor.leave_region()

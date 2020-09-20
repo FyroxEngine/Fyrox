@@ -94,7 +94,7 @@ impl Visit for Transform {
 
 impl Default for Transform {
     fn default() -> Self {
-        Transform::identity()
+        Self::identity()
     }
 }
 

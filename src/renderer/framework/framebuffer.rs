@@ -40,8 +40,8 @@ pub enum CullFace {
 impl CullFace {
     pub fn into_gl_value(self) -> u32 {
         match self {
-            CullFace::Front => gl::FRONT,
-            CullFace::Back => gl::BACK,
+            Self::Front => gl::FRONT,
+            Self::Back => gl::BACK,
         }
     }
 }
