@@ -30,7 +30,7 @@ pub struct FbxScene {
 impl FbxScene {
     /// Parses FBX DOM and filling internal lists to prepare
     /// for conversion to engine format
-    pub fn new(document: &FbxDocument) -> Result<FbxScene, FbxError> {
+    pub fn new(document: &FbxDocument) -> Result<Self, FbxError> {
         let mut components = Pool::new();
         let mut index_to_component = HashMap::new();
 
@@ -126,7 +126,7 @@ impl FbxScene {
             }
         }
 
-        Ok(FbxScene { components })
+        Ok(Self { components })
     }
 
     pub fn pair_iter(&self) -> PoolPairIterator<FbxComponent> {

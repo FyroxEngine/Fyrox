@@ -334,7 +334,7 @@ impl PointShadowMapRenderer {
         },
     ];
 
-    pub fn new(state: &mut State, size: usize) -> Result<PointShadowMapRenderer, RendererError> {
+    pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
         let depth = {
             let kind = GpuTextureKind::Rectangle {
                 width: size,

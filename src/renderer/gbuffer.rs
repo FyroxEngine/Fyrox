@@ -159,7 +159,7 @@ impl GBuffer {
             }],
         )?;
 
-        Ok(GBuffer {
+        Ok(Self {
             framebuffer,
             shader: GBufferShader::new()?,
             bone_matrices: Vec::new(),

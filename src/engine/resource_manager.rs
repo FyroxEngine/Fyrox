@@ -96,7 +96,7 @@ impl ResourceManager {
     /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
     pub const MAX_RESOURCE_TTL: f32 = 20.0;
 
-    pub(in crate::engine) fn new() -> ResourceManager {
+    pub(in crate::engine) fn new() -> Self {
         Self {
             textures: Vec::new(),
             models: Vec::new(),
