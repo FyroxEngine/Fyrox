@@ -1,6 +1,5 @@
-use crate::math::vec3::Vec3;
 use crate::{
-    math::vec4::Vec4,
+    math::{vec3::Vec3, vec4::Vec4},
     visitor::{Visit, VisitResult, Visitor},
 };
 
@@ -86,12 +85,34 @@ impl Color {
         a: 0,
     };
 
-    pub const fn opaque(r: u8, g: u8, b: u8) -> Color {
-        Color { r, g, b, a: 255 }
+    pub const fn opaque(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b, a: 255 }
     }
 
-    pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Color {
-        Color { r, g, b, a }
+    pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self { r, g, b, a }
+    }
+
+    /// Hue is in [0; 360] range
+    /// Saturation, value - [0; 100]
+    pub fn from_hsv(hue: f32, saturation: f32, value: f32) -> Self {
+        let hi = ((hue / 60.0) % 6.0) as i32;
+        let vmin = ((100.0 - saturation) * value) / 100.0;
+        let a = (value - vmin) * ((hue % 60.0) / 60.0);
+        let vinc = vmin + a;
+        let vdec = value - a;
+        Self::from(
+            match hi {
+                0 => Vec3::new(value, vinc, vmin),
+                1 => Vec3::new(vdec, value, vmin),
+                2 => Vec3::new(vmin, value, vinc),
+                3 => Vec3::new(vmin, vdec, value),
+                4 => Vec3::new(vinc, vmin, value),
+                5 => Vec3::new(value, vmin, vdec),
+                _ => unreachable!(),
+            }
+            .scale(1.0 / 100.0),
+        )
     }
 
     pub fn as_frgba(self) -> Vec4 {

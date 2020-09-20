@@ -103,6 +103,22 @@ where
     pub fn position(&self) -> (T, T) {
         (self.x, self.y)
     }
+
+    pub fn left_top_corner(&self) -> (T, T) {
+        (self.x, self.y)
+    }
+
+    pub fn right_top_corner(&self) -> (T, T) {
+        (self.x + self.w, self.y)
+    }
+
+    pub fn right_bottom_corner(&self) -> (T, T) {
+        (self.x + self.w, self.y + self.h)
+    }
+
+    pub fn left_bottom_corner(&self) -> (T, T) {
+        (self.x, self.y + self.h)
+    }
 }
 
 impl<T> Visit for Rect<T>
