@@ -45,44 +45,44 @@ pub enum FieldKind {
 impl FieldKind {
     fn as_string(&self) -> String {
         match self {
-            FieldKind::Bool(data) => format!("<bool = {}>, ", data),
-            FieldKind::U8(data) => format!("<u8 = {}>, ", data),
-            FieldKind::I8(data) => format!("<i8 = {}>, ", data),
-            FieldKind::U16(data) => format!("<u16 = {}>, ", data),
-            FieldKind::I16(data) => format!("<i16 = {}>, ", data),
-            FieldKind::U32(data) => format!("<u32 = {}>, ", data),
-            FieldKind::I32(data) => format!("<i32 = {}>, ", data),
-            FieldKind::U64(data) => format!("<u64 = {}>, ", data),
-            FieldKind::I64(data) => format!("<i64 = {}>, ", data),
-            FieldKind::F32(data) => format!("<f32 = {}>, ", data),
-            FieldKind::F64(data) => format!("<f64 = {}>, ", data),
-            FieldKind::Vec3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
-            FieldKind::Quat(data) => {
+            Self::Bool(data) => format!("<bool = {}>, ", data),
+            Self::U8(data) => format!("<u8 = {}>, ", data),
+            Self::I8(data) => format!("<i8 = {}>, ", data),
+            Self::U16(data) => format!("<u16 = {}>, ", data),
+            Self::I16(data) => format!("<i16 = {}>, ", data),
+            Self::U32(data) => format!("<u32 = {}>, ", data),
+            Self::I32(data) => format!("<i32 = {}>, ", data),
+            Self::U64(data) => format!("<u64 = {}>, ", data),
+            Self::I64(data) => format!("<i64 = {}>, ", data),
+            Self::F32(data) => format!("<f32 = {}>, ", data),
+            Self::F64(data) => format!("<f64 = {}>, ", data),
+            Self::Vec3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Quat(data) => {
                 format!("<quat = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
-            FieldKind::Mat4(data) => {
+            Self::Mat4(data) => {
                 let mut out = String::from("<mat4 = ");
                 for f in &data.f {
                     out += format!("{}; ", f).as_str();
                 }
                 out
             }
-            FieldKind::Data(data) => {
+            Self::Data(data) => {
                 let out = match String::from_utf8(data.clone()) {
                     Ok(s) => s,
                     Err(_) => base64::encode(data),
                 };
                 format!("<data = {}>, ", out)
             }
-            FieldKind::Mat3(data) => {
+            Self::Mat3(data) => {
                 let mut out = String::from("<mat3 = ");
                 for f in &data.f {
                     out += format!("{}; ", f).as_str();
                 }
                 out
             }
-            FieldKind::Vec2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
-            FieldKind::Vec4(data) => {
+            Self::Vec2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
+            Self::Vec4(data) => {
                 format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
         }
