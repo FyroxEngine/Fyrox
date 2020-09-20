@@ -106,8 +106,8 @@ impl Clone for Physics {
 }
 
 impl Physics {
-    pub fn new() -> Physics {
-        Physics {
+    pub fn new() -> Self {
+        Self {
             bodies: Pool::new(),
             static_geoms: Pool::new(),
             query_buffer: Default::default(),
