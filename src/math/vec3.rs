@@ -303,7 +303,7 @@ impl ops::Index<usize> for Vec3 {
         match index {
             0 => &self.x,
             1 => &self.y,
-            2 => &self.y,
+            2 => &self.z,
             _ => panic!("Invalid index {:?} for Vec3", index),
         }
     }
