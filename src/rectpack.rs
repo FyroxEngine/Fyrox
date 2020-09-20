@@ -16,8 +16,8 @@ struct RectPackNode<T> {
 }
 
 impl<T> RectPackNode<T> {
-    fn new(bounds: Rect<T>) -> RectPackNode<T> {
-        RectPackNode {
+    fn new(bounds: Rect<T>) -> Self {
+        Self {
             bounds,
             filled: false,
             split: false,
@@ -45,7 +45,7 @@ where
     /// then calculate total area of your triangles by sum of width*height and then take square
     /// root out of area. You'll get side length of a square which can be used as width and height
     /// parameters.
-    pub fn new(w: T, h: T) -> RectPacker<T> {
+    pub fn new(w: T, h: T) -> Self {
         let mut nodes = Pool::new();
         let root = nodes.spawn(RectPackNode::new(Rect::new(
             Default::default(),
@@ -53,7 +53,7 @@ where
             w,
             h,
         )));
-        RectPacker { nodes, root }
+        Self { nodes, root }
     }
 
     /// Tries to find free place to put rectangle with given size. Returns None if there insufficient

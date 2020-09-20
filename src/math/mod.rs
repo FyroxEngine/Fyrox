@@ -41,12 +41,12 @@ impl<T> Rect<T>
 where
     T: PartialOrd + Default + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Copy,
 {
-    pub fn new(x: T, y: T, w: T, h: T) -> Rect<T> {
-        Rect { x, y, w, h }
+    pub fn new(x: T, y: T, w: T, h: T) -> Self {
+        Self { x, y, w, h }
     }
 
-    pub fn default() -> Rect<T> {
-        Rect {
+    pub fn default() -> Self {
+        Self {
             x: T::default(),
             y: T::default(),
             w: T::default(),
@@ -55,8 +55,8 @@ where
     }
 
     #[must_use = "this method creates new instance of rect"]
-    pub fn inflate(&self, dw: T, dh: T) -> Rect<T> {
-        Rect {
+    pub fn inflate(&self, dw: T, dh: T) -> Self {
+        Self {
             x: self.x - dw,
             y: self.y - dh,
             w: self.w + dw + dw,
@@ -65,8 +65,8 @@ where
     }
 
     #[must_use = "this method creates new instance of rect"]
-    pub fn deflate(&self, dw: T, dh: T) -> Rect<T> {
-        Rect {
+    pub fn deflate(&self, dw: T, dh: T) -> Self {
+        Self {
             x: self.x + dw,
             y: self.y + dh,
             w: self.w - (dw + dw),

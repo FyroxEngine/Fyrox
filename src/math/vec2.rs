@@ -38,8 +38,17 @@ impl Default for Vec2 {
 }
 
 impl Vec2 {
-    pub const ZERO: Self = Vec2 { x: 0.0, y: 0.0 };
-    pub const UNIT: Self = Vec2 { x: 1.0, y: 1.0 };
+    pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
+    pub const UNIT: Self = Self { x: 1.0, y: 1.0 };
+
+    pub const X: Self = Self {
+        x: 1.0,
+        y: 0.0,
+    };
+    pub const Y: Self = Self {
+        x: 0.0,
+        y: 1.0,
+    };
 
     fn validate(self) {
         debug_assert!(!self.x.is_nan());
@@ -48,7 +57,7 @@ impl Vec2 {
 
     #[inline]
     pub const fn new(x: f32, y: f32) -> Self {
-        Vec2 { x, y }
+        Self { x, y }
     }
 
     #[inline]
@@ -67,16 +76,16 @@ impl Vec2 {
     }
 
     #[inline]
-    pub fn perpendicular(self) -> Vec2 {
-        Vec2 {
+    pub fn perpendicular(self) -> Self {
+        Self {
             x: self.y,
             y: -self.x,
         }
     }
 
     #[inline]
-    pub fn scale(self, scalar: f32) -> Vec2 {
-        Vec2 {
+    pub fn scale(self, scalar: f32) -> Self {
+        Self {
             x: self.x * scalar,
             y: self.y * scalar,
         }
@@ -99,11 +108,11 @@ impl Vec2 {
     }
 
     #[inline]
-    pub fn normalized(self) -> Option<Vec2> {
+    pub fn normalized(self) -> Option<Self> {
         let len = self.len();
         if len >= std::f32::EPSILON {
             let inv_len = 1.0 / len;
-            return Some(Vec2 {
+            return Some(Self {
                 x: self.x * inv_len,
                 y: self.y * inv_len,
             });

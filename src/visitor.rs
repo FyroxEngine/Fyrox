@@ -45,44 +45,44 @@ pub enum FieldKind {
 impl FieldKind {
     fn as_string(&self) -> String {
         match self {
-            FieldKind::Bool(data) => format!("<bool = {}>, ", data),
-            FieldKind::U8(data) => format!("<u8 = {}>, ", data),
-            FieldKind::I8(data) => format!("<i8 = {}>, ", data),
-            FieldKind::U16(data) => format!("<u16 = {}>, ", data),
-            FieldKind::I16(data) => format!("<i16 = {}>, ", data),
-            FieldKind::U32(data) => format!("<u32 = {}>, ", data),
-            FieldKind::I32(data) => format!("<i32 = {}>, ", data),
-            FieldKind::U64(data) => format!("<u64 = {}>, ", data),
-            FieldKind::I64(data) => format!("<i64 = {}>, ", data),
-            FieldKind::F32(data) => format!("<f32 = {}>, ", data),
-            FieldKind::F64(data) => format!("<f64 = {}>, ", data),
-            FieldKind::Vec3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
-            FieldKind::Quat(data) => {
+            Self::Bool(data) => format!("<bool = {}>, ", data),
+            Self::U8(data) => format!("<u8 = {}>, ", data),
+            Self::I8(data) => format!("<i8 = {}>, ", data),
+            Self::U16(data) => format!("<u16 = {}>, ", data),
+            Self::I16(data) => format!("<i16 = {}>, ", data),
+            Self::U32(data) => format!("<u32 = {}>, ", data),
+            Self::I32(data) => format!("<i32 = {}>, ", data),
+            Self::U64(data) => format!("<u64 = {}>, ", data),
+            Self::I64(data) => format!("<i64 = {}>, ", data),
+            Self::F32(data) => format!("<f32 = {}>, ", data),
+            Self::F64(data) => format!("<f64 = {}>, ", data),
+            Self::Vec3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::Quat(data) => {
                 format!("<quat = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
-            FieldKind::Mat4(data) => {
+            Self::Mat4(data) => {
                 let mut out = String::from("<mat4 = ");
                 for f in &data.f {
                     out += format!("{}; ", f).as_str();
                 }
                 out
             }
-            FieldKind::Data(data) => {
+            Self::Data(data) => {
                 let out = match String::from_utf8(data.clone()) {
                     Ok(s) => s,
                     Err(_) => base64::encode(data),
                 };
                 format!("<data = {}>, ", out)
             }
-            FieldKind::Mat3(data) => {
+            Self::Mat3(data) => {
                 let mut out = String::from("<mat3 = ");
                 for f in &data.f {
                     out += format!("{}; ", f).as_str();
                 }
                 out
             }
-            FieldKind::Vec2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
-            FieldKind::Vec4(data) => {
+            Self::Vec2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
+            Self::Vec4(data) => {
                 format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
         }
@@ -210,51 +210,51 @@ pub enum VisitError {
 impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
-            VisitError::Io(io) => write!(f, "io error: {}", io),
-            VisitError::UnknownFieldType(type_index) => {
+            Self::Io(io) => write!(f, "io error: {}", io),
+            Self::UnknownFieldType(type_index) => {
                 write!(f, "unknown field type {}", type_index)
             }
-            VisitError::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
-            VisitError::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
-            VisitError::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
-            VisitError::InvalidCurrentNode => write!(f, "invalid current node"),
-            VisitError::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
-            VisitError::RegionDoesNotExist(name) => write!(f, "region does not exists {}", name),
-            VisitError::NoActiveNode => write!(f, "no active node"),
-            VisitError::NotSupportedFormat => write!(f, "not supported format"),
-            VisitError::InvalidName => write!(f, "invalid name"),
-            VisitError::TypeMismatch => write!(f, "type mismatch"),
-            VisitError::RefCellAlreadyMutableBorrowed => {
+            Self::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
+            Self::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
+            Self::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
+            Self::InvalidCurrentNode => write!(f, "invalid current node"),
+            Self::FieldTypeDoesNotMatch => write!(f, "field type does not match"),
+            Self::RegionDoesNotExist(name) => write!(f, "region does not exists {}", name),
+            Self::NoActiveNode => write!(f, "no active node"),
+            Self::NotSupportedFormat => write!(f, "not supported format"),
+            Self::InvalidName => write!(f, "invalid name"),
+            Self::TypeMismatch => write!(f, "type mismatch"),
+            Self::RefCellAlreadyMutableBorrowed => {
                 write!(f, "ref cell already mutable borrowed")
             }
-            VisitError::User(msg) => write!(f, "user defined error: {}", msg),
-            VisitError::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
-            VisitError::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
+            Self::User(msg) => write!(f, "user defined error: {}", msg),
+            Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
+            Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
         }
     }
 }
 
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for VisitError {
     fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
-        VisitError::PoisonedMutex
+        Self::PoisonedMutex
     }
 }
 
 impl From<std::io::Error> for VisitError {
     fn from(io_err: std::io::Error) -> Self {
-        VisitError::Io(io_err)
+        Self::Io(io_err)
     }
 }
 
 impl From<FromUtf8Error> for VisitError {
     fn from(_: FromUtf8Error) -> Self {
-        VisitError::InvalidName
+        Self::InvalidName
     }
 }
 
 impl From<String> for VisitError {
     fn from(s: String) -> Self {
-        VisitError::User(s)
+        Self::User(s)
     }
 }
 
