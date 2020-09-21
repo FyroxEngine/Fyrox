@@ -490,8 +490,8 @@ impl WorldOutliner {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        ui: &Ui,
-        current_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &GameEngine,
     ) {
         match &message.data() {
             UiMessageData::TreeRoot(msg) => {
@@ -500,15 +500,15 @@ impl WorldOutliner {
                         let new_selection = Selection::from_list(
                             selection
                                 .iter()
-                                .map(|&h| self.map_tree_to_node(h, ui))
+                                .map(|&h| self.map_tree_to_node(h, &engine.user_interface))
                                 .collect(),
                         );
-                        if &new_selection != current_selection {
+                        if new_selection != editor_scene.selection {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::ChangeSelection(
                                     ChangeSelectionCommand::new(
                                         new_selection,
-                                        current_selection.clone(),
+                                        editor_scene.selection.clone(),
                                     ),
                                 )))
                                 .unwrap();
@@ -518,18 +518,36 @@ impl WorldOutliner {
             }
             UiMessageData::Widget(msg) => {
                 if let &WidgetMessage::Drop(node) = msg {
-                    if ui.is_node_child_of(node, self.root)
-                        && ui.is_node_child_of(message.destination(), self.root)
+                    if engine.user_interface.is_node_child_of(node, self.root)
+                        && engine
+                            .user_interface
+                            .is_node_child_of(message.destination(), self.root)
                         && node != message.destination()
                     {
-                        let child = self.map_tree_to_node(node, ui);
-                        let parent = self.map_tree_to_node(message.destination(), ui);
+                        let child = self.map_tree_to_node(node, &engine.user_interface);
+                        let parent =
+                            self.map_tree_to_node(message.destination(), &engine.user_interface);
                         if child.is_some() && parent.is_some() {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
-                                    LinkNodesCommand::new(child, parent),
-                                )))
-                                .unwrap();
+                            // Make sure we won't create any loops - child must not have parent in its
+                            // descendants.
+                            let mut attach = true;
+                            let graph = &engine.scenes[editor_scene.scene].graph;
+                            let mut p = parent;
+                            while p.is_some() {
+                                if p == child {
+                                    attach = false;
+                                    break;
+                                }
+                                p = graph[p].parent();
+                            }
+
+                            if attach {
+                                self.sender
+                                    .send(Message::DoSceneCommand(SceneCommand::LinkNodes(
+                                        LinkNodesCommand::new(child, parent),
+                                    )))
+                                    .unwrap();
+                            }
                         }
                     }
                 }

@@ -1078,10 +1078,11 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_ref() {
             self.sidebar.handle_message(message, editor_scene, engine);
             self.asset_browser.handle_ui_message(message, engine);
+            self.world_outliner
+                .handle_ui_message(message, &editor_scene, engine);
 
             let ui = &mut engine.user_interface;
-            self.world_outliner
-                .handle_ui_message(message, ui, &editor_scene.selection);
+
             self.preview.handle_message(message);
 
             if message.destination() == self.preview.frame {
