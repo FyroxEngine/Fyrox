@@ -1,27 +1,291 @@
-use crate::border::BorderBuilder;
-use crate::core::math::Rect;
-use crate::message::{ColorFieldMessage, ColorPickerMessage, NumericUpDownMessage};
-use crate::popup::Placement;
+use crate::message::AlphaBarMessage;
 use crate::{
+    border::BorderBuilder,
     brush::Brush,
     core::{
         color::{Color, Hsv},
-        math::vec2::Vec2,
+        math::{vec2::Vec2, Rect},
         pool::Handle,
     },
     draw::{CommandKind, CommandTexture, DrawingContext},
     grid::{Column, GridBuilder, Row},
     message::{
-        HueBarMessage, MessageData, MessageDirection, MouseButton, PopupMessage,
-        SaturationBrightnessFieldMessage, UiMessage, UiMessageData, WidgetMessage,
+        ColorFieldMessage, ColorPickerMessage, HueBarMessage, MessageData, MessageDirection,
+        MouseButton, NumericUpDownMessage, PopupMessage, SaturationBrightnessFieldMessage,
+        UiMessage, UiMessageData, WidgetMessage,
     },
     numeric::NumericUpDownBuilder,
-    popup::PopupBuilder,
+    popup::{Placement, PopupBuilder},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, Thickness, UINode, UserInterface, VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
+
+#[derive(Clone)]
+pub struct AlphaBar<M: MessageData, C: Control<M, C>> {
+    widget: Widget<M, C>,
+    orientation: Orientation,
+    alpha: f32,
+    is_picking: bool,
+}
+
+impl<M: MessageData, C: Control<M, C>> Deref for AlphaBar<M, C> {
+    type Target = Widget<M, C>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<M: MessageData, C: Control<M, C>> DerefMut for AlphaBar<M, C> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
+
+impl<M: MessageData, C: Control<M, C>> AlphaBar<M, C> {
+    fn alpha_at(&self, mouse_pos: Vec2) -> f32 {
+        let relative_pos = mouse_pos - self.screen_position;
+        let k = match self.orientation {
+            Orientation::Vertical => relative_pos.y / self.actual_size().y,
+            Orientation::Horizontal => relative_pos.x / self.actual_size().x,
+        };
+        k.min(1.0).max(0.0) * 255.0
+    }
+}
+
+fn push_gradient_rect(
+    drawing_context: &mut DrawingContext,
+    bounds: &Rect<f32>,
+    orientation: Orientation,
+    prev_k: f32,
+    prev_color: Color,
+    curr_k: f32,
+    curr_color: Color,
+) {
+    match orientation {
+        Orientation::Vertical => {
+            drawing_context.push_triangle_multicolor([
+                (
+                    Vec2::new(bounds.x, bounds.y + bounds.h * prev_k),
+                    prev_color,
+                ),
+                (
+                    Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * prev_k),
+                    prev_color,
+                ),
+                (
+                    Vec2::new(bounds.x, bounds.y + bounds.h * curr_k),
+                    curr_color,
+                ),
+            ]);
+            drawing_context.push_triangle_multicolor([
+                (
+                    Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * prev_k),
+                    prev_color,
+                ),
+                (
+                    Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * curr_k),
+                    curr_color,
+                ),
+                (
+                    Vec2::new(bounds.x, bounds.y + bounds.h * curr_k),
+                    curr_color,
+                ),
+            ]);
+        }
+        Orientation::Horizontal => {
+            drawing_context.push_triangle_multicolor([
+                (
+                    Vec2::new(bounds.x + bounds.w * prev_k, bounds.y),
+                    prev_color,
+                ),
+                (
+                    Vec2::new(bounds.x + bounds.w * curr_k, bounds.y),
+                    curr_color,
+                ),
+                (
+                    Vec2::new(bounds.x + bounds.w * prev_k, bounds.y + bounds.h),
+                    prev_color,
+                ),
+            ]);
+            drawing_context.push_triangle_multicolor([
+                (
+                    Vec2::new(bounds.x + bounds.w * curr_k, bounds.y),
+                    curr_color,
+                ),
+                (
+                    Vec2::new(bounds.x + bounds.w * curr_k, bounds.y + bounds.h),
+                    curr_color,
+                ),
+                (
+                    Vec2::new(bounds.x + bounds.w * prev_k, bounds.y + bounds.h),
+                    prev_color,
+                ),
+            ]);
+        }
+    }
+}
+
+const CHECKERBOARD_SIZE: f32 = 6.0;
+
+impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        let bounds = self.screen_bounds();
+
+        // Draw checker board first.
+        let h_amount = (bounds.w / CHECKERBOARD_SIZE).ceil() as usize;
+        let v_amount = (bounds.h / CHECKERBOARD_SIZE).ceil() as usize;
+        for y in 0..v_amount {
+            for x in 0..h_amount {
+                let rect = Rect::new(
+                    bounds.x + x as f32 * CHECKERBOARD_SIZE,
+                    bounds.y + y as f32 * CHECKERBOARD_SIZE,
+                    CHECKERBOARD_SIZE,
+                    CHECKERBOARD_SIZE,
+                );
+                let color = if (x + y) & 1 == 0 {
+                    Color::opaque(127, 127, 127)
+                } else {
+                    Color::WHITE
+                };
+                drawing_context.push_rect_multicolor(&rect, [color; 4]);
+            }
+        }
+        drawing_context.commit(
+            CommandKind::Geometry,
+            Brush::Solid(Color::WHITE),
+            CommandTexture::None,
+        );
+
+        // Then draw alpha gradient.
+        for alpha in 1..255 {
+            let prev_color = Color::from_rgba(0, 0, 0, alpha - 1);
+            let curr_color = Color::from_rgba(0, 0, 0, alpha);
+            let prev_k = (alpha - 1) as f32 / 255.0;
+            let curr_k = alpha as f32 / 255.0;
+            push_gradient_rect(
+                drawing_context,
+                &bounds,
+                self.orientation,
+                prev_k,
+                prev_color,
+                curr_k,
+                curr_color,
+            );
+        }
+
+        let k = self.alpha / 255.0;
+        match self.orientation {
+            Orientation::Vertical => drawing_context.push_rect_multicolor(
+                &Rect::new(bounds.x, bounds.y + bounds.h * k, bounds.w, 1.0),
+                [Color::WHITE; 4],
+            ),
+            Orientation::Horizontal => drawing_context.push_rect_multicolor(
+                &Rect::new(bounds.x + k * bounds.w, bounds.y, 1.0, bounds.h),
+                [Color::WHITE; 4],
+            ),
+        }
+
+        drawing_context.commit(
+            CommandKind::Geometry,
+            Brush::Solid(Color::WHITE),
+            CommandTexture::None,
+        );
+    }
+
+    fn handle_routed_message(
+        &mut self,
+        ui: &mut UserInterface<M, C>,
+        message: &mut UiMessage<M, C>,
+    ) {
+        self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle {
+            match message.data() {
+                UiMessageData::Widget(msg)
+                    if message.direction() == MessageDirection::FromWidget =>
+                {
+                    match *msg {
+                        WidgetMessage::MouseDown { button, .. } => {
+                            if button == MouseButton::Left {
+                                self.is_picking = true;
+                                ui.capture_mouse(self.handle);
+                            }
+                        }
+                        WidgetMessage::MouseMove { pos, .. } => {
+                            if self.is_picking {
+                                ui.send_message(AlphaBarMessage::alpha(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    self.alpha_at(pos),
+                                ))
+                            }
+                        }
+                        WidgetMessage::MouseUp { button, .. } => {
+                            if self.is_picking && button == MouseButton::Left {
+                                self.is_picking = false;
+                                ui.release_mouse_capture();
+                            }
+                        }
+                        _ => (),
+                    }
+                }
+                UiMessageData::AlphaBar(msg)
+                    if message.direction() == MessageDirection::ToWidget =>
+                {
+                    match msg {
+                        &AlphaBarMessage::Alpha(alpha) => {
+                            if self.alpha != alpha {
+                                self.alpha = alpha;
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                        &AlphaBarMessage::Orientation(orientation) => {
+                            if self.orientation != orientation {
+                                self.orientation = orientation;
+                                ui.send_message(message.reverse());
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+pub struct AlphaBarBuilder<M: MessageData, C: Control<M, C>> {
+    widget_builder: WidgetBuilder<M, C>,
+    orientation: Orientation,
+    alpha: f32,
+}
+
+impl<M: MessageData, C: Control<M, C>> AlphaBarBuilder<M, C> {
+    pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
+        Self {
+            widget_builder,
+            orientation: Orientation::Vertical,
+            alpha: 255.0,
+        }
+    }
+
+    pub fn with_alpha(mut self, alpha: f32) -> Self {
+        self.alpha = alpha;
+        self
+    }
+
+    pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
+        let canvas = AlphaBar {
+            widget: self.widget_builder.build(),
+            orientation: self.orientation,
+            alpha: self.alpha,
+            is_picking: false,
+        };
+        ui.add_node(UINode::AlphaBar(canvas))
+    }
+}
 
 #[derive(Clone)]
 pub struct HueBar<M: MessageData, C: Control<M, C>> {
@@ -64,68 +328,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
             let curr_color = Color::from(Hsv::new(hue as f32, 100.0, 100.0));
             let prev_k = (hue - 1) as f32 / 360.0;
             let curr_k = hue as f32 / 360.0;
-            match self.orientation {
-                Orientation::Vertical => {
-                    drawing_context.push_triangle_multicolor([
-                        (
-                            Vec2::new(bounds.x, bounds.y + bounds.h * prev_k),
-                            prev_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * prev_k),
-                            prev_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x, bounds.y + bounds.h * curr_k),
-                            curr_color,
-                        ),
-                    ]);
-                    drawing_context.push_triangle_multicolor([
-                        (
-                            Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * prev_k),
-                            prev_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x + bounds.w, bounds.y + bounds.h * curr_k),
-                            curr_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x, bounds.y + bounds.h * curr_k),
-                            curr_color,
-                        ),
-                    ]);
-                }
-                Orientation::Horizontal => {
-                    drawing_context.push_triangle_multicolor([
-                        (
-                            Vec2::new(bounds.x + bounds.w * prev_k, bounds.y),
-                            prev_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x + bounds.w * curr_k, bounds.y),
-                            curr_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x + bounds.w * prev_k, bounds.y + bounds.h),
-                            prev_color,
-                        ),
-                    ]);
-                    drawing_context.push_triangle_multicolor([
-                        (
-                            Vec2::new(bounds.x + bounds.w * curr_k, bounds.y),
-                            curr_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x + bounds.w * curr_k, bounds.y + bounds.h),
-                            curr_color,
-                        ),
-                        (
-                            Vec2::new(bounds.x + bounds.w * prev_k, bounds.y + bounds.h),
-                            prev_color,
-                        ),
-                    ]);
-                }
-            }
+            push_gradient_rect(
+                drawing_context,
+                &bounds,
+                self.orientation,
+                prev_k,
+                prev_color,
+                curr_k,
+                curr_color,
+            );
         }
 
         let k = self.hue / 360.0;
@@ -466,10 +677,12 @@ impl<M: MessageData, C: Control<M, C>> SaturationBrightnessFieldBuilder<M, C> {
 pub struct ColorPicker<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     hue_bar: Handle<UINode<M, C>>,
+    alpha_bar: Handle<UINode<M, C>>,
     saturation_brightness_field: Handle<UINode<M, C>>,
     red: Handle<UINode<M, C>>,
     green: Handle<UINode<M, C>>,
     blue: Handle<UINode<M, C>>,
+    alpha: Handle<UINode<M, C>>,
     hue: Handle<UINode<M, C>>,
     saturation: Handle<UINode<M, C>>,
     brightness: Handle<UINode<M, C>>,
@@ -535,6 +748,12 @@ impl<M: MessageData, C: Control<M, C>> ColorPicker<M, C> {
             color.b as f32,
         )));
 
+        ui.send_message(mark_handled(NumericUpDownMessage::value(
+            self.alpha,
+            MessageDirection::ToWidget,
+            color.a as f32,
+        )));
+
         ui.send_message(mark_handled(WidgetMessage::background(
             self.color_mark,
             MessageDirection::ToWidget,
@@ -569,6 +788,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                         self.handle,
                         MessageDirection::ToWidget,
                         hsv,
+                    ));
+                }
+            }
+            UiMessageData::AlphaBar(msg)
+                if message.destination() == self.alpha_bar
+                    && message.direction() == MessageDirection::FromWidget =>
+            {
+                if let &AlphaBarMessage::Alpha(alpha) = msg {
+                    ui.send_message(ColorPickerMessage::color(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        Color::from_rgba(self.color.r, self.color.g, self.color.b, alpha as u8),
                     ));
                 }
             }
@@ -624,19 +855,25 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                         ui.send_message(ColorPickerMessage::color(
                             self.handle,
                             MessageDirection::ToWidget,
-                            Color::opaque(value as u8, self.color.g, self.color.b),
+                            Color::from_rgba(value as u8, self.color.g, self.color.b, self.color.a),
                         ));
                     } else if message.destination() == self.green {
                         ui.send_message(ColorPickerMessage::color(
                             self.handle,
                             MessageDirection::ToWidget,
-                            Color::opaque(self.color.r, value as u8, self.color.b),
+                            Color::from_rgba(self.color.r, value as u8, self.color.b, self.color.a),
                         ));
                     } else if message.destination() == self.blue {
                         ui.send_message(ColorPickerMessage::color(
                             self.handle,
                             MessageDirection::ToWidget,
-                            Color::opaque(self.color.r, self.color.g, value as u8),
+                            Color::from_rgba(self.color.r, self.color.g, value as u8, self.color.a),
+                        ));
+                    } else if message.destination() == self.alpha {
+                        ui.send_message(ColorPickerMessage::color(
+                            self.handle,
+                            MessageDirection::ToWidget,
+                            Color::from_rgba(self.color.r, self.color.g, self.color.b, value as u8),
                         ));
                     }
                 }
@@ -659,7 +896,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                     &ColorPickerMessage::Hsv(hsv) => {
                         if self.hsv != hsv {
                             self.hsv = hsv;
-                            self.color = Color::from(hsv);
+                            let opaque = Color::from(hsv);
+                            self.color =
+                                Color::from_rgba(opaque.r, opaque.g, opaque.b, self.color.a);
 
                             self.sync_fields(ui, self.color, hsv);
 
@@ -730,6 +969,7 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let hue_bar;
+        let alpha_bar;
         let saturation_brightness_field;
         let red;
         let green;
@@ -738,6 +978,7 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
         let saturation;
         let brightness;
         let color_mark;
+        let alpha;
         let hsv = Hsv::from(self.color);
 
         let numerics_grid = GridBuilder::new(
@@ -772,12 +1013,18 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
                 .with_child({
                     brightness = make_input_field(ctx, hsv.brightness(), 100.0, 2, 3);
                     brightness
+                })
+                .with_child(make_text_mark(ctx, "A", 3, 0))
+                .with_child({
+                    alpha = make_input_field(ctx, self.color.a as f32, 255.0, 3, 1);
+                    alpha
                 }),
         )
         .add_column(Column::strict(10.0))
         .add_column(Column::stretch())
         .add_column(Column::strict(10.0))
         .add_column(Column::stretch())
+        .add_row(Row::strict(25.0))
         .add_row(Row::strict(25.0))
         .add_row(Row::strict(25.0))
         .add_row(Row::strict(25.0))
@@ -809,10 +1056,20 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
                                 .build(ctx);
                                 hue_bar
                             })
+                            .with_child({
+                                alpha_bar = AlphaBarBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .on_column(2),
+                                )
+                                .with_alpha(self.color.a as f32)
+                                .build(ctx);
+                                alpha_bar
+                            })
                             .with_child(
                                 GridBuilder::new(
                                     WidgetBuilder::new()
-                                        .on_column(2)
+                                        .on_column(3)
                                         .with_child({
                                             color_mark = BorderBuilder::new(
                                                 WidgetBuilder::new()
@@ -831,7 +1088,8 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
                             ),
                     )
                     .add_column(Column::auto())
-                    .add_column(Column::strict(25.0))
+                    .add_column(Column::strict(20.0))
+                    .add_column(Column::strict(20.0))
                     .add_column(Column::stretch())
                     .add_row(Row::auto())
                     .build(ctx),
@@ -848,6 +1106,8 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
             color: self.color,
             color_mark,
             hsv,
+            alpha_bar,
+            alpha,
         };
         ctx.add_node(UINode::ColorPicker(picker))
     }

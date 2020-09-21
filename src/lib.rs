@@ -49,7 +49,6 @@ pub mod widget;
 pub mod window;
 pub mod wrap_panel;
 
-use crate::message::{CursorIcon, MessageData, MessageDirection};
 use crate::{
     brush::Brush,
     canvas::Canvas,
@@ -61,16 +60,15 @@ use crate::{
     },
     draw::{CommandKind, CommandTexture, DrawingContext},
     message::{
-        ButtonState, KeyboardModifiers, MouseButton, OsEvent, UiMessage, UiMessageData,
-        WidgetMessage,
+        ButtonState, CursorIcon, KeyboardModifiers, MessageData, MessageDirection, MouseButton,
+        OsEvent, UiMessage, UiMessageData, WidgetMessage,
     },
     node::UINode,
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
-use std::collections::VecDeque;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     ops::{Deref, DerefMut, Index, IndexMut},
     sync::{
         mpsc::{self, Receiver, Sender, TryRecvError},

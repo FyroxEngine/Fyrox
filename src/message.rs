@@ -741,6 +741,20 @@ impl HueBarMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum AlphaBarMessage {
+    /// Sets new hue value.
+    Alpha(f32),
+
+    /// Sets new orientation
+    Orientation(Orientation),
+}
+
+impl AlphaBarMessage {
+    define_constructor_unbound!(AlphaBar(AlphaBarMessage:Alpha) => fn alpha(f32));
+    define_constructor_unbound!(AlphaBar(AlphaBarMessage:Orientation) => fn orientation(Orientation));
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum SaturationBrightnessFieldMessage {
     /// Sets new hue value on the field.
     Hue(f32),
@@ -813,6 +827,7 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     ProgressBar(ProgressBarMessage),
     Image(ImageMessage),
     HueBar(HueBarMessage),
+    AlphaBar(AlphaBarMessage),
     ColorPicker(ColorPickerMessage),
     ColorField(ColorFieldMessage),
     SaturationBrightnessField(SaturationBrightnessFieldMessage),
