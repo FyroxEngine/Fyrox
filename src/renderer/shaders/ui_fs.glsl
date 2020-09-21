@@ -24,6 +24,7 @@ uniform vec2 boundsMax;
 out vec4 fragColor;
 
 in vec2 texCoord;
+in vec4 color;
 
 float project_point(vec2 a, vec2 b, vec2 p) {
     vec2 ab = b - a;
@@ -77,4 +78,6 @@ void main()
     {
         fragColor *= texture(diffuseTexture, texCoord);
     }
+
+    fragColor *= color;
 }
