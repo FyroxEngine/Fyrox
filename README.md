@@ -16,6 +16,8 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 - [x] Button
 - [x] Border
 - [x] Canvas
+- [x] Color picker
+- [x] Color field
 - [x] Check box
 - [x] Decorator
 - [x] Drop-down list
@@ -76,4 +78,4 @@ There are two projects uses this UI library:
 - [rusty-editor](https://github.com/mrDIMAS/rusty-editor/)
 - [rusty-shooter](https://github.com/mrDIMAS/rusty-shooter)
 
-However it can be too difficult to understand how to use library from those projects, so standalone samples should be added. This is still a TODO.
+However, it can be too difficult to understand how to use library from those projects, so standalone samples should be added. This is still a TODO.
