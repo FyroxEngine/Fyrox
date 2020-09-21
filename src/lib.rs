@@ -639,17 +639,19 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             node.update(dt)
         }
 
-        // Try to fetch new cursor icon starting from current picked node. Traverse
-        // tree up until cursor with different value is found.
-        self.cursor_icon = CursorIcon::default();
-        let mut handle = self.picked_node;
-        while handle.is_some() {
-            let node = &self.nodes[handle];
-            if let Some(cursor) = node.cursor() {
-                self.cursor_icon = cursor;
-                break;
+        if !self.drag_context.is_dragging {
+            // Try to fetch new cursor icon starting from current picked node. Traverse
+            // tree up until cursor with different value is found.
+            self.cursor_icon = CursorIcon::default();
+            let mut handle = self.picked_node;
+            while handle.is_some() {
+                let node = &self.nodes[handle];
+                if let Some(cursor) = node.cursor() {
+                    self.cursor_icon = cursor;
+                    break;
+                }
+                handle = node.parent();
             }
-            handle = node.parent();
         }
     }
 
@@ -1265,6 +1267,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                         if self.picked_node.is_some() {
                             if self.drag_context.is_dragging {
                                 self.drag_context.is_dragging = false;
+                                self.cursor_icon = CursorIcon::Default;
 
                                 // Try to find node with drop allowed in hierarchy starting from picked node.
                                 self.stack.clear();
@@ -1304,6 +1307,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                 if !self.drag_context.is_dragging
                     && self.mouse_state.left == ButtonState::Pressed
                     && self.picked_node.is_some()
+                    && self.drag_context.drag_node.is_some()
                     && (self.drag_context.click_pos - *position).len() > 5.0
                 {
                     self.drag_context.is_dragging = true;
@@ -1313,6 +1317,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                         MessageDirection::FromWidget,
                         self.drag_context.drag_node,
                     ));
+
+                    self.cursor_icon = CursorIcon::Crosshair;
                 }
 
                 // Fire mouse leave for previously picked node

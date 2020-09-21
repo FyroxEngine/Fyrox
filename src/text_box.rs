@@ -1,4 +1,4 @@
-use crate::message::{MessageData, MessageDirection};
+use crate::message::{CursorIcon, MessageData, MessageDirection};
 use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
@@ -666,6 +666,9 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
         }
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::opaque(100, 100, 100)));
+        }
+        if self.widget_builder.cursor.is_none() {
+            self.widget_builder.cursor = Some(CursorIcon::Text);
         }
 
         let text_box = TextBox {
