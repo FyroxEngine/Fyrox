@@ -155,7 +155,8 @@ impl LightSection {
                 WidgetBuilder::new()
                     .with_child(make_text_mark(ctx, "Color", 0))
                     .with_child({
-                        color = make_vec3_input_field(ctx, 0);
+                        color =
+                            ColorFieldBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx);
                         color
                     })
                     .with_child(make_text_mark(ctx, "Cast Shadows", 1))
@@ -199,10 +200,10 @@ impl LightSection {
                 light.scatter(),
             ));
 
-            ui.send_message(Vec3EditorMessage::value(
+            ui.send_message(ColorFieldMessage::color(
                 self.color,
                 MessageDirection::ToWidget,
-                light.color().as_frgba().xyz(),
+                light.color(),
             ));
 
             ui.send_message(CheckBoxMessage::checked(
@@ -231,17 +232,7 @@ impl LightSection {
             match &message.data() {
                 UiMessageData::Vec3Editor(msg) => {
                     if let &Vec3EditorMessage::Value(value) = msg {
-                        if message.destination() == self.color
-                            && light.color().as_frgba().xyz() != value
-                        {
-                            self.sender
-                                .send(Message::DoSceneCommand(SceneCommand::SetLightColor(
-                                    SetLightColorCommand::new(handle, value.into()),
-                                )))
-                                .unwrap();
-                        } else if message.destination() == self.light_scatter
-                            && light.scatter() != value
-                        {
+                        if message.destination() == self.light_scatter && light.scatter() != value {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetLightScatter(
                                     SetLightScatterCommand::new(handle, value.into()),
@@ -270,6 +261,17 @@ impl LightSection {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetLightCastShadows(
                                     SetLightCastShadowsCommand::new(handle, value),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                }
+                UiMessageData::ColorField(msg) => {
+                    if let &ColorFieldMessage::Color(color) = msg {
+                        if message.destination() == self.color && light.color() != color {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::SetLightColor(
+                                    SetLightColorCommand::new(handle, color.into()),
                                 )))
                                 .unwrap();
                         }
