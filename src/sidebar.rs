@@ -1,19 +1,19 @@
+use crate::scene::SetSpriteColorCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
         DeleteBodyCommand, EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
-        SceneCommand, SetBodyCommand, SetNameCommand,
-    },
-    scene::{
-        SetFovCommand, SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
-        SetLightScatterEnabledCommand, SetParticleSystemAccelerationCommand,
-        SetPointLightRadiusCommand, SetSpotLightDistanceCommand,
-        SetSpotLightFalloffAngleDeltaCommand, SetSpotLightHotspotCommand, SetZFarCommand,
+        SceneCommand, SetBodyCommand, SetFovCommand, SetLightCastShadowsCommand,
+        SetLightColorCommand, SetLightScatterCommand, SetLightScatterEnabledCommand,
+        SetNameCommand, SetParticleSystemAccelerationCommand, SetPointLightRadiusCommand,
+        SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
+        SetSpotLightHotspotCommand, SetSpriteRotationCommand, SetSpriteSizeCommand, SetZFarCommand,
         SetZNearCommand,
     },
     GameEngine, Message,
 };
-use rg3d::gui::message::MessageDirection;
+use rg3d::gui::color::ColorFieldBuilder;
+use rg3d::gui::message::ColorFieldMessage;
 use rg3d::{
     core::{
         math::{
@@ -29,8 +29,8 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, DropdownListMessage, NumericUpDownMessage, TextBoxMessage,
-            UiMessageData, Vec3EditorMessage, WidgetMessage,
+            CheckBoxMessage, DropdownListMessage, MessageDirection, NumericUpDownMessage,
+            TextBoxMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,
@@ -65,6 +65,7 @@ pub struct SideBar {
     light_section: LightSection,
     camera_section: CameraSection,
     particle_system_section: ParticleSystemSection,
+    sprite_section: SpriteSection,
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
@@ -91,6 +92,16 @@ fn make_vec3_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
 
 fn make_f32_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .with_margin(Thickness::uniform(1.0))
+            .on_column(1),
+    )
+    .build(ctx)
+}
+
+fn make_color_input_field(ctx: &mut BuildContext, row: usize) -> Handle<UiNode> {
+    ColorFieldBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
             .with_margin(Thickness::uniform(1.0))
@@ -629,6 +640,119 @@ impl ParticleSystemSection {
     }
 }
 
+struct SpriteSection {
+    section: Handle<UiNode>,
+    size: Handle<UiNode>,
+    rotation: Handle<UiNode>,
+    color: Handle<UiNode>,
+    sender: Sender<Message>,
+}
+
+impl SpriteSection {
+    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+        let size;
+        let rotation;
+        let color;
+        Self {
+            section: GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(make_text_mark(ctx, "Size", 0))
+                    .with_child({
+                        size = make_f32_input_field(ctx, 0);
+                        size
+                    })
+                    .with_child(make_text_mark(ctx, "Rotation", 1))
+                    .with_child({
+                        rotation = make_f32_input_field(ctx, 1);
+                        rotation
+                    })
+                    .with_child(make_text_mark(ctx, "Color", 2))
+                    .with_child({
+                        color = make_color_input_field(ctx, 2);
+                        color
+                    }),
+            )
+            .add_column(Column::strict(COLUMN_WIDTH))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .add_row(Row::strict(ROW_HEIGHT))
+            .build(ctx),
+            size,
+            rotation,
+            sender,
+            color,
+        }
+    }
+
+    pub fn sync_to_model(&mut self, node: &Node, ui: &mut Ui) {
+        ui.send_message(WidgetMessage::visibility(
+            self.section,
+            MessageDirection::ToWidget,
+            node.is_sprite(),
+        ));
+
+        if let Node::Sprite(sprite) = node {
+            ui.send_message(NumericUpDownMessage::value(
+                self.size,
+                MessageDirection::ToWidget,
+                sprite.size(),
+            ));
+
+            ui.send_message(NumericUpDownMessage::value(
+                self.rotation,
+                MessageDirection::ToWidget,
+                sprite.rotation(),
+            ));
+
+            ui.send_message(ColorFieldMessage::color(
+                self.color,
+                MessageDirection::ToWidget,
+                sprite.color(),
+            ));
+        }
+    }
+
+    pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
+        if let Node::Sprite(sprite) = node {
+            match &message.data() {
+                UiMessageData::NumericUpDown(msg) => {
+                    if let &NumericUpDownMessage::Value(value) = msg {
+                        if message.destination() == self.size && sprite.size() != value {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::SetSpriteSize(
+                                    SetSpriteSizeCommand::new(handle, value),
+                                )))
+                                .unwrap();
+                        } else if message.destination() == self.rotation
+                            && sprite.rotation() != value
+                        {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::SetSpriteRotation(
+                                    SetSpriteRotationCommand::new(handle, value),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                }
+                UiMessageData::ColorField(msg) => {
+                    if let &ColorFieldMessage::Color(color) = msg {
+                        dbg!(color);
+                        if message.destination() == self.color && sprite.color() != color {
+                            self.sender
+                                .send(Message::DoSceneCommand(SceneCommand::SetSpriteColor(
+                                    SetSpriteColorCommand::new(handle, color),
+                                )))
+                                .unwrap();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
 impl SideBar {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let scroll_viewer;
@@ -641,6 +765,7 @@ impl SideBar {
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
         let particle_system_section = ParticleSystemSection::new(ctx, sender.clone());
+        let sprite_section = SpriteSection::new(ctx, sender.clone());
 
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_content({
@@ -710,6 +835,7 @@ impl SideBar {
                                     light_section.spot_light_section.section,
                                     camera_section.section,
                                     particle_system_section.section,
+                                    sprite_section.section,
                                 ]),
                             )
                             .build(ctx),
@@ -732,6 +858,7 @@ impl SideBar {
             light_section,
             camera_section,
             particle_system_section,
+            sprite_section,
         }
     }
 
@@ -803,6 +930,7 @@ impl SideBar {
                 self.light_section.sync_to_model(node, ui);
                 self.camera_section.sync_to_model(node, ui);
                 self.particle_system_section.sync_to_model(node, ui);
+                self.sprite_section.sync_to_model(node, ui);
             }
         }
     }
@@ -827,6 +955,8 @@ impl SideBar {
             self.camera_section
                 .handle_message(message, node, node_handle);
             self.particle_system_section
+                .handle_message(message, node, node_handle);
+            self.sprite_section
                 .handle_message(message, node, node_handle);
 
             match &message.data() {

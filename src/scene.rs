@@ -49,6 +49,9 @@ pub enum SceneCommand {
     SetZNear(SetZNearCommand),
     SetZFar(SetZFarCommand),
     SetParticleSystemAcceleration(SetParticleSystemAccelerationCommand),
+    SetSpriteSize(SetSpriteSizeCommand),
+    SetSpriteRotation(SetSpriteRotationCommand),
+    SetSpriteColor(SetSpriteColorCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -86,6 +89,9 @@ macro_rules! static_dispatch {
             SceneCommand::SetZNear(v) => v.$func($($args),*),
             SceneCommand::SetZFar(v) => v.$func($($args),*),
             SceneCommand::SetParticleSystemAcceleration(v) => v.$func($($args),*),
+            SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
+            SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
+            SceneCommand::SetSpriteColor(v) => v.$func($($args),*),
         }
     };
 }
@@ -774,14 +780,14 @@ define_simple_command!(SetFovCommand, "Set Fov", f32 => |this: &mut SetFovComman
     this.value = old;
 });
 
-define_simple_command!(SetZNearCommand, "Set Z Near", f32 => |this: &mut SetZNearCommand, graph: &mut Graph| {
+define_simple_command!(SetZNearCommand, "Set Camera Z Near", f32 => |this: &mut SetZNearCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_camera_mut();
     let old = node.z_near();
     node.set_z_near(this.value);
     this.value = old;
 });
 
-define_simple_command!(SetZFarCommand, "Set Z Far", f32 => |this: &mut SetZFarCommand, graph: &mut Graph| {
+define_simple_command!(SetZFarCommand, "Set Camera Z Far", f32 => |this: &mut SetZFarCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_camera_mut();
     let old = node.z_far();
     node.set_z_far(this.value);
@@ -792,6 +798,27 @@ define_simple_command!(SetParticleSystemAccelerationCommand, "Set Particle Syste
     let node = graph[this.handle].as_particle_system_mut();
     let old = node.acceleration();
     node.set_acceleration(this.value);
+    this.value = old;
+});
+
+define_simple_command!(SetSpriteSizeCommand, "Set Sprite Size", f32 => |this: &mut SetSpriteSizeCommand, graph: &mut Graph| {
+    let node = graph[this.handle].as_sprite_mut();
+    let old = node.size();
+    node.set_size(this.value);
+    this.value = old;
+});
+
+define_simple_command!(SetSpriteRotationCommand, "Set Sprite Rotation", f32 => |this: &mut SetSpriteRotationCommand, graph: &mut Graph| {
+    let node = graph[this.handle].as_sprite_mut();
+    let old = node.rotation();
+    node.set_rotation(this.value);
+    this.value = old;
+});
+
+define_simple_command!(SetSpriteColorCommand, "Set Sprite Color", Color => |this: &mut SetSpriteColorCommand, graph: &mut Graph| {
+    let node = graph[this.handle].as_sprite_mut();
+    let old = node.color();
+    node.set_color(this.value);
     this.value = old;
 });
 
