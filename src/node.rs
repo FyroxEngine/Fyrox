@@ -1,10 +1,10 @@
-use crate::file_browser::FileSelector;
-use crate::message::MessageData;
+use crate::color::{ColorField, HueBar, SaturationBrightnessField};
 use crate::{
     border::Border,
     button::Button,
     canvas::Canvas,
     check_box::CheckBox,
+    color::ColorPicker,
     core::{
         define_is_as,
         math::{vec2::Vec2, Rect},
@@ -15,10 +15,12 @@ use crate::{
     draw::DrawingContext,
     dropdown_list::DropdownList,
     file_browser::FileBrowser,
+    file_browser::FileSelector,
     grid::Grid,
     image::Image,
     list_view::{ListView, ListViewItem},
     menu::{Menu, MenuItem},
+    message::MessageData,
     message::{OsEvent, UiMessage},
     messagebox::MessageBox,
     numeric::NumericUpDown,
@@ -46,6 +48,10 @@ pub enum UINode<M: MessageData, C: Control<M, C>> {
     Border(Border<M, C>),
     Button(Button<M, C>),
     Canvas(Canvas<M, C>),
+    ColorPicker(ColorPicker<M, C>),
+    ColorField(ColorField<M, C>),
+    HueBar(HueBar<M, C>),
+    SaturationBrightnessField(SaturationBrightnessField<M, C>),
     CheckBox(CheckBox<M, C>),
     Grid(Grid<M, C>),
     Image(Image<M, C>),
@@ -84,6 +90,10 @@ macro_rules! static_dispatch {
             UINode::Border(v) => v.$func($($args),*),
             UINode::Button(v) => v.$func($($args),*),
             UINode::Canvas(v) => v.$func($($args),*),
+            UINode::ColorPicker(v) => v.$func($($args),*),
+            UINode::ColorField(v) => v.$func($($args),*),
+            UINode::HueBar(v) => v.$func($($args),*),
+            UINode::SaturationBrightnessField(v) => v.$func($($args),*),
             UINode::CheckBox(v) => v.$func($($args),*),
             UINode::Grid(v) => v.$func($($args),*),
             UINode::Image(v) => v.$func($($args),*),
@@ -136,6 +146,9 @@ impl<M: MessageData, C: Control<M, C>> UINode<M, C> {
     define_is_as!(UINode : Border -> ref Border<M, C> => fn is_border, fn as_border, fn as_border_mut);
     define_is_as!(UINode : Button -> ref Button<M, C> => fn is_button, fn as_button, fn as_button_mut);
     define_is_as!(UINode : Canvas -> ref Canvas<M, C> => fn is_canvas, fn as_canvas, fn as_canvas_mut);
+    define_is_as!(UINode : ColorPicker -> ref ColorPicker<M, C> => fn is_color_picker, fn as_color_picker, fn as_color_picker_mut);
+    define_is_as!(UINode : HueBar -> ref HueBar<M, C> => fn is_hue_bar, fn as_hue_bar, fn as_hue_bar_mut);
+    define_is_as!(UINode : SaturationBrightnessField -> ref SaturationBrightnessField<M, C> => fn is_saturation_brightness_field, fn as_saturation_brightness_field, fn as_saturation_brightness_field_mut);
     define_is_as!(UINode : CheckBox -> ref CheckBox<M, C> => fn is_check_box, fn as_check_box, fn as_check_box_mut);
     define_is_as!(UINode : Grid -> ref Grid<M, C> => fn is_grid, fn as_grid, fn as_grid_mut);
     define_is_as!(UINode : Image -> ref Image<M, C> => fn is_image, fn as_image, fn as_image_mut);

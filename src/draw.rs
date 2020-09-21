@@ -1,4 +1,3 @@
-use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{
@@ -6,20 +5,25 @@ use crate::{
         math::{self, vec2::Vec2, Rect, TriangleDefinition},
     },
     formatted_text::FormattedText,
+    ttf::SharedFont,
     Thickness,
 };
-use std::ops::Deref;
-use std::{any::Any, ops::Range, sync::Arc};
+use std::{any::Any, ops::Deref, ops::Range, sync::Arc};
 
 #[repr(C)]
 pub struct Vertex {
     pos: Vec2,
     tex_coord: Vec2,
+    color: Color,
 }
 
 impl Vertex {
     fn new(pos: Vec2, tex_coord: Vec2) -> Vertex {
-        Vertex { pos, tex_coord }
+        Vertex {
+            pos,
+            tex_coord,
+            color: Color::WHITE,
+        }
     }
 }
 
@@ -160,14 +164,6 @@ impl DrawingContext {
     }
 
     #[inline]
-    fn index_origin(&self) -> u32 {
-        match self.triangle_buffer.last() {
-            Some(last) => last.0.last().unwrap() + 1,
-            None => 0,
-        }
-    }
-
-    #[inline]
     pub fn get_commands(&self) -> &Vec<Command> {
         &self.command_buffer
     }
@@ -196,14 +192,31 @@ impl DrawingContext {
         false
     }
 
+    pub fn last_vertex_index(&self) -> u32 {
+        self.vertex_buffer.len() as u32
+    }
+
+    pub fn push_triangle_multicolor(&mut self, vertices: [(Vec2, Color); 3]) {
+        let index = self.last_vertex_index();
+        for &(pos, color) in &vertices {
+            self.vertex_buffer.push(Vertex {
+                pos,
+                tex_coord: Vec2::new(0.0, 0.0),
+                color,
+            });
+        }
+
+        self.push_triangle(index, index + 1, index + 2);
+    }
+
     pub fn push_line(&mut self, a: Vec2, b: Vec2, thickness: f32) {
+        let index = self.last_vertex_index();
         let perp = get_line_thickness_vector(a, b, thickness);
         self.push_vertex(a - perp, Vec2::new(0.0, 0.0));
         self.push_vertex(b - perp, Vec2::new(1.0, 0.0));
         self.push_vertex(a + perp, Vec2::new(1.0, 1.0));
         self.push_vertex(b + perp, Vec2::new(0.0, 1.0));
 
-        let index = self.index_origin();
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index + 2, index + 1, index + 3);
     }
@@ -258,6 +271,7 @@ impl DrawingContext {
     }
 
     pub fn push_rect_filled(&mut self, rect: &Rect<f32>, tex_coords: Option<&[Vec2; 4]>) {
+        let index = self.last_vertex_index();
         self.push_vertex(
             Vec2::new(rect.x, rect.y),
             tex_coords.map_or(Vec2::new(0.0, 0.0), |t| t[0]),
@@ -275,28 +289,68 @@ impl DrawingContext {
             tex_coords.map_or(Vec2::new(0.0, 1.0), |t| t[3]),
         );
 
-        let index = self.index_origin();
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index, index + 2, index + 3);
     }
 
-    pub fn push_circle(&mut self, origin: Vec2, radius: f32, segments: usize) {
+    pub fn push_rect_multicolor(&mut self, rect: &Rect<f32>, colors: [Color; 4]) {
+        let index = self.last_vertex_index();
+        self.vertex_buffer.push(Vertex {
+            pos: rect.left_top_corner().into(),
+            tex_coord: Vec2::new(0.0, 0.0),
+            color: colors[0],
+        });
+        self.vertex_buffer.push(Vertex {
+            pos: rect.right_top_corner().into(),
+            tex_coord: Vec2::new(1.0, 0.0),
+            color: colors[1],
+        });
+        self.vertex_buffer.push(Vertex {
+            pos: rect.right_bottom_corner().into(),
+            tex_coord: Vec2::new(1.0, 1.0),
+            color: colors[2],
+        });
+        self.vertex_buffer.push(Vertex {
+            pos: rect.left_bottom_corner().into(),
+            tex_coord: Vec2::new(0.0, 1.0),
+            color: colors[3],
+        });
+
+        self.push_triangle(index, index + 1, index + 2);
+        self.push_triangle(index, index + 2, index + 3);
+    }
+
+    pub fn push_circle(&mut self, origin: Vec2, radius: f32, segments: usize, color: Color) {
         if segments >= 3 {
-            self.push_vertex(origin, Vec2::ZERO);
+            let center_index = self.last_vertex_index();
+
+            self.vertex_buffer.push(Vertex {
+                pos: origin,
+                tex_coord: Vec2::ZERO,
+                color,
+            });
 
             let two_pi = 2.0 * std::f32::consts::PI;
             let delta_angle = two_pi / (segments as f32);
-            let mut angle = 0.0;
-            while angle < two_pi {
+            let mut angle: f32 = 0.0;
+            for _ in 0..segments {
                 let x = origin.x + radius * angle.cos();
                 let y = origin.y + radius * angle.sin();
-                self.push_vertex(Vec2::new(x, y), Vec2::ZERO);
+                self.vertex_buffer.push(Vertex {
+                    pos: Vec2::new(x, y),
+                    tex_coord: Vec2::ZERO,
+                    color,
+                });
                 angle += delta_angle;
             }
 
-            let index = self.index_origin();
-            for segment in 0..(segments - 1) {
-                self.push_triangle(index, (segment - 1) as u32, segment as u32);
+            let first_vertex = center_index + 1;
+            for segment in 0..segments {
+                self.push_triangle(
+                    center_index,
+                    first_vertex + segment as u32,
+                    first_vertex + (segment as u32 + 1) % segments as u32,
+                );
             }
         }
     }

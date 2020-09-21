@@ -25,8 +25,9 @@ use crate::{
     popup::Placement,
     ttf::SharedFont,
     window::WindowTitle,
-    Control, HorizontalAlignment, MouseState, Thickness, UINode, VerticalAlignment,
+    Control, HorizontalAlignment, MouseState, Orientation, Thickness, UINode, VerticalAlignment,
 };
+use rg3d_core::color::{Color, Hsv};
 use std::{cell::Cell, fmt::Debug, path::PathBuf};
 
 macro_rules! define_constructor {
@@ -726,6 +727,65 @@ impl ProgressBarMessage {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum HueBarMessage {
+    /// Sets new hue value.
+    Hue(f32),
+
+    /// Sets new orientation
+    Orientation(Orientation),
+}
+
+impl HueBarMessage {
+    define_constructor_unbound!(HueBar(HueBarMessage:Hue) => fn hue(f32));
+    define_constructor_unbound!(HueBar(HueBarMessage:Orientation) => fn orientation(Orientation));
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SaturationBrightnessFieldMessage {
+    /// Sets new hue value on the field.
+    Hue(f32),
+
+    /// Sets new saturation value on the field.
+    Saturation(f32),
+
+    /// Sets new brightness value on the field.
+    Brightness(f32),
+}
+
+impl SaturationBrightnessFieldMessage {
+    define_constructor_unbound!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Hue) => fn hue(f32));
+    define_constructor_unbound!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Saturation) => fn saturation(f32));
+    define_constructor_unbound!(SaturationBrightnessField(SaturationBrightnessFieldMessage:Brightness) => fn brightness(f32));
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColorPickerMessage {
+    /// Sets color in RGB.
+    ///
+    /// Direction: **To/From Widget**.
+    Color(Color),
+
+    /// Sets color in HSV.
+    ///
+    /// Direction: **To Widget**.
+    Hsv(Hsv),
+}
+
+impl ColorPickerMessage {
+    define_constructor_unbound!(ColorPicker(ColorPickerMessage:Color) => fn color(Color));
+    define_constructor_unbound!(ColorPicker(ColorPickerMessage:Hsv) => fn hsv(Hsv));
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColorFieldMessage {
+    Color(Color),
+}
+
+impl ColorFieldMessage {
+    define_constructor_unbound!(ColorField(ColorFieldMessage:Color) => fn color(Color));
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Widget(WidgetMessage<M, C>),
     Button(ButtonMessage<M, C>),
@@ -752,6 +812,10 @@ pub enum UiMessageData<M: MessageData, C: Control<M, C>> {
     Tile(TileMessage<M, C>),
     ProgressBar(ProgressBarMessage),
     Image(ImageMessage),
+    HueBar(HueBarMessage),
+    ColorPicker(ColorPickerMessage),
+    ColorField(ColorFieldMessage),
+    SaturationBrightnessField(SaturationBrightnessFieldMessage),
     User(M),
 }
 

@@ -18,6 +18,7 @@ pub mod brush;
 pub mod button;
 pub mod canvas;
 pub mod check_box;
+pub mod color;
 pub mod decorator;
 pub mod dock;
 pub mod draw;

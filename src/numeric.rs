@@ -1,11 +1,10 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     button::ButtonBuilder,
     core::pool::Handle,
     grid::{Column, GridBuilder, Row},
-    message::ButtonMessage,
     message::{
-        KeyCode, NumericUpDownMessage, TextBoxMessage, UiMessage, UiMessageData, WidgetMessage,
+        ButtonMessage, KeyCode, MessageData, MessageDirection, NumericUpDownMessage,
+        TextBoxMessage, UiMessage, UiMessageData, WidgetMessage,
     },
     node::UINode,
     text_box::TextBoxBuilder,
@@ -93,8 +92,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                     && message.destination() == self.handle() =>
             {
                 if let NumericUpDownMessage::Value(value) = *msg {
-                    if value != self.value {
-                        self.value = value;
+                    let clamped = value.min(self.max_value).max(self.min_value);
+                    if self.value != clamped {
+                        self.value = clamped;
 
                         // Sync text field.
                         ui.send_message(TextBoxMessage::text(
@@ -103,7 +103,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
                             format!("{:.1$}", self.value, self.precision),
                         ));
 
-                        ui.send_message(message.reverse());
+                        let msg = NumericUpDownMessage::value(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                            self.value,
+                        );
+                        msg.set_handled(message.handled()); // We must maintain flag
+                        ui.send_message(msg);
                     }
                 }
             }
