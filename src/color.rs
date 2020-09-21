@@ -649,8 +649,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                     &ColorPickerMessage::Color(color) => {
                         if self.color != color {
                             self.color = color;
+                            self.hsv = Hsv::from(color);
 
-                            self.sync_fields(ui, color, Hsv::from(color));
+                            self.sync_fields(ui, color, self.hsv);
 
                             ui.send_message(message.reverse());
                         }
@@ -658,8 +659,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                     &ColorPickerMessage::Hsv(hsv) => {
                         if self.hsv != hsv {
                             self.hsv = hsv;
+                            self.color = Color::from(hsv);
 
-                            self.sync_fields(ui, Color::from(hsv), hsv);
+                            self.sync_fields(ui, self.color, hsv);
 
                             ui.send_message(message.reverse());
                         }
