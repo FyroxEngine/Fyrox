@@ -350,6 +350,8 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
             self.window_builder.widget_builder.min_size = Some(Vec2::new(200.0, 100.0));
         }
 
+        let is_open = self.window_builder.open;
+
         let message_box = MessageBox {
             buttons: self.buttons,
             window: self.window_builder.with_content(content).build_window(ctx),
@@ -361,8 +363,10 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
 
         let handle = ctx.add_node(UINode::MessageBox(message_box));
 
-        // We must restrict picking because message box is modal.
-        ctx.ui.push_picking_restriction(handle);
+        if is_open {
+            // We must restrict picking because message box is modal.
+            ctx.ui.push_picking_restriction(handle);
+        }
 
         handle
     }
