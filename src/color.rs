@@ -100,21 +100,21 @@ impl From<Color> for Hsv {
         let max = r.max(g).max(b);
         let min = r.min(g).min(b);
 
-        let hue = if max == min {
+        let hue = if max.eq(&min) {
             0.0 // Undefined.
-        } else if max == r && g >= b {
+        } else if max.eq(&r) && g >= b {
             60.0 * (g - b) / (max - min)
-        } else if max == r && g < b {
+        } else if max.eq(&r) && g < b {
             60.0 * (g - b) / (max - min) + 360.0
-        } else if max == g {
+        } else if max.eq(&g) {
             60.0 * (b - r) / (max - min) + 120.0
-        } else if max == b {
+        } else if max.eq(&b) {
             60.0 * (r - g) / (max - min) + 240.0
         } else {
             0.0 // Undefined.
         };
 
-        let saturation = if max == 0.0 { 0.0 } else { 1.0 - min / max };
+        let saturation = if max.eq(&0.0) { 0.0 } else { 1.0 - min / max };
 
         let brightness = max;
 
