@@ -14,6 +14,7 @@ mod dsound;
 mod alsa;
 
 // The dummy target works on all platforms
+#[cfg(not(any(target_os = "windows", target_os = "linux")))]
 mod dummy;
 
 // TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
