@@ -32,7 +32,7 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for CheckBox<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.check_mark = *node_map.get(&self.check_mark).unwrap();
+        node_map.resolve(&mut self.check_mark);
     }
 
     fn handle_routed_message(

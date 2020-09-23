@@ -59,10 +59,8 @@ impl<M: MessageData, C: Control<M, C>> Button<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Button<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        if let Some(content) = node_map.get(&self.content) {
-            self.content = *content;
-        }
-        self.decorator = *node_map.get(&self.decorator).unwrap();
+        node_map.resolve(&mut self.content);
+        node_map.resolve(&mut self.decorator);
     }
 
     fn handle_routed_message(

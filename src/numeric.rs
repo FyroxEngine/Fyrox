@@ -59,9 +59,9 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDown<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for NumericUpDown<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.field = *node_map.get(&self.field).unwrap();
-        self.increase = *node_map.get(&self.increase).unwrap();
-        self.decrease = *node_map.get(&self.decrease).unwrap();
+        node_map.resolve(&mut self.field);
+        node_map.resolve(&mut self.increase);
+        node_map.resolve(&mut self.decrease);
     }
 
     fn handle_routed_message(

@@ -130,13 +130,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListView<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.panel = *node_map.get(&self.panel).unwrap();
-        for item_container in self.item_containers.iter_mut() {
-            *item_container = *node_map.get(item_container).unwrap();
-        }
-        for item in self.items.iter_mut() {
-            *item = *node_map.get(item).unwrap();
-        }
+        node_map.resolve(&mut self.panel);
+        node_map.resolve_slice(&mut self.items);
+        node_map.resolve_slice(&mut self.item_containers);
     }
 
     fn handle_routed_message(

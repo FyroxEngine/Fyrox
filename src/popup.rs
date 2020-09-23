@@ -46,10 +46,8 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for Popup<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        if let Some(content) = node_map.get(&self.content) {
-            self.content = *content;
-        }
-        self.body = *node_map.get(&self.body).unwrap();
+        node_map.resolve(&mut self.content);
+        node_map.resolve(&mut self.body);
     }
 
     fn handle_routed_message(

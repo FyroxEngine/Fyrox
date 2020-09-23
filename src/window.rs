@@ -96,14 +96,12 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for Window<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.header = *node_map.get(&self.header).unwrap();
-        self.minimize_button = *node_map.get(&self.minimize_button).unwrap();
-        self.close_button = *node_map.get(&self.close_button).unwrap();
-        self.title = *node_map.get(&self.title).unwrap();
-        self.title_grid = *node_map.get(&self.title_grid).unwrap();
-        if self.content.is_some() {
-            self.content = *node_map.get(&self.content).unwrap();
-        }
+        node_map.resolve(&mut self.header);
+        node_map.resolve(&mut self.minimize_button);
+        node_map.resolve(&mut self.close_button);
+        node_map.resolve(&mut self.title);
+        node_map.resolve(&mut self.title_grid);
+        node_map.resolve(&mut self.content);
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {

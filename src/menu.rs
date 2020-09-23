@@ -13,8 +13,8 @@ use crate::{
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
+    UserInterface, VerticalAlignment,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -201,6 +201,12 @@ fn find_menu<M: MessageData, C: Control<M, C>>(
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        node_map.resolve_slice(&mut self.items);
+        node_map.resolve(&mut self.popup);
+        node_map.resolve(&mut self.back);
+    }
+
     fn handle_routed_message(
         &mut self,
         ui: &mut UserInterface<M, C>,

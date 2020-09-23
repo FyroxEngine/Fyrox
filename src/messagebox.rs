@@ -60,10 +60,10 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for MessageBox<M, C> {
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.window.resolve(node_map);
-        self.ok_yes = *node_map.get(&self.ok_yes).unwrap();
-        self.no = *node_map.get(&self.no).unwrap();
-        self.cancel = *node_map.get(&self.cancel).unwrap();
-        self.text = *node_map.get(&self.text).unwrap();
+        node_map.resolve(&mut self.ok_yes);
+        node_map.resolve(&mut self.no);
+        node_map.resolve(&mut self.cancel);
+        node_map.resolve(&mut self.text);
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

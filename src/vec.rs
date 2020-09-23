@@ -38,9 +38,9 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for Vec3Editor<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.x_field = *node_map.get(&self.x_field).unwrap();
-        self.y_field = *node_map.get(&self.y_field).unwrap();
-        self.z_field = *node_map.get(&self.z_field).unwrap();
+        node_map.resolve(&mut self.x_field);
+        node_map.resolve(&mut self.y_field);
+        node_map.resolve(&mut self.z_field);
     }
 
     fn handle_routed_message(

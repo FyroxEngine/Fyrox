@@ -18,7 +18,8 @@ use crate::{
     popup::{Placement, PopupBuilder},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Orientation, Thickness, UINode, UserInterface, VerticalAlignment,
+    BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UINode, UserInterface,
+    VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -763,6 +764,20 @@ impl<M: MessageData, C: Control<M, C>> ColorPicker<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        node_map.resolve(&mut self.hue_bar);
+        node_map.resolve(&mut self.alpha_bar);
+        node_map.resolve(&mut self.saturation_brightness_field);
+        node_map.resolve(&mut self.red);
+        node_map.resolve(&mut self.green);
+        node_map.resolve(&mut self.blue);
+        node_map.resolve(&mut self.alpha);
+        node_map.resolve(&mut self.hue);
+        node_map.resolve(&mut self.saturation);
+        node_map.resolve(&mut self.brightness);
+        node_map.resolve(&mut self.color_mark);
+    }
+
     fn handle_routed_message(
         &mut self,
         ui: &mut UserInterface<M, C>,

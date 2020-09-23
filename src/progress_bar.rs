@@ -7,7 +7,7 @@ use crate::{
     message::{ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage},
     node::UINode,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UserInterface,
+    BuildContext, Control, NodeHandleMapping, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -34,6 +34,11 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for ProgressBar<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ProgressBar<M, C> {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        node_map.resolve(&mut self.indicator);
+        node_map.resolve(&mut self.body);
+    }
+
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
         let size = self.widget.arrange_override(ui, final_size);
 

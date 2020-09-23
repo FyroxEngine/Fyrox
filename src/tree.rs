@@ -48,12 +48,10 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for Tree<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        if let Some(&content) = node_map.get(&self.content) {
-            self.content = content;
-        }
-        self.expander = *node_map.get(&self.expander).unwrap();
-        self.panel = *node_map.get(&self.panel).unwrap();
-        self.background = *node_map.get(&self.background).unwrap();
+        node_map.resolve(&mut self.content);
+        node_map.resolve(&mut self.expander);
+        node_map.resolve(&mut self.panel);
+        node_map.resolve(&mut self.background);
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
@@ -428,10 +426,8 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for TreeRoot<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.panel = *node_map.get(&self.panel).unwrap();
-        for handle in self.selected.iter_mut() {
-            *handle = *node_map.get(handle).unwrap();
-        }
+        node_map.resolve(&mut self.panel);
+        node_map.resolve_slice(&mut self.selected);
     }
 
     fn handle_routed_message(

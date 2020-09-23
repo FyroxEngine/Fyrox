@@ -20,7 +20,7 @@ use crate::{
     },
     node::UINode,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -82,6 +82,26 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for Tile<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        node_map.resolve(&mut self.drop_anchor);
+        node_map.resolve(&mut self.splitter);
+        node_map.resolve(&mut self.center_anchor);
+        node_map.resolve(&mut self.bottom_anchor);
+        node_map.resolve(&mut self.top_anchor);
+        node_map.resolve(&mut self.right_anchor);
+        node_map.resolve(&mut self.left_anchor);
+        match &mut self.content {
+            TileContent::Empty => {}
+            TileContent::Window(window) => node_map.resolve(window),
+            TileContent::VerticalTiles { tiles, .. }
+            | TileContent::HorizontalTiles { tiles, .. } => {
+                for tile in tiles {
+                    node_map.resolve(tile);
+                }
+            }
+        }
+    }
+
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
         for &child_handle in self.children() {
             // Determine available size for each child by its kind:
@@ -792,6 +812,10 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for DockingManager<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for DockingManager<M, C> {
+    fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
+        node_map.resolve_slice(&mut self.floating_windows);
+    }
+
     fn handle_routed_message(
         &mut self,
         ui: &mut UserInterface<M, C>,

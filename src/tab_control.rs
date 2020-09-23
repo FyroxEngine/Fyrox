@@ -40,8 +40,8 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for TabControl<M, C> {
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for TabControl<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         for tab in self.tabs.iter_mut() {
-            tab.header_button = *node_map.get(&tab.header_button).unwrap();
-            tab.content = *node_map.get(&tab.content).unwrap();
+            node_map.resolve(&mut tab.header_button);
+            node_map.resolve(&mut tab.content);
         }
     }
 

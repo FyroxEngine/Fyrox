@@ -55,11 +55,11 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for ScrollBar<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.increase = *node_map.get(&self.increase).unwrap();
-        self.decrease = *node_map.get(&self.decrease).unwrap();
-        self.indicator = *node_map.get(&self.indicator).unwrap();
-        self.value_text = *node_map.get(&self.value_text).unwrap();
-        self.field = *node_map.get(&self.field).unwrap();
+        node_map.resolve(&mut self.increase);
+        node_map.resolve(&mut self.decrease);
+        node_map.resolve(&mut self.indicator);
+        node_map.resolve(&mut self.value_text);
+        node_map.resolve(&mut self.field);
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
@@ -134,60 +134,83 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     }
                 }
             }
-            UiMessageData::ScrollBar(msg) => {
-                if message.destination() == self.handle() {
-                    match *msg {
-                        ScrollBarMessage::Value(value) => {
-                            let old_value = self.value;
-                            let new_value = math::clampf(value, self.min, self.max);
-                            if (new_value - old_value).abs() > std::f32::EPSILON {
-                                self.value = new_value;
-                                self.invalidate_layout();
+            UiMessageData::ScrollBar(msg)
+                if message.destination() == self.handle()
+                    && message.direction() == MessageDirection::ToWidget =>
+            {
+                match *msg {
+                    ScrollBarMessage::Value(value) => {
+                        let old_value = self.value;
+                        let new_value = math::clampf(value, self.min, self.max);
+                        if (new_value - old_value).abs() > std::f32::EPSILON {
+                            self.value = new_value;
+                            self.invalidate_layout();
 
-                                if self.value_text.is_some() {
-                                    ui.send_message(TextMessage::text(
-                                        self.value_text,
-                                        MessageDirection::ToWidget,
-                                        format!("{:.1$}", value, self.value_precision),
-                                    ));
-                                }
+                            if self.value_text.is_some() {
+                                ui.send_message(TextMessage::text(
+                                    self.value_text,
+                                    MessageDirection::ToWidget,
+                                    format!("{:.1$}", value, self.value_precision),
+                                ));
                             }
+
+                            let response = ScrollBarMessage::value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.value,
+                            );
+                            response.set_handled(message.handled());
+                            ui.send_message(response);
                         }
-                        ScrollBarMessage::MinValue(min) => {
-                            if self.min != min {
-                                self.min = min;
-                                if self.min > self.max {
-                                    std::mem::swap(&mut self.min, &mut self.max);
-                                }
-                                let old_value = self.value;
-                                let clamped_new_value =
-                                    math::clampf(self.value, self.min, self.max);
-                                if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
-                                    ui.send_message(ScrollBarMessage::value(
-                                        self.handle(),
-                                        MessageDirection::ToWidget,
-                                        clamped_new_value,
-                                    ));
-                                }
+                    }
+                    ScrollBarMessage::MinValue(min) => {
+                        if self.min != min {
+                            self.min = min;
+                            if self.min > self.max {
+                                std::mem::swap(&mut self.min, &mut self.max);
                             }
+                            let old_value = self.value;
+                            let new_value = math::clampf(self.value, self.min, self.max);
+                            if (new_value - old_value).abs() > std::f32::EPSILON {
+                                ui.send_message(ScrollBarMessage::value(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    new_value,
+                                ));
+                            }
+
+                            let response = ScrollBarMessage::min_value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.min,
+                            );
+                            response.set_handled(message.handled());
+                            ui.send_message(response);
                         }
-                        ScrollBarMessage::MaxValue(max) => {
-                            if self.max != max {
-                                self.max = max;
-                                if self.max < self.min {
-                                    std::mem::swap(&mut self.min, &mut self.max);
-                                }
-                                let old_value = self.value;
-                                let clamped_new_value =
-                                    math::clampf(self.value, self.min, self.max);
-                                if (clamped_new_value - old_value).abs() > std::f32::EPSILON {
-                                    ui.send_message(ScrollBarMessage::value(
-                                        self.handle(),
-                                        MessageDirection::ToWidget,
-                                        clamped_new_value,
-                                    ));
-                                }
+                    }
+                    ScrollBarMessage::MaxValue(max) => {
+                        if self.max != max {
+                            self.max = max;
+                            if self.max < self.min {
+                                std::mem::swap(&mut self.min, &mut self.max);
                             }
+                            let old_value = self.value;
+                            let value = math::clampf(self.value, self.min, self.max);
+                            if (value - old_value).abs() > std::f32::EPSILON {
+                                ui.send_message(ScrollBarMessage::value(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                    value,
+                                ));
+                            }
+
+                            let response = ScrollBarMessage::max_value(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                                self.max,
+                            );
+                            response.set_handled(message.handled());
+                            ui.send_message(response);
                         }
                     }
                 }

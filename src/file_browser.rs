@@ -3,7 +3,6 @@
 //! File selector is dialog window with file browser, it somewhat similar to standard
 //! OS file selector.
 
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     button::ButtonBuilder,
     core::{
@@ -13,9 +12,9 @@ use crate::{
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     message::{
-        ButtonMessage, FileBrowserMessage, FileSelectorMessage, OsEvent, ScrollViewerMessage,
-        TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
-        WindowMessage,
+        ButtonMessage, FileBrowserMessage, FileSelectorMessage, MessageData, MessageDirection,
+        OsEvent, ScrollViewerMessage, TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage,
+        UiMessageData, WidgetMessage, WindowMessage,
     },
     node::UINode,
     scroll_viewer::ScrollViewerBuilder,
@@ -65,9 +64,9 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for FileBrowser<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.tree_root = *node_map.get(&self.tree_root).unwrap();
-        self.path_text = *node_map.get(&self.path_text).unwrap();
-        self.scroll_viewer = *node_map.get(&self.scroll_viewer).unwrap();
+        node_map.resolve(&mut self.tree_root);
+        node_map.resolve(&mut self.path_text);
+        node_map.resolve(&mut self.scroll_viewer);
     }
 
     fn handle_routed_message(
@@ -475,8 +474,8 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for FileSelector<M, C> {
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         self.window.resolve(node_map);
-        self.ok = *node_map.get(&self.ok).unwrap();
-        self.cancel = *node_map.get(&self.cancel).unwrap();
+        node_map.resolve(&mut self.ok);
+        node_map.resolve(&mut self.cancel);
     }
 
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

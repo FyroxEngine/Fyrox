@@ -67,10 +67,10 @@ impl<M: MessageData, C: Control<M, C>> ScrollViewer<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.content = *node_map.get(&self.content).unwrap();
-        self.scroll_panel = *node_map.get(&self.scroll_panel).unwrap();
-        self.v_scroll_bar = *node_map.get(&self.v_scroll_bar).unwrap();
-        self.h_scroll_bar = *node_map.get(&self.h_scroll_bar).unwrap();
+        node_map.resolve(&mut self.content);
+        node_map.resolve(&mut self.scroll_panel);
+        node_map.resolve(&mut self.v_scroll_bar);
+        node_map.resolve(&mut self.h_scroll_bar);
     }
 
     fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
@@ -144,56 +144,62 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                     ui.send_message(msg);
                 }
             }
-            UiMessageData::ScrollBar(msg) => match msg {
-                ScrollBarMessage::Value(new_value) => {
-                    if !message.handled() {
+            UiMessageData::ScrollBar(msg)
+                if message.direction() == MessageDirection::FromWidget =>
+            {
+                match msg {
+                    ScrollBarMessage::Value(new_value) => {
+                        if !message.handled() {
+                            if message.destination() == self.v_scroll_bar
+                                && self.v_scroll_bar.is_some()
+                            {
+                                ui.send_message(ScrollPanelMessage::vertical_scroll(
+                                    self.scroll_panel,
+                                    MessageDirection::ToWidget,
+                                    *new_value,
+                                ));
+                            } else if message.destination() == self.h_scroll_bar
+                                && self.h_scroll_bar.is_some()
+                            {
+                                ui.send_message(ScrollPanelMessage::horizontal_scroll(
+                                    self.scroll_panel,
+                                    MessageDirection::ToWidget,
+                                    *new_value,
+                                ));
+                            }
+                        }
+                    }
+                    &ScrollBarMessage::MaxValue(_) => {
                         if message.destination() == self.v_scroll_bar && self.v_scroll_bar.is_some()
                         {
-                            ui.send_message(ScrollPanelMessage::vertical_scroll(
-                                self.scroll_panel,
-                                MessageDirection::ToWidget,
-                                *new_value,
-                            ));
+                            if let UINode::ScrollBar(scroll_bar) = ui.node(self.v_scroll_bar) {
+                                let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
+                                    .abs()
+                                    >= std::f32::EPSILON;
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.v_scroll_bar,
+                                    MessageDirection::ToWidget,
+                                    visibility,
+                                ));
+                            }
                         } else if message.destination() == self.h_scroll_bar
                             && self.h_scroll_bar.is_some()
                         {
-                            ui.send_message(ScrollPanelMessage::horizontal_scroll(
-                                self.scroll_panel,
-                                MessageDirection::ToWidget,
-                                *new_value,
-                            ));
+                            if let UINode::ScrollBar(scroll_bar) = ui.node(self.h_scroll_bar) {
+                                let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
+                                    .abs()
+                                    >= std::f32::EPSILON;
+                                ui.send_message(WidgetMessage::visibility(
+                                    self.h_scroll_bar,
+                                    MessageDirection::ToWidget,
+                                    visibility,
+                                ));
+                            }
                         }
                     }
+                    _ => (),
                 }
-                &ScrollBarMessage::MaxValue(_) => {
-                    if message.destination() == self.v_scroll_bar && self.v_scroll_bar.is_some() {
-                        if let UINode::ScrollBar(scroll_bar) = ui.node(self.v_scroll_bar) {
-                            let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
-                                .abs()
-                                >= std::f32::EPSILON;
-                            ui.send_message(WidgetMessage::visibility(
-                                self.v_scroll_bar,
-                                MessageDirection::ToWidget,
-                                visibility,
-                            ));
-                        }
-                    } else if message.destination() == self.h_scroll_bar
-                        && self.h_scroll_bar.is_some()
-                    {
-                        if let UINode::ScrollBar(scroll_bar) = ui.node(self.h_scroll_bar) {
-                            let visibility = (scroll_bar.max_value() - scroll_bar.min_value())
-                                .abs()
-                                >= std::f32::EPSILON;
-                            ui.send_message(WidgetMessage::visibility(
-                                self.h_scroll_bar,
-                                MessageDirection::ToWidget,
-                                visibility,
-                            ));
-                        }
-                    }
-                }
-                _ => (),
-            },
+            }
             UiMessageData::ScrollViewer(msg) => {
                 if message.destination() == self.handle() {
                     match msg {

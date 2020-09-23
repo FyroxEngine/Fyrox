@@ -42,12 +42,10 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for DropdownList<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        self.popup = *node_map.get(&self.popup).unwrap();
-        self.list_view = *node_map.get(&self.list_view).unwrap();
-
-        for item in self.items.iter_mut() {
-            *item = *node_map.get(item).unwrap();
-        }
+        node_map.resolve(&mut self.popup);
+        node_map.resolve(&mut self.list_view);
+        node_map.resolve(&mut self.current);
+        node_map.resolve_slice(&mut self.items);
     }
 
     fn handle_routed_message(

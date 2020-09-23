@@ -177,7 +177,36 @@ impl Thickness {
     }
 }
 
-pub type NodeHandleMapping<M, C> = HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>;
+pub struct NodeHandleMapping<M: MessageData, C: Control<M, C>> {
+    hash_map: HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>,
+}
+
+impl<M: MessageData, C: Control<M, C>> Default for NodeHandleMapping<M, C> {
+    fn default() -> Self {
+        Self {
+            hash_map: Default::default(),
+        }
+    }
+}
+
+impl<M: MessageData, C: Control<M, C>> NodeHandleMapping<M, C> {
+    pub fn add_mapping(&mut self, old: Handle<UINode<M, C>>, new: Handle<UINode<M, C>>) {
+        self.hash_map.insert(old, new);
+    }
+
+    pub fn resolve(&self, old: &mut Handle<UINode<M, C>>) {
+        // None handles aren't mapped.
+        if old.is_some() {
+            *old = *self.hash_map.get(old).unwrap()
+        }
+    }
+
+    pub fn resolve_slice(&self, slice: &mut [Handle<UINode<M, C>>]) {
+        for item in slice {
+            self.resolve(item);
+        }
+    }
+}
 
 /// Trait for all UI controls in library.
 pub trait Control<M, C>: 'static + Deref<Target = Widget<M, C>> + DerefMut + Clone
@@ -1552,11 +1581,11 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     }
 
     pub fn copy_node(&mut self, node: Handle<UINode<M, C>>) -> Handle<UINode<M, C>> {
-        let mut map = NodeHandleMapping::new();
+        let mut map = NodeHandleMapping::default();
 
         let root = self.copy_node_recursive(node, &mut map);
 
-        for &node_handle in map.values() {
+        for &node_handle in map.hash_map.values() {
             self.nodes[node_handle].resolve(&map);
         }
 
@@ -1578,7 +1607,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
 
         cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
-        map.insert(node_handle, copy_handle);
+        map.add_mapping(node_handle, copy_handle);
         copy_handle
     }
 }
