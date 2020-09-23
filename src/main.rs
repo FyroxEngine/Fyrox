@@ -752,13 +752,25 @@ impl Editor {
                                     .unwrap();
                             }
                             MessageBoxResult::Yes => {
-                                engine
-                                    .user_interface
-                                    .send_message(WindowMessage::open_modal(
-                                        self.save_file_selector,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
+                                if let Some(scene) = self.scene.as_ref() {
+                                    if let Some(path) = scene.path.as_ref() {
+                                        self.message_sender
+                                            .send(Message::SaveScene(path.clone()))
+                                            .unwrap();
+                                        self.message_sender
+                                            .send(Message::Exit { force: true })
+                                            .unwrap();
+                                    } else {
+                                        // Scene wasn't saved yet, open Save As dialog.
+                                        engine.user_interface.send_message(
+                                            WindowMessage::open_modal(
+                                                self.save_file_selector,
+                                                MessageDirection::ToWidget,
+                                                true,
+                                            ),
+                                        );
+                                    }
+                                }
                             }
                             _ => {}
                         }
@@ -895,10 +907,6 @@ impl Editor {
                                 MessageDirection::ToWidget,
                                 None,
                                 None,
-                            ));
-                            engine.user_interface.send_message(WidgetMessage::center(
-                                self.exit_message_box,
-                                MessageDirection::ToWidget,
                             ));
                         } else {
                             self.exit = true;
