@@ -440,7 +440,9 @@ fn main() {
                 // from UI elements and works well with borrow checker.
                 while let Some(ui_message) = engine.user_interface.poll_message() {
                     match ui_message.data() {
-                        UiMessageData::ScrollBar(msg) => {
+                        UiMessageData::ScrollBar(msg)
+                            if ui_message.direction() == MessageDirection::FromWidget =>
+                        {
                             // Some of our scroll bars has changed its value. Check which one.
                             if let &ScrollBarMessage::Value(value) = msg {
                                 // Each message has source - a handle of UI element that created this message.
