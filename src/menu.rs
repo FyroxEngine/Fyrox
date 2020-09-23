@@ -69,7 +69,7 @@ fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui) {
     ui.send_message(if current_state {
         WindowMessage::close(window, MessageDirection::ToWidget)
     } else {
-        WindowMessage::open(window, MessageDirection::ToWidget)
+        WindowMessage::open(window, MessageDirection::ToWidget, false)
     })
 }
 
@@ -482,6 +482,7 @@ impl Menu {
                                 .send_message(WindowMessage::open_modal(
                                     self.save_file_selector,
                                     MessageDirection::ToWidget,
+                                    true,
                                 ));
                         }
                     } else if message.destination() == self.save_as {
@@ -490,6 +491,7 @@ impl Menu {
                             .send_message(WindowMessage::open_modal(
                                 self.save_file_selector,
                                 MessageDirection::ToWidget,
+                                true,
                             ));
                     } else if message.destination() == self.load {
                         ctx.engine
@@ -497,6 +499,7 @@ impl Menu {
                             .send_message(WindowMessage::open_modal(
                                 self.load_file_selector,
                                 MessageDirection::ToWidget,
+                                true,
                             ));
                     } else if message.destination() == self.close_scene {
                         self.message_sender.send(Message::CloseScene).unwrap();

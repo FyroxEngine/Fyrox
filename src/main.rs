@@ -757,6 +757,7 @@ impl Editor {
                                     .send_message(WindowMessage::open_modal(
                                         self.save_file_selector,
                                         MessageDirection::ToWidget,
+                                        true,
                                     ));
                             }
                             _ => {}
