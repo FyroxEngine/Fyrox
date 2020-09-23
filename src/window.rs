@@ -330,16 +330,22 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                     && message.direction() == MessageDirection::ToWidget
                 {
                     match msg {
-                        WindowMessage::Open => {
+                        &WindowMessage::Open { center } => {
                             if !self.visibility() {
                                 ui.send_message(WidgetMessage::visibility(
                                     self.handle(),
                                     MessageDirection::ToWidget,
                                     true,
                                 ));
+                                if center {
+                                    ui.send_message(WidgetMessage::center(
+                                        self.handle(),
+                                        MessageDirection::ToWidget,
+                                    ));
+                                }
                             }
                         }
-                        WindowMessage::OpenModal => {
+                        &WindowMessage::OpenModal { center } => {
                             if !self.visibility() {
                                 ui.send_message(WidgetMessage::visibility(
                                     self.handle(),
@@ -350,6 +356,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                     self.handle(),
                                     MessageDirection::ToWidget,
                                 ));
+                                if center {
+                                    ui.send_message(WidgetMessage::center(
+                                        self.handle(),
+                                        MessageDirection::ToWidget,
+                                    ));
+                                }
                                 ui.push_picking_restriction(self.handle());
                             }
                         }

@@ -417,12 +417,12 @@ impl CheckBoxMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
     /// Opens a window.
-    Open,
+    Open { center: bool },
 
     /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
     /// it just restricts mouse and keyboard events only to window so other content is not
     /// clickable/type-able. Closing a window removes that restriction.
-    OpenModal,
+    OpenModal { center: bool },
 
     /// Closes a window.
     Close,
@@ -454,8 +454,8 @@ pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
 }
 
 impl<M: MessageData, C: Control<M, C>> WindowMessage<M, C> {
-    define_constructor!(Window(WindowMessage:Open) => fn open());
-    define_constructor!(Window(WindowMessage:OpenModal) => fn open_modal());
+    define_constructor!(Window(WindowMessage:Open) => fn open(center: bool));
+    define_constructor!(Window(WindowMessage:OpenModal) => fn open_modal(center: bool));
     define_constructor!(Window(WindowMessage:Close) => fn close());
     define_constructor!(Window(WindowMessage:Minimize) => fn minimize(bool));
     define_constructor!(Window(WindowMessage:CanMinimize) => fn can_minimize(bool));

@@ -156,6 +156,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
                         ui.send_message(WindowMessage::open_modal(
                             self.handle(),
                             MessageDirection::ToWidget,
+                            true,
                         ));
                     }
                     MessageBoxMessage::Close(_) => {

@@ -14,7 +14,7 @@ use crate::{
     message::{
         ButtonMessage, FileBrowserMessage, FileSelectorMessage, MessageData, MessageDirection,
         OsEvent, ScrollViewerMessage, TextBoxMessage, TreeMessage, TreeRootMessage, UiMessage,
-        UiMessageData, WidgetMessage, WindowMessage,
+        UiMessageData, WindowMessage,
     },
     node::UINode,
     scroll_viewer::ScrollViewerBuilder,
@@ -554,16 +554,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
                                 path.clone(),
                             ))
                         }
-                    }
-                }
-            }
-            UiMessageData::Window(msg) => {
-                if message.destination() == self.handle {
-                    if let WindowMessage::Open | WindowMessage::OpenModal = msg {
-                        ui.send_message(WidgetMessage::center(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                        ));
                     }
                 }
             }
