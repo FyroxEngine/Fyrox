@@ -336,8 +336,6 @@ impl ResourceManager {
     /// supported!
     #[inline]
     pub fn set_textures_path<P: AsRef<Path>>(&mut self, path: P) {
-        assert!(path.as_ref().is_dir());
-
         self.textures_path = path.as_ref().to_owned();
     }
 
