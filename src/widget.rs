@@ -284,13 +284,29 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
         self.desired_size.get()
     }
 
+    #[inline]
     pub fn desired_local_position(&self) -> Vec2 {
         self.desired_local_position
     }
 
+    #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
         self.visibility = visibility;
         self
+    }
+
+    pub fn is_enabled(&self, ui: &UserInterface<M, C>) -> bool {
+        let mut enabled = self.enabled;
+        let mut parent = self.parent;
+        while parent.is_some() {
+            let node = ui.node(parent);
+            if !node.enabled {
+                enabled = false;
+                break;
+            }
+            parent = node.parent;
+        }
+        enabled
     }
 
     #[inline]

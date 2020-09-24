@@ -21,12 +21,9 @@ use std::ops::{Deref, DerefMut};
 /// It can has "pressed", "hover", "selected" or normal appearance:
 ///
 /// `Pressed` - enables on mouse down message.
-/// `Selected` - decorator listens for messages from parent ItemContainer and if
-/// its ItemsControl has changed selection, then if current decorator is in subtree
-/// of ItemContainer it will be either selected or not (determined by selection of
-/// parent ItemContainer)
-/// `Hovered` - used when mouse is over decorator.
-/// `Normal` - used when not selected, pressed, hovered.
+/// `Selected` - whether decorator selected or not.
+/// `Hovered` - mouse is over decorator.
+/// `Normal` - not selected, pressed, hovered.
 ///
 /// This element is widely used to provide some generic visual behaviour for various
 /// widgets. For example it used to decorate button, items in items control.
@@ -37,6 +34,7 @@ pub struct Decorator<M: MessageData, C: Control<M, C>> {
     hover_brush: Brush,
     pressed_brush: Brush,
     selected_brush: Brush,
+    disabled_brush: Brush,
     is_selected: bool,
 }
 
@@ -187,6 +185,7 @@ pub struct DecoratorBuilder<M: MessageData, C: Control<M, C>> {
     hover_brush: Option<Brush>,
     pressed_brush: Option<Brush>,
     selected_brush: Option<Brush>,
+    disabled_brush: Option<Brush>,
 }
 
 impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
@@ -197,6 +196,7 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
             hover_brush: None,
             pressed_brush: None,
             selected_brush: None,
+            disabled_brush: None,
         }
     }
 
@@ -217,6 +217,11 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
 
     pub fn with_selected_brush(mut self, brush: Brush) -> Self {
         self.selected_brush = Some(brush);
+        self
+    }
+
+    pub fn with_disabled_brush(mut self, brush: Brush) -> Self {
+        self.disabled_brush = Some(brush);
         self
     }
 
@@ -335,6 +340,9 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
                         },
                     ],
                 }),
+            disabled_brush: self
+                .disabled_brush
+                .unwrap_or(Brush::Solid(Color::opaque(50, 50, 50))),
             is_selected: false,
         });
         ui.add_node(node)

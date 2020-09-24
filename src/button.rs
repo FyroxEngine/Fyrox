@@ -1,12 +1,12 @@
-use crate::message::{MessageData, MessageDirection};
-use crate::ttf::SharedFont;
 use crate::{
     border::BorderBuilder,
-    brush::Brush,
     core::pool::Handle,
     decorator::DecoratorBuilder,
-    message::{ButtonMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        ButtonMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
+    },
     text::TextBuilder,
+    ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, UINode, UserInterface,
     VerticalAlignment,
@@ -133,8 +133,6 @@ pub struct ButtonBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: Option<ButtonContent<M, C>>,
     font: Option<SharedFont>,
-    hover_brush: Option<Brush>,
-    pressed_brush: Option<Brush>,
     decorator: Option<Handle<UINode<M, C>>>,
 }
 
@@ -144,8 +142,6 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
             widget_builder,
             content: None,
             font: None,
-            pressed_brush: None,
-            hover_brush: None,
             decorator: None,
         }
     }
@@ -167,16 +163,6 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
 
     pub fn with_decorator(mut self, decorator: Handle<UINode<M, C>>) -> Self {
         self.decorator = Some(decorator);
-        self
-    }
-
-    pub fn with_hover_brush(mut self, brush: Brush) -> Self {
-        self.hover_brush = Some(brush);
-        self
-    }
-
-    pub fn with_pressed_brush(mut self, brush: Brush) -> Self {
-        self.pressed_brush = Some(brush);
         self
     }
 

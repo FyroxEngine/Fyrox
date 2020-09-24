@@ -1111,6 +1111,10 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                     return None;
                 }
 
+                if message.need_perform_layout() {
+                    self.update(self.screen_size, 0.0);
+                }
+
                 // Fire preview handler first. This will allow controls to do some actions before
                 // message will begin bubble routing. Preview routing does not care about destination
                 // node of message, it always starts from root and descend to leaf nodes.
@@ -1204,12 +1208,6 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                         }
                         WidgetMessage::Center => {
                             if message.destination().is_some() {
-                                // We must calculate layout first, otherwise node size can be different from
-                                // its real state. This especially important if a node was previously hidden
-                                // and it collapses into a point with (0,0) size, so on attempt to center
-                                // previously hidden node it won't be centered.
-                                self.update(self.screen_size, 0.0);
-
                                 let node = self.node(message.destination());
                                 let size = node.actual_size();
                                 let parent = node.parent();
