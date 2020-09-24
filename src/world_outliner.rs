@@ -33,9 +33,7 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         Control, HorizontalAlignment, NodeHandleMapping, Thickness, VerticalAlignment,
     },
-    resource::texture::TextureKind,
     scene::node::Node,
-    utils::into_gui_texture,
 };
 use std::{
     fmt::{Debug, Formatter},

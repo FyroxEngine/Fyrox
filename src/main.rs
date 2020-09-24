@@ -380,7 +380,6 @@ pub struct Configurator {
     select_work_dir: Handle<UiNode>,
     select_textures_dir: Handle<UiNode>,
     ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
     sender: Sender<Message>,
     work_dir: PathBuf,
     textures_path: PathBuf,
@@ -393,7 +392,6 @@ impl Configurator {
         let select_work_dir;
         let select_textures_dir;
         let ok;
-        let cancel;
         let tb_work_dir;
         let tb_textures_path;
 
@@ -419,6 +417,7 @@ impl Configurator {
             window: WindowBuilder::new(WidgetBuilder::new().with_width(370.0).with_height(150.0))
                 .with_title(WindowTitle::Text("Configure Editor".into()))
                 .open(false)
+                .can_close(false)
                 .with_content(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -531,17 +530,6 @@ impl Configurator {
                                                 .build(ctx);
                                             ok
                                         })
-                                        .with_child({
-                                            cancel = ButtonBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_width(80.0)
-                                                    .with_height(25.0)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                                .with_text("Cancel")
-                                                .build(ctx);
-                                            cancel
-                                        })
                                         .on_row(2),
                                 )
                                     .with_orientation(Orientation::Horizontal)
@@ -560,7 +548,6 @@ impl Configurator {
             select_work_dir,
             select_textures_dir,
             ok,
-            cancel,
             sender,
             tb_work_dir,
             tb_textures_path,
@@ -612,11 +599,6 @@ impl Configurator {
                             })
                             .unwrap();
 
-                        engine.user_interface.send_message(WindowMessage::close(
-                            self.window,
-                            MessageDirection::ToWidget,
-                        ));
-                    } else if message.destination() == self.cancel {
                         engine.user_interface.send_message(WindowMessage::close(
                             self.window,
                             MessageDirection::ToWidget,

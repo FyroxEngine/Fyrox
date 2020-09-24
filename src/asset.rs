@@ -25,15 +25,13 @@ use rg3d::{
         wrap_panel::WrapPanelBuilder,
         Control, HorizontalAlignment, Orientation, Thickness,
     },
-    resource::texture::TextureKind,
-    utils::into_gui_texture,
 };
-use std::sync::{Arc, Mutex};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     rc::Rc,
+    sync::{Arc, Mutex},
 };
 
 #[derive(Debug, Clone)]
