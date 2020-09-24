@@ -67,6 +67,7 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
+use std::fmt::Debug;
 use std::{
     collections::{HashMap, VecDeque},
     ops::{Deref, DerefMut, Index, IndexMut},
@@ -463,6 +464,21 @@ impl<'a, M: MessageData, C: Control<M, C>> IndexMut<Handle<UINode<M, C>>>
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct RestrictionEntry<M: MessageData, C: Control<M, C>> {
+    /// Handle to UI node to which picking must be restricted to.
+    pub handle: Handle<UINode<M, C>>,
+
+    /// A flag that tells UI to stop iterating over picking stack.
+    /// There are two use cases: chain of menus (popups) and set of modal windows. In case of
+    /// menus you need to restrict picking to an entire chain, but leave possibility to select
+    /// any menu in the chain. In case of multiple modal windows you need to restrict picking
+    /// individually per window, not allowing to pick anything behind modal window, but still
+    /// save restrictions in the entire chain of modal windows so if topmost closes, restriction
+    /// will be on previous one and so on.
+    pub stop: bool,
+}
+
 pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     screen_size: Vec2,
     nodes: Pool<UINode<M, C>>,
@@ -477,7 +493,7 @@ pub struct UserInterface<M: MessageData, C: Control<M, C>> {
     receiver: Receiver<UiMessage<M, C>>,
     sender: Sender<UiMessage<M, C>>,
     stack: Vec<Handle<UINode<M, C>>>,
-    picking_stack: Vec<Handle<UINode<M, C>>>,
+    picking_stack: Vec<RestrictionEntry<M, C>>,
     bubble_queue: VecDeque<Handle<UINode<M, C>>>,
     drag_context: DragContext<M, C>,
     mouse_state: MouseState,
@@ -846,13 +862,16 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             // Go over picking stack and try each entry. This will help with picking
             // in a series of popups, especially in menus where may be many open popups
             // at the same time.
-            for &root in self.picking_stack.iter().rev() {
-                if self.nodes.is_valid_handle(root) {
+            for root in self.picking_stack.iter().rev() {
+                if self.nodes.is_valid_handle(root.handle) {
                     let mut level = 0;
-                    let picked = self.pick_node(root, pt, &mut level);
+                    let picked = self.pick_node(root.handle, pt, &mut level);
                     if picked.is_some() {
                         return picked;
                     }
+                }
+                if root.stop {
+                    break;
                 }
             }
             Handle::NONE
@@ -1478,19 +1497,21 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         node_handle
     }
 
-    pub fn push_picking_restriction(&mut self, node: Handle<UINode<M, C>>) {
-        assert_ne!(self.top_picking_restriction(), node);
-        self.picking_stack.push(node);
+    pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry<M, C>) {
+        if let Some(top) = self.top_picking_restriction() {
+            assert_ne!(top.handle, restriction.handle);
+        }
+        self.picking_stack.push(restriction);
     }
 
     pub fn remove_picking_restriction(&mut self, node: Handle<UINode<M, C>>) {
-        if let Some(pos) = self.picking_stack.iter().position(|&h| h == node) {
+        if let Some(pos) = self.picking_stack.iter().position(|h| h.handle == node) {
             self.picking_stack.remove(pos);
         }
     }
 
-    pub fn picking_restriction_stack(&self) -> &[Handle<UINode<M, C>>] {
-        &self.stack
+    pub fn picking_restriction_stack(&self) -> &[RestrictionEntry<M, C>] {
+        &self.picking_stack
     }
 
     /// Removes all picking restrictions.
@@ -1498,8 +1519,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.picking_stack.clear();
     }
 
-    pub fn top_picking_restriction(&self) -> Handle<UINode<M, C>> {
-        *self.picking_stack.last().unwrap_or(&Handle::NONE)
+    pub fn top_picking_restriction(&self) -> Option<RestrictionEntry<M, C>> {
+        self.picking_stack.last().cloned()
     }
 
     /// Use WidgetMessage::remove(...) to remove node.

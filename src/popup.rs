@@ -5,7 +5,7 @@ use crate::{
     message::{ButtonState, OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage},
     node::UINode,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, UserInterface,
+    BuildContext, Control, NodeHandleMapping, RestrictionEntry, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -67,7 +67,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
                             MessageDirection::ToWidget,
                             true,
                         ));
-                        ui.push_picking_restriction(self.handle());
+                        ui.push_picking_restriction(RestrictionEntry {
+                            handle: self.handle(),
+                            stop: false,
+                        });
                         ui.send_message(WidgetMessage::topmost(
                             self.handle(),
                             MessageDirection::ToWidget,
@@ -149,16 +152,18 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
         event: &OsEvent,
     ) {
         if let OsEvent::MouseInput { state, .. } = event {
-            if *state == ButtonState::Pressed
-                && ui.top_picking_restriction() == self_handle
-                && self.is_open
-            {
-                let pos = ui.cursor_position();
-                if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
-                    ui.send_message(PopupMessage::close(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                    ));
+            if let Some(top_restriction) = ui.top_picking_restriction() {
+                if *state == ButtonState::Pressed
+                    && top_restriction.handle == self_handle
+                    && self.is_open
+                {
+                    let pos = ui.cursor_position();
+                    if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
+                        ui.send_message(PopupMessage::close(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                        ));
+                    }
                 }
             }
         }

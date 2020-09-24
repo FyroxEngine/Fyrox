@@ -14,8 +14,8 @@ use crate::{
     },
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
-    UserInterface,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
+    UINode, UserInterface,
 };
 use std::{
     cell::RefCell,
@@ -337,6 +337,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                     MessageDirection::ToWidget,
                                     true,
                                 ));
+                                ui.send_message(WidgetMessage::topmost(
+                                    self.handle(),
+                                    MessageDirection::ToWidget,
+                                ));
                                 if center {
                                     ui.send_message(WidgetMessage::center(
                                         self.handle(),
@@ -362,7 +366,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                         MessageDirection::ToWidget,
                                     ));
                                 }
-                                ui.push_picking_restriction(self.handle());
+                                ui.push_picking_restriction(RestrictionEntry {
+                                    handle: self.handle(),
+                                    stop: true,
+                                });
                             }
                         }
                         WindowMessage::Close => {
@@ -802,7 +809,8 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
         let handle = ctx.add_node(UINode::Window(node));
 
         if modal && open {
-            ctx.ui.push_picking_restriction(handle);
+            ctx.ui
+                .push_picking_restriction(RestrictionEntry { handle, stop: true });
         }
 
         handle

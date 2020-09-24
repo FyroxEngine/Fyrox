@@ -13,8 +13,8 @@ use crate::{
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-    UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
+    Thickness, UserInterface, VerticalAlignment,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -53,7 +53,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
             match msg {
                 MenuMessage::Activate => {
                     if !self.active {
-                        ui.push_picking_restriction(self.handle());
+                        ui.push_picking_restriction(RestrictionEntry {
+                            handle: self.handle(),
+                            stop: false,
+                        });
                         self.active = true;
                     }
                 }

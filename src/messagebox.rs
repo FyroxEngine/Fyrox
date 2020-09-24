@@ -11,8 +11,8 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-    UserInterface,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
+    Thickness, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -366,7 +366,8 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MessageBoxBuilder<'b, M, C> {
 
         if is_open {
             // We must restrict picking because message box is modal.
-            ctx.ui.push_picking_restriction(handle);
+            ctx.ui
+                .push_picking_restriction(RestrictionEntry { handle, stop: true });
         }
 
         handle
