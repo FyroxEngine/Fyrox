@@ -336,7 +336,19 @@ impl ResourceManager {
     /// supported!
     #[inline]
     pub fn set_textures_path<P: AsRef<Path>>(&mut self, path: P) {
+        assert!(path.as_ref().is_dir());
+
         self.textures_path = path.as_ref().to_owned();
+    }
+
+    /// Immediately destroys all unused resources.
+    pub fn purge_unused_resources(&mut self) {
+        self.sound_buffers
+            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+        self.models
+            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+        self.textures
+            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
     }
 
     fn update_textures(&mut self, dt: f32) {
