@@ -1,4 +1,5 @@
-use crate::{command::Command, Message};
+use crate::command::Command;
+use crate::Message;
 use rg3d::{
     core::{
         color::Color,

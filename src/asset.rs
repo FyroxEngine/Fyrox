@@ -3,6 +3,7 @@ use crate::{
         AssetItemMessage, BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, Ui, UiMessage,
         UiNode, UiWidgetBuilder,
     },
+    load_image,
     preview::PreviewPanel,
     GameEngine,
 };
@@ -27,6 +28,7 @@ use rg3d::{
     resource::texture::TextureKind,
     utils::into_gui_texture,
 };
+use std::sync::{Arc, Mutex};
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -132,7 +134,7 @@ impl AssetItemBuilder {
     pub fn build(
         self,
         ctx: &mut BuildContext,
-        resource_manager: &mut ResourceManager,
+        resource_manager: Arc<Mutex<ResourceManager>>,
     ) -> Handle<UiNode> {
         let path = self.path.unwrap_or_default();
         let mut kind = AssetKind::Unknown;
@@ -141,14 +143,11 @@ impl AssetItemBuilder {
             .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
                     kind = AssetKind::Texture;
-                    Some(resource_manager.request_texture_async(&path, TextureKind::RGBA8))
+                    load_image(&path, resource_manager.clone())
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;
-                    Some(
-                        resource_manager
-                            .request_texture_async("resources/model.png", TextureKind::RGBA8),
-                    )
+                    load_image("resources/model.png", resource_manager.clone())
                 }
                 _ => None,
             })
@@ -160,7 +159,7 @@ impl AssetItemBuilder {
                 .with_width(64.0)
                 .with_height(64.0),
         )
-        .with_opt_texture(into_gui_texture(texture))
+        .with_opt_texture(texture)
         .build(ctx);
 
         let item = AssetItem {
@@ -279,6 +278,20 @@ impl AssetBrowser {
         }
     }
 
+    pub fn clear_preview(&mut self, engine: &mut GameEngine) {
+        self.preview.clear(engine);
+    }
+
+    pub fn set_working_directory(&mut self, engine: &mut GameEngine, dir: &Path) {
+        assert!(dir.is_dir());
+
+        engine.user_interface.send_message(FileBrowserMessage::path(
+            self.folder_browser,
+            MessageDirection::ToWidget,
+            dir.to_owned(),
+        ));
+    }
+
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         self.preview.handle_message(message, engine);
         let ui = &mut engine.user_interface;
@@ -327,11 +340,12 @@ impl AssetBrowser {
                                             _ => false,
                                         }
                                     }) {
-                                        let resource_manager =
-                                            &mut engine.resource_manager.lock().unwrap();
                                         let content = AssetItemBuilder::new(WidgetBuilder::new())
                                             .with_path(entry_path)
-                                            .build(&mut ui.build_ctx(), resource_manager);
+                                            .build(
+                                                &mut ui.build_ctx(),
+                                                engine.resource_manager.clone(),
+                                            );
                                         self.items.push(content);
                                         ui.send_message(WidgetMessage::link(
                                             content,

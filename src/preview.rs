@@ -206,12 +206,18 @@ impl PreviewPanel {
             .set_position(Vec3::new(0.0, 0.0, self.distance));
     }
 
+    pub fn clear(&mut self, engine: &mut GameEngine) {
+        if self.model.is_some() {
+            let scene = &mut engine.scenes[self.scene];
+            scene.remove_node(self.model);
+            self.model = Handle::NONE;
+        }
+    }
+
     pub fn set_model(&mut self, model: &Path, engine: &mut GameEngine) {
+        self.clear(engine);
         if let Some(model) = engine.resource_manager.lock().unwrap().request_model(model) {
             let scene = &mut engine.scenes[self.scene];
-            if self.model.is_some() {
-                scene.remove_node(self.model);
-            }
             self.model = model.lock().unwrap().instantiate_geometry(scene);
             self.fit_to_model(scene);
         }

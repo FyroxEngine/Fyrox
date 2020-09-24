@@ -1,4 +1,3 @@
-use crate::scene::SetSpriteColorCommand;
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
@@ -7,13 +6,11 @@ use crate::{
         SetLightColorCommand, SetLightScatterCommand, SetLightScatterEnabledCommand,
         SetNameCommand, SetParticleSystemAccelerationCommand, SetPointLightRadiusCommand,
         SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
-        SetSpotLightHotspotCommand, SetSpriteRotationCommand, SetSpriteSizeCommand, SetZFarCommand,
-        SetZNearCommand,
+        SetSpotLightHotspotCommand, SetSpriteColorCommand, SetSpriteRotationCommand,
+        SetSpriteSizeCommand, SetZFarCommand, SetZNearCommand,
     },
     GameEngine, Message,
 };
-use rg3d::gui::color::ColorFieldBuilder;
-use rg3d::gui::message::ColorFieldMessage;
 use rg3d::{
     core::{
         math::{
@@ -25,12 +22,13 @@ use rg3d::{
     gui::{
         border::BorderBuilder,
         check_box::CheckBoxBuilder,
+        color::ColorFieldBuilder,
         decorator::DecoratorBuilder,
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            CheckBoxMessage, DropdownListMessage, MessageDirection, NumericUpDownMessage,
-            TextBoxMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
+            CheckBoxMessage, ColorFieldMessage, DropdownListMessage, MessageDirection,
+            NumericUpDownMessage, TextBoxMessage, UiMessageData, Vec3EditorMessage, WidgetMessage,
         },
         numeric::NumericUpDownBuilder,
         scroll_viewer::ScrollViewerBuilder,

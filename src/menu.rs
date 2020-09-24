@@ -4,16 +4,16 @@ use crate::{
     scene::{AddNodeCommand, EditorScene, SceneCommand},
     GameEngine, Message,
 };
+use rg3d::gui::file_browser::FileSelectorBuilder;
+use rg3d::gui::window::{WindowBuilder, WindowTitle};
 use rg3d::{
     core::{math::vec2::Vec2, pool::Handle},
     gui::{
-        file_browser::FileSelectorBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
         message::{
             FileSelectorMessage, MenuItemMessage, MessageDirection, UiMessageData, WindowMessage,
         },
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
         Thickness,
     },
     renderer::surface::{Surface, SurfaceSharedData},
@@ -302,10 +302,9 @@ impl Menu {
 
         let load_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .with_title(WindowTitle::Text("Select a Scene to Load".into()))
-                .open(false),
+                .open(false)
+                .with_title(WindowTitle::Text("Select a Scene To Load".into())),
         )
-        .with_path("./")
         .with_filter(make_scene_file_filter())
         .build(ctx);
 
@@ -345,7 +344,7 @@ impl Menu {
                         self.message_sender
                             .send(Message::SaveScene(path.to_owned()))
                             .unwrap();
-                    } else {
+                    } else if message.destination() == self.load_file_selector {
                         self.message_sender
                             .send(Message::LoadScene(path.to_owned()))
                             .unwrap();
@@ -484,6 +483,13 @@ impl Menu {
                                     MessageDirection::ToWidget,
                                     true,
                                 ));
+                            ctx.engine
+                                .user_interface
+                                .send_message(FileSelectorMessage::path(
+                                    self.save_file_selector,
+                                    MessageDirection::ToWidget,
+                                    std::env::current_dir().unwrap(),
+                                ));
                         }
                     } else if message.destination() == self.save_as {
                         ctx.engine
@@ -493,6 +499,13 @@ impl Menu {
                                 MessageDirection::ToWidget,
                                 true,
                             ));
+                        ctx.engine
+                            .user_interface
+                            .send_message(FileSelectorMessage::path(
+                                self.save_file_selector,
+                                MessageDirection::ToWidget,
+                                std::env::current_dir().unwrap(),
+                            ));
                     } else if message.destination() == self.load {
                         ctx.engine
                             .user_interface
@@ -500,6 +513,13 @@ impl Menu {
                                 self.load_file_selector,
                                 MessageDirection::ToWidget,
                                 true,
+                            ));
+                        ctx.engine
+                            .user_interface
+                            .send_message(FileSelectorMessage::path(
+                                self.load_file_selector,
+                                MessageDirection::ToWidget,
+                                std::env::current_dir().unwrap(),
                             ));
                     } else if message.destination() == self.close_scene {
                         self.message_sender.send(Message::CloseScene).unwrap();

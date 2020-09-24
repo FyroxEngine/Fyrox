@@ -3,6 +3,7 @@ use crate::{
         BuildContext, CustomWidget, EditorUiMessage, EditorUiNode, SceneItemMessage, Ui, UiMessage,
         UiNode,
     },
+    load_image,
     scene::{
         ChangeSelectionCommand, EditorScene, LinkNodesCommand, SceneCommand, Selection,
         SetVisibleCommand,
@@ -135,12 +136,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                                 "resources/invisible.png"
                             };
                             let image = ImageBuilder::new(WidgetBuilder::new())
-                                .with_opt_texture(into_gui_texture(
-                                    self.resource_manager
-                                        .lock()
-                                        .unwrap()
-                                        .request_texture(path, TextureKind::RGBA8),
-                                ))
+                                .with_opt_texture(load_image(path, self.resource_manager.clone()))
                                 .build(&mut ui.build_ctx());
                             ui.send_message(ButtonMessage::content(
                                 self.visibility_toggle,
@@ -211,12 +207,7 @@ impl SceneItemBuilder {
         sender: Sender<Message>,
         resource_manager: Arc<Mutex<ResourceManager>>,
     ) -> Handle<UiNode> {
-        let visible_texture = into_gui_texture(
-            resource_manager
-                .lock()
-                .unwrap()
-                .request_texture("resources/visible.png", TextureKind::RGBA8),
-        );
+        let visible_texture = load_image("resources/visible.png", resource_manager.clone());
 
         let visibility_toggle;
         let item = SceneItem {
@@ -297,12 +288,7 @@ fn make_tree(
         _ => "resources/cube.png",
     };
 
-    let icon = into_gui_texture(
-        resource_manager
-            .lock()
-            .unwrap()
-            .request_texture(icon_path, TextureKind::RGBA8),
-    );
+    let icon = load_image(icon_path, resource_manager.clone());
 
     SceneItemBuilder::new()
         .with_name(node.name().to_owned())
