@@ -1,10 +1,11 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle},
     draw::{CommandKind, CommandTexture, DrawingContext},
-    message::DecoratorMessage,
-    message::{ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        DecoratorMessage, ListViewMessage, MessageData, MessageDirection, UiMessage, UiMessageData,
+        WidgetMessage,
+    },
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
