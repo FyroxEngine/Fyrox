@@ -935,7 +935,7 @@ impl SideBar {
         }
     }
 
-    pub fn handle_message(
+    pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,

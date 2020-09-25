@@ -1,5 +1,6 @@
+use crate::settings::Settings;
 use crate::{
-    gui::{BuildContext, Ui, UiMessage, UiNode},
+    gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
     scene::{AddNodeCommand, EditorScene, SceneCommand},
     GameEngine, Message,
@@ -54,6 +55,8 @@ pub struct Menu {
     sidebar: Handle<UiNode>,
     world_outliner: Handle<UiNode>,
     asset_browser: Handle<UiNode>,
+    open_settings: Handle<UiNode>,
+    settings: Settings,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -74,7 +77,7 @@ fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui) {
 }
 
 impl Menu {
-    pub fn new(ctx: &mut BuildContext, message_sender: Sender<Message>) -> Self {
+    pub fn new(engine: &mut GameEngine, message_sender: Sender<Message>) -> Self {
         let min_size = Vec2::new(120.0, 20.0);
         let new_scene;
         let save;
@@ -96,6 +99,8 @@ impl Menu {
         let sidebar;
         let asset_browser;
         let world_outliner;
+        let open_settings;
+        let ctx = &mut engine.user_interface.build_ctx();
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
                 MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
@@ -150,6 +155,13 @@ impl Menu {
                                     ))
                                     .build(ctx);
                             close_scene
+                        },
+                        {
+                            open_settings =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Settings..."))
+                                    .build(ctx);
+                            open_settings
                         },
                         {
                             exit =
@@ -324,6 +336,7 @@ impl Menu {
             create_point_light,
             create_spot_light,
             exit,
+            settings: Settings::new(engine, message_sender.clone()),
             message_sender,
             save_file_selector,
             load_file_selector,
@@ -333,10 +346,13 @@ impl Menu {
             sidebar,
             world_outliner,
             asset_browser,
+            open_settings,
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, ctx: MenuContext) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, ctx: MenuContext) {
+        self.settings.handle_message(message, ctx.engine);
+
         match &message.data() {
             UiMessageData::FileSelector(msg) => match msg {
                 FileSelectorMessage::Commit(path) => {
@@ -542,6 +558,14 @@ impl Menu {
                         );
                     } else if message.destination() == self.sidebar {
                         switch_window_state(ctx.sidebar_window, &mut ctx.engine.user_interface);
+                    } else if message.destination() == self.open_settings {
+                        ctx.engine
+                            .user_interface
+                            .send_message(WindowMessage::open_modal(
+                                self.settings.window,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
                     }
                 }
             }

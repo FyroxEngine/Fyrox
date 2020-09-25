@@ -10,12 +10,15 @@ pub mod camera;
 pub mod command;
 pub mod gui;
 pub mod interaction;
+pub mod log;
 pub mod menu;
 pub mod preview;
 pub mod scene;
+pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::log::Log;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -33,8 +36,6 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
-use rg3d::engine::resource_manager::ResourceManager;
-use rg3d::gui::draw;
 use rg3d::{
     core::{
         color::Color,
@@ -43,6 +44,7 @@ use rg3d::{
         scope_profile,
         visitor::{Visit, Visitor},
     },
+    engine::resource_manager::ResourceManager,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -51,6 +53,7 @@ use rg3d::{
         button::ButtonBuilder,
         canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
+        draw,
         draw::SharedTexture,
         file_browser::{FileSelectorBuilder, Filter},
         grid::{Column, GridBuilder, Row},
@@ -73,18 +76,16 @@ use rg3d::{
     scene::{base::BaseBuilder, node::Node, Scene},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
-use std::sync::Arc;
 use std::{
     cell::RefCell,
     fs::File,
     io::Write,
-    path::Path,
-    path::PathBuf,
+    path::{Path, PathBuf},
     rc::Rc,
-    sync::Mutex,
     sync::{
         mpsc,
         mpsc::{Receiver, Sender},
+        Arc, Mutex,
     },
     time::Instant,
 };
@@ -306,7 +307,7 @@ impl ScenePreview {
 }
 
 impl ScenePreview {
-    fn handle_message(&mut self, message: &UiMessage) {
+    fn handle_ui_message(&mut self, message: &UiMessage) {
         match &message.data() {
             UiMessageData::Button(msg) => {
                 if let ButtonMessage::Click = msg {
@@ -570,7 +571,7 @@ impl Configurator {
         ));
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         match message.data() {
             UiMessageData::FileSelector(msg) => {
                 if let FileSelectorMessage::Commit(path) = msg {
@@ -644,11 +645,6 @@ impl Configurator {
 }
 
 struct Editor {
-    /// The path used by your game at working directory, it will be used to
-    /// create relative paths that will be written into scene file. This is
-    /// very important because absolute paths are not "portable" and your
-    /// game simply won't work in other environment (i.e. on user's platform).
-    working_directory: PathBuf,
     sidebar: SideBar,
     camera_controller: CameraController,
     scene: Option<EditorScene>,
@@ -666,6 +662,7 @@ struct Editor {
     menu: Menu,
     exit: bool,
     configurator: Configurator,
+    log: Log,
 }
 
 impl Editor {
@@ -701,12 +698,12 @@ impl Editor {
 
         let preview = ScenePreview::new(engine, &editor_scene, message_sender.clone());
         let asset_browser = AssetBrowser::new(engine);
+        let menu = Menu::new(engine, message_sender.clone());
 
         let ctx = &mut engine.user_interface.build_ctx();
-
         let node_editor = SideBar::new(ctx, message_sender.clone());
         let world_outliner = WorldOutliner::new(ctx, message_sender.clone());
-        let menu = Menu::new(ctx, message_sender.clone());
+        let log = Log::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -749,7 +746,19 @@ impl Editor {
                                         })
                                         .build(ctx),
                                     TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::Window(asset_browser.window))
+                                        .with_content(TileContent::HorizontalTiles {
+                                            splitter: 0.66,
+                                            tiles: [
+                                                TileBuilder::new(WidgetBuilder::new())
+                                                    .with_content(TileContent::Window(
+                                                        asset_browser.window,
+                                                    ))
+                                                    .build(ctx),
+                                                TileBuilder::new(WidgetBuilder::new())
+                                                    .with_content(TileContent::Window(log.window))
+                                                    .build(ctx),
+                                            ],
+                                        })
                                         .build(ctx),
                                 ],
                             })
@@ -777,7 +786,6 @@ impl Editor {
         .build(ctx);
 
         let mut editor = Self {
-            working_directory: std::env::current_dir().unwrap(),
             sidebar: node_editor,
             preview,
             camera_controller: CameraController::new(&editor_scene, engine),
@@ -795,6 +803,7 @@ impl Editor {
             exit_message_box,
             save_file_selector,
             configurator,
+            log,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -871,9 +880,9 @@ impl Editor {
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
-        self.configurator.handle_message(message, engine);
-        self.menu.handle_message(
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+        self.configurator.handle_ui_message(message, engine);
+        self.menu.handle_ui_message(
             message,
             MenuContext {
                 engine,
@@ -884,17 +893,19 @@ impl Editor {
             },
         );
 
+        self.log.handle_ui_message(message, engine);
         self.asset_browser.handle_ui_message(message, engine);
 
         if let Some(editor_scene) = self.scene.as_ref() {
-            self.sidebar.handle_message(message, editor_scene, engine);
+            self.sidebar
+                .handle_ui_message(message, editor_scene, engine);
 
             self.world_outliner
                 .handle_ui_message(message, &editor_scene, engine);
 
             let ui = &mut engine.user_interface;
 
-            self.preview.handle_message(message);
+            self.preview.handle_ui_message(message);
 
             if message.destination() == self.preview.frame {
                 match &message.data() {
@@ -1137,6 +1148,7 @@ impl Editor {
         scope_profile!();
 
         while let Ok(message) = self.message_receiver.try_recv() {
+            self.log.handle_message(&message, engine);
             self.world_outliner.handle_message(&message, engine);
 
             match message {
@@ -1272,14 +1284,13 @@ impl Editor {
 
                     self.asset_browser.clear_preview(engine);
 
-                    self.working_directory = working_directory.clone();
                     std::env::set_current_dir(working_directory.clone()).unwrap();
 
                     engine
                         .resource_manager
                         .lock()
                         .unwrap()
-                        .set_textures_path(textures_path);
+                        .set_textures_path(textures_path.clone());
 
                     engine
                         .resource_manager
@@ -1291,6 +1302,9 @@ impl Editor {
 
                     self.asset_browser
                         .set_working_directory(engine, &working_directory);
+
+                    self.message_sender
+                        .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, textures_path))).unwrap();
                 }
             }
         }
@@ -1335,7 +1349,7 @@ fn poll_ui_messages(editor: &mut Editor, engine: &mut GameEngine) {
     scope_profile!();
 
     while let Some(ui_message) = engine.user_interface.poll_message() {
-        editor.handle_message(&ui_message, engine);
+        editor.handle_ui_message(&ui_message, engine);
     }
 }
 
