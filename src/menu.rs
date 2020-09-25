@@ -516,10 +516,10 @@ impl Menu {
                             ));
                         ctx.engine
                             .user_interface
-                            .send_message(FileSelectorMessage::path(
+                            .send_message(FileSelectorMessage::root(
                                 self.load_file_selector,
                                 MessageDirection::ToWidget,
-                                std::env::current_dir().unwrap(),
+                                Some(std::env::current_dir().unwrap()),
                             ));
                     } else if message.destination() == self.close_scene {
                         self.message_sender.send(Message::CloseScene).unwrap();

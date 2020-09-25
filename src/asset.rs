@@ -7,6 +7,8 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
+use rg3d::resource::texture::TextureKind;
+use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -141,7 +143,12 @@ impl AssetItemBuilder {
             .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
                     kind = AssetKind::Texture;
-                    load_image(&path, resource_manager.clone())
+                    into_gui_texture(
+                        resource_manager
+                            .lock()
+                            .unwrap()
+                            .request_texture(&path, TextureKind::RGBA8),
+                    )
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;
@@ -216,7 +223,6 @@ impl AssetBrowser {
         let preview = PreviewPanel::new(engine);
         let mut ctx = engine.user_interface.build_ctx();
 
-        let path = PathBuf::from("./data");
         let content_panel;
         let folder_browser;
 
@@ -228,7 +234,6 @@ impl AssetBrowser {
                         .with_child({
                             folder_browser =
                                 FileBrowserBuilder::new(WidgetBuilder::new().on_column(0))
-                                    .with_path(&path) // TODO: Bind to project when it will be available.
                                     .with_filter(Rc::new(RefCell::new(|p: &Path| p.is_dir())))
                                     .build(&mut ctx);
                             folder_browser
@@ -261,12 +266,6 @@ impl AssetBrowser {
             )
             .build(&mut ctx);
 
-        engine.user_interface.send_message(FileBrowserMessage::path(
-            folder_browser,
-            MessageDirection::ToWidget,
-            path,
-        ));
-
         Self {
             window,
             content_panel,
@@ -283,10 +282,10 @@ impl AssetBrowser {
     pub fn set_working_directory(&mut self, engine: &mut GameEngine, dir: &Path) {
         assert!(dir.is_dir());
 
-        engine.user_interface.send_message(FileBrowserMessage::path(
+        engine.user_interface.send_message(FileBrowserMessage::root(
             self.folder_browser,
             MessageDirection::ToWidget,
-            dir.to_owned(),
+            Some(dir.to_owned()),
         ));
     }
 

@@ -102,18 +102,21 @@ pub fn load_image<P: AsRef<Path>>(
     path: P,
     resource_manager: Arc<Mutex<ResourceManager>>,
 ) -> Option<draw::SharedTexture> {
-    let absolute_path = STARTUP_WORKING_DIR
+    if let Ok(absolute_path) = STARTUP_WORKING_DIR
         .lock()
         .unwrap()
         .join(path)
         .canonicalize()
-        .unwrap();
-    into_gui_texture(
-        resource_manager
-            .lock()
-            .unwrap()
-            .request_texture(&absolute_path, TextureKind::RGBA8),
-    )
+    {
+        into_gui_texture(
+            resource_manager
+                .lock()
+                .unwrap()
+                .request_texture(&absolute_path, TextureKind::RGBA8),
+        )
+    } else {
+        None
+    }
 }
 
 pub struct ScenePreview {
@@ -557,7 +560,9 @@ impl Configurator {
     }
 
     fn validate(&mut self, engine: &mut GameEngine) {
-        let is_valid_scene_path = self.textures_path.starts_with(&self.work_dir);
+        let is_valid_scene_path = self.textures_path.exists()
+            && self.work_dir.exists()
+            && self.textures_path.starts_with(&self.work_dir);
         engine.user_interface.send_message(WidgetMessage::enabled(
             self.ok,
             MessageDirection::ToWidget,
