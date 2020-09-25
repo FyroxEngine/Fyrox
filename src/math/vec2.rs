@@ -12,7 +12,6 @@ pub struct Vec2 {
 
 impl PartialEq for Vec2 {
     fn eq(&self, other: &Self) -> bool {
-        self.validate();
         self.x == other.x && self.y == other.y
     }
 }
@@ -41,14 +40,8 @@ impl Vec2 {
     pub const ZERO: Self = Self { x: 0.0, y: 0.0 };
     pub const UNIT: Self = Self { x: 1.0, y: 1.0 };
 
-    pub const X: Self = Self {
-        x: 1.0,
-        y: 0.0,
-    };
-    pub const Y: Self = Self {
-        x: 0.0,
-        y: 1.0,
-    };
+    pub const X: Self = Self { x: 1.0, y: 0.0 };
+    pub const Y: Self = Self { x: 0.0, y: 1.0 };
 
     fn validate(self) {
         debug_assert!(!self.x.is_nan());
