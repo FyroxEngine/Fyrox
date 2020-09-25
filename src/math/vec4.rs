@@ -11,7 +11,6 @@ pub struct Vec4 {
 
 impl PartialEq for Vec4 {
     fn eq(&self, other: &Self) -> bool {
-        self.validate();
         self.x == other.x && self.y == other.y && self.z == other.z && self.w == other.w
     }
 }
