@@ -529,6 +529,7 @@ impl<M: MessageData, C: Control<M, C>> PopupMessage<M, C> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileSelectorMessage {
+    Root(Option<PathBuf>),
     Path(PathBuf),
     Commit(PathBuf),
     Cancel,
@@ -536,6 +537,7 @@ pub enum FileSelectorMessage {
 
 impl FileSelectorMessage {
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Commit) => fn commit(PathBuf), layout: false);
+    define_constructor_unbound!(FileSelector(FileSelectorMessage:Root) => fn root(Option<PathBuf>), layout: false);
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Path) => fn path(PathBuf), layout: false);
     define_constructor_unbound!(FileSelector(FileSelectorMessage:Cancel) => fn cancel(), layout: false);
 }
@@ -591,10 +593,12 @@ impl<M: MessageData, C: Control<M, C>> TreeRootMessage<M, C> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FileBrowserMessage {
+    Root(Option<PathBuf>),
     Path(PathBuf),
 }
 
 impl FileBrowserMessage {
+    define_constructor_unbound!(FileBrowser(FileBrowserMessage:Root) => fn root(Option<PathBuf>), layout: false);
     define_constructor_unbound!(FileBrowser(FileBrowserMessage:Path) => fn path(PathBuf), layout: false);
 }
 

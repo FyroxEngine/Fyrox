@@ -29,7 +29,6 @@ use crate::{
 };
 use std::{
     cell::RefCell,
-    collections::HashMap,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
@@ -45,6 +44,7 @@ pub struct FileBrowser<M: MessageData, C: Control<M, C>> {
     path_text: Handle<UINode<M, C>>,
     scroll_viewer: Handle<UINode<M, C>>,
     path: PathBuf,
+    root: Option<PathBuf>,
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
@@ -85,8 +85,12 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 let mut item = find_tree(self.tree_root, path, ui);
                                 if item.is_none() {
                                     // Generate new tree contents.
-                                    let (items, path_item) =
-                                        build_all(path, self.filter.clone(), &mut ui.build_ctx());
+                                    let (items, path_item) = build_all(
+                                        self.root.as_ref(),
+                                        path,
+                                        self.filter.clone(),
+                                        &mut ui.build_ctx(),
+                                    );
 
                                     // Replace tree contents.
                                     ui.send_message(TreeRootMessage::items(
@@ -120,6 +124,51 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                         self.scroll_viewer,
                                         MessageDirection::ToWidget,
                                         item,
+                                    ));
+                                }
+                            }
+                        }
+                        FileBrowserMessage::Root(root) => {
+                            if &self.root != root {
+                                dbg!(root);
+
+                                self.root = root.clone();
+                                self.path = root.clone().unwrap_or_default();
+
+                                // Generate new tree contents.
+                                let (items, path_item) = build_all(
+                                    self.root.as_ref(),
+                                    &self.path,
+                                    self.filter.clone(),
+                                    &mut ui.build_ctx(),
+                                );
+
+                                // Replace tree contents.
+                                ui.send_message(TreeRootMessage::items(
+                                    self.tree_root,
+                                    MessageDirection::ToWidget,
+                                    items,
+                                ));
+
+                                if path_item.is_some() {
+                                    // Select item of new path.
+                                    ui.send_message(TreeRootMessage::select(
+                                        self.tree_root,
+                                        MessageDirection::ToWidget,
+                                        vec![path_item],
+                                    ));
+                                    // Bring item of new path into view.
+                                    ui.send_message(ScrollViewerMessage::bring_into_view(
+                                        self.scroll_viewer,
+                                        MessageDirection::ToWidget,
+                                        path_item,
+                                    ));
+                                } else {
+                                    // Clear text field if path is invalid.
+                                    ui.send_message(TextBoxMessage::text(
+                                        self.path_text,
+                                        MessageDirection::ToWidget,
+                                        String::new(),
                                     ));
                                 }
                             }
@@ -291,77 +340,118 @@ fn build_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
 
 /// Builds entire file system tree to given final_path.
 fn build_all<M: MessageData, C: Control<M, C>>(
+    root: Option<&PathBuf>,
     final_path: &Path,
     filter: Option<Rc<RefCell<Filter>>>,
     ctx: &mut BuildContext<M, C>,
 ) -> (Vec<Handle<UINode<M, C>>>, Handle<UINode<M, C>>) {
-    // Create items for disks.
-    let mut root_items = HashMap::new();
-    for disk in sysinfo::System::new_all()
-        .get_disks()
-        .iter()
-        .map(|i| i.get_mount_point().to_string_lossy())
-    {
-        root_items.insert(
-            disk.chars().next().unwrap() as u8,
-            build_tree_item(disk.as_ref(), "", ctx),
-        );
+    let mut dest_path = PathBuf::new();
+    if let Ok(canonical_final_path) = final_path.canonicalize() {
+        if let Some(canonical_root) = root.map(|r| r.canonicalize().ok()).flatten() {
+            if let Ok(stripped) = canonical_final_path.strip_prefix(canonical_root) {
+                dest_path = stripped.to_owned();
+            }
+        } else {
+            dest_path = canonical_final_path;
+        }
     }
+
+    let dest_path_components = dest_path.components().collect::<Vec<Component>>();
+    let dest_disk = dest_path_components.get(0).and_then(|c| {
+        if let Component::Prefix(prefix) = c {
+            if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) = prefix.kind() {
+                Some(disk_letter)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    });
+
+    let mut root_items = Vec::new();
+    let mut parent = if let Some(root) = root {
+        let path = if std::env::current_dir().map_or(false, |dir| &dir == root) {
+            Path::new(".")
+        } else {
+            root.as_path()
+        };
+        let item = build_tree_item(path, &Path::new(""), ctx);
+        root_items.push(item);
+        item
+    } else {
+        let mut parent = Handle::NONE;
+
+        // Create items for disks.
+        for disk in sysinfo::System::new_all()
+            .get_disks()
+            .iter()
+            .map(|i| i.get_mount_point().to_string_lossy())
+        {
+            let item = build_tree_item(disk.as_ref(), "", ctx);
+
+            let disk_letter = disk.chars().next().unwrap() as u8;
+
+            if let Some(dest_disk) = dest_disk {
+                if dest_disk == disk_letter {
+                    parent = item;
+                }
+            }
+
+            root_items.push(item);
+        }
+
+        parent
+    };
 
     let mut path_item = Handle::NONE;
 
     // Try to build tree only for given path.
-    if let Ok(absolute_path) = final_path.canonicalize() {
-        if absolute_path.has_root() {
-            let components = absolute_path.components().collect::<Vec<Component>>();
-            if let Component::Prefix(prefix) = components.get(0).unwrap() {
-                if let Prefix::Disk(disk) | Prefix::VerbatimDisk(disk) = prefix.kind() {
-                    if let Some(&root) = root_items.get(&disk) {
-                        let mut parent = root;
-                        let mut full_path = PathBuf::from(prefix.as_os_str());
-                        for (i, component) in components.iter().enumerate().skip(1) {
-                            // Concat parts of path one by one,
-                            full_path = full_path.join(component.as_os_str());
-                            let next = components.get(i + 1).map(|p| full_path.join(p));
+    let mut full_path = PathBuf::new();
+    for (i, component) in dest_path_components.iter().enumerate() {
+        // Concat parts of path one by one.
+        full_path = full_path.join(component.as_os_str());
+        let next = dest_path_components.get(i + 1).map(|p| full_path.join(p));
 
-                            let mut new_parent = parent;
-                            if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
-                                for p in dir_iter {
-                                    if let Ok(entry) = p {
-                                        let path = entry.path();
-                                        if filter.as_ref().map_or(true, |f| {
-                                            f.deref().borrow_mut().deref_mut()(&path)
-                                        }) {
-                                            let item = build_tree_item(&path, &full_path, ctx);
-                                            Tree::add_item(parent, item, ctx);
-                                            if let Some(next) = next.as_ref() {
-                                                if *next == path {
-                                                    new_parent = item;
-                                                }
-                                            }
-
-                                            if path == absolute_path {
-                                                path_item = item;
-                                            }
-                                        }
-                                    }
-                                }
+        let mut new_parent = parent;
+        if let Ok(dir_iter) = std::fs::read_dir(&full_path) {
+            for p in dir_iter {
+                if let Ok(entry) = p {
+                    let path = entry.path();
+                    if filter
+                        .as_ref()
+                        .map_or(true, |f| f.deref().borrow_mut().deref_mut()(&path))
+                    {
+                        let item = build_tree_item(&path, &full_path, ctx);
+                        if parent.is_some() {
+                            Tree::add_item(parent, item, ctx);
+                        } else {
+                            root_items.push(item);
+                        }
+                        if let Some(next) = next.as_ref() {
+                            if *next == path {
+                                new_parent = item;
                             }
-                            parent = new_parent;
+                        }
+
+                        if path == dest_path {
+                            path_item = item;
                         }
                     }
                 }
             }
         }
+        parent = new_parent;
     }
 
-    (root_items.values().copied().collect(), path_item)
+    (root_items, path_item)
 }
 
 pub struct FileBrowserBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     path: PathBuf,
     filter: Option<Rc<RefCell<Filter>>>,
+    root: Option<PathBuf>,
 }
 
 impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
@@ -370,6 +460,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
             widget_builder,
             path: Default::default(),
             filter: None,
+            root: None,
         }
     }
 
@@ -397,8 +488,18 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
         self
     }
 
+    pub fn with_root(mut self, root: PathBuf) -> Self {
+        self.root = Some(root);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let (items, _) = build_all(self.path.as_path(), self.filter.clone(), ctx);
+        let (items, _) = build_all(
+            self.root.as_ref(),
+            self.path.as_path(),
+            self.filter.clone(),
+            ctx,
+        );
 
         let path_text;
         let tree_root;
@@ -439,6 +540,7 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
             path: self.path,
             filter: self.filter,
             scroll_viewer,
+            root: self.root,
         };
 
         ctx.add_node(UINode::FileBrowser(browser))
@@ -553,6 +655,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileSelector<M, C> {
                                 MessageDirection::ToWidget,
                                 path.clone(),
                             ))
+                        }
+                        FileSelectorMessage::Root(root) => {
+                            ui.send_message(FileBrowserMessage::root(
+                                self.browser,
+                                MessageDirection::ToWidget,
+                                root.clone(),
+                            ));
                         }
                     }
                 }
