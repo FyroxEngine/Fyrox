@@ -183,6 +183,11 @@ impl FormattedText {
         self
     }
 
+    pub fn remove_range(&mut self, range: Range<usize>) -> &mut Self {
+        self.text.drain(range);
+        self
+    }
+
     pub fn remove_at(&mut self, index: usize) -> &mut Self {
         self.text.remove(index);
         self
