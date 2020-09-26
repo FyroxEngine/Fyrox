@@ -543,7 +543,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
         if message.destination() == self.handle() {
             match &message.data() {
                 UiMessageData::Widget(msg) => match msg {
-                    &WidgetMessage::Text(symbol) => {
+                    &WidgetMessage::Text(symbol) if ui.keyboard_modifiers().is_none() => {
                         let insert = if let Some(filter) = self.filter.as_ref() {
                             let filter = &mut *filter.borrow_mut();
                             filter(symbol)
@@ -587,13 +587,72 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 self.remove_char(HorizontalDirection::Left, ui);
                             }
                         }
+                        KeyCode::End => {
+                            let text = self.formatted_text.borrow();
+                            if ui.keyboard_modifiers().control {
+                                let line = &text.get_lines()[self.caret_position.line];
+                                self.caret_position.line = text.get_lines().len() - 1;
+                                self.caret_position.offset = line.end - line.begin;
+                                self.selection_range = None;
+                            } else if ui.keyboard_modifiers().shift {
+                                let line = &text.get_lines()[self.caret_position.line];
+                                let prev_position = self.caret_position;
+                                self.caret_position.offset = line.end - line.begin;
+                                self.selection_range = Some(SelectionRange {
+                                    begin: prev_position,
+                                    end: Position {
+                                        line: self.caret_position.line,
+                                        offset: self.caret_position.offset - 1,
+                                    },
+                                });
+                            } else {
+                                let line = &text.get_lines()[self.caret_position.line];
+                                self.caret_position.offset = line.end - line.begin;
+                                self.selection_range = None;
+                            }
+                        }
+                        KeyCode::Home => {
+                            if ui.keyboard_modifiers().control {
+                                self.caret_position.line = 0;
+                                self.caret_position.offset = 0;
+                                self.selection_range = None;
+                            } else if ui.keyboard_modifiers().shift {
+                                let prev_position = self.caret_position;
+                                self.caret_position.line = 0;
+                                self.caret_position.offset = 0;
+                                self.selection_range = Some(SelectionRange {
+                                    begin: self.caret_position,
+                                    end: Position {
+                                        line: prev_position.line,
+                                        offset: prev_position.offset - 1,
+                                    },
+                                });
+                            } else {
+                                self.caret_position.offset = 0;
+                                self.selection_range = None;
+                            }
+                        }
+                        KeyCode::A if ui.keyboard_modifiers().control => {
+                            let text = self.formatted_text.borrow();
+                            if let Some(last_line) = &text.get_lines().last() {
+                                self.selection_range = Some(SelectionRange {
+                                    begin: Position { line: 0, offset: 0 },
+                                    end: Position {
+                                        line: text.get_lines().len() - 1,
+                                        offset: last_line.end - last_line.begin - 1,
+                                    },
+                                });
+                            }
+                        }
                         _ => (),
                     },
                     WidgetMessage::GotFocus => {
                         self.reset_blink();
+                        self.selection_range = None;
                         self.has_focus = true;
                     }
                     WidgetMessage::LostFocus => {
+                        self.selection_range = None;
                         self.has_focus = false;
                     }
                     WidgetMessage::MouseDown { pos, button } => {

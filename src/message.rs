@@ -1011,6 +1011,12 @@ pub struct KeyboardModifiers {
     pub system: bool,
 }
 
+impl KeyboardModifiers {
+    pub fn is_none(self) -> bool {
+        !self.shift && !self.control && !self.alt && !self.system
+    }
+}
+
 impl Default for KeyboardModifiers {
     fn default() -> Self {
         Self {
