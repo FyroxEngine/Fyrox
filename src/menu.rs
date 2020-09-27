@@ -6,6 +6,8 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::gui::file_browser::FileSelectorBuilder;
+use rg3d::gui::message::MessageBoxMessage;
+use rg3d::gui::messagebox::{MessageBoxBuilder, MessageBoxButtons};
 use rg3d::gui::window::{WindowBuilder, WindowTitle};
 use rg3d::{
     core::{math::vec2::Vec2, pool::Handle},
@@ -56,7 +58,9 @@ pub struct Menu {
     world_outliner: Handle<UiNode>,
     asset_browser: Handle<UiNode>,
     open_settings: Handle<UiNode>,
+    configure: Handle<UiNode>,
     settings: Settings,
+    configure_message: Handle<UiNode>,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -65,6 +69,7 @@ pub struct MenuContext<'a, 'b> {
     pub sidebar_window: Handle<UiNode>,
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,
+    pub configurator_window: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui) {
@@ -100,7 +105,16 @@ impl Menu {
         let asset_browser;
         let world_outliner;
         let open_settings;
+        let configure;
         let ctx = &mut engine.user_interface.build_ctx();
+        let configure_message = MessageBoxBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
+                .open(false)
+                .with_title(WindowTitle::Text("Warning".to_owned())),
+        )
+        .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
+        .with_buttons(MessageBoxButtons::Ok)
+        .build(ctx);
         let menu = MenuBuilder::new(WidgetBuilder::new().on_row(0))
             .with_items(vec![
                 MenuItemBuilder::new(WidgetBuilder::new().with_margin(Thickness::right(10.0)))
@@ -162,6 +176,13 @@ impl Menu {
                                     .with_content(MenuItemContent::text("Settings..."))
                                     .build(ctx);
                             open_settings
+                        },
+                        {
+                            configure =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Configure..."))
+                                    .build(ctx);
+                            configure
                         },
                         {
                             exit =
@@ -347,6 +368,8 @@ impl Menu {
             world_outliner,
             asset_browser,
             open_settings,
+            configure,
+            configure_message,
         }
     }
 
@@ -566,6 +589,25 @@ impl Menu {
                                 MessageDirection::ToWidget,
                                 true,
                             ));
+                    } else if message.destination() == self.configure {
+                        if ctx.editor_scene.is_none() {
+                            ctx.engine
+                                .user_interface
+                                .send_message(WindowMessage::open_modal(
+                                    ctx.configurator_window,
+                                    MessageDirection::ToWidget,
+                                    true,
+                                ));
+                        } else {
+                            ctx.engine
+                                .user_interface
+                                .send_message(MessageBoxMessage::open(
+                                    self.configure_message,
+                                    MessageDirection::ToWidget,
+                                    None,
+                                    None,
+                                ));
+                        }
                     }
                 }
             }

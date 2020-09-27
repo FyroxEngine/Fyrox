@@ -582,13 +582,27 @@ impl Configurator {
                             MessageDirection::ToWidget,
                             self.textures_path.to_string_lossy().to_string(),
                         ));
+
                         self.validate(engine);
                     } else if message.destination() == self.work_dir_browser {
                         self.work_dir = path.clone().canonicalize().unwrap();
+                        self.textures_path = self.work_dir.clone();
                         engine.user_interface.send_message(TextBoxMessage::text(
                             self.tb_work_dir,
                             MessageDirection::ToWidget,
                             self.work_dir.to_string_lossy().to_string(),
+                        ));
+                        engine
+                            .user_interface
+                            .send_message(FileSelectorMessage::root(
+                                self.textures_dir_browser,
+                                MessageDirection::ToWidget,
+                                Some(self.textures_path.clone()),
+                            ));
+                        engine.user_interface.send_message(TextBoxMessage::text(
+                            self.tb_textures_path,
+                            MessageDirection::ToWidget,
+                            self.textures_path.to_string_lossy().to_string(),
                         ));
 
                         self.validate(engine);
@@ -890,6 +904,7 @@ impl Editor {
                 sidebar_window: self.sidebar.window,
                 world_outliner_window: self.world_outliner.window,
                 asset_window: self.asset_browser.window,
+                configurator_window: self.configurator.window,
             },
         );
 
@@ -1147,6 +1162,8 @@ impl Editor {
     fn update(&mut self, engine: &mut GameEngine, dt: f32) {
         scope_profile!();
 
+        let mut needs_sync = false;
+
         while let Ok(message) = self.message_receiver.try_recv() {
             self.log.handle_message(&message, engine);
             self.world_outliner.handle_message(&message, engine);
@@ -1163,7 +1180,7 @@ impl Editor {
                                 resource_manager: engine.resource_manager.clone(),
                             },
                         );
-                        self.sync_to_model(engine);
+                        needs_sync = true;
                     }
                 }
                 Message::UndoSceneCommand => {
@@ -1174,7 +1191,7 @@ impl Editor {
                             current_selection: editor_scene.selection.clone(),
                             resource_manager: engine.resource_manager.clone(),
                         });
-                        self.sync_to_model(engine);
+                        needs_sync = true;
                     }
                 }
                 Message::RedoSceneCommand => {
@@ -1185,13 +1202,13 @@ impl Editor {
                             current_selection: editor_scene.selection.clone(),
                             resource_manager: engine.resource_manager.clone(),
                         });
-                        self.sync_to_model(engine);
+                        needs_sync = true;
                     }
                 }
                 Message::SetSelection(selection) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         editor_scene.selection = selection;
-                        self.sync_to_model(engine);
+                        needs_sync = true;
                     }
                 }
                 Message::SaveScene(mut path) => {
@@ -1262,7 +1279,7 @@ impl Editor {
                 Message::CloseScene => {
                     if let Some(editor_scene) = self.scene.take() {
                         engine.scenes.remove(editor_scene.scene);
-                        self.sync_to_model(engine);
+                        needs_sync = true;
 
                         // Preview frame has scene frame texture assigned, it must be cleared explicitly,
                         // otherwise it will show last rendered frame in preview which is not what we want.
@@ -1307,6 +1324,10 @@ impl Editor {
                         .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, textures_path))).unwrap();
                 }
             }
+        }
+
+        if needs_sync {
+            self.sync_to_model(engine);
         }
 
         if let Some(editor_scene) = self.scene.as_ref() {
