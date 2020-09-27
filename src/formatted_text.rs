@@ -144,7 +144,7 @@ impl FormattedText {
             .collect()
     }
 
-    pub fn get_range_width(&self, range: Range<usize>) -> f32 {
+    pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
         let mut width = 0.0;
         if let Some(ref font) = self.font {
             let font = font.0.lock().unwrap();

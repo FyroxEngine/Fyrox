@@ -1,5 +1,3 @@
-use crate::message::{CursorIcon, MessageData, MessageDirection};
-use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
     core::{
@@ -9,7 +7,11 @@ use crate::{
     },
     draw::{CommandKind, CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
-    message::{KeyCode, MouseButton, TextBoxMessage, UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, TextBoxMessage, UiMessage,
+        UiMessageData, WidgetMessage,
+    },
+    ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
@@ -35,7 +37,10 @@ pub enum VerticalDirection {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub struct Position {
+    // Line index.
     line: usize,
+
+    // Offset from beginning of a line.
     offset: usize,
 }
 
@@ -135,8 +140,22 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         self.blink_timer = 0.0;
     }
 
-    pub fn move_caret_x(&mut self, mut offset: usize, direction: HorizontalDirection) {
-        self.selection_range = None;
+    pub fn move_caret_x(
+        &mut self,
+        mut offset: usize,
+        direction: HorizontalDirection,
+        select: bool,
+    ) {
+        if select {
+            if self.selection_range.is_none() {
+                self.selection_range = Some(SelectionRange {
+                    begin: self.caret_position,
+                    end: self.caret_position,
+                });
+            }
+        } else {
+            self.selection_range = None;
+        }
 
         self.reset_blink();
 
@@ -176,9 +195,26 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
             }
             offset -= 1;
         }
+
+        if let Some(selection_range) = self.selection_range.as_mut() {
+            if select {
+                selection_range.end = self.caret_position;
+            }
+        }
     }
 
-    pub fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection) {
+    pub fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection, select: bool) {
+        if select {
+            if self.selection_range.is_none() {
+                self.selection_range = Some(SelectionRange {
+                    begin: self.caret_position,
+                    end: self.caret_position,
+                });
+            }
+        } else {
+            self.selection_range = None;
+        }
+
         let text = self.formatted_text.borrow();
         let lines = text.get_lines();
 
@@ -204,6 +240,12 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                 }
             }
         }
+
+        if let Some(selection_range) = self.selection_range.as_mut() {
+            if select {
+                selection_range.end = self.caret_position;
+            }
+        }
     }
 
     pub fn get_absolute_position(&self, position: Position) -> Option<usize> {
@@ -222,7 +264,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                 .borrow_mut()
                 .insert_char(c, position)
                 .build();
-            self.move_caret_x(1, HorizontalDirection::Right);
+            self.move_caret_x(1, HorizontalDirection::Right, false);
             ui.send_message(TextBoxMessage::text(
                 self.handle,
                 MessageDirection::ToWidget,
@@ -263,7 +305,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                 ));
 
                 if direction == HorizontalDirection::Left {
-                    self.move_caret_x(1, direction);
+                    self.move_caret_x(1, direction, false);
                 }
             }
         }
@@ -273,9 +315,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         let selection = selection.normalized();
         if let Some(begin) = self.get_absolute_position(selection.begin) {
             if let Some(end) = self.get_absolute_position(selection.end) {
-                self.formatted_text
-                    .borrow_mut()
-                    .remove_range(begin..(end + 1));
+                self.formatted_text.borrow_mut().remove_range(begin..end);
                 self.formatted_text.borrow_mut().build();
 
                 ui.send_message(TextBoxMessage::text(
@@ -425,11 +465,13 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
             let lines = text.get_lines();
             if selection_range.begin.line == selection_range.end.line {
                 let line = lines[selection_range.begin.line];
-                let begin = selection_range.begin.offset;
-                let end = selection_range.end.offset;
                 // Begin line
-                let offset = text.get_range_width(line.begin..(line.begin + begin));
-                let width = text.get_range_width((line.begin + begin)..(line.begin + end + 1));
+                let offset =
+                    text.get_range_width(line.begin..(line.begin + selection_range.begin.offset));
+                let width = text.get_range_width(
+                    (line.begin + selection_range.begin.offset)
+                        ..(line.begin + selection_range.end.offset),
+                );
                 let bounds = Rect::new(
                     bounds.x + line.x_offset + offset,
                     bounds.y + line.y_offset,
@@ -457,7 +499,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                         } else if i == selection_range.end.line {
                             // End line
                             let width = text.get_range_width(
-                                line.begin..(line.begin + selection_range.end.offset + 1),
+                                line.begin..(line.begin + selection_range.end.offset),
                             );
                             Rect::new(
                                 bounds.x + line.x_offset,
@@ -560,16 +602,32 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                     }
                     WidgetMessage::KeyDown(code) => match code {
                         KeyCode::Up => {
-                            self.move_caret_y(1, VerticalDirection::Up);
+                            self.move_caret_y(
+                                1,
+                                VerticalDirection::Up,
+                                ui.keyboard_modifiers().shift,
+                            );
                         }
                         KeyCode::Down => {
-                            self.move_caret_y(1, VerticalDirection::Down);
+                            self.move_caret_y(
+                                1,
+                                VerticalDirection::Down,
+                                ui.keyboard_modifiers().shift,
+                            );
                         }
                         KeyCode::Right => {
-                            self.move_caret_x(1, HorizontalDirection::Right);
+                            self.move_caret_x(
+                                1,
+                                HorizontalDirection::Right,
+                                ui.keyboard_modifiers().shift,
+                            );
                         }
                         KeyCode::Left => {
-                            self.move_caret_x(1, HorizontalDirection::Left);
+                            self.move_caret_x(
+                                1,
+                                HorizontalDirection::Left,
+                                ui.keyboard_modifiers().shift,
+                            );
                         }
                         KeyCode::Delete => {
                             if let Some(range) = self.selection_range {
@@ -639,7 +697,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                     begin: Position { line: 0, offset: 0 },
                                     end: Position {
                                         line: text.get_lines().len() - 1,
-                                        offset: last_line.end - last_line.begin - 1,
+                                        offset: last_line.end - last_line.begin,
                                     },
                                 });
                             }
@@ -676,7 +734,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                         if self.selecting {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 if let Some(ref mut sel_range) = self.selection_range {
-                                    sel_range.end = position;
+                                    if position.offset > sel_range.begin.offset {
+                                        sel_range.end = Position {
+                                            line: position.line,
+                                            offset: position.offset + 1,
+                                        };
+                                    } else {
+                                        sel_range.end = position;
+                                    }
                                 }
                             }
                         }
