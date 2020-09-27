@@ -378,14 +378,16 @@ impl MoveGizmo {
     }
 }
 
+fn distance_scale_factor(fov: f32) -> f32 {
+    fov.tan() * 0.1
+}
+
 pub struct MoveInteractionMode {
     initial_positions: Vec<Vec3>,
     move_gizmo: MoveGizmo,
     interacting: bool,
     message_sender: Sender<Message>,
 }
-
-pub const GIZMO_SCALE_FACTOR: f32 = 0.35; // Replace with tan(fov) of camera.
 
 impl MoveInteractionMode {
     pub fn new(
@@ -511,7 +513,7 @@ impl InteractionMode for MoveInteractionMode {
     ) {
         if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let distance = GIZMO_SCALE_FACTOR
+            let distance = distance_scale_factor(graph[camera].as_camera().fov())
                 * graph[self.move_gizmo.origin]
                     .global_position()
                     .distance(&graph[camera].global_position());
@@ -927,7 +929,7 @@ impl InteractionMode for ScaleInteractionMode {
     ) {
         if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let distance = GIZMO_SCALE_FACTOR
+            let distance = distance_scale_factor(graph[camera].as_camera().fov())
                 * graph[self.scale_gizmo.origin]
                     .global_position()
                     .distance(&graph[camera].global_position());
@@ -1293,7 +1295,7 @@ impl InteractionMode for RotateInteractionMode {
     ) {
         if !editor_scene.selection.is_empty() {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            let distance = GIZMO_SCALE_FACTOR
+            let distance = distance_scale_factor(graph[camera].as_camera().fov())
                 * graph[self.rotation_gizmo.origin]
                     .global_position()
                     .distance(&graph[camera].global_position());
