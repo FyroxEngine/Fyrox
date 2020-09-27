@@ -31,6 +31,7 @@ pub struct Settings {
     default: Handle<UiNode>,
     sender: Sender<Message>,
     ambient_color: Handle<UiNode>,
+    light_scatter: Handle<UiNode>,
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize) -> Handle<UiNode> {
@@ -64,6 +65,7 @@ impl Settings {
         let ambient_color;
         let point_shadows;
         let spot_shadows;
+        let light_scatter;
         let ctx = &mut engine.user_interface.build_ctx();
         let settings = engine.renderer.get_quality_settings();
         Self {
@@ -102,12 +104,19 @@ impl Settings {
                                         .with_child({
                                             spot_shadows = make_bool_input_field(ctx, 3, settings.spot_shadows_enabled);
                                             spot_shadows
+                                        })
+                                        .with_child(make_text_mark(ctx, "Light Scatter", 4))
+                                        .with_child({
+                                            light_scatter = make_bool_input_field(ctx, 4, settings.light_scatter_enabled);
+                                            light_scatter
                                         }),
                                 )
                                 .add_row(Row::strict(25.0))
                                 .add_row(Row::strict(25.0))
                                 .add_row(Row::strict(25.0))
                                 .add_row(Row::strict(25.0))
+                                .add_row(Row::strict(25.0))
+                                .add_row(Row::stretch())
                                 .add_row(Row::stretch())
                                 .add_column(Column::strict(100.0))
                                 .add_column(Column::stretch())
@@ -156,7 +165,8 @@ impl Settings {
             default,
             ambient_color,
             point_shadows,
-            spot_shadows
+            spot_shadows,
+            light_scatter
         }
     }
 
@@ -173,6 +183,8 @@ impl Settings {
                         settings.point_shadows_enabled = value;
                     } else if message.destination() == self.spot_shadows {
                         settings.spot_shadows_enabled = value;
+                    } else if message.destination() == self.light_scatter {
+                        settings.light_scatter_enabled = value;
                     }
                 }
             }
@@ -206,6 +218,7 @@ impl Settings {
                         sync_check_box(self.ssao, settings.use_ssao);
                         sync_check_box(self.point_shadows, settings.point_shadows_enabled);
                         sync_check_box(self.spot_shadows, settings.spot_shadows_enabled);
+                        sync_check_box(self.light_scatter, settings.light_scatter_enabled);
                     }
                 }
             }
