@@ -130,8 +130,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                         }
                         FileBrowserMessage::Root(root) => {
                             if &self.root != root {
-                                dbg!(root);
-
                                 self.root = root.clone();
                                 self.path = root.clone().unwrap_or_default();
 
