@@ -24,6 +24,7 @@
 
 extern crate rg3d;
 
+use rg3d::renderer::QualitySettings;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
@@ -84,8 +85,9 @@ fn create_ui(ui: &mut BuildContext, screen_size: Vec2) -> Interface {
             .with_width(screen_size.x)
             .with_height(screen_size.y)
             .with_child({
-                debug_text =
-                    TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0)).build(ui);
+                debug_text = TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                    .with_wrap(true)
+                    .build(ui);
                 debug_text
             })
             .with_child({
@@ -673,6 +675,13 @@ impl Default for InputController {
     }
 }
 
+fn fix_shadows_distance(mut quality: QualitySettings) -> QualitySettings {
+    // Scale distance because game world has different scale.
+    quality.spot_shadows_distance *= 20.0;
+    quality.point_shadows_distance *= 20.0;
+    quality
+}
+
 fn main() {
     let event_loop = EventLoop::new();
 
@@ -709,10 +718,11 @@ fn main() {
 
     // Set ambient light.
     engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
-    let mut quality = engine.renderer.get_quality_settings();
-    quality.spot_shadows_distance = 300.0;
-    quality.point_shadows_distance = 300.0;
-    engine.renderer.set_quality_settings(&quality).unwrap();
+
+    engine
+        .renderer
+        .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
+        .unwrap();
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -795,7 +805,7 @@ fn main() {
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!(
-                        "Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}",
+                        "Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
                         fps
                     );
                     engine.user_interface.send_message(TextMessage::text(
@@ -847,6 +857,24 @@ fn main() {
                             MessageDirection::ToWidget,
                             size.height,
                         ));
+                    }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        if let Some(code) = input.virtual_keycode {
+                            let settings = match code {
+                                VirtualKeyCode::Key1 => Some(QualitySettings::ultra()),
+                                VirtualKeyCode::Key2 => Some(QualitySettings::high()),
+                                VirtualKeyCode::Key3 => Some(QualitySettings::medium()),
+                                VirtualKeyCode::Key4 => Some(QualitySettings::low()),
+                                _ => None
+                            };
+
+                            if let Some(settings) = settings {
+                                engine
+                                    .renderer
+                                    .set_quality_settings(&fix_shadows_distance(settings))
+                                    .unwrap();
+                            }
+                        }
                     }
                     _ => (),
                 }
