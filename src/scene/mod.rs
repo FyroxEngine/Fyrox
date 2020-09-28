@@ -264,7 +264,7 @@ impl Scene {
                     // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
-                    surface.set_lightmap_texture(texture)
+                    surface.set_lightmap_texture(Some(texture))
                 }
             }
         }

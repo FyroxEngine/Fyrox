@@ -246,9 +246,9 @@ fn create_surfaces(
                         .request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8);
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
-                        "DiffuseColor" => surface.set_diffuse_texture(texture),
+                        "DiffuseColor" => surface.set_diffuse_texture(Some(texture)),
                         // No idea why it can be different for normal maps.
-                        "Bump" | "NormalMap" => surface.set_normal_texture(texture),
+                        "Bump" | "NormalMap" => surface.set_normal_texture(Some(texture)),
                         _ => (),
                     }
                 }

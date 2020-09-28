@@ -1152,8 +1152,8 @@ impl Surface {
 
     /// Sets new diffuse texture.
     #[inline]
-    pub fn set_diffuse_texture(&mut self, tex: Arc<Mutex<Texture>>) {
-        self.diffuse_texture = Some(tex);
+    pub fn set_diffuse_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+        self.diffuse_texture = tex;
     }
 
     /// Returns current diffuse texture.
@@ -1164,8 +1164,8 @@ impl Surface {
 
     /// Sets new normal map texture.
     #[inline]
-    pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
-        self.normal_texture = Some(tex);
+    pub fn set_normal_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+        self.normal_texture = tex;
     }
 
     /// Returns current normal map texture.
@@ -1176,8 +1176,8 @@ impl Surface {
 
     /// Sets new lightmap texture.
     #[inline]
-    pub fn set_lightmap_texture(&mut self, tex: Arc<Mutex<Texture>>) {
-        self.lightmap_texture = Some(tex);
+    pub fn set_lightmap_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+        self.lightmap_texture = tex;
     }
 
     /// Returns lightmap texture.
