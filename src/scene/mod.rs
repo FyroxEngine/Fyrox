@@ -194,6 +194,48 @@ impl Scene {
                 node.resource =
                     resource_manager.request_model(&shallow_resource.lock().unwrap().path);
             }
+
+            fn map_texture(
+                tex: Option<Arc<Mutex<Texture>>>,
+                rm: &mut ResourceManager,
+            ) -> Option<Arc<Mutex<Texture>>> {
+                if let Some(shallow_texture) = tex {
+                    let shallow_texture = shallow_texture.lock().unwrap();
+                    let kind = shallow_texture.kind;
+                    rm.request_texture(&shallow_texture.path, kind)
+                } else {
+                    None
+                }
+            };
+
+            match node {
+                Node::Mesh(mesh) => {
+                    for surface in mesh.surfaces_mut() {
+                        surface.set_diffuse_texture(map_texture(
+                            surface.diffuse_texture(),
+                            resource_manager,
+                        ));
+
+                        surface.set_normal_texture(map_texture(
+                            surface.normal_texture(),
+                            resource_manager,
+                        ));
+
+                        surface.set_lightmap_texture(map_texture(
+                            surface.lightmap_texture(),
+                            resource_manager,
+                        ));
+                    }
+                }
+                Node::Sprite(sprite) => {
+                    sprite.set_texture(map_texture(sprite.texture(), resource_manager));
+                }
+                Node::ParticleSystem(particle_system) => {
+                    particle_system
+                        .set_texture(map_texture(particle_system.texture(), resource_manager));
+                }
+                _ => (),
+            }
         }
 
         // And do resolve to extract correct graphical data and so on.

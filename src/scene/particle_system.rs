@@ -1257,8 +1257,8 @@ impl ParticleSystem {
     }
 
     /// Sets new texture for particle system.
-    pub fn set_texture(&mut self, texture: Arc<Mutex<Texture>>) {
-        self.texture = Some(texture)
+    pub fn set_texture(&mut self, texture: Option<Arc<Mutex<Texture>>>) {
+        self.texture = texture
     }
 
     /// Returns current texture used by particle system.
