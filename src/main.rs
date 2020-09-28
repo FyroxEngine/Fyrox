@@ -19,7 +19,7 @@ pub mod sidebar;
 pub mod world_outliner;
 
 use crate::log::Log;
-use crate::scene::SetTextureCommand;
+use crate::scene::{SetMeshTextureCommand, SetSpriteTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -1116,28 +1116,41 @@ impl Editor {
                                                         |_, _| true,
                                                     );
                                                     if handle.is_some() {
-                                                        if let Node::Mesh(_) = &mut engine.scenes
-                                                            [scene.scene]
-                                                            .graph[handle]
+                                                        if let Some(tex) = engine
+                                                            .resource_manager
+                                                            .lock()
+                                                            .unwrap()
+                                                            .request_texture(
+                                                                &item.path,
+                                                                TextureKind::RGBA8,
+                                                            )
                                                         {
-                                                            if let Some(tex) = engine
-                                                                .resource_manager
-                                                                .lock()
-                                                                .unwrap()
-                                                                .request_texture(
-                                                                    &item.path,
-                                                                    TextureKind::RGBA8,
-                                                                )
+                                                            match &mut engine.scenes[scene.scene]
+                                                                .graph[handle]
                                                             {
-                                                                self.message_sender
-                                                                    .send(Message::DoSceneCommand(
-                                                                        SceneCommand::SetTexture(
-                                                                            SetTextureCommand::new(
-                                                                                handle, tex,
+                                                                Node::Mesh(_) => {
+                                                                    self.message_sender
+                                                                        .send(Message::DoSceneCommand(
+                                                                            SceneCommand::SetMeshTexture(
+                                                                                SetMeshTextureCommand::new(
+                                                                                    handle, tex,
+                                                                                ),
                                                                             ),
-                                                                        ),
-                                                                    ))
-                                                                    .unwrap();
+                                                                        ))
+                                                                        .unwrap();
+                                                                }
+                                                                Node::Sprite(_) => {
+                                                                    self.message_sender
+                                                                        .send(Message::DoSceneCommand(
+                                                                            SceneCommand::SetSpriteTexture(
+                                                                                SetSpriteTextureCommand::new(
+                                                                                    handle, Some(tex),
+                                                                                ),
+                                                                            ),
+                                                                        ))
+                                                                        .unwrap();
+                                                                }
+                                                                _ => {}
                                                             }
                                                         }
                                                     }

@@ -55,7 +55,8 @@ pub enum SceneCommand {
     SetSpriteSize(SetSpriteSizeCommand),
     SetSpriteRotation(SetSpriteRotationCommand),
     SetSpriteColor(SetSpriteColorCommand),
-    SetTexture(SetTextureCommand),
+    SetSpriteTexture(SetSpriteTextureCommand),
+    SetMeshTexture(SetMeshTextureCommand),
 }
 
 pub struct SceneContext<'a> {
@@ -96,7 +97,8 @@ macro_rules! static_dispatch {
             SceneCommand::SetSpriteSize(v) => v.$func($($args),*),
             SceneCommand::SetSpriteRotation(v) => v.$func($($args),*),
             SceneCommand::SetSpriteColor(v) => v.$func($($args),*),
-            SceneCommand::SetTexture(v) => v.$func($($args),*),
+            SceneCommand::SetSpriteTexture(v) => v.$func($($args),*),
+            SceneCommand::SetMeshTexture(v) => v.$func($($args),*),
         }
     };
 }
@@ -715,12 +717,12 @@ enum TextureSet {
 }
 
 #[derive(Debug)]
-pub struct SetTextureCommand {
+pub struct SetMeshTextureCommand {
     node: Handle<Node>,
     set: TextureSet,
 }
 
-impl SetTextureCommand {
+impl SetMeshTextureCommand {
     pub fn new(node: Handle<Node>, texture: Arc<Mutex<Texture>>) -> Self {
         Self {
             node,
@@ -729,7 +731,7 @@ impl SetTextureCommand {
     }
 }
 
-impl<'a> Command<'a> for SetTextureCommand {
+impl<'a> Command<'a> for SetMeshTextureCommand {
     type Context = SceneContext<'a>;
 
     fn name(&self, _context: &Self::Context) -> String {
@@ -884,6 +886,13 @@ define_simple_command!(SetSpriteColorCommand, "Set Sprite Color", Color => |this
     let node = graph[this.handle].as_sprite_mut();
     let old = node.color();
     node.set_color(this.value);
+    this.value = old;
+});
+
+define_simple_command!(SetSpriteTextureCommand, "Set Sprite Texture", Option<Arc<Mutex<Texture>>> => |this: &mut SetSpriteTextureCommand, graph: &mut Graph| {
+    let node = graph[this.handle].as_sprite_mut();
+    let old = node.texture();
+    node.set_texture(this.value.clone());
     this.value = old;
 });
 
