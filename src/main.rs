@@ -19,6 +19,7 @@ pub mod sidebar;
 pub mod world_outliner;
 
 use crate::log::Log;
+use crate::scene::SetTextureCommand;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -918,18 +919,19 @@ impl Editor {
             self.world_outliner
                 .handle_ui_message(message, &editor_scene, engine);
 
-            let ui = &mut engine.user_interface;
-
             self.preview.handle_ui_message(message);
 
             if message.destination() == self.preview.frame {
                 match &message.data() {
                     UiMessageData::Widget(msg) => match msg {
                         &WidgetMessage::MouseDown { button, pos, .. } => {
-                            ui.capture_mouse(self.preview.frame);
+                            engine.user_interface.capture_mouse(self.preview.frame);
                             if button == MouseButton::Left {
                                 if let Some(current_im) = self.current_interaction_mode {
-                                    let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                                    let screen_bounds = engine
+                                        .user_interface
+                                        .node(self.preview.frame)
+                                        .screen_bounds();
                                     let rel_pos =
                                         Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
 
@@ -947,12 +949,15 @@ impl Editor {
                             self.camera_controller.on_mouse_button_down(button);
                         }
                         &WidgetMessage::MouseUp { button, pos, .. } => {
-                            ui.release_mouse_capture();
+                            engine.user_interface.release_mouse_capture();
 
                             if button == MouseButton::Left {
                                 self.preview.click_mouse_pos = None;
                                 if let Some(current_im) = self.current_interaction_mode {
-                                    let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                                    let screen_bounds = engine
+                                        .user_interface
+                                        .node(self.preview.frame)
+                                        .screen_bounds();
                                     let rel_pos =
                                         Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
                                     self.interaction_modes[current_im as usize]
@@ -974,7 +979,10 @@ impl Editor {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
                             let mouse_offset = pos - last_pos;
                             self.camera_controller.on_mouse_move(mouse_offset);
-                            let screen_bounds = ui.node(self.preview.frame).screen_bounds();
+                            let screen_bounds = engine
+                                .user_interface
+                                .node(self.preview.frame)
+                                .screen_bounds();
                             let rel_pos =
                                 Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
 
@@ -996,14 +1004,14 @@ impl Editor {
                             self.camera_controller.on_key_down(key);
                             match key {
                                 KeyCode::Y => {
-                                    if ui.keyboard_modifiers().control {
+                                    if engine.user_interface.keyboard_modifiers().control {
                                         self.message_sender
                                             .send(Message::RedoSceneCommand)
                                             .unwrap();
                                     }
                                 }
                                 KeyCode::Z => {
-                                    if ui.keyboard_modifiers().control {
+                                    if engine.user_interface.keyboard_modifiers().control {
                                         self.message_sender
                                             .send(Message::UndoSceneCommand)
                                             .unwrap();
@@ -1022,7 +1030,7 @@ impl Editor {
                                 KeyCode::Key4 => self
                                     .set_interaction_mode(Some(InteractionModeKind::Scale), engine),
                                 KeyCode::L => {
-                                    if ui.keyboard_modifiers().control {
+                                    if engine.user_interface.keyboard_modifiers().control {
                                         /*
                                         self.message_sender
                                             .send(Message::LoadScene(SCENE_PATH.into()))
@@ -1057,33 +1065,85 @@ impl Editor {
                         }
                         &WidgetMessage::Drop(handle) => {
                             if handle.is_some() {
-                                if let UiNode::User(u) = ui.node(handle) {
+                                if let UiNode::User(u) = engine.user_interface.node(handle) {
                                     if let EditorUiNode::AssetItem(item) = u {
-                                        if let AssetKind::Model = item.kind {
-                                            // Make sure all resources loaded with relative paths only.
-                                            // This will make scenes portable.
-                                            let relative_path = item
-                                                .path
-                                                .clone()
-                                                .canonicalize()
-                                                .unwrap()
-                                                .strip_prefix(
-                                                    std::env::current_dir()
-                                                        .unwrap()
-                                                        .canonicalize()
-                                                        .unwrap(),
-                                                )
-                                                .unwrap()
-                                                .to_owned();
+                                        match item.kind {
+                                            AssetKind::Model => {
+                                                dbg!();
 
-                                            // Import model.
-                                            self.message_sender
-                                                .send(Message::DoSceneCommand(
-                                                    SceneCommand::LoadModel(LoadModelCommand::new(
-                                                        relative_path,
-                                                    )),
-                                                ))
-                                                .unwrap();
+                                                // Make sure all resources loaded with relative paths only.
+                                                // This will make scenes portable.
+                                                let relative_path = item
+                                                    .path
+                                                    .clone()
+                                                    .canonicalize()
+                                                    .unwrap()
+                                                    .strip_prefix(
+                                                        std::env::current_dir()
+                                                            .unwrap()
+                                                            .canonicalize()
+                                                            .unwrap(),
+                                                    )
+                                                    .unwrap()
+                                                    .to_owned();
+
+                                                // Import model.
+                                                self.message_sender
+                                                    .send(Message::DoSceneCommand(
+                                                        SceneCommand::LoadModel(
+                                                            LoadModelCommand::new(relative_path),
+                                                        ),
+                                                    ))
+                                                    .unwrap();
+                                            }
+                                            AssetKind::Texture => {
+                                                if let Some(scene) = self.scene.as_ref() {
+                                                    let cursor_pos =
+                                                        engine.user_interface.cursor_position();
+                                                    let screen_bounds = engine
+                                                        .user_interface
+                                                        .node(self.preview.frame)
+                                                        .screen_bounds();
+                                                    let rel_pos = Vec2::new(
+                                                        cursor_pos.x - screen_bounds.x,
+                                                        cursor_pos.y - screen_bounds.y,
+                                                    );
+                                                    let handle = self.camera_controller.pick(
+                                                        rel_pos,
+                                                        scene,
+                                                        engine,
+                                                        false,
+                                                        |_, _| true,
+                                                    );
+                                                    if handle.is_some() {
+                                                        if let Node::Mesh(_) = &mut engine.scenes
+                                                            [scene.scene]
+                                                            .graph[handle]
+                                                        {
+                                                            if let Some(tex) = engine
+                                                                .resource_manager
+                                                                .lock()
+                                                                .unwrap()
+                                                                .request_texture(
+                                                                    &item.path,
+                                                                    TextureKind::RGBA8,
+                                                                )
+                                                            {
+                                                                self.message_sender
+                                                                    .send(Message::DoSceneCommand(
+                                                                        SceneCommand::SetTexture(
+                                                                            SetTextureCommand::new(
+                                                                                handle, tex,
+                                                                            ),
+                                                                        ),
+                                                                    ))
+                                                                    .unwrap();
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            _ => {}
                                         }
                                     }
                                 }

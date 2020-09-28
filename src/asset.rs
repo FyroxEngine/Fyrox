@@ -311,8 +311,10 @@ impl AssetBrowser {
                             if let EditorUiNode::AssetItem(item) =
                                 ui.node(message.destination()).as_user()
                             {
-                                let path = item.path.clone();
-                                self.preview.set_model(&path, engine);
+                                if item.kind == AssetKind::Model {
+                                    let path = item.path.clone();
+                                    self.preview.set_model(&path, engine);
+                                }
                             }
                         }
                     }

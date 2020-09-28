@@ -606,12 +606,14 @@ impl ScaleGizmo {
         let origin = graph.add_node(Node::Mesh(
             MeshBuilder::new(
                 BaseBuilder::new()
+                    .with_depth_offset(0.5)
                     .with_name("Origin")
                     .with_visibility(false),
             )
             .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
                 SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(0.1, 0.1, 0.1))),
             )))
+            .with_color(Color::opaque(0, 255, 255))
             .build()])
             .build(),
         ));
@@ -656,7 +658,9 @@ impl ScaleGizmo {
         self.mode = mode;
 
         // Restore initial colors first.
-        graph[self.origin].as_mesh_mut().set_color(Color::WHITE);
+        graph[self.origin]
+            .as_mesh_mut()
+            .set_color(Color::opaque(0, 255, 255));
         graph[self.x_axis].as_mesh_mut().set_color(Color::RED);
         graph[self.x_arrow].as_mesh_mut().set_color(Color::RED);
         graph[self.y_axis].as_mesh_mut().set_color(Color::GREEN);
@@ -969,7 +973,7 @@ fn make_rotation_ribbon(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
-    graph.add_node(Node::Mesh(
+    graph.add_node(
         MeshBuilder::new(
             BaseBuilder::new()
                 .with_name(name)
@@ -991,8 +995,8 @@ fn make_rotation_ribbon(
         )))
         .with_color(color)
         .build()])
-        .build(),
-    ))
+        .build_node(),
+    )
 }
 
 impl RotationGizmo {
@@ -1000,7 +1004,7 @@ impl RotationGizmo {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
-        let origin = graph.add_node(Node::Mesh(
+        let origin = graph.add_node(
             MeshBuilder::new(
                 BaseBuilder::new()
                     .with_name("Origin")
@@ -1012,8 +1016,8 @@ impl RotationGizmo {
             )))
             .with_color(Color::opaque(100, 100, 100))
             .build()])
-            .build(),
-        ));
+            .build_node(),
+        );
 
         graph.link_nodes(origin, editor_scene.root);
 
