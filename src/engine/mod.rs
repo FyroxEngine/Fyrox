@@ -14,17 +14,17 @@ use crate::{
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::{Control, UserInterface},
-    renderer::{error::RendererError, Renderer},
+    renderer::{error::RendererError, QualitySettings, Renderer},
     scene::SceneContainer,
     sound::context::Context,
     window::{Window, WindowBuilder},
     Api, GlProfile, GlRequest, NotCurrent, PossiblyCurrent, WindowedContext,
 };
+use rg3d_ui::message::MessageData;
 use std::{
     sync::{Arc, Mutex},
     time::{self, Duration},
 };
-use rg3d_ui::message::MessageData;
 
 /// See module docs.
 pub struct Engine<M: MessageData, C: Control<M, C>> {
@@ -75,6 +75,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     pub fn new(
         window_builder: WindowBuilder,
         events_loop: &EventLoop<()>,
+        settings: QualitySettings,
     ) -> Result<Engine<M, C>, EngineError> {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
@@ -90,7 +91,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         let client_size = context.window().inner_size();
 
         Ok(Engine {
-            renderer: Renderer::new(&mut context, client_size.into())?,
+            renderer: Renderer::new(&mut context, client_size.into(), settings)?,
             resource_manager: Arc::new(Mutex::new(ResourceManager::new())),
             sound_context: Context::new()?,
             scenes: SceneContainer::new(),

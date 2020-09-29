@@ -45,6 +45,8 @@ extern crate image;
 extern crate inflate;
 extern crate lexical;
 extern crate rand;
+#[cfg(feature = "serde_integration")]
+extern crate serde;
 #[macro_use]
 extern crate lazy_static;
 

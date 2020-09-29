@@ -66,6 +66,8 @@ use crate::{
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
+#[cfg(feature = "serde_integration")]
+use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -132,7 +134,8 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+#[cfg_attr(feature = "serde_integration", derive(Serialize, Deserialize))]
 pub struct QualitySettings {
     /// Point shadows
     /// Size of cube map face of shadow map texture in pixels.
@@ -404,10 +407,10 @@ impl Renderer {
     pub(in crate) fn new(
         context: &mut glutin::WindowedContext<PossiblyCurrent>,
         frame_size: (u32, u32),
+        settings: QualitySettings,
     ) -> Result<Self, RendererError> {
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
-        let settings = QualitySettings::default();
         let mut state = State::new();
 
         Ok(Self {
