@@ -59,6 +59,7 @@ pub struct Menu {
     asset_browser: Handle<UiNode>,
     open_settings: Handle<UiNode>,
     configure: Handle<UiNode>,
+    light_panel: Handle<UiNode>,
     settings: Settings,
     configure_message: Handle<UiNode>,
 }
@@ -70,14 +71,15 @@ pub struct MenuContext<'a, 'b> {
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,
     pub configurator_window: Handle<UiNode>,
+    pub light_panel: Handle<UiNode>,
 }
 
-fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui) {
+fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
     let current_state = ui.node(window).visibility();
     ui.send_message(if current_state {
         WindowMessage::close(window, MessageDirection::ToWidget)
     } else {
-        WindowMessage::open(window, MessageDirection::ToWidget, false)
+        WindowMessage::open(window, MessageDirection::ToWidget, center)
     })
 }
 
@@ -106,6 +108,7 @@ impl Menu {
         let world_outliner;
         let open_settings;
         let configure;
+        let light_panel;
         let ctx = &mut engine.user_interface.build_ctx();
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
@@ -326,6 +329,13 @@ impl Menu {
                                     .build(ctx);
                             world_outliner
                         },
+                        {
+                            light_panel =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Light Panel"))
+                                    .build(ctx);
+                            light_panel
+                        },
                     ])
                     .build(ctx),
             ])
@@ -370,6 +380,7 @@ impl Menu {
             open_settings,
             configure,
             configure_message,
+            light_panel,
         }
     }
 
@@ -573,14 +584,25 @@ impl Menu {
                     } else if message.destination() == self.new_scene {
                         self.message_sender.send(Message::NewScene).unwrap();
                     } else if message.destination() == self.asset_browser {
-                        switch_window_state(ctx.asset_window, &mut ctx.engine.user_interface);
+                        switch_window_state(
+                            ctx.asset_window,
+                            &mut ctx.engine.user_interface,
+                            false,
+                        );
+                    } else if message.destination() == self.light_panel {
+                        switch_window_state(ctx.light_panel, &mut ctx.engine.user_interface, true);
                     } else if message.destination() == self.world_outliner {
                         switch_window_state(
                             ctx.world_outliner_window,
                             &mut ctx.engine.user_interface,
+                            false,
                         );
                     } else if message.destination() == self.sidebar {
-                        switch_window_state(ctx.sidebar_window, &mut ctx.engine.user_interface);
+                        switch_window_state(
+                            ctx.sidebar_window,
+                            &mut ctx.engine.user_interface,
+                            false,
+                        );
                     } else if message.destination() == self.open_settings {
                         ctx.engine
                             .user_interface

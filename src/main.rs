@@ -10,6 +10,7 @@ pub mod camera;
 pub mod command;
 pub mod gui;
 pub mod interaction;
+pub mod light;
 pub mod log;
 pub mod menu;
 pub mod preview;
@@ -18,6 +19,7 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::light::LightPanel;
 use crate::log::Log;
 use crate::scene::{SetMeshTextureCommand, SetSpriteTextureCommand};
 use crate::{
@@ -674,6 +676,7 @@ struct Editor {
     asset_browser: AssetBrowser,
     exit_message_box: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
+    light_panel: LightPanel,
     menu: Menu,
     exit: bool,
     configurator: Configurator,
@@ -714,6 +717,7 @@ impl Editor {
         let preview = ScenePreview::new(engine, &editor_scene, message_sender.clone());
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone());
+        let light_panel = LightPanel::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
         let node_editor = SideBar::new(ctx, message_sender.clone());
@@ -819,6 +823,7 @@ impl Editor {
             save_file_selector,
             configurator,
             log,
+            light_panel,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move), engine);
@@ -906,6 +911,7 @@ impl Editor {
                 world_outliner_window: self.world_outliner.window,
                 asset_window: self.asset_browser.window,
                 configurator_window: self.configurator.window,
+                light_panel: self.light_panel.window,
             },
         );
 
@@ -917,6 +923,9 @@ impl Editor {
                 .handle_ui_message(message, editor_scene, engine);
 
             self.world_outliner
+                .handle_ui_message(message, &editor_scene, engine);
+
+            self.light_panel
                 .handle_ui_message(message, &editor_scene, engine);
 
             self.preview.handle_ui_message(message);
