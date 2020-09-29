@@ -21,8 +21,8 @@ void main()
     TBlinnPhongContext ctx;
     ctx.lightPosition = lightPos;
     ctx.lightRadius = lightRadius;
-    ctx.fragmentNormal = normalize(texture2D(normalTexture, texCoord).xyz * 2.0 - 1.0);
-    ctx.fragmentPosition = S_UnProject(vec3(texCoord, texture2D(depthTexture, texCoord).r), invViewProj);
+    ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
+    ctx.fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
     ctx.cameraPosition = cameraPosition;
     ctx.specularPower = 80.0;
     TBlinnPhong lighting = S_BlinnPhong(ctx);
@@ -69,7 +69,7 @@ void main()
         }
     }
 
-    FragColor = texture2D(colorTexture, texCoord);
+    FragColor = texture(colorTexture, texCoord);
     FragColor.xyz += 0.4 * lighting.specular;
     FragColor *= lighting.attenuation * shadow * lightColor;
 }

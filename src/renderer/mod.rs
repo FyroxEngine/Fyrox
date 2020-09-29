@@ -189,6 +189,88 @@ impl Default for QualitySettings {
     }
 }
 
+impl QualitySettings {
+    /// Highest possible graphics quality. Requires very powerful GPU.
+    pub fn ultra() -> Self {
+        Self {
+            point_shadow_map_size: 2048,
+            point_shadows_distance: 20.0,
+            point_shadows_enabled: true,
+            point_soft_shadows: true,
+
+            spot_shadow_map_size: 2048,
+            spot_shadows_distance: 20.0,
+            spot_shadows_enabled: true,
+            spot_soft_shadows: true,
+
+            use_ssao: true,
+            ssao_radius: 0.5,
+
+            light_scatter_enabled: true,
+        }
+    }
+
+    /// High graphics quality, includes all graphical effects. Requires powerful GPU.
+    pub fn high() -> Self {
+        Self {
+            point_shadow_map_size: 1024,
+            point_shadows_distance: 15.0,
+            point_shadows_enabled: true,
+            point_soft_shadows: true,
+
+            spot_shadow_map_size: 1024,
+            spot_shadows_distance: 15.0,
+            spot_shadows_enabled: true,
+            spot_soft_shadows: true,
+
+            use_ssao: true,
+            ssao_radius: 0.5,
+
+            light_scatter_enabled: true,
+        }
+    }
+
+    /// Medium graphics quality, some of effects are disabled, shadows will have sharp edges.
+    pub fn medium() -> Self {
+        Self {
+            point_shadow_map_size: 512,
+            point_shadows_distance: 5.0,
+            point_shadows_enabled: true,
+            point_soft_shadows: false,
+
+            spot_shadow_map_size: 512,
+            spot_shadows_distance: 5.0,
+            spot_shadows_enabled: true,
+            spot_soft_shadows: false,
+
+            use_ssao: true,
+            ssao_radius: 0.5,
+
+            light_scatter_enabled: false,
+        }
+    }
+
+    /// Lowest graphics quality, all effects are disabled.
+    pub fn low() -> Self {
+        Self {
+            point_shadow_map_size: 1, // Zero is unsupported.
+            point_shadows_distance: 0.0,
+            point_shadows_enabled: false,
+            point_soft_shadows: false,
+
+            spot_shadow_map_size: 1,
+            spot_shadows_distance: 0.0,
+            spot_shadows_enabled: false,
+            spot_soft_shadows: false,
+
+            use_ssao: false,
+            ssao_radius: 0.5,
+
+            light_scatter_enabled: false,
+        }
+    }
+}
+
 impl Statistics {
     /// Must be called before render anything.
     fn begin_frame(&mut self) {
@@ -333,6 +415,8 @@ impl GeometryCache {
     }
 
     fn update(&mut self, dt: f32) {
+        scope_profile!();
+
         for entry in self.map.values_mut() {
             entry.time_to_live -= dt;
         }
@@ -392,6 +476,8 @@ impl TextureCache {
     }
 
     fn update(&mut self, dt: f32) {
+        scope_profile!();
+
         for entry in self.map.values_mut() {
             entry.time_to_live -= dt;
         }
@@ -588,13 +674,15 @@ impl Renderer {
                 //  pipeline.
                 if let Some(rt) = scene.render_target.clone() {
                     let key = (&*rt as *const _) as usize;
-                    self.texture_cache.map.insert(
-                        key,
-                        TimedEntry {
-                            value: gbuffer.frame_texture(),
-                            time_to_live: std::f32::INFINITY,
-                        },
-                    );
+                    if !self.texture_cache.map.contains_key(&key) {
+                        self.texture_cache.map.insert(
+                            key,
+                            TimedEntry {
+                                value: gbuffer.frame_texture(),
+                                time_to_live: std::f32::INFINITY,
+                            },
+                        );
+                    }
 
                     // Make sure to sync texture info with actual render target.
                     if let Ok(mut rt) = rt.lock() {

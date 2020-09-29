@@ -85,8 +85,8 @@ impl Sprite {
     }
 
     /// Sets new texture for sprite.
-    pub fn set_texture(&mut self, texture: Arc<Mutex<Texture>>) {
-        self.texture = Some(texture);
+    pub fn set_texture(&mut self, texture: Option<Arc<Mutex<Texture>>>) {
+        self.texture = texture;
     }
 
     /// Returns current texture of sprite. Can be None if sprite has

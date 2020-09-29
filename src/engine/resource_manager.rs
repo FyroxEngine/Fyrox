@@ -96,7 +96,7 @@ impl ResourceManager {
     /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
     pub const MAX_RESOURCE_TTL: f32 = 20.0;
 
-    pub(in crate::engine) fn new() -> ResourceManager {
+    pub(in crate::engine) fn new() -> Self {
         Self {
             textures: Vec::new(),
             models: Vec::new(),
@@ -337,6 +337,16 @@ impl ResourceManager {
     #[inline]
     pub fn set_textures_path<P: AsRef<Path>>(&mut self, path: P) {
         self.textures_path = path.as_ref().to_owned();
+    }
+
+    /// Immediately destroys all unused resources.
+    pub fn purge_unused_resources(&mut self) {
+        self.sound_buffers
+            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+        self.models
+            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+        self.textures
+            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
     }
 
     fn update_textures(&mut self, dt: f32) {

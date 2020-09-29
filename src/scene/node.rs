@@ -85,7 +85,7 @@ impl DerefMut for Node {
 
 impl Default for Node {
     fn default() -> Self {
-        Node::Base(Default::default())
+        Self::Base(Default::default())
     }
 }
 
@@ -93,12 +93,12 @@ impl Node {
     /// Creates new Node based on variant id.
     pub fn from_id(id: u8) -> Result<Self, String> {
         match id {
-            0 => Ok(Node::Base(Default::default())),
-            1 => Ok(Node::Light(Default::default())),
-            2 => Ok(Node::Camera(Default::default())),
-            3 => Ok(Node::Mesh(Default::default())),
-            4 => Ok(Node::Sprite(Default::default())),
-            5 => Ok(Node::ParticleSystem(Default::default())),
+            0 => Ok(Self::Base(Default::default())),
+            1 => Ok(Self::Light(Default::default())),
+            2 => Ok(Self::Camera(Default::default())),
+            3 => Ok(Self::Mesh(Default::default())),
+            4 => Ok(Self::Sprite(Default::default())),
+            5 => Ok(Self::ParticleSystem(Default::default())),
             _ => Err(format!("Invalid node kind {}", id)),
         }
     }
@@ -106,12 +106,12 @@ impl Node {
     /// Returns actual variant id.
     pub fn id(&self) -> u8 {
         match self {
-            Node::Base(_) => 0,
-            Node::Light(_) => 1,
-            Node::Camera(_) => 2,
-            Node::Mesh(_) => 3,
-            Node::Sprite(_) => 4,
-            Node::ParticleSystem(_) => 5,
+            Self::Base(_) => 0,
+            Self::Light(_) => 1,
+            Self::Camera(_) => 2,
+            Self::Mesh(_) => 3,
+            Self::Sprite(_) => 4,
+            Self::ParticleSystem(_) => 5,
         }
     }
 

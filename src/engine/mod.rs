@@ -76,7 +76,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
         window_builder: WindowBuilder,
         events_loop: &EventLoop<()>,
         settings: QualitySettings,
-    ) -> Result<Engine<M, C>, EngineError> {
+    ) -> Result<Self, EngineError> {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
             .with_vsync(true)
             .with_gl_profile(GlProfile::Core)
@@ -90,7 +90,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
 
         let client_size = context.window().inner_size();
 
-        Ok(Engine {
+        Ok(Self {
             renderer: Renderer::new(&mut context, client_size.into(), settings)?,
             resource_manager: Arc::new(Mutex::new(ResourceManager::new())),
             sound_context: Context::new()?,

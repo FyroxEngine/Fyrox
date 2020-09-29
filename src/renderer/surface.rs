@@ -80,13 +80,8 @@ impl Vertex {
             tex_coord,
             second_tex_coord: Default::default(),
             normal: Vec3::new(0.0, 1.0, 0.0),
-            tangent: Vec4 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-                w: 0.0,
-            },
-            bone_weights: [0.0, 0.0, 0.0, 0.0],
+            tangent: Vec4::ZERO,
+            bone_weights: [0.0; 4],
             bone_indices: Default::default(),
         }
     }
@@ -252,47 +247,21 @@ impl SurfaceSharedData {
     pub fn make_unit_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::ZERO,
+                normal: Vec3::Z,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::X,
+                normal: Vec3::Z,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -301,42 +270,20 @@ impl SurfaceSharedData {
                     y: 1.0,
                     z: 0.0,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::Y,
+                normal: Vec3::Z,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
         ];
@@ -352,91 +299,39 @@ impl SurfaceSharedData {
     pub fn make_collapsed_xy_quad() -> Self {
         let vertices = vec![
             Vertex {
-                position: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::ZERO,
+                normal: Vec3::Z,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::ZERO,
+                normal: Vec3::Z,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::ZERO,
+                normal: Vec3::Z,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
-                position: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                position: Vec3::ZERO,
+                normal: Vec3::Z,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
         ];
@@ -455,20 +350,11 @@ impl SurfaceSharedData {
                     y: 0.0,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -477,20 +363,11 @@ impl SurfaceSharedData {
                     y: 0.0,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -499,20 +376,11 @@ impl SurfaceSharedData {
                     y: 0.0,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -521,20 +389,11 @@ impl SurfaceSharedData {
                     y: 0.0,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
         ];
@@ -657,8 +516,8 @@ impl SurfaceSharedData {
 
             // back cap
             builder.insert(Vertex::from_pos_uv(
-                transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)),
-                Vec2::new(0.0, 0.0),
+                transform.transform_vector(Vec3::ZERO),
+                Vec2::ZERO,
             ));
             builder.insert(Vertex::from_pos_uv(
                 transform.transform_vector(Vec3::new(x0, 0.0, z0)),
@@ -722,7 +581,7 @@ impl SurfaceSharedData {
                 ));
                 builder.insert(Vertex::from_pos_uv(
                     transform.transform_vector(Vec3::new(0.0, h, 0.0)),
-                    Vec2::new(0.0, 0.0),
+                    Vec2::ZERO,
                 ));
 
                 // back cap
@@ -735,8 +594,8 @@ impl SurfaceSharedData {
                     Vec2::new(tx0, 1.0),
                 ));
                 builder.insert(Vertex::from_pos_uv(
-                    transform.transform_vector(Vec3::new(0.0, 0.0, 0.0)),
-                    Vec2::new(0.0, 0.0),
+                    transform.transform_vector(Vec3::ZERO),
+                    Vec2::ZERO,
                 ));
             }
 
@@ -784,20 +643,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -806,20 +656,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -828,20 +669,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -850,20 +682,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Z,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Back
@@ -873,20 +696,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: -1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Z,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -895,20 +709,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: -1.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Z,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -917,20 +722,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: -1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Z,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -939,20 +735,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: -1.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Z,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Left
@@ -962,20 +749,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: -1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::X,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -984,20 +762,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: -1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::X,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1006,20 +775,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: -1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::X,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1028,20 +788,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: -1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::X,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Right
@@ -1051,20 +802,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::X,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1073,20 +815,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::X,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1095,20 +828,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::X,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1117,20 +841,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 1.0,
-                    y: 0.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::X,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Top
@@ -1140,20 +855,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Y,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1162,20 +868,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Y,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1184,20 +881,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Y,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1206,20 +894,11 @@ impl SurfaceSharedData {
                     y: 0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: Vec3::Y,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             // Bottom
@@ -1229,20 +908,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Y,
+                tex_coord: Vec2::ZERO,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1251,20 +921,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 0.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Y,
+                tex_coord: Vec2::Y,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1273,20 +934,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: -0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 1.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Y,
+                tex_coord: Vec2::UNIT,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
             Vertex {
@@ -1295,20 +947,11 @@ impl SurfaceSharedData {
                     y: -0.5,
                     z: 0.5,
                 },
-                normal: Vec3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
-                tex_coord: Vec2 { x: 1.0, y: 0.0 },
-                tangent: Vec4 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 0.0,
-                    w: 0.0,
-                },
-                bone_weights: [0.0, 0.0, 0.0, 0.0],
-                bone_indices: [0, 0, 0, 0],
+                normal: -Vec3::Y,
+                tex_coord: Vec2::X,
+                tangent: Vec4::ZERO,
+                bone_weights: [0.0; 4],
+                bone_indices: [0; 4],
                 second_tex_coord: Default::default(),
             },
         ];
@@ -1474,7 +1117,7 @@ pub struct Surface {
 /// to use this clone to clone surfaces.
 impl Clone for Surface {
     fn clone(&self) -> Self {
-        Surface {
+        Self {
             data: self.data.clone(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
@@ -1509,8 +1152,8 @@ impl Surface {
 
     /// Sets new diffuse texture.
     #[inline]
-    pub fn set_diffuse_texture(&mut self, tex: Arc<Mutex<Texture>>) {
-        self.diffuse_texture = Some(tex);
+    pub fn set_diffuse_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+        self.diffuse_texture = tex;
     }
 
     /// Returns current diffuse texture.
@@ -1521,8 +1164,8 @@ impl Surface {
 
     /// Sets new normal map texture.
     #[inline]
-    pub fn set_normal_texture(&mut self, tex: Arc<Mutex<Texture>>) {
-        self.normal_texture = Some(tex);
+    pub fn set_normal_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+        self.normal_texture = tex;
     }
 
     /// Returns current normal map texture.
@@ -1533,8 +1176,8 @@ impl Surface {
 
     /// Sets new lightmap texture.
     #[inline]
-    pub fn set_lightmap_texture(&mut self, tex: Arc<Mutex<Texture>>) {
-        self.lightmap_texture = Some(tex);
+    pub fn set_lightmap_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+        self.lightmap_texture = tex;
     }
 
     /// Returns lightmap texture.

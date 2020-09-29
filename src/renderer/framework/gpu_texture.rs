@@ -35,10 +35,10 @@ pub enum GpuTextureKind {
 impl GpuTextureKind {
     fn to_texture_target(&self) -> GLuint {
         match self {
-            GpuTextureKind::Line { .. } => gl::TEXTURE_1D,
-            GpuTextureKind::Rectangle { .. } => gl::TEXTURE_2D,
-            GpuTextureKind::Cube { .. } => gl::TEXTURE_CUBE_MAP,
-            GpuTextureKind::Volume { .. } => gl::TEXTURE_3D,
+            Self::Line { .. } => gl::TEXTURE_1D,
+            Self::Rectangle { .. } => gl::TEXTURE_2D,
+            Self::Cube { .. } => gl::TEXTURE_CUBE_MAP,
+            Self::Volume { .. } => gl::TEXTURE_3D,
         }
     }
 }
@@ -57,9 +57,9 @@ pub enum PixelKind {
 impl From<TextureKind> for PixelKind {
     fn from(texture_kind: TextureKind) -> Self {
         match texture_kind {
-            TextureKind::R8 => PixelKind::R8,
-            TextureKind::RGB8 => PixelKind::RGB8,
-            TextureKind::RGBA8 => PixelKind::RGBA8,
+            TextureKind::R8 => Self::R8,
+            TextureKind::RGB8 => Self::RGB8,
+            TextureKind::RGBA8 => Self::RGBA8,
         }
     }
 }
@@ -74,22 +74,18 @@ pub struct GpuTexture {
 impl PixelKind {
     fn size_bytes(self) -> usize {
         match self {
-            PixelKind::RGBA8 | PixelKind::D24S8 | PixelKind::D32 | PixelKind::F32 => 4,
-            PixelKind::RGB8 => 3,
-            PixelKind::RG8 => 2,
-            PixelKind::R8 => 1,
+            Self::RGBA8 | Self::D24S8 | Self::D32 | Self::F32 => 4,
+            Self::RGB8 => 3,
+            Self::RG8 => 2,
+            Self::R8 => 1,
         }
     }
 
     fn unpack_alignment(self) -> i32 {
         match self {
-            PixelKind::RGBA8
-            | PixelKind::RGB8
-            | PixelKind::D24S8
-            | PixelKind::D32
-            | PixelKind::F32 => 4,
-            PixelKind::RG8 => 2,
-            PixelKind::R8 => 1,
+            Self::RGBA8 | Self::RGB8 | Self::D24S8 | Self::D32 | Self::F32 => 4,
+            Self::RG8 => 2,
+            Self::R8 => 1,
         }
     }
 }
@@ -103,8 +99,8 @@ pub enum MagnificationFilter {
 impl MagnificationFilter {
     pub fn into_gl_value(self) -> i32 {
         (match self {
-            MagnificationFilter::Nearest => gl::NEAREST,
-            MagnificationFilter::Linear => gl::LINEAR,
+            Self::Nearest => gl::NEAREST,
+            Self::Linear => gl::LINEAR,
         }) as i32
     }
 }
@@ -119,9 +115,9 @@ pub enum MininificationFilter {
 impl MininificationFilter {
     pub fn into_gl_value(self) -> i32 {
         (match self {
-            MininificationFilter::Nearest => gl::NEAREST,
-            MininificationFilter::Linear => gl::LINEAR,
-            MininificationFilter::LinearMip => gl::LINEAR_MIPMAP_LINEAR,
+            Self::Nearest => gl::NEAREST,
+            Self::Linear => gl::LINEAR,
+            Self::LinearMip => gl::LINEAR_MIPMAP_LINEAR,
         }) as i32
     }
 }
@@ -136,9 +132,9 @@ pub enum WrapMode {
 impl WrapMode {
     pub fn into_gl_value(self) -> i32 {
         (match self {
-            WrapMode::Repeat => gl::REPEAT,
-            WrapMode::ClampToEdge => gl::CLAMP_TO_EDGE,
-            WrapMode::ClampToBorder => gl::CLAMP_TO_BORDER,
+            Self::Repeat => gl::REPEAT,
+            Self::ClampToEdge => gl::CLAMP_TO_EDGE,
+            Self::ClampToBorder => gl::CLAMP_TO_BORDER,
         }) as i32
     }
 }
@@ -152,8 +148,8 @@ pub enum Coordinate {
 impl Coordinate {
     pub fn into_gl_value(self) -> u32 {
         match self {
-            Coordinate::S => gl::TEXTURE_WRAP_S,
-            Coordinate::T => gl::TEXTURE_WRAP_T,
+            Self::S => gl::TEXTURE_WRAP_S,
+            Self::T => gl::TEXTURE_WRAP_T,
         }
     }
 }
@@ -175,12 +171,12 @@ pub enum CubeMapFace {
 impl CubeMapFace {
     pub fn into_gl_value(self) -> u32 {
         match self {
-            CubeMapFace::PositiveX => gl::TEXTURE_CUBE_MAP_POSITIVE_X,
-            CubeMapFace::NegativeX => gl::TEXTURE_CUBE_MAP_NEGATIVE_X,
-            CubeMapFace::PositiveY => gl::TEXTURE_CUBE_MAP_POSITIVE_Y,
-            CubeMapFace::NegativeY => gl::TEXTURE_CUBE_MAP_NEGATIVE_Y,
-            CubeMapFace::PositiveZ => gl::TEXTURE_CUBE_MAP_POSITIVE_Z,
-            CubeMapFace::NegativeZ => gl::TEXTURE_CUBE_MAP_NEGATIVE_Z,
+            Self::PositiveX => gl::TEXTURE_CUBE_MAP_POSITIVE_X,
+            Self::NegativeX => gl::TEXTURE_CUBE_MAP_NEGATIVE_X,
+            Self::PositiveY => gl::TEXTURE_CUBE_MAP_POSITIVE_Y,
+            Self::NegativeY => gl::TEXTURE_CUBE_MAP_NEGATIVE_Y,
+            Self::PositiveZ => gl::TEXTURE_CUBE_MAP_POSITIVE_Z,
+            Self::NegativeZ => gl::TEXTURE_CUBE_MAP_NEGATIVE_Z,
         }
     }
 }

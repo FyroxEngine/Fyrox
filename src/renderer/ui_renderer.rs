@@ -7,7 +7,7 @@ use crate::{
     gui::{
         self,
         brush::Brush,
-        draw::{CommandKind, CommandTexture, DrawingContext},
+        draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
     },
     renderer::{
         error::RendererError,
@@ -32,7 +32,6 @@ use std::{
     rc::Rc,
     sync::{Arc, Mutex},
 };
-use rg3d_ui::draw::SharedTexture;
 
 struct UiShader {
     program: GpuProgram,
@@ -104,6 +103,10 @@ impl UiRenderer {
             AttributeDefinition {
                 kind: AttributeKind::Float2,
                 normalized: false,
+            },
+            AttributeDefinition {
+                kind: AttributeKind::UnsignedByte4,
+                normalized: true, // Make sure [0; 255] -> [0; 1]
             },
         ])?;
 

@@ -182,6 +182,12 @@ impl LightVolumeRenderer {
                     &[(self.flat_shader.wvp_matrix, UniformValue::Mat4(mvp))],
                 );
 
+                // Make sure to clean stencil buffer after drawing full screen quad.
+                state.set_stencil_op(StencilOp {
+                    zpass: gl::ZERO,
+                    ..Default::default()
+                });
+
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
@@ -279,6 +285,12 @@ impl LightVolumeRenderer {
                     &[(self.flat_shader.wvp_matrix, UniformValue::Mat4(mvp))],
                 );
 
+                // Make sure to clean stencil buffer after drawing full screen quad.
+                state.set_stencil_op(StencilOp {
+                    zpass: gl::ZERO,
+                    ..Default::default()
+                });
+
                 // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
                 // marked in stencil buffer. For distant lights it will be very low amount of pixels and
                 // so distant lights won't impact performance.
@@ -292,7 +304,7 @@ impl LightVolumeRenderer {
                         culling: false,
                         color_write: Default::default(),
                         depth_write: false,
-                        stencil_test: false,
+                        stencil_test: true,
                         depth_test: false,
                         blend: true,
                     },
