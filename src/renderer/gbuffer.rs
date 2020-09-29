@@ -72,6 +72,8 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
 
 impl GBuffer {
     pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+        scope_profile!();
+
         let mut depth_stencil_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
@@ -251,35 +253,20 @@ impl GBuffer {
                 };
                 let mvp = view_projection * world;
 
-                let diffuse_texture = if let Some(texture) = surface.diffuse_texture() {
-                    if let Some(texture) = texture_cache.get(state, texture) {
-                        texture
-                    } else {
-                        white_dummy.clone()
-                    }
-                } else {
-                    white_dummy.clone()
-                };
+                let diffuse_texture = surface
+                    .diffuse_texture()
+                    .and_then(|texture| texture_cache.get(state, texture))
+                    .unwrap_or(white_dummy.clone());
 
-                let normal_texture = if let Some(texture) = surface.normal_texture() {
-                    if let Some(texture) = texture_cache.get(state, texture) {
-                        texture
-                    } else {
-                        normal_dummy.clone()
-                    }
-                } else {
-                    normal_dummy.clone()
-                };
+                let normal_texture = surface
+                    .normal_texture()
+                    .and_then(|texture| texture_cache.get(state, texture))
+                    .unwrap_or(normal_dummy.clone());
 
-                let lightmap_texture = if let Some(texture) = surface.lightmap_texture() {
-                    if let Some(texture) = texture_cache.get(state, texture) {
-                        texture
-                    } else {
-                        white_dummy.clone()
-                    }
-                } else {
-                    white_dummy.clone()
-                };
+                let lightmap_texture = surface
+                    .lightmap_texture()
+                    .and_then(|texture| texture_cache.get(state, texture))
+                    .unwrap_or(white_dummy.clone());
 
                 statistics += self.framebuffer.draw(
                     geom_cache.get(state, &surface.data().lock().unwrap()),

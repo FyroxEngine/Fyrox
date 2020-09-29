@@ -835,6 +835,9 @@ fn main() {
                 // Run renderer at max speed - it is not tied to game code.
                 engine.render(fixed_timestep).unwrap();
             }
+            Event::LoopDestroyed => {
+                rg3d::core::profiler::print();
+            }
             Event::WindowEvent { event, .. } => {
                 match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
