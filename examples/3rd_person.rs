@@ -677,8 +677,8 @@ impl Default for InputController {
 
 fn fix_shadows_distance(mut quality: QualitySettings) -> QualitySettings {
     // Scale distance because game world has different scale.
-    quality.spot_shadows_distance *= 20.0;
-    quality.point_shadows_distance *= 20.0;
+    quality.spot_shadows_distance *= 2.0;
+    quality.point_shadows_distance *= 2.0;
     quality
 }
 

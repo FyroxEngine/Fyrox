@@ -13,7 +13,7 @@ use crate::{
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{
                 Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
-                MininificationFilter, PixelKind, WrapMode,
+                MinificationFilter, PixelKind, WrapMode,
             },
             state::{ColorMask, State},
         },
@@ -50,48 +50,79 @@ impl SpotShadowMapShader {
 
 pub struct SpotShadowMapRenderer {
     shader: SpotShadowMapShader,
-    framebuffer: FrameBuffer,
+    // Three "cascades" for various use cases:
+    //  0 - largest, for lights close to camera.
+    //  1 - medium, for lights with medium distance to camera.
+    //  2 - small, for farthest lights.
+    cascades: [FrameBuffer; 3],
     bone_matrices: Vec<Mat4>,
-    pub size: usize,
+    size: usize,
+}
+
+fn cascade_size(base_size: usize, cascade: usize) -> usize {
+    match cascade {
+        0 => base_size,
+        1 => base_size / 2,
+        2 => base_size / 4,
+        _ => unreachable!(),
+    }
 }
 
 impl SpotShadowMapRenderer {
     pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
-        let depth = {
-            let kind = GpuTextureKind::Rectangle {
-                width: size,
-                height: size,
+        fn make_cascade(state: &mut State, size: usize) -> Result<FrameBuffer, RendererError> {
+            let depth = {
+                let kind = GpuTextureKind::Rectangle {
+                    width: size,
+                    height: size,
+                };
+                let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
+                texture
+                    .bind_mut(state, 0)
+                    .set_magnification_filter(MagnificationFilter::Linear)
+                    .set_minification_filter(MinificationFilter::Linear)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
+                    .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
+                    .set_border_color(Color::WHITE);
+                texture
             };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
-            texture
-                .bind_mut(state, 0)
-                .set_magnification_filter(MagnificationFilter::Linear)
-                .set_minification_filter(MininificationFilter::Linear)
-                .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                .set_border_color(Color::WHITE);
-            texture
-        };
 
-        let framebuffer = FrameBuffer::new(
-            state,
-            Some(Attachment {
-                kind: AttachmentKind::Depth,
-                texture: Rc::new(RefCell::new(depth)),
-            }),
-            vec![],
-        )?;
+            FrameBuffer::new(
+                state,
+                Some(Attachment {
+                    kind: AttachmentKind::Depth,
+                    texture: Rc::new(RefCell::new(depth)),
+                }),
+                vec![],
+            )
+        }
 
         Ok(Self {
             size,
-            framebuffer,
+            cascades: [
+                make_cascade(state, cascade_size(size, 0))?,
+                make_cascade(state, cascade_size(size, 1))?,
+                make_cascade(state, cascade_size(size, 2))?,
+            ],
             shader: SpotShadowMapShader::new()?,
             bone_matrices: Vec::new(),
         })
     }
 
-    pub fn texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.framebuffer.depth_attachment().unwrap().texture.clone()
+    pub fn base_size(&self) -> usize {
+        self.size
+    }
+
+    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<GpuTexture>> {
+        self.cascades[cascade]
+            .depth_attachment()
+            .unwrap()
+            .texture
+            .clone()
+    }
+
+    pub fn cascade_size(&self, cascade: usize) -> usize {
+        cascade_size(self.size, cascade)
     }
 
     pub(in crate) fn render(
@@ -102,15 +133,18 @@ impl SpotShadowMapRenderer {
         white_dummy: Rc<RefCell<GpuTexture>>,
         textures: &mut TextureCache,
         geom_map: &mut GeometryCache,
+        cascade: usize,
     ) -> RenderPassStatistics {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
 
-        let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
+        let framebuffer = &mut self.cascades[cascade];
+        let cascade_size = cascade_size(self.size, cascade);
 
-        self.framebuffer
-            .clear(state, viewport, None, Some(1.0), None);
+        let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
+
+        framebuffer.clear(state, viewport, None, Some(1.0), None);
         let frustum = Frustum::from(*light_view_projection).unwrap();
 
         for node in graph.linear_iter() {
@@ -145,7 +179,7 @@ impl SpotShadowMapRenderer {
                         white_dummy.clone()
                     };
 
-                    statistics += self.framebuffer.draw(
+                    statistics += framebuffer.draw(
                         geom_map.get(state, &surface.data().lock().unwrap()),
                         state,
                         viewport,
@@ -232,8 +266,8 @@ impl PointShadowMapShader {
 pub struct PointShadowMapRenderer {
     bone_matrices: Vec<Mat4>,
     shader: PointShadowMapShader,
-    framebuffer: FrameBuffer,
-    pub size: usize,
+    cascades: [FrameBuffer; 3],
+    size: usize,
 }
 
 struct PointShadowCubeMapFace {
@@ -250,6 +284,7 @@ pub(in crate) struct PointShadowMapRenderContext<'a, 'c> {
     pub light_radius: f32,
     pub texture_cache: &'a mut TextureCache,
     pub geom_cache: &'a mut GeometryCache,
+    pub cascade: usize,
 }
 
 impl PointShadowMapRenderer {
@@ -335,59 +370,71 @@ impl PointShadowMapRenderer {
     ];
 
     pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
-        let depth = {
-            let kind = GpuTextureKind::Rectangle {
-                width: size,
-                height: size,
+        fn make_cascade(state: &mut State, size: usize) -> Result<FrameBuffer, RendererError> {
+            let depth = {
+                let kind = GpuTextureKind::Rectangle {
+                    width: size,
+                    height: size,
+                };
+                let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
+                texture
+                    .bind_mut(state, 0)
+                    .set_minification_filter(MinificationFilter::Nearest)
+                    .set_magnification_filter(MagnificationFilter::Nearest)
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
+                texture
             };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
-            texture
-                .bind_mut(state, 0)
-                .set_minification_filter(MininificationFilter::Nearest)
-                .set_magnification_filter(MagnificationFilter::Nearest)
-                .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
-                .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
-            texture
-        };
 
-        let cube_map = {
-            let kind = GpuTextureKind::Cube {
-                width: size,
-                height: size,
+            let cube_map = {
+                let kind = GpuTextureKind::Cube {
+                    width: size,
+                    height: size,
+                };
+                let mut texture = GpuTexture::new(state, kind, PixelKind::F16, None)?;
+                texture
+                    .bind_mut(state, 0)
+                    .set_minification_filter(MinificationFilter::Linear)
+                    .set_magnification_filter(MagnificationFilter::Linear)
+                    .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
+                    .set_border_color(Color::WHITE);
+                texture
             };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::F16, None)?;
-            texture
-                .bind_mut(state, 0)
-                .set_minification_filter(MininificationFilter::Linear)
-                .set_magnification_filter(MagnificationFilter::Linear)
-                .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                .set_border_color(Color::WHITE);
-            texture
-        };
 
-        let framebuffer = FrameBuffer::new(
-            state,
-            Some(Attachment {
-                kind: AttachmentKind::Depth,
-                texture: Rc::new(RefCell::new(depth)),
-            }),
-            vec![Attachment {
-                kind: AttachmentKind::Color,
-                texture: Rc::new(RefCell::new(cube_map)),
-            }],
-        )?;
+            FrameBuffer::new(
+                state,
+                Some(Attachment {
+                    kind: AttachmentKind::Depth,
+                    texture: Rc::new(RefCell::new(depth)),
+                }),
+                vec![Attachment {
+                    kind: AttachmentKind::Color,
+                    texture: Rc::new(RefCell::new(cube_map)),
+                }],
+            )
+        };
 
         Ok(Self {
-            framebuffer,
+            cascades: [
+                make_cascade(state, cascade_size(size, 0))?,
+                make_cascade(state, cascade_size(size, 1))?,
+                make_cascade(state, cascade_size(size, 2))?,
+            ],
             size,
             bone_matrices: Vec::new(),
             shader: PointShadowMapShader::new()?,
         })
     }
 
-    pub fn texture(&self) -> Rc<RefCell<GpuTexture>> {
-        self.framebuffer.color_attachments()[0].texture.clone()
+    pub fn base_size(&self) -> usize {
+        self.size
+    }
+
+    pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<GpuTexture>> {
+        self.cascades[cascade].color_attachments()[0]
+            .texture
+            .clone()
     }
 
     pub(in crate) fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
@@ -403,17 +450,25 @@ impl PointShadowMapRenderer {
             light_radius,
             texture_cache,
             geom_cache,
+            cascade,
         } = args;
 
-        let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
+        let framebuffer = &mut self.cascades[cascade];
+        let cascade_size = cascade_size(self.size, cascade);
+
+        let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
         let light_projection_matrix =
             Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
 
         for face in Self::FACES.iter() {
-            self.framebuffer
-                .set_cubemap_face(state, 0, face.face)
-                .clear(state, viewport, Some(Color::WHITE), Some(1.0), None);
+            framebuffer.set_cubemap_face(state, 0, face.face).clear(
+                state,
+                viewport,
+                Some(Color::WHITE),
+                Some(1.0),
+                None,
+            );
 
             let light_look_at = light_pos + face.look;
             let light_view_matrix =
@@ -449,7 +504,7 @@ impl PointShadowMapRenderer {
                             .and_then(|texture| texture_cache.get(state, texture))
                             .unwrap_or(white_dummy.clone());
 
-                        statistics += self.framebuffer.draw(
+                        statistics += framebuffer.draw(
                             geom_cache.get(state, &surface.data().lock().unwrap()),
                             state,
                             viewport,

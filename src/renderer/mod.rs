@@ -52,7 +52,7 @@ use crate::{
             gl,
             gpu_program::UniformValue,
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MininificationFilter, PixelKind,
+                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
             },
             state::State,
         },
@@ -456,7 +456,7 @@ impl TextureCache {
                 gpu_texture
                     .bind_mut(state, 0)
                     .generate_mip_maps()
-                    .set_minification_filter(MininificationFilter::LinearMip)
+                    .set_minification_filter(MinificationFilter::LinearMip)
                     .set_magnification_filter(MagnificationFilter::Linear)
                     .set_max_anisotropy();
                 TimedEntry {

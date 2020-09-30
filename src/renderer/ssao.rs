@@ -13,7 +13,7 @@ use crate::{
             },
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MininificationFilter,
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
             state::State,
@@ -95,7 +95,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
             texture
                 .bind_mut(state, 0)
-                .set_minification_filter(MininificationFilter::Nearest)
+                .set_minification_filter(MinificationFilter::Nearest)
                 .set_magnification_filter(MagnificationFilter::Nearest);
             texture
         };

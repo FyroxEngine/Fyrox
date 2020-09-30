@@ -108,13 +108,13 @@ impl MagnificationFilter {
 }
 
 #[derive(Copy, Clone)]
-pub enum MininificationFilter {
+pub enum MinificationFilter {
     Nearest,
     Linear,
     LinearMip,
 }
 
-impl MininificationFilter {
+impl MinificationFilter {
     pub fn into_gl_value(self) -> i32 {
         (match self {
             Self::Nearest => gl::NEAREST,
@@ -193,7 +193,7 @@ impl<'a> TextureBinding<'a> {
         self
     }
 
-    pub fn set_minification_filter(self, min_filter: MininificationFilter) -> Self {
+    pub fn set_minification_filter(self, min_filter: MinificationFilter) -> Self {
         unsafe {
             gl::TexParameteri(
                 self.texture.kind.to_texture_target(),
