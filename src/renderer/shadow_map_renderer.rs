@@ -62,7 +62,7 @@ impl SpotShadowMapRenderer {
                 width: size,
                 height: size,
             };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::D32, None)?;
+            let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
             texture
                 .bind_mut(state, 0)
                 .set_magnification_filter(MagnificationFilter::Linear)
@@ -340,7 +340,7 @@ impl PointShadowMapRenderer {
                 width: size,
                 height: size,
             };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::D32, None)?;
+            let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
             texture
                 .bind_mut(state, 0)
                 .set_minification_filter(MininificationFilter::Nearest)
@@ -355,7 +355,7 @@ impl PointShadowMapRenderer {
                 width: size,
                 height: size,
             };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
+            let mut texture = GpuTexture::new(state, kind, PixelKind::F16, None)?;
             texture
                 .bind_mut(state, 0)
                 .set_minification_filter(MininificationFilter::Linear)
@@ -444,15 +444,10 @@ impl PointShadowMapRenderer {
                         };
                         let mvp = light_view_projection_matrix * world;
 
-                        let diffuse_texture = if let Some(texture) = surface.diffuse_texture() {
-                            if let Some(texture) = texture_cache.get(state, texture) {
-                                texture
-                            } else {
-                                white_dummy.clone()
-                            }
-                        } else {
-                            white_dummy.clone()
-                        };
+                        let diffuse_texture = surface
+                            .diffuse_texture()
+                            .and_then(|texture| texture_cache.get(state, texture))
+                            .unwrap_or(white_dummy.clone());
 
                         statistics += self.framebuffer.draw(
                             geom_cache.get(state, &surface.data().lock().unwrap()),

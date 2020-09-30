@@ -46,7 +46,9 @@ impl GpuTextureKind {
 #[derive(Copy, Clone)]
 pub enum PixelKind {
     F32,
+    F16,
     D32,
+    D16,
     D24S8,
     RGBA8,
     RGB8,
@@ -76,7 +78,7 @@ impl PixelKind {
         match self {
             Self::RGBA8 | Self::D24S8 | Self::D32 | Self::F32 => 4,
             Self::RGB8 => 3,
-            Self::RG8 => 2,
+            Self::RG8 | Self::D16 | Self::F16 => 2,
             Self::R8 => 1,
         }
     }
@@ -84,7 +86,7 @@ impl PixelKind {
     fn unpack_alignment(self) -> i32 {
         match self {
             Self::RGBA8 | Self::RGB8 | Self::D24S8 | Self::D32 | Self::F32 => 4,
-            Self::RG8 => 2,
+            Self::RG8 | Self::D16 | Self::F16 => 2,
             Self::R8 => 1,
         }
     }
@@ -293,7 +295,9 @@ impl GpuTexture {
 
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (gl::FLOAT, gl::RED, gl::R32F),
-                PixelKind::D32 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT),
+                PixelKind::F16 => (gl::FLOAT, gl::RED, gl::R16F),
+                PixelKind::D32 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT32),
+                PixelKind::D16 => (gl::FLOAT, gl::DEPTH_COMPONENT, gl::DEPTH_COMPONENT16),
                 PixelKind::D24S8 => (
                     gl::UNSIGNED_INT_24_8,
                     gl::DEPTH_STENCIL,

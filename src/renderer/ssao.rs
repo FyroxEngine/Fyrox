@@ -80,7 +80,16 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
 }
 
 impl ScreenSpaceAmbientOcclusionRenderer {
-    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut State,
+        frame_width: usize,
+        frame_height: usize,
+    ) -> Result<Self, RendererError> {
+        // It is good balance between quality and performance, no need to do SSAO in full resolution.
+        // This SSAO map size reduction was taken from DOOM (2016).
+        let width = (frame_width / 2).max(1);
+        let height = (frame_height / 2).max(1);
+
         let occlusion = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
