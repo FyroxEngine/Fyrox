@@ -21,7 +21,7 @@ pub mod world_outliner;
 
 use crate::light::LightPanel;
 use crate::log::Log;
-use crate::scene::{SetMeshTextureCommand, SetSpriteTextureCommand};
+use crate::scene::{AddNodeCommand, SetMeshTextureCommand, SetSpriteTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -700,6 +700,7 @@ impl Editor {
             root,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
+            clipboard: Default::default(),
         };
 
         let configurator = Configurator::new(
@@ -853,6 +854,7 @@ impl Editor {
             root,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
+            clipboard: Default::default(),
         };
 
         self.interaction_modes = vec![
@@ -906,7 +908,7 @@ impl Editor {
             message,
             MenuContext {
                 engine,
-                editor_scene: &self.scene,
+                editor_scene: self.scene.as_mut(),
                 sidebar_window: self.sidebar.window,
                 world_outliner_window: self.world_outliner.window,
                 asset_window: self.asset_browser.window,
@@ -918,7 +920,7 @@ impl Editor {
         self.log.handle_ui_message(message, engine);
         self.asset_browser.handle_ui_message(message, engine);
 
-        if let Some(editor_scene) = self.scene.as_ref() {
+        if let Some(editor_scene) = self.scene.as_mut() {
             self.sidebar
                 .handle_ui_message(message, editor_scene, engine);
 
@@ -1038,12 +1040,45 @@ impl Editor {
                                 ),
                                 KeyCode::Key4 => self
                                     .set_interaction_mode(Some(InteractionModeKind::Scale), engine),
-                                KeyCode::L => {
-                                    if engine.user_interface.keyboard_modifiers().control {
+                                KeyCode::L
+                                    if engine.user_interface.keyboard_modifiers().control =>
+                                {
+                                    {
                                         /*
                                         self.message_sender
                                             .send(Message::LoadScene(SCENE_PATH.into()))
                                             .unwrap();*/
+                                    }
+                                }
+                                KeyCode::C
+                                    if engine.user_interface.keyboard_modifiers().control =>
+                                {
+                                    editor_scene.clipboard.clone_selection(
+                                        &editor_scene.selection,
+                                        &engine.scenes[editor_scene.scene].graph,
+                                    );
+                                }
+                                KeyCode::V
+                                    if engine.user_interface.keyboard_modifiers().control =>
+                                {
+                                    let commands: CommandGroup = CommandGroup::from(
+                                        editor_scene
+                                            .clipboard
+                                            .nodes()
+                                            .iter()
+                                            .map(|node| {
+                                                SceneCommand::AddNode(AddNodeCommand::new(
+                                                    node.raw_copy(),
+                                                ))
+                                            })
+                                            .collect::<Vec<SceneCommand>>(),
+                                    );
+                                    if !commands.is_empty() {
+                                        self.message_sender
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::CommandGroup(commands),
+                                            ))
+                                            .unwrap();
                                     }
                                 }
                                 KeyCode::Delete => {

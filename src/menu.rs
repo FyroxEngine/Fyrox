@@ -1,3 +1,4 @@
+use crate::scene::CommandGroup;
 use crate::settings::Settings;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
@@ -30,6 +31,7 @@ use rg3d::{
         sprite::SpriteBuilder,
     },
 };
+use std::ops::Deref;
 use std::sync::{mpsc::Sender, Arc, Mutex};
 
 pub struct Menu {
@@ -41,6 +43,8 @@ pub struct Menu {
     close_scene: Handle<UiNode>,
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
+    copy: Handle<UiNode>,
+    paste: Handle<UiNode>,
     create_cube: Handle<UiNode>,
     create_cone: Handle<UiNode>,
     create_sphere: Handle<UiNode>,
@@ -66,7 +70,7 @@ pub struct Menu {
 
 pub struct MenuContext<'a, 'b> {
     pub engine: &'a mut GameEngine,
-    pub editor_scene: &'b Option<EditorScene>,
+    pub editor_scene: Option<&'b mut EditorScene>,
     pub sidebar_window: Handle<UiNode>,
     pub world_outliner_window: Handle<UiNode>,
     pub asset_window: Handle<UiNode>,
@@ -93,6 +97,8 @@ impl Menu {
         let load;
         let redo;
         let undo;
+        let copy;
+        let paste;
         let create_cube;
         let create_cone;
         let create_sphere;
@@ -218,6 +224,24 @@ impl Menu {
                                     ))
                                     .build(ctx);
                             redo
+                        },
+                        {
+                            copy =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text_with_shortcut(
+                                        "Copy", "Ctrl+C",
+                                    ))
+                                    .build(ctx);
+                            copy
+                        },
+                        {
+                            paste =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text_with_shortcut(
+                                        "Paste", "Ctrl+V",
+                                    ))
+                                    .build(ctx);
+                            paste
                         },
                     ])
                     .build(ctx),
@@ -381,6 +405,8 @@ impl Menu {
             configure,
             configure_message,
             light_panel,
+            copy,
+            paste,
         }
     }
 
@@ -573,6 +599,33 @@ impl Menu {
                             ));
                     } else if message.destination() == self.close_scene {
                         self.message_sender.send(Message::CloseScene).unwrap();
+                    } else if message.destination() == self.copy {
+                        if let Some(editor_scene) = ctx.editor_scene {
+                            editor_scene.clipboard.clone_selection(
+                                &editor_scene.selection,
+                                &ctx.engine.scenes[editor_scene.scene].graph,
+                            );
+                        }
+                    } else if message.destination() == self.paste {
+                        if let Some(editor_scene) = ctx.editor_scene {
+                            let commands = CommandGroup::from(
+                                editor_scene
+                                    .clipboard
+                                    .nodes()
+                                    .iter()
+                                    .map(|node| {
+                                        SceneCommand::AddNode(AddNodeCommand::new(node.raw_copy()))
+                                    })
+                                    .collect::<Vec<SceneCommand>>(),
+                            );
+                            if !commands.is_empty() {
+                                self.message_sender
+                                    .send(Message::DoSceneCommand(SceneCommand::CommandGroup(
+                                        commands,
+                                    )))
+                                    .unwrap();
+                            }
+                        }
                     } else if message.destination() == self.undo {
                         self.message_sender.send(Message::UndoSceneCommand).unwrap();
                     } else if message.destination() == self.redo {

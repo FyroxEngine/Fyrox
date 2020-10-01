@@ -1,7 +1,4 @@
-use crate::command::Command;
-use crate::Message;
-use rg3d::resource::texture::Texture;
-use rg3d::scene::mesh::Mesh;
+use crate::{command::Command, Message};
 use rg3d::{
     core::{
         color::Color,
@@ -10,12 +7,36 @@ use rg3d::{
     },
     engine::resource_manager::ResourceManager,
     physics::{rigid_body::RigidBody, Physics},
-    scene::{graph::Graph, graph::SubGraph, node::Node, PhysicsBinder, Scene},
+    resource::texture::Texture,
+    scene::{graph::Graph, graph::SubGraph, mesh::Mesh, node::Node, PhysicsBinder, Scene},
 };
 use std::{
     path::PathBuf,
     sync::{mpsc::Sender, Arc, Mutex},
 };
+
+#[derive(Default)]
+pub struct Clipboard {
+    nodes: Vec<Node>,
+}
+
+impl Clipboard {
+    pub fn clone_selection(&mut self, selection: &Selection, graph: &Graph) {
+        self.nodes.clear();
+
+        for &handle in selection.nodes() {
+            self.nodes.push(graph.copy_single_node(handle));
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.nodes.clear()
+    }
+
+    pub fn nodes(&self) -> &[Node] {
+        &self.nodes
+    }
+}
 
 pub struct EditorScene {
     pub path: Option<PathBuf>,
@@ -23,6 +44,7 @@ pub struct EditorScene {
     // Handle to a root for all editor nodes.
     pub root: Handle<Node>,
     pub selection: Selection,
+    pub clipboard: Clipboard,
 }
 
 #[derive(Debug)]
@@ -117,6 +139,10 @@ impl From<Vec<SceneCommand>> for CommandGroup {
 impl CommandGroup {
     pub fn push(&mut self, command: SceneCommand) {
         self.commands.push(command)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
     }
 }
 
