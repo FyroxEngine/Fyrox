@@ -566,29 +566,10 @@ impl Player {
         );
     }
 
-    fn handle_input(&mut self, device_event: &DeviceEvent, dt: f32) {
+    fn handle_device_event(&mut self, device_event: &DeviceEvent, dt: f32) {
         match device_event {
-            DeviceEvent::Key(key) => {
-                if let Some(key_code) = key.virtual_keycode {
-                    match key_code {
-                        VirtualKeyCode::W => {
-                            self.controller.walk_forward = key.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::S => {
-                            self.controller.walk_backward = key.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::A => {
-                            self.controller.walk_left = key.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::D => {
-                            self.controller.walk_right = key.state == ElementState::Pressed
-                        }
-                        VirtualKeyCode::Space => {
-                            self.controller.jump = key.state == ElementState::Pressed
-                        }
-                        _ => (),
-                    }
-                }
+            DeviceEvent::Key(_key) => {
+                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             DeviceEvent::MouseMotion { delta } => {
                 let mouse_sens = 0.2 * dt;
@@ -598,6 +579,25 @@ impl Player {
                     .min(90.0f32.to_radians());
             }
             _ => {}
+        }
+    }
+
+    fn handle_key_event(&mut self, key: &rg3d::event::KeyboardInput, _dt: f32) {
+        if let Some(key_code) = key.virtual_keycode {
+            match key_code {
+                VirtualKeyCode::W => {
+                    self.controller.walk_forward = key.state == ElementState::Pressed
+                }
+                VirtualKeyCode::S => {
+                    self.controller.walk_backward = key.state == ElementState::Pressed
+                }
+                VirtualKeyCode::A => self.controller.walk_left = key.state == ElementState::Pressed,
+                VirtualKeyCode::D => {
+                    self.controller.walk_right = key.state == ElementState::Pressed
+                }
+                VirtualKeyCode::Space => self.controller.jump = key.state == ElementState::Pressed,
+                _ => (),
+            }
         }
     }
 }
@@ -863,6 +863,11 @@ fn main() {
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(code) = input.virtual_keycode {
+                            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+                            if let Some(game_scene) = game_scene.as_mut() {
+                                game_scene.player.handle_key_event(&input, fixed_timestep);
+                            }
+
                             let settings = match code {
                                 VirtualKeyCode::Key1 => Some(QualitySettings::ultra()),
                                 VirtualKeyCode::Key2 => Some(QualitySettings::high()),
@@ -891,7 +896,7 @@ fn main() {
             }
             Event::DeviceEvent { event, .. } => {
                 if let Some(game_scene) = game_scene.as_mut() {
-                    game_scene.player.handle_input(&event, fixed_timestep);
+                    game_scene.player.handle_device_event(&event, fixed_timestep);
                 }
             }
             _ => *control_flow = ControlFlow::Poll,
