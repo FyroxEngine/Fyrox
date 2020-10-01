@@ -269,6 +269,25 @@ impl Graph {
         (root_handle, old_new_mapping)
     }
 
+    /// Creates copy of a node and breaks all connections with other nodes. Keep in mind that
+    /// this method may give unexpected results when the node has connections with other nodes.
+    /// For example if you'll try to copy a skinned mesh, its copy won't be skinned anymore -
+    /// you'll get just a "shallow" mesh. Also unlike [copy_node](struct.Graph.html#method.copy_node)
+    /// this method returns copied node directly, it does not inserts it in any graph.
+    pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
+        let node = &self.pool[node_handle];
+        let mut clone = node.raw_copy();
+        clone.original = node_handle;
+        clone.parent = Handle::NONE;
+        clone.children.clear();
+        if let Node::Mesh(ref mut mesh) = clone {
+            for surface in mesh.surfaces_mut() {
+                surface.bones.clear();
+            }
+        }
+        clone
+    }
+
     fn copy_node_raw<F>(
         &self,
         root_handle: Handle<Node>,
@@ -280,7 +299,7 @@ impl Graph {
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
         let src_node = &self.pool[root_handle];
-        let mut dest_node = src_node.clone();
+        let mut dest_node = src_node.raw_copy();
         dest_node.original = root_handle;
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.insert(root_handle, dest_copy_handle);

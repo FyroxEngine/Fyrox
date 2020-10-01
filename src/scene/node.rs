@@ -40,7 +40,7 @@ impl Visit for Node {
 }
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Node {
     /// See Base node docs.
     Base(Base),
@@ -112,6 +112,20 @@ impl Node {
             Self::Mesh(_) => 3,
             Self::Sprite(_) => 4,
             Self::ParticleSystem(_) => 5,
+        }
+    }
+
+    /// This method creates raw copy of a node, it should never be called in normal circumstances
+    /// because internally nodes may (and most likely will) contain handles to other nodes. To
+    /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
+    pub fn raw_copy(&self) -> Self {
+        match self {
+            Node::Base(v) => Node::Base(v.raw_copy()),
+            Node::Light(v) => Node::Light(v.raw_copy()),
+            Node::Camera(v) => Node::Camera(v.raw_copy()),
+            Node::Mesh(v) => Node::Mesh(v.raw_copy()),
+            Node::Sprite(v) => Node::Sprite(v.raw_copy()),
+            Node::ParticleSystem(v) => Node::ParticleSystem(v.raw_copy()),
         }
     }
 
