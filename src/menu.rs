@@ -1,23 +1,22 @@
-use crate::scene::CommandGroup;
-use crate::settings::Settings;
 use crate::{
     gui::{Ui, UiMessage, UiNode},
     make_save_file_selector, make_scene_file_filter,
-    scene::{AddNodeCommand, EditorScene, SceneCommand},
+    scene::{AddNodeCommand, CommandGroup, EditorScene, SceneCommand},
+    settings::Settings,
     GameEngine, Message,
 };
-use rg3d::gui::file_browser::FileSelectorBuilder;
-use rg3d::gui::message::MessageBoxMessage;
-use rg3d::gui::messagebox::{MessageBoxBuilder, MessageBoxButtons};
-use rg3d::gui::window::{WindowBuilder, WindowTitle};
 use rg3d::{
     core::{math::vec2::Vec2, pool::Handle},
     gui::{
+        file_browser::FileSelectorBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
         message::{
-            FileSelectorMessage, MenuItemMessage, MessageDirection, UiMessageData, WindowMessage,
+            FileSelectorMessage, MenuItemMessage, MessageBoxMessage, MessageDirection,
+            UiMessageData, WindowMessage,
         },
+        messagebox::{MessageBoxBuilder, MessageBoxButtons},
         widget::WidgetBuilder,
+        window::{WindowBuilder, WindowTitle},
         Thickness,
     },
     renderer::surface::{Surface, SurfaceSharedData},
@@ -31,7 +30,6 @@ use rg3d::{
         sprite::SpriteBuilder,
     },
 };
-use std::ops::Deref;
 use std::sync::{mpsc::Sender, Arc, Mutex};
 
 pub struct Menu {

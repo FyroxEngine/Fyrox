@@ -19,9 +19,6 @@ pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
-use crate::light::LightPanel;
-use crate::log::Log;
-use crate::scene::{AddNodeCommand, SetMeshTextureCommand, SetSpriteTextureCommand};
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -31,7 +28,10 @@ use crate::{
         InteractionMode, InteractionModeKind, MoveInteractionMode, RotateInteractionMode,
         ScaleInteractionMode, SelectInteractionMode,
     },
+    light::LightPanel,
+    log::Log,
     menu::{Menu, MenuContext},
+    scene::{AddNodeCommand, SetMeshTextureCommand, SetSpriteTextureCommand},
     scene::{
         ChangeSelectionCommand, CommandGroup, DeleteNodeCommand, EditorScene, LoadModelCommand,
         SceneCommand, SceneContext, Selection,
@@ -79,6 +79,7 @@ use rg3d::{
     scene::{base::BaseBuilder, node::Node, Scene},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
+use std::ffi::OsString;
 use std::{
     cell::RefCell,
     fs::File,
@@ -135,6 +136,37 @@ pub struct ScenePreview {
     rotate_mode: Handle<UiNode>,
     scale_mode: Handle<UiNode>,
     sender: Sender<Message>,
+}
+
+pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    // Strip working directory from file name.
+    let relative_path = path
+        .as_ref()
+        .canonicalize()
+        .unwrap()
+        .strip_prefix(std::env::current_dir().unwrap().canonicalize().unwrap())
+        .unwrap()
+        .to_owned();
+
+    #[cfg(target_os = "windows")]
+    {
+        // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
+        // file name, not separator (except linux which understand both variants).
+        let mut os_str = OsString::new();
+        let count = relative_path.components().count();
+        for (i, component) in relative_path.components().enumerate() {
+            os_str.push(component.as_os_str());
+            if i != count - 1 {
+                os_str.push("/");
+            }
+        }
+        PathBuf::from(os_str)
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        relative_path
+    }
 }
 
 impl ScenePreview {
@@ -1111,26 +1143,12 @@ impl Editor {
                             if handle.is_some() {
                                 if let UiNode::User(u) = engine.user_interface.node(handle) {
                                     if let EditorUiNode::AssetItem(item) = u {
+                                        // Make sure all resources loaded with relative paths only.
+                                        // This will make scenes portable.
+                                        let relative_path = make_relative_path(&item.path);
+
                                         match item.kind {
                                             AssetKind::Model => {
-                                                dbg!();
-
-                                                // Make sure all resources loaded with relative paths only.
-                                                // This will make scenes portable.
-                                                let relative_path = item
-                                                    .path
-                                                    .clone()
-                                                    .canonicalize()
-                                                    .unwrap()
-                                                    .strip_prefix(
-                                                        std::env::current_dir()
-                                                            .unwrap()
-                                                            .canonicalize()
-                                                            .unwrap(),
-                                                    )
-                                                    .unwrap()
-                                                    .to_owned();
-
                                                 // Import model.
                                                 self.message_sender
                                                     .send(Message::DoSceneCommand(
@@ -1165,7 +1183,7 @@ impl Editor {
                                                             .lock()
                                                             .unwrap()
                                                             .request_texture(
-                                                                &item.path,
+                                                                &relative_path,
                                                                 TextureKind::RGBA8,
                                                             )
                                                         {
