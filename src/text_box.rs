@@ -585,7 +585,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
         if message.destination() == self.handle() {
             match &message.data() {
                 UiMessageData::Widget(msg) => match msg {
-                    &WidgetMessage::Text(symbol) if ui.keyboard_modifiers().is_none() => {
+                    &WidgetMessage::Text(symbol)
+                        if !ui.keyboard_modifiers().control && !ui.keyboard_modifiers().alt =>
+                    {
                         let insert = if let Some(filter) = self.filter.as_ref() {
                             let filter = &mut *filter.borrow_mut();
                             filter(symbol)
@@ -682,7 +684,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                     begin: self.caret_position,
                                     end: Position {
                                         line: prev_position.line,
-                                        offset: prev_position.offset - 1,
+                                        offset: prev_position.offset.saturating_sub(1),
                                     },
                                 });
                             } else {
