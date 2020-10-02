@@ -671,15 +671,14 @@ impl Renderer {
                 //  pipeline.
                 if let Some(rt) = scene.render_target.clone() {
                     let key = (&*rt as *const _) as usize;
-                    if !self.texture_cache.map.contains_key(&key) {
-                        self.texture_cache.map.insert(
-                            key,
-                            TimedEntry {
-                                value: gbuffer.frame_texture(),
-                                time_to_live: std::f32::INFINITY,
-                            },
-                        );
-                    }
+
+                    self.texture_cache.map.insert(
+                        key,
+                        TimedEntry {
+                            value: gbuffer.frame_texture(),
+                            time_to_live: std::f32::INFINITY,
+                        },
+                    );
 
                     // Make sure to sync texture info with actual render target.
                     if let Ok(mut rt) = rt.lock() {
