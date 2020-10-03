@@ -79,7 +79,6 @@ use rg3d::{
     scene::{base::BaseBuilder, node::Node, Scene},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
-use std::ffi::OsString;
 use std::{
     cell::RefCell,
     fs::File,
@@ -148,25 +147,7 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
         .unwrap()
         .to_owned();
 
-    #[cfg(target_os = "windows")]
-    {
-        // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
-        // file name, not separator (except linux which understand both variants).
-        let mut os_str = OsString::new();
-        let count = relative_path.components().count();
-        for (i, component) in relative_path.components().enumerate() {
-            os_str.push(component.as_os_str());
-            if i != count - 1 {
-                os_str.push("/");
-            }
-        }
-        PathBuf::from(os_str)
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        relative_path
-    }
+    rg3d::core::replace_slashes(relative_path)
 }
 
 impl ScenePreview {
@@ -1438,11 +1419,13 @@ impl Editor {
 
                     std::env::set_current_dir(working_directory.clone()).unwrap();
 
+                    let relative_tex_path = make_relative_path(textures_path);
+
                     engine
                         .resource_manager
                         .lock()
                         .unwrap()
-                        .set_textures_path(textures_path.clone());
+                        .set_textures_path(relative_tex_path.clone());
 
                     engine
                         .resource_manager
@@ -1456,7 +1439,7 @@ impl Editor {
                         .set_working_directory(engine, &working_directory);
 
                     self.message_sender
-                        .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, textures_path))).unwrap();
+                        .send(Message::Log(format!("New working directory and path to textures were successfully set:\n\tWD: {:?}\n\tTP: {:?}", working_directory, relative_tex_path))).unwrap();
                 }
             }
         }
