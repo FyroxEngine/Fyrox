@@ -53,7 +53,7 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     let camera = CameraBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_local_position(Vec3::new(4.0, 4.0, -8.0))
+                .with_local_position(Vec3::new(0.0, 4.0, -8.0))
                 .build(),
         ),
     )

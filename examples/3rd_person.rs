@@ -37,7 +37,7 @@ use rg3d::{
 };
 
 fn main() {
-    let (mut game, event_loop) = Game::new();
+    let (mut game, event_loop) = Game::new("Example 03 - 3rd person");
 
     // Create simple user interface that will show some useful info.
     let window = game.engine.get_window();

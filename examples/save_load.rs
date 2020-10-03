@@ -129,7 +129,7 @@ fn load(game: &mut Game) {
 }
 
 fn main() {
-    let (mut game, event_loop) = Game::new();
+    let (mut game, event_loop) = Game::new("Example 06 - Save/load");
 
     // Create simple user interface that will show some useful info.
     let window = game.engine.get_window();
@@ -219,7 +219,7 @@ fn main() {
 
                     let fps = game.engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!(
-                        "Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
+                        "Example 06 - Save/load\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.\nUse F5 to save game, F9 to load.",
                         fps
                     );
                     game. engine.user_interface.send_message(TextMessage::text(
@@ -297,12 +297,15 @@ fn main() {
                                     .unwrap();
                             }
 
-                            // Save/load bound to classic F5 and F9 keys.
-                            match code {
-                                VirtualKeyCode::F5 => save(&mut game),
-                                VirtualKeyCode::F9 => load(&mut game),
-                                _ => ()
-                            };
+                            // Prevent saving/loading while example is starting.
+                            if game.game_scene.is_some() {
+                                // Save/load bound to classic F5 and F9 keys.
+                                match code {
+                                    VirtualKeyCode::F5 => save(&mut game),
+                                    VirtualKeyCode::F9 => load(&mut game),
+                                    _ => ()
+                                };
+                            }
                         }
                     }
                     _ => (),

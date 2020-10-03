@@ -46,11 +46,11 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new() -> (Self, EventLoop<()>) {
+    pub fn new(title: &str) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new();
 
         let window_builder = rg3d::window::WindowBuilder::new()
-            .with_title("Example - 3rd Person")
+            .with_title(title)
             .with_resizable(true);
 
         let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
