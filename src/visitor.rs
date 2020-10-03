@@ -1,8 +1,15 @@
-use crate::math::mat3::Mat3;
-use crate::math::vec2::Vec2;
-use crate::math::vec4::Vec4;
+//! Visitor is a tree-based serializer/deserializer.
+//!
+//! # Overview
+//!
+//! Visitor uses tree to create structured storage of data. Basic unit is a *node* - it is a container
+//! for data fields. Each node has name, handle to parent, set of handles to children nodes and some
+//! container for data fields. Data field is tuple of name and value, value can be any of simple Rust
+//! types and some of basic structures of the crate. Main criteria of what could be the field and what
+//! not is the ability to be represented as set of bytes without any aliasing issues.
+
 use crate::{
-    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
+    math::{mat3::Mat3, mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3, vec4::Vec4},
     pool::{Handle, Pool},
     replace_slashes,
 };
@@ -10,8 +17,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    collections::hash_map::Entry,
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     fmt::{Display, Formatter},
     fs::File,
     hash::Hash,
