@@ -4,6 +4,7 @@ use crate::math::vec4::Vec4;
 use crate::{
     math::{mat4::Mat4, quat::Quat, vec3::Vec3},
     pool::{Handle, Pool},
+    replace_slashes,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::{
@@ -211,9 +212,7 @@ impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
         match self {
             Self::Io(io) => write!(f, "io error: {}", io),
-            Self::UnknownFieldType(type_index) => {
-                write!(f, "unknown field type {}", type_index)
-            }
+            Self::UnknownFieldType(type_index) => write!(f, "unknown field type {}", type_index),
             Self::FieldDoesNotExist(name) => write!(f, "field does not exists {}", name),
             Self::FieldAlreadyExists(name) => write!(f, "field already exists {}", name),
             Self::RegionAlreadyExists(name) => write!(f, "region already exists {}", name),
@@ -224,9 +223,7 @@ impl Display for VisitError {
             Self::NotSupportedFormat => write!(f, "not supported format"),
             Self::InvalidName => write!(f, "invalid name"),
             Self::TypeMismatch => write!(f, "type mismatch"),
-            Self::RefCellAlreadyMutableBorrowed => {
-                write!(f, "ref cell already mutable borrowed")
-            }
+            Self::RefCellAlreadyMutableBorrowed => write!(f, "ref cell already mutable borrowed"),
             Self::User(msg) => write!(f, "user defined error: {}", msg),
             Self::UnexpectedRcNullIndex => write!(f, "unexpected rc null index"),
             Self::PoisonedMutex => write!(f, "attempt to lock poisoned mutex"),
@@ -768,7 +765,11 @@ impl Visit for PathBuf {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let bytes = if let Some(path_str) = self.as_os_str().to_str() {
+        // We have to replace Windows back slashes \ to forward / to make paths portable
+        // across all OSes.
+        let portable_path = replace_slashes(&self);
+
+        let bytes = if let Some(path_str) = portable_path.as_os_str().to_str() {
             path_str.as_bytes()
         } else {
             return Err(VisitError::InvalidName);
