@@ -1,40 +1,132 @@
-//! Example 03. 3rd person walk simulator.
+//! Example 06. Save/load.
 //!
 //! Difficulty: Advanced.
 //!
-//! This example based on async example, because it requires to load decent amount of
-//! resources which might be slow on some machines.
+//! This example based on 3rd_person example, it uses lots of code from shared mod.
 //!
-//! In this example we'll create simple 3rd person game with character that can idle,
-//! walk, or jump.
+//! rg3d has powerful built-in serialization/deserialization which is used for various
+//! purposes, one of them is to create or load save files in your game. It very easy
+//! to use, all you need to do is to implement Visit trait on your game structures and
+//! then create new instance of visitor and call your_struct.visit(...) on it. Check code
+//! below for more info.
 //!
-//! Also this example demonstrates the power of animation blending machines. Animation
-//! blending machines are used in all modern games to create complex animations from set
-//! of simple ones.
+//! # Important
 //!
-//! TODO: Improve explanations. Some places can be explained better.
-//!
-//! Known bugs: Sometimes character will jump, but jumping animations is not playing.
-//!
-//! Possible improvements:
-//!  - Smart camera - camera which will not penetrate walls.
-//!  - Separate animation machines for upper and lower body - upper machine might be
-//!    for combat, lower - for locomotion.
-//!  - Tons of them, this is simple example after all.
+//! You should carefully read documentation of rg3d::core::Visitor to understand basic ideas
+//! of how it works, otherwise Visit trait implementation might be confusing.
 
 extern crate rg3d;
 
 pub mod shared;
 
-use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
+use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
 use rg3d::{
-    core::math::vec2::Vec2,
+    core::{
+        math::vec2::Vec2,
+        visitor::VisitResult,
+        visitor::{Visit, Visitor},
+    },
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
     renderer::QualitySettings,
     utils::translate_event,
 };
+use std::path::Path;
+
+// Start implementing Visit trait for simple types which are used by more complex.
+// At first implement trait for LocomotionMachine.
+impl Visit for LocomotionMachine {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        // Almost every implementation of visit should start with this line. It creates
+        // new node in tree structure and makes it current so every later calls of visit
+        // will write data into that node, of course inner calls can call enter_region -
+        // visitor can manage trees of any depth.
+        visitor.enter_region(name)?;
+
+        // Just call visit on every field, checking the result of operation.
+        // For backwards compatibility you can ignore result.
+        // There is a small pitfall that can be in your way - if you have Option, Rc, Arc, Mutex,
+        // or some other generic type, inner type must implement at least Default trait plus
+        // some types (Arc, Mutex) adds Send, Sync - if compiler tells you that .visit method is
+        // not found then it is probably you missed some of required trait bounds.
+        self.jump_animation.visit("JumpAnimation", visitor)?;
+        // Machine is an internal rg3d type, however it has implementation of Visit and
+        // can be serialized in one call.
+        self.machine.visit("Machine", visitor)?;
+
+        // This line should always be in pair with enter_region. It pops current node from
+        // internal stack of visitor and makes parent node current.
+        visitor.leave_region()
+    }
+}
+
+// Continue implementing Visit trait for Rest of game structures.
+impl Visit for Player {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.model.visit("Model", visitor)?;
+        self.body.visit("Body", visitor)?;
+        self.camera_pivot.visit("CameraPivot", visitor)?;
+        self.camera_hinge.visit("CameraHinge", visitor)?;
+        self.locomotion_machine
+            .visit("LocomotionMachine", visitor)?;
+        self.model_yaw.visit("ModelYaw", visitor)?;
+        self.pivot.visit("Pivot", visitor)?;
+        // self.input_controller isn't visited because we don't care about its state -
+        // it will be synced with keyboard state anyway.
+
+        visitor.leave_region()
+    }
+}
+
+impl Visit for GameScene {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.scene.visit("Scene", visitor)?;
+        self.player.visit("Player", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+// And finally implement Visit trait for the Game.
+impl Visit for Game {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        // As you can see entire state of the rg3d engine saved in a single line.
+        self.engine.visit("Engine", visitor)?;
+
+        self.game_scene.visit("GameScene", visitor)?;
+        // self.load_context is intentionally not serialized - we abuse the fact that we can
+        // save **only** when scene was loaded, so no need to save context.
+
+        visitor.leave_region()
+    }
+}
+
+// For simplicity we'll be save (or load) game from hardcoded path.
+const SAVE_FILE: &'static str = "save.bin";
+
+fn save(game: &mut Game) {
+    // To save a game state all we need to do is to create new instance of Visitor
+    // and call visit on game instance.
+    let mut visitor = Visitor::new();
+    game.visit("Game", &mut visitor).unwrap();
+    // And call save method.
+    visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
+}
+
+fn load(game: &mut Game) {
+    if Path::new(SAVE_FILE).exists() {
+        // Loading a game is even simpler - just 2 lines.
+        let mut visitor = Visitor::load_binary(SAVE_FILE).unwrap();
+        game.visit("Game", &mut visitor).unwrap();
+    }
+}
 
 fn main() {
     let (mut game, event_loop) = Game::new();
@@ -204,6 +296,13 @@ fn main() {
                                     .set_quality_settings(&fix_shadows_distance(settings))
                                     .unwrap();
                             }
+
+                            // Save/load bound to classic F5 and F9 keys.
+                            match code {
+                                VirtualKeyCode::F5 => save(&mut game),
+                                VirtualKeyCode::F9 => load(&mut game),
+                                _ => ()
+                            };
                         }
                     }
                     _ => (),

@@ -79,7 +79,7 @@ This example shows how to load simple scene made in [rusty-editor](https://githu
 
 ## Example 06 - Save/load
 
-- TODO
+Same as Example 03, but also has "save/load" functionality - F5 and F9 keys respectively.
 
 ## Example 07 - Sound
 
