@@ -23,6 +23,7 @@ use rg3d::{
     },
     utils::{lightmap::Lightmap, translate_event, uvgen},
 };
+use std::path::Path;
 use std::{
     sync::{Arc, Mutex},
     time::Instant,
@@ -78,7 +79,11 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     }
 
     let lightmap = Lightmap::new(&scene, 128);
-    lightmap.save("examples/data/lightmaps/").unwrap();
+    let lightmaps_path = Path::new("examples/data/lightmaps/");
+    if !lightmaps_path.exists() {
+        std::fs::create_dir(lightmaps_path).unwrap();
+    }
+    lightmap.save(lightmaps_path).unwrap();
     scene.set_lightmap(lightmap).unwrap();
 
     for node in scene.graph.linear_iter_mut() {
