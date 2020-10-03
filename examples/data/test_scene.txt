@@ -27,25 +27,25 @@ __ROOT__[Fields=0, Children=1]:
 										Item5[Fields=0, Children=1]: 
 											ItemData[Fields=2, Children=0]: Index<u32 = 6>, Generation<u32 = 1>, 
 										Item6[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 46>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 7>, Generation<u32 = 1>, 
 										Item7[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 47>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 8>, Generation<u32 = 1>, 
 										Item8[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 48>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 9>, Generation<u32 = 1>, 
 										Item9[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 49>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 10>, Generation<u32 = 1>, 
 										Item10[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 50>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 11>, Generation<u32 = 1>, 
 										Item11[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 51>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
 										Item12[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 52>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 13>, Generation<u32 = 1>, 
 										Item13[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 53>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 14>, Generation<u32 = 1>, 
 										Item14[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 54>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 15>, Generation<u32 = 1>, 
 										Item15[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 55>, Generation<u32 = 1>, 
+											ItemData[Fields=2, Children=0]: Index<u32 = 16>, Generation<u32 = 1>, 
 									Resource[Fields=1, Children=0]: IsSome<u8 = 0>, 
 									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
 					Item1[Fields=0, Children=1]: 
@@ -77,7 +77,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597602656>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694858768>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=24]: Length<u32 = 24>, 
 																Item0[Fields=0, Children=1]: 
@@ -155,9 +155,9 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 20>, B<u32 = 22>, C<u32 = 23>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597662720>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667507232128>, 
 														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
-															Path[Fields=2, Children=0]: Length<u32 = 25>, Data<data = .\examples\data\floor.jpg>, 
+															Path[Fields=2, Children=0]: Length<u32 = 25>, Data<data = ./examples/data/floor.jpg>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
@@ -176,7 +176,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597602560>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694861456>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=24]: Length<u32 = 24>, 
 																Item0[Fields=0, Children=1]: 
@@ -254,9 +254,9 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 20>, B<u32 = 22>, C<u32 = 23>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597667200>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667505168112>, 
 														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
-															Path[Fields=2, Children=0]: Length<u32 = 42>, Data<data = .\examples\data\Sponza_Bricks_a_Albedo.png>, 
+															Path[Fields=2, Children=0]: Length<u32 = 42>, Data<data = ./examples/data/Sponza_Bricks_a_Albedo.png>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
@@ -275,7 +275,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597603136>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694859920>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=68]: Length<u32 = 68>, 
 																Item0[Fields=0, Children=1]: 
@@ -545,9 +545,9 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 67>, B<u32 = 60>, C<u32 = 64>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597662608>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667505172368>, 
 														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
-															Path[Fields=2, Children=0]: Length<u32 = 43>, Data<data = .\examples\data\Sponza_Column_c_diffuse.png>, 
+															Path[Fields=2, Children=0]: Length<u32 = 43>, Data<data = ./examples/data/Sponza_Column_c_diffuse.png>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
@@ -566,7 +566,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597602752>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694861936>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=66]: Length<u32 = 66>, 
 																Item0[Fields=0, Children=1]: 
@@ -768,617 +768,13 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 64>, B<u32 = 65>, C<u32 = 59>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597667648>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667505169792>, 
 														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
-															Path[Fields=2, Children=0]: Length<u32 = 43>, Data<data = .\examples\data\Sponza_Column_a_diffuse.png>, 
+															Path[Fields=2, Children=0]: Length<u32 = 43>, Data<data = ./examples/data/Sponza_Column_a_diffuse.png>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 					Item6[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = true>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 8>, Data<data = __ROOT__>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.025; 0.025; 0.025>, LocalPosition<vec3 = 0; 0.9971614; 0>, LocalRotation<quat = -0.70710677; 0; 0; 0.70710677>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 0>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 7>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=1]: Id<u64 = 2390557072912>, 
-											ArcData[Fields=0, Children=2]: 
-												SelfWeakRef[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples\data\mutant.FBX>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item7[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 0>, Data<data = >, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0; 0; 0>, LocalRotation<quat = 0; 0; 0; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 6>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=2]: Length<u32 = 2>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 8>, Generation<u32 = 1>, 
-										Item1[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 9>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item8[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
-								Data[Fields=0, Children=2]: 
-									Common[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-										Name[Fields=2, Children=0]: Length<u32 = 10>, Data<data = MutantMesh>, 
-										Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.39370078; 0.39370078; 0.39370078>, LocalPosition<vec3 = 0; 0; 0>, LocalRotation<quat = 0.70710677; 0; 0; 0.70710677>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-										Parent[Fields=2, Children=0]: Index<u32 = 7>, Generation<u32 = 1>, 
-										Children[Fields=1, Children=0]: Length<u32 = 0>, 
-										Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-											Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-										Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-									Surfaces[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=0, Children=6]: 
-												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597600064>, 
-														ArcData[Fields=1, Children=2]: IsProcedural<bool = false>, 
-															Vertices[Fields=1, Children=0]: Length<u32 = 0>, 
-															Triangles[Fields=1, Children=0]: Length<u32 = 0>, 
-												NormalTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597663168>, 
-														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
-															Path[Fields=2, Children=0]: Length<u32 = 55>, Data<data = \\?\C:\rust-engine\rg3d\examples\data\Mutant_normal.png>, 
-												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597664960>, 
-														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
-															Path[Fields=2, Children=0]: Length<u32 = 56>, Data<data = \\?\C:\rust-engine\rg3d\examples\data\Mutant_diffuse.png>, 
-												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
-												Bones[Fields=1, Children=31]: Length<u32 = 31>, 
-													Item0[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 11>, Generation<u32 = 1>, 
-													Item1[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
-													Item2[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
-													Item3[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 13>, Generation<u32 = 1>, 
-													Item4[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 25>, Generation<u32 = 1>, 
-													Item5[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 10>, Generation<u32 = 1>, 
-													Item6[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
-													Item7[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
-													Item8[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
-													Item9[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 18>, Generation<u32 = 1>, 
-													Item10[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
-													Item11[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
-													Item12[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
-													Item13[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 37>, Generation<u32 = 1>, 
-													Item14[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
-													Item15[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
-													Item16[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
-													Item17[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
-													Item18[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 16>, Generation<u32 = 1>, 
-													Item19[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 41>, Generation<u32 = 1>, 
-													Item20[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
-													Item21[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
-													Item22[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
-													Item23[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
-													Item24[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
-													Item25[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 29>, Generation<u32 = 1>, 
-													Item26[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 9>, Generation<u32 = 1>, 
-													Item27[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 14>, Generation<u32 = 1>, 
-													Item28[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
-													Item29[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
-													Item30[Fields=0, Children=1]: 
-														ItemData[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
-												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item9[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 11>, Data<data = Mutant:Hips>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.39370078; 0.39370078; 0.39370078>, LocalPosition<vec3 = 0.0000001641247; 0.12981887; 36.397614>, LocalRotation<quat = 0.70710677; 0.00000002154081; -0.00000001980375; 0.70710677>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 7>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=3]: Length<u32 = 3>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 10>, Generation<u32 = 1>, 
-										Item1[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
-										Item2[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 41>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item10[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 12>, Data<data = Mutant:Spine>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0.0000000000009094947; 10.763863; 1.2435169>, LocalRotation<quat = -0.0000000000000000000000000011618512; 0.000000000000000000039740526; 0.00000002923593; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 9>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 11>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item11[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 13>, Data<data = Mutant:Spine1>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.01892661; 13.06134; 0.22748083>, LocalRotation<quat = -0.000000000000000000000000000000002311118; 0.0000000000000426326; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 10>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item12[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 13>, Data<data = Mutant:Spine2>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.021630421; 12.98822; -0.916687>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 11>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=3]: Length<u32 = 3>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 13>, Generation<u32 = 1>, 
-										Item1[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 16>, Generation<u32 = 1>, 
-										Item2[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item13[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 11>, Data<data = Mutant:Neck>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.011927109; 24.670654; 2.0281014>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 14>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item14[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 11>, Data<data = Mutant:Head>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.000000007450581; 8.817337; 6.1026173>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 13>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 15>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item15[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:HeadTop_End>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0.05248414; 20.493942; -0.28250313>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 14>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item16[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:LeftShoulder>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 9.553569; 16.065384; -5.2278323>, LocalRotation<quat = 0.000000000000000000000013836696; 0.000000000000000029017655; -0.00000047683716; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item17[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 14>, Data<data = Mutant:LeftArm>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 17.89299; 2.0660858; -0.92293024>, LocalRotation<quat = 0.00000013702456; -0.027629197; 0.0000024086787; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 16>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 18>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item18[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:LeftForeArm>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999994; 1; 0.99999994>, LocalPosition<vec3 = 26.374775; -0.000091552734; -1.4590635>, LocalRotation<quat = -0.0000004580774; 0.027629197; -0.000009275013; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item19[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:LeftHand>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 26.75343; 0.00035095215; 0.0000166893>, LocalRotation<quat = 0.0000000000000071054274; -0.00000000000000008998878; 0.00000000000000000000000000000063940874; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 18>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item20[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 20>, Data<data = Mutant:RightShoulder>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -9.553569; 16.065384; -5.2278323>, LocalRotation<quat = -0.000000000000000000000028970043; 0.00000000000000004744062; 0.000000610659; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item21[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:RightArm>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -17.811878; 2.0660706; -0.92293024>, LocalRotation<quat = 0.0000001065398; 0.027629193; -0.0000023843995; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item22[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:RightForeArm>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999994; 1; 0.99999994>, LocalPosition<vec3 = -26.374775; -0.00012207031; -1.4590635>, LocalRotation<quat = -0.00000045574163; -0.027629199; 0.000009359521; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item23[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 16>, Data<data = Mutant:RightHand>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000002; 0.9999999>, LocalPosition<vec3 = -26.753433; 0.00036621094; 0.000016212463>, LocalRotation<quat = 0.046726603; -0.2186589; 0.02667841; 0.9743167>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=3]: Length<u32 = 3>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
-										Item1[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
-										Item2[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item24[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb1>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999997; 0.99999976; 1.0000001>, LocalPosition<vec3 = -2.49234; -4.44635; 6.1634674>, LocalRotation<quat = -0.0439713; 0.07337817; 0.003806453; 0.9963271>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 25>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item25[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb2>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000001; 1.0000002; 0.9999998>, LocalPosition<vec3 = -6.602661; -4.3139954; 6.8904476>, LocalRotation<quat = -0.013876456; 0.10875394; 0.05479282; 0.9924604>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item26[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb3>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.9999999; 0.9999995>, LocalPosition<vec3 = -6.784752; -2.9669037; 4.1705265>, LocalRotation<quat = 0.0046002013; 0.065570004; 0.05413048; 0.9963681>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 25>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 27>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item27[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb4>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.99999994; 0.9999998>, LocalPosition<vec3 = -7.1306343; -2.0337524; 3.0696354>, LocalRotation<quat = -0.000000000000000003469447; 0.0000000004656613; 0.000000007450581; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item28[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex1>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999998; 1; 0.99999994>, LocalPosition<vec3 = -18.447762; 1.4798889; 8.654238>, LocalRotation<quat = -0.00000006146729; 0.21712911; -0.03712988; 0.9754364>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 29>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item29[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex2>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000001; 1; 1>, LocalPosition<vec3 = -7.5143814; 0; -0.0000019073486>, LocalRotation<quat = 0.0000000037252903; 0.000000014832755; -0.000000000000000055256317; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item30[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex3>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000002; 0.9999998; 0.99999994>, LocalPosition<vec3 = -7.4893875; 0.000030517578; 0>, LocalRotation<quat = 0.000000033236574; -0.01524691; -0.045289926; 0.99885756>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 29>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 31>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item31[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex4>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 0.9999999>, LocalPosition<vec3 = -6.7388; -0.612442; 0.20617294>, LocalRotation<quat = 0.0000000037252903; -0.0000000013969839; 0.0000000000000000052041704; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item32[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky1>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999976; 1; 0.9999999>, LocalPosition<vec3 = -17.507767; -0.47776794; -10.003082>, LocalRotation<quat = 0.00000016577542; 0.21712911; -0.037129927; 0.97543645>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item33[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky2>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999976; 0.9999995; 0.9999996>, LocalPosition<vec3 = -7.04422; 0.000030517578; 0>, LocalRotation<quat = 0.000000003725292; -0.0000000000000008222974; 0.000000017684844; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item34[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky3>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000001; 1.0000001>, LocalPosition<vec3 = -7.078888; 0; 0>, LocalRotation<quat = -0.000000000000000000000000000012621775; 0.0000000000000008881784; 0.000000000000014210855; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 35>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item35[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky4>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999999; 0.9999998; 0.9999998>, LocalPosition<vec3 = -7.0929565; 0; 0>, LocalRotation<quat = 0; 0; 0.000000000000007105428; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item36[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 16>, Data<data = Mutant:LeftUpLeg>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000002; 1.0000002>, LocalPosition<vec3 = 13.655974; -7.1352386; 0.12969641>, LocalRotation<quat = 0.0005752401; 0.000000000015617393; 0.000000027149309; 0.9999998>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 9>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 37>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item37[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 14>, Data<data = Mutant:LeftLeg>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.9999999; 0.9999999>, LocalPosition<vec3 = 0.00002670288; -35.919136; 1.4814404>, LocalRotation<quat = 0.016012942; 0.00000000000000009344624; -0.0000000000000000014965412; 0.9998718>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item38[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:LeftFoot>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999998; 0.9999997; 0.9999997>, LocalPosition<vec3 = 0; -34.30739; -2.6467438>, LocalRotation<quat = -0.016588166; -0.000000000074012914; 0.000000004461182; 0.99986243>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 37>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item39[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:LeftToeBase>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000004; 1; 1>, LocalPosition<vec3 = 0; -15.193102; 14.911817>, LocalRotation<quat = 0.000000009609495; 0.000000000000000036750417; -0.00000000000000000000000035315296; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 40>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item40[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:LeftToe_End>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999999; 0.9999998; 0.9999998>, LocalPosition<vec3 = 0.0000009536743; -0.000000000007275958; 16.88382>, LocalRotation<quat = -0.0000000000000017763573; 0.000000000000000082369335; -0.00000000000000022204463; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item41[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 17>, Data<data = Mutant:RightUpLeg>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000002; 1.0000002>, LocalPosition<vec3 = -13.655974; -7.1352386; 0.12969647>, LocalRotation<quat = 0.00057530997; 0.000000000015753262; 0.000000027382159; 0.9999998>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 9>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item42[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:RightLeg>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.99999994; 0.99999994>, LocalPosition<vec3 = -0.00002670288; -35.919136; 1.4814404>, LocalRotation<quat = 0.016013896; 0.000000014416752; 0.00000000087846735; 0.9998718>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 41>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item43[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 16>, Data<data = Mutant:RightFoot>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999999; 1; 1>, LocalPosition<vec3 = 0; -34.307396; -2.646744>, LocalRotation<quat = -0.016589116; -0.000000000012080272; 0.0000000007282283; 0.9998624>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item44[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:RightToeBase>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.9999998; 0.9999998>, LocalPosition<vec3 = 0; -15.193099; 14.911814>, LocalRotation<quat = 0.000000013334776; 0.00000000000000000007270671; 0.00000000000013414561; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=1]: Length<u32 = 1>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=0]: Index<u32 = 45>, Generation<u32 = 1>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item45[Fields=0, Children=1]: 
-						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
-							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
-								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
-									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:RightToe_End>, 
-									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.0000009536743; 0; 16.88382>, LocalRotation<quat = 0.0000000000000071054274; 0.0000000000000017764545; 0.00000000000000000010842022; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
-									Parent[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
-									Children[Fields=1, Children=0]: Length<u32 = 0>, 
-									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=0]: Id<u64 = 2390557072912>, 
-									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item46[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -1393,7 +789,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597603040>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694863664>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=68]: Length<u32 = 68>, 
 																Item0[Fields=0, Children=1]: 
@@ -1663,11 +1059,11 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 67>, B<u32 = 60>, C<u32 = 64>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597662608>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505172368>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item47[Fields=0, Children=1]: 
+					Item7[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -1682,7 +1078,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390597601408>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694862032>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=66]: Length<u32 = 66>, 
 																Item0[Fields=0, Children=1]: 
@@ -1884,11 +1280,11 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 64>, B<u32 = 65>, C<u32 = 59>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597667648>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505169792>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item48[Fields=0, Children=1]: 
+					Item8[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 1>, 
 								Data[Fields=1, Children=1]: KindId<u32 = 0>, 
@@ -1902,7 +1298,7 @@ __ROOT__[Fields=0, Children=1]:
 												Children[Fields=1, Children=0]: Length<u32 = 0>, 
 												Resource[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item49[Fields=0, Children=1]: 
+					Item9[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -1917,14 +1313,14 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597603040>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667694863664>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597662608>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505172368>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item50[Fields=0, Children=1]: 
+					Item10[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -1939,14 +1335,14 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597601408>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667694862032>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597667648>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505169792>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item51[Fields=0, Children=1]: 
+					Item11[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -1961,14 +1357,14 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597602560>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667694861456>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597667200>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505168112>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item52[Fields=0, Children=1]: 
+					Item12[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -1983,14 +1379,14 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597602752>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667694861936>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597667648>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505169792>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item53[Fields=0, Children=1]: 
+					Item13[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
@@ -2005,20 +1401,20 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597603136>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667694859920>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390597662608>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667505172368>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item54[Fields=0, Children=1]: 
+					Item14[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
 								Data[Fields=0, Children=2]: 
 									Common[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
 										Name[Fields=2, Children=0]: Length<u32 = 8>, Data<data = Cylinder>, 
-										Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0; 0; 0>, LocalRotation<quat = 0; 0; 0; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+										Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0; 0; 0.023393901>, LocalRotation<quat = 0; 0; 0; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
 										Parent[Fields=2, Children=0]: Index<u32 = 0>, Generation<u32 = 1>, 
 										Children[Fields=1, Children=0]: Length<u32 = 0>, 
 										Resource[Fields=1, Children=0]: IsSome<u8 = 0>, 
@@ -2027,7 +1423,7 @@ __ROOT__[Fields=0, Children=1]:
 										Item0[Fields=0, Children=1]: 
 											ItemData[Fields=0, Children=6]: 
 												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390788997392>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694862896>, 
 														ArcData[Fields=1, Children=2]: IsProcedural<bool = true>, 
 															Vertices[Fields=1, Children=68]: Length<u32 = 68>, 
 																Item0[Fields=0, Children=1]: 
@@ -2297,13 +1693,13 @@ __ROOT__[Fields=0, Children=1]:
 																	ItemData[Fields=3, Children=0]: A<u32 = 67>, B<u32 = 60>, C<u32 = 64>, 
 												NormalTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=1]: Id<u64 = 2390790950336>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667696659808>, 
 														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
 															Path[Fields=2, Children=0]: Length<u32 = 26>, Data<data = examples/data/concrete.jpg>, 
 												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
 												Bones[Fields=1, Children=0]: Length<u32 = 0>, 
 												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
-					Item55[Fields=0, Children=1]: 
+					Item15[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 1>, 
 								Data[Fields=1, Children=1]: KindId<u32 = 1>, 
@@ -2317,108 +1713,625 @@ __ROOT__[Fields=0, Children=1]:
 												Children[Fields=1, Children=0]: Length<u32 = 0>, 
 												Resource[Fields=1, Children=0]: IsSome<u8 = 0>, 
 												Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item16[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = true>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 8>, Data<data = __ROOT__>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.027801465; 0.027801465; 0.027801465>, LocalPosition<vec3 = 0; 1.0009036; -0.0348373>, LocalRotation<quat = -0.7192991; 0; 0; 0.69469887>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 0>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=1]: Id<u64 = 2667695023264>, 
+											ArcData[Fields=0, Children=2]: 
+												SelfWeakRef[Fields=1, Children=1]: IsSome<u8 = 1>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples/data/mutant.FBX>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item17[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 0>, Data<data = >, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0; 0; 0>, LocalRotation<quat = 0; 0; 0; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 16>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=2]: Length<u32 = 2>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 18>, Generation<u32 = 1>, 
+										Item1[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item18[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 3>, 
+								Data[Fields=0, Children=2]: 
+									Common[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+										Name[Fields=2, Children=0]: Length<u32 = 10>, Data<data = MutantMesh>, 
+										Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.39370078; 0.39370078; 0.39370078>, LocalPosition<vec3 = 0; 0; 0>, LocalRotation<quat = 0.70710677; 0; 0; 0.70710677>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+										Parent[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
+										Children[Fields=1, Children=0]: Length<u32 = 0>, 
+										Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+											Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+										Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+									Surfaces[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=0, Children=6]: 
+												Data[Fields=1, Children=1]: IsSome<u8 = 1>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667694863376>, 
+														ArcData[Fields=1, Children=2]: IsProcedural<bool = false>, 
+															Vertices[Fields=1, Children=0]: Length<u32 = 0>, 
+															Triangles[Fields=1, Children=0]: Length<u32 = 0>, 
+												NormalTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667696657344>, 
+														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
+															Path[Fields=2, Children=0]: Length<u32 = 31>, Data<data = examples/data/Mutant_normal.png>, 
+												DiffuseTexture[Fields=1, Children=1]: IsSome<u8 = 1>, 
+													Data[Fields=1, Children=1]: Id<u64 = 2667507799952>, 
+														ArcData[Fields=1, Children=1]: KindId<u32 = 2>, 
+															Path[Fields=2, Children=0]: Length<u32 = 32>, Data<data = examples/data/Mutant_diffuse.png>, 
+												Color[Fields=4, Children=0]: R<u8 = 255>, G<u8 = 255>, B<u8 = 255>, A<u8 = 255>, 
+												Bones[Fields=1, Children=31]: Length<u32 = 31>, 
+													Item0[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
+													Item1[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
+													Item2[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
+													Item3[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 46>, Generation<u32 = 1>, 
+													Item4[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 31>, Generation<u32 = 1>, 
+													Item5[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
+													Item6[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 40>, Generation<u32 = 1>, 
+													Item7[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 27>, Generation<u32 = 1>, 
+													Item8[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
+													Item9[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 51>, Generation<u32 = 1>, 
+													Item10[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 53>, Generation<u32 = 1>, 
+													Item11[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
+													Item12[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
+													Item13[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
+													Item14[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
+													Item15[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 48>, Generation<u32 = 1>, 
+													Item16[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
+													Item17[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 52>, Generation<u32 = 1>, 
+													Item18[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
+													Item19[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 29>, Generation<u32 = 1>, 
+													Item20[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 54>, Generation<u32 = 1>, 
+													Item21[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 35>, Generation<u32 = 1>, 
+													Item22[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
+													Item23[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 47>, Generation<u32 = 1>, 
+													Item24[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
+													Item25[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
+													Item26[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
+													Item27[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
+													Item28[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
+													Item29[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 49>, Generation<u32 = 1>, 
+													Item30[Fields=0, Children=1]: 
+														ItemData[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
+												LightmapTexture[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item19[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 11>, Data<data = Mutant:Hips>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.39370078; 0.39370078; 0.39370078>, LocalPosition<vec3 = 0.0000001641247; 0.12981887; 36.397614>, LocalRotation<quat = 0.70710677; 0.00000002154081; -0.00000001980375; 0.70710677>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=3]: Length<u32 = 3>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
+										Item1[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 46>, Generation<u32 = 1>, 
+										Item2[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 51>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item20[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 12>, Data<data = Mutant:Spine>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0.0000000000009094947; 10.763863; 1.2435169>, LocalRotation<quat = -0.0000000000000000000000000011618512; 0.000000000000000000039740526; 0.00000002923593; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item21[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 13>, Data<data = Mutant:Spine1>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.01892661; 13.06134; 0.22748083>, LocalRotation<quat = -0.000000000000000000000000000000002311118; 0.0000000000000426326; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item22[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 13>, Data<data = Mutant:Spine2>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.021630421; 12.98822; -0.916687>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=3]: Length<u32 = 3>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
+										Item1[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
+										Item2[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item23[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 11>, Data<data = Mutant:Neck>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.011927109; 24.670654; 2.0281014>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item24[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 11>, Data<data = Mutant:Head>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.000000007450581; 8.817337; 6.1026173>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 25>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item25[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:HeadTop_End>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 0.05248414; 20.493942; -0.28250313>, LocalRotation<quat = -0.000000000000000000000000000000000000002154338; 0.000000000000000000039740526; 0.00000000000000000005421011; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item26[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:LeftShoulder>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 9.553569; 16.065384; -5.2278323>, LocalRotation<quat = 0.000000000000000000000013836696; 0.000000000000000029017655; -0.00000047683716; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 27>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item27[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 14>, Data<data = Mutant:LeftArm>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 17.89299; 2.0660858; -0.92293024>, LocalRotation<quat = 0.00000013702456; -0.027629197; 0.0000024086787; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item28[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:LeftForeArm>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999994; 1; 0.99999994>, LocalPosition<vec3 = 26.374775; -0.000091552734; -1.4590635>, LocalRotation<quat = -0.0000004580774; 0.027629197; -0.000009275013; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 27>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 29>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item29[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:LeftHand>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = 26.75343; 0.00035095215; 0.0000166893>, LocalRotation<quat = 0.0000000000000071054274; -0.00000000000000008998878; 0.00000000000000000000000000000063940874; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item30[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 20>, Data<data = Mutant:RightShoulder>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -9.553569; 16.065384; -5.2278323>, LocalRotation<quat = -0.000000000000000000000028970043; 0.00000000000000004744062; 0.000000610659; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 31>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item31[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:RightArm>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -17.811878; 2.0660706; -0.92293024>, LocalRotation<quat = 0.0000001065398; 0.027629193; -0.0000023843995; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item32[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:RightForeArm>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999994; 1; 0.99999994>, LocalPosition<vec3 = -26.374775; -0.00012207031; -1.4590635>, LocalRotation<quat = -0.00000045574163; -0.027629199; 0.000009359521; 0.99961823>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 31>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item33[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 16>, Data<data = Mutant:RightHand>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000002; 0.9999999>, LocalPosition<vec3 = -26.753433; 0.00036621094; 0.000016212463>, LocalRotation<quat = 0.046726603; -0.2186589; 0.02667841; 0.9743167>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=3]: Length<u32 = 3>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
+										Item1[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
+										Item2[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item34[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb1>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999997; 0.99999976; 1.0000001>, LocalPosition<vec3 = -2.49234; -4.44635; 6.1634674>, LocalRotation<quat = -0.0439713; 0.07337817; 0.003806453; 0.9963271>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 35>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item35[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb2>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000001; 1.0000002; 0.9999998>, LocalPosition<vec3 = -6.602661; -4.3139954; 6.8904476>, LocalRotation<quat = -0.013876456; 0.10875394; 0.05479282; 0.9924604>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item36[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb3>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.9999999; 0.9999995>, LocalPosition<vec3 = -6.784752; -2.9669037; 4.1705265>, LocalRotation<quat = 0.0046002013; 0.065570004; 0.05413048; 0.9963681>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 35>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 37>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item37[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandThumb4>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.99999994; 0.9999998>, LocalPosition<vec3 = -7.1306343; -2.0337524; 3.0696354>, LocalRotation<quat = -0.000000000000000003469447; 0.0000000004656613; 0.000000007450581; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item38[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex1>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999998; 1; 0.99999994>, LocalPosition<vec3 = -18.447762; 1.4798889; 8.654238>, LocalRotation<quat = -0.00000006146729; 0.21712911; -0.03712988; 0.9754364>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item39[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex2>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000001; 1; 1>, LocalPosition<vec3 = -7.5143814; 0; -0.0000019073486>, LocalRotation<quat = 0.0000000037252903; 0.000000014832755; -0.000000000000000055256317; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 40>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item40[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex3>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000002; 0.9999998; 0.99999994>, LocalPosition<vec3 = -7.4893875; 0.000030517578; 0>, LocalRotation<quat = 0.000000033236574; -0.01524691; -0.045289926; 0.99885756>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 41>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item41[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandIndex4>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 0.9999999>, LocalPosition<vec3 = -6.7388; -0.612442; 0.20617294>, LocalRotation<quat = 0.0000000037252903; -0.0000000013969839; 0.0000000000000000052041704; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 40>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item42[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky1>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999976; 1; 0.9999999>, LocalPosition<vec3 = -17.507767; -0.47776794; -10.003082>, LocalRotation<quat = 0.00000016577542; 0.21712911; -0.037129927; 0.97543645>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item43[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky2>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.99999976; 0.9999995; 0.9999996>, LocalPosition<vec3 = -7.04422; 0.000030517578; 0>, LocalRotation<quat = 0.000000003725292; -0.0000000000000008222974; 0.000000017684844; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item44[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky3>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000001; 1.0000001>, LocalPosition<vec3 = -7.078888; 0; 0>, LocalRotation<quat = -0.000000000000000000000000000012621775; 0.0000000000000008881784; 0.000000000000014210855; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 45>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item45[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 22>, Data<data = Mutant:RightHandPinky4>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999999; 0.9999998; 0.9999998>, LocalPosition<vec3 = -7.0929565; 0; 0>, LocalRotation<quat = 0; 0; 0.000000000000007105428; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item46[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 16>, Data<data = Mutant:LeftUpLeg>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000002; 1.0000002>, LocalPosition<vec3 = 13.655974; -7.1352386; 0.12969641>, LocalRotation<quat = 0.0005752401; 0.000000000015617393; 0.000000027149309; 0.9999998>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 47>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item47[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 14>, Data<data = Mutant:LeftLeg>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.9999999; 0.9999999>, LocalPosition<vec3 = 0.00002670288; -35.919136; 1.4814404>, LocalRotation<quat = 0.016012942; 0.00000000000000009344624; -0.0000000000000000014965412; 0.9998718>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 46>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 48>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item48[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:LeftFoot>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999998; 0.9999997; 0.9999997>, LocalPosition<vec3 = 0; -34.30739; -2.6467438>, LocalRotation<quat = -0.016588166; -0.000000000074012914; 0.000000004461182; 0.99986243>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 47>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 49>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item49[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:LeftToeBase>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1.0000004; 1; 1>, LocalPosition<vec3 = 0; -15.193102; 14.911817>, LocalRotation<quat = 0.000000009609495; 0.000000000000000036750417; -0.00000000000000000000000035315296; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 48>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 50>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item50[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 18>, Data<data = Mutant:LeftToe_End>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999999; 0.9999998; 0.9999998>, LocalPosition<vec3 = 0.0000009536743; -0.000000000007275958; 16.88382>, LocalRotation<quat = -0.0000000000000017763573; 0.000000000000000082369335; -0.00000000000000022204463; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 49>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item51[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 17>, Data<data = Mutant:RightUpLeg>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1.0000002; 1.0000002>, LocalPosition<vec3 = -13.655974; -7.1352386; 0.12969647>, LocalRotation<quat = 0.00057530997; 0.000000000015753262; 0.000000027382159; 0.9999998>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 19>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 52>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item52[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 15>, Data<data = Mutant:RightLeg>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.99999994; 0.99999994>, LocalPosition<vec3 = -0.00002670288; -35.919136; 1.4814404>, LocalRotation<quat = 0.016013896; 0.000000014416752; 0.00000000087846735; 0.9998718>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 51>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 53>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item53[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 16>, Data<data = Mutant:RightFoot>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 0.9999999; 1; 1>, LocalPosition<vec3 = 0; -34.307396; -2.646744>, LocalRotation<quat = -0.016589116; -0.000000000012080272; 0.0000000007282283; 0.9998624>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 52>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 54>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item54[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:RightToeBase>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 0.9999998; 0.9999998>, LocalPosition<vec3 = 0; -15.193099; 14.911814>, LocalRotation<quat = 0.000000013334776; 0.00000000000000000007270671; 0.00000000000013414561; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 53>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=1]: Length<u32 = 1>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=0]: Index<u32 = 55>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
+					Item55[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=2, Children=1]: IsSome<u8 = 1>, KindId<u8 = 0>, 
+								Data[Fields=3, Children=6]: Visibility<bool = true>, IsResourceInstance<bool = false>, DepthOffset<f32 = 0>, 
+									Name[Fields=2, Children=0]: Length<u32 = 19>, Data<data = Mutant:RightToe_End>, 
+									Transform[Fields=9, Children=0]: LocalScale<vec3 = 1; 1; 1>, LocalPosition<vec3 = -0.0000009536743; 0; 16.88382>, LocalRotation<quat = 0.0000000000000071054274; 0.0000000000000017764545; 0.00000000000000000010842022; 1>, PreRotation<quat = 0; 0; 0; 1>, PostRotation<quat = 0; 0; 0; 1>, RotationOffset<vec3 = 0; 0; 0>, RotationPivot<vec3 = 0; 0; 0>, ScalingOffset<vec3 = 0; 0; 0>, ScalingPivot<vec3 = 0; 0; 0>, 
+									Parent[Fields=2, Children=0]: Index<u32 = 54>, Generation<u32 = 1>, 
+									Children[Fields=1, Children=0]: Length<u32 = 0>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=0]: Id<u64 = 2667695023264>, 
+									Lifetime[Fields=1, Children=0]: IsSome<u8 = 0>, 
 				FreeStack[Fields=1, Children=0]: Length<u32 = 0>, 
 		Animations[Fields=0, Children=1]: 
 			Pool[Fields=0, Children=2]: 
-				Records[Fields=1, Children=2]: Length<u32 = 2>, 
+				Records[Fields=1, Children=3]: Length<u32 = 3>, 
 					Item0[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
 							Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
 								Data[Fields=5, Children=3]: Speed<f32 = 1>, Length<f32 = 0>, TimePosition<f32 = 0>, Looped<bool = true>, Enabled<bool = true>, 
-									Tracks[Fields=1, Children=29]: Length<u32 = 29>, 
-										Item0[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 10>, Generation<u32 = 1>, 
-										Item1[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 11>, Generation<u32 = 1>, 
-										Item2[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 12>, Generation<u32 = 1>, 
-										Item3[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 13>, Generation<u32 = 1>, 
-										Item4[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 14>, Generation<u32 = 1>, 
-										Item5[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 16>, Generation<u32 = 1>, 
-										Item6[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 17>, Generation<u32 = 1>, 
-										Item7[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 18>, Generation<u32 = 1>, 
-										Item8[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
-										Item9[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
-										Item10[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
-										Item11[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
-										Item12[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
-										Item13[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 25>, Generation<u32 = 1>, 
-										Item14[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
-										Item15[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
-										Item16[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 29>, Generation<u32 = 1>, 
-										Item17[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
-										Item18[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
-										Item19[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
-										Item20[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
-										Item21[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
-										Item22[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 37>, Generation<u32 = 1>, 
-										Item23[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
-										Item24[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
-										Item25[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 41>, Generation<u32 = 1>, 
-										Item26[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
-										Item27[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
-										Item28[Fields=0, Children=1]: 
-											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
-												Node[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
+									Tracks[Fields=1, Children=0]: Length<u32 = 0>, 
 									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=1]: Id<u64 = 2390557072448>, 
+										Data[Fields=1, Children=1]: Id<u64 = 2667697798832>, 
 											ArcData[Fields=0, Children=2]: 
 												SelfWeakRef[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390557072448>, 
-												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples\data\mutant.FBX>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667697798832>, 
+												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples/data/mutant.FBX>, 
 									Signals[Fields=1, Children=0]: Length<u32 = 0>, 
 					Item1[Fields=0, Children=1]: 
 						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
@@ -2426,11 +2339,110 @@ __ROOT__[Fields=0, Children=1]:
 								Data[Fields=5, Children=3]: Speed<f32 = 1>, Length<f32 = 0>, TimePosition<f32 = 0>, Looped<bool = true>, Enabled<bool = true>, 
 									Tracks[Fields=1, Children=0]: Length<u32 = 0>, 
 									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
-										Data[Fields=1, Children=1]: Id<u64 = 2390557071984>, 
+										Data[Fields=1, Children=1]: Id<u64 = 2667697795120>, 
 											ArcData[Fields=0, Children=2]: 
 												SelfWeakRef[Fields=1, Children=1]: IsSome<u8 = 1>, 
-													Data[Fields=1, Children=0]: Id<u64 = 2390557071984>, 
-												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples\data\mutant.FBX>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667697795120>, 
+												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples/data/mutant.FBX>, 
+									Signals[Fields=1, Children=0]: Length<u32 = 0>, 
+					Item2[Fields=0, Children=1]: 
+						ItemData[Fields=1, Children=1]: Generation<u32 = 1>, 
+							Payload[Fields=1, Children=1]: IsSome<u8 = 1>, 
+								Data[Fields=5, Children=3]: Speed<f32 = 1>, Length<f32 = 0>, TimePosition<f32 = 0>, Looped<bool = true>, Enabled<bool = true>, 
+									Tracks[Fields=1, Children=29]: Length<u32 = 29>, 
+										Item0[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 20>, Generation<u32 = 1>, 
+										Item1[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 21>, Generation<u32 = 1>, 
+										Item2[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 22>, Generation<u32 = 1>, 
+										Item3[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 23>, Generation<u32 = 1>, 
+										Item4[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 24>, Generation<u32 = 1>, 
+										Item5[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 26>, Generation<u32 = 1>, 
+										Item6[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 27>, Generation<u32 = 1>, 
+										Item7[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 28>, Generation<u32 = 1>, 
+										Item8[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 30>, Generation<u32 = 1>, 
+										Item9[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 31>, Generation<u32 = 1>, 
+										Item10[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 32>, Generation<u32 = 1>, 
+										Item11[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 33>, Generation<u32 = 1>, 
+										Item12[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 34>, Generation<u32 = 1>, 
+										Item13[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 35>, Generation<u32 = 1>, 
+										Item14[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 36>, Generation<u32 = 1>, 
+										Item15[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 38>, Generation<u32 = 1>, 
+										Item16[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 39>, Generation<u32 = 1>, 
+										Item17[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 40>, Generation<u32 = 1>, 
+										Item18[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 42>, Generation<u32 = 1>, 
+										Item19[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 43>, Generation<u32 = 1>, 
+										Item20[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 44>, Generation<u32 = 1>, 
+										Item21[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 46>, Generation<u32 = 1>, 
+										Item22[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 47>, Generation<u32 = 1>, 
+										Item23[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 48>, Generation<u32 = 1>, 
+										Item24[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 49>, Generation<u32 = 1>, 
+										Item25[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 51>, Generation<u32 = 1>, 
+										Item26[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 52>, Generation<u32 = 1>, 
+										Item27[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 53>, Generation<u32 = 1>, 
+										Item28[Fields=0, Children=1]: 
+											ItemData[Fields=2, Children=1]: Enabled<bool = true>, MaxTime<f32 = 0>, 
+												Node[Fields=2, Children=0]: Index<u32 = 54>, Generation<u32 = 1>, 
+									Resource[Fields=1, Children=1]: IsSome<u8 = 1>, 
+										Data[Fields=1, Children=1]: Id<u64 = 2667697793264>, 
+											ArcData[Fields=0, Children=2]: 
+												SelfWeakRef[Fields=1, Children=1]: IsSome<u8 = 1>, 
+													Data[Fields=1, Children=0]: Id<u64 = 2667697793264>, 
+												Path[Fields=2, Children=0]: Length<u32 = 24>, Data<data = examples/data/mutant.FBX>, 
 									Signals[Fields=1, Children=0]: Length<u32 = 0>, 
 				FreeStack[Fields=1, Children=0]: Length<u32 = 0>, 
 		Physics[Fields=1, Children=2]: Enabled<bool = true>, 

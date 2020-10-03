@@ -9,17 +9,18 @@ pub mod navmesh;
 pub mod raw_mesh;
 pub mod uvgen;
 
-use crate::gui::draw;
-use crate::resource::texture::Texture;
 use crate::{
     core::math::vec2::Vec2,
     event::{ElementState, ModifiersState, MouseScrollDelta, VirtualKeyCode, WindowEvent},
-    gui::message::{ButtonState, KeyCode, KeyboardModifiers, OsEvent},
+    gui::{
+        draw,
+        message::{ButtonState, KeyCode, KeyboardModifiers, OsEvent},
+    },
     physics::static_geometry::{StaticGeometry, StaticTriangle},
+    resource::texture::Texture,
     scene::mesh::Mesh,
 };
-use std::sync::Mutex;
-use std::{any::Any, sync::Arc};
+use std::{any::Any, sync::Arc, sync::Mutex};
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
