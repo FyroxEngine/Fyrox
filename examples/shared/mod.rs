@@ -1,5 +1,9 @@
 //! This module contains common code that is used across multiple examples.
 
+// Suppress warning about unused code, this mod shared across multiple examples and
+// some parts can be unused in some examples.
+#![allow(dead_code)]
+
 use rg3d::core::color::Color;
 use rg3d::{
     animation::{
@@ -212,6 +216,8 @@ pub fn create_play_animation_state<P: AsRef<Path>>(
 pub struct LocomotionMachine {
     pub machine: Machine,
     pub jump_animation: Handle<Animation>,
+    pub walk_animation: Handle<Animation>,
+    pub walk_state: Handle<State>,
 }
 
 pub struct LocomotionMachineInput {
@@ -228,7 +234,7 @@ impl LocomotionMachine {
     const IDLE_TO_JUMP: &'static str = "IdleToJump";
     const JUMP_TO_IDLE: &'static str = "JumpToIdle";
 
-    const JUMP_SIGNAL: u64 = 1;
+    pub const JUMP_SIGNAL: u64 = 1;
 
     pub fn new(
         scene: &mut Scene,
@@ -237,7 +243,7 @@ impl LocomotionMachine {
     ) -> Self {
         let mut machine = Machine::new();
 
-        let (_, walk_state) = create_play_animation_state(
+        let (walk_animation, walk_state) = create_play_animation_state(
             "examples/data/walk.fbx",
             "Walk",
             &mut machine,
@@ -315,6 +321,8 @@ impl LocomotionMachine {
         Self {
             machine,
             jump_animation,
+            walk_animation,
+            walk_state,
         }
     }
 
@@ -344,6 +352,7 @@ pub struct Player {
     pub pivot: Handle<Node>,
     pub camera_pivot: Handle<Node>,
     pub camera_hinge: Handle<Node>,
+    pub camera: Handle<Node>,
     pub model: Handle<Node>,
     pub controller: InputController,
     pub locomotion_machine: LocomotionMachine,
@@ -447,6 +456,7 @@ impl Player {
             controller: Default::default(),
             locomotion_machine,
             camera_hinge,
+            camera,
             model_yaw: SmoothAngle {
                 angle: 0.0,
                 target: 0.0,

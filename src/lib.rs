@@ -44,7 +44,6 @@ extern crate glutin;
 extern crate image;
 extern crate inflate;
 extern crate lexical;
-extern crate rand;
 #[macro_use]
 extern crate lazy_static;
 
@@ -59,6 +58,7 @@ pub mod scene;
 pub mod utils;
 
 pub use glutin::*;
+pub use rand;
 
 pub use rg3d_core as core;
 pub use rg3d_physics as physics;

@@ -1,138 +1,52 @@
-//! Example 06. Save/load.
+//! Example 07. Sound.
 //!
 //! Difficulty: Advanced.
 //!
-//! This example based on 3rd_person example, it uses lots of code from shared mod.
+//! This example based on 3rd_person example.
 //!
-//! rg3d has powerful built-in serialization/deserialization which is used for various
-//! purposes, one of them is to create or load save files in your game. It very easy
-//! to use, all you need to do is to implement Visit trait on your game structures and
-//! then create new instance of visitor and call your_struct.visit(...) on it. Check code
-//! below for more info.
 //!
-//! # Important
-//!
-//! You should carefully read documentation of rg3d::core::Visitor to understand basic ideas
-//! of how it works, otherwise Visit trait implementation might be confusing.
 
 extern crate rg3d;
 
 pub mod shared;
 
-use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
+use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 use rg3d::{
-    core::{
-        math::vec2::Vec2,
-        visitor::VisitResult,
-        visitor::{Visit, Visitor},
-    },
+    animation::AnimationSignal,
+    core::math::vec2::Vec2,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
+    rand::Rng,
     renderer::QualitySettings,
+    sound::{
+        effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
+        source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
+    },
     utils::translate_event,
 };
-use std::path::Path;
+use std::time::Duration;
 
-// Start implementing Visit trait for simple types which are used by more complex.
-// At first implement trait for LocomotionMachine.
-impl Visit for LocomotionMachine {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        // Almost every implementation of visit should start with this line. It creates
-        // new node in tree structure and makes it current so every later calls of visit
-        // will write data into that node, of course inner calls can call enter_region -
-        // visitor can manage trees of any depth.
-        visitor.enter_region(name)?;
-
-        // Just call visit on every field, checking the result of operation.
-        // For backwards compatibility you can ignore result.
-        // There is a small pitfall that can be in your way - if you have Option, Rc, Arc, Mutex,
-        // or some other generic type, inner type must implement at least Default trait plus
-        // some types (Arc, Mutex) adds Send, Sync - if compiler tells you that .visit method is
-        // not found then it is probably you missed some of required trait bounds.
-        self.jump_animation.visit("JumpAnimation", visitor)?;
-        self.walk_animation.visit("WalkAnimation", visitor)?;
-        self.walk_state.visit("WalkState", visitor)?;
-        // Machine is an internal rg3d type, however it has implementation of Visit and
-        // can be serialized in one call.
-        self.machine.visit("Machine", visitor)?;
-
-        // This line should always be in pair with enter_region. It pops current node from
-        // internal stack of visitor and makes parent node current.
-        visitor.leave_region()
-    }
-}
-
-// Continue implementing Visit trait for Rest of game structures.
-impl Visit for Player {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.model.visit("Model", visitor)?;
-        self.body.visit("Body", visitor)?;
-        self.camera_pivot.visit("CameraPivot", visitor)?;
-        self.camera_hinge.visit("CameraHinge", visitor)?;
-        self.camera.visit("Camera", visitor)?;
-        self.locomotion_machine
-            .visit("LocomotionMachine", visitor)?;
-        self.model_yaw.visit("ModelYaw", visitor)?;
-        self.pivot.visit("Pivot", visitor)?;
-        // self.input_controller isn't visited because we don't care about its state -
-        // it will be synced with keyboard state anyway.
-
-        visitor.leave_region()
-    }
-}
-
-impl Visit for GameScene {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.scene.visit("Scene", visitor)?;
-        self.player.visit("Player", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-// And finally implement Visit trait for the Game.
-impl Visit for Game {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        // As you can see entire state of the rg3d engine saved in a single line.
-        self.engine.visit("Engine", visitor)?;
-
-        self.game_scene.visit("GameScene", visitor)?;
-        // self.load_context is intentionally not serialized - we abuse the fact that we can
-        // save **only** when scene was loaded, so no need to save context.
-
-        visitor.leave_region()
-    }
-}
-
-// For simplicity we'll be save (or load) game from hardcoded path.
-const SAVE_FILE: &'static str = "save.bin";
-
-fn save(game: &mut Game) {
-    // To save a game state all we need to do is to create new instance of Visitor
-    // and call visit on game instance.
-    let mut visitor = Visitor::new();
-    game.visit("Game", &mut visitor).unwrap();
-    // And call save method.
-    visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
-}
-
-fn load(game: &mut Game) {
-    if Path::new(SAVE_FILE).exists() {
-        // Loading a game is even simpler - just 2 lines.
-        let mut visitor = Visitor::load_binary(SAVE_FILE).unwrap();
-        game.visit("Game", &mut visitor).unwrap();
-    }
-}
+const FOOTSTEP_SIGNAL: u64 = 1;
 
 fn main() {
-    let (mut game, event_loop) = Game::new("Example 06 - Save/load");
+    let (mut game, event_loop) = Game::new("Example 07 - Sound");
+
+    // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
+    // so there will be pretty decent echo.
+    let mut base_effect = BaseEffect::default();
+    // Make sure it won't be too loud - rg3d-sound doesn't care about energy conservation law, it
+    // just makes requested calculation.
+    base_effect.set_gain(0.7);
+    let mut reverb = rg3d::sound::effects::reverb::Reverb::new(base_effect);
+    // Set reverb time to ~3 seconds - the more time the deeper the echo.
+    reverb.set_decay_time(Duration::from_secs_f32(3.0));
+    let reverb_effect = game
+        .engine
+        .sound_context
+        .lock()
+        .unwrap()
+        .add_effect(rg3d::sound::effects::Effect::Reverb(reverb));
 
     // Create simple user interface that will show some useful info.
     let window = game.engine.get_window();
@@ -145,6 +59,14 @@ fn main() {
     let clock = std::time::Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
+
+    // We'll use four footstep sounds to randomize sound and make it more natural.
+    let footsteps = [
+        "examples/data/sounds/FootStep_shoe_stone_step1.wav",
+        "examples/data/sounds/FootStep_shoe_stone_step2.wav",
+        "examples/data/sounds/FootStep_shoe_stone_step3.wav",
+        "examples/data/sounds/FootStep_shoe_stone_step4.wav",
+    ];
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly.
@@ -167,7 +89,16 @@ fn main() {
                     // without blocking, it is important for main thread to be functional while other
                     // thread still loading data.
                     if let Ok(mut load_context) = game.load_context.as_ref().unwrap().try_lock() {
-                        if let Some(load_result) = load_context.scene_data.take() {
+                        if let Some(mut load_result) = load_context.scene_data.take() {
+                            // Once scene is fully loaded, add some signals to walking animation.
+                            load_result.scene
+                                .animations
+                                .get_mut(load_result.player.locomotion_machine.walk_animation)
+                                // Add signals to the walk animation timeline, we'll use signals to emit foot step
+                                // sounds. 
+                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.5))
+                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 1.25));
+
                             // Add scene to engine - engine will take ownership over scene and will return
                             // you a handle to scene which can be used later on to borrow it and do some
                             // actions you need.
@@ -218,14 +149,71 @@ fn main() {
                         // engine.
                         let scene = &mut game.engine.scenes[game_scene.scene];
                         game_scene.player.update(scene, fixed_timestep);
+
+                        let mut ctx = game
+                            .engine
+                            .sound_context
+                            .lock()
+                            .unwrap();
+
+                        while let Some(event) = scene.animations.get_mut(game_scene.player.locomotion_machine.walk_animation).pop_event() {
+                            // We must play sound only if it was foot step signal and player was in walking state.
+                            if event.signal_id != FOOTSTEP_SIGNAL
+                                || game_scene.player.locomotion_machine.machine.active_state() != game_scene.player.locomotion_machine.walk_state {
+                                continue;
+                            }
+
+                            // We'll emit sounds on player's center, this is not accurate, we could use feet position instead
+                            // but it left as is just for simplicity.
+                            let position = scene.graph[game_scene.player.pivot].global_position();
+
+                            // Request foot step sound buffer from resources directory.
+                            let foot_step =
+                                game
+                                    .engine
+                                    .resource_manager
+                                    .lock()
+                                    .unwrap()
+                                    .request_sound_buffer(
+                                        // Request random sound everytime.
+                                        footsteps[rg3d::rand::thread_rng().gen_range(0,footsteps.len())],
+                                        false)
+                                    .unwrap();
+
+                            // Create new temporary foot step sound source.
+                            let source = ctx
+                                .add_source(
+                                    SpatialSourceBuilder::new(
+                                        GenericSourceBuilder::new(foot_step)
+                                            // rg3d-sound provides built-in way to create temporary sounds that will die immediately 
+                                            // after first play. This is very useful for foot step sounds.
+                                            .with_play_once(true)
+                                            // Every sound source must be explicity set to Playing status, otherwise it will be stopped.
+                                            .with_status(Status::Playing)
+                                            .build()
+                                            .unwrap()
+                                    ).with_position(position).build_source());
+
+                            // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
+                            // will be added to the source.
+                            ctx
+                                .effect_mut(reverb_effect)
+                                .add_input(EffectInput::direct(source));
+                        }
+
+                        // Final, and very important step - sync sound listener with active camera.
+                        let camera = &scene.graph[game_scene.player.camera];
+                        let listener = ctx.listener_mut();
+                        listener.set_position(camera.global_position());
+                        listener.set_orientation_lh(camera.look_vector(), camera.up_vector());
                     }
 
                     let fps = game.engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!(
-                        "Example 06 - Save/load\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.\nUse F5 to save game, F9 to load.",
+                        "Example 07 - Sound\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
                         fps
                     );
-                    game. engine.user_interface.send_message(TextMessage::text(
+                    game.engine.user_interface.send_message(TextMessage::text(
                         interface.debug_text,
                         MessageDirection::ToWidget,
                         debug_text,
@@ -298,16 +286,6 @@ fn main() {
                                     .renderer
                                     .set_quality_settings(&fix_shadows_distance(settings))
                                     .unwrap();
-                            }
-
-                            // Prevent saving/loading while example is starting.
-                            if game.game_scene.is_some() {
-                                // Save/load bound to classic F5 and F9 keys.
-                                match code {
-                                    VirtualKeyCode::F5 => save(&mut game),
-                                    VirtualKeyCode::F9 => load(&mut game),
-                                    _ => ()
-                                };
                             }
                         }
                     }
