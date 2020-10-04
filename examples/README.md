@@ -83,7 +83,7 @@ Same as Example 03, but also has "save/load" functionality - F5 and F9 keys resp
 
 ## Example 07 - Sound
 
-- TODO
+Same as Example 04, but also has foot step sounds and reverb effect.
 
 ## Example 08 - Simple game
 
