@@ -785,7 +785,7 @@ impl<M: MessageData, C: Control<M, C>> TextBoxBuilder<M, C> {
             font: None,
             text: "".to_owned(),
             caret_brush: Brush::Solid(Color::WHITE),
-            selection_brush: Brush::Solid(Color::opaque(65, 65, 90)),
+            selection_brush: Brush::Solid(Color::opaque(80, 118, 178)),
             filter: None,
             vertical_alignment: VerticalAlignment::Top,
             horizontal_alignment: HorizontalAlignment::Left,

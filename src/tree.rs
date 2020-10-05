@@ -1,4 +1,5 @@
-use crate::message::{MessageData, MessageDirection};
+use crate::decorator::DecoratorBuilder;
+use crate::message::{DecoratorMessage, MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -26,9 +27,6 @@ pub struct Tree<M: MessageData, C: Control<M, C>> {
     background: Handle<UINode<M, C>>,
     items: Vec<Handle<UINode<M, C>>>,
     is_selected: bool,
-    selected_brush: Brush,
-    hovered_brush: Brush,
-    normal_brush: Brush,
     always_show_expander: bool,
 }
 
@@ -125,30 +123,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                         }
                     }
                 }
-                WidgetMessage::MouseEnter => {
-                    if !message.handled() {
-                        if !self.is_selected {
-                            ui.send_message(WidgetMessage::background(
-                                self.background,
-                                MessageDirection::ToWidget,
-                                self.hovered_brush.clone(),
-                            ));
-                        }
-                        message.set_handled(true);
-                    }
-                }
-                WidgetMessage::MouseLeave => {
-                    if !message.handled() {
-                        if !self.is_selected {
-                            ui.send_message(WidgetMessage::background(
-                                self.background,
-                                MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
-                            ));
-                        }
-                        message.set_handled(true);
-                    }
-                }
                 _ => {}
             },
             UiMessageData::Tree(msg) => {
@@ -208,15 +182,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                         &TreeMessage::Select(state) => {
                             if self.is_selected != state.0 {
                                 self.is_selected = state.0;
-                                let brush = if self.is_selected {
-                                    self.selected_brush.clone()
-                                } else {
-                                    self.normal_brush.clone()
-                                };
-                                ui.send_message(WidgetMessage::background(
+                                ui.send_message(DecoratorMessage::select(
                                     self.background,
                                     MessageDirection::ToWidget,
-                                    brush,
+                                    self.is_selected,
                                 ));
                             }
                         }
@@ -272,10 +241,8 @@ pub struct TreeBuilder<M: MessageData, C: Control<M, C>> {
     items: Vec<Handle<UINode<M, C>>>,
     content: Handle<UINode<M, C>>,
     is_expanded: bool,
-    selected_brush: Brush,
-    hovered_brush: Brush,
-    normal_brush: Brush,
     always_show_expander: bool,
+    back: Option<Handle<UINode<M, C>>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
@@ -285,10 +252,8 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
             items: Default::default(),
             content: Default::default(),
             is_expanded: true,
-            selected_brush: Brush::Solid(Color::opaque(140, 140, 140)),
-            hovered_brush: Brush::Solid(Color::opaque(100, 100, 100)),
-            normal_brush: Brush::Solid(Color::TRANSPARENT),
             always_show_expander: false,
+            back: None,
         }
     }
 
@@ -312,6 +277,11 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
         self
     }
 
+    pub fn with_back(mut self, back: Handle<UINode<M, C>>) -> Self {
+        self.back = Some(back);
+        self
+    }
+
     pub fn build_tree(self, ctx: &mut BuildContext<M, C>) -> Tree<M, C> {
         let expander = ButtonBuilder::new(
             WidgetBuilder::new()
@@ -327,37 +297,40 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
             ctx[self.content].set_row(0).set_column(1);
         };
 
-        let item_background;
+        let internals = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .on_row(0)
+                .with_margin(Thickness {
+                    left: 1.0,
+                    top: 1.0,
+                    right: 0.0,
+                    bottom: 1.0,
+                })
+                .with_child(expander)
+                .with_child(self.content),
+        )
+        .add_column(Column::auto())
+        .add_column(Column::stretch())
+        .add_row(Row::strict(20.0))
+        .build(ctx);
+
+        let item_background = self.back.unwrap_or_else(|| {
+            DecoratorBuilder::new(BorderBuilder::new(
+                WidgetBuilder::new().with_background(Brush::Solid(Color::TRANSPARENT)),
+            ))
+            .with_selected_brush(Brush::Solid(Color::opaque(140, 140, 140)))
+            .with_hover_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+            .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
+            .build(ctx)
+        });
+
+        ctx.link(internals, item_background);
+
         let panel;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child({
-                    item_background = BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_background(self.normal_brush.clone())
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(0)
-                                        .on_row(0)
-                                        .with_margin(Thickness {
-                                            left: 1.0,
-                                            top: 1.0,
-                                            right: 0.0,
-                                            bottom: 1.0,
-                                        })
-                                        .with_child(expander)
-                                        .with_child(self.content),
-                                )
-                                .add_column(Column::auto())
-                                .add_column(Column::stretch())
-                                .add_row(Row::strict(20.0))
-                                .build(ctx),
-                            ),
-                    )
-                    .build(ctx);
-                    item_background
-                })
+                .with_child(item_background)
                 .with_child({
                     panel = StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -389,9 +362,6 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
             background: item_background,
             items: self.items,
             is_selected: false,
-            selected_brush: self.selected_brush,
-            hovered_brush: self.hovered_brush,
-            normal_brush: self.normal_brush,
             always_show_expander: self.always_show_expander,
         }
     }

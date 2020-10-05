@@ -1,13 +1,14 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{color::Color, math::vec2::Vec2, pool::Handle},
+    decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonState, MenuItemMessage, MenuMessage, OsEvent, PopupMessage, UiMessage, UiMessageData,
         WidgetMessage,
     },
+    message::{MessageData, MessageDirection},
     node::UINode,
     popup::{Placement, PopupBuilder},
     stack_panel::StackPanelBuilder,
@@ -20,6 +21,10 @@ use std::{
     ops::{Deref, DerefMut},
     rc::Rc,
 };
+
+pub const MENU_ITEM_HOVER_BACKGROUND_COLOR: Color = Color::opaque(80, 118, 178);
+pub const MENU_ITEM_BACKGROUND_COLOR: Color = Color::opaque(33, 33, 33);
+pub const MENU_BACKGROUND_COLOR: Color = Color::opaque(33, 33, 33);
 
 #[derive(Clone)]
 pub struct Menu<M: MessageData, C: Control<M, C>> {
@@ -147,7 +152,6 @@ pub struct MenuItem<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     popup: Handle<UINode<M, C>>,
-    back: Handle<UINode<M, C>>,
     placement: MenuItemPlacement,
 }
 
@@ -207,7 +211,6 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
         node_map.resolve_slice(&mut self.items);
         node_map.resolve(&mut self.popup);
-        node_map.resolve(&mut self.back);
     }
 
     fn handle_routed_message(
@@ -254,20 +257,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
                             message.set_handled(true);
                         }
                     }
-                    WidgetMessage::MouseLeave => {
-                        ui.send_message(WidgetMessage::background(
-                            self.back,
-                            MessageDirection::ToWidget,
-                            Brush::Solid(Color::opaque(50, 50, 50)),
-                        ));
-                    }
                     WidgetMessage::MouseEnter => {
-                        ui.send_message(WidgetMessage::background(
-                            self.back,
-                            MessageDirection::ToWidget,
-                            Brush::Solid(Color::opaque(130, 130, 130)),
-                        ));
-
                         // While parent menu active it is possible to open submenus
                         // by simple mouse hover.
                         let menu = find_menu(self.parent(), ui);
@@ -385,11 +375,13 @@ impl<M: MessageData, C: Control<M, C>> MenuBuilder<M, C> {
         }
 
         let back = BorderBuilder::new(
-            WidgetBuilder::new().with_child(
-                StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items))
-                    .with_orientation(Orientation::Horizontal)
-                    .build(ctx),
-            ),
+            WidgetBuilder::new()
+                .with_background(Brush::Solid(MENU_BACKGROUND_COLOR))
+                .with_child(
+                    StackPanelBuilder::new(WidgetBuilder::new().with_children(&self.items))
+                        .with_orientation(Orientation::Horizontal)
+                        .build(ctx),
+                ),
         )
         .build(ctx);
 
@@ -443,6 +435,7 @@ pub struct MenuItemBuilder<'a, 'b, M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     items: Vec<Handle<UINode<M, C>>>,
     content: MenuItemContent<'a, 'b, M, C>,
+    back: Option<Handle<UINode<M, C>>>,
 }
 
 impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
@@ -451,6 +444,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             widget_builder,
             items: Default::default(),
             content: MenuItemContent::None,
+            back: None,
         }
     }
 
@@ -461,6 +455,13 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
 
     pub fn with_items(mut self, items: Vec<Handle<UINode<M, C>>>) -> Self {
         self.items = items;
+        self
+    }
+
+    /// Allows you to specify the background content. Background node is only for decoration purpose,
+    /// it can be any kind of node, by default it is Decorator.
+    pub fn with_back(mut self, handle: Handle<UINode<M, C>>) -> Self {
+        self.back = Some(handle);
         self
     }
 
@@ -496,7 +497,7 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
                         .build(ctx),
                     ),
             )
-            .add_row(Row::stretch())
+            .add_row(Row::auto())
             .add_column(Column::auto())
             .add_column(Column::stretch())
             .add_column(Column::auto())
@@ -504,9 +505,17 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             MenuItemContent::Node(node) => node,
         };
 
-        let back = BorderBuilder::new(WidgetBuilder::new().with_child(content))
-            .with_stroke_thickness(Thickness::uniform(0.0))
-            .build(ctx);
+        let back = self.back.unwrap_or_else(|| {
+            DecoratorBuilder::new(
+                BorderBuilder::new(WidgetBuilder::new())
+                    .with_stroke_thickness(Thickness::uniform(0.0)),
+            )
+            .with_hover_brush(Brush::Solid(MENU_ITEM_HOVER_BACKGROUND_COLOR))
+            .with_normal_brush(Brush::Solid(MENU_ITEM_BACKGROUND_COLOR))
+            .build(ctx)
+        });
+
+        ctx.link(content, back);
 
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vec2::new(10.0, 10.0)))
             .with_content(
@@ -520,7 +529,6 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             widget: self.widget_builder.with_child(back).build(),
             popup,
             items: self.items,
-            back,
             placement: MenuItemPlacement::Right,
         };
 

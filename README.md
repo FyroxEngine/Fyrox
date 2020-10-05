@@ -57,6 +57,10 @@ Retained mode, general purpose, graphics API agnostic user interface library. In
 - In general rg3d-ui is fast, however it can be slow if used incorrectly. Since this library uses very complex layout system, it may work slow if there are lots of ui elements being moved (i.e. when scrolling). Hopefully it has built-in layout caching system and it relies on layout invalidation so it won't do layout calculations each frame - only if something significant changed (position, size, etc.).
 - Batching of render commands can be difficult, because the library extensively uses clipping, and each clipping geometry has to be drawn into stencil buffer as separate draw call. Rendering still has to be optimized, it is inefficient for now.
 
+## Styling
+
+rg3d-ui uses a bit unusual way of styling - you have to replace entire sub-graphs of widget's visual trees. What does that mean? rg3d-ui uses graph to build visual trees of any complexity, each widget is a set of nodes in the graph. For example button is a set of background and foreground widgets, background widget usually defines appearance and foreground shows a content. Content of a button can be any widget, in most common cases it is either a text or an image. So to change appearance of a button you have to define your own background widget at the building stage, by default rg3d-ui uses Decorator widget which just changes its foreground brush when it receives MouseEnter, MouseLeave, etc. message. This fact significantly complicates **minor** styling (like change a color), but it is super flexible approach and allows to build your own unique style. Most of widget builders provides a way to change its parts, some of them still may lack such functionality, but this should eventually be fixed.
+
 ## Screenshots
 
 [![editor](https://raw.githubusercontent.com/mrDIMAS/rusty-editor/master/screenshots/1.png)](https://github.com/mrDIMAS/rusty-editor/)

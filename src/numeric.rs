@@ -1,3 +1,7 @@
+use crate::border::BorderBuilder;
+use crate::brush::Brush;
+use crate::core::color::Color;
+use crate::decorator::DecoratorBuilder;
 use crate::{
     button::ButtonBuilder,
     core::pool::Handle,
@@ -150,6 +154,29 @@ pub struct NumericUpDownBuilder<M: MessageData, C: Control<M, C>> {
     precision: usize,
 }
 
+pub fn make_button<M: MessageData, C: Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    text: &str,
+    row: usize,
+) -> Handle<UINode<M, C>> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::right(1.0))
+            .on_row(row),
+    )
+    .with_back(
+        DecoratorBuilder::new(BorderBuilder::new(
+            WidgetBuilder::new().with_foreground(Brush::Solid(Color::opaque(90, 90, 90))),
+        ))
+        .with_normal_brush(Brush::Solid(Color::opaque(60, 60, 60)))
+        .with_hover_brush(Brush::Solid(Color::opaque(80, 80, 80)))
+        .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
+        .build(ctx),
+    )
+    .with_text(text)
+    .build(ctx)
+}
+
 impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
@@ -214,23 +241,11 @@ impl<M: MessageData, C: Control<M, C>> NumericUpDownBuilder<M, C> {
                         WidgetBuilder::new()
                             .on_column(1)
                             .with_child({
-                                increase = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::right(1.0))
-                                        .on_row(0),
-                                )
-                                .with_text("^")
-                                .build(ctx);
+                                increase = make_button(ctx, "^", 0);
                                 increase
                             })
                             .with_child({
-                                decrease = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::right(1.0))
-                                        .on_row(1),
-                                )
-                                .with_text("v")
-                                .build(ctx);
+                                decrease = make_button(ctx, "v", 1);
                                 decrease
                             }),
                     )

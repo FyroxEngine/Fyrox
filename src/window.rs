@@ -1,3 +1,4 @@
+use crate::decorator::DecoratorBuilder;
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
@@ -604,6 +605,25 @@ fn make_text_title<M: MessageData, C: Control<M, C>>(
     .build(ctx)
 }
 
+fn make_header_button<M: MessageData, C: Control<M, C>>(
+    ctx: &mut BuildContext<M, C>,
+    text: &str,
+) -> Handle<UINode<M, C>> {
+    ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+        .with_back(
+            DecoratorBuilder::new(
+                BorderBuilder::new(WidgetBuilder::new())
+                    .with_stroke_thickness(Thickness::uniform(0.0)),
+            )
+            .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
+            .with_hover_brush(Brush::Solid(Color::opaque(120, 120, 120)))
+            .with_pressed_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+            .build(ctx),
+        )
+        .with_text(text)
+        .build(ctx)
+}
+
 impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
         Self {
@@ -707,13 +727,9 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                                 title
                             })
                             .with_child({
-                                minimize_button = self.minimize_button.unwrap_or_else(|| {
-                                    ButtonBuilder::new(
-                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                                    )
-                                    .with_text("_")
-                                    .build(ctx)
-                                });
+                                minimize_button = self
+                                    .minimize_button
+                                    .unwrap_or_else(|| make_header_button(ctx, "_"));
                                 ctx[minimize_button]
                                     .set_visibility(self.can_minimize)
                                     .set_width(30.0)
@@ -722,13 +738,9 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                                 minimize_button
                             })
                             .with_child({
-                                close_button = self.close_button.unwrap_or_else(|| {
-                                    ButtonBuilder::new(
-                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                                    )
-                                    .with_text("X")
-                                    .build(ctx)
-                                });
+                                close_button = self
+                                    .close_button
+                                    .unwrap_or_else(|| make_header_button(ctx, "X"));
                                 ctx[close_button]
                                     .set_width(30.0)
                                     .set_visibility(self.can_close)

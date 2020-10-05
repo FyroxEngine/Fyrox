@@ -475,7 +475,11 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         };
 
         let indicator = self.indicator.unwrap_or_else(|| {
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new())).build(ctx)
+            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
+                .with_normal_brush(Brush::Solid(Color::opaque(110, 110, 110)))
+                .with_hover_brush(Brush::Solid(Color::opaque(120, 120, 120)))
+                .with_pressed_brush(Brush::Solid(Color::opaque(130, 130, 130)))
+                .build(ctx)
         });
 
         match orientation {
@@ -549,7 +553,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
 
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(
-                WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(120, 120, 120))),
+                WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(60, 60, 60))),
             )
             .with_stroke_thickness(Thickness::uniform(1.0))
             .build(ctx)

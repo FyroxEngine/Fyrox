@@ -298,13 +298,14 @@ fn build_tree_item<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
         .with_expanded(false)
         .with_always_show_expander(!is_dir_empty)
         .with_content(
-            TextBuilder::new(WidgetBuilder::new())
+            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(4.0)))
                 .with_text(
                     path.as_ref()
                         .to_string_lossy()
                         .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
                         .replace("\\", ""),
                 )
+                .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx),
         )
         .build(ctx)
@@ -735,6 +736,7 @@ impl<M: MessageData, C: Control<M, C>> FileSelectorBuilder<M, C> {
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
                                     .with_horizontal_alignment(HorizontalAlignment::Right)
                                     .on_column(0)
                                     .on_row(1)

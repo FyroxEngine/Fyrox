@@ -1,6 +1,7 @@
 use crate::{
     border::BorderBuilder,
-    core::pool::Handle,
+    brush::Brush,
+    core::{color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     message::{
         ButtonMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
@@ -8,8 +9,8 @@ use crate::{
     text::TextBuilder,
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, UINode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UINode,
+    UserInterface, VerticalAlignment,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -133,7 +134,7 @@ pub struct ButtonBuilder<M: MessageData, C: Control<M, C>> {
     widget_builder: WidgetBuilder<M, C>,
     content: Option<ButtonContent<M, C>>,
     font: Option<SharedFont>,
-    decorator: Option<Handle<UINode<M, C>>>,
+    back: Option<Handle<UINode<M, C>>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
@@ -142,7 +143,7 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
             widget_builder,
             content: None,
             font: None,
-            decorator: None,
+            back: None,
         }
     }
 
@@ -161,8 +162,8 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
         self
     }
 
-    pub fn with_decorator(mut self, decorator: Handle<UINode<M, C>>) -> Self {
-        self.decorator = Some(decorator);
+    pub fn with_back(mut self, decorator: Handle<UINode<M, C>>) -> Self {
+        self.back = Some(decorator);
         self
     }
 
@@ -181,15 +182,21 @@ impl<M: MessageData, C: Control<M, C>> ButtonBuilder<M, C> {
             Handle::NONE
         };
 
-        let decorator = self.decorator.unwrap_or_else(|| {
-            DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_child(content)))
-                .build(ctx)
+        let back = self.back.unwrap_or_else(|| {
+            DecoratorBuilder::new(
+                BorderBuilder::new(WidgetBuilder::new().with_child(content))
+                    .with_stroke_thickness(Thickness::uniform(0.0)),
+            )
+            .with_normal_brush(Brush::Solid(Color::opaque(90, 90, 90)))
+            .with_hover_brush(Brush::Solid(Color::opaque(110, 110, 110)))
+            .with_pressed_brush(Brush::Solid(Color::opaque(80, 118, 178)))
+            .build(ctx)
         });
-        ctx.link(content, decorator);
+        ctx.link(content, back);
 
         let button = Button {
-            widget: self.widget_builder.with_child(decorator).build(),
-            decorator,
+            widget: self.widget_builder.with_child(back).build(),
+            decorator: back,
             content,
         };
         ctx.add_node(UINode::Button(button))
