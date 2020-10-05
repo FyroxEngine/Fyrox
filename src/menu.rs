@@ -87,7 +87,7 @@ fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
 
 impl Menu {
     pub fn new(engine: &mut GameEngine, message_sender: Sender<Message>) -> Self {
-        let min_size = Vec2::new(120.0, 20.0);
+        let min_size = Vec2::new(120.0, 22.0);
         let new_scene;
         let save;
         let save_as;

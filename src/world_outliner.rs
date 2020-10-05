@@ -232,6 +232,7 @@ impl SceneItemBuilder {
                         .with_child(
                             TextBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
                                     .on_column(1)
                                     .with_vertical_alignment(VerticalAlignment::Center),
                             )
@@ -248,9 +249,11 @@ impl SceneItemBuilder {
                                     .on_column(2),
                             )
                             .with_content(
-                                ImageBuilder::new(WidgetBuilder::new())
-                                    .with_opt_texture(visible_texture)
-                                    .build(ctx),
+                                ImageBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_opt_texture(visible_texture)
+                                .build(ctx),
                             )
                             .build(ctx);
                             visibility_toggle

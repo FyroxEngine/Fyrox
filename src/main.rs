@@ -217,6 +217,7 @@ impl ScenePreview {
                                         .with_content(
                                             ImageBuilder::new(
                                                 WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
@@ -237,6 +238,7 @@ impl ScenePreview {
                                         .with_content(
                                             ImageBuilder::new(
                                                 WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
@@ -257,6 +259,7 @@ impl ScenePreview {
                                         .with_content(
                                             ImageBuilder::new(
                                                 WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
@@ -592,36 +595,40 @@ impl Configurator {
             UiMessageData::FileSelector(msg) => {
                 if let FileSelectorMessage::Commit(path) = msg {
                     if message.destination() == self.textures_dir_browser {
-                        self.textures_path = path.clone().canonicalize().unwrap();
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_textures_path,
-                            MessageDirection::ToWidget,
-                            self.textures_path.to_string_lossy().to_string(),
-                        ));
-
-                        self.validate(engine);
-                    } else if message.destination() == self.work_dir_browser {
-                        self.work_dir = path.clone().canonicalize().unwrap();
-                        self.textures_path = self.work_dir.clone();
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_work_dir,
-                            MessageDirection::ToWidget,
-                            self.work_dir.to_string_lossy().to_string(),
-                        ));
-                        engine
-                            .user_interface
-                            .send_message(FileSelectorMessage::root(
-                                self.textures_dir_browser,
+                        if let Ok(textures_path) = path.clone().canonicalize() {
+                            self.textures_path = textures_path;
+                            engine.user_interface.send_message(TextBoxMessage::text(
+                                self.tb_textures_path,
                                 MessageDirection::ToWidget,
-                                Some(self.textures_path.clone()),
+                                self.textures_path.to_string_lossy().to_string(),
                             ));
-                        engine.user_interface.send_message(TextBoxMessage::text(
-                            self.tb_textures_path,
-                            MessageDirection::ToWidget,
-                            self.textures_path.to_string_lossy().to_string(),
-                        ));
 
-                        self.validate(engine);
+                            self.validate(engine);
+                        }
+                    } else if message.destination() == self.work_dir_browser {
+                        if let Ok(work_dir) = path.clone().canonicalize() {
+                            self.work_dir = work_dir;
+                            self.textures_path = self.work_dir.clone();
+                            engine.user_interface.send_message(TextBoxMessage::text(
+                                self.tb_work_dir,
+                                MessageDirection::ToWidget,
+                                self.work_dir.to_string_lossy().to_string(),
+                            ));
+                            engine
+                                .user_interface
+                                .send_message(FileSelectorMessage::root(
+                                    self.textures_dir_browser,
+                                    MessageDirection::ToWidget,
+                                    Some(self.textures_path.clone()),
+                                ));
+                            engine.user_interface.send_message(TextBoxMessage::text(
+                                self.tb_textures_path,
+                                MessageDirection::ToWidget,
+                                self.textures_path.to_string_lossy().to_string(),
+                            ));
+
+                            self.validate(engine);
+                        }
                     }
                 }
             }
