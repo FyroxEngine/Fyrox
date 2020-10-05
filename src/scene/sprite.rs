@@ -23,7 +23,7 @@ use std::{
 };
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Sprite {
     base: Base,
     texture: Option<Arc<Mutex<Texture>>>,
@@ -53,6 +53,17 @@ impl Default for Sprite {
 }
 
 impl Sprite {
+    /// Creates a raw copy of a sprite node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            texture: self.texture.clone(),
+            color: self.color,
+            size: self.size,
+            rotation: self.rotation,
+        }
+    }
+
     /// Sets new size of sprite. Since sprite is always square, size
     /// defines half of width or height, so actual size will be doubled.    
     pub fn set_size(&mut self, size: f32) {

@@ -53,7 +53,7 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     let camera = CameraBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_local_position(Vec3::new(4.0, 4.0, -8.0))
+                .with_local_position(Vec3::new(0.0, 4.0, -8.0))
                 .build(),
         ),
     )
@@ -201,6 +201,22 @@ fn main() {
                         // directly when window size has changed.
                         engine.renderer.set_frame_size(size.into());
                     }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+                        if let Some(key_code) = input.virtual_keycode {
+                            match key_code {
+                                VirtualKeyCode::A => {
+                                    input_controller.rotate_left =
+                                        input.state == ElementState::Pressed
+                                }
+                                VirtualKeyCode::D => {
+                                    input_controller.rotate_right =
+                                        input.state == ElementState::Pressed
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
                     _ => (),
                 }
 
@@ -212,19 +228,7 @@ fn main() {
                 }
             }
             Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::Key(key) = event {
-                    if let Some(key_code) = key.virtual_keycode {
-                        match key_code {
-                            VirtualKeyCode::A => {
-                                input_controller.rotate_left = key.state == ElementState::Pressed
-                            }
-                            VirtualKeyCode::D => {
-                                input_controller.rotate_right = key.state == ElementState::Pressed
-                            }
-                            _ => (),
-                        }
-                    }
-                }
+                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,
         }

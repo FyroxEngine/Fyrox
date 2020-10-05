@@ -227,9 +227,10 @@ mod test {
 
     #[test]
     fn test_generate_uvs() {
-        let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
+        //let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
         //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Default::default());
         //let mut data = SurfaceSharedData::make_cube(Default::default());
+        let mut data = SurfaceSharedData::make_cone(10, 1.0, 1.0, Default::default());
         generate_uvs(&mut data, 0.01);
 
         let white = Rgb([255u8, 255u8, 255u8]);

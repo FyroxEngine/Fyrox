@@ -1065,7 +1065,7 @@ impl Default for BaseEmitter {
 }
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ParticleSystem {
     base: Base,
     particles: Vec<Particle>,
@@ -1091,6 +1091,19 @@ impl DerefMut for ParticleSystem {
 }
 
 impl ParticleSystem {
+    /// Creates a raw copy of a particle system node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            particles: self.particles.clone(),
+            free_particles: self.free_particles.clone(),
+            emitters: self.emitters.clone(),
+            texture: self.texture.clone(),
+            acceleration: self.acceleration,
+            color_over_lifetime: self.color_over_lifetime.clone(),
+        }
+    }
+
     /// Adds new emitter to particle system.
     pub fn add_emitter(&mut self, emitter: Emitter) {
         self.emitters.push(emitter)

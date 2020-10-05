@@ -25,7 +25,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Camera {
     base: Base,
     fov: f32,
@@ -220,6 +220,20 @@ impl Camera {
             ))
         } else {
             None
+        }
+    }
+
+    /// Creates a raw copy of a camera node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            fov: self.fov,
+            z_near: self.z_near,
+            z_far: self.z_far,
+            viewport: self.viewport,
+            view_matrix: self.view_matrix,
+            projection_matrix: self.projection_matrix,
+            enabled: self.enabled,
         }
     }
 }

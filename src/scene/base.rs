@@ -198,12 +198,10 @@ impl Base {
     pub fn depth_offset_factor(&self) -> f32 {
         self.depth_offset
     }
-}
 
-impl Clone for Base {
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
-    fn clone(&self) -> Self {
+    pub fn raw_copy(&self) -> Self {
         Self {
             name: self.name.clone(),
             local_transform: self.local_transform.clone(),

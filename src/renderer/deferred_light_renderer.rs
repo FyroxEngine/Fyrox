@@ -239,11 +239,11 @@ impl DeferredLightRenderer {
         state: &mut State,
         settings: &QualitySettings,
     ) -> Result<(), RendererError> {
-        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.size {
+        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size() {
             self.spot_shadow_map_renderer =
                 SpotShadowMapRenderer::new(state, settings.spot_shadow_map_size)?;
         }
-        if settings.point_shadow_map_size != self.point_shadow_map_renderer.size {
+        if settings.point_shadow_map_size != self.point_shadow_map_renderer.base_size() {
             self.point_shadow_map_renderer =
                 PointShadowMapRenderer::new(state, settings.point_shadow_map_size)?;
         }
@@ -396,6 +396,21 @@ impl DeferredLightRenderer {
 
             let distance_to_camera = (light.global_position() - camera.global_position()).len();
 
+            let v = match light {
+                Light::Directional(_) => 0.0,
+                Light::Spot(_) => settings.spot_shadows_distance,
+                Light::Point(_) => settings.point_shadows_distance,
+            };
+            let b1 = v * 0.2;
+            let b2 = v * 0.4;
+            let cascade_index = if distance_to_camera < b1 {
+                0
+            } else if distance_to_camera > b1 && distance_to_camera < b2 {
+                1
+            } else {
+                2
+            };
+
             let mut light_view_projection = Mat4::IDENTITY;
             let shadows_enabled = light.is_cast_shadows()
                 && match light {
@@ -423,6 +438,7 @@ impl DeferredLightRenderer {
                             white_dummy.clone(),
                             textures,
                             geometry_cache,
+                            cascade_index,
                         );
 
                         true
@@ -441,6 +457,7 @@ impl DeferredLightRenderer {
                                     light_radius,
                                     texture_cache: textures,
                                     geom_cache: geometry_cache,
+                                    cascade: cascade_index,
                                 });
 
                         true
@@ -576,7 +593,10 @@ impl DeferredLightRenderer {
                         (shader.wvp_matrix, UniformValue::Mat4(frame_matrix)),
                         (
                             shader.shadow_map_inv_size,
-                            UniformValue::Float(1.0 / (self.spot_shadow_map_renderer.size as f32)),
+                            UniformValue::Float(
+                                1.0 / (self.spot_shadow_map_renderer.cascade_size(cascade_index)
+                                    as f32),
+                            ),
                         ),
                         (
                             shader.camera_position,
@@ -607,7 +627,9 @@ impl DeferredLightRenderer {
                             shader.spot_shadow_texture,
                             UniformValue::Sampler {
                                 index: 3,
-                                texture: self.spot_shadow_map_renderer.texture(),
+                                texture: self
+                                    .spot_shadow_map_renderer
+                                    .cascade_texture(cascade_index),
                             },
                         ),
                     ];
@@ -667,7 +689,9 @@ impl DeferredLightRenderer {
                             shader.point_shadow_texture,
                             UniformValue::Sampler {
                                 index: 3,
-                                texture: self.point_shadow_map_renderer.texture(),
+                                texture: self
+                                    .point_shadow_map_renderer
+                                    .cascade_texture(cascade_index),
                             },
                         ),
                     ];

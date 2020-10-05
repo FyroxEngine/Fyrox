@@ -13,7 +13,7 @@ use crate::{
             },
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{
-                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MininificationFilter,
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
             state::State,
@@ -80,13 +80,22 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
 }
 
 impl ScreenSpaceAmbientOcclusionRenderer {
-    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut State,
+        frame_width: usize,
+        frame_height: usize,
+    ) -> Result<Self, RendererError> {
+        // It is good balance between quality and performance, no need to do SSAO in full resolution.
+        // This SSAO map size reduction was taken from DOOM (2016).
+        let width = (frame_width / 2).max(1);
+        let height = (frame_height / 2).max(1);
+
         let occlusion = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
             texture
                 .bind_mut(state, 0)
-                .set_minification_filter(MininificationFilter::Nearest)
+                .set_minification_filter(MinificationFilter::Nearest)
                 .set_magnification_filter(MagnificationFilter::Nearest);
             texture
         };

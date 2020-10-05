@@ -15,7 +15,7 @@ use rg3d::{
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{message::TextMessage, node::StubNode, text::TextBuilder, widget::WidgetBuilder},
     scene::{
@@ -23,6 +23,7 @@ use rg3d::{
     },
     utils::{lightmap::Lightmap, translate_event, uvgen},
 };
+use std::path::Path;
 use std::{
     sync::{Arc, Mutex},
     time::Instant,
@@ -52,7 +53,7 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     let camera = CameraBuilder::new(
         BaseBuilder::new().with_local_transform(
             TransformBuilder::new()
-                .with_local_position(Vec3::new(4.0, 4.0, -8.0))
+                .with_local_position(Vec3::new(0.0, 4.0, -8.0))
                 .build(),
         ),
     )
@@ -78,7 +79,11 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     }
 
     let lightmap = Lightmap::new(&scene, 128);
-    lightmap.save("examples/data/lightmaps/").unwrap();
+    let lightmaps_path = Path::new("examples/data/lightmaps/");
+    if !lightmaps_path.exists() {
+        std::fs::create_dir(lightmaps_path).unwrap();
+    }
+    lightmap.save(lightmaps_path).unwrap();
     scene.set_lightmap(lightmap).unwrap();
 
     for node in scene.graph.linear_iter_mut() {
@@ -217,6 +222,22 @@ fn main() {
                         // directly when window size has changed.
                         engine.renderer.set_frame_size(size.into());
                     }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+                        if let Some(key_code) = input.virtual_keycode {
+                            match key_code {
+                                VirtualKeyCode::A => {
+                                    input_controller.rotate_left =
+                                        input.state == ElementState::Pressed
+                                }
+                                VirtualKeyCode::D => {
+                                    input_controller.rotate_right =
+                                        input.state == ElementState::Pressed
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
                     _ => (),
                 }
 
@@ -227,20 +248,8 @@ fn main() {
                     engine.user_interface.process_os_event(&os_event);
                 }
             }
-            Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::Key(key) = event {
-                    if let Some(key_code) = key.virtual_keycode {
-                        match key_code {
-                            VirtualKeyCode::A => {
-                                input_controller.rotate_left = key.state == ElementState::Pressed
-                            }
-                            VirtualKeyCode::D => {
-                                input_controller.rotate_right = key.state == ElementState::Pressed
-                            }
-                            _ => (),
-                        }
-                    }
-                }
+            Event::DeviceEvent { .. } => {
+                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,
         }

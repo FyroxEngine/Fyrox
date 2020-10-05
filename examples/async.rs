@@ -311,7 +311,7 @@ fn main() {
                             engine.user_interface.send_message(WidgetMessage::visibility(interface.progress_text,MessageDirection::ToWidget, false));
                         }
 
-                        // Report progress in UI. 
+                        // Report progress in UI.
                         engine.user_interface.send_message(ProgressBarMessage::progress(interface.progress_bar, MessageDirection::ToWidget,load_context.progress));
                         engine.user_interface.send_message(
                             TextMessage::text(interface.progress_text,MessageDirection::ToWidget,
@@ -386,6 +386,16 @@ fn main() {
                         engine.user_interface.send_message(WidgetMessage::width(interface.root, MessageDirection::ToWidget,size.width));
                         engine.user_interface.send_message(WidgetMessage::height(interface.root, MessageDirection::ToWidget,size.height));
                     }
+                    WindowEvent::KeyboardInput { input, ..} => {
+                        // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+                        if let Some(key_code) = input.virtual_keycode {
+                            match key_code {
+                            VirtualKeyCode::A => input_controller.rotate_left = input.state == ElementState::Pressed,
+                            VirtualKeyCode::D => input_controller.rotate_right = input.state == ElementState::Pressed,
+                            _ => ()
+                        }
+                        }
+                    }
                     _ => ()
                 }
 
@@ -397,15 +407,7 @@ fn main() {
                 }
             }
             Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::Key(key) = event {
-                    if let Some(key_code) = key.virtual_keycode {
-                        match key_code {
-                            VirtualKeyCode::A => input_controller.rotate_left = key.state == ElementState::Pressed,
-                            VirtualKeyCode::D => input_controller.rotate_right = key.state == ElementState::Pressed,
-                            _ => ()
-                        }
-                    }
-                }
+                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,
         }

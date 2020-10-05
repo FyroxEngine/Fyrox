@@ -1,26 +1,10 @@
-//! Example 03. 3rd person walk simulator.
+//! Example 07. Sound.
 //!
 //! Difficulty: Advanced.
 //!
-//! This example based on async example, because it requires to load decent amount of
-//! resources which might be slow on some machines.
+//! This example based on 3rd_person example.
 //!
-//! In this example we'll create simple 3rd person game with character that can idle,
-//! walk, or jump.
 //!
-//! Also this example demonstrates the power of animation blending machines. Animation
-//! blending machines are used in all modern games to create complex animations from set
-//! of simple ones.
-//!
-//! TODO: Improve explanations. Some places can be explained better.
-//!
-//! Known bugs: Sometimes character will jump, but jumping animations is not playing.
-//!
-//! Possible improvements:
-//!  - Smart camera - camera which will not penetrate walls.
-//!  - Separate animation machines for upper and lower body - upper machine might be
-//!    for combat, lower - for locomotion.
-//!  - Tons of them, this is simple example after all.
 
 extern crate rg3d;
 
@@ -28,16 +12,41 @@ pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 use rg3d::{
+    animation::AnimationSignal,
     core::math::vec2::Vec2,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
+    rand::Rng,
     renderer::QualitySettings,
+    sound::{
+        effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
+        source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
+    },
     utils::translate_event,
 };
+use std::time::Duration;
+
+const FOOTSTEP_SIGNAL: u64 = 1;
 
 fn main() {
-    let (mut game, event_loop) = Game::new("Example 03 - 3rd person");
+    let (mut game, event_loop) = Game::new("Example 07 - Sound");
+
+    // Create reverb effect for more natural sound - our player walks in some sort of cathedral,
+    // so there will be pretty decent echo.
+    let mut base_effect = BaseEffect::default();
+    // Make sure it won't be too loud - rg3d-sound doesn't care about energy conservation law, it
+    // just makes requested calculation.
+    base_effect.set_gain(0.7);
+    let mut reverb = rg3d::sound::effects::reverb::Reverb::new(base_effect);
+    // Set reverb time to ~3 seconds - the more time the deeper the echo.
+    reverb.set_decay_time(Duration::from_secs_f32(3.0));
+    let reverb_effect = game
+        .engine
+        .sound_context
+        .lock()
+        .unwrap()
+        .add_effect(rg3d::sound::effects::Effect::Reverb(reverb));
 
     // Create simple user interface that will show some useful info.
     let window = game.engine.get_window();
@@ -50,6 +59,14 @@ fn main() {
     let clock = std::time::Instant::now();
     let fixed_timestep = 1.0 / 60.0;
     let mut elapsed_time = 0.0;
+
+    // We'll use four footstep sounds to randomize sound and make it more natural.
+    let footsteps = [
+        "examples/data/sounds/FootStep_shoe_stone_step1.wav",
+        "examples/data/sounds/FootStep_shoe_stone_step2.wav",
+        "examples/data/sounds/FootStep_shoe_stone_step3.wav",
+        "examples/data/sounds/FootStep_shoe_stone_step4.wav",
+    ];
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly.
@@ -72,7 +89,16 @@ fn main() {
                     // without blocking, it is important for main thread to be functional while other
                     // thread still loading data.
                     if let Ok(mut load_context) = game.load_context.as_ref().unwrap().try_lock() {
-                        if let Some(load_result) = load_context.scene_data.take() {
+                        if let Some(mut load_result) = load_context.scene_data.take() {
+                            // Once scene is fully loaded, add some signals to walking animation.
+                            load_result.scene
+                                .animations
+                                .get_mut(load_result.player.locomotion_machine.walk_animation)
+                                // Add signals to the walk animation timeline, we'll use signals to emit foot step
+                                // sounds. 
+                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.5))
+                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 1.25));
+
                             // Add scene to engine - engine will take ownership over scene and will return
                             // you a handle to scene which can be used later on to borrow it and do some
                             // actions you need.
@@ -123,14 +149,71 @@ fn main() {
                         // engine.
                         let scene = &mut game.engine.scenes[game_scene.scene];
                         game_scene.player.update(scene, fixed_timestep);
+
+                        let mut ctx = game
+                            .engine
+                            .sound_context
+                            .lock()
+                            .unwrap();
+
+                        while let Some(event) = scene.animations.get_mut(game_scene.player.locomotion_machine.walk_animation).pop_event() {
+                            // We must play sound only if it was foot step signal and player was in walking state.
+                            if event.signal_id != FOOTSTEP_SIGNAL
+                                || game_scene.player.locomotion_machine.machine.active_state() != game_scene.player.locomotion_machine.walk_state {
+                                continue;
+                            }
+
+                            // We'll emit sounds on player's center, this is not accurate, we could use feet position instead
+                            // but it left as is just for simplicity.
+                            let position = scene.graph[game_scene.player.pivot].global_position();
+
+                            // Request foot step sound buffer from resources directory.
+                            let foot_step =
+                                game
+                                    .engine
+                                    .resource_manager
+                                    .lock()
+                                    .unwrap()
+                                    .request_sound_buffer(
+                                        // Request random sound everytime.
+                                        footsteps[rg3d::rand::thread_rng().gen_range(0,footsteps.len())],
+                                        false)
+                                    .unwrap();
+
+                            // Create new temporary foot step sound source.
+                            let source = ctx
+                                .add_source(
+                                    SpatialSourceBuilder::new(
+                                        GenericSourceBuilder::new(foot_step)
+                                            // rg3d-sound provides built-in way to create temporary sounds that will die immediately 
+                                            // after first play. This is very useful for foot step sounds.
+                                            .with_play_once(true)
+                                            // Every sound source must be explicity set to Playing status, otherwise it will be stopped.
+                                            .with_status(Status::Playing)
+                                            .build()
+                                            .unwrap()
+                                    ).with_position(position).build_source());
+
+                            // Once foot step sound source was created, it must be attached to reverb effect, otherwise no reverb
+                            // will be added to the source.
+                            ctx
+                                .effect_mut(reverb_effect)
+                                .add_input(EffectInput::direct(source));
+                        }
+
+                        // Final, and very important step - sync sound listener with active camera.
+                        let camera = &scene.graph[game_scene.player.camera];
+                        let listener = ctx.listener_mut();
+                        listener.set_position(camera.global_position());
+                        listener.set_orientation_lh(camera.look_vector(), camera.up_vector());
                     }
 
                     let fps = game.engine.renderer.get_statistics().frames_per_second;
                     let debug_text = format!(
-                        "Example 03 - 3rd Person\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
+                        "Example 07 - Sound\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.",
                         fps
                     );
-                    game. engine.user_interface.send_message(TextMessage::text(
+                    game.engine.user_interface.send_message(TextMessage::text(
                         interface.debug_text,
                         MessageDirection::ToWidget,
                         debug_text,

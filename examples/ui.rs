@@ -513,6 +513,15 @@ fn main() {
                         // directly when window size has changed.
                         engine.renderer.set_frame_size(dbg!(size.into()));
                     }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        if let Some(key_code) = input.virtual_keycode {
+                            if input.state == ElementState::Pressed
+                                && key_code == VirtualKeyCode::Escape
+                            {
+                                *control_flow = ControlFlow::Exit;
+                            }
+                        }
+                    }
                     _ => (),
                 }
 
@@ -524,14 +533,7 @@ fn main() {
                 }
             }
             Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::Key(key) = event {
-                    if let Some(key_code) = key.virtual_keycode {
-                        if key.state == ElementState::Pressed && key_code == VirtualKeyCode::Escape
-                        {
-                            *control_flow = ControlFlow::Exit;
-                        }
-                    }
-                }
+                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,
         }

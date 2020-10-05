@@ -510,7 +510,7 @@ mod test {
 
     #[test]
     fn test_generate_lightmap() {
-        let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
+        let mut data = SurfaceSharedData::make_sphere(20, 20, 1.0);
 
         generate_uvs(&mut data, 0.01);
 

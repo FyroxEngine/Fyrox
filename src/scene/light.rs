@@ -57,7 +57,7 @@ pub const DEFAULT_SCATTER: Vec3 = Vec3::new(0.03, 0.03, 0.03);
 ///
 /// Light scattering feature may significantly impact performance on low-end
 /// hardware!
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct SpotLight {
     base_light: BaseLight,
     hotspot_cone_angle: f32,
@@ -135,6 +135,16 @@ impl SpotLight {
     #[inline]
     pub fn distance(&self) -> f32 {
         self.distance
+    }
+
+    /// Creates a raw copy of a light node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base_light: self.base_light.raw_copy(),
+            hotspot_cone_angle: self.hotspot_cone_angle,
+            falloff_angle_delta: self.falloff_angle_delta,
+            distance: self.distance,
+        }
     }
 }
 
@@ -223,7 +233,7 @@ impl SpotLightBuilder {
 /// Point lights supports shadows, but keep in mind - they're very expensive and
 /// can easily ruin performance of your game, especially on low-end hardware. Light
 /// scattering is relatively heavy too.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct PointLight {
     base_light: BaseLight,
     radius: f32,
@@ -255,6 +265,14 @@ impl PointLight {
     #[inline]
     pub fn radius(&self) -> f32 {
         self.radius
+    }
+
+    /// Creates a raw copy of a point light node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base_light: self.base_light.raw_copy(),
+            radius: self.radius,
+        }
     }
 }
 
@@ -321,7 +339,7 @@ impl PointLightBuilder {
 ///
 /// Current directional light does *not* support shadows, it is still
 /// on list of features that should be implemented.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Debug)]
 pub struct DirectionalLight {
     base_light: BaseLight,
 }
@@ -356,6 +374,15 @@ impl Visit for DirectionalLight {
     }
 }
 
+impl DirectionalLight {
+    /// Creates a raw copy of a directional light node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base_light: self.base_light.raw_copy(),
+        }
+    }
+}
+
 /// Allows you to build directional light in declarative manner.
 pub struct DirectionalLightBuilder {
     base_light_builder: BaseLightBuilder,
@@ -381,7 +408,7 @@ impl DirectionalLightBuilder {
 }
 
 /// Engine supports limited amount of light source kinds
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Light {
     /// See [DirectionalLight](struct.DirectionalLight.html)
     Directional(DirectionalLight),
@@ -414,6 +441,15 @@ impl Light {
             Self::Spot(_) => 0,
             Self::Point(_) => 1,
             Self::Directional(_) => 2,
+        }
+    }
+
+    /// Creates a raw copy of a light node.
+    pub fn raw_copy(&self) -> Self {
+        match self {
+            Light::Directional(v) => Self::Directional(v.raw_copy()),
+            Light::Spot(v) => Self::Spot(v.raw_copy()),
+            Light::Point(v) => Self::Point(v.raw_copy()),
         }
     }
 
@@ -467,7 +503,7 @@ impl Visit for Light {
 /// Light scene node. It contains common properties of light such as color,
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct BaseLight {
     base: Base,
     color: Color,
@@ -570,6 +606,17 @@ impl BaseLight {
     #[inline]
     pub fn is_scatter_enabled(&self) -> bool {
         self.scatter_enabled
+    }
+
+    /// Creates a raw copy of a base light node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            color: self.color,
+            cast_shadows: self.cast_shadows,
+            scatter: self.scatter,
+            scatter_enabled: self.scatter_enabled,
+        }
     }
 }
 

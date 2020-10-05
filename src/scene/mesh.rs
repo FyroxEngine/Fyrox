@@ -26,7 +26,7 @@ use std::{
 };
 
 /// See module docs.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Mesh {
     base: Base,
     surfaces: Vec<Surface>,
@@ -200,6 +200,16 @@ impl Mesh {
         }
 
         false
+    }
+
+    /// Creates a raw copy of a mesh node.
+    pub fn raw_copy(&self) -> Self {
+        Self {
+            base: self.base.raw_copy(),
+            surfaces: self.surfaces.clone(),
+            bounding_box: self.bounding_box.clone(),
+            bounding_box_dirty: self.bounding_box_dirty.clone(),
+        }
     }
 }
 
