@@ -722,10 +722,18 @@ impl MessageBoxMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecoratorMessage {
     Select(bool),
+    HoverBrush(Brush),
+    NormalBrush(Brush),
+    PressedBrush(Brush),
+    SelectedBrush(Brush),
 }
 
 impl DecoratorMessage {
     define_constructor_unbound!(Decorator(DecoratorMessage:Select) => fn select(bool), layout: false);
+    define_constructor_unbound!(Decorator(DecoratorMessage:HoverBrush) => fn hover_brush(Brush), layout: false);
+    define_constructor_unbound!(Decorator(DecoratorMessage:NormalBrush) => fn normal_brush(Brush), layout: false);
+    define_constructor_unbound!(Decorator(DecoratorMessage:PressedBrush) => fn pressed_brush(Brush), layout: false);
+    define_constructor_unbound!(Decorator(DecoratorMessage:SelectedBrush) => fn selected_brush(Brush), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]

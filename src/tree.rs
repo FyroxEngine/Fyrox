@@ -1,14 +1,13 @@
-use crate::decorator::DecoratorBuilder;
-use crate::message::{DecoratorMessage, MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::ButtonBuilder,
     core::{color::Color, math::vec2::Vec2, pool::Handle},
+    decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
-    message::TextMessage,
     message::{
-        ButtonMessage, TreeMessage, TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
+        ButtonMessage, DecoratorMessage, MessageData, MessageDirection, TextMessage, TreeMessage,
+        TreeRootMessage, UiMessage, UiMessageData, WidgetMessage,
     },
     node::UINode,
     stack_panel::StackPanelBuilder,
@@ -217,6 +216,10 @@ impl<M: MessageData, C: Control<M, C>> Tree<M, C> {
         self.content
     }
 
+    pub fn back(&self) -> Handle<UINode<M, C>> {
+        self.background
+    }
+
     pub fn items(&self) -> &[Handle<UINode<M, C>>] {
         &self.items
     }
@@ -322,6 +325,7 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
             .with_selected_brush(Brush::Solid(Color::opaque(140, 140, 140)))
             .with_hover_brush(Brush::Solid(Color::opaque(100, 100, 100)))
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
+            .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .build(ctx)
         });
 

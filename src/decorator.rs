@@ -97,8 +97,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.handle_routed_message(ui, message);
 
         match &message.data() {
-            UiMessageData::Decorator(msg) => match *msg {
-                DecoratorMessage::Select(value) => {
+            UiMessageData::Decorator(msg) => match msg {
+                &DecoratorMessage::Select(value) => {
                     if self.is_selected != value {
                         self.is_selected = value;
                         if self.is_selected {
@@ -114,6 +114,39 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
                                 self.normal_brush.clone(),
                             ));
                         }
+                    }
+                }
+                DecoratorMessage::HoverBrush(brush) => {
+                    self.hover_brush = brush.clone();
+                    if self.is_mouse_directly_over {
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            self.hover_brush.clone(),
+                        ));
+                    }
+                }
+                DecoratorMessage::NormalBrush(brush) => {
+                    self.normal_brush = brush.clone();
+                    if !self.is_selected && !self.is_mouse_directly_over {
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            self.normal_brush.clone(),
+                        ));
+                    }
+                }
+                DecoratorMessage::PressedBrush(brush) => {
+                    self.pressed_brush = brush.clone();
+                }
+                DecoratorMessage::SelectedBrush(brush) => {
+                    self.selected_brush = brush.clone();
+                    if self.is_selected {
+                        ui.send_message(WidgetMessage::background(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            self.selected_brush.clone(),
+                        ));
                     }
                 }
             },
