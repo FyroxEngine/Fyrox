@@ -227,6 +227,7 @@ impl AssetBrowser {
         let folder_browser;
 
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
             .with_content(
                 GridBuilder::new(

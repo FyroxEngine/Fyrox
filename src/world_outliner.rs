@@ -10,8 +10,11 @@ use crate::{
     },
     GameEngine, Message,
 };
+use rg3d::gui::brush::Brush;
+use rg3d::gui::core::color::Color;
 use rg3d::gui::draw::SharedTexture;
-use rg3d::gui::message::MessageDirection;
+use rg3d::gui::message::{DecoratorMessage, MessageDirection};
+use rg3d::gui::node::UINode;
 use rg3d::{
     core::{
         math::{vec2::Vec2, Rect},
@@ -124,23 +127,43 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
             }
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::SceneItem(item) = msg {
-                    if let &SceneItemMessage::NodeVisibility(visibility) = item {
-                        if self.visibility != visibility && message.destination() == self.handle() {
-                            self.visibility = visibility;
+                    match item {
+                        &SceneItemMessage::NodeVisibility(visibility) => {
+                            if self.visibility != visibility
+                                && message.destination() == self.handle()
+                            {
+                                self.visibility = visibility;
 
-                            let path = if visibility {
-                                "resources/visible.png"
-                            } else {
-                                "resources/invisible.png"
-                            };
-                            let image = ImageBuilder::new(WidgetBuilder::new())
-                                .with_opt_texture(load_image(path, self.resource_manager.clone()))
-                                .build(&mut ui.build_ctx());
-                            ui.send_message(ButtonMessage::content(
-                                self.visibility_toggle,
-                                MessageDirection::ToWidget,
-                                image,
-                            ));
+                                let path = if visibility {
+                                    "resources/visible.png"
+                                } else {
+                                    "resources/invisible.png"
+                                };
+                                let image = ImageBuilder::new(WidgetBuilder::new())
+                                    .with_opt_texture(load_image(
+                                        path,
+                                        self.resource_manager.clone(),
+                                    ))
+                                    .build(&mut ui.build_ctx());
+                                ui.send_message(ButtonMessage::content(
+                                    self.visibility_toggle,
+                                    MessageDirection::ToWidget,
+                                    image,
+                                ));
+                            }
+                        }
+                        &SceneItemMessage::Order(order) => {
+                            if message.destination() == self.handle() {
+                                ui.send_message(DecoratorMessage::normal_brush(
+                                    self.tree.back(),
+                                    MessageDirection::ToWidget,
+                                    Brush::Solid(if order {
+                                        Color::opaque(50, 50, 50)
+                                    } else {
+                                        Color::opaque(60, 60, 60)
+                                    }),
+                                ));
+                            }
                         }
                     }
                 }
@@ -308,10 +331,37 @@ fn tree_node(ui: &Ui, tree: Handle<UiNode>) -> Handle<Node> {
     unreachable!()
 }
 
+fn colorize(tree: Handle<UiNode>, ui: &Ui, index: &mut usize) {
+    match ui.node(tree) {
+        UINode::User(u) => {
+            if let EditorUiNode::SceneItem(i) = u {
+                ui.send_message(UiMessage::user(
+                    tree,
+                    MessageDirection::ToWidget,
+                    EditorUiMessage::SceneItem(SceneItemMessage::Order(*index % 2 == 0)),
+                ));
+
+                *index += 1;
+
+                for &item in i.tree.items() {
+                    colorize(item, ui, index);
+                }
+            }
+        }
+        UINode::TreeRoot(root) => {
+            for &item in root.items() {
+                colorize(item, ui, index);
+            }
+        }
+        _ => (),
+    }
+}
+
 impl WorldOutliner {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let root;
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_minimize(false)
             .with_title(WindowTitle::text("World Outliner"))
             .with_content({
                 ScrollViewerBuilder::new(WidgetBuilder::new())
@@ -464,6 +514,8 @@ impl WorldOutliner {
                 _ => unreachable!(),
             }
         }
+
+        self.colorize(ui);
     }
 
     fn map_tree_to_node(&self, tree: Handle<UiNode>, ui: &Ui) -> Handle<Node> {
@@ -472,6 +524,11 @@ impl WorldOutliner {
         } else {
             Handle::NONE
         }
+    }
+
+    pub fn colorize(&mut self, ui: &Ui) {
+        let mut index = 0;
+        colorize(self.root, ui, &mut index);
     }
 
     pub fn handle_ui_message(

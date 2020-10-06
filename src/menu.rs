@@ -64,6 +64,7 @@ pub struct Menu {
     light_panel: Handle<UiNode>,
     settings: Settings,
     configure_message: Handle<UiNode>,
+    log_panel: Handle<UiNode>,
 }
 
 pub struct MenuContext<'a, 'b> {
@@ -74,6 +75,7 @@ pub struct MenuContext<'a, 'b> {
     pub asset_window: Handle<UiNode>,
     pub configurator_window: Handle<UiNode>,
     pub light_panel: Handle<UiNode>,
+    pub log_panel: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
@@ -113,6 +115,7 @@ impl Menu {
         let open_settings;
         let configure;
         let light_panel;
+        let log_panel;
         let ctx = &mut engine.user_interface.build_ctx();
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
@@ -358,6 +361,13 @@ impl Menu {
                                     .build(ctx);
                             light_panel
                         },
+                        {
+                            log_panel =
+                                MenuItemBuilder::new(WidgetBuilder::new().with_min_size(min_size))
+                                    .with_content(MenuItemContent::text("Log Panel"))
+                                    .build(ctx);
+                            log_panel
+                        },
                     ])
                     .build(ctx),
             ])
@@ -405,6 +415,7 @@ impl Menu {
             light_panel,
             copy,
             paste,
+            log_panel,
         }
     }
 
@@ -654,6 +665,8 @@ impl Menu {
                             &mut ctx.engine.user_interface,
                             false,
                         );
+                    } else if message.destination() == self.log_panel {
+                        switch_window_state(ctx.log_panel, &mut ctx.engine.user_interface, false);
                     } else if message.destination() == self.open_settings {
                         ctx.engine
                             .user_interface

@@ -31,6 +31,7 @@ impl Log {
         let clear;
         Self {
             window: WindowBuilder::new(WidgetBuilder::new())
+                .can_minimize(false)
                 .with_title(WindowTitle::Text("Message Log".to_owned()))
                 .with_content(
                     GridBuilder::new(

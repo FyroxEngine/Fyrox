@@ -934,6 +934,7 @@ impl Editor {
                 asset_window: self.asset_browser.window,
                 configurator_window: self.configurator.window,
                 light_panel: self.light_panel.window,
+                log_panel: self.log.window,
             },
         );
 

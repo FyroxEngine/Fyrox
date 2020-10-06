@@ -768,6 +768,7 @@ impl SideBar {
         let sprite_section = SpriteSection::new(ctx, sender.clone());
 
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_minimize(false)
             .with_content({
                 scroll_viewer =
                     ScrollViewerBuilder::new(WidgetBuilder::new().with_visibility(false))

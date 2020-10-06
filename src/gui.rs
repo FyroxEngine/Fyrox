@@ -15,6 +15,8 @@ pub enum AssetItemMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SceneItemMessage {
     NodeVisibility(bool),
+    /// Odd or even.
+    Order(bool),
 }
 
 #[derive(Debug, Clone, PartialEq)]
