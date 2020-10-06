@@ -661,7 +661,9 @@ impl Renderer {
                         }
                     })
                     .or_insert_with(|| {
-                        GBuffer::new(state, viewport.w as usize, viewport.h as usize).unwrap()
+                        let width = (viewport.w as usize).max(1);
+                        let height = (viewport.h as usize).max(1);
+                        GBuffer::new(state, width, height).unwrap()
                     });
 
                 // If we specified a texture to draw to, we have to register it in texture cache
