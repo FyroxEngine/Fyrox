@@ -81,8 +81,6 @@ use rg3d::{
 };
 use std::{
     cell::RefCell,
-    fs::File,
-    io::Write,
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
@@ -1335,7 +1333,7 @@ impl Editor {
                         needs_sync = true;
                     }
                 }
-                Message::SaveScene(mut path) => {
+                Message::SaveScene(path) => {
                     if let Some(editor_scene) = self.scene.as_mut() {
                         editor_scene.path = Some(path.clone());
                         let scene = &mut engine.scenes[editor_scene.scene];
@@ -1350,15 +1348,6 @@ impl Editor {
                             self.message_sender
                                 .send(Message::Log(e.to_string()))
                                 .unwrap();
-                        }
-                        // Add text output for debugging.
-                        path.set_extension("txt");
-                        if let Ok(mut file) = File::create(path) {
-                            if let Err(e) = file.write(visitor.save_text().as_bytes()) {
-                                self.message_sender
-                                    .send(Message::Log(e.to_string()))
-                                    .unwrap();
-                            }
                         }
                     }
                 }
