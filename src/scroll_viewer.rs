@@ -111,7 +111,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
                     if self.v_scroll_bar.is_some() && !message.handled() {
                         if let UINode::ScrollBar(v_scroll_bar) = ui.node(self.v_scroll_bar) {
                             let old_value = v_scroll_bar.value();
-                            let new_value = old_value - amount * 10.0;
+                            let new_value = old_value - amount * 17.0;
                             if (old_value - new_value).abs() > std::f32::EPSILON {
                                 message.set_handled(true);
                             }

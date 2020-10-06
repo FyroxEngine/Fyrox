@@ -326,6 +326,7 @@ impl<M: MessageData, C: Control<M, C>> TreeBuilder<M, C> {
             .with_hover_brush(Brush::Solid(Color::opaque(100, 100, 100)))
             .with_normal_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
+            .with_pressable(false)
             .build(ctx)
         });
 

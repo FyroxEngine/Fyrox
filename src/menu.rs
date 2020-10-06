@@ -512,6 +512,8 @@ impl<'a, 'b, M: MessageData, C: Control<M, C>> MenuItemBuilder<'a, 'b, M, C> {
             )
             .with_hover_brush(Brush::Solid(MENU_ITEM_HOVER_BACKGROUND_COLOR))
             .with_normal_brush(Brush::Solid(MENU_ITEM_BACKGROUND_COLOR))
+            .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
+            .with_pressable(false)
             .build(ctx)
         });
 

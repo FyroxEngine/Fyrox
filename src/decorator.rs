@@ -36,6 +36,7 @@ pub struct Decorator<M: MessageData, C: Control<M, C>> {
     selected_brush: Brush,
     disabled_brush: Brush,
     is_selected: bool,
+    pressable: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> Deref for Decorator<M, C> {
@@ -177,7 +178,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
                                 self.hover_brush.clone(),
                             ));
                         }
-                        WidgetMessage::MouseDown { .. } => {
+                        WidgetMessage::MouseDown { .. } if self.pressable => {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
@@ -219,6 +220,7 @@ pub struct DecoratorBuilder<M: MessageData, C: Control<M, C>> {
     pressed_brush: Option<Brush>,
     selected_brush: Option<Brush>,
     disabled_brush: Option<Brush>,
+    pressable: bool,
 }
 
 impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
@@ -230,6 +232,7 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
             pressed_brush: None,
             selected_brush: None,
             disabled_brush: None,
+            pressable: true,
         }
     }
 
@@ -255,6 +258,11 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
 
     pub fn with_disabled_brush(mut self, brush: Brush) -> Self {
         self.disabled_brush = Some(brush);
+        self
+    }
+
+    pub fn with_pressable(mut self, pressable: bool) -> Self {
+        self.pressable = pressable;
         self
     }
 
@@ -377,6 +385,7 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
                 .disabled_brush
                 .unwrap_or(Brush::Solid(Color::opaque(50, 50, 50))),
             is_selected: false,
+            pressable: self.pressable,
         });
         ui.add_node(node)
     }
