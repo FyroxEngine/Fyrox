@@ -1,11 +1,13 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
+    brush::Brush,
+    core::color::Color,
     core::{
         math::{vec2::Vec2, Rect},
         pool::Handle,
         scope_profile,
     },
-    message::{ScrollPanelMessage, UiMessage, UiMessageData},
+    draw::{CommandKind, CommandTexture, DrawingContext},
+    message::{MessageData, MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
@@ -84,6 +86,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         }
 
         final_size
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        // Emit transparent geometry so panel will receive mouse events.
+        drawing_context.push_rect_filled(&self.widget.screen_bounds(), None);
+        drawing_context.commit(
+            CommandKind::Geometry,
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+        );
     }
 
     fn handle_routed_message(

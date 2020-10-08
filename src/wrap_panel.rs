@@ -1,6 +1,6 @@
-use crate::message::MessageData;
 #![allow(clippy::reversed_empty_ranges)]
 
+use crate::message::MessageData;
 use crate::{
     core::{
         math::{vec2::Vec2, Rect},

@@ -33,7 +33,7 @@ use std::{
     path::{Component, Path, PathBuf, Prefix},
     rc::Rc,
 };
-use sysinfo::{DiskExt, SystemExt};
+use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
 pub type Filter = dyn FnMut(&Path) -> bool;
 
@@ -382,7 +382,7 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         let mut parent = Handle::NONE;
 
         // Create items for disks.
-        for disk in sysinfo::System::new_all()
+        for disk in sysinfo::System::new_with_specifics(RefreshKind::new().with_disks_list())
             .get_disks()
             .iter()
             .map(|i| i.get_mount_point().to_string_lossy())
