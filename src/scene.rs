@@ -955,7 +955,7 @@ impl Selection {
     }
 
     pub fn contains(&self, handle: Handle<Node>) -> bool {
-        self.nodes.iter().position(|&h| h == handle).is_some()
+        self.nodes.iter().any(|&h| h == handle)
     }
 
     pub fn nodes(&self) -> &[Handle<Node>] {

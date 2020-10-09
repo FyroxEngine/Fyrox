@@ -127,8 +127,8 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
             }
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::SceneItem(item) = msg {
-                    match item {
-                        &SceneItemMessage::NodeVisibility(visibility) => {
+                    match *item {
+                        SceneItemMessage::NodeVisibility(visibility) => {
                             if self.visibility != visibility
                                 && message.destination() == self.handle()
                             {
@@ -152,7 +152,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
                                 ));
                             }
                         }
-                        &SceneItemMessage::Order(order) => {
+                        SceneItemMessage::Order(order) => {
                             if message.destination() == self.handle() {
                                 ui.send_message(DecoratorMessage::normal_brush(
                                     self.tree.back(),
@@ -185,6 +185,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
     }
 }
 
+#[derive(Default)]
 pub struct SceneItemBuilder {
     node: Handle<Node>,
     name: String,
@@ -231,64 +232,66 @@ impl SceneItemBuilder {
         let visible_texture = load_image("resources/visible.png", resource_manager.clone());
 
         let visibility_toggle;
-        let item = SceneItem {
-            tree: TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-                left: 1.0,
-                top: 1.0,
-                right: 0.0,
-                bottom: 0.0,
-            }))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
+        let tree = TreeBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+            left: 1.0,
+            top: 1.0,
+            right: 0.0,
+            bottom: 0.0,
+        }))
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        ImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_width(16.0)
+                                .with_height(16.0)
+                                .on_column(0)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_opt_texture(self.icon)
+                        .build(ctx),
+                    )
+                    .with_child(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_column(1)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text(self.name)
+                        .build(ctx),
+                    )
+                    .with_child({
+                        visibility_toggle = ButtonBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_width(22.0)
+                                .with_height(16.0)
+                                .with_horizontal_alignment(HorizontalAlignment::Right)
+                                .on_column(2),
+                        )
+                        .with_content(
                             ImageBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_width(16.0)
-                                    .with_height(16.0)
-                                    .on_column(0)
-                                    .with_margin(Thickness::uniform(1.0)),
+                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_opt_texture(self.icon)
+                            .with_opt_texture(visible_texture)
                             .build(ctx),
                         )
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .on_column(1)
-                                    .with_vertical_alignment(VerticalAlignment::Center),
-                            )
-                            .with_text(self.name)
-                            .build(ctx),
-                        )
-                        .with_child({
-                            visibility_toggle = ButtonBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .with_width(22.0)
-                                    .with_height(16.0)
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                                    .on_column(2),
-                            )
-                            .with_content(
-                                ImageBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_opt_texture(visible_texture)
-                                .build(ctx),
-                            )
-                            .build(ctx);
-                            visibility_toggle
-                        }),
-                )
-                .add_row(Row::stretch())
-                .add_column(Column::auto())
-                .add_column(Column::auto())
-                .add_column(Column::stretch())
-                .build(ctx),
+                        .build(ctx);
+                        visibility_toggle
+                    }),
             )
-            .build_tree(ctx),
+            .add_row(Row::stretch())
+            .add_column(Column::auto())
+            .add_column(Column::auto())
+            .add_column(Column::stretch())
+            .build(ctx),
+        )
+        .build_tree(ctx);
+
+        let item = SceneItem {
+            tree,
             node: self.node,
             visibility_toggle,
             sender,
@@ -561,7 +564,7 @@ impl WorldOutliner {
                 }
             }
             UiMessageData::Widget(msg) => {
-                if let &WidgetMessage::Drop(node) = msg {
+                if let WidgetMessage::Drop(node) = *msg {
                     if engine.user_interface.is_node_child_of(node, self.root)
                         && engine
                             .user_interface
@@ -611,20 +614,17 @@ impl WorldOutliner {
     pub fn handle_message(&mut self, message: &Message, engine: &mut GameEngine) {
         let ui = &engine.user_interface;
 
-        match message {
-            Message::SetSelection(selection) => {
-                let trees = selection
-                    .nodes()
-                    .iter()
-                    .map(|&n| self.map_node_to_tree(ui, n))
-                    .collect();
-                ui.send_message(TreeRootMessage::select(
-                    self.root,
-                    MessageDirection::ToWidget,
-                    trees,
-                ));
-            }
-            _ => (),
+        if let Message::SetSelection(selection) = message {
+            let trees = selection
+                .nodes()
+                .iter()
+                .map(|&n| self.map_node_to_tree(ui, n))
+                .collect();
+            ui.send_message(TreeRootMessage::select(
+                self.root,
+                MessageDirection::ToWidget,
+                trees,
+            ));
         }
     }
 

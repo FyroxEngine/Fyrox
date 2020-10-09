@@ -325,29 +325,26 @@ impl ScenePreview {
 
 impl ScenePreview {
     fn handle_ui_message(&mut self, message: &UiMessage) {
-        match &message.data() {
-            UiMessageData::Button(msg) => {
-                if let ButtonMessage::Click = msg {
-                    if message.destination() == self.scale_mode {
-                        self.sender
-                            .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                            .unwrap();
-                    } else if message.destination() == self.rotate_mode {
-                        self.sender
-                            .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                            .unwrap();
-                    } else if message.destination() == self.move_mode {
-                        self.sender
-                            .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                            .unwrap();
-                    } else if message.destination() == self.select_mode {
-                        self.sender
-                            .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                            .unwrap();
-                    }
+        if let UiMessageData::Button(msg) = &message.data() {
+            if let ButtonMessage::Click = msg {
+                if message.destination() == self.scale_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Scale))
+                        .unwrap();
+                } else if message.destination() == self.rotate_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
+                        .unwrap();
+                } else if message.destination() == self.move_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Move))
+                        .unwrap();
+                } else if message.destination() == self.select_mode {
+                    self.sender
+                        .send(Message::SetInteractionMode(InteractionModeKind::Select))
+                        .unwrap();
                 }
             }
-            _ => (),
         }
     }
 }
@@ -434,136 +431,138 @@ impl Configurator {
         .with_filter(filter)
         .build(ctx);
 
-        Self {
-            window: WindowBuilder::new(WidgetBuilder::new().with_width(370.0).with_height(150.0))
-                .with_title(WindowTitle::Text("Configure Editor".into()))
-                .open(false)
-                .can_close(false)
-                .with_content(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(
-                                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                                    .with_text("Please select a working directory of a project your will work on and a path to the textures. Textures directory must be under working directory!")
-                                    .with_wrap(true)
-                                    .build(ctx),
-                            )
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_row(1)
-                                        .with_child(
-                                            TextBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(0)
-                                                    .on_column(0)
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Center,
-                                                    ),
-                                            )
-                                                .with_text("Working Directory")
-                                                .build(ctx)
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(370.0).with_height(150.0))
+            .with_title(WindowTitle::Text("Configure Editor".into()))
+            .open(false)
+            .can_close(false)
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                                .with_text("Please select a working directory of a project your will work on and a path to the textures. Textures directory must be under working directory!")
+                                .with_wrap(true)
+                                .build(ctx),
+                        )
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(0)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_vertical_alignment(
+                                                    VerticalAlignment::Center,
+                                                ),
                                         )
-                                        .with_child({
-                                            tb_work_dir = TextBoxBuilder::new(
+                                            .with_text("Working Directory")
+                                            .build(ctx)
+                                    )
+                                    .with_child({
+                                        tb_work_dir = TextBoxBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(1)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .build(ctx);
+                                        tb_work_dir
+                                    })
+                                    .with_child({
+                                        select_work_dir = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(2)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                            .with_text("...")
+                                            .build(ctx);
+                                        select_work_dir
+                                    })
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(1)
+                                                .on_column(0)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_vertical_alignment(
+                                                    VerticalAlignment::Center,
+                                                ),
+                                        )
+                                            .with_text("Textures Directory")
+                                            .build(ctx)
+                                    )
+                                    .with_child(
+                                        {
+                                            tb_textures_path = TextBoxBuilder::new(
                                                 WidgetBuilder::new()
-                                                    .on_row(0)
+                                                    .on_row(1)
                                                     .on_column(1)
                                                     .with_margin(Thickness::uniform(1.0)),
                                             )
                                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                                 .build(ctx);
-                                            tb_work_dir
-                                        })
-                                        .with_child({
-                                            select_work_dir = ButtonBuilder::new(
+                                            tb_textures_path
+                                        },
+                                    )
+                                    .with_child(
+                                        {
+                                            select_textures_dir =ButtonBuilder::new(
                                                 WidgetBuilder::new()
-                                                    .on_row(0)
+                                                    .on_row(1)
                                                     .on_column(2)
                                                     .with_margin(Thickness::uniform(1.0)),
                                             )
                                                 .with_text("...")
                                                 .build(ctx);
-                                            select_work_dir
-                                        })
-                                        .with_child(
-                                            TextBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(1)
-                                                    .on_column(0)
-                                                    .with_margin(Thickness::uniform(1.0))
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Center,
-                                                    ),
-                                            )
-                                                .with_text("Textures Directory")
-                                                .build(ctx)
-                                        )
-                                        .with_child(
-                                            {
-                                                tb_textures_path = TextBoxBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .on_row(1)
-                                                        .on_column(1)
-                                                        .with_margin(Thickness::uniform(1.0)),
-                                                )
-                                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                                    .build(ctx);
-                                                tb_textures_path
-                                            },
-                                        )
-                                        .with_child(
-                                            {
-                                                select_textures_dir =ButtonBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .on_row(1)
-                                                        .on_column(2)
-                                                        .with_margin(Thickness::uniform(1.0)),
-                                                )
-                                                    .with_text("...")
-                                                    .build(ctx);
-                                                select_textures_dir
-                                            },
-                                        ),
-                                )
-                                    .add_row(Row::strict(25.0))
-                                    .add_row(Row::strict(25.0))
-                                    .add_column(Column::strict(120.0))
-                                    .add_column(Column::stretch())
-                                    .add_column(Column::strict(25.0))
-                                    .build(ctx),
+                                            select_textures_dir
+                                        },
+                                    ),
                             )
-                            .with_child(
-                                StackPanelBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_horizontal_alignment(HorizontalAlignment::Right)
-                                        .with_vertical_alignment(VerticalAlignment::Bottom)
-                                        .with_child({
-                                            ok = ButtonBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .with_enabled(false) // Disabled by default.
-                                                    .with_width(80.0)
-                                                    .with_height(25.0)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                                .with_text("OK")
-                                                .build(ctx);
-                                            ok
-                                        })
-                                        .on_row(2),
-                                )
-                                    .with_orientation(Orientation::Horizontal)
-                                    .build(ctx),
-                            ),
-                    )
-                        .add_row(Row::auto())
-                        .add_row(Row::auto())
-                        .add_row(Row::stretch())
-                        .add_column(Column::stretch())
-                        .build(ctx),
+                                .add_row(Row::strict(25.0))
+                                .add_row(Row::strict(25.0))
+                                .add_column(Column::strict(120.0))
+                                .add_column(Column::stretch())
+                                .add_column(Column::strict(25.0))
+                                .build(ctx),
+                        )
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_vertical_alignment(VerticalAlignment::Bottom)
+                                    .with_child({
+                                        ok = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_enabled(false) // Disabled by default.
+                                                .with_width(80.0)
+                                                .with_height(25.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                            .with_text("OK")
+                                            .build(ctx);
+                                        ok
+                                    })
+                                    .on_row(2),
+                            )
+                                .with_orientation(Orientation::Horizontal)
+                                .build(ctx),
+                        ),
                 )
-                .build(ctx),
+                    .add_row(Row::auto())
+                    .add_row(Row::auto())
+                    .add_row(Row::stretch())
+                    .add_column(Column::stretch())
+                    .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            window,
             textures_dir_browser: scene_browser,
             work_dir_browser: folder_browser,
             select_work_dir,
@@ -952,9 +951,9 @@ impl Editor {
             self.preview.handle_ui_message(message);
 
             if message.destination() == self.preview.frame {
-                match &message.data() {
-                    UiMessageData::Widget(msg) => match msg {
-                        &WidgetMessage::MouseDown { button, pos, .. } => {
+                if let UiMessageData::Widget(msg) = &message.data() {
+                    match *msg {
+                        WidgetMessage::MouseDown { button, pos, .. } => {
                             engine.user_interface.capture_mouse(self.preview.frame);
                             if button == MouseButton::Left {
                                 if let Some(current_im) = self.current_interaction_mode {
@@ -978,7 +977,7 @@ impl Editor {
                             }
                             self.camera_controller.on_mouse_button_down(button);
                         }
-                        &WidgetMessage::MouseUp { button, pos, .. } => {
+                        WidgetMessage::MouseUp { button, pos, .. } => {
                             engine.user_interface.release_mouse_capture();
 
                             if button == MouseButton::Left {
@@ -1001,11 +1000,11 @@ impl Editor {
                             }
                             self.camera_controller.on_mouse_button_up(button);
                         }
-                        &WidgetMessage::MouseWheel { amount, .. } => {
+                        WidgetMessage::MouseWheel { amount, .. } => {
                             self.camera_controller
                                 .on_mouse_wheel(amount, editor_scene, engine);
                         }
-                        &WidgetMessage::MouseMove { pos, .. } => {
+                        WidgetMessage::MouseMove { pos, .. } => {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
                             let mouse_offset = pos - last_pos;
                             self.camera_controller.on_mouse_move(mouse_offset);
@@ -1027,10 +1026,10 @@ impl Editor {
                             }
                             self.preview.last_mouse_pos = Some(pos);
                         }
-                        &WidgetMessage::KeyUp(key) => {
+                        WidgetMessage::KeyUp(key) => {
                             self.camera_controller.on_key_up(key);
                         }
-                        &WidgetMessage::KeyDown(key) => {
+                        WidgetMessage::KeyDown(key) => {
                             self.camera_controller.on_key_down(key);
                             match key {
                                 KeyCode::Y => {
@@ -1126,7 +1125,7 @@ impl Editor {
                                 _ => (),
                             }
                         }
-                        &WidgetMessage::Drop(handle) => {
+                        WidgetMessage::Drop(handle) => {
                             if handle.is_some() {
                                 if let UiNode::User(u) = engine.user_interface.node(handle) {
                                     if let EditorUiNode::AssetItem(item) = u {
@@ -1212,9 +1211,7 @@ impl Editor {
                             }
                         }
                         _ => {}
-                    },
-
-                    _ => (),
+                    }
                 }
             }
 
@@ -1373,17 +1370,15 @@ impl Editor {
                 Message::Exit { force } => {
                     if force {
                         self.exit = true;
+                    } else if self.scene.is_some() {
+                        engine.user_interface.send_message(MessageBoxMessage::open(
+                            self.exit_message_box,
+                            MessageDirection::ToWidget,
+                            None,
+                            None,
+                        ));
                     } else {
-                        if self.scene.is_some() {
-                            engine.user_interface.send_message(MessageBoxMessage::open(
-                                self.exit_message_box,
-                                MessageDirection::ToWidget,
-                                None,
-                                None,
-                            ));
-                        } else {
-                            self.exit = true;
-                        }
+                        self.exit = true;
                     }
                 }
                 Message::Log(msg) => {

@@ -423,8 +423,8 @@ impl Menu {
         self.settings.handle_message(message, ctx.engine);
 
         match &message.data() {
-            UiMessageData::FileSelector(msg) => match msg {
-                FileSelectorMessage::Commit(path) => {
+            UiMessageData::FileSelector(msg) => {
+                if let FileSelectorMessage::Commit(path) = msg {
                     if message.destination() == self.save_file_selector {
                         self.message_sender
                             .send(Message::SaveScene(path.to_owned()))
@@ -435,8 +435,7 @@ impl Menu {
                             .unwrap();
                     }
                 }
-                _ => (),
-            },
+            }
             UiMessageData::MenuItem(msg) => {
                 if let MenuItemMessage::Click = msg {
                     if message.destination() == self.create_cube {

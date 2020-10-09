@@ -29,40 +29,41 @@ impl Log {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let messages;
         let clear;
-        Self {
-            window: WindowBuilder::new(WidgetBuilder::new())
-                .can_minimize(false)
-                .with_title(WindowTitle::Text("Message Log".to_owned()))
-                .with_content(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child(
-                                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                                    clear = ButtonBuilder::new(
-                                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("X")
-                                    .build(ctx);
-                                    clear
-                                }))
-                                .build(ctx),
-                            )
-                            .with_child({
-                                messages = ListViewBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(1),
+        let window = WindowBuilder::new(WidgetBuilder::new())
+            .can_minimize(false)
+            .with_title(WindowTitle::Text("Message Log".to_owned()))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            StackPanelBuilder::new(WidgetBuilder::new().with_child({
+                                clear = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_text("X")
                                 .build(ctx);
-                                messages
-                            }),
-                    )
-                    .add_row(Row::stretch())
-                    .add_column(Column::strict(20.0))
-                    .add_column(Column::stretch())
-                    .build(ctx),
+                                clear
+                            }))
+                            .build(ctx),
+                        )
+                        .with_child({
+                            messages = ListViewBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_column(1),
+                            )
+                            .build(ctx);
+                            messages
+                        }),
                 )
+                .add_row(Row::stretch())
+                .add_column(Column::strict(20.0))
+                .add_column(Column::stretch())
                 .build(ctx),
+            )
+            .build(ctx);
+        Self {
+            window,
             messages,
             clear,
         }

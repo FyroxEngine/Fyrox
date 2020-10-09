@@ -148,38 +148,39 @@ impl LightSection {
         let cast_shadows;
         let light_scatter;
         let enable_scatter;
+        let section = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(make_text_mark(ctx, "Color", 0))
+                .with_child({
+                    color = ColorFieldBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx);
+                    color
+                })
+                .with_child(make_text_mark(ctx, "Cast Shadows", 1))
+                .with_child({
+                    cast_shadows = make_bool_input_field(ctx, 1);
+                    cast_shadows
+                })
+                .with_child(make_text_mark(ctx, "Enable Scatter", 2))
+                .with_child({
+                    enable_scatter = make_bool_input_field(ctx, 2);
+                    enable_scatter
+                })
+                .with_child(make_text_mark(ctx, "Scatter", 3))
+                .with_child({
+                    light_scatter = make_vec3_input_field(ctx, 3);
+                    light_scatter
+                }),
+        )
+        .add_column(Column::strict(COLUMN_WIDTH))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .build(ctx);
+
         Self {
-            section: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "Color", 0))
-                    .with_child({
-                        color =
-                            ColorFieldBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx);
-                        color
-                    })
-                    .with_child(make_text_mark(ctx, "Cast Shadows", 1))
-                    .with_child({
-                        cast_shadows = make_bool_input_field(ctx, 1);
-                        cast_shadows
-                    })
-                    .with_child(make_text_mark(ctx, "Enable Scatter", 2))
-                    .with_child({
-                        enable_scatter = make_bool_input_field(ctx, 2);
-                        enable_scatter
-                    })
-                    .with_child(make_text_mark(ctx, "Scatter", 3))
-                    .with_child({
-                        light_scatter = make_vec3_input_field(ctx, 3);
-                        light_scatter
-                    }),
-            )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .build(ctx),
+            section,
             color,
             cast_shadows,
             light_scatter,
@@ -229,11 +230,11 @@ impl LightSection {
         if let Node::Light(light) = node {
             match &message.data() {
                 UiMessageData::Vec3Editor(msg) => {
-                    if let &Vec3EditorMessage::Value(value) = msg {
+                    if let Vec3EditorMessage::Value(value) = *msg {
                         if message.destination() == self.light_scatter && light.scatter() != value {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetLightScatter(
-                                    SetLightScatterCommand::new(handle, value.into()),
+                                    SetLightScatterCommand::new(handle, value),
                                 )))
                                 .unwrap();
                         }
@@ -265,11 +266,11 @@ impl LightSection {
                     }
                 }
                 UiMessageData::ColorField(msg) => {
-                    if let &ColorFieldMessage::Color(color) = msg {
+                    if let ColorFieldMessage::Color(color) = *msg {
                         if message.destination() == self.color && light.color() != color {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetLightColor(
-                                    SetLightColorCommand::new(handle, color.into()),
+                                    SetLightColorCommand::new(handle, color),
                                 )))
                                 .unwrap();
                         }
@@ -294,21 +295,21 @@ struct PointLightSection {
 impl PointLightSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let radius;
+        let section = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(make_text_mark(ctx, "Radius", 0))
+                .with_child({
+                    radius = make_vec3_input_field(ctx, 0);
+                    radius
+                }),
+        )
+        .add_column(Column::strict(COLUMN_WIDTH))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .build(ctx);
 
         Self {
-            section: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "Radius", 0))
-                    .with_child({
-                        radius = make_vec3_input_field(ctx, 0);
-                        radius
-                    }),
-            )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .build(ctx),
-
+            section,
             radius,
             sender,
         }
@@ -341,8 +342,8 @@ impl PointLightSection {
         if let Node::Light(light) = node {
             if let Light::Point(point) = light {
                 if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                    if let &NumericUpDownMessage::Value(value) = msg {
-                        if message.destination() == self.radius && point.radius() != value {
+                    if let NumericUpDownMessage::Value(value) = *msg {
+                        if message.destination() == self.radius && point.radius().ne(&value) {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetPointLightRadius(
                                     SetPointLightRadiusCommand::new(handle, value),
@@ -369,31 +370,34 @@ impl SpotLightSection {
         let hotspot;
         let falloff_delta;
         let distance;
+
+        let section = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(make_text_mark(ctx, "Hotspot", 0))
+                .with_child({
+                    hotspot = make_f32_input_field(ctx, 0);
+                    hotspot
+                })
+                .with_child(make_text_mark(ctx, "Falloff Delta", 1))
+                .with_child({
+                    falloff_delta = make_f32_input_field(ctx, 1);
+                    falloff_delta
+                })
+                .with_child(make_text_mark(ctx, "Radius", 2))
+                .with_child({
+                    distance = make_f32_input_field(ctx, 2);
+                    distance
+                }),
+        )
+        .add_column(Column::strict(COLUMN_WIDTH))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .build(ctx);
+
         Self {
-            section: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "Hotspot", 0))
-                    .with_child({
-                        hotspot = make_f32_input_field(ctx, 0);
-                        hotspot
-                    })
-                    .with_child(make_text_mark(ctx, "Falloff Delta", 1))
-                    .with_child({
-                        falloff_delta = make_f32_input_field(ctx, 1);
-                        falloff_delta
-                    })
-                    .with_child(make_text_mark(ctx, "Radius", 2))
-                    .with_child({
-                        distance = make_f32_input_field(ctx, 2);
-                        distance
-                    }),
-            )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .build(ctx),
+            section,
             hotspot,
             falloff_delta,
             distance,
@@ -440,9 +444,9 @@ impl SpotLightSection {
         if let Node::Light(light) = node {
             if let Light::Spot(spot) = light {
                 if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                    if let &NumericUpDownMessage::Value(value) = msg {
+                    if let NumericUpDownMessage::Value(value) = *msg {
                         if message.destination() == self.hotspot
-                            && spot.hotspot_cone_angle() != value
+                            && spot.hotspot_cone_angle().ne(&value)
                         {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpotLightHotspot(
@@ -450,7 +454,7 @@ impl SpotLightSection {
                                 )))
                                 .unwrap();
                         } else if message.destination() == self.falloff_delta
-                            && spot.falloff_angle_delta() != value
+                            && spot.falloff_angle_delta().ne(&value)
                         {
                             self.sender
                                 .send(Message::DoSceneCommand(
@@ -459,7 +463,8 @@ impl SpotLightSection {
                                     ),
                                 ))
                                 .unwrap();
-                        } else if message.destination() == self.distance && spot.distance() != value
+                        } else if message.destination() == self.distance
+                            && spot.distance().ne(&value)
                         {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpotLightDistance(
@@ -487,31 +492,33 @@ impl CameraSection {
         let fov;
         let z_near;
         let z_far;
+        let section = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(make_text_mark(ctx, "FOV", 0))
+                .with_child({
+                    fov = make_f32_input_field(ctx, 0);
+                    fov
+                })
+                .with_child(make_text_mark(ctx, "Z Near", 1))
+                .with_child({
+                    z_near = make_f32_input_field(ctx, 1);
+                    z_near
+                })
+                .with_child(make_text_mark(ctx, "Z Far", 2))
+                .with_child({
+                    z_far = make_vec3_input_field(ctx, 2);
+                    z_far
+                }),
+        )
+        .add_column(Column::strict(COLUMN_WIDTH))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .build(ctx);
+
         Self {
-            section: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "FOV", 0))
-                    .with_child({
-                        fov = make_f32_input_field(ctx, 0);
-                        fov
-                    })
-                    .with_child(make_text_mark(ctx, "Z Near", 1))
-                    .with_child({
-                        z_near = make_f32_input_field(ctx, 1);
-                        z_near
-                    })
-                    .with_child(make_text_mark(ctx, "Z Far", 2))
-                    .with_child({
-                        z_far = make_vec3_input_field(ctx, 2);
-                        z_far
-                    }),
-            )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .build(ctx),
+            section,
             fov,
             z_near,
             z_far,
@@ -550,20 +557,20 @@ impl CameraSection {
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::Camera(camera) = node {
             if let UiMessageData::NumericUpDown(msg) = &message.data() {
-                if let &NumericUpDownMessage::Value(value) = msg {
-                    if message.destination() == self.fov && camera.fov() != value {
+                if let NumericUpDownMessage::Value(value) = *msg {
+                    if message.destination() == self.fov && camera.fov().ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetFov(
                                 SetFovCommand::new(handle, value),
                             )))
                             .unwrap();
-                    } else if message.destination() == self.z_far && camera.z_far() != value {
+                    } else if message.destination() == self.z_far && camera.z_far().ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetZFar(
                                 SetZFarCommand::new(handle, value),
                             )))
                             .unwrap();
-                    } else if message.destination() == self.z_near && camera.z_near() != value {
+                    } else if message.destination() == self.z_near && camera.z_near().ne(&value) {
                         self.sender
                             .send(Message::DoSceneCommand(SceneCommand::SetZNear(
                                 SetZNearCommand::new(handle, value),
@@ -585,19 +592,21 @@ struct ParticleSystemSection {
 impl ParticleSystemSection {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
         let acceleration;
+        let section = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(make_text_mark(ctx, "Acceleration", 0))
+                .with_child({
+                    acceleration = make_vec3_input_field(ctx, 0);
+                    acceleration
+                }),
+        )
+        .add_column(Column::strict(COLUMN_WIDTH))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .build(ctx);
+
         Self {
-            section: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "Acceleration", 0))
-                    .with_child({
-                        acceleration = make_vec3_input_field(ctx, 0);
-                        acceleration
-                    }),
-            )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .build(ctx),
+            section,
             acceleration,
             sender,
         }
@@ -622,17 +631,17 @@ impl ParticleSystemSection {
     pub fn handle_message(&mut self, message: &UiMessage, node: &Node, handle: Handle<Node>) {
         if let Node::ParticleSystem(particle_system) = node {
             if let UiMessageData::Vec3Editor(msg) = &message.data() {
-                if let &Vec3EditorMessage::Value(value) = msg {
-                    if particle_system.acceleration() != value {
-                        if message.destination() == self.acceleration {
-                            self.sender
-                                .send(Message::DoSceneCommand(
-                                    SceneCommand::SetParticleSystemAcceleration(
-                                        SetParticleSystemAccelerationCommand::new(handle, value),
-                                    ),
-                                ))
-                                .unwrap();
-                        }
+                if let Vec3EditorMessage::Value(value) = *msg {
+                    if particle_system.acceleration() != value
+                        && message.destination() == self.acceleration
+                    {
+                        self.sender
+                            .send(Message::DoSceneCommand(
+                                SceneCommand::SetParticleSystemAcceleration(
+                                    SetParticleSystemAccelerationCommand::new(handle, value),
+                                ),
+                            ))
+                            .unwrap();
                     }
                 }
             }
@@ -653,31 +662,33 @@ impl SpriteSection {
         let size;
         let rotation;
         let color;
+        let section = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(make_text_mark(ctx, "Size", 0))
+                .with_child({
+                    size = make_f32_input_field(ctx, 0);
+                    size
+                })
+                .with_child(make_text_mark(ctx, "Rotation", 1))
+                .with_child({
+                    rotation = make_f32_input_field(ctx, 1);
+                    rotation
+                })
+                .with_child(make_text_mark(ctx, "Color", 2))
+                .with_child({
+                    color = make_color_input_field(ctx, 2);
+                    color
+                }),
+        )
+        .add_column(Column::strict(COLUMN_WIDTH))
+        .add_column(Column::stretch())
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .add_row(Row::strict(ROW_HEIGHT))
+        .build(ctx);
+
         Self {
-            section: GridBuilder::new(
-                WidgetBuilder::new()
-                    .with_child(make_text_mark(ctx, "Size", 0))
-                    .with_child({
-                        size = make_f32_input_field(ctx, 0);
-                        size
-                    })
-                    .with_child(make_text_mark(ctx, "Rotation", 1))
-                    .with_child({
-                        rotation = make_f32_input_field(ctx, 1);
-                        rotation
-                    })
-                    .with_child(make_text_mark(ctx, "Color", 2))
-                    .with_child({
-                        color = make_color_input_field(ctx, 2);
-                        color
-                    }),
-            )
-            .add_column(Column::strict(COLUMN_WIDTH))
-            .add_column(Column::stretch())
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .add_row(Row::strict(ROW_HEIGHT))
-            .build(ctx),
+            section,
             size,
             rotation,
             sender,
@@ -717,15 +728,15 @@ impl SpriteSection {
         if let Node::Sprite(sprite) = node {
             match &message.data() {
                 UiMessageData::NumericUpDown(msg) => {
-                    if let &NumericUpDownMessage::Value(value) = msg {
-                        if message.destination() == self.size && sprite.size() != value {
+                    if let NumericUpDownMessage::Value(value) = *msg {
+                        if message.destination() == self.size && sprite.size().ne(&value) {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpriteSize(
                                     SetSpriteSizeCommand::new(handle, value),
                                 )))
                                 .unwrap();
                         } else if message.destination() == self.rotation
-                            && sprite.rotation() != value
+                            && sprite.rotation().ne(&value)
                         {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpriteRotation(
@@ -736,8 +747,7 @@ impl SpriteSection {
                     }
                 }
                 UiMessageData::ColorField(msg) => {
-                    if let &ColorFieldMessage::Color(color) = msg {
-                        dbg!(color);
+                    if let ColorFieldMessage::Color(color) = *msg {
                         if message.destination() == self.color && sprite.color() != color {
                             self.sender
                                 .send(Message::DoSceneCommand(SceneCommand::SetSpriteColor(
@@ -962,7 +972,7 @@ impl SideBar {
 
             match &message.data() {
                 UiMessageData::Vec3Editor(msg) => {
-                    if let &Vec3EditorMessage::Value(value) = msg {
+                    if let Vec3EditorMessage::Value(value) = *msg {
                         let transform = graph[node_handle].local_transform();
                         if message.destination() == self.rotation {
                             let old_rotation = transform.rotation();

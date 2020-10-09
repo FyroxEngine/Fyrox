@@ -28,6 +28,7 @@ use rg3d::{
         Control, HorizontalAlignment, Orientation, Thickness,
     },
 };
+use std::ffi::OsStr;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
@@ -92,7 +93,7 @@ impl Control<EditorUiMessage, EditorUiNode> for AssetItem {
             }
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::AssetItem(msg) = msg {
-                    if let &AssetItemMessage::Select(select) = msg {
+                    if let AssetItemMessage::Select(select) = *msg {
                         if self.selected != select && message.destination() == self.handle() {
                             self.selected = select;
                             ui.send_message(WidgetMessage::foreground(
@@ -297,7 +298,7 @@ impl AssetBrowser {
         match &message.data() {
             UiMessageData::User(msg) => {
                 if let EditorUiMessage::AssetItem(msg) = msg {
-                    if let &AssetItemMessage::Select(select) = msg {
+                    if let AssetItemMessage::Select(select) = *msg {
                         if select {
                             for &item in self.items.iter() {
                                 if item != message.destination() {
@@ -331,28 +332,30 @@ impl AssetBrowser {
                     if let Ok(dir_iter) = std::fs::read_dir(path) {
                         for p in dir_iter {
                             if let Ok(entry) = p {
+                                fn check_ext(ext: &OsStr) -> bool {
+                                    let ext = ext.to_string_lossy().to_lowercase();
+                                    matches!(
+                                        ext.as_str(),
+                                        "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp"
+                                    )
+                                };
+
                                 let entry_path = entry.path();
-                                if !entry_path.is_dir() {
-                                    if entry_path.extension().map_or(false, |ext| {
-                                        let ext = ext.to_string_lossy().to_lowercase();
-                                        match ext.as_str() {
-                                            "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" => true,
-                                            _ => false,
-                                        }
-                                    }) {
-                                        let content = AssetItemBuilder::new(WidgetBuilder::new())
-                                            .with_path(entry_path)
-                                            .build(
-                                                &mut ui.build_ctx(),
-                                                engine.resource_manager.clone(),
-                                            );
-                                        self.items.push(content);
-                                        ui.send_message(WidgetMessage::link(
-                                            content,
-                                            MessageDirection::ToWidget,
-                                            self.content_panel,
-                                        ));
-                                    }
+                                if !entry_path.is_dir()
+                                    && entry_path.extension().map_or(false, check_ext)
+                                {
+                                    let content = AssetItemBuilder::new(WidgetBuilder::new())
+                                        .with_path(entry_path)
+                                        .build(
+                                            &mut ui.build_ctx(),
+                                            engine.resource_manager.clone(),
+                                        );
+                                    self.items.push(content);
+                                    ui.send_message(WidgetMessage::link(
+                                        content,
+                                        MessageDirection::ToWidget,
+                                        self.content_panel,
+                                    ));
                                 }
                             }
                         }

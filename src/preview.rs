@@ -152,9 +152,9 @@ impl PreviewPanel {
         if message.destination() == self.frame
             && message.direction() == MessageDirection::FromWidget
         {
-            match message.data() {
-                UiMessageData::Widget(msg) => match msg {
-                    &WidgetMessage::MouseMove { pos, .. } => {
+            if let UiMessageData::Widget(msg) = message.data() {
+                match *msg {
+                    WidgetMessage::MouseMove { pos, .. } => {
                         let delta = pos - self.prev_mouse_pos;
                         match self.mode {
                             Mode::None => {}
@@ -168,7 +168,7 @@ impl PreviewPanel {
                         }
                         self.prev_mouse_pos = pos;
                     }
-                    &WidgetMessage::MouseDown { button, pos } => {
+                    WidgetMessage::MouseDown { button, pos } => {
                         self.prev_mouse_pos = pos;
                         engine.user_interface.capture_mouse(self.frame);
                         if button == MouseButton::Left {
@@ -177,7 +177,7 @@ impl PreviewPanel {
                             self.mode = Mode::Move;
                         }
                     }
-                    &WidgetMessage::MouseUp { button, .. } => {
+                    WidgetMessage::MouseUp { button, .. } => {
                         if (button == MouseButton::Left || button == MouseButton::Middle)
                             && self.mode != Mode::None
                         {
@@ -185,12 +185,11 @@ impl PreviewPanel {
                             self.mode = Mode::None;
                         }
                     }
-                    &WidgetMessage::MouseWheel { amount, .. } => {
+                    WidgetMessage::MouseWheel { amount, .. } => {
                         self.distance = (self.distance + amount).max(0.0);
                     }
                     _ => {}
-                },
-                _ => {}
+                }
             }
         }
 
