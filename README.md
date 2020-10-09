@@ -65,6 +65,19 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Debug: ~3 seconds
 	- Release: ~8 seconds
 
+## Running examples
+### Install all **rg3d** components
+```bash
+chmod +x ./examples/install_deps.sh
+./examples/install_deps.sh
+
+```
+### Run examples
+```bash
+cargo run --release --example scene
+
+```
+
 ## Contributing
 
 Contributions are very welcome! Please check Issues to see how you can help project and feel free to create your own issue!
