@@ -180,22 +180,10 @@ fn find_menu<M: MessageData, C: Control<M, C>>(
 ) -> Handle<UINode<M, C>> {
     let mut handle = from;
     loop {
-        let popup = ui.find_by_criteria_up(handle, |n| {
-            if let UINode::Popup(_) = n {
-                true
-            } else {
-                false
-            }
-        });
+        let popup = ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Popup(_)));
         if popup.is_none() {
             // Maybe we have Menu as parent for MenuItem.
-            return ui.find_by_criteria_up(handle, |n| {
-                if let UINode::Menu(_) = n {
-                    true
-                } else {
-                    false
-                }
-            });
+            return ui.find_by_criteria_up(handle, |n| matches!(n, UINode::Menu(_)));
         } else {
             // Continue search from parent menu item of popup.
             if let UINode::Popup(popup) = ui.node(popup) {

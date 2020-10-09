@@ -42,7 +42,7 @@ pub struct Font {
     descender: f32,
     char_map: HashMap<u32, usize>,
     atlas: Vec<u8>,
-    atlas_size: i32,
+    atlas_size: usize,
     pub texture: Option<SharedTexture>,
 }
 
@@ -163,7 +163,7 @@ impl Font {
     }
 
     #[inline]
-    pub fn atlas_size(&self) -> i32 {
+    pub fn atlas_size(&self) -> usize {
         self.atlas_size
     }
 
@@ -173,13 +173,12 @@ impl Font {
     }
 
     #[inline]
-    fn compute_atlas_size(&self, border: i32) -> i32 {
+    fn compute_atlas_size(&self, border: usize) -> usize {
         let mut area = 0.0;
         for glyph in self.glyphs.iter() {
-            area += (glyph.bitmap_width + border as usize) as f32
-                * (glyph.bitmap_height + border as usize) as f32;
+            area += (glyph.bitmap_width + border) as f32 * (glyph.bitmap_height + border) as f32;
         }
-        (1.15 * area.sqrt()) as i32
+        (1.15 * area.sqrt()) as usize
     }
 
     fn pack(&mut self) {
@@ -189,14 +188,13 @@ impl Font {
         let k = 1.0 / self.atlas_size as f32;
         let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
         for glyph in self.glyphs.iter_mut() {
-            if let Some(bounds) = rect_packer.find_free(
-                glyph.bitmap_width as i32 + border,
-                glyph.bitmap_height as i32 + border,
-            ) {
-                let bw = bounds.w - border;
-                let bh = bounds.h - border;
-                let bx = bounds.x + border / 2;
-                let by = bounds.y + border / 2;
+            if let Some(bounds) =
+                rect_packer.find_free(glyph.bitmap_width + border, glyph.bitmap_height + border)
+            {
+                let bw = (bounds.w - border) as usize;
+                let bh = (bounds.h - border) as usize;
+                let bx = (bounds.x + border / 2) as usize;
+                let by = (bounds.y + border / 2) as usize;
 
                 let tw = bw as f32 * k;
                 let th = bh as f32 * k;
@@ -215,15 +213,11 @@ impl Font {
                 let col_end = bx + bw;
 
                 // Copy glyph pixels to atlas pixels
-                let mut src_row = 0;
-                for row in by..row_end {
-                    let mut src_col = 0;
-                    for col in bx..col_end {
-                        self.atlas[(row * self.atlas_size + col) as usize] =
-                            glyph.pixels[(src_row * bw + src_col) as usize];
-                        src_col += 1;
+                for (src_row, row) in (by..row_end).enumerate() {
+                    for (src_col, col) in (bx..col_end).enumerate() {
+                        self.atlas[row * self.atlas_size + col] =
+                            glyph.pixels[src_row * bw + src_col];
                     }
-                    src_row += 1;
                 }
             } else {
                 println!("Insufficient atlas size!");

@@ -236,14 +236,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for AlphaBar<M, C> {
                 UiMessageData::AlphaBar(msg)
                     if message.direction() == MessageDirection::ToWidget =>
                 {
-                    match msg {
-                        &AlphaBarMessage::Alpha(alpha) => {
+                    match *msg {
+                        AlphaBarMessage::Alpha(alpha) => {
                             if self.alpha != alpha {
                                 self.alpha = alpha;
                                 ui.send_message(message.reverse());
                             }
                         }
-                        &AlphaBarMessage::Orientation(orientation) => {
+                        AlphaBarMessage::Orientation(orientation) => {
                             if self.orientation != orientation {
                                 self.orientation = orientation;
                                 ui.send_message(message.reverse());
@@ -397,14 +397,14 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for HueBar<M, C> {
                     }
                 }
                 UiMessageData::HueBar(msg) if message.direction() == MessageDirection::ToWidget => {
-                    match msg {
-                        &HueBarMessage::Hue(hue) => {
+                    match *msg {
+                        HueBarMessage::Hue(hue) => {
                             if self.hue != hue {
                                 self.hue = hue;
                                 ui.send_message(message.reverse());
                             }
                         }
-                        &HueBarMessage::Orientation(orientation) => {
+                        HueBarMessage::Orientation(orientation) => {
                             if self.orientation != orientation {
                                 self.orientation = orientation;
                                 ui.send_message(message.reverse());
@@ -588,8 +588,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
                 UiMessageData::SaturationBrightnessField(msg)
                     if message.direction() == MessageDirection::ToWidget =>
                 {
-                    match msg {
-                        &SaturationBrightnessFieldMessage::Hue(hue) => {
+                    match *msg {
+                        SaturationBrightnessFieldMessage::Hue(hue) => {
                             let clamped = hue.min(360.0).max(0.0);
                             if self.hue != clamped {
                                 self.hue = clamped;
@@ -600,7 +600,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
                                 ));
                             }
                         }
-                        &SaturationBrightnessFieldMessage::Saturation(saturation) => {
+                        SaturationBrightnessFieldMessage::Saturation(saturation) => {
                             let clamped = saturation.min(100.0).max(0.0);
                             if self.saturation != clamped {
                                 self.saturation = clamped;
@@ -611,7 +611,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for SaturationBrightnessFie
                                 ));
                             }
                         }
-                        &SaturationBrightnessFieldMessage::Brightness(brightness) => {
+                        SaturationBrightnessFieldMessage::Brightness(brightness) => {
                             let clamped = brightness.min(100.0).max(0.0);
                             if self.brightness != clamped {
                                 self.brightness = clamped;
@@ -790,7 +790,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                 if message.destination() == self.hue_bar
                     && message.direction() == MessageDirection::FromWidget =>
             {
-                if let &HueBarMessage::Hue(hue) = msg {
+                if let HueBarMessage::Hue(hue) = *msg {
                     ui.send_message(SaturationBrightnessFieldMessage::hue(
                         self.saturation_brightness_field,
                         MessageDirection::ToWidget,
@@ -810,7 +810,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                 if message.destination() == self.alpha_bar
                     && message.direction() == MessageDirection::FromWidget =>
             {
-                if let &AlphaBarMessage::Alpha(alpha) = msg {
+                if let AlphaBarMessage::Alpha(alpha) = *msg {
                     ui.send_message(ColorPickerMessage::color(
                         self.handle,
                         MessageDirection::ToWidget,
@@ -822,8 +822,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                 if message.destination() == self.saturation_brightness_field
                     && message.direction() == MessageDirection::FromWidget =>
             {
-                match msg {
-                    &SaturationBrightnessFieldMessage::Brightness(brightness) => {
+                match *msg {
+                    SaturationBrightnessFieldMessage::Brightness(brightness) => {
                         let mut hsv = self.hsv;
                         hsv.set_brightness(brightness);
                         ui.send_message(ColorPickerMessage::hsv(
@@ -832,7 +832,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                             hsv,
                         ));
                     }
-                    &SaturationBrightnessFieldMessage::Saturation(saturation) => {
+                    SaturationBrightnessFieldMessage::Saturation(saturation) => {
                         let mut hsv = self.hsv;
                         hsv.set_saturation(saturation);
                         ui.send_message(ColorPickerMessage::hsv(
@@ -847,7 +847,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
             UiMessageData::NumericUpDown(msg)
                 if message.direction() == MessageDirection::FromWidget && !message.handled() =>
             {
-                if let &NumericUpDownMessage::Value(value) = msg {
+                if let NumericUpDownMessage::Value(value) = *msg {
                     if message.destination() == self.hue {
                         ui.send_message(HueBarMessage::hue(
                             self.hue_bar,
@@ -897,8 +897,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                 if message.destination() == self.handle
                     && message.direction() == MessageDirection::ToWidget =>
             {
-                match msg {
-                    &ColorPickerMessage::Color(color) => {
+                match *msg {
+                    ColorPickerMessage::Color(color) => {
                         if self.color != color {
                             self.color = color;
                             self.hsv = Hsv::from(color);
@@ -908,7 +908,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorPicker<M, C> {
                             ui.send_message(message.reverse());
                         }
                     }
-                    &ColorPickerMessage::Hsv(hsv) => {
+                    ColorPickerMessage::Hsv(hsv) => {
                         if self.hsv != hsv {
                             self.hsv = hsv;
                             let opaque = Color::from(hsv);
@@ -1046,70 +1046,71 @@ impl<M: MessageData, C: Control<M, C>> ColorPickerBuilder<M, C> {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let picker = ColorPicker {
-            widget: self
-                .widget_builder
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                saturation_brightness_field =
-                                    SaturationBrightnessFieldBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .on_column(0),
-                                    )
-                                    .build(ctx);
-                                saturation_brightness_field
-                            })
-                            .with_child({
-                                hue_bar = HueBarBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(1),
-                                )
-                                .build(ctx);
-                                hue_bar
-                            })
-                            .with_child({
-                                alpha_bar = AlphaBarBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .on_column(2),
-                                )
-                                .with_alpha(self.color.a as f32)
-                                .build(ctx);
-                                alpha_bar
-                            })
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(3)
-                                        .with_child({
-                                            color_mark = BorderBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_row(0)
-                                                    .with_margin(Thickness::uniform(1.0)),
-                                            )
-                                            .build(ctx);
-                                            color_mark
-                                        })
-                                        .with_child(numerics_grid),
-                                )
-                                .add_row(Row::strict(25.0))
-                                .add_row(Row::stretch())
-                                .add_column(Column::stretch())
-                                .build(ctx),
-                            ),
-                    )
-                    .add_column(Column::auto())
-                    .add_column(Column::strict(20.0))
-                    .add_column(Column::strict(20.0))
-                    .add_column(Column::stretch())
-                    .add_row(Row::auto())
-                    .build(ctx),
+        let widget = self
+            .widget_builder
+            .with_child(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            saturation_brightness_field = SaturationBrightnessFieldBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_column(0),
+                            )
+                            .build(ctx);
+                            saturation_brightness_field
+                        })
+                        .with_child({
+                            hue_bar = HueBarBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_column(1),
+                            )
+                            .build(ctx);
+                            hue_bar
+                        })
+                        .with_child({
+                            alpha_bar = AlphaBarBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_column(2),
+                            )
+                            .with_alpha(self.color.a as f32)
+                            .build(ctx);
+                            alpha_bar
+                        })
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(3)
+                                    .with_child({
+                                        color_mark = BorderBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .build(ctx);
+                                        color_mark
+                                    })
+                                    .with_child(numerics_grid),
+                            )
+                            .add_row(Row::strict(25.0))
+                            .add_row(Row::stretch())
+                            .add_column(Column::stretch())
+                            .build(ctx),
+                        ),
                 )
-                .build(),
+                .add_column(Column::auto())
+                .add_column(Column::strict(20.0))
+                .add_column(Column::strict(20.0))
+                .add_column(Column::stretch())
+                .add_row(Row::auto())
+                .build(ctx),
+            )
+            .build();
+
+        let picker = ColorPicker {
+            widget,
             hue_bar,
             saturation_brightness_field,
             red,
@@ -1174,7 +1175,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
                 if message.destination() == self.handle
                     && message.direction() == MessageDirection::FromWidget =>
             {
-                if let &WidgetMessage::MouseDown { button, .. } = msg {
+                if let WidgetMessage::MouseDown { button, .. } = *msg {
                     if button == MouseButton::Left {
                         ui.send_message(WidgetMessage::width(
                             self.popup,
@@ -1201,7 +1202,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
                 if message.destination() == self.handle
                     && message.direction() == MessageDirection::ToWidget =>
             {
-                if let &ColorFieldMessage::Color(color) = msg {
+                if let ColorFieldMessage::Color(color) = *msg {
                     if self.color != color {
                         self.color = color;
                         ui.send_message(ColorPickerMessage::color(

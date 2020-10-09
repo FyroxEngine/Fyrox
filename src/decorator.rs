@@ -383,7 +383,7 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
                 }),
             disabled_brush: self
                 .disabled_brush
-                .unwrap_or(Brush::Solid(Color::opaque(50, 50, 50))),
+                .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
             is_selected: false,
             pressable: self.pressable,
         });

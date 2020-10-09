@@ -104,13 +104,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ListViewItem<M, C> {
     ) {
         self.widget.handle_routed_message(ui, message);
 
-        let items_control = self.find_by_criteria_up(ui, |node| {
-            if let UINode::ListView(_) = node {
-                true
-            } else {
-                false
-            }
-        });
+        let items_control =
+            self.find_by_criteria_up(ui, |node| matches!(node, UINode::ListView(_)));
 
         if let UiMessageData::Widget(msg) = &message.data() {
             if let WidgetMessage::MouseUp { .. } = msg {

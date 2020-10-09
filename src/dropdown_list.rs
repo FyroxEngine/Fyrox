@@ -93,7 +93,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                 }
                 &DropdownListMessage::SelectionChanged(selection) => {
                     if selection != self.selection {
-                        self.selection = selection.clone();
+                        self.selection = selection;
                         ui.send_message(ListViewMessage::selection(
                             self.list_view,
                             MessageDirection::ToWidget,
@@ -142,7 +142,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                         ui.send_message(DropdownListMessage::selection(
                             self.handle,
                             MessageDirection::ToWidget,
-                            selection.clone(),
+                            *selection,
                         ));
                     }
                 }

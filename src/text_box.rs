@@ -15,6 +15,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UINode, UserInterface, VerticalAlignment,
 };
+use std::cmp::Ordering;
 use std::{
     cell::RefCell,
     cmp,
@@ -53,24 +54,22 @@ pub struct SelectionRange {
 impl SelectionRange {
     #[must_use = "method creates new value which must be used"]
     pub fn normalized(&self) -> SelectionRange {
-        if self.begin.line == self.end.line {
-            if self.begin.offset > self.end.offset {
-                SelectionRange {
-                    begin: self.end,
-                    end: self.begin,
+        match self.begin.line.cmp(&self.end.line) {
+            Ordering::Less => *self,
+            Ordering::Equal => {
+                if self.begin.offset > self.end.offset {
+                    SelectionRange {
+                        begin: self.end,
+                        end: self.begin,
+                    }
+                } else {
+                    *self
                 }
-            } else {
-                self.clone()
             }
-        } else {
-            if self.begin.line > self.end.line {
-                SelectionRange {
-                    begin: self.end,
-                    end: self.begin,
-                }
-            } else {
-                self.clone()
-            }
+            Ordering::Greater => SelectionRange {
+                begin: self.end,
+                end: self.begin,
+            },
         }
     }
 }

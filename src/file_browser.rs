@@ -85,7 +85,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 let mut item = find_tree(self.tree_root, path, ui);
                                 if item.is_none() {
                                     // Generate new tree contents.
-                                    let (items, path_item) = build_all(
+                                    let result = build_all(
                                         self.root.as_ref(),
                                         path,
                                         self.filter.clone(),
@@ -96,10 +96,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                     ui.send_message(TreeRootMessage::items(
                                         self.tree_root,
                                         MessageDirection::ToWidget,
-                                        items,
+                                        result.root_items,
                                     ));
 
-                                    item = path_item;
+                                    item = result.path_item;
                                 }
 
                                 self.path = path.clone();
@@ -134,7 +134,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 self.path = root.clone().unwrap_or_default();
 
                                 // Generate new tree contents.
-                                let (items, path_item) = build_all(
+                                let result = build_all(
                                     self.root.as_ref(),
                                     &self.path,
                                     self.filter.clone(),
@@ -145,21 +145,21 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
                                 ui.send_message(TreeRootMessage::items(
                                     self.tree_root,
                                     MessageDirection::ToWidget,
-                                    items,
+                                    result.root_items,
                                 ));
 
-                                if path_item.is_some() {
+                                if result.path_item.is_some() {
                                     // Select item of new path.
                                     ui.send_message(TreeRootMessage::select(
                                         self.tree_root,
                                         MessageDirection::ToWidget,
-                                        vec![path_item],
+                                        vec![result.path_item],
                                     ));
                                     // Bring item of new path into view.
                                     ui.send_message(ScrollViewerMessage::bring_into_view(
                                         self.scroll_viewer,
                                         MessageDirection::ToWidget,
-                                        path_item,
+                                        result.path_item,
                                     ));
                                 } else {
                                     // Clear text field if path is invalid.
@@ -337,13 +337,18 @@ fn build_tree<M: MessageData, C: Control<M, C>, P: AsRef<Path>>(
     tree
 }
 
+struct BuildResult<M: MessageData, C: Control<M, C>> {
+    root_items: Vec<Handle<UINode<M, C>>>,
+    path_item: Handle<UINode<M, C>>,
+}
+
 /// Builds entire file system tree to given final_path.
 fn build_all<M: MessageData, C: Control<M, C>>(
     root: Option<&PathBuf>,
     final_path: &Path,
     filter: Option<Rc<RefCell<Filter>>>,
     ctx: &mut BuildContext<M, C>,
-) -> (Vec<Handle<UINode<M, C>>>, Handle<UINode<M, C>>) {
+) -> BuildResult<M, C> {
     let mut dest_path = PathBuf::new();
     if let Ok(canonical_final_path) = final_path.canonicalize() {
         if let Some(canonical_root) = root.map(|r| r.canonicalize().ok()).flatten() {
@@ -443,7 +448,10 @@ fn build_all<M: MessageData, C: Control<M, C>>(
         parent = new_parent;
     }
 
-    (root_items, path_item)
+    BuildResult {
+        root_items,
+        path_item,
+    }
 }
 
 pub struct FileBrowserBuilder<M: MessageData, C: Control<M, C>> {
@@ -493,7 +501,9 @@ impl<M: MessageData, C: Control<M, C>> FileBrowserBuilder<M, C> {
     }
 
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
-        let (items, _) = build_all(
+        let BuildResult {
+            root_items: items, ..
+        } = build_all(
             self.root.as_ref(),
             self.path.as_path(),
             self.filter.clone(),

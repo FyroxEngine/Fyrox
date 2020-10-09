@@ -1,3 +1,6 @@
+// Don't know how to correctly fix this so lower priority for now.
+#![warn(clippy::vtable_address_comparisons)]
+
 use crate::{
     brush::Brush,
     core::{

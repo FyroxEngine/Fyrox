@@ -46,10 +46,7 @@ pub enum TileContent<M: MessageData, C: Control<M, C>> {
 
 impl<M: MessageData, C: Control<M, C>> TileContent<M, C> {
     pub fn is_empty(&self) -> bool {
-        match self {
-            TileContent::Empty => true,
-            _ => false,
-        }
+        matches!(self, TileContent::Empty)
     }
 }
 
@@ -492,13 +489,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                     true,
                                 ));
 
-                                if let Some(docking_manager) =
-                                    ui.try_borrow_by_criteria_up_mut(self.parent(), |n| {
-                                        if let UINode::DockingManager(_) = n {
-                                            true
-                                        } else {
-                                            false
-                                        }
+                                if let Some(docking_manager) = ui
+                                    .try_borrow_by_criteria_up_mut(self.parent(), |n| {
+                                        matches!(n, UINode::DockingManager(_))
                                     })
                                 {
                                     if let UINode::DockingManager(docking_manager) = docking_manager
@@ -539,11 +532,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
             }
             UiMessageData::Window(msg) => {
                 if let Some(docking_manager) = ui.try_borrow_by_criteria_up(self.parent(), |n| {
-                    if let UINode::DockingManager(_) = n {
-                        true
-                    } else {
-                        false
-                    }
+                    matches!(n, UINode::DockingManager(_))
                 }) {
                     if let UINode::DockingManager(docking_manager) = docking_manager {
                         // Make sure we are dragging one of floating windows of parent docking manager.
@@ -950,10 +939,7 @@ impl<M: MessageData, C: Control<M, C>> TileBuilder<M, C> {
                         std::f32::INFINITY
                     }
                 })
-                .with_visibility(match self.content {
-                    TileContent::VerticalTiles { .. } | TileContent::HorizontalTiles { .. } => true,
-                    _ => false,
-                })
+                .with_visibility(matches!(self.content, TileContent::VerticalTiles { .. } | TileContent::HorizontalTiles { .. }))
                 .with_cursor(match self.content {
                     TileContent::HorizontalTiles { .. } => Some(CursorIcon::WResize),
                     TileContent::VerticalTiles { .. } => Some(CursorIcon::NResize),

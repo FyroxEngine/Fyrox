@@ -85,15 +85,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                     }
                 }
             }
-            UiMessageData::Widget(msg) => match msg {
-                WidgetMessage::MouseDown { .. } => {
+            UiMessageData::Widget(msg) => {
+                if let WidgetMessage::MouseDown { .. } = msg {
                     if !message.handled() {
                         let root = ui.find_by_criteria_up(self.parent(), |n| {
-                            if let UINode::TreeRoot(_) = n {
-                                true
-                            } else {
-                                false
-                            }
+                            matches!(n, UINode::TreeRoot(_))
                         });
                         if root.is_some() {
                             if let UINode::TreeRoot(tree_root) = ui.node(root) {
@@ -122,8 +118,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
                         }
                     }
                 }
-                _ => {}
-            },
+            }
             UiMessageData::Tree(msg) => {
                 if message.destination() == self.handle() {
                     match msg {

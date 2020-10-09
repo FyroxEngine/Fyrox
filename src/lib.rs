@@ -178,8 +178,10 @@ impl Thickness {
     }
 }
 
+type NodeHandle<M, C> = Handle<UINode<M, C>>;
+
 pub struct NodeHandleMapping<M: MessageData, C: Control<M, C>> {
-    hash_map: HashMap<Handle<UINode<M, C>>, Handle<UINode<M, C>>>,
+    hash_map: HashMap<NodeHandle<M, C>, NodeHandle<M, C>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Default for NodeHandleMapping<M, C> {
