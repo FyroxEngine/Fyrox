@@ -743,9 +743,13 @@ impl Renderer {
                     geom_map: &mut self.geometry_cache,
                 });
 
-                self.statistics +=
-                    self.debug_renderer
-                        .render(state, viewport, &mut gbuffer.final_frame, camera);
+                self.statistics += self.debug_renderer.render(
+                    state,
+                    viewport,
+                    &mut gbuffer.final_frame,
+                    &scene.drawing_context,
+                    camera,
+                );
 
                 // Finally render everything into back buffer.
                 if scene.render_target.is_none() {
