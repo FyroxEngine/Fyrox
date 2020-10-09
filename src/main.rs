@@ -1445,6 +1445,9 @@ impl Editor {
             // Adjust camera viewport to size of frame.
             let frame_size = engine.renderer.get_frame_size();
             let scene = &mut engine.scenes[editor_scene.scene];
+
+            scene.drawing_context.clear_lines();
+
             if let Node::Camera(camera) = &mut scene.graph[self.camera_controller.camera] {
                 let frame_size = Vec2::new(frame_size.0 as f32, frame_size.1 as f32);
                 let viewport = camera.viewport_pixels(frame_size);
@@ -1475,10 +1478,7 @@ impl Editor {
                     Node::ParticleSystem(_) => AxisAlignedBoundingBox::UNIT,
                 };
                 aabb.transform(node.global_transform());
-                engine
-                    .renderer
-                    .debug_renderer
-                    .draw_aabb(&aabb, Color::GREEN);
+                scene.drawing_context.draw_aabb(&aabb, Color::GREEN);
             }
 
             self.camera_controller.update(editor_scene, engine, dt);
@@ -1560,8 +1560,6 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
-            engine.renderer.debug_renderer.clear_lines();
-
             update(
                 &mut editor,
                 &mut engine,
