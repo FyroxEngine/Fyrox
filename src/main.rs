@@ -39,6 +39,7 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::core::math::aabb::AxisAlignedBoundingBox;
 use rg3d::{
     core::{
         color::Color,
@@ -1463,6 +1464,23 @@ impl Editor {
                 }
             }
 
+            for &node in editor_scene.selection.nodes() {
+                let node = &scene.graph[node];
+                let mut aabb = match node {
+                    Node::Base(_) => AxisAlignedBoundingBox::UNIT,
+                    Node::Light(_) => AxisAlignedBoundingBox::UNIT,
+                    Node::Camera(_) => AxisAlignedBoundingBox::UNIT,
+                    Node::Mesh(ref mesh) => mesh.bounding_box(),
+                    Node::Sprite(_) => AxisAlignedBoundingBox::UNIT,
+                    Node::ParticleSystem(_) => AxisAlignedBoundingBox::UNIT,
+                };
+                aabb.transform(node.global_transform());
+                engine
+                    .renderer
+                    .debug_renderer
+                    .draw_aabb(&aabb, Color::GREEN);
+            }
+
             self.camera_controller.update(editor_scene, engine, dt);
 
             if let Some(mode) = self.current_interaction_mode {
@@ -1542,6 +1560,8 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::MainEventsCleared => {
+            engine.renderer.debug_renderer.clear_lines();
+
             update(
                 &mut editor,
                 &mut engine,
