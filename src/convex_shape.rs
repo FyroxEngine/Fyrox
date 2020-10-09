@@ -1,4 +1,5 @@
 use rg3d_core::{
+    define_is_as,
     math::{
         vec3::Vec3,
         self,
@@ -359,34 +360,6 @@ pub enum ConvexShape {
     PointCloud(PointCloudShape),
 }
 
-macro_rules! define_is_as {
-    ($is:ident, $as_ref:ident, $as_mut:ident, $kind:ident, $result:ty) => {
-        #[inline]
-        pub fn $is(&self) -> bool {
-            match self {
-                ConvexShape::$kind(_) => true,
-                _ => false
-            }
-        }
-
-        #[inline]
-        pub fn $as_ref(&self) -> &$result {
-            match self {
-                ConvexShape::$kind(ref val) => val,
-                _ => panic!("Cast to {} failed!", stringify!($kind))
-            }
-        }
-
-        #[inline]
-        pub fn $as_mut(&mut self) -> &mut $result {
-            match self {
-                ConvexShape::$kind(ref mut val) => val,
-                _ => panic!("Cast to {} failed!", stringify!($kind))
-            }
-        }
-    }
-}
-
 impl CircumRadius for ConvexShape {
     fn circumradius(&self) -> f32 {
         match self {
@@ -435,11 +408,11 @@ impl ConvexShape {
         }
     }
 
-    define_is_as!(is_box, as_box, as_box_mut, Box, BoxShape);
-    define_is_as!(is_capsule, as_capsule, as_capsule_mut, Capsule, CapsuleShape);
-    define_is_as!(is_sphere, as_sphere, as_sphere_mut, Sphere, SphereShape);
-    define_is_as!(is_triangle, as_triangle, as_triangle_mut, Triangle, TriangleShape);
-    define_is_as!(is_point_cloud, as_point_cloud, as_point_cloud_mut, PointCloud, PointCloudShape);
+    define_is_as!(ConvexShape : Box -> ref BoxShape => fn is_box, fn as_box, fn as_box_mut);
+    define_is_as!(ConvexShape : Capsule -> ref CapsuleShape => fn is_capsule, fn as_capsule, fn as_capsule_mut);
+    define_is_as!(ConvexShape : Sphere -> ref SphereShape => fn is_sphere, fn as_sphere, fn as_sphere_mut);
+    define_is_as!(ConvexShape : Triangle -> ref TriangleShape => fn is_triangle, fn as_triangle, fn as_triangle_mut);
+    define_is_as!(ConvexShape : PointCloud -> ref PointCloudShape => fn is_point_cloud, fn as_point_cloud, fn as_point_cloud_mut);
 }
 
 impl Visit for ConvexShape {
