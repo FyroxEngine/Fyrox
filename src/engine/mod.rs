@@ -14,7 +14,7 @@ use crate::{
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::{Control, UserInterface},
-    renderer::{error::RendererError, QualitySettings, Renderer},
+    renderer::{error::RendererError, Renderer},
     scene::SceneContainer,
     sound::context::Context,
     window::{Window, WindowBuilder},
