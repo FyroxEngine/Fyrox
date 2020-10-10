@@ -496,7 +496,7 @@ impl Renderer {
     ) -> Result<Self, RendererError> {
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
-	let settings = QualitySettings::default();
+        let settings = QualitySettings::default();
         let mut state = State::new();
 
         Ok(Self {
