@@ -339,7 +339,7 @@ pub struct Renderer {
     quad: SurfaceSharedData,
     frame_size: (u32, u32),
     ambient_color: Color,
-    quality_settings: QualitySettings,
+    pub quality_settings: QualitySettings,
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
     /// Camera to G-buffer mapping.
@@ -493,7 +493,6 @@ impl Renderer {
     pub(in crate) fn new(
         context: &mut glutin::WindowedContext<PossiblyCurrent>,
         frame_size: (u32, u32),
-        settings: QualitySettings,
     ) -> Result<Self, RendererError> {
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
@@ -528,7 +527,7 @@ impl Renderer {
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             ambient_color: Color::opaque(100, 100, 100),
-            quality_settings: settings,
+            quality_settings: Default::default(),
             debug_renderer: DebugRenderer::new(&mut state)?,
             gbuffers: Default::default(),
             backbuffer_clear_color: Color::from_rgba(0, 0, 0, 0),
