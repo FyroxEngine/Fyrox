@@ -984,16 +984,6 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
             .borrow(self.find_by_name_up(start_node_handle, name))
     }
 
-    /// Searches a node by name up on tree starting from given root node and tries to borrow it as mutable if exists.
-    pub fn borrow_by_name_up_mut(
-        &mut self,
-        start_node_handle: Handle<UINode<M, C>>,
-        name: &str,
-    ) -> &mut UINode<M, C> {
-        self.nodes
-            .borrow_mut(self.find_by_name_up(start_node_handle, name))
-    }
-
     /// Searches a node by name down on tree starting from given root node and tries to borrow it if exists.
     pub fn borrow_by_name_down(
         &self,
@@ -1002,16 +992,6 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     ) -> &UINode<M, C> {
         self.nodes
             .borrow(self.find_by_name_down(start_node_handle, name))
-    }
-
-    /// Searches a node by name down on tree starting from given root node and tries to borrow it as mutable if exists.
-    pub fn borrow_by_name_down_mut(
-        &mut self,
-        start_node_handle: Handle<UINode<M, C>>,
-        name: &str,
-    ) -> &mut UINode<M, C> {
-        self.nodes
-            .borrow_mut(self.find_by_name_down(start_node_handle, name))
     }
 
     /// Searches for a node up on tree that satisfies some criteria and then borrows
@@ -1042,24 +1022,6 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
     {
         self.nodes
             .try_borrow(self.find_by_criteria_up(start_node_handle, func))
-    }
-
-    /// Searches for a node up on tree that satisfies some criteria and then borrows
-    /// mutable reference.
-    ///
-    /// # Panics
-    ///
-    /// It will panic if there no node that satisfies given criteria.
-    pub fn borrow_by_criteria_up_mut<Func>(
-        &mut self,
-        start_node_handle: Handle<UINode<M, C>>,
-        func: Func,
-    ) -> &mut UINode<M, C>
-    where
-        Func: Fn(&UINode<M, C>) -> bool,
-    {
-        self.nodes
-            .borrow_mut(self.find_by_criteria_up(start_node_handle, func))
     }
 
     pub fn try_borrow_by_criteria_up_mut<Func>(
@@ -1100,6 +1062,43 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         }
     }
 
+    fn preview_message(&mut self, message: &mut UiMessage<M, C>) {
+        // Fire preview handler first. This will allow controls to do some actions before
+        // message will begin bubble routing. Preview routing does not care about destination
+        // node of message, it always starts from root and descend to leaf nodes.
+        self.stack.clear();
+        self.stack.push(self.root());
+        while let Some(handle) = self.stack.pop() {
+            // Use try_take_reserve here because user can flush messages in message handler,
+            // but node was moved out of pool at that time and this will cause panic when we'll
+            // try to move node out of pool.
+            if let Ok((ticket, mut node)) = self.nodes.try_take_reserve(handle) {
+                self.stack.extend_from_slice(node.children());
+                node.preview_message(self, message);
+                self.nodes.put_back(ticket, node);
+            }
+        }
+    }
+
+    fn bubble_message(&mut self, message: &mut UiMessage<M, C>) {
+        // Dispatch event using bubble strategy. Bubble routing means that message will go
+        // from specified destination up on tree to tree root.
+        // Gather chain of nodes from source to root.
+        self.bubble_queue.clear();
+        self.bubble_queue.push_back(message.destination());
+        let mut parent = self.nodes[message.destination()].parent();
+        while parent.is_some() && self.nodes.is_valid_handle(parent) {
+            self.bubble_queue.push_back(parent);
+            parent = self.nodes[parent].parent();
+        }
+
+        while let Some(handle) = self.bubble_queue.pop_front() {
+            let (ticket, mut node) = self.nodes.take_reserve(handle);
+            node.handle_routed_message(self, message);
+            self.nodes.put_back(ticket, node);
+        }
+    }
+
     /// Extracts UI event one-by-one from common queue. Each extracted event will go to *all*
     /// available nodes first and only then will be moved outside of this method. This is one
     /// of most important methods which must be called each frame of your game loop, otherwise
@@ -1117,42 +1116,8 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                     self.update(self.screen_size, 0.0);
                 }
 
-                // Fire preview handler first. This will allow controls to do some actions before
-                // message will begin bubble routing. Preview routing does not care about destination
-                // node of message, it always starts from root and descend to leaf nodes.
-                self.stack.clear();
-                self.stack.push(self.root());
-                while let Some(handle) = self.stack.pop() {
-                    // Use try_take_reserve here because user can flush messages in message handler,
-                    // but node was moved out of pool at that time and this will cause panic when we'll
-                    // try to move node out of pool.
-                    if let Ok((ticket, mut node)) = self.nodes.try_take_reserve(handle) {
-                        self.stack.extend_from_slice(node.children());
-                        node.preview_message(self, &mut message);
-                        self.nodes.put_back(ticket, node);
-                    }
-                }
-
-                // Dispatch event using bubble strategy. Bubble routing means that message will go
-                // from specified destination up on tree to tree root.
-                if message.destination().is_some()
-                    && self.nodes.is_valid_handle(message.destination())
-                {
-                    // Gather chain of nodes from source to root.
-                    self.bubble_queue.clear();
-                    self.bubble_queue.push_back(message.destination());
-                    let mut parent = self.nodes[message.destination()].parent();
-                    while parent.is_some() && self.nodes.is_valid_handle(parent) {
-                        self.bubble_queue.push_back(parent);
-                        parent = self.nodes[parent].parent();
-                    }
-
-                    while let Some(handle) = self.bubble_queue.pop_front() {
-                        let (ticket, mut node) = self.nodes.take_reserve(handle);
-                        node.handle_routed_message(self, &mut message);
-                        self.nodes.put_back(ticket, node);
-                    }
-                }
+                self.preview_message(&mut message);
+                self.bubble_message(&mut message);
 
                 if let UiMessageData::Widget(msg) = &message.data() {
                     match msg {
