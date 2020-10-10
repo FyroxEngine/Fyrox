@@ -17,7 +17,10 @@ pub mod transform;
 use crate::{
     animation::AnimationContainer,
     core::{
-        math::vec2::Vec2,
+        color::Color,
+        math::{
+            aabb::AxisAlignedBoundingBox, frustum::Frustum, mat4::Mat4, vec2::Vec2, vec3::Vec3,
+        },
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -112,6 +115,291 @@ impl Visit for PhysicsBinder {
     }
 }
 
+/// Colored line between two points.
+#[derive(Clone, Debug)]
+pub struct Line {
+    /// Beginning of the line.
+    pub begin: Vec3,
+    /// End of the line.    
+    pub end: Vec3,
+    /// Color of the line.
+    pub color: Color,
+}
+
+/// Drawing context for simple graphics, it allows you to draw simple figures using
+/// set of lines. Most common use is to draw some debug geometry in your game, draw
+/// physics info (contacts, meshes, shapes, etc.), draw temporary geometry in editor
+/// and so on.
+#[derive(Default, Clone, Debug)]
+pub struct SceneDrawingContext {
+    /// List of lines to draw.
+    pub lines: Vec<Line>,
+}
+
+impl SceneDrawingContext {
+    /// Draws frustum with given color. Drawing is not immediate, it only pushes
+    /// lines for frustum into internal buffer. It will be drawn later on in separate
+    /// render pass.
+    pub fn draw_frustum(&mut self, frustum: &Frustum, color: Color) {
+        let left_top_front = frustum.left_top_front_corner();
+        let left_bottom_front = frustum.left_bottom_front_corner();
+        let right_bottom_front = frustum.right_bottom_front_corner();
+        let right_top_front = frustum.right_top_front_corner();
+
+        let left_top_back = frustum.left_top_back_corner();
+        let left_bottom_back = frustum.left_bottom_back_corner();
+        let right_bottom_back = frustum.right_bottom_back_corner();
+        let right_top_back = frustum.right_top_back_corner();
+
+        // Front face
+        self.add_line(Line {
+            begin: left_top_front,
+            end: right_top_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: left_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_top_front,
+            color,
+        });
+
+        // Back face
+        self.add_line(Line {
+            begin: left_top_back,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_back,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_back,
+            end: left_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_back,
+            end: left_top_back,
+            color,
+        });
+
+        // Edges
+        self.add_line(Line {
+            begin: left_top_front,
+            end: left_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_bottom_back,
+            color,
+        });
+    }
+
+    /// Draws axis-aligned bounding box with given color. Drawing is not immediate,
+    /// it only pushes lines for bounding box into internal buffer. It will be drawn
+    /// later on in separate render pass.
+    pub fn draw_aabb(&mut self, aabb: &AxisAlignedBoundingBox, color: Color) {
+        let left_bottom_front = Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z);
+        let left_top_front = Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z);
+        let right_top_front = Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z);
+        let right_bottom_front = Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z);
+
+        let left_bottom_back = Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z);
+        let left_top_back = Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z);
+        let right_top_back = Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z);
+        let right_bottom_back = Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z);
+
+        // Front face
+        self.add_line(Line {
+            begin: left_top_front,
+            end: right_top_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: left_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_top_front,
+            color,
+        });
+
+        // Back face
+        self.add_line(Line {
+            begin: left_top_back,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_back,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_back,
+            end: left_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_back,
+            end: left_top_back,
+            color,
+        });
+
+        // Edges
+        self.add_line(Line {
+            begin: left_top_front,
+            end: left_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_bottom_back,
+            color,
+        });
+    }
+
+    /// Draws object-oriented bounding box with given color. Drawing is not immediate,
+    /// it only pushes lines for object-oriented bounding box into internal buffer. It
+    /// will be drawn later on in separate render pass.
+    pub fn draw_oob(&mut self, aabb: &AxisAlignedBoundingBox, transform: Mat4, color: Color) {
+        let left_bottom_front =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z));
+        let left_top_front =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z));
+        let right_top_front =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z));
+        let right_bottom_front =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z));
+
+        let left_bottom_back =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z));
+        let left_top_back =
+            transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z));
+        let right_top_back =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z));
+        let right_bottom_back =
+            transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z));
+
+        // Front face
+        self.add_line(Line {
+            begin: left_top_front,
+            end: right_top_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: left_bottom_front,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_top_front,
+            color,
+        });
+
+        // Back face
+        self.add_line(Line {
+            begin: left_top_back,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_back,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_back,
+            end: left_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_back,
+            end: left_top_back,
+            color,
+        });
+
+        // Edges
+        self.add_line(Line {
+            begin: left_top_front,
+            end: left_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_top_front,
+            end: right_top_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: right_bottom_front,
+            end: right_bottom_back,
+            color,
+        });
+        self.add_line(Line {
+            begin: left_bottom_front,
+            end: left_bottom_back,
+            color,
+        });
+    }
+
+    /// Adds single line into internal buffer.
+    pub fn add_line(&mut self, line: Line) {
+        self.lines.push(line);
+    }
+
+    /// Removes all lines from internal buffer. For dynamic drawing you should call it
+    /// every update tick of your application.
+    pub fn clear_lines(&mut self) {
+        self.lines.clear()
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Scene {
@@ -141,6 +429,9 @@ pub struct Scene {
     /// in real-time strategies, in other words there are plenty of possible uses.
     pub render_target: Option<Arc<Mutex<Texture>>>,
 
+    /// Drawing context for simple graphics.
+    pub drawing_context: SceneDrawingContext,
+
     lightmap: Option<Lightmap>,
 }
 
@@ -153,6 +444,7 @@ impl Default for Scene {
             physics_binder: Default::default(),
             render_target: None,
             lightmap: None,
+            drawing_context: Default::default(),
         }
     }
 }
@@ -174,6 +466,7 @@ impl Scene {
             physics_binder: Default::default(),
             render_target: None,
             lightmap: None,
+            drawing_context: Default::default(),
         }
     }
 
@@ -353,8 +646,11 @@ impl Scene {
             animations,
             physics,
             physics_binder,
+            // Render target is intentionally not copied, because it does not makes sense - a copy
+            // will redraw frame completely.
             render_target: Default::default(),
             lightmap: self.lightmap.clone(),
+            drawing_context: self.drawing_context.clone(),
         }
     }
 }

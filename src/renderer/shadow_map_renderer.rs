@@ -1,3 +1,5 @@
+#![warn(clippy::too_many_arguments)]
+
 use crate::{
     core::{
         color::Color,
@@ -502,7 +504,7 @@ impl PointShadowMapRenderer {
                         let diffuse_texture = surface
                             .diffuse_texture()
                             .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or(white_dummy.clone());
+                            .unwrap_or_else(|| white_dummy.clone());
 
                         statistics += framebuffer.draw(
                             geom_cache.get(state, &surface.data().lock().unwrap()),
