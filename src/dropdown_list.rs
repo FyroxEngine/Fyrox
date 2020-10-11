@@ -77,31 +77,37 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                     }
                 }
             }
-            UiMessageData::DropdownList(msg) if message.destination() == self.handle() => match msg
+            UiMessageData::DropdownList(msg)
+                if message.destination() == self.handle()
+                    && message.direction() == MessageDirection::ToWidget =>
             {
-                DropdownListMessage::Items(items) => {
-                    ListViewMessage::items(
-                        self.list_view,
-                        MessageDirection::ToWidget,
-                        items.clone(),
-                    );
-                    self.items = items.clone();
-                }
-                &DropdownListMessage::AddItem(item) => {
-                    ListViewMessage::add_item(self.list_view, MessageDirection::ToWidget, item);
-                    self.items.push(item);
-                }
-                &DropdownListMessage::SelectionChanged(selection) => {
-                    if selection != self.selection {
-                        self.selection = selection;
-                        ui.send_message(ListViewMessage::selection(
+                match msg {
+                    DropdownListMessage::Items(items) => {
+                        ListViewMessage::items(
                             self.list_view,
                             MessageDirection::ToWidget,
-                            selection,
-                        ));
+                            items.clone(),
+                        );
+                        self.items = items.clone();
+                    }
+                    &DropdownListMessage::AddItem(item) => {
+                        ListViewMessage::add_item(self.list_view, MessageDirection::ToWidget, item);
+                        self.items.push(item);
+                    }
+                    &DropdownListMessage::SelectionChanged(selection) => {
+                        if selection != self.selection {
+                            self.selection = selection;
+                            ui.send_message(ListViewMessage::selection(
+                                self.list_view,
+                                MessageDirection::ToWidget,
+                                selection,
+                            ));
+
+                            ui.send_message(message.reverse());
+                        }
                     }
                 }
-            },
+            }
             _ => {}
         }
     }
