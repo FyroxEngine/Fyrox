@@ -427,6 +427,53 @@ impl StaticGeometryBinder {
     pub fn unbind(&mut self, geom: Handle<StaticGeometry>) -> Option<Handle<Node>> {
         self.map.remove(&geom)
     }
+
+    /// Returns amount of entries in the binder.
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Tries to find associated static geometry of a node.
+    ///
+    /// # Performance
+    ///
+    /// This method performs linear search so it could be slow for some applications.
+    pub fn static_geometry_of_node(&self, node: Handle<Node>) -> Option<Handle<StaticGeometry>> {
+        for (&geom, &node_handle) in self.map.iter() {
+            if node_handle == node {
+                return Some(geom);
+            }
+        }
+        None
+    }
+
+    /// Unlinks given static geometry from a node.
+    ///
+    /// # Performance
+    ///
+    /// This method is slow because of two reasons:
+    ///
+    /// 1) Search is linear
+    /// 2) Additional memory is allocated
+    ///
+    /// So it is not advised to call it in performance critical places.
+    pub fn unbind_by_node(&mut self, node: Handle<Node>) -> Handle<StaticGeometry> {
+        let mut geom_handle = Handle::NONE;
+        self.map = self
+            .map
+            .clone()
+            .into_iter()
+            .filter(|&(g, n)| {
+                if n == node {
+                    geom_handle = g;
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+        geom_handle
+    }
 }
 
 impl Visit for StaticGeometryBinder {
@@ -703,17 +750,26 @@ impl Scene {
                 physics_binder.bind(new_node, body);
             }
         }
+        let mut static_geometry_binder = StaticGeometryBinder::default();
+        for (&geom, node) in self.static_geometry_binder.map.iter() {
+            // Make sure we bind existing node with new physical body.
+            if let Some(&new_node) = old_new_map.get(node) {
+                // Re-use of body handle is fine here because physics copy bodies
+                // directly and handles from previous pool is still suitable for copy.
+                static_geometry_binder.bind(geom, new_node);
+            }
+        }
         Self {
             graph,
             animations,
             physics,
             physics_binder,
+            static_geometry_binder,
             // Render target is intentionally not copied, because it does not makes sense - a copy
             // will redraw frame completely.
             render_target: Default::default(),
             lightmap: self.lightmap.clone(),
             drawing_context: self.drawing_context.clone(),
-            static_geometry_binder: Default::default(),
         }
     }
 }
