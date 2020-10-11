@@ -999,6 +999,24 @@ impl Selection {
 
     pub fn offset(&self, graph: &mut Graph, offset: Vec3) {
         for &handle in self.nodes.iter() {
+            let global_scale = graph.global_scale(handle);
+            let offset = Vec3::new(
+                if global_scale.x.abs() > 0.0 {
+                    offset.x / global_scale.x
+                } else {
+                    offset.x
+                },
+                if global_scale.y.abs() > 0.0 {
+                    offset.y / global_scale.y
+                } else {
+                    offset.y
+                },
+                if global_scale.z.abs() > 0.0 {
+                    offset.z / global_scale.z
+                } else {
+                    offset.z
+                },
+            );
             graph[handle].local_transform_mut().offset(offset);
         }
     }
