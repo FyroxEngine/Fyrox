@@ -11,18 +11,28 @@ use rg3d_core::{
 pub struct StaticGeometry {
     pub(in crate) triangles: Vec<StaticTriangle>,
     pub(in crate) octree: Octree,
+    save_triangles: bool
 }
 
 impl StaticGeometry {
     pub const OCTREE_THRESHOLD: usize = 64;
 
-    pub fn new(triangles: Vec<StaticTriangle>) -> Self {
+    pub fn new(triangles: Vec<StaticTriangle>, save_triangles: bool) -> Self {
         let raw_triangles: Vec<[Vec3; 3]> = triangles.iter().map(|st| st.points).collect();
 
         Self {
             octree: Octree::new(&raw_triangles, Self::OCTREE_THRESHOLD),
-            triangles
+            triangles,
+            save_triangles
         }
+    }
+
+    pub fn set_save_triangles(&mut self, save_triangles: bool) {
+        self.save_triangles = save_triangles;
+    }
+
+    pub fn save_triangles(&self) -> bool {
+        self.save_triangles
     }
 }
 
@@ -30,12 +40,23 @@ impl Visit for StaticGeometry {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.triangles.visit("Triangles", visitor)?;
+        if !visitor.is_reading() {
+            if self.save_triangles {
+                self.triangles.visit("Triangles", visitor)?;
+            } else {
+                let mut empty: Vec<StaticTriangle> = Vec::new();
+                empty.visit("Triangles", visitor)?;
+            }
+        } else {
+            self.triangles.visit("Triangles", visitor)?;
+        }
 
         if visitor.is_reading() {
             let raw_triangles: Vec<[Vec3; 3]> = self.triangles.iter().map(|st| st.points).collect();
             self.octree = Octree::new(&raw_triangles, Self::OCTREE_THRESHOLD);
         }
+
+        let _ = self.save_triangles.visit("SaveTriangles", visitor);
 
         visitor.leave_region()
     }

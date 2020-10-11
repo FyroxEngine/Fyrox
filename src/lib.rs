@@ -127,6 +127,18 @@ impl Physics {
         self.static_geoms.spawn(static_geom)
     }
 
+    pub fn borrow_static_geometry(&self, static_geom: Handle<StaticGeometry>) -> &StaticGeometry {
+        &self.static_geoms[static_geom]
+    }
+
+    pub fn borrow_static_geometry_mut(&mut self, static_geom: Handle<StaticGeometry>) -> &mut StaticGeometry {
+        &mut self.static_geoms[static_geom]
+    }
+
+    pub fn is_static_geometry_handle_valid(&self, static_geom: Handle<StaticGeometry>) -> bool {
+        self.static_geoms.is_valid_handle(static_geom)
+    }
+
     pub fn remove_static_geometry(&mut self, static_geom: Handle<StaticGeometry>) {
         self.static_geoms.free(static_geom);
     }
