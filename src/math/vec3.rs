@@ -217,15 +217,22 @@ impl Vec3 {
         self.x.max(self.y).max(self.z)
     }
 
+    #[inline]
     pub fn follow(&mut self, other: &Self, fraction: f32) {
         self.x += (other.x - self.x) * fraction;
         self.y += (other.y - self.y) * fraction;
         self.z += (other.z - self.z) * fraction;
     }
 
+    #[inline]
     pub fn project(&self, normal: &Self) -> Self {
         let n = normal.normalized().unwrap();
         *self - n.scale(self.dot(&n))
+    }
+
+    #[inline]
+    pub fn reciprocal(&self) -> Vec3 {
+        Vec3::new(1.0 / self.x, 1.0 / self.y, 1.0 / self.z)
     }
 }
 

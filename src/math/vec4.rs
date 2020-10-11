@@ -71,6 +71,11 @@ impl Vec4 {
             y: self.y,
         }
     }
+
+    #[inline]
+    pub fn reciprocal(&self) -> Vec4 {
+        Vec4::new(1.0 / self.x, 1.0 / self.y, 1.0 / self.z, 1.0 / self.w)
+    }
 }
 
 impl Default for Vec4 {

@@ -128,6 +128,11 @@ impl Vec2 {
         }
         None
     }
+
+    #[inline]
+    pub fn reciprocal(&self) -> Vec2 {
+        Vec2::new(1.0 / self.x, 1.0 / self.y)
+    }
 }
 
 impl From<(f32, f32)> for Vec2 {
