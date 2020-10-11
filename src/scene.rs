@@ -6,7 +6,7 @@ use rg3d::{
         pool::{Handle, Ticket},
     },
     engine::resource_manager::ResourceManager,
-    physics::{rigid_body::RigidBody, Physics},
+    physics::{rigid_body::RigidBody, static_geometry::StaticGeometry, Physics},
     resource::texture::Texture,
     scene::{graph::Graph, graph::SubGraph, mesh::Mesh, node::Node, PhysicsBinder, Scene},
 };
@@ -60,7 +60,9 @@ pub enum SceneCommand {
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
     SetBody(SetBodyCommand),
+    SetStaticGeometry(SetStaticGeometryCommand),
     DeleteBody(DeleteBodyCommand),
+    DeleteStaticGeometry(DeleteStaticGeometryCommand),
     LoadModel(LoadModelCommand),
     SetLightColor(SetLightColorCommand),
     SetLightScatter(SetLightScatterCommand),
@@ -102,7 +104,9 @@ macro_rules! static_dispatch {
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
+            SceneCommand::SetStaticGeometry(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
+            SceneCommand::DeleteStaticGeometry(v) => v.$func($($args),*),
             SceneCommand::LoadModel(v) => v.$func($($args),*),
             SceneCommand::SetLightColor(v) => v.$func($($args),*),
             SceneCommand::SetLightScatter(v) => v.$func($($args),*),
@@ -589,7 +593,72 @@ impl<'a> Command<'a> for SetBodyCommand {
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.physics.forget_ticket(ticket);
+            context.scene.physics.forget_body_ticket(ticket);
+            context.scene.physics_binder.unbind(self.node);
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct SetStaticGeometryCommand {
+    node: Handle<Node>,
+    ticket: Option<Ticket<StaticGeometry>>,
+    handle: Handle<StaticGeometry>,
+    static_geometry: Option<StaticGeometry>,
+}
+
+impl SetStaticGeometryCommand {
+    pub fn new(node: Handle<Node>, static_geometry: StaticGeometry) -> Self {
+        Self {
+            node,
+            ticket: None,
+            handle: Default::default(),
+            static_geometry: Some(static_geometry),
+        }
+    }
+}
+
+impl<'a> Command<'a> for SetStaticGeometryCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&self, _context: &Self::Context) -> String {
+        "Set Node Static Geometry".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        match self.ticket.take() {
+            None => {
+                self.handle = context
+                    .scene
+                    .physics
+                    .add_static_geometry(self.static_geometry.take().unwrap());
+            }
+            Some(ticket) => {
+                context
+                    .scene
+                    .physics
+                    .put_static_geometry_back(ticket, self.static_geometry.take().unwrap());
+            }
+        }
+        context
+            .scene
+            .static_geometry_binder
+            .bind(self.handle, self.node);
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        let (ticket, node) = context
+            .scene
+            .physics
+            .take_reserve_static_geometry(self.handle);
+        self.ticket = Some(ticket);
+        self.static_geometry = Some(node);
+        context.scene.physics_binder.unbind(self.node);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.scene.physics.forget_static_geometry_ticket(ticket);
             context.scene.physics_binder.unbind(self.node);
         }
     }
@@ -695,7 +764,65 @@ impl<'a> Command<'a> for DeleteBodyCommand {
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.physics.forget_ticket(ticket)
+            context.scene.physics.forget_body_ticket(ticket)
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteStaticGeometryCommand {
+    handle: Handle<StaticGeometry>,
+    ticket: Option<Ticket<StaticGeometry>>,
+    static_geometry: Option<StaticGeometry>,
+    node: Handle<Node>,
+}
+
+impl DeleteStaticGeometryCommand {
+    pub fn new(handle: Handle<StaticGeometry>) -> Self {
+        Self {
+            handle,
+            ticket: None,
+            static_geometry: None,
+            node: Handle::NONE,
+        }
+    }
+}
+
+impl<'a> Command<'a> for DeleteStaticGeometryCommand {
+    type Context = SceneContext<'a>;
+
+    fn name(&self, _context: &Self::Context) -> String {
+        "Delete Static Geometry".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut Self::Context) {
+        let (ticket, static_geometry) = context
+            .scene
+            .physics
+            .take_reserve_static_geometry(self.handle);
+        self.static_geometry = Some(static_geometry);
+        self.ticket = Some(ticket);
+        self.node = context
+            .scene
+            .static_geometry_binder
+            .unbind(self.handle)
+            .unwrap();
+    }
+
+    fn revert(&mut self, context: &mut Self::Context) {
+        self.handle = context.scene.physics.put_static_geometry_back(
+            self.ticket.take().unwrap(),
+            self.static_geometry.take().unwrap(),
+        );
+        context
+            .scene
+            .static_geometry_binder
+            .bind(self.handle, self.node);
+    }
+
+    fn finalize(&mut self, context: &mut Self::Context) {
+        if let Some(ticket) = self.ticket.take() {
+            context.scene.physics.forget_static_geometry_ticket(ticket)
         }
     }
 }

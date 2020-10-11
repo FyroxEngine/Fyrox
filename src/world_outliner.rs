@@ -172,7 +172,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
         }
     }
 
-    fn preview_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
+    fn preview_message(&self, ui: &Ui, message: &mut UiMessage) {
         self.tree.preview_message(ui, message);
     }
 

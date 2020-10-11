@@ -1,14 +1,12 @@
-use crate::scene::CommandGroup;
 use crate::{
     camera::CameraController,
     gui::UiNode,
     scene::{
-        ChangeSelectionCommand, EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
-        SceneCommand, Selection,
+        ChangeSelectionCommand, CommandGroup, EditorScene, MoveNodeCommand, RotateNodeCommand,
+        ScaleNodeCommand, SceneCommand, Selection,
     },
     GameEngine, Message,
 };
-use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         color::Color,
@@ -18,7 +16,7 @@ use rg3d::{
         },
         pool::Handle,
     },
-    gui::message::WidgetMessage,
+    gui::message::{MessageDirection, WidgetMessage},
     renderer::surface::{SurfaceBuilder, SurfaceSharedData},
     scene::{
         base::BaseBuilder, graph::Graph, mesh::MeshBuilder, node::Node, transform::TransformBuilder,

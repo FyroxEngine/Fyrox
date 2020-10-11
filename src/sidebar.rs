@@ -1,13 +1,14 @@
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
     scene::{
-        DeleteBodyCommand, EditorScene, MoveNodeCommand, RotateNodeCommand, ScaleNodeCommand,
-        SceneCommand, SetBodyCommand, SetFovCommand, SetLightCastShadowsCommand,
-        SetLightColorCommand, SetLightScatterCommand, SetLightScatterEnabledCommand,
-        SetNameCommand, SetParticleSystemAccelerationCommand, SetPointLightRadiusCommand,
-        SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
-        SetSpotLightHotspotCommand, SetSpriteColorCommand, SetSpriteRotationCommand,
-        SetSpriteSizeCommand, SetZFarCommand, SetZNearCommand,
+        CommandGroup, DeleteBodyCommand, DeleteStaticGeometryCommand, EditorScene, MoveNodeCommand,
+        RotateNodeCommand, ScaleNodeCommand, SceneCommand, SetBodyCommand, SetFovCommand,
+        SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
+        SetLightScatterEnabledCommand, SetNameCommand, SetParticleSystemAccelerationCommand,
+        SetPointLightRadiusCommand, SetSpotLightDistanceCommand,
+        SetSpotLightFalloffAngleDeltaCommand, SetSpotLightHotspotCommand, SetSpriteColorCommand,
+        SetSpriteRotationCommand, SetSpriteSizeCommand, SetStaticGeometryCommand, SetZFarCommand,
+        SetZNearCommand,
     },
     GameEngine, Message,
 };
@@ -45,6 +46,7 @@ use rg3d::{
         rigid_body::RigidBody,
     },
     scene::{light::Light, node::Node},
+    utils,
 };
 use std::sync::mpsc::Sender;
 
@@ -929,6 +931,12 @@ impl SideBar {
                         ConvexShape::Capsule(_) => 3,
                         _ => 0,
                     }
+                } else if scene
+                    .static_geometry_binder
+                    .static_geometry_of_node(node_handle)
+                    .is_some()
+                {
+                    4
                 } else {
                     0
                 };
@@ -1018,15 +1026,19 @@ impl SideBar {
                     if message.destination() == self.body {
                         if let DropdownListMessage::SelectionChanged(index) = msg {
                             if let Some(index) = index {
+                                dbg!(index);
+
                                 match index {
                                     0 => {
                                         let body_handle = scene.physics_binder.body_of(node_handle);
                                         if body_handle.is_some() {
                                             self.sender
                                                 .send(Message::DoSceneCommand(
-                                                    SceneCommand::DeleteBody(
-                                                        DeleteBodyCommand::new(body_handle),
-                                                    ),
+                                                    SceneCommand::CommandGroup(CommandGroup::from(
+                                                        vec![SceneCommand::DeleteBody(
+                                                            DeleteBodyCommand::new(body_handle),
+                                                        )],
+                                                    )),
                                                 ))
                                                 .unwrap();
                                         }
@@ -1045,14 +1057,49 @@ impl SideBar {
                                             _ => unreachable!(),
                                         };
                                         body.set_position(graph[node_handle].global_position());
+                                        let mut commands = Vec::new();
+                                        if let Some(node_geom) = scene
+                                            .static_geometry_binder
+                                            .static_geometry_of_node(node_handle)
+                                        {
+                                            // Make sure to remove static geometry (if any).
+                                            commands.push(SceneCommand::DeleteStaticGeometry(
+                                                DeleteStaticGeometryCommand::new(node_geom),
+                                            ));
+                                        }
+                                        commands.push(SceneCommand::SetBody(SetBodyCommand::new(
+                                            node_handle,
+                                            body,
+                                        )));
                                         self.sender
-                                            .send(Message::DoSceneCommand(SceneCommand::SetBody(
-                                                SetBodyCommand::new(node_handle, body),
-                                            )))
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::CommandGroup(CommandGroup::from(
+                                                    commands,
+                                                )),
+                                            ))
                                             .unwrap();
                                     }
                                     4 => {
-                                        println!("implement me!");
+                                        if let Node::Mesh(mesh) = node {
+                                            let geom = utils::mesh_to_static_geometry(mesh, false);
+                                            let mut commands = Vec::new();
+                                            let body = scene.physics_binder.body_of(node_handle);
+                                            if body.is_some() {
+                                                commands.push(SceneCommand::DeleteBody(
+                                                    DeleteBodyCommand::new(body),
+                                                ));
+                                            }
+                                            commands.push(SceneCommand::SetStaticGeometry(
+                                                SetStaticGeometryCommand::new(node_handle, geom),
+                                            ));
+                                            self.sender
+                                                .send(Message::DoSceneCommand(
+                                                    SceneCommand::CommandGroup(CommandGroup::from(
+                                                        commands,
+                                                    )),
+                                                ))
+                                                .unwrap();
+                                        }
                                     }
                                     _ => unreachable!(),
                                 };

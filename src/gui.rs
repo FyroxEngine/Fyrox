@@ -116,7 +116,7 @@ impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
         static_dispatch!(self, handle_routed_message, ui, message)
     }
 
-    fn preview_message(&mut self, ui: &mut Ui, message: &mut UiMessage) {
+    fn preview_message(&self, ui: &Ui, message: &mut UiMessage) {
         static_dispatch!(self, preview_message, ui, message)
     }
 
