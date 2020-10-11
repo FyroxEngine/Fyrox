@@ -67,6 +67,7 @@ use crate::{
     ttf::{Font, SharedFont},
     widget::{Widget, WidgetBuilder},
 };
+use std::cell::Cell;
 use std::fmt::Debug;
 use std::{
     collections::{HashMap, VecDeque},
@@ -201,6 +202,13 @@ impl<M: MessageData, C: Control<M, C>> NodeHandleMapping<M, C> {
         // None handles aren't mapped.
         if old.is_some() {
             *old = *self.hash_map.get(old).unwrap()
+        }
+    }
+
+    pub fn resolve_cell(&self, old: &mut Cell<Handle<UINode<M, C>>>) {
+        // None handles aren't mapped.
+        if old.get().is_some() {
+            old.set(*self.hash_map.get(&old.get()).unwrap())
         }
     }
 
@@ -378,7 +386,18 @@ where
         message: &mut UiMessage<M, C>,
     );
 
-    fn preview_message(&mut self, _ui: &mut UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
+    /// Used to react to a message (by producing another message) that was posted outside of current
+    /// hierarchy. In other words this method is used when you need to "peek" a message before it'll
+    /// be passed into bubbling router. Most common use case is to catch messages from popups: popup
+    /// in 99.9% cases is a child of root canvas and it **won't** receive a message from a its *logical*
+    /// parent during bubbling message routing. For example `preview_message` used in a dropdown list:
+    /// dropdown list has two separate parts - a field with selected value and a popup for all possible
+    /// options. Visual parent of the popup in this case is the root canvas, but logical parent is the
+    /// dropdown list. Because of this fact, the field won't receive any messages from popup, to solve
+    /// this we use `preview_message`. This method is much more restrictive - it does not allow you to
+    /// modify a node and ui, you can either *request* changes by sending a message or use internal
+    /// mutability (`Cell`, `RefCell`, etc).
+    fn preview_message(&self, _ui: &UserInterface<M, C>, _message: &mut UiMessage<M, C>) {
         // This method is optional.
     }
 
@@ -1069,14 +1088,9 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
         self.stack.clear();
         self.stack.push(self.root());
         while let Some(handle) = self.stack.pop() {
-            // Use try_take_reserve here because user can flush messages in message handler,
-            // but node was moved out of pool at that time and this will cause panic when we'll
-            // try to move node out of pool.
-            if let Ok((ticket, mut node)) = self.nodes.try_take_reserve(handle) {
-                self.stack.extend_from_slice(node.children());
-                node.preview_message(self, message);
-                self.nodes.put_back(ticket, node);
-            }
+            let node = &self.nodes[handle];
+            self.stack.extend_from_slice(node.children());
+            node.preview_message(self, message);
         }
     }
 

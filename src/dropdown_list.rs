@@ -103,6 +103,32 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                                 selection,
                             ));
 
+                            // Copy node from current selection in list view. This is not
+                            // always suitable because if an item has some visual behaviour
+                            // (change color on mouse hover, change something on click, etc)
+                            // it will be also reflected in selected item.
+                            if self.current.is_some() {
+                                ui.send_message(WidgetMessage::remove(
+                                    self.current,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
+                            if let Some(index) = selection {
+                                if let Some(item) = self.items.get(index) {
+                                    self.current = ui.copy_node(*item);
+                                    let body = self.widget.children()[0];
+                                    ui.send_message(WidgetMessage::link(
+                                        self.current,
+                                        MessageDirection::ToWidget,
+                                        body,
+                                    ));
+                                } else {
+                                    self.current = Handle::NONE;
+                                }
+                            } else {
+                                self.current = Handle::NONE;
+                            }
+
                             ui.send_message(message.reverse());
                         }
                     }
@@ -112,45 +138,17 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
         }
     }
 
-    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         if let UiMessageData::ListView(msg) = &message.data() {
             if let ListViewMessage::SelectionChanged(selection) = msg {
-                if message.destination() == self.list_view {
-                    // Copy node from current selection in list view. This is not
-                    // always suitable because if an item has some visual behaviour
-                    // (change color on mouse hover, change something on click, etc)
-                    // it will be also reflected in selected item.
-                    if self.current.is_some() {
-                        ui.send_message(WidgetMessage::remove(
-                            self.current,
-                            MessageDirection::ToWidget,
-                        ));
-                    }
-                    if let Some(index) = selection {
-                        if let Some(item) = self.items.get(*index) {
-                            self.current = ui.copy_node(*item);
-                            let body = self.widget.children()[0];
-                            ui.send_message(WidgetMessage::link(
-                                self.current,
-                                MessageDirection::ToWidget,
-                                body,
-                            ));
-                        } else {
-                            self.current = Handle::NONE;
-                        }
-                    } else {
-                        self.current = Handle::NONE;
-                    }
-
-                    if &self.selection != selection {
-                        // Post message again but from name of this drop-down list so user can catch
-                        // message and respond properly.
-                        ui.send_message(DropdownListMessage::selection(
-                            self.handle,
-                            MessageDirection::ToWidget,
-                            *selection,
-                        ));
-                    }
+                if message.destination() == self.list_view && &self.selection != selection {
+                    // Post message again but from name of this drop-down list so user can catch
+                    // message and respond properly.
+                    ui.send_message(DropdownListMessage::selection(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        *selection,
+                    ));
                 }
             }
         }

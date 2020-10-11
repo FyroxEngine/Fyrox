@@ -1220,7 +1220,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
 
     // We have to use preview message because popup it *not* in visual tree of our control and
     // handle_routed_message won't trigger because of it.
-    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         match message.data() {
             UiMessageData::Popup(msg) if message.destination() == self.popup => {
                 if let PopupMessage::Close = msg {

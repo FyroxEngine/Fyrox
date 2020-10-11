@@ -172,7 +172,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MessageBox<M, C> {
         }
     }
 
-    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         self.window.preview_message(ui, message);
     }
 

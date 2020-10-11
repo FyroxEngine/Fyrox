@@ -301,7 +301,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for MenuItem<M, C> {
         }
     }
 
-    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
         if message.destination() != self.handle() {

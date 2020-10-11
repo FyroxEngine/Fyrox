@@ -22,6 +22,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, Thickness, UserInterface,
 };
+use std::cell::{Cell, RefCell};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -61,7 +62,7 @@ pub struct Tile<M: MessageData, C: Control<M, C>> {
     content: TileContent<M, C>,
     splitter: Handle<UINode<M, C>>,
     dragging_splitter: bool,
-    drop_anchor: Handle<UINode<M, C>>,
+    drop_anchor: Cell<Handle<UINode<M, C>>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Deref for Tile<M, C> {
@@ -80,7 +81,7 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for Tile<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        node_map.resolve(&mut self.drop_anchor);
+        node_map.resolve_cell(&mut self.drop_anchor);
         node_map.resolve(&mut self.splitter);
         node_map.resolve(&mut self.center_anchor);
         node_map.resolve(&mut self.bottom_anchor);
@@ -321,6 +322,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                 }
                             }
                         }
+                        &TileMessage::Split {
+                            window,
+                            direction,
+                            first,
+                        } => {
+                            if matches!(self.content, TileContent::Window(_)) {
+                                self.split(ui, window, direction, first);
+                            }
+                        }
                     }
                 }
             }
@@ -498,6 +508,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                     {
                                         docking_manager
                                             .floating_windows
+                                            .borrow_mut()
                                             .push(message.destination());
                                     } else {
                                         unreachable!();
@@ -514,7 +525,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
 
     // We have to use preview_message for docking purposes because dragged window detached
     // from docking manager and handle_routed_message won't receive any messages from window.
-    fn preview_message(&mut self, ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         match &message.data() {
             UiMessageData::Widget(msg) => {
                 if let WidgetMessage::Unlink = msg {
@@ -538,6 +549,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                         // Make sure we are dragging one of floating windows of parent docking manager.
                         if docking_manager
                             .floating_windows
+                            .borrow_mut()
                             .contains(&message.destination())
                         {
                             match msg {
@@ -565,7 +577,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
-                                            self.drop_anchor = self.left_anchor;
+                                            self.drop_anchor.set(self.left_anchor);
                                         } else if ui
                                             .node(self.right_anchor)
                                             .screen_bounds()
@@ -576,7 +588,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
-                                            self.drop_anchor = self.right_anchor;
+                                            self.drop_anchor.set(self.right_anchor);
                                         } else if ui
                                             .node(self.top_anchor)
                                             .screen_bounds()
@@ -587,7 +599,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
-                                            self.drop_anchor = self.top_anchor;
+                                            self.drop_anchor.set(self.top_anchor);
                                         } else if ui
                                             .node(self.bottom_anchor)
                                             .screen_bounds()
@@ -598,7 +610,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
-                                            self.drop_anchor = self.bottom_anchor;
+                                            self.drop_anchor.set(self.bottom_anchor);
                                         } else if ui
                                             .node(self.center_anchor)
                                             .screen_bounds()
@@ -609,9 +621,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 MessageDirection::ToWidget,
                                                 Brush::Solid(Color::WHITE),
                                             ));
-                                            self.drop_anchor = self.center_anchor;
+                                            self.drop_anchor.set(self.center_anchor);
                                         } else {
-                                            self.drop_anchor = Handle::NONE;
+                                            self.drop_anchor.set(Handle::NONE);
                                         }
                                     }
                                 }
@@ -640,10 +652,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                     }
 
                                     // Drop if has any drop anchor.
-                                    if self.drop_anchor.is_some() {
+                                    if self.drop_anchor.get().is_some() {
                                         match self.content {
                                             TileContent::Empty => {
-                                                if self.drop_anchor == self.center_anchor {
+                                                if self.drop_anchor.get() == self.center_anchor {
                                                     ui.send_message(TileMessage::content(
                                                         self.handle,
                                                         MessageDirection::ToWidget,
@@ -657,38 +669,47 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
                                                 }
                                             }
                                             TileContent::Window(_) => {
-                                                if self.drop_anchor == self.left_anchor {
+                                                if self.drop_anchor.get() == self.left_anchor {
                                                     // Split horizontally, dock to left.
-                                                    self.split(
-                                                        ui,
+                                                    ui.send_message(TileMessage::split(
+                                                        self.handle,
+                                                        MessageDirection::ToWidget,
                                                         message.destination(),
                                                         SplitDirection::Horizontal,
                                                         true,
-                                                    );
-                                                } else if self.drop_anchor == self.right_anchor {
+                                                    ));
+                                                } else if self.drop_anchor.get()
+                                                    == self.right_anchor
+                                                {
                                                     // Split horizontally, dock to right.
-                                                    self.split(
-                                                        ui,
+                                                    ui.send_message(TileMessage::split(
+                                                        self.handle,
+                                                        MessageDirection::ToWidget,
                                                         message.destination(),
                                                         SplitDirection::Horizontal,
                                                         false,
-                                                    );
-                                                } else if self.drop_anchor == self.top_anchor {
+                                                    ));
+                                                } else if self.drop_anchor.get() == self.top_anchor
+                                                {
                                                     // Split vertically, dock to top.
-                                                    self.split(
-                                                        ui,
+                                                    ui.send_message(TileMessage::split(
+                                                        self.handle,
+                                                        MessageDirection::ToWidget,
                                                         message.destination(),
                                                         SplitDirection::Vertical,
                                                         true,
-                                                    );
-                                                } else if self.drop_anchor == self.bottom_anchor {
+                                                    ));
+                                                } else if self.drop_anchor.get()
+                                                    == self.bottom_anchor
+                                                {
                                                     // Split vertically, dock to bottom.
-                                                    self.split(
-                                                        ui,
+                                                    ui.send_message(TileMessage::split(
+                                                        self.handle,
+                                                        MessageDirection::ToWidget,
                                                         message.destination(),
                                                         SplitDirection::Vertical,
                                                         false,
-                                                    );
+                                                    ));
                                                 }
                                             }
                                             // Rest cannot accept windows.
@@ -707,7 +728,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
     }
 }
 
-enum SplitDirection {
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum SplitDirection {
     Horizontal,
     Vertical,
 }
@@ -783,7 +805,7 @@ impl<M: MessageData, C: Control<M, C>> Tile<M, C> {
 #[derive(Clone)]
 pub struct DockingManager<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    floating_windows: Vec<Handle<UINode<M, C>>>,
+    floating_windows: RefCell<Vec<Handle<UINode<M, C>>>>,
 }
 
 impl<M: MessageData, C: Control<M, C>> Deref for DockingManager<M, C> {
@@ -802,7 +824,7 @@ impl<M: MessageData, C: Control<M, C>> DerefMut for DockingManager<M, C> {
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for DockingManager<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
-        node_map.resolve_slice(&mut self.floating_windows);
+        node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
     }
 
     fn handle_routed_message(
@@ -813,15 +835,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DockingManager<M, C> {
         self.widget.handle_routed_message(ui, message);
     }
 
-    fn preview_message(&mut self, _ui: &mut UserInterface<M, C>, message: &mut UiMessage<M, C>) {
+    fn preview_message(&self, _ui: &UserInterface<M, C>, message: &mut UiMessage<M, C>) {
         if let UiMessageData::Widget(msg) = &message.data() {
             if let WidgetMessage::LinkWith(_) = msg {
-                if let Some(pos) = self
+                let pos = self
                     .floating_windows
+                    .borrow()
                     .iter()
-                    .position(|&i| i == message.destination())
-                {
-                    self.floating_windows.remove(pos);
+                    .position(|&i| i == message.destination());
+                if let Some(pos) = pos {
+                    self.floating_windows.borrow_mut().remove(pos);
                 }
             }
         }
@@ -849,7 +872,7 @@ impl<M: MessageData, C: Control<M, C>> DockingManagerBuilder<M, C> {
     pub fn build(self, ctx: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let docking_manager = DockingManager {
             widget: self.widget_builder.build(),
-            floating_windows: self.floating_windows,
+            floating_windows: RefCell::new(self.floating_windows),
         };
 
         ctx.add_node(UINode::DockingManager(docking_manager))

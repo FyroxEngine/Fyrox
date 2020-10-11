@@ -13,6 +13,7 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
+use crate::dock::SplitDirection;
 use crate::{
     brush::Brush,
     core::{
@@ -642,10 +643,36 @@ impl ImageMessage {
 #[derive(Debug, Clone, PartialEq)]
 pub enum TileMessage<M: MessageData, C: Control<M, C>> {
     Content(TileContent<M, C>),
+    /// Internal. Do not use.
+    Split {
+        window: Handle<UINode<M, C>>,
+        direction: SplitDirection,
+        first: bool,
+    },
 }
 
 impl<M: MessageData, C: Control<M, C>> TileMessage<M, C> {
     define_constructor!(Tile(TileMessage:Content) => fn content(TileContent<M, C>), layout: false);
+
+    pub(in crate) fn split(
+        destination: Handle<UINode<M, C>>,
+        direction: MessageDirection,
+        window: Handle<UINode<M, C>>,
+        split_direction: SplitDirection,
+        first: bool,
+    ) -> UiMessage<M, C> {
+        UiMessage {
+            handled: Cell::new(false),
+            data: UiMessageData::Tile(TileMessage::Split {
+                window,
+                direction: split_direction,
+                first,
+            }),
+            destination,
+            direction,
+            perform_layout: Cell::new(false),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
