@@ -669,8 +669,16 @@ pub fn create_scene_async(
         let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
         let collision_mesh = scene.graph[collision_mesh_handle].as_mesh_mut();
         collision_mesh.set_visibility(false);
-        let static_geometry = mesh_to_static_geometry(collision_mesh);
-        scene.physics.add_static_geometry(static_geometry);
+        // Create collision geometry from special mesh on the level. Make sure its triangles won't be
+        // serialized by passing false as last argument.
+        let static_geometry = mesh_to_static_geometry(collision_mesh, false);
+        let static_geometry_handle = scene.physics.add_static_geometry(static_geometry);
+        // Link static geometry with collision mesh so geometry of static geometry will be taken from
+        // specified mesh on deserialization. This is very important to not save redundant info to save
+        // files and keep them as small as possible.
+        scene
+            .static_geometry_binder
+            .bind(static_geometry_handle, collision_mesh_handle);
 
         // Finally create player.
         let player = Player::new(&mut scene, &mut resource_manager, context.clone());

@@ -28,8 +28,10 @@ use crate::{
     physics::{rigid_body::RigidBody, Physics},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node},
+    utils,
     utils::{lightmap::Lightmap, log::Log},
 };
+use rg3d_physics::static_geometry::StaticGeometry;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -400,6 +402,43 @@ impl SceneDrawingContext {
     }
 }
 
+/// Allows you to bind a mesh and a static geometry together, it is used on deserialization
+/// stage to fill a static geometry by geometry from a mesh. This is useful in situations
+/// when you need to use a model from your map as static geometry for physics. In this case
+/// there is no need to serialize static geometry in a file. This is somewhat similar to mesh
+/// geometry resolving at deserialization - it takes geometry from resource, not from data in
+/// a file.
+#[derive(Default, Clone, Debug)]
+pub struct StaticGeometryBinder {
+    map: HashMap<Handle<StaticGeometry>, Handle<Node>>,
+}
+
+impl StaticGeometryBinder {
+    /// Links given static geometry with specified mesh.
+    pub fn bind(
+        &mut self,
+        geom: Handle<StaticGeometry>,
+        node: Handle<Node>,
+    ) -> Option<Handle<Node>> {
+        self.map.insert(geom, node)
+    }
+
+    /// Unlinks given static geometry from its associated mesh (if any).
+    pub fn unbind(&mut self, geom: Handle<StaticGeometry>) -> Option<Handle<Node>> {
+        self.map.remove(&geom)
+    }
+}
+
+impl Visit for StaticGeometryBinder {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.map.visit("Map", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Scene {
@@ -432,6 +471,10 @@ pub struct Scene {
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
 
+    /// Links static geometry with a mesh to be able to get geometry data at deserialization
+    /// stage.
+    pub static_geometry_binder: StaticGeometryBinder,
+
     lightmap: Option<Lightmap>,
 }
 
@@ -445,6 +488,7 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            static_geometry_binder: Default::default(),
         }
     }
 }
@@ -467,6 +511,7 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            static_geometry_binder: Default::default(),
         }
     }
 
@@ -579,10 +624,27 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
+    fn restore_static_geometries(&mut self) {
+        Log::writeln(
+            "Trying to restore data for static geometries from associated nodes...".to_owned(),
+        );
+        // Obtain geometry for static geometries from linked meshes.
+        for (&geom_handle, &node_handle) in self.static_geometry_binder.map.iter() {
+            if self.graph.is_valid_handle(node_handle) {
+                *self.physics.borrow_static_geometry_mut(geom_handle) =
+                    utils::mesh_to_static_geometry(self.graph[node_handle].as_mesh(), false);
+            } else {
+                Log::writeln(format!("Unable to get geometry for static geometry, node at handle {:?} does not exists!", node_handle))
+            }
+        }
+    }
+
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Starting resolve...".to_owned());
         self.graph.resolve();
         self.animations.resolve(&self.graph);
+        self.restore_static_geometries();
+
         Log::writeln("Resolve succeeded!".to_owned());
     }
 
@@ -651,6 +713,7 @@ impl Scene {
             render_target: Default::default(),
             lightmap: self.lightmap.clone(),
             drawing_context: self.drawing_context.clone(),
+            static_geometry_binder: Default::default(),
         }
     }
 }
@@ -663,6 +726,9 @@ impl Visit for Scene {
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
         let _ = self.lightmap.visit("Lightmap", visitor);
+        let _ = self
+            .static_geometry_binder
+            .visit("StaticGeometryBinder", visitor);
         visitor.leave_region()
     }
 }

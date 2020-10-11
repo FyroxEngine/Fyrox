@@ -30,7 +30,7 @@ use std::{any::Any, sync::Arc, sync::Mutex};
 /// data. So if given mesh was at some position with any rotation and scale
 /// resulting static geometry will have vertices that exactly matches given
 /// mesh.
-pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
+pub fn mesh_to_static_geometry(mesh: &Mesh, save_triangles: bool) -> StaticGeometry {
     let mut triangles = Vec::new();
     let global_transform = mesh.global_transform();
     for surface in mesh.surfaces() {
@@ -49,7 +49,7 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
             }
         }
     }
-    StaticGeometry::new(triangles)
+    StaticGeometry::new(triangles, save_triangles)
 }
 
 /// Translated key code to rg3d-ui key code.
