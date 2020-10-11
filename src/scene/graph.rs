@@ -657,6 +657,17 @@ impl Graph {
         }
     }
 
+    /// Returns global scale matrix of a node.
+    pub fn global_scale_matrix(&self, node: Handle<Node>) -> Mat4 {
+        let node = &self[node];
+        let local_scale_matrix = Mat4::scale(node.local_transform().scale());
+        if node.parent().is_some() {
+            self.global_scale_matrix(node.parent()) * local_scale_matrix
+        } else {
+            local_scale_matrix
+        }
+    }
+
     /// Returns rotation quaternion of a node in world coordinates.
     pub fn global_rotation(&self, node: Handle<Node>) -> Quat {
         Quat::from(self.global_transform_no_scale(node).basis())
@@ -665,6 +676,12 @@ impl Graph {
     /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
     pub fn global_rotation_position_no_scale(&self, node: Handle<Node>) -> (Quat, Vec3) {
         (self.global_rotation(node), self[node].global_position())
+    }
+
+    /// Returns global scale of a node.
+    pub fn global_scale(&self, node: Handle<Node>) -> Vec3 {
+        let m = self.global_scale_matrix(node);
+        Vec3::new(m.f[0], m.f[5], m.f[10])
     }
 }
 
