@@ -581,16 +581,19 @@ impl<T> Pool<T> {
                     };
                     (ticket, payload)
                 } else {
-                    panic!("Attempt to double free object at handle {:?}!", handle);
+                    panic!(
+                        "Attempt to take already taken object at handle {:?}!",
+                        handle
+                    );
                 }
             } else {
                 panic!(
-                    "Attempt to free object using dangling handle {:?}! Record generation is {}",
+                    "Attempt to take object using dangling handle {:?}! Record generation is {}",
                     handle, record.generation
                 );
             }
         } else {
-            panic!("Attempt to free destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
+            panic!("Attempt to take destroyed object using out-of-bounds handle {:?}! Record count is {}", handle, self.records.len());
         }
     }
 
