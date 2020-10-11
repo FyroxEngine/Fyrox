@@ -163,8 +163,20 @@ impl Physics {
         self.bodies.put_back(ticket, body)
     }
 
-    pub fn forget_ticket(&mut self, ticket: Ticket<RigidBody>) {
+    pub fn forget_body_ticket(&mut self, ticket: Ticket<RigidBody>) {
         self.bodies.forget_ticket(ticket)
+    }
+
+    pub fn take_reserve_static_geometry(&mut self, handle: Handle<StaticGeometry>) -> (Ticket<StaticGeometry>, StaticGeometry) {
+        self.static_geoms.take_reserve(handle)
+    }
+
+    pub fn put_static_geometry_back(&mut self, ticket: Ticket<StaticGeometry>, geom: StaticGeometry) -> Handle<StaticGeometry> {
+        self.static_geoms.put_back(ticket, geom)
+    }
+
+    pub fn forget_static_geometry_ticket(&mut self, ticket: Ticket<StaticGeometry>) {
+        self.static_geoms.forget_ticket(ticket)
     }
 
     pub fn set_enabled(&mut self, enabled: bool) {
