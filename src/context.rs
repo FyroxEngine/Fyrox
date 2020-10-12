@@ -6,7 +6,6 @@
 //!
 
 use crate::{
-    device,
     device::run_device,
     effects::{Effect, EffectRenderTrait},
     error::SoundError,
@@ -14,7 +13,7 @@ use crate::{
     renderer::{render_source_default, Renderer},
     source::{SoundSource, Status},
 };
-use rg3d_core::{
+use hrtf::core::{
     pool::{Handle, Pool},
     visitor::{Visit, VisitResult, Visitor},
 };
@@ -22,6 +21,10 @@ use std::{
     sync::{Arc, Mutex},
     time::{self, Duration},
 };
+
+/// Sample rate for output device.
+/// TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
+pub const SAMPLE_RATE: u32 = 44100;
 
 /// Distance model defines how volume of sound will decay when distance to listener changes.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -79,9 +82,9 @@ pub struct Context {
 }
 
 impl Context {
-    // TODO: This is magic constant that gives 1024 + 1 number when summed with
-    //       HRTF length for faster FFT calculations. Find a better way of selecting this.
-    pub(in crate) const HRTF_BLOCK_LEN: usize = 513;
+    /// TODO: This is magic constant that gives 1024 + 1 number when summed with
+    ///       HRTF length for faster FFT calculations. Find a better way of selecting this.
+    pub const HRTF_BLOCK_LEN: usize = 513;
 
     pub(in crate) const HRTF_INTERPOLATION_STEPS: usize = 8;
 
@@ -141,7 +144,7 @@ impl Context {
     /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
     /// to create filters.
     pub fn normalize_frequency(&self, f: f32) -> f32 {
-        f / device::SAMPLE_RATE as f32
+        f / SAMPLE_RATE as f32
     }
 
     /// Returns amount of time context spent on rendering all sound sources.

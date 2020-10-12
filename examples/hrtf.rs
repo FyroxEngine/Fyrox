@@ -1,9 +1,9 @@
 use rg3d_sound::{
     buffer::{DataSource, SoundBuffer},
-    context::Context,
-    hrtf::{HrtfRenderer, HrtfSphere},
+    context::{self, Context},
+    hrtf::HrirSphere,
     math::{mat4::Mat4, quat::Quat, vec3::Vec3},
-    renderer::Renderer,
+    renderer::{hrtf::HrtfRenderer, Renderer},
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
 use std::{
@@ -12,7 +12,8 @@ use std::{
 };
 
 fn main() {
-    let hrtf = HrtfSphere::new("examples/data/IRC_1002_C.bin").unwrap();
+    let hrir_sphere =
+        HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
 
     // Initialize new sound context with default output device.
     let context = Context::new().unwrap();
@@ -21,7 +22,7 @@ fn main() {
     context
         .lock()
         .unwrap()
-        .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrtf)));
+        .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
 
     // Create some sounds.
     let sound_buffer =

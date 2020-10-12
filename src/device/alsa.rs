@@ -1,5 +1,6 @@
 use crate::{
-    device::{Device, FeedCallback, MixContext, NativeSample, SAMPLE_RATE},
+    context::SAMPLE_RATE,
+    device::{Device, FeedCallback, MixContext, NativeSample},
     error::SoundError,
 };
 use alsa_sys::*;

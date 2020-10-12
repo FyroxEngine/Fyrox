@@ -5,10 +5,9 @@
 //! Engine has only one listener which can be positioned and oriented in space. Listener defined as coordinate
 //! system which is used to compute spatial properties of sound sources.
 
-use rg3d_core::{
-    math::{mat3::Mat3, vec3::Vec3},
-    visitor::{Visit, VisitResult, Visitor},
-};
+use crate::math::mat3::Mat3;
+use crate::math::vec3::Vec3;
+use hrtf::core::visitor::{Visitor, VisitResult, Visit};
 
 /// See module docs.
 pub struct Listener {

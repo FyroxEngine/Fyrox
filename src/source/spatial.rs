@@ -18,8 +18,8 @@
 //!
 //! fn make_source(context: &mut Context, buffer: Arc<Mutex<SoundBuffer>>) -> Handle<SoundSource> {
 //!     let source = SpatialSourceBuilder::new(GenericSourceBuilder::new(buffer)
-//!         .build()
 //!         .with_status(Status::Playing)
+//!         .build()
 //!         .unwrap())
 //!         .build_source();
 //!     context.add_source(source)
@@ -32,12 +32,12 @@ use crate::{
     math::vec3::Vec3,
     source::{generic::GenericSource, SoundSource},
 };
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use hrtf::core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 pub struct SpatialSource {
-    generic: GenericSource,
+    pub(in crate) generic: GenericSource,
     radius: f32,
     position: Vec3,
     max_distance: f32,

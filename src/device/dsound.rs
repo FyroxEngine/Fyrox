@@ -1,7 +1,8 @@
 #![allow(non_snake_case)]
 
 use crate::{
-    device::{Device, FeedCallback, MixContext, NativeSample, SAMPLE_RATE},
+    context::SAMPLE_RATE,
+    device::{Device, FeedCallback, MixContext, NativeSample},
     error::SoundError,
 };
 use std::mem::size_of;

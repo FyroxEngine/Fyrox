@@ -21,7 +21,7 @@
 //! ```
 
 use crate::{buffer::DataSource, decoder::Decoder};
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use hrtf::core::visitor::{Visit, VisitResult, Visitor};
 use std::{path::PathBuf, time::Duration};
 
 /// Generic sound buffer that contains decoded samples and allows random access.

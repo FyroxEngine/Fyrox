@@ -32,7 +32,7 @@ use crate::{
     error::SoundError,
     source::{SoundSource, Status},
 };
-use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use hrtf::core::visitor::{Visit, VisitResult, Visitor};
 use std::{
     sync::{Arc, Mutex},
     time::Duration,
@@ -70,7 +70,7 @@ pub struct GenericSource {
     // will start interpolation of gain.
     pub(in crate) last_left_gain: Option<f32>,
     pub(in crate) last_right_gain: Option<f32>,
-    frame_samples: Vec<(f32, f32)>,
+    pub(in crate) frame_samples: Vec<(f32, f32)>,
 }
 
 impl Default for GenericSource {
@@ -486,7 +486,7 @@ impl GenericSourceBuilder {
 
     /// Creates new instance of generic sound source. May fail if buffer is invalid.
     pub fn build(self) -> Result<GenericSource, SoundError> {
-        let device_sample_rate = f64::from(crate::device::SAMPLE_RATE);
+        let device_sample_rate = f64::from(crate::context::SAMPLE_RATE);
         let mut locked_buffer = self.buffer.lock()?;
         if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
             if streaming.use_count != 0 {

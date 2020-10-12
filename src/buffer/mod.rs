@@ -9,13 +9,13 @@
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
 use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
-use rg3d_core::visitor::{Visit, VisitError, VisitResult, Visitor};
-use std::ops::{Deref, DerefMut};
+use hrtf::core::visitor::{Visit, VisitError, VisitResult, Visitor};
 use std::{
+    ops::{Deref, DerefMut},
     fs::File,
     io::{BufReader, Cursor, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex}
 };
 
 pub mod generic;

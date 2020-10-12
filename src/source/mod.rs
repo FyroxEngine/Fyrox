@@ -7,7 +7,7 @@
 //! spatial). See docs at those modules for more info.
 
 use crate::source::{generic::GenericSource, spatial::SpatialSource};
-use rg3d_core::visitor::{Visit, VisitError, VisitResult, Visitor};
+use hrtf::core::visitor::{Visit, VisitError, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
 pub mod generic;

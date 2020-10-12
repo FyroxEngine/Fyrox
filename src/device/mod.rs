@@ -17,9 +17,6 @@ mod alsa;
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
 mod dummy;
 
-// TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
-pub const SAMPLE_RATE: u32 = 44100;
-
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct NativeSample {

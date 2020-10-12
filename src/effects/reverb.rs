@@ -11,14 +11,12 @@
 //! use std::time::Duration;
 //! use rg3d_sound::context::Context;
 //! use rg3d_sound::effects::reverb::Reverb;
-//! use rg3d_sound::effects::Effect;
+//! use rg3d_sound::effects::{Effect, BaseEffect};
 //!
 //! fn set_reverberator(context: &mut Context) {
-//!     let mut reverb = Reverb::new();
+//!     let mut reverb = Reverb::new(BaseEffect::default());
 //!     reverb.set_decay_time(Duration::from_secs_f32(10.0));
-//!     context.lock()
-//!         .unwrap()
-//!         .add_effect(Effect::Reverb(reverb));
+//!     context.add_effect(Effect::Reverb(reverb));
 //! }
 //! ```
 //!
@@ -34,12 +32,14 @@ use crate::{
     listener::Listener,
     source::SoundSource,
 };
-use rg3d_core::{
+use hrtf::core::{
     pool::Pool,
     visitor::{Visit, VisitResult, Visitor},
 };
-use std::ops::{Deref, DerefMut};
-use std::time::Duration;
+use std::{
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
 #[derive(Default)]
 struct ChannelReverb {

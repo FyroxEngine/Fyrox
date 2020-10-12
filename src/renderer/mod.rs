@@ -7,11 +7,13 @@
 
 use crate::{
     context::DistanceModel,
-    hrtf::HrtfRenderer,
     listener::Listener,
     math,
+    renderer::hrtf::HrtfRenderer,
     source::{generic::GenericSource, SoundSource},
 };
+
+pub mod hrtf;
 
 /// See module docs.
 // This "large size difference" is not a problem because renderer
