@@ -32,7 +32,7 @@ use crate::{
     math::vec3::Vec3,
     source::{generic::GenericSource, SoundSource},
 };
-use hrtf::core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.

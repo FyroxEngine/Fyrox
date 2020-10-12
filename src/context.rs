@@ -13,7 +13,7 @@ use crate::{
     renderer::{render_source_default, Renderer},
     source::{SoundSource, Status},
 };
-use hrtf::core::{
+use rg3d_core::{
     pool::{Handle, Pool},
     visitor::{Visit, VisitResult, Visitor},
 };

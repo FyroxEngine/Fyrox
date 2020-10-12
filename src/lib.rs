@@ -72,6 +72,7 @@ extern crate alsa_sys;
 // Generic crates.
 extern crate byteorder;
 extern crate lewton;
+extern crate rg3d_core;
 
 pub mod buffer;
 pub mod context;
@@ -84,8 +85,8 @@ pub mod source;
 
 // Reexport some modules because there some types of them in public API.
 pub use hrtf;
-pub use hrtf::core::math;
-pub use hrtf::core::pool;
+pub use rg3d_core::math;
+pub use rg3d_core::pool;
 
 mod decoder;
 mod device;

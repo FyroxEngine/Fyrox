@@ -11,7 +11,7 @@ use crate::{
     listener::Listener,
     source::{SoundSource, Status},
 };
-use hrtf::core::{
+use rg3d_core::{
     math,
     pool::{Handle, Pool},
     visitor::{Visit, VisitResult, Visitor},

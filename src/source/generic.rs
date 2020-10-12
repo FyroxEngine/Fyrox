@@ -32,7 +32,7 @@ use crate::{
     error::SoundError,
     source::{SoundSource, Status},
 };
-use hrtf::core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::{
     sync::{Arc, Mutex},
     time::Duration,

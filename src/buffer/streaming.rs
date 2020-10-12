@@ -31,7 +31,7 @@ use crate::{
     decoder::Decoder,
     error::SoundError,
 };
-use hrtf::core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 

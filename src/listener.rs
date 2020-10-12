@@ -7,7 +7,7 @@
 
 use crate::math::mat3::Mat3;
 use crate::math::vec3::Vec3;
-use hrtf::core::visitor::{Visitor, VisitResult, Visit};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 /// See module docs.
 pub struct Listener {

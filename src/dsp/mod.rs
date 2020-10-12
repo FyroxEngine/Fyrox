@@ -8,7 +8,7 @@
 //!
 //! `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
 
-use hrtf::core::visitor::{Visit, VisitResult, Visitor};
+use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 
 pub mod filters;
 

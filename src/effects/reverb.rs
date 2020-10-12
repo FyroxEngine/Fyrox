@@ -32,7 +32,7 @@ use crate::{
     listener::Listener,
     source::SoundSource,
 };
-use hrtf::core::{
+use rg3d_core::{
     pool::Pool,
     visitor::{Visit, VisitResult, Visitor},
 };
