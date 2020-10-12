@@ -29,6 +29,23 @@ impl Hash for Vec4 {
     }
 }
 
+impl From<(f32, f32, f32, f32)> for Vec4 {
+    fn from(v: (f32, f32, f32, f32)) -> Self {
+        Self {
+            x: v.0,
+            y: v.1,
+            z: v.2,
+            w: v.3,
+        }
+    }
+}
+
+impl Into<(f32, f32, f32, f32)> for Vec4 {
+    fn into(self) -> (f32, f32, f32, f32) {
+        (self.x, self.y, self.z, self.w)
+    }
+}
+
 impl Vec4 {
     pub const ZERO: Self = Self {
         x: 0.0,

@@ -34,6 +34,22 @@ impl Hash for Vec3 {
     }
 }
 
+impl From<(f32, f32, f32)> for Vec3 {
+    fn from(v: (f32, f32, f32)) -> Self {
+        Self {
+            x: v.0,
+            y: v.1,
+            z: v.2,
+        }
+    }
+}
+
+impl Into<(f32, f32, f32)> for Vec3 {
+    fn into(self) -> (f32, f32, f32) {
+        (self.x, self.y, self.z)
+    }
+}
+
 impl Default for Vec3 {
     fn default() -> Self {
         Self::ZERO
