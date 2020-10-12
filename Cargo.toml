@@ -1,6 +1,6 @@
 [package]
 name = "rg3d"
-version = "0.13.0"
+version = "0.14.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2018"
 license = "MIT"
@@ -17,10 +17,10 @@ opt-level = 0
 opt-level = 3
 
 [dependencies]
-rg3d-core = { path = "../rg3d-core", version = "0.9.0" }
-rg3d-sound = { path = "../rg3d-sound", version = "0.15.0" }
-rg3d-physics = { path = "../rg3d-physics", version = "0.7.0" }
-rg3d-ui = { path = "../rg3d-ui", version = "0.5.0" }
+rg3d-core = { path = "../rg3d-core", version = "0.10.0" }
+rg3d-sound = { path = "../rg3d-sound", version = "0.16.0" }
+rg3d-physics = { path = "../rg3d-physics", version = "0.8.0" }
+rg3d-ui = { path = "../rg3d-ui", version = "0.6.0" }
 glutin = "0.24.0"
 image = { version = "0.23.7", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp", "dxt", "dds"] }
 lexical = "5.2.0"
