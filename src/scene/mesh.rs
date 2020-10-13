@@ -8,18 +8,19 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::core::math::vec3::Vec3;
-use crate::scene::node::Node;
 use crate::{
     core::{
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, mat4::Mat4, vec3::Vec3},
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::surface::Surface,
-    scene::{base::Base, base::BaseBuilder, graph::Graph},
+    scene::{
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::Node,
+    },
 };
-use rg3d_core::math::mat4::Mat4;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

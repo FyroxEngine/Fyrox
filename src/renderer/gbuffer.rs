@@ -1,3 +1,4 @@
+use crate::renderer::VisibilityCache;
 use crate::{
     core::{
         color::Color,
@@ -58,6 +59,7 @@ pub struct GBuffer {
     bone_matrices: Vec<Mat4>,
     pub width: i32,
     pub height: i32,
+    visibility_cache: VisibilityCache,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
@@ -168,6 +170,7 @@ impl GBuffer {
             width: width as i32,
             height: height as i32,
             final_frame: opt_framebuffer,
+            visibility_cache: Default::default(),
         })
     }
 
@@ -220,21 +223,17 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
-        'mesh_loop: for mesh in graph.linear_iter().filter_map(|node| {
-            if let Node::Mesh(mesh) = node {
+        self.visibility_cache
+            .update(graph, camera.view_matrix(), camera.z_far(), Some(&frustum));
+
+        let visibility_cache = &self.visibility_cache;
+        for mesh in graph.pair_iter().filter_map(|(handle, node)| {
+            if let (Node::Mesh(mesh), true) = (node, visibility_cache.is_visible(handle)) {
                 Some(mesh)
             } else {
                 None
             }
         }) {
-            if !mesh.is_intersect_frustum(graph, &frustum) {
-                continue 'mesh_loop;
-            }
-
-            if !mesh.global_visibility() {
-                continue 'mesh_loop;
-            }
-
             let view_projection = if mesh.depth_offset_factor() != 0.0 {
                 let mut projection = camera.projection_matrix();
                 projection.f[14] -= mesh.depth_offset_factor();
