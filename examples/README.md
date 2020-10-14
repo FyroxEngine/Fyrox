@@ -85,6 +85,13 @@ Same as Example 03, but also has "save/load" functionality - F5 and F9 keys resp
 
 Same as Example 04, but also has foot step sounds and reverb effect.
 
-## Example 08 - Simple game
+## Example 08 - Level of detail
+
+This example shows how to create and use lod groups to improve performance.
+TODO: It still should be improved, it needs to use more high poly model to show true power of the technique.
+
+![Example 08](screenshots/lod.png?raw=true "Example 08")
+
+## Example 09 - Simple game
 
 - TODO

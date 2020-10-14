@@ -45,6 +45,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Volumetric light (spot, point).
 - Render in texture.
 - Multi-camera rendering.
+- Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
 - Built-in save/load - save/load state of engine in one call.
 - [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound).
