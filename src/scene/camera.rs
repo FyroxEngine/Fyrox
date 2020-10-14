@@ -14,13 +14,16 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::scene::node::Node;
 use crate::{
     core::{
         math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec3::Vec3, vec4::Vec4, Rect},
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::base::{Base, BaseBuilder},
+    scene::{
+        base::{Base, BaseBuilder},
+        node::Node,
+        VisibilityCache,
+    },
 };
 use std::ops::{Deref, DerefMut};
 
@@ -35,6 +38,8 @@ pub struct Camera {
     view_matrix: Mat4,
     projection_matrix: Mat4,
     enabled: bool,
+    /// Visibility cache allows you to quickly check if object is visible from the camera or not.
+    pub visibility_cache: VisibilityCache,
 }
 
 impl Deref for Camera {
@@ -66,6 +71,7 @@ impl Visit for Camera {
         self.viewport.visit("Viewport", visitor)?;
         self.base.visit("Base", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+        // self.visibility_cache intentionally not serialized. It is valid only for one frame.
         visitor.leave_region()
     }
 }
@@ -234,6 +240,8 @@ impl Camera {
             view_matrix: self.view_matrix,
             projection_matrix: self.projection_matrix,
             enabled: self.enabled,
+            // No need to copy cache. It is valid only for one frame.
+            visibility_cache: Default::default(),
         }
     }
 }
@@ -311,6 +319,7 @@ impl CameraBuilder {
             // recalculated before rendering.
             view_matrix: Mat4::IDENTITY,
             projection_matrix: Mat4::IDENTITY,
+            visibility_cache: Default::default(),
         }
     }
 

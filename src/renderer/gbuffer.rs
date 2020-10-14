@@ -1,8 +1,7 @@
-use crate::renderer::VisibilityCache;
 use crate::{
     core::{
         color::Color,
-        math::{frustum::Frustum, mat4::Mat4, Rect},
+        math::{mat4::Mat4, Rect},
         scope_profile,
     },
     renderer::{
@@ -59,7 +58,6 @@ pub struct GBuffer {
     bone_matrices: Vec<Mat4>,
     pub width: i32,
     pub height: i32,
-    visibility_cache: VisibilityCache,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
@@ -170,7 +168,6 @@ impl GBuffer {
             width: width as i32,
             height: height as i32,
             final_frame: opt_framebuffer,
-            visibility_cache: Default::default(),
         })
     }
 
@@ -210,8 +207,6 @@ impl GBuffer {
             geom_cache,
         } = args;
 
-        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
-
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(
             state,
@@ -223,12 +218,8 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
-        self.visibility_cache
-            .update(graph, camera.view_matrix(), camera.z_far(), Some(&frustum));
-
-        let visibility_cache = &self.visibility_cache;
         for mesh in graph.pair_iter().filter_map(|(handle, node)| {
-            if let (Node::Mesh(mesh), true) = (node, visibility_cache.is_visible(handle)) {
+            if let (Node::Mesh(mesh), true) = (node, camera.visibility_cache.is_visible(handle)) {
                 Some(mesh)
             } else {
                 None

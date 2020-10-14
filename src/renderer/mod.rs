@@ -29,7 +29,6 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::scene::graph::Graph;
 use crate::{
     core::{
         color::Color,
@@ -67,7 +66,6 @@ use crate::{
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
-use rg3d_core::math::frustum::Frustum;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -316,61 +314,6 @@ impl Default for Statistics {
             frame_start_time: time::Instant::now(),
             last_fps_commit_time: time::Instant::now(),
         }
-    }
-}
-
-#[derive(Default)]
-struct VisibilityCache {
-    map: HashMap<Handle<Node>, bool>,
-}
-
-impl VisibilityCache {
-    pub fn update(
-        &mut self,
-        graph: &Graph,
-        view_matrix: Mat4,
-        z_far: f32,
-        frustum: Option<&Frustum>,
-    ) {
-        self.map.clear();
-
-        let view_position = view_matrix.position();
-
-        // Check LODs first, it has priority over other visibility settings.
-        for node in graph.linear_iter() {
-            if let Some(lod_group) = node.lod_group() {
-                for level in lod_group.levels.iter() {
-                    for &object in level.objects.iter() {
-                        let normalized_distance =
-                            view_position.distance(&graph[object].global_position()) / z_far;
-                        let visible = normalized_distance >= level.begin()
-                            && normalized_distance <= level.end();
-                        self.map.insert(object, visible);
-                    }
-                }
-            }
-        }
-
-        // Fill rest of data from global visibility flag of nodes.
-        for (handle, node) in graph.pair_iter() {
-            // We need to fill only unfilled entries, none of visibility flags of a node can
-            // make it visible again if lod group hid it.
-            self.map.entry(handle).or_insert_with(|| {
-                let mut visibility = node.global_visibility();
-                if visibility {
-                    if let Some(frustum) = frustum {
-                        if let Node::Mesh(mesh) = node {
-                            visibility = mesh.is_intersect_frustum(graph, frustum);
-                        }
-                    }
-                }
-                visibility
-            });
-        }
-    }
-
-    pub fn is_visible(&self, node: Handle<Node>) -> bool {
-        self.map.get(&node).cloned().unwrap_or(false)
     }
 }
 

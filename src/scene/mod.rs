@@ -25,13 +25,11 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    physics::{rigid_body::RigidBody, Physics},
+    physics::{rigid_body::RigidBody, static_geometry::StaticGeometry, Physics},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node},
-    utils,
-    utils::{lightmap::Lightmap, log::Log},
+    utils::{self, lightmap::Lightmap, log::Log},
 };
-use rg3d_physics::static_geometry::StaticGeometry;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -859,5 +857,77 @@ impl Visit for SceneContainer {
         self.pool.visit("Pool", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+/// Visibility cache stores information about objects visibility for a single frame.
+/// Allows you to quickly check if object is visible or not.
+#[derive(Default, Debug)]
+pub struct VisibilityCache {
+    map: HashMap<Handle<Node>, bool>,
+}
+
+impl From<HashMap<Handle<Node>, bool>> for VisibilityCache {
+    fn from(map: HashMap<Handle<Node>, bool>) -> Self {
+        Self { map }
+    }
+}
+
+impl VisibilityCache {
+    /// Replaces internal map with empty and returns previous value. This trick is useful
+    /// to reuse hash map to prevent redundant memory allocations.
+    pub fn invalidate(&mut self) -> HashMap<Handle<Node>, bool> {
+        std::mem::replace(&mut self.map, Default::default())
+    }
+
+    /// Updates visibility cache - checks visibility for each node in given graph, also performs
+    /// frustum culling if frustum specified.
+    pub fn update(
+        &mut self,
+        graph: &Graph,
+        view_matrix: Mat4,
+        z_far: f32,
+        frustum: Option<&Frustum>,
+    ) {
+        self.map.clear();
+
+        let view_position = view_matrix.position();
+
+        // Check LODs first, it has priority over other visibility settings.
+        for node in graph.linear_iter() {
+            if let Some(lod_group) = node.lod_group() {
+                for level in lod_group.levels.iter() {
+                    for &object in level.objects.iter() {
+                        let normalized_distance =
+                            view_position.distance(&graph[object].global_position()) / z_far;
+                        let visible = normalized_distance >= level.begin()
+                            && normalized_distance <= level.end();
+                        self.map.insert(object, visible);
+                    }
+                }
+            }
+        }
+
+        // Fill rest of data from global visibility flag of nodes.
+        for (handle, node) in graph.pair_iter() {
+            // We need to fill only unfilled entries, none of visibility flags of a node can
+            // make it visible again if lod group hid it.
+            self.map.entry(handle).or_insert_with(|| {
+                let mut visibility = node.global_visibility();
+                if visibility {
+                    if let Some(frustum) = frustum {
+                        if let Node::Mesh(mesh) = node {
+                            visibility = mesh.is_intersect_frustum(graph, frustum);
+                        }
+                    }
+                }
+                visibility
+            });
+        }
+    }
+
+    /// Checks if given node is visible or not.
+    pub fn is_visible(&self, node: Handle<Node>) -> bool {
+        self.map.get(&node).cloned().unwrap_or(false)
     }
 }

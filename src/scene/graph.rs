@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::VisibilityCache;
 use crate::{
     core::{
         math::{mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
@@ -34,6 +35,7 @@ use crate::{
     scene::node::Node,
     utils::log::Log,
 };
+use rg3d_core::math::frustum::Frustum;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -442,6 +444,26 @@ impl Graph {
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
         self.update_hierachical_data();
+
+        // At first, update visibility cache of each camera.
+        for i in 0..self.pool.get_capacity() {
+            if let Some(node) = self.pool.at_mut(i) {
+                if let Node::Camera(camera) = node {
+                    let old_cache = camera.visibility_cache.invalidate();
+                    let mut new_cache = VisibilityCache::from(old_cache);
+                    let view_matrix = camera.view_matrix();
+                    let z_far = camera.z_far();
+                    let frustum =
+                        Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
+                    new_cache.update(self, view_matrix, z_far, Some(&frustum));
+                    self.pool
+                        .at_mut(i)
+                        .unwrap()
+                        .as_camera_mut()
+                        .visibility_cache = new_cache;
+                }
+            }
+        }
 
         for node in self.pool.iter_mut() {
             if let Some(lifetime) = node.lifetime() {

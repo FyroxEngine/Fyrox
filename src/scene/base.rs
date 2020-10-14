@@ -32,6 +32,21 @@ pub struct LevelOfDetail {
 }
 
 impl LevelOfDetail {
+    /// Creates new level of detail.    
+    pub fn new(begin: f32, end: f32, objects: Vec<Handle<Node>>) -> Self {
+        for object in objects.iter() {
+            // Invalid handles are not allowed.
+            assert!(object.is_some());
+        }
+        let begin = begin.min(end);
+        let end = end.max(begin);
+        Self {
+            begin: begin.min(1.0).max(0.0),
+            end: end.min(1.0).max(0.0),
+            objects,
+        }
+    }
+
     /// Sets new starting point in distance range. Input value will be clamped in
     /// (0; 1) range.
     pub fn set_begin(&mut self, percent: f32) {
@@ -79,6 +94,10 @@ impl Visit for LevelOfDetail {
 /// contains lots of high poly objects and objects may be far away from camera. Distant objects
 /// in this case will be rendered with lower details freeing precious GPU resources for other
 /// useful tasks.   
+///
+/// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
+/// that belongs to level of detail. Engine does not care if you create overlapping cascades,
+/// it is your responsibility to create non-overlapping cascades.
 #[derive(Debug, Default)]
 pub struct LodGroup {
     /// Set of cascades.
