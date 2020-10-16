@@ -22,10 +22,7 @@ use rg3d::{
         base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
     },
 };
-use std::{
-    path::Path,
-    sync::{Arc, Mutex},
-};
+use std::path::Path;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
 enum Mode {
