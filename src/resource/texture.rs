@@ -245,6 +245,9 @@ impl TextureKind {
 }
 
 impl Texture {
+    /// Creates new render target for a scene. This method automatically configures GPU texture
+    /// to correct settings, after render target was created, it must not be modified, otherwise
+    /// result is undefined.
     pub fn new_render_target() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             path: Default::default(),
