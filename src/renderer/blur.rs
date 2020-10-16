@@ -1,3 +1,4 @@
+use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
     core::{
         math::{mat4::Mat4, vec3::Vec3, Rect},
@@ -51,7 +52,14 @@ impl Blur {
     pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
+            let mut texture = GpuTexture::new(
+                state,
+                kind,
+                PixelKind::F32,
+                MinificationFilter::Nearest,
+                MagnificationFilter::Nearest,
+                None,
+            )?;
             texture
                 .bind_mut(state, 0)
                 .set_wrap(Coordinate::S, WrapMode::ClampToEdge)

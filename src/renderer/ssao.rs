@@ -92,7 +92,14 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
         let occlusion = {
             let kind = GpuTextureKind::Rectangle { width, height };
-            let mut texture = GpuTexture::new(state, kind, PixelKind::F32, None)?;
+            let mut texture = GpuTexture::new(
+                state,
+                kind,
+                PixelKind::F32,
+                MinificationFilter::Nearest,
+                MagnificationFilter::Nearest,
+                None,
+            )?;
             texture
                 .bind_mut(state, 0)
                 .set_minification_filter(MinificationFilter::Nearest)
@@ -146,7 +153,14 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     width: NOISE_SIZE,
                     height: NOISE_SIZE,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::RGB8, Some(&pixels))?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::RGB8,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    Some(&pixels),
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_wrap(Coordinate::S, WrapMode::Repeat)

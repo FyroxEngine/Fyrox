@@ -1,3 +1,4 @@
+use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
     core::{
         color::Color,
@@ -78,6 +79,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
             None,
         )?;
         depth_stencil_texture
@@ -91,6 +94,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
             None,
         )?;
         diffuse_texture
@@ -102,6 +107,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
             None,
         )?;
         normal_texture
@@ -113,6 +120,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
             None,
         )?;
         ambient_texture
@@ -146,6 +155,8 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
             None,
         )?;
 

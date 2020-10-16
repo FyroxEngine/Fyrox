@@ -438,32 +438,53 @@ impl TextureCache {
     ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
-        if texture.lock().unwrap().loaded {
-            let key = (&*texture as *const _) as usize;
-            let gpu_texture = self.map.entry(key).or_insert_with(move || {
-                let texture = texture.lock().unwrap();
+        let key = (&*texture as *const _) as usize;
+        let texture = texture.lock().unwrap();
+
+        if texture.loaded {
+            let gpu_texture = self.map.entry(key).or_insert_with(|| {
                 let kind = GpuTextureKind::Rectangle {
                     width: texture.width as usize,
                     height: texture.height as usize,
                 };
-                let mut gpu_texture = GpuTexture::new(
+                let gpu_texture = GpuTexture::new(
                     state,
                     kind,
                     PixelKind::from(texture.kind),
+                    texture.minification_filter().into(),
+                    texture.magnification_filter().into(),
                     Some(texture.bytes.as_slice()),
                 )
                 .unwrap();
-                gpu_texture
-                    .bind_mut(state, 0)
-                    .generate_mip_maps()
-                    .set_minification_filter(MinificationFilter::LinearMip)
-                    .set_magnification_filter(MagnificationFilter::Linear)
-                    .set_max_anisotropy();
                 TimedEntry {
                     value: Rc::new(RefCell::new(gpu_texture)),
                     time_to_live: 20.0,
                 }
             });
+
+            let new_mag_filter = texture.magnification_filter().into();
+            if gpu_texture.borrow().magnification_filter() != new_mag_filter {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_magnification_filter(new_mag_filter);
+            }
+
+            let new_min_filter = texture.minification_filter().into();
+            if gpu_texture.borrow().minification_filter() != new_min_filter {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_minification_filter(new_min_filter);
+            }
+
+            if gpu_texture.borrow().anisotropy() != texture.anisotropy_level() {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_anisotropy(texture.anisotropy_level());
+            }
+
             // Texture won't be destroyed while it used.
             gpu_texture.time_to_live = 20.0;
             Some(gpu_texture.value.clone())
@@ -510,6 +531,8 @@ impl Renderer {
                     height: 1,
                 },
                 PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
                 Some(&[255, 255, 255, 255]),
             )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
@@ -519,6 +542,8 @@ impl Renderer {
                     height: 1,
                 },
                 PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
                 Some(&[128, 128, 255, 255]),
             )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
@@ -574,6 +599,11 @@ impl Renderer {
     /// Returns current (width, height) pair of back buffer size.
     pub fn get_frame_size(&self) -> (u32, u32) {
         self.frame_size
+    }
+
+    /// Returns current bounds of back buffer.
+    pub fn get_frame_bounds(&self) -> Vec2 {
+        Vec2::new(self.frame_size.0 as f32, self.frame_size.1 as f32)
     }
 
     /// Sets new quality settings for renderer. Never call this method in a loop, otherwise
@@ -683,12 +713,11 @@ impl Renderer {
                     );
 
                     // Make sure to sync texture info with actual render target.
-                    if let Ok(mut rt) = rt.lock() {
-                        rt.width = gbuffer.width as u32;
-                        rt.height = gbuffer.height as u32;
-                        // TODO: For now only RGBA8 textures are supported.
-                        rt.kind = TextureKind::RGBA8;
-                    }
+                    let mut rt = rt.lock().unwrap();
+                    rt.width = gbuffer.width as u32;
+                    rt.height = gbuffer.height as u32;
+                    // TODO: For now only RGBA8 textures are supported.
+                    rt.kind = TextureKind::RGBA8;
                 }
 
                 self.statistics += gbuffer.fill(GBufferRenderContext {

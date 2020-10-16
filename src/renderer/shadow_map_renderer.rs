@@ -78,7 +78,14 @@ impl SpotShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::D16,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    None,
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_magnification_filter(MagnificationFilter::Linear)
@@ -378,7 +385,14 @@ impl PointShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::D16,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    None,
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_minification_filter(MinificationFilter::Nearest)
@@ -393,7 +407,14 @@ impl PointShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::F16, None)?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::F16,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    None,
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_minification_filter(MinificationFilter::Linear)

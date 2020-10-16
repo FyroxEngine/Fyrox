@@ -7,7 +7,7 @@ use crate::{
         error::RendererError,
         framework::{gl, gl::types::GLuint, state::State},
     },
-    resource::texture::TextureKind,
+    resource::texture::{TextureKind, TextureMagnificationFilter, TextureMinificationFilter},
     utils::log::Log,
 };
 use std::{ffi::c_void, marker::PhantomData};
@@ -52,8 +52,14 @@ pub enum PixelKind {
     D24S8,
     RGBA8,
     RGB8,
+    BGRA8,
+    BGR8,
     RG8,
+    RG16,
     R8,
+    R16,
+    RGB16,
+    RGBA16,
 }
 
 impl From<TextureKind> for PixelKind {
@@ -62,6 +68,13 @@ impl From<TextureKind> for PixelKind {
             TextureKind::R8 => Self::R8,
             TextureKind::RGB8 => Self::RGB8,
             TextureKind::RGBA8 => Self::RGBA8,
+            TextureKind::RG8 => Self::RG8,
+            TextureKind::R16 => Self::R16,
+            TextureKind::RG16 => Self::RG16,
+            TextureKind::BGR8 => Self::BGR8,
+            TextureKind::BGRA8 => Self::BGRA8,
+            TextureKind::RGB16 => Self::RGB16,
+            TextureKind::RGBA16 => Self::RGBA16,
         }
     }
 }
@@ -69,6 +82,9 @@ impl From<TextureKind> for PixelKind {
 pub struct GpuTexture {
     texture: GLuint,
     kind: GpuTextureKind,
+    min_filter: MinificationFilter,
+    mag_filter: MagnificationFilter,
+    anisotropy: f32,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -76,23 +92,34 @@ pub struct GpuTexture {
 impl PixelKind {
     fn size_bytes(self) -> usize {
         match self {
-            Self::RGBA8 | Self::D24S8 | Self::D32 | Self::F32 => 4,
-            Self::RGB8 => 3,
-            Self::RG8 | Self::D16 | Self::F16 => 2,
+            Self::RGBA16 => 8,
+            Self::RGB16 => 6,
+            Self::RGBA8 | Self::BGRA8 | Self::RG16 | Self::D24S8 | Self::D32 | Self::F32 => 4,
+            Self::RGB8 | Self::BGR8 => 3,
+            Self::RG8 | Self::R16 | Self::D16 | Self::F16 => 2,
             Self::R8 => 1,
         }
     }
 
     fn unpack_alignment(self) -> i32 {
         match self {
-            Self::RGBA8 | Self::RGB8 | Self::D24S8 | Self::D32 | Self::F32 => 4,
+            Self::RGBA16 | Self::RGB16 => 8,
+            Self::RGBA8
+            | Self::RGB8
+            | Self::BGRA8
+            | Self::BGR8
+            | Self::RG16
+            | Self::R16
+            | Self::D24S8
+            | Self::D32
+            | Self::F32 => 4,
             Self::RG8 | Self::D16 | Self::F16 => 2,
             Self::R8 => 1,
         }
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
 pub enum MagnificationFilter {
     Nearest,
     Linear,
@@ -107,19 +134,46 @@ impl MagnificationFilter {
     }
 }
 
-#[derive(Copy, Clone)]
-pub enum MinificationFilter {
-    Nearest,
-    Linear,
-    LinearMip,
+impl From<TextureMagnificationFilter> for MagnificationFilter {
+    fn from(v: TextureMagnificationFilter) -> Self {
+        match v {
+            TextureMagnificationFilter::Nearest => Self::Nearest,
+            TextureMagnificationFilter::Linear => Self::Linear,
+        }
+    }
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+pub enum MinificationFilter {
+    Nearest,
+    NearestMipMapNearest,
+    NearestMipMapLinear,
+    Linear,
+    LinearMipMapNearest,
+    LinearMipMapLinear,
+}
+
+impl From<TextureMinificationFilter> for MinificationFilter {
+    fn from(v: TextureMinificationFilter) -> Self {
+        match v {
+            TextureMinificationFilter::Nearest => Self::Nearest,
+            TextureMinificationFilter::NearestMipMapNearest => Self::NearestMipMapNearest,
+            TextureMinificationFilter::NearestMipMapLinear => Self::NearestMipMapLinear,
+            TextureMinificationFilter::Linear => Self::Linear,
+            TextureMinificationFilter::LinearMipMapNearest => Self::LinearMipMapNearest,
+            TextureMinificationFilter::LinearMipMapLinear => Self::LinearMipMapLinear,
+        }
+    }
+}
 impl MinificationFilter {
     pub fn into_gl_value(self) -> i32 {
         (match self {
             Self::Nearest => gl::NEAREST,
+            Self::NearestMipMapNearest => gl::NEAREST_MIPMAP_NEAREST,
+            Self::NearestMipMapLinear => gl::NEAREST_MIPMAP_LINEAR,
             Self::Linear => gl::LINEAR,
-            Self::LinearMip => gl::LINEAR_MIPMAP_LINEAR,
+            Self::LinearMipMapNearest => gl::LINEAR_MIPMAP_NEAREST,
+            Self::LinearMipMapLinear => gl::LINEAR_MIPMAP_LINEAR,
         }) as i32
     }
 }
@@ -184,22 +238,36 @@ impl CubeMapFace {
 }
 
 impl<'a> TextureBinding<'a> {
-    pub fn set_max_anisotropy(self) -> Self {
+    pub fn set_anisotropy(self, anisotropy: f32) -> Self {
         unsafe {
-            let mut aniso = 0.0;
-            gl::GetFloatv(gl::MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut aniso);
-            gl::TexParameterf(gl::TEXTURE_2D, gl::TEXTURE_MAX_ANISOTROPY_EXT, aniso);
+            let mut max = 0.0;
+            gl::GetFloatv(gl::MAX_TEXTURE_MAX_ANISOTROPY_EXT, &mut max);
+            gl::TexParameterf(
+                gl::TEXTURE_2D,
+                gl::TEXTURE_MAX_ANISOTROPY_EXT,
+                anisotropy.max(1.0).min(max),
+            );
+
+            // Set it to requested value, instead of hardware-limited. This will allow
+            // us to check if anisotropy needs to be changed.
+            self.texture.anisotropy = anisotropy;
         }
         self
     }
 
     pub fn set_minification_filter(self, min_filter: MinificationFilter) -> Self {
         unsafe {
-            gl::TexParameteri(
-                self.texture.kind.to_texture_target(),
-                gl::TEXTURE_MIN_FILTER,
-                min_filter.into_gl_value(),
-            );
+            let target = self.texture.kind.to_texture_target();
+
+            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
+
+            if self.texture.min_filter != MinificationFilter::Linear
+                && self.texture.min_filter != MinificationFilter::Nearest
+            {
+                gl::GenerateMipmap(target);
+            }
+
+            self.texture.min_filter = min_filter;
         }
         self
     }
@@ -211,6 +279,8 @@ impl<'a> TextureBinding<'a> {
                 gl::TEXTURE_MAG_FILTER,
                 mag_filter.into_gl_value(),
             );
+
+            self.texture.mag_filter = mag_filter;
         }
         self
     }
@@ -261,6 +331,8 @@ impl GpuTexture {
         state: &mut State,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
+        min_filter: MinificationFilter,
+        mag_filter: MagnificationFilter,
         data: Option<&[u8]>,
     ) -> Result<Self, RendererError> {
         let bytes_per_pixel = pixel_kind.size_bytes();
@@ -307,6 +379,12 @@ impl GpuTexture {
                 PixelKind::RGB8 => (gl::UNSIGNED_BYTE, gl::RGB, gl::RGB8),
                 PixelKind::RG8 => (gl::UNSIGNED_BYTE, gl::RG, gl::RG8),
                 PixelKind::R8 => (gl::UNSIGNED_BYTE, gl::RED, gl::R8),
+                PixelKind::BGRA8 => (gl::UNSIGNED_BYTE, gl::BGRA, gl::RGBA8),
+                PixelKind::BGR8 => (gl::UNSIGNED_BYTE, gl::BGR, gl::RGB8),
+                PixelKind::RG16 => (gl::UNSIGNED_SHORT, gl::RG, gl::RG16),
+                PixelKind::R16 => (gl::UNSIGNED_SHORT, gl::RED, gl::R16),
+                PixelKind::RGB16 => (gl::UNSIGNED_SHORT, gl::RGB, gl::RGB16),
+                PixelKind::RGBA16 => (gl::UNSIGNED_SHORT, gl::RGBA, gl::RGBA16),
             };
 
             gl::PixelStorei(gl::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
@@ -387,8 +465,13 @@ impl GpuTexture {
                 }
             }
 
-            gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
-            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+            gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
+            gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
+
+            if min_filter != MinificationFilter::Linear && min_filter != MinificationFilter::Nearest
+            {
+                gl::GenerateMipmap(target);
+            }
 
             state.set_texture(0, target, 0);
 
@@ -397,6 +480,9 @@ impl GpuTexture {
             Ok(Self {
                 texture,
                 kind,
+                min_filter,
+                mag_filter,
+                anisotropy: 1.0,
                 thread_mark: PhantomData,
             })
         }
@@ -417,6 +503,18 @@ impl GpuTexture {
 
     pub fn id(&self) -> u32 {
         self.texture
+    }
+
+    pub fn minification_filter(&self) -> MinificationFilter {
+        self.min_filter
+    }
+
+    pub fn magnification_filter(&self) -> MagnificationFilter {
+        self.mag_filter
+    }
+
+    pub fn anisotropy(&self) -> f32 {
+        self.anisotropy
     }
 }
 

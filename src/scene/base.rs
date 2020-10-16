@@ -351,7 +351,7 @@ impl Visit for Base {
             .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
-        let _ = self.lod_group.visit("LodGroup", visitor)?;
+        let _ = self.lod_group.visit("LodGroup", visitor);
 
         visitor.leave_region()
     }

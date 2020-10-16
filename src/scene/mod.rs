@@ -584,8 +584,7 @@ impl Scene {
             ) -> Option<Arc<Mutex<Texture>>> {
                 if let Some(shallow_texture) = tex {
                     let shallow_texture = shallow_texture.lock().unwrap();
-                    let kind = shallow_texture.kind;
-                    rm.request_texture(&shallow_texture.path, kind)
+                    rm.request_texture(&shallow_texture.path)
                 } else {
                     None
                 }

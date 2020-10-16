@@ -2,7 +2,7 @@
 
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
-    resource::{model::Model, texture::Texture, texture::TextureKind},
+    resource::{model::Model, texture::Texture},
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
 };
@@ -109,11 +109,7 @@ impl ResourceManager {
     /// be not loaded, you should check is_loaded flag to ensure.
     ///
     /// It extensively used in model loader to speed up loading.
-    pub fn request_texture_async<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        kind: TextureKind,
-    ) -> SharedTexture {
+    pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P) -> SharedTexture {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return texture;
         }
@@ -129,7 +125,7 @@ impl ResourceManager {
         std::thread::spawn(move || {
             if let Ok(mut texture) = texture.lock() {
                 let time = time::Instant::now();
-                match Texture::load_from_file(&path, kind) {
+                match Texture::load_from_file(&path) {
                     Ok(raw_texture) => {
                         *texture = raw_texture;
                         Log::writeln(format!(
@@ -156,16 +152,12 @@ impl ResourceManager {
     ///
     /// To load images and decode them, rg3d uses image create which supports following image
     /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-        kind: TextureKind,
-    ) -> Option<SharedTexture> {
+    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P) -> Option<SharedTexture> {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return Some(texture);
         }
 
-        match Texture::load_from_file(path.as_ref(), kind) {
+        match Texture::load_from_file(path.as_ref()) {
             Ok(texture) => {
                 let shared_texture = Arc::new(Mutex::new(texture));
                 self.textures.push(TimedEntry {
@@ -417,17 +409,16 @@ impl ResourceManager {
     fn reload_textures(&mut self) {
         for old_texture in self.textures.iter() {
             let mut old_texture = old_texture.lock().unwrap();
-            let new_texture =
-                match Texture::load_from_file(old_texture.path.as_path(), old_texture.kind) {
-                    Ok(texture) => texture,
-                    Err(e) => {
-                        Log::writeln(format!(
-                            "Unable to reload {:?} texture! Reason: {}",
-                            old_texture.path, e
-                        ));
-                        continue;
-                    }
-                };
+            let new_texture = match Texture::load_from_file(old_texture.path.as_path()) {
+                Ok(texture) => texture,
+                Err(e) => {
+                    Log::writeln(format!(
+                        "Unable to reload {:?} texture! Reason: {}",
+                        old_texture.path, e
+                    ));
+                    continue;
+                }
+            };
             old_texture.path = Default::default();
             *old_texture = new_texture;
         }

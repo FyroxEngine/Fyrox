@@ -32,16 +32,13 @@ use crate::{
     },
     engine::resource_manager::ResourceManager,
     renderer::surface::{Surface, SurfaceSharedData, Vertex, VertexWeightSet},
-    resource::{
-        fbx::{
-            document::FbxDocument,
-            error::FbxError,
-            scene::{
-                animation::FbxAnimationCurveNodeType, geometry::FbxGeometry, model::FbxModel,
-                FbxComponent, FbxMapping, FbxScene,
-            },
+    resource::fbx::{
+        document::FbxDocument,
+        error::FbxError,
+        scene::{
+            animation::FbxAnimationCurveNodeType, geometry::FbxGeometry, model::FbxModel,
+            FbxComponent, FbxMapping, FbxScene,
         },
-        texture::TextureKind,
     },
     scene::{base::Base, graph::Graph, mesh::Mesh, node::Node, Scene},
     utils::{log::Log, raw_mesh::RawMeshBuilder},
@@ -239,11 +236,7 @@ fn create_surfaces(
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
                     let diffuse_path = resource_manager.textures_path().join(&filename);
-                    // Here we will load *every* texture as RGBA8, this probably is overkill,
-                    // that will lead to higher memory consumption, but this will remove
-                    // problems with transparent textures (like mesh texture, etc.)
-                    let texture = resource_manager
-                        .request_texture_async(diffuse_path.as_path(), TextureKind::RGBA8);
+                    let texture = resource_manager.request_texture_async(diffuse_path.as_path());
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
                         "DiffuseColor" => surface.set_diffuse_texture(Some(texture)),
