@@ -36,6 +36,9 @@ pub struct Texture {
 }
 
 impl Default for Texture {
+    /// It is very important to mention that defaults may be different for texture when you
+    /// importing them through resource manager, see
+    /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
     fn default() -> Self {
         Self {
             path: PathBuf::new(),

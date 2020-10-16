@@ -2,7 +2,10 @@
 
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
-    resource::{model::Model, texture::Texture},
+    resource::{
+        model::Model,
+        texture::{Texture, TextureMagnificationFilter, TextureMinificationFilter},
+    },
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
 };
@@ -90,6 +93,54 @@ pub struct ResourceManager {
     /// Path to textures, extensively used for resource files which stores path in weird
     /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
+    textures_import_options: TextureImportOptions,
+}
+
+/// Allows you to define a set of defaults for every imported texture.
+#[derive(Clone)]
+pub struct TextureImportOptions {
+    minification_filter: TextureMinificationFilter,
+    magnification_filter: TextureMagnificationFilter,
+    anisotropy: f32,
+}
+
+impl Default for TextureImportOptions {
+    fn default() -> Self {
+        Self {
+            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
+            magnification_filter: TextureMagnificationFilter::Linear,
+            anisotropy: 16.0,
+        }
+    }
+}
+
+impl TextureImportOptions {
+    /// Sets new minification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn with_minification_filter(
+        mut self,
+        minification_filter: TextureMinificationFilter,
+    ) -> Self {
+        self.minification_filter = minification_filter;
+        self
+    }
+
+    /// Sets new magnification filter which will be applied to every imported texture as
+    /// default value.
+    pub fn with_magnification_filter(
+        mut self,
+        magnification_filter: TextureMagnificationFilter,
+    ) -> Self {
+        self.magnification_filter = magnification_filter;
+        self
+    }
+
+    /// Sets new anisotropy level which will be applied to every imported texture as
+    /// default value.
+    pub fn with_anisotropy(mut self, anisotropy: f32) -> Self {
+        self.anisotropy = anisotropy.min(1.0);
+        self
+    }
 }
 
 impl ResourceManager {
@@ -102,13 +153,23 @@ impl ResourceManager {
             models: Vec::new(),
             sound_buffers: Vec::new(),
             textures_path: PathBuf::from("data/textures/"),
+            textures_import_options: Default::default(),
         }
+    }
+
+    /// Sets new import options for textures. Previously loaded textures won't be affected by the
+    /// new settings.
+    pub fn set_textures_import_options(&mut self, options: TextureImportOptions) {
+        self.textures_import_options = options;
     }
 
     /// Experimental async texture loader. Always returns valid texture object which could still
     /// be not loaded, you should check is_loaded flag to ensure.
     ///
     /// It extensively used in model loader to speed up loading.
+    ///
+    /// **WARNING** This method is obsolete and will be replaced with native async/await in the
+    /// future.
     pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P) -> SharedTexture {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return texture;
@@ -120,6 +181,7 @@ impl ResourceManager {
             time_to_live: Self::MAX_RESOURCE_TTL,
         });
         let result = texture.clone();
+        let options = self.textures_import_options.clone();
 
         let path = PathBuf::from(path.as_ref());
         std::thread::spawn(move || {
@@ -128,6 +190,9 @@ impl ResourceManager {
                 match Texture::load_from_file(&path) {
                     Ok(raw_texture) => {
                         *texture = raw_texture;
+                        texture.set_magnification_filter(options.magnification_filter);
+                        texture.set_minification_filter(options.minification_filter);
+                        texture.set_anisotropy_level(options.anisotropy);
                         Log::writeln(format!(
                             "Texture {:?} is loaded in {:?}!",
                             path,
@@ -158,7 +223,11 @@ impl ResourceManager {
         }
 
         match Texture::load_from_file(path.as_ref()) {
-            Ok(texture) => {
+            Ok(mut texture) => {
+                texture.set_magnification_filter(self.textures_import_options.magnification_filter);
+                texture.set_minification_filter(self.textures_import_options.minification_filter);
+                texture.set_anisotropy_level(self.textures_import_options.anisotropy);
+
                 let shared_texture = Arc::new(Mutex::new(texture));
                 self.textures.push(TimedEntry {
                     value: shared_texture.clone(),
