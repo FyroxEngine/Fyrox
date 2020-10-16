@@ -7,7 +7,6 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::resource::texture::TextureKind;
 use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{color::Color, pool::Handle},
@@ -144,12 +143,7 @@ impl AssetItemBuilder {
             .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
                     kind = AssetKind::Texture;
-                    into_gui_texture(
-                        resource_manager
-                            .lock()
-                            .unwrap()
-                            .request_texture(&path, TextureKind::RGBA8),
-                    )
+                    into_gui_texture(resource_manager.lock().unwrap().request_texture(&path))
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;

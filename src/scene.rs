@@ -1,3 +1,4 @@
+use crate::camera::CameraController;
 use crate::{command::Command, Message};
 use rg3d::{
     core::{
@@ -45,6 +46,7 @@ pub struct EditorScene {
     pub root: Handle<Node>,
     pub selection: Selection,
     pub clipboard: Clipboard,
+    pub camera_controller: CameraController,
 }
 
 #[derive(Debug)]

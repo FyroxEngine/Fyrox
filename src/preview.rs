@@ -71,7 +71,7 @@ impl PreviewPanel {
         scene.graph.link_nodes(hinge, camera_pivot);
         scene.graph.link_nodes(camera, hinge);
 
-        let render_target = Arc::new(Mutex::new(Texture::default()));
+        let render_target = Texture::new_render_target();
         scene.render_target = Some(render_target.clone());
 
         let scene = engine.scenes.add(scene);

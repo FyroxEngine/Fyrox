@@ -1,4 +1,4 @@
-use crate::{scene::EditorScene, GameEngine};
+use rg3d::scene::graph::Graph;
 use rg3d::{
     core::{
         math::{aabb::AxisAlignedBoundingBox, quat::Quat, vec2::Vec2, vec3::Vec3},
@@ -36,9 +36,7 @@ struct PickContext {
 }
 
 impl CameraController {
-    pub fn new(editor_scene: &EditorScene, engine: &mut GameEngine) -> Self {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
-
+    pub fn new(graph: &mut Graph, root: Handle<Node>) -> Self {
         let camera = CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera")).build();
 
         let pivot = BaseBuilder::new()
@@ -53,7 +51,7 @@ impl CameraController {
         let pivot = graph.add_node(Node::Base(pivot));
         let camera = graph.add_node(Node::Camera(camera));
 
-        graph.link_nodes(pivot, editor_scene.root);
+        graph.link_nodes(pivot, root);
         graph.link_nodes(camera, pivot);
 
         Self {
@@ -79,18 +77,12 @@ impl CameraController {
         }
     }
 
-    pub fn on_mouse_wheel(
-        &mut self,
-        delta: f32,
-        editor_scene: &EditorScene,
-        engine: &mut GameEngine,
-    ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let camera = &mut scene.graph[self.camera];
+    pub fn on_mouse_wheel(&mut self, delta: f32, graph: &mut Graph) {
+        let camera = &mut graph[self.camera];
 
         let look = camera.global_transform().look();
 
-        if let Node::Base(pivot) = &mut scene.graph[self.pivot] {
+        if let Node::Base(pivot) = &mut graph[self.pivot] {
             pivot.local_transform_mut().offset(look.scale(delta));
         }
     }
@@ -127,9 +119,8 @@ impl CameraController {
         }
     }
 
-    pub fn update(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine, dt: f32) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let camera = &mut scene.graph[self.camera];
+    pub fn update(&mut self, graph: &mut Graph, dt: f32) {
+        let camera = &mut graph[self.camera];
 
         let global_transform = camera.global_transform();
         let look = global_transform.look();
@@ -156,7 +147,7 @@ impl CameraController {
             let pitch = Quat::from_axis_angle(Vec3::RIGHT, self.pitch);
             camera.local_transform_mut().set_rotation(pitch);
         }
-        if let Node::Base(pivot) = &mut scene.graph[self.pivot] {
+        if let Node::Base(pivot) = &mut graph[self.pivot] {
             let yaw = Quat::from_axis_angle(Vec3::UP, self.yaw);
             pivot
                 .local_transform_mut()
@@ -168,31 +159,27 @@ impl CameraController {
     pub fn pick<F>(
         &mut self,
         cursor_pos: Vec2,
-        editor_scene: &EditorScene,
-        engine: &GameEngine,
+        graph: &Graph,
+        root: Handle<Node>,
+        screen_size: Vec2,
         editor_only: bool,
         mut filter: F,
     ) -> Handle<Node>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let scene = &engine.scenes[editor_scene.scene];
-        let camera = &scene.graph[self.camera];
+        let camera = &graph[self.camera];
         if let Node::Camera(camera) = camera {
-            let screen_size = engine.renderer.get_frame_size();
-            let ray = camera.make_ray(
-                cursor_pos,
-                Vec2::new(screen_size.0 as f32, screen_size.1 as f32),
-            );
+            let ray = camera.make_ray(cursor_pos, screen_size);
 
             self.stack.clear();
             let context = if editor_only {
                 // In case if we want to pick stuff from editor scene only, we have to
                 // start traversing graph from editor root.
-                self.stack.push(editor_scene.root);
+                self.stack.push(root);
                 &mut self.editor_context
             } else {
-                self.stack.push(scene.graph.get_root());
+                self.stack.push(graph.get_root());
                 &mut self.scene_context
             };
 
@@ -200,11 +187,11 @@ impl CameraController {
 
             while let Some(handle) = self.stack.pop() {
                 // Ignore editor nodes if we picking scene stuff only.
-                if !editor_only && handle == editor_scene.root {
+                if !editor_only && handle == root {
                     continue;
                 }
 
-                let node = &scene.graph[handle];
+                let node = &graph[handle];
 
                 if !node.global_visibility() || !filter(handle, node) {
                     continue;
@@ -219,7 +206,7 @@ impl CameraController {
                     Node::ParticleSystem(_) => (AxisAlignedBoundingBox::UNIT, None),
                 };
 
-                if handle != scene.graph.get_root() {
+                if handle != graph.get_root() {
                     let object_space_ray =
                         ray.transform(node.global_transform().inverse().unwrap_or_default());
                     // Do coarse intersection test with bounding box.

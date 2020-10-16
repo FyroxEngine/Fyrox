@@ -40,6 +40,7 @@ use crate::{
     world_outliner::WorldOutliner,
 };
 use rg3d::core::math::aabb::AxisAlignedBoundingBox;
+use rg3d::resource::texture::Texture;
 use rg3d::{
     core::{
         color::Color,
@@ -58,7 +59,6 @@ use rg3d::{
         canvas::CanvasBuilder,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
         draw,
-        draw::SharedTexture,
         file_browser::{FileSelectorBuilder, Filter},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -76,7 +76,6 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
-    resource::texture::TextureKind,
     scene::{base::BaseBuilder, node::Node, Scene},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
 };
@@ -115,7 +114,7 @@ pub fn load_image<P: AsRef<Path>>(
             resource_manager
                 .lock()
                 .unwrap()
-                .request_texture(&absolute_path, TextureKind::RGBA8),
+                .request_texture(&absolute_path),
         )
     } else {
         None
@@ -150,17 +149,8 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> PathBuf {
 }
 
 impl ScenePreview {
-    pub fn new(
-        engine: &mut GameEngine,
-        editor_scene: &EditorScene,
-        sender: Sender<Message>,
-    ) -> Self {
+    pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
-
-        let frame_texture = engine.scenes[editor_scene.scene]
-            .render_target
-            .clone()
-            .unwrap();
 
         let frame;
         let select_mode;
@@ -182,7 +172,6 @@ impl ScenePreview {
                                     .with_allow_drop(true),
                             )
                             .with_flip(true)
-                            .with_texture(SharedTexture(frame_texture))
                             .build(ctx);
                             frame
                         })
@@ -287,10 +276,7 @@ impl ScenePreview {
                                                     .resource_manager
                                                     .lock()
                                                     .unwrap()
-                                                    .request_texture(
-                                                        "resources/scale_arrow.png",
-                                                        TextureKind::RGBA8,
-                                                    ),
+                                                    .request_texture("resources/scale_arrow.png"),
                                             ))
                                             .build(ctx),
                                         )
@@ -681,7 +667,6 @@ impl Configurator {
 
 struct Editor {
     sidebar: SideBar,
-    camera_controller: CameraController,
     scene: Option<EditorScene>,
     command_stack: CommandStack<SceneCommand>,
     message_sender: Sender<Message>,
@@ -708,19 +693,6 @@ impl Editor {
         *rg3d::gui::DEFAULT_FONT.0.lock().unwrap() =
             Font::from_file("resources/arial.ttf", 14.0, Font::default_char_set()).unwrap();
 
-        let mut scene = Scene::new();
-        scene.render_target = Some(Default::default());
-
-        let root = scene.graph.add_node(BaseBuilder::new().build_node());
-
-        let editor_scene = EditorScene {
-            path: None,
-            root,
-            scene: engine.scenes.add(scene),
-            selection: Default::default(),
-            clipboard: Default::default(),
-        };
-
         let configurator = Configurator::new(
             message_sender.clone(),
             &mut engine.user_interface.build_ctx(),
@@ -733,7 +705,7 @@ impl Editor {
                 true,
             ));
 
-        let preview = ScenePreview::new(engine, &editor_scene, message_sender.clone());
+        let preview = ScenePreview::new(engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(engine);
         let menu = Menu::new(engine, message_sender.clone());
         let light_panel = LightPanel::new(engine);
@@ -826,7 +798,6 @@ impl Editor {
         let mut editor = Self {
             sidebar: node_editor,
             preview,
-            camera_controller: CameraController::new(&editor_scene, engine),
             scene: None,
             command_stack: CommandStack::new(false),
             message_sender,
@@ -858,7 +829,7 @@ impl Editor {
         // We must explicitly turn off physics, otherwise all objects with physics will fly away.
         scene.physics.set_enabled(false);
 
-        scene.render_target = Some(Default::default());
+        scene.render_target = Some(Texture::new_render_target());
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
             MessageDirection::ToWidget,
@@ -867,9 +838,13 @@ impl Editor {
 
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
 
+        let graph = &mut scene.graph;
+        let camera_controller = CameraController::new(graph, root);
+
         let editor_scene = EditorScene {
             path,
             root,
+            camera_controller,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
@@ -899,7 +874,6 @@ impl Editor {
         ];
 
         self.world_outliner.clear(&mut engine.user_interface);
-        self.camera_controller = CameraController::new(&editor_scene, engine);
         self.command_stack = CommandStack::new(false);
         self.scene = Some(editor_scene);
 
@@ -968,15 +942,10 @@ impl Editor {
                                     self.preview.click_mouse_pos = Some(rel_pos);
 
                                     self.interaction_modes[current_im as usize]
-                                        .on_left_mouse_button_down(
-                                            editor_scene,
-                                            &mut self.camera_controller,
-                                            engine,
-                                            rel_pos,
-                                        );
+                                        .on_left_mouse_button_down(editor_scene, engine, rel_pos);
                                 }
                             }
-                            self.camera_controller.on_mouse_button_down(button);
+                            editor_scene.camera_controller.on_mouse_button_down(button);
                         }
                         WidgetMessage::MouseUp { button, pos, .. } => {
                             engine.user_interface.release_mouse_capture();
@@ -991,24 +960,19 @@ impl Editor {
                                     let rel_pos =
                                         Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
                                     self.interaction_modes[current_im as usize]
-                                        .on_left_mouse_button_up(
-                                            editor_scene,
-                                            &mut self.camera_controller,
-                                            engine,
-                                            rel_pos,
-                                        );
+                                        .on_left_mouse_button_up(editor_scene, engine, rel_pos);
                                 }
                             }
-                            self.camera_controller.on_mouse_button_up(button);
+                            editor_scene.camera_controller.on_mouse_button_up(button);
                         }
                         WidgetMessage::MouseWheel { amount, .. } => {
-                            self.camera_controller
-                                .on_mouse_wheel(amount, editor_scene, engine);
+                            let graph = &mut engine.scenes[editor_scene.scene].graph;
+                            editor_scene.camera_controller.on_mouse_wheel(amount, graph);
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
                             let last_pos = *self.preview.last_mouse_pos.get_or_insert(pos);
                             let mouse_offset = pos - last_pos;
-                            self.camera_controller.on_mouse_move(mouse_offset);
+                            editor_scene.camera_controller.on_mouse_move(mouse_offset);
                             let screen_bounds = engine
                                 .user_interface
                                 .node(self.preview.frame)
@@ -1020,7 +984,7 @@ impl Editor {
                                 self.interaction_modes[current_im as usize].on_mouse_move(
                                     mouse_offset,
                                     rel_pos,
-                                    self.camera_controller.camera,
+                                    editor_scene.camera_controller.camera,
                                     editor_scene,
                                     engine,
                                 );
@@ -1028,10 +992,10 @@ impl Editor {
                             self.preview.last_mouse_pos = Some(pos);
                         }
                         WidgetMessage::KeyUp(key) => {
-                            self.camera_controller.on_key_up(key);
+                            editor_scene.camera_controller.on_key_up(key);
                         }
                         WidgetMessage::KeyDown(key) => {
-                            self.camera_controller.on_key_down(key);
+                            editor_scene.camera_controller.on_key_down(key);
                             match key {
                                 KeyCode::Y => {
                                     if engine.user_interface.keyboard_modifiers().control {
@@ -1146,39 +1110,38 @@ impl Editor {
                                                     .unwrap();
                                             }
                                             AssetKind::Texture => {
-                                                if let Some(scene) = self.scene.as_ref() {
-                                                    let cursor_pos =
-                                                        engine.user_interface.cursor_position();
-                                                    let screen_bounds = engine
-                                                        .user_interface
-                                                        .node(self.preview.frame)
-                                                        .screen_bounds();
-                                                    let rel_pos = Vec2::new(
-                                                        cursor_pos.x - screen_bounds.x,
-                                                        cursor_pos.y - screen_bounds.y,
-                                                    );
-                                                    let handle = self.camera_controller.pick(
-                                                        rel_pos,
-                                                        scene,
-                                                        engine,
-                                                        false,
-                                                        |_, _| true,
-                                                    );
-                                                    if handle.is_some() {
-                                                        if let Some(tex) = engine
-                                                            .resource_manager
-                                                            .lock()
-                                                            .unwrap()
-                                                            .request_texture(
-                                                                &relative_path,
-                                                                TextureKind::RGBA8,
-                                                            )
+                                                let cursor_pos =
+                                                    engine.user_interface.cursor_position();
+                                                let screen_bounds = engine
+                                                    .user_interface
+                                                    .node(self.preview.frame)
+                                                    .screen_bounds();
+                                                let rel_pos = Vec2::new(
+                                                    cursor_pos.x - screen_bounds.x,
+                                                    cursor_pos.y - screen_bounds.y,
+                                                );
+                                                let graph =
+                                                    &engine.scenes[editor_scene.scene].graph;
+                                                let handle = editor_scene.camera_controller.pick(
+                                                    rel_pos,
+                                                    graph,
+                                                    editor_scene.root,
+                                                    engine.renderer.get_frame_bounds(),
+                                                    false,
+                                                    |_, _| true,
+                                                );
+                                                if handle.is_some() {
+                                                    if let Some(tex) = engine
+                                                        .resource_manager
+                                                        .lock()
+                                                        .unwrap()
+                                                        .request_texture(&relative_path)
+                                                    {
+                                                        match &mut engine.scenes[editor_scene.scene]
+                                                            .graph[handle]
                                                         {
-                                                            match &mut engine.scenes[scene.scene]
-                                                                .graph[handle]
-                                                            {
-                                                                Node::Mesh(_) => {
-                                                                    self.message_sender
+                                                            Node::Mesh(_) => {
+                                                                self.message_sender
                                                                         .send(Message::DoSceneCommand(
                                                                             SceneCommand::SetMeshTexture(
                                                                                 SetMeshTextureCommand::new(
@@ -1187,9 +1150,9 @@ impl Editor {
                                                                             ),
                                                                         ))
                                                                         .unwrap();
-                                                                }
-                                                                Node::Sprite(_) => {
-                                                                    self.message_sender
+                                                            }
+                                                            Node::Sprite(_) => {
+                                                                self.message_sender
                                                                         .send(Message::DoSceneCommand(
                                                                             SceneCommand::SetSpriteTexture(
                                                                                 SetSpriteTextureCommand::new(
@@ -1198,9 +1161,8 @@ impl Editor {
                                                                             ),
                                                                         ))
                                                                         .unwrap();
-                                                                }
-                                                                _ => {}
                                                             }
+                                                            _ => {}
                                                         }
                                                     }
                                                 }
@@ -1441,14 +1403,14 @@ impl Editor {
             self.sync_to_model(engine);
         }
 
-        if let Some(editor_scene) = self.scene.as_ref() {
+        if let Some(editor_scene) = self.scene.as_mut() {
             // Adjust camera viewport to size of frame.
             let frame_size = engine.renderer.get_frame_size();
             let scene = &mut engine.scenes[editor_scene.scene];
 
             scene.drawing_context.clear_lines();
 
-            if let Node::Camera(camera) = &mut scene.graph[self.camera_controller.camera] {
+            if let Node::Camera(camera) = &mut scene.graph[editor_scene.camera_controller.camera] {
                 let frame_size = Vec2::new(frame_size.0 as f32, frame_size.1 as f32);
                 let viewport = camera.viewport_pixels(frame_size);
 
@@ -1481,12 +1443,14 @@ impl Editor {
                 scene.drawing_context.draw_aabb(&aabb, Color::GREEN);
             }
 
-            self.camera_controller.update(editor_scene, engine, dt);
+            let graph = &mut scene.graph;
+
+            editor_scene.camera_controller.update(graph, dt);
 
             if let Some(mode) = self.current_interaction_mode {
                 self.interaction_modes[mode as usize].update(
                     editor_scene,
-                    self.camera_controller.camera,
+                    editor_scene.camera_controller.camera,
                     engine,
                 );
             }

@@ -1,5 +1,4 @@
 use crate::{
-    camera::CameraController,
     gui::UiNode,
     scene::{
         ChangeSelectionCommand, CommandGroup, EditorScene, MoveNodeCommand, RotateNodeCommand,
@@ -27,15 +26,13 @@ use std::sync::{mpsc::Sender, Arc, Mutex};
 pub trait InteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     );
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     );
@@ -405,40 +402,45 @@ impl MoveInteractionMode {
 impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
+        let graph = &mut engine.scenes[editor_scene.scene].graph;
+
         // Pick gizmo nodes.
-        let camera = camera_controller.camera;
-        let camera_pivot = camera_controller.pivot;
-        let editor_node =
-            camera_controller.pick(mouse_pos, editor_scene, engine, true, |handle, _| {
-                handle != camera && handle != camera_pivot
-            });
+        let camera = editor_scene.camera_controller.camera;
+        let camera_pivot = editor_scene.camera_controller.pivot;
+        let editor_node = editor_scene.camera_controller.pick(
+            mouse_pos,
+            graph,
+            editor_scene.root,
+            engine.renderer.get_frame_bounds(),
+            true,
+            |handle, _| handle != camera && handle != camera_pivot,
+        );
 
         if self
             .move_gizmo
             .handle_pick(editor_node, editor_scene, engine)
         {
-            self.interacting = true;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
+            self.interacting = true;
             self.initial_positions = editor_scene.selection.local_positions(graph);
         }
     }
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
+        let graph = &mut engine.scenes[editor_scene.scene].graph;
+
         if self.interacting {
             if !editor_scene.selection.is_empty() {
                 self.interacting = false;
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let current_positions = editor_scene.selection.local_positions(graph);
                 if current_positions != self.initial_positions {
                     let commands = CommandGroup::from(
@@ -461,8 +463,14 @@ impl InteractionMode for MoveInteractionMode {
                 }
             }
         } else {
-            let picked =
-                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
+            let picked = editor_scene.camera_controller.pick(
+                mouse_pos,
+                graph,
+                editor_scene.root,
+                engine.renderer.get_frame_bounds(),
+                false,
+                |_, _| true,
+            );
             let new_selection =
                 if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
                     let mut selection = editor_scene.selection.clone();
@@ -817,41 +825,45 @@ impl ScaleInteractionMode {
 impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
+        let graph = &mut engine.scenes[editor_scene.scene].graph;
+
         // Pick gizmo nodes.
-        let camera = camera_controller.camera;
-        let camera_pivot = camera_controller.pivot;
-        let editor_node =
-            camera_controller.pick(mouse_pos, editor_scene, engine, true, |handle, _| {
-                handle != camera && handle != camera_pivot
-            });
+        let camera = editor_scene.camera_controller.camera;
+        let camera_pivot = editor_scene.camera_controller.pivot;
+        let editor_node = editor_scene.camera_controller.pick(
+            mouse_pos,
+            graph,
+            editor_scene.root,
+            engine.renderer.get_frame_bounds(),
+            true,
+            |handle, _| handle != camera && handle != camera_pivot,
+        );
 
         if self
             .scale_gizmo
             .handle_pick(editor_node, editor_scene, engine)
         {
-            self.interacting = true;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
+            self.interacting = true;
             self.initial_scales = editor_scene.selection.local_scales(graph);
-        } else {
         }
     }
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
+        let graph = &mut engine.scenes[editor_scene.scene].graph;
+
         if self.interacting {
             if !editor_scene.selection.is_empty() {
                 self.interacting = false;
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let current_scales = editor_scene.selection.local_scales(graph);
                 if current_scales != self.initial_scales {
                     // Commit changes.
@@ -876,8 +888,14 @@ impl InteractionMode for ScaleInteractionMode {
                 }
             }
         } else {
-            let picked =
-                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
+            let picked = editor_scene.camera_controller.pick(
+                mouse_pos,
+                graph,
+                editor_scene.root,
+                engine.renderer.get_frame_bounds(),
+                false,
+                |_, _| true,
+            );
             let new_selection =
                 if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
                     let mut selection = editor_scene.selection.clone();
@@ -1185,40 +1203,45 @@ impl RotateInteractionMode {
 impl InteractionMode for RotateInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
+        let graph = &mut engine.scenes[editor_scene.scene].graph;
+
         // Pick gizmo nodes.
-        let camera = camera_controller.camera;
-        let camera_pivot = camera_controller.pivot;
-        let editor_node =
-            camera_controller.pick(mouse_pos, editor_scene, engine, true, |handle, _| {
-                handle != camera && handle != camera_pivot
-            });
+        let camera = editor_scene.camera_controller.camera;
+        let camera_pivot = editor_scene.camera_controller.pivot;
+        let editor_node = editor_scene.camera_controller.pick(
+            mouse_pos,
+            graph,
+            editor_scene.root,
+            engine.renderer.get_frame_bounds(),
+            true,
+            |handle, _| handle != camera && handle != camera_pivot,
+        );
 
         if self
             .rotation_gizmo
             .handle_pick(editor_node, editor_scene, engine)
         {
-            self.interacting = true;
             let graph = &mut engine.scenes[editor_scene.scene].graph;
+            self.interacting = true;
             self.initial_rotations = editor_scene.selection.local_rotations(graph);
         }
     }
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
+        let graph = &mut engine.scenes[editor_scene.scene].graph;
+
         if self.interacting {
             if !editor_scene.selection.is_empty() {
                 self.interacting = false;
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let current_rotation = editor_scene.selection.local_rotations(graph);
                 if current_rotation != self.initial_rotations {
                     let commands = CommandGroup::from(
@@ -1245,8 +1268,14 @@ impl InteractionMode for RotateInteractionMode {
                 }
             }
         } else {
-            let picked =
-                camera_controller.pick(mouse_pos, editor_scene, engine, false, |_, _| true);
+            let picked = editor_scene.camera_controller.pick(
+                mouse_pos,
+                graph,
+                editor_scene.root,
+                engine.renderer.get_frame_bounds(),
+                false,
+                |_, _| true,
+            );
             let new_selection =
                 if engine.user_interface.keyboard_modifiers().control && picked.is_some() {
                     let mut selection = editor_scene.selection.clone();
@@ -1344,8 +1373,7 @@ impl SelectInteractionMode {
 impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        _editor_scene: &EditorScene,
-        _camera_controller: &mut CameraController,
+        _editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
     ) {
@@ -1375,13 +1403,12 @@ impl InteractionMode for SelectInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &EditorScene,
-        camera_controller: &mut CameraController,
+        editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         _mouse_pos: Vec2,
     ) {
         let scene = &engine.scenes[editor_scene.scene];
-        let camera = scene.graph[camera_controller.camera].as_camera();
+        let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
         let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
         let frame_screen_bounds = engine
             .user_interface
