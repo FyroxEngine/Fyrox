@@ -110,12 +110,12 @@ pub fn load_image<P: AsRef<Path>>(
         .join(path)
         .canonicalize()
     {
-        into_gui_texture(
+        Some(into_gui_texture(
             resource_manager
                 .lock()
                 .unwrap()
                 .request_texture(&absolute_path),
-        )
+        ))
     } else {
         None
     }
@@ -271,7 +271,7 @@ impl ScenePreview {
                                                     .with_width(32.0)
                                                     .with_height(32.0),
                                             )
-                                            .with_opt_texture(into_gui_texture(
+                                            .with_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
                                                     .lock()
@@ -833,7 +833,7 @@ impl Editor {
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
             MessageDirection::ToWidget,
-            into_gui_texture(scene.render_target.clone()),
+            Some(into_gui_texture(scene.render_target.clone().unwrap())),
         ));
 
         let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
@@ -1131,12 +1131,14 @@ impl Editor {
                                                     |_, _| true,
                                                 );
                                                 if handle.is_some() {
-                                                    if let Some(tex) = engine
+                                                    let tex = engine
                                                         .resource_manager
                                                         .lock()
                                                         .unwrap()
-                                                        .request_texture(&relative_path)
-                                                    {
+                                                        .request_texture(&relative_path);
+                                                    let texture = tex.clone();
+                                                    let texture = texture.lock().unwrap();
+                                                    if let Texture::Ok(_) = *texture {
                                                         match &mut engine.scenes[editor_scene.scene]
                                                             .graph[handle]
                                                         {
