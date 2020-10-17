@@ -66,6 +66,7 @@ use crate::{
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
+use std::ops::Deref;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -441,7 +442,7 @@ impl TextureCache {
         let key = (&*texture as *const _) as usize;
         let texture = texture.lock().unwrap();
 
-        if texture.loaded {
+        if let Texture::Ok(texture) = texture.deref() {
             let gpu_texture = self.map.entry(key).or_insert_with(|| {
                 let kind = GpuTextureKind::Rectangle {
                     width: texture.width as usize,
@@ -713,11 +714,12 @@ impl Renderer {
                     );
 
                     // Make sure to sync texture info with actual render target.
-                    let mut rt = rt.lock().unwrap();
-                    rt.width = gbuffer.width as u32;
-                    rt.height = gbuffer.height as u32;
-                    // TODO: For now only RGBA8 textures are supported.
-                    rt.kind = TextureKind::RGBA8;
+                    if let Texture::Ok(rt) = &mut *rt.lock().unwrap() {
+                        rt.width = gbuffer.width as u32;
+                        rt.height = gbuffer.height as u32;
+                        // TODO: For now only RGBA8 textures are supported.
+                        rt.kind = TextureKind::RGBA8;
+                    }
                 }
 
                 self.statistics += gbuffer.fill(GBufferRenderContext {

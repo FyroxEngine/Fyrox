@@ -236,7 +236,7 @@ fn create_surfaces(
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
                     let diffuse_path = resource_manager.textures_path().join(&filename);
-                    let texture = resource_manager.request_texture_async(diffuse_path.as_path());
+                    let texture = resource_manager.request_texture(diffuse_path.as_path());
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
                         "DiffuseColor" => surface.set_diffuse_texture(Some(texture)),

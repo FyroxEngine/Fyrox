@@ -11,31 +11,32 @@
 //!
 //! # Render target
 //!
-//! Texture can be used as render target to render scene in it. To do this you should make
-//! default instance of a texture and pass it to scene's render target property. Renderer
+//! Texture can be used as render target to render scene in it. To do this you should use
+//! new_render_target method and pass its result to scene's render target property. Renderer
 //! will automatically provide you info about metrics of texture, but it won't give you
 //! access to pixels of render target.
 
 use crate::core::visitor::{Visit, VisitError, VisitResult, Visitor};
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 
-/// See module docs.
+/// Actual texture data.
 #[derive(Debug)]
-pub struct Texture {
+pub struct TextureDetails {
     pub(in crate) path: PathBuf,
     pub(in crate) width: u32,
     pub(in crate) height: u32,
     pub(in crate) bytes: Vec<u8>,
     pub(in crate) kind: TextureKind,
-    pub(in crate) loaded: bool,
     minification_filter: TextureMinificationFilter,
     magnification_filter: TextureMagnificationFilter,
     anisotropy: f32,
 }
 
-impl Default for Texture {
+impl Default for TextureDetails {
     /// It is very important to mention that defaults may be different for texture when you
     /// importing them through resource manager, see
     /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
@@ -46,7 +47,6 @@ impl Default for Texture {
             height: 0,
             bytes: Vec::new(),
             kind: TextureKind::RGBA8,
-            loaded: true,
             minification_filter: TextureMinificationFilter::LinearMipMapLinear,
             magnification_filter: TextureMagnificationFilter::Linear,
             anisotropy: 16.0,
@@ -54,7 +54,120 @@ impl Default for Texture {
     }
 }
 
+/// Texture could be in three possible states:
+/// 1. Pending - it is loading.
+/// 2. LoadError - an error has occurred during the load.
+/// 3. Ok - texture is fully loaded and ready to use.
+///
+/// Why it is so complex?
+/// Short answer: asynchronous loading.
+/// Long answer: when you loading a scene you expect it to be loaded as fast as
+/// possible, use all available power of the CPU. To achieve that each texture
+/// ideally should be loaded on separate core of the CPU, but since this is
+/// asynchronous, we must have the ability to track the state of the texture.  
+#[derive(Debug)]
+pub enum Texture {
+    /// Texture is loading from external resource.
+    Pending(PathBuf),
+    /// An error has occurred during the load.
+    LoadError {
+        /// A path at which it was impossible to load the texture.
+        path: PathBuf,
+        /// An error. This wrapped in Option only to be Default_ed.        
+        error: Option<ImageError>,
+    },
+    /// Actual texture data when it is fully loaded or when texture was created procedurally.
+    Ok(TextureDetails),
+}
+
 impl Visit for Texture {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut id = self.id();
+        // This branch may fail only on load (except some extreme conditions like out of memory).
+        if id.visit("Id", visitor).is_ok() {
+            if visitor.is_reading() {
+                *self = Self::from_id(id)?;
+            }
+            match self {
+                // This case is not possible in normal conditions, to call visit, one must acquire the
+                // mutex lock, but while texture is loading it holds the lock in separate thread.
+                Texture::Pending(_) => unreachable!(),
+                // This may look strange if we attempting to save an invalid texture, but this may be
+                // actually useful - a texture may become loadable at the deserialization.
+                Texture::LoadError { path, .. } => path.visit("Path", visitor)?,
+                Texture::Ok(details) => details.visit("Details", visitor)?,
+            }
+
+            visitor.leave_region()
+        } else {
+            visitor.leave_region()?;
+
+            // Keep compatibility with old versions.
+            let mut details = TextureDetails::default();
+            details.visit(name, visitor)?;
+
+            *self = Texture::Ok(details);
+            Ok(())
+        }
+    }
+}
+
+impl Texture {
+    /// Creates new render target for a scene. This method automatically configures GPU texture
+    /// to correct settings, after render target was created, it must not be modified, otherwise
+    /// result is undefined.
+    pub fn new_render_target() -> Arc<Mutex<Self>> {
+        Arc::new(Mutex::new(Self::Ok(TextureDetails {
+            path: Default::default(),
+            width: 0,
+            height: 0,
+            bytes: Vec::new(),
+            kind: TextureKind::RGBA8,
+            minification_filter: TextureMinificationFilter::Nearest,
+            magnification_filter: TextureMagnificationFilter::Nearest,
+            anisotropy: 1.0,
+        })))
+    }
+
+    fn id(&self) -> u32 {
+        match self {
+            Self::Pending(_) => 0,
+            Self::LoadError { .. } => 1,
+            Self::Ok(_) => 2,
+        }
+    }
+
+    fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::Pending(Default::default())),
+            1 => Ok(Self::LoadError {
+                path: Default::default(),
+                error: None,
+            }),
+            2 => Ok(Self::Ok(Default::default())),
+            _ => Err(format!("Invalid texture id {}", id)),
+        }
+    }
+
+    /// Returns a path to the texture source.
+    pub fn path(&self) -> &Path {
+        match self {
+            Texture::Pending(path) => path,
+            Texture::LoadError { path, .. } => path,
+            Texture::Ok(details) => &details.path,
+        }
+    }
+}
+
+impl Default for Texture {
+    fn default() -> Self {
+        Self::Ok(Default::default())
+    }
+}
+
+impl Visit for TextureDetails {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -247,24 +360,7 @@ impl TextureKind {
     }
 }
 
-impl Texture {
-    /// Creates new render target for a scene. This method automatically configures GPU texture
-    /// to correct settings, after render target was created, it must not be modified, otherwise
-    /// result is undefined.
-    pub fn new_render_target() -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self {
-            path: Default::default(),
-            width: 0,
-            height: 0,
-            bytes: Vec::new(),
-            kind: TextureKind::RGBA8,
-            loaded: true,
-            minification_filter: TextureMinificationFilter::Nearest,
-            magnification_filter: TextureMagnificationFilter::Nearest,
-            anisotropy: 1.0,
-        }))
-    }
-
+impl TextureDetails {
     pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, image::ImageError> {
         let dyn_img = image::open(path.as_ref())?;
 
@@ -290,7 +386,6 @@ impl Texture {
             height,
             bytes: dyn_img.to_bytes(),
             path: path.as_ref().to_path_buf(),
-            loaded: true,
             ..Default::default()
         })
     }
@@ -313,7 +408,6 @@ impl Texture {
                 height,
                 bytes,
                 kind,
-                loaded: true,
                 ..Default::default()
             })
         }
@@ -350,12 +444,6 @@ impl Texture {
     /// Returns current anisotropy level.
     pub fn anisotropy_level(&self) -> f32 {
         self.anisotropy
-    }
-
-    /// Returns true if texture is loaded. This is hacky method to support poorman's async
-    /// texture loading. This will be changed in future. For now this is a TODO.
-    pub fn is_loaded(&self) -> bool {
-        self.loaded
     }
 
     /// Sets new path to source file.

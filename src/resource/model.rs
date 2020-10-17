@@ -80,7 +80,7 @@ fn upgrade_self_weak_ref(self_weak_ref: &Option<Weak<Mutex<Model>>>) -> Arc<Mute
     // sets correct self ref.
     let self_weak_ref = self_weak_ref
         .as_ref()
-        .expect("Model self weak ref cannon be None!");
+        .expect("Model self weak ref cannot be None!");
 
     self_weak_ref
         .upgrade()

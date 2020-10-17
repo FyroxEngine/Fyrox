@@ -1,3 +1,4 @@
+use crate::resource::texture::TextureDetails;
 use crate::{
     core::{
         color::Color,
@@ -182,13 +183,15 @@ impl UiRenderer {
                             let mut font = font_arc.0.lock().unwrap();
                             if font.texture.is_none() {
                                 let size = font.atlas_size() as u32;
-                                if let Ok(tex) = Texture::from_bytes(
+                                if let Ok(details) = TextureDetails::from_bytes(
                                     size,
                                     size,
                                     TextureKind::R8,
                                     font.atlas_pixels().to_vec(),
                                 ) {
-                                    font.texture = Some(SharedTexture(Arc::new(Mutex::new(tex))));
+                                    font.texture = Some(SharedTexture(Arc::new(Mutex::new(
+                                        Texture::Ok(details),
+                                    ))));
                                 }
                             }
                             if let Some(texture) = texture_cache.get(

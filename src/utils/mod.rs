@@ -501,6 +501,6 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 }
 
 /// Converts engine's optional texture "pointer" to rg3d-ui's.
-pub fn into_gui_texture(this: Option<Arc<Mutex<Texture>>>) -> Option<draw::SharedTexture> {
-    this.map(|v| draw::SharedTexture(v))
+pub fn into_gui_texture(this: Arc<Mutex<Texture>>) -> draw::SharedTexture {
+    draw::SharedTexture(this)
 }

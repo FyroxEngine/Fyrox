@@ -7,6 +7,7 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
+use crate::resource::texture::TextureDetails;
 use crate::{
     core::{
         color::Color,
@@ -131,7 +132,7 @@ impl Lightmap {
                         texels_per_unit,
                     );
                     surface_lightmaps.push(LightmapEntry {
-                        texture: Some(Arc::new(Mutex::new(lightmap))),
+                        texture: Some(Arc::new(Mutex::new(Texture::Ok(lightmap)))),
                         lights: lights
                             .iter()
                             .map(|(light_handle, _)| *light_handle)
@@ -152,8 +153,10 @@ impl Lightmap {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
                 let mut texture = texture.lock().unwrap();
-                texture.set_path(&base_path.as_ref().join(file_path));
-                texture.save()?;
+                if let Texture::Ok(texture) = &mut *texture {
+                    texture.set_path(&base_path.as_ref().join(file_path));
+                    texture.save()?;
+                }
             }
         }
         Ok(())
@@ -380,7 +383,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     transform: &Mat4,
     lights: I,
     texels_per_unit: u32,
-) -> Texture {
+) -> TextureDetails {
     let world_positions = transform_vertices(data, transform);
     let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
     let mut pixels = Vec::<Pixel>::with_capacity((size * size) as usize);
@@ -493,7 +496,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes.push(color.b);
         bytes.push(color.a);
     }
-    Texture::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
+    TextureDetails::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
 }
 
 #[cfg(test)]

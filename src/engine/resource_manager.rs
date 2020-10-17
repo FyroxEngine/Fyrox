@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::resource::texture::TextureDetails;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -163,19 +164,28 @@ impl ResourceManager {
         self.textures_import_options = options;
     }
 
-    /// Experimental async texture loader. Always returns valid texture object which could still
-    /// be not loaded, you should check is_loaded flag to ensure.
+    /// Tries to load texture from given path or get instance of existing, if any. This method is asynchronous,
+    /// it immediately returns a texture wrapped in mutex which can be shared across multiple places, the loading
+    /// may fail, but it is internal state of the texture. The engine does not care if texture failed to load,
+    /// it just won't use such texture during the rendering. If you need to access internals of the texture
+    /// you have to lock the mutex and then use pattern matching to get TextureDetails which contains actual
+    /// texture data.
     ///
-    /// It extensively used in model loader to speed up loading.
+    /// # Performance
     ///
-    /// **WARNING** This method is obsolete and will be replaced with native async/await in the
-    /// future.
-    pub fn request_texture_async<P: AsRef<Path>>(&mut self, path: P) -> SharedTexture {
+    /// Currently this method creates a thread which is responsible for actual texture loading, this is very
+    /// unoptimal and will be replaced with worker threads in the near future.
+    ///
+    /// # Supported formats
+    ///
+    /// To load images and decode them, rg3d uses image create which supports following image
+    /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
+    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P) -> SharedTexture {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return texture;
         }
 
-        let texture = Arc::new(Mutex::new(Texture::default()));
+        let texture = Arc::new(Mutex::new(Texture::Pending(path.as_ref().to_owned())));
         self.textures.push(TimedEntry {
             value: texture.clone(),
             time_to_live: Self::MAX_RESOURCE_TTL,
@@ -184,67 +194,40 @@ impl ResourceManager {
         let options = self.textures_import_options.clone();
 
         let path = PathBuf::from(path.as_ref());
+
+        // TODO: Replace with worker threads.
         std::thread::spawn(move || {
+            // Keep texture locked until it is fully loaded, this will block user's thread
+            // if texture is needed immediately.
             if let Ok(mut texture) = texture.lock() {
                 let time = time::Instant::now();
-                match Texture::load_from_file(&path) {
-                    Ok(raw_texture) => {
-                        *texture = raw_texture;
-                        texture.set_magnification_filter(options.magnification_filter);
-                        texture.set_minification_filter(options.minification_filter);
-                        texture.set_anisotropy_level(options.anisotropy);
+                match TextureDetails::load_from_file(&path) {
+                    Ok(mut raw_texture) => {
+                        raw_texture.set_magnification_filter(options.magnification_filter);
+                        raw_texture.set_minification_filter(options.minification_filter);
+                        raw_texture.set_anisotropy_level(options.anisotropy);
+                        *texture = Texture::Ok(raw_texture);
                         Log::writeln(format!(
                             "Texture {:?} is loaded in {:?}!",
                             path,
                             time.elapsed()
                         ));
                     }
-                    Err(e) => {
-                        Log::writeln(format!("Unable to load texture {:?}! Reason {}", path, e));
+                    Err(error) => {
+                        Log::writeln(format!(
+                            "Unable to load texture {:?}! Reason {}",
+                            &path, &error
+                        ));
+                        *texture = Texture::LoadError {
+                            path,
+                            error: Some(error),
+                        };
                     }
                 }
             }
         });
 
         result
-    }
-
-    /// Tries to load texture from given path or get instance of existing, if any. This method is
-    /// **blocking**, so it will block current thread until texture is loading. On failure it
-    /// returns None and prints failure reason to log.
-    ///
-    /// # Supported formats
-    ///
-    /// To load images and decode them, rg3d uses image create which supports following image
-    /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P) -> Option<SharedTexture> {
-        if let Some(texture) = self.find_texture(path.as_ref()) {
-            return Some(texture);
-        }
-
-        match Texture::load_from_file(path.as_ref()) {
-            Ok(mut texture) => {
-                texture.set_magnification_filter(self.textures_import_options.magnification_filter);
-                texture.set_minification_filter(self.textures_import_options.minification_filter);
-                texture.set_anisotropy_level(self.textures_import_options.anisotropy);
-
-                let shared_texture = Arc::new(Mutex::new(texture));
-                self.textures.push(TimedEntry {
-                    value: shared_texture.clone(),
-                    time_to_live: Self::MAX_RESOURCE_TTL,
-                });
-                Log::writeln(format!("Texture {} is loaded!", path.as_ref().display()));
-                Some(shared_texture)
-            }
-            Err(e) => {
-                Log::writeln(format!(
-                    "Unable to load texture {}! Reason {}",
-                    path.as_ref().display(),
-                    e
-                ));
-                None
-            }
-        }
     }
 
     /// Tries to load new model resource from given path or get instance of existing, if any.
@@ -342,7 +325,7 @@ impl ResourceManager {
     /// Tries to find texture by its path. Returns None if no such texture was found.
     pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<SharedTexture> {
         for texture_entry in self.textures.iter() {
-            if texture_entry.lock().unwrap().path.as_path() == path.as_ref() {
+            if texture_entry.lock().unwrap().path() == path.as_ref() {
                 return Some(texture_entry.value.clone());
             }
         }
@@ -412,17 +395,24 @@ impl ResourceManager {
 
     fn update_textures(&mut self, dt: f32) {
         for texture in self.textures.iter_mut() {
-            texture.time_to_live -= dt;
-            if texture.lock().unwrap().loaded && Arc::strong_count(texture) > 1 {
-                texture.time_to_live = Self::MAX_RESOURCE_TTL;
+            let ok = if let Texture::Ok(_) = *texture.lock().unwrap() {
+                true
+            } else {
+                false
+            };
+            if ok {
+                texture.time_to_live -= dt;
+                if Arc::strong_count(texture) > 1 {
+                    texture.time_to_live = Self::MAX_RESOURCE_TTL;
+                }
             }
         }
         self.textures.retain(|texture| {
             let retain = texture.time_to_live > 0.0;
-            if !retain && texture.lock().unwrap().path.exists() {
+            if !retain && texture.lock().unwrap().path().exists() {
                 Log::writeln(format!(
                     "Texture resource {:?} destroyed because it not used anymore!",
-                    texture.lock().unwrap().path
+                    texture.lock().unwrap().path()
                 ));
             }
             retain
@@ -478,18 +468,19 @@ impl ResourceManager {
     fn reload_textures(&mut self) {
         for old_texture in self.textures.iter() {
             let mut old_texture = old_texture.lock().unwrap();
-            let new_texture = match Texture::load_from_file(old_texture.path.as_path()) {
+            let details = match TextureDetails::load_from_file(old_texture.path()) {
                 Ok(texture) => texture,
                 Err(e) => {
                     Log::writeln(format!(
                         "Unable to reload {:?} texture! Reason: {}",
-                        old_texture.path, e
+                        old_texture.path(),
+                        e
                     ));
                     continue;
                 }
             };
-            old_texture.path = Default::default();
-            *old_texture = new_texture;
+            //old_texture.path = Default::default();
+            *old_texture = Texture::Ok(details);
         }
     }
 
