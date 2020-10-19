@@ -16,19 +16,16 @@
 //! will automatically provide you info about metrics of texture, but it won't give you
 //! access to pixels of render target.
 
-use crate::core::visitor::{Visit, VisitError, VisitResult, Visitor};
-use image::{ColorType, DynamicImage, GenericImageView, ImageError};
-use std::{
-    future::Future,
-    path::{Path, PathBuf},
-    pin::Pin,
-    sync::{Arc, Mutex, MutexGuard},
-    task::{Context, Poll, Waker},
+use crate::{
+    core::visitor::{Visit, VisitError, VisitResult, Visitor},
+    resource::{Resource, ResourceData, ResourceState},
 };
+use image::{ColorType, DynamicImage, GenericImageView, ImageError};
+use std::path::{Path, PathBuf};
 
 /// Actual texture data.
 #[derive(Debug)]
-pub struct TextureDetails {
+pub struct TextureData {
     pub(in crate) path: PathBuf,
     pub(in crate) width: u32,
     pub(in crate) height: u32,
@@ -39,241 +36,13 @@ pub struct TextureDetails {
     anisotropy: f32,
 }
 
-impl Default for TextureDetails {
-    /// It is very important to mention that defaults may be different for texture when you
-    /// importing them through resource manager, see
-    /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
-    fn default() -> Self {
-        Self {
-            path: PathBuf::new(),
-            width: 0,
-            height: 0,
-            bytes: Vec::new(),
-            kind: TextureKind::RGBA8,
-            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
-            magnification_filter: TextureMagnificationFilter::Linear,
-            anisotropy: 16.0,
-        }
+impl ResourceData for TextureData {
+    fn path(&self) -> &Path {
+        &self.path
     }
 }
 
-/// Texture could be in three possible states:
-/// 1. Pending - it is loading.
-/// 2. LoadError - an error has occurred during the load.
-/// 3. Ok - texture is fully loaded and ready to use.
-///
-/// Why it is so complex?
-/// Short answer: asynchronous loading.
-/// Long answer: when you loading a scene you expect it to be loaded as fast as
-/// possible, use all available power of the CPU. To achieve that each texture
-/// ideally should be loaded on separate core of the CPU, but since this is
-/// asynchronous, we must have the ability to track the state of the texture.  
-#[derive(Debug)]
-pub enum TextureState {
-    /// Texture is loading from external resource.
-    Pending {
-        /// A path to load texture from.
-        path: PathBuf,
-        /// List of wakers to wake future when texture is fully loaded.
-        wakers: Vec<Waker>,
-    },
-    /// An error has occurred during the load.
-    LoadError {
-        /// A path at which it was impossible to load the texture.
-        path: PathBuf,
-        /// An error. This wrapped in Option only to be Default_ed.        
-        error: Option<ImageError>,
-    },
-    /// Actual texture data when it is fully loaded or when texture was created procedurally.
-    Ok(TextureDetails),
-}
-
-/// See module docs.
-#[derive(Debug, Clone, Default)]
-pub struct Texture {
-    state: Option<Arc<Mutex<TextureState>>>,
-}
-
-impl From<Arc<Mutex<TextureState>>> for Texture {
-    fn from(state: Arc<Mutex<TextureState>>) -> Self {
-        Self { state: Some(state) }
-    }
-}
-
-impl Into<Arc<Mutex<TextureState>>> for Texture {
-    fn into(self) -> Arc<Mutex<TextureState>> {
-        self.state.unwrap()
-    }
-}
-
-impl Future for Texture {
-    type Output = Self;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let state = self.as_ref().state.clone();
-        match *state.unwrap().lock().unwrap() {
-            TextureState::Pending { ref mut wakers, .. } => {
-                // Collect wakers, so we'll be able to wake task when worker thread finish loading.
-                let cx_waker = cx.waker();
-                if let Some(pos) = wakers.iter().position(|waker| waker.will_wake(cx_waker)) {
-                    wakers[pos] = cx_waker.clone();
-                } else {
-                    wakers.push(cx_waker.clone())
-                }
-
-                Poll::Pending
-            }
-            TextureState::LoadError { .. } | TextureState::Ok(_) => Poll::Ready(self.clone()),
-        }
-    }
-}
-
-impl Visit for TextureState {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        let mut id = self.id();
-        // This branch may fail only on load (except some extreme conditions like out of memory).
-        if id.visit("Id", visitor).is_ok() {
-            if visitor.is_reading() {
-                *self = Self::from_id(id)?;
-            }
-            match self {
-                // Unreachable because texture must be .await_ed before serialization.
-                Self::Pending { .. } => unreachable!(),
-                // This may look strange if we attempting to save an invalid texture, but this may be
-                // actually useful - a texture may become loadable at the deserialization.
-                Self::LoadError { path, .. } => path.visit("Path", visitor)?,
-                Self::Ok(details) => details.visit("Details", visitor)?,
-            }
-
-            visitor.leave_region()
-        } else {
-            visitor.leave_region()?;
-
-            // Keep compatibility with old versions.
-            let mut details = TextureDetails::default();
-            details.visit(name, visitor)?;
-
-            *self = Self::Ok(details);
-            Ok(())
-        }
-    }
-}
-
-impl Visit for Texture {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        // This branch may fail only on load (except some extreme conditions like out of memory).
-        if self.state.visit("State", visitor).is_err() {
-            visitor.leave_region()?;
-
-            // Keep compatibility with old versions.
-
-            // Create default state here, since it is only for compatibility we don't care about
-            // redundant memory allocations.
-            let mut state = Arc::new(Mutex::new(TextureState::Ok(Default::default())));
-
-            state.visit(name, visitor)?;
-
-            self.state = Some(state);
-
-            Ok(())
-        } else {
-            visitor.leave_region()
-        }
-    }
-}
-
-impl Texture {
-    /// Creates new texture with a given state.
-    pub fn new(state: TextureState) -> Self {
-        Self {
-            state: Some(Arc::new(Mutex::new(state))),
-        }
-    }
-
-    /// Converts self to internal value.
-    pub fn into_inner(self) -> Arc<Mutex<TextureState>> {
-        self.state.unwrap()
-    }
-
-    /// Locks internal mutex provides access to the state.
-    pub fn state(&self) -> MutexGuard<'_, TextureState> {
-        self.state.as_ref().unwrap().lock().unwrap()
-    }
-
-    /// Returns exact amount of users of the texture.
-    pub fn use_count(&self) -> usize {
-        Arc::strong_count(&self.state.as_ref().unwrap())
-    }
-
-    /// Returns a pointer as numeric value which can be used as a hash.
-    pub fn key(&self) -> usize {
-        (&**self.state.as_ref().unwrap() as *const _) as usize
-    }
-
-    /// Creates new render target for a scene. This method automatically configures GPU texture
-    /// to correct settings, after render target was created, it must not be modified, otherwise
-    /// result is undefined.
-    pub fn new_render_target() -> Self {
-        Self {
-            state: Some(Arc::new(Mutex::new(TextureState::Ok(TextureDetails {
-                path: Default::default(),
-                width: 0,
-                height: 0,
-                bytes: Vec::new(),
-                kind: TextureKind::RGBA8,
-                minification_filter: TextureMinificationFilter::Nearest,
-                magnification_filter: TextureMagnificationFilter::Nearest,
-                anisotropy: 1.0,
-            })))),
-        }
-    }
-}
-
-impl TextureState {
-    fn id(&self) -> u32 {
-        match self {
-            Self::Pending { .. } => 0,
-            Self::LoadError { .. } => 1,
-            Self::Ok(_) => 2,
-        }
-    }
-
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Pending {
-                path: Default::default(),
-                wakers: Default::default(),
-            }),
-            1 => Ok(Self::LoadError {
-                path: Default::default(),
-                error: None,
-            }),
-            2 => Ok(Self::Ok(Default::default())),
-            _ => Err(format!("Invalid texture id {}", id)),
-        }
-    }
-
-    /// Returns a path to the texture source.
-    pub fn path(&self) -> &Path {
-        match self {
-            Self::Pending { path, .. } => path,
-            Self::LoadError { path, .. } => path,
-            Self::Ok(details) => &details.path,
-        }
-    }
-}
-
-impl Default for TextureState {
-    fn default() -> Self {
-        Self::Ok(Default::default())
-    }
-}
-
-impl Visit for TextureDetails {
+impl Visit for TextureData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -293,6 +62,48 @@ impl Visit for TextureDetails {
         let _ = self.anisotropy.visit("Anisotropy", visitor);
 
         visitor.leave_region()
+    }
+}
+
+impl Default for TextureData {
+    /// It is very important to mention that defaults may be different for texture when you
+    /// importing them through resource manager, see
+    /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
+    fn default() -> Self {
+        Self {
+            path: PathBuf::new(),
+            width: 0,
+            height: 0,
+            bytes: Vec::new(),
+            kind: TextureKind::RGBA8,
+            minification_filter: TextureMinificationFilter::LinearMipMapLinear,
+            magnification_filter: TextureMagnificationFilter::Linear,
+            anisotropy: 16.0,
+        }
+    }
+}
+
+/// See module docs.
+pub type Texture = Resource<TextureData, ImageError>;
+
+/// Texture state alias.
+pub type TextureState = ResourceState<TextureData, ImageError>;
+
+impl Texture {
+    /// Creates new render target for a scene. This method automatically configures GPU texture
+    /// to correct settings, after render target was created, it must not be modified, otherwise
+    /// result is undefined.
+    pub fn new_render_target() -> Self {
+        Self::new(TextureState::Ok(TextureData {
+            path: Default::default(),
+            width: 0,
+            height: 0,
+            bytes: Vec::new(),
+            kind: TextureKind::RGBA8,
+            minification_filter: TextureMinificationFilter::Nearest,
+            magnification_filter: TextureMagnificationFilter::Nearest,
+            anisotropy: 1.0,
+        }))
     }
 }
 
@@ -466,7 +277,7 @@ impl TextureKind {
     }
 }
 
-impl TextureDetails {
+impl TextureData {
     pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, image::ImageError> {
         let dyn_img = image::open(path.as_ref())?;
 

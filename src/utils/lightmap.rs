@@ -7,7 +7,7 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::resource::texture::{TextureDetails, TextureState};
+use crate::resource::texture::{TextureData, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -378,7 +378,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     transform: &Mat4,
     lights: I,
     texels_per_unit: u32,
-) -> TextureDetails {
+) -> TextureData {
     let world_positions = transform_vertices(data, transform);
     let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
     let mut pixels = Vec::<Pixel>::with_capacity((size * size) as usize);
@@ -491,7 +491,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes.push(color.b);
         bytes.push(color.a);
     }
-    TextureDetails::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
+    TextureData::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
 }
 
 #[cfg(test)]

@@ -1,11 +1,11 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::texture::{TextureDetails, TextureState};
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
         model::Model,
-        texture::{Texture, TextureMagnificationFilter, TextureMinificationFilter},
+        texture::{Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter},
+        ResourceState,
     },
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
@@ -79,8 +79,6 @@ where
     }
 }
 
-/// Type alias for Texture to make code less noisy.
-pub type SharedTexture = Texture;
 /// Type alias for Arc<Mutex<Model>> to make code less noisy.
 pub type SharedModel = Arc<Mutex<Model>>;
 /// Type alias for Arc<Mutex<SoundBuffer>> to make code less noisy.
@@ -88,7 +86,7 @@ pub type SharedSoundBuffer = Arc<Mutex<SoundBuffer>>;
 
 /// See module docs.
 pub struct ResourceManager {
-    textures: Vec<TimedEntry<SharedTexture>>,
+    textures: Vec<TimedEntry<Texture>>,
     models: Vec<TimedEntry<SharedModel>>,
     sound_buffers: Vec<TimedEntry<SharedSoundBuffer>>,
     /// Path to textures, extensively used for resource files which stores path in weird
@@ -183,12 +181,12 @@ impl ResourceManager {
     ///
     /// To load images and decode them, rg3d uses image create which supports following image
     /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P) -> SharedTexture {
+    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P) -> Texture {
         if let Some(texture) = self.find_texture(path.as_ref()) {
             return texture;
         }
 
-        let texture = Texture::new(TextureState::Pending {
+        let texture = Texture::new(ResourceState::Pending {
             path: path.as_ref().to_owned(),
             wakers: Default::default(),
         });
@@ -204,7 +202,7 @@ impl ResourceManager {
         // TODO: Replace with worker threads.
         std::thread::spawn(move || {
             let time = time::Instant::now();
-            match TextureDetails::load_from_file(&path) {
+            match TextureData::load_from_file(&path) {
                 Ok(mut raw_texture) => {
                     raw_texture.set_magnification_filter(options.magnification_filter);
                     raw_texture.set_minification_filter(options.minification_filter);
@@ -212,13 +210,13 @@ impl ResourceManager {
 
                     let mut state = texture.state();
 
-                    let wakers = if let TextureState::Pending { ref mut wakers, .. } = *state {
+                    let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
                         std::mem::take(wakers)
                     } else {
                         unreachable!()
                     };
 
-                    *state = TextureState::Ok(raw_texture);
+                    *state = ResourceState::Ok(raw_texture);
 
                     Log::writeln(format!(
                         "Texture {:?} is loaded in {:?}!",
@@ -233,7 +231,7 @@ impl ResourceManager {
                 Err(error) => {
                     let mut state = texture.state();
 
-                    let wakers = if let TextureState::Pending { ref mut wakers, .. } = *state {
+                    let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
                         std::mem::take(wakers)
                     } else {
                         unreachable!()
@@ -244,7 +242,7 @@ impl ResourceManager {
                         &path, &error
                     ));
 
-                    *state = TextureState::LoadError {
+                    *state = ResourceState::LoadError {
                         path,
                         error: Some(error),
                     };
@@ -347,12 +345,12 @@ impl ResourceManager {
 
     /// Returns shared reference to list of available textures.
     #[inline]
-    pub fn textures(&self) -> &[TimedEntry<SharedTexture>] {
+    pub fn textures(&self) -> &[TimedEntry<Texture>] {
         &self.textures
     }
 
     /// Tries to find texture by its path. Returns None if no such texture was found.
-    pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<SharedTexture> {
+    pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<Texture> {
         for texture_entry in self.textures.iter() {
             if texture_entry.state().path() == path.as_ref() {
                 return Some(texture_entry.value.clone());
@@ -423,7 +421,7 @@ impl ResourceManager {
 
     fn update_textures(&mut self, dt: f32) {
         for texture in self.textures.iter_mut() {
-            let ok = if let TextureState::Ok(_) = *texture.state() {
+            let ok = if let ResourceState::Ok(_) = *texture.state() {
                 true
             } else {
                 false
@@ -496,7 +494,7 @@ impl ResourceManager {
     fn reload_textures(&mut self) {
         for old_texture in self.textures.iter() {
             let mut old_texture_state = old_texture.state();
-            let details = match TextureDetails::load_from_file(old_texture_state.path()) {
+            let details = match TextureData::load_from_file(old_texture_state.path()) {
                 Ok(texture) => texture,
                 Err(e) => {
                     Log::writeln(format!(
@@ -508,7 +506,7 @@ impl ResourceManager {
                 }
             };
             //old_texture.path = Default::default();
-            *old_texture_state = TextureState::Ok(details);
+            *old_texture_state = ResourceState::Ok(details);
         }
     }
 
