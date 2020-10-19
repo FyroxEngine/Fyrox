@@ -34,7 +34,6 @@ use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
     path::Path,
-    sync::{Arc, Mutex},
 };
 
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
@@ -511,7 +510,7 @@ pub struct Scene {
     /// main scene you can attach this texture to some quad which will be used as
     /// monitor. Other usage could be previewer of models, like pictogram of character
     /// in real-time strategies, in other words there are plenty of possible uses.
-    pub render_target: Option<Arc<Mutex<Texture>>>,
+    pub render_target: Option<Texture>,
 
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
@@ -578,12 +577,9 @@ impl Scene {
                     resource_manager.request_model(&shallow_resource.lock().unwrap().path);
             }
 
-            fn map_texture(
-                tex: Option<Arc<Mutex<Texture>>>,
-                rm: &mut ResourceManager,
-            ) -> Option<Arc<Mutex<Texture>>> {
+            fn map_texture(tex: Option<Texture>, rm: &mut ResourceManager) -> Option<Texture> {
                 if let Some(shallow_texture) = tex {
-                    let shallow_texture = shallow_texture.lock().unwrap();
+                    let shallow_texture = shallow_texture.state();
                     Some(rm.request_texture(shallow_texture.path()))
                 } else {
                     None

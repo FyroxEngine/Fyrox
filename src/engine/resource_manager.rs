@@ -1,6 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::texture::TextureDetails;
+use crate::resource::texture::{TextureDetails, TextureState};
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -79,8 +79,8 @@ where
     }
 }
 
-/// Type alias for Arc<Mutex<Texture>> to make code less noisy.
-pub type SharedTexture = Arc<Mutex<Texture>>;
+/// Type alias for Texture to make code less noisy.
+pub type SharedTexture = Texture;
 /// Type alias for Arc<Mutex<Model>> to make code less noisy.
 pub type SharedModel = Arc<Mutex<Model>>;
 /// Type alias for Arc<Mutex<SoundBuffer>> to make code less noisy.
@@ -165,11 +165,14 @@ impl ResourceManager {
     }
 
     /// Tries to load texture from given path or get instance of existing, if any. This method is asynchronous,
-    /// it immediately returns a texture wrapped in mutex which can be shared across multiple places, the loading
-    /// may fail, but it is internal state of the texture. The engine does not care if texture failed to load,
-    /// it just won't use such texture during the rendering. If you need to access internals of the texture
-    /// you have to lock the mutex and then use pattern matching to get TextureDetails which contains actual
-    /// texture data.
+    /// it immediately returns a texture which can be shared across multiple places, the loading may fail, but it is
+    /// internal state of the texture. The engine does not care if texture failed to load, it just won't use
+    /// such texture during the rendering. If you need to access internals of the texture you have to get state first
+    /// and then use pattern matching to get TextureDetails which contains actual texture data.
+    ///
+    /// # Async/.await
+    ///
+    /// Each Texture implements Future trait and can be used in async contexts.
     ///
     /// # Performance
     ///
@@ -185,7 +188,10 @@ impl ResourceManager {
             return texture;
         }
 
-        let texture = Arc::new(Mutex::new(Texture::Pending(path.as_ref().to_owned())));
+        let texture = Texture::new(TextureState::Pending {
+            path: path.as_ref().to_owned(),
+            wakers: Default::default(),
+        });
         self.textures.push(TimedEntry {
             value: texture.clone(),
             time_to_live: Self::MAX_RESOURCE_TTL,
@@ -197,31 +203,54 @@ impl ResourceManager {
 
         // TODO: Replace with worker threads.
         std::thread::spawn(move || {
-            // Keep texture locked until it is fully loaded, this will block user's thread
-            // if texture is needed immediately.
-            if let Ok(mut texture) = texture.lock() {
-                let time = time::Instant::now();
-                match TextureDetails::load_from_file(&path) {
-                    Ok(mut raw_texture) => {
-                        raw_texture.set_magnification_filter(options.magnification_filter);
-                        raw_texture.set_minification_filter(options.minification_filter);
-                        raw_texture.set_anisotropy_level(options.anisotropy);
-                        *texture = Texture::Ok(raw_texture);
-                        Log::writeln(format!(
-                            "Texture {:?} is loaded in {:?}!",
-                            path,
-                            time.elapsed()
-                        ));
+            let time = time::Instant::now();
+            match TextureDetails::load_from_file(&path) {
+                Ok(mut raw_texture) => {
+                    raw_texture.set_magnification_filter(options.magnification_filter);
+                    raw_texture.set_minification_filter(options.minification_filter);
+                    raw_texture.set_anisotropy_level(options.anisotropy);
+
+                    let mut state = texture.state();
+
+                    let wakers = if let TextureState::Pending { ref mut wakers, .. } = *state {
+                        std::mem::take(wakers)
+                    } else {
+                        unreachable!()
+                    };
+
+                    *state = TextureState::Ok(raw_texture);
+
+                    Log::writeln(format!(
+                        "Texture {:?} is loaded in {:?}!",
+                        path,
+                        time.elapsed()
+                    ));
+
+                    for waker in wakers {
+                        waker.wake();
                     }
-                    Err(error) => {
-                        Log::writeln(format!(
-                            "Unable to load texture {:?}! Reason {}",
-                            &path, &error
-                        ));
-                        *texture = Texture::LoadError {
-                            path,
-                            error: Some(error),
-                        };
+                }
+                Err(error) => {
+                    let mut state = texture.state();
+
+                    let wakers = if let TextureState::Pending { ref mut wakers, .. } = *state {
+                        std::mem::take(wakers)
+                    } else {
+                        unreachable!()
+                    };
+
+                    Log::writeln(format!(
+                        "Unable to load texture {:?}! Reason {}",
+                        &path, &error
+                    ));
+
+                    *state = TextureState::LoadError {
+                        path,
+                        error: Some(error),
+                    };
+
+                    for waker in wakers {
+                        waker.wake();
                     }
                 }
             }
@@ -325,7 +354,7 @@ impl ResourceManager {
     /// Tries to find texture by its path. Returns None if no such texture was found.
     pub fn find_texture<P: AsRef<Path>>(&self, path: P) -> Option<SharedTexture> {
         for texture_entry in self.textures.iter() {
-            if texture_entry.lock().unwrap().path() == path.as_ref() {
+            if texture_entry.state().path() == path.as_ref() {
                 return Some(texture_entry.value.clone());
             }
         }
@@ -389,30 +418,29 @@ impl ResourceManager {
             .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
         self.models
             .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
-        self.textures
-            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+        self.textures.retain(|buffer| buffer.value.use_count() > 1);
     }
 
     fn update_textures(&mut self, dt: f32) {
         for texture in self.textures.iter_mut() {
-            let ok = if let Texture::Ok(_) = *texture.lock().unwrap() {
+            let ok = if let TextureState::Ok(_) = *texture.state() {
                 true
             } else {
                 false
             };
             if ok {
                 texture.time_to_live -= dt;
-                if Arc::strong_count(texture) > 1 {
+                if texture.use_count() > 1 {
                     texture.time_to_live = Self::MAX_RESOURCE_TTL;
                 }
             }
         }
         self.textures.retain(|texture| {
             let retain = texture.time_to_live > 0.0;
-            if !retain && texture.lock().unwrap().path().exists() {
+            if !retain && texture.state().path().exists() {
                 Log::writeln(format!(
                     "Texture resource {:?} destroyed because it not used anymore!",
-                    texture.lock().unwrap().path()
+                    texture.state().path()
                 ));
             }
             retain
@@ -467,20 +495,20 @@ impl ResourceManager {
 
     fn reload_textures(&mut self) {
         for old_texture in self.textures.iter() {
-            let mut old_texture = old_texture.lock().unwrap();
-            let details = match TextureDetails::load_from_file(old_texture.path()) {
+            let mut old_texture_state = old_texture.state();
+            let details = match TextureDetails::load_from_file(old_texture_state.path()) {
                 Ok(texture) => texture,
                 Err(e) => {
                     Log::writeln(format!(
                         "Unable to reload {:?} texture! Reason: {}",
-                        old_texture.path(),
+                        old_texture_state.path(),
                         e
                     ));
                     continue;
                 }
             };
             //old_texture.path = Default::default();
-            *old_texture = Texture::Ok(details);
+            *old_texture_state = TextureState::Ok(details);
         }
     }
 
@@ -538,6 +566,10 @@ impl ResourceManager {
 impl Visit for ResourceManager {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
+
+        for texture in self.textures.iter() {
+            futures::executor::block_on(texture.value.clone());
+        }
 
         self.textures.visit("Textures", visitor)?;
         self.models.visit("Models", visitor)?;

@@ -1,4 +1,4 @@
-use crate::resource::texture::TextureDetails;
+use crate::resource::texture::{TextureDetails, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -190,26 +190,28 @@ impl UiRenderer {
                                     font.atlas_pixels().to_vec(),
                                 ) {
                                     font.texture = Some(SharedTexture(Arc::new(Mutex::new(
-                                        Texture::Ok(details),
+                                        TextureState::Ok(details),
                                     ))));
                                 }
                             }
-                            if let Some(texture) = texture_cache.get(
-                                state,
-                                font.texture
-                                    .clone()
-                                    .unwrap()
-                                    .0
-                                    .downcast::<Mutex<Texture>>()
-                                    .unwrap(),
-                            ) {
+                            let tex = font
+                                .texture
+                                .clone()
+                                .unwrap()
+                                .0
+                                .downcast::<Mutex<TextureState>>()
+                                .unwrap();
+                            if let Some(texture) = texture_cache.get(state, Texture::from(tex)) {
                                 diffuse_texture = texture;
                             }
                             is_font_texture = true;
                         }
                         CommandTexture::Texture(texture) => {
-                            if let Ok(texture) = texture.clone().0.downcast::<Mutex<Texture>>() {
-                                if let Some(texture) = texture_cache.get(state, texture) {
+                            if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>()
+                            {
+                                if let Some(texture) =
+                                    texture_cache.get(state, Texture::from(texture))
+                                {
                                     diffuse_texture = texture;
                                 }
                             }

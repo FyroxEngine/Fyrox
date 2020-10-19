@@ -7,7 +7,7 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::resource::texture::TextureDetails;
+use crate::resource::texture::{TextureDetails, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -20,12 +20,7 @@ use crate::{
     scene::{light::Light, node::Node, Scene},
 };
 use image::ImageError;
-use std::{
-    collections::HashMap,
-    path::Path,
-    sync::{Arc, Mutex},
-    time,
-};
+use std::{collections::HashMap, path::Path, time};
 
 ///
 #[derive(Default, Clone, Debug)]
@@ -35,7 +30,7 @@ pub struct LightmapEntry {
     /// TODO: Is single texture enough? There may be surfaces with huge amount of faces
     ///  which may not fit into texture, because there is hardware limit on most GPUs
     ///  up to 8192x8192 pixels.
-    pub texture: Option<Arc<Mutex<Texture>>>,
+    pub texture: Option<Texture>,
     /// List of lights that were used to generate this lightmap. This list is used for
     /// masking when applying dynamic lights for surfaces with light, it prevents double
     /// lighting.
@@ -132,7 +127,7 @@ impl Lightmap {
                         texels_per_unit,
                     );
                     surface_lightmaps.push(LightmapEntry {
-                        texture: Some(Arc::new(Mutex::new(Texture::Ok(lightmap)))),
+                        texture: Some(Texture::new(TextureState::Ok(lightmap))),
                         lights: lights
                             .iter()
                             .map(|(light_handle, _)| *light_handle)
@@ -152,8 +147,8 @@ impl Lightmap {
             for (i, entry) in entries.iter().enumerate() {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
-                let mut texture = texture.lock().unwrap();
-                if let Texture::Ok(texture) = &mut *texture {
+                let mut texture = texture.state();
+                if let TextureState::Ok(texture) = &mut *texture {
                     texture.set_path(&base_path.as_ref().join(file_path));
                     texture.save()?;
                 }

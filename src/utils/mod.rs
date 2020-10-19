@@ -20,7 +20,7 @@ use crate::{
     resource::texture::Texture,
     scene::mesh::Mesh,
 };
-use std::{any::Any, sync::Arc, sync::Mutex};
+use std::{any::Any, sync::Arc};
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
@@ -501,6 +501,6 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 }
 
 /// Converts engine's optional texture "pointer" to rg3d-ui's.
-pub fn into_gui_texture(this: Arc<Mutex<Texture>>) -> draw::SharedTexture {
-    draw::SharedTexture(this)
+pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
+    draw::SharedTexture(this.into_inner())
 }

@@ -17,16 +17,13 @@ use crate::{
     resource::texture::Texture,
     scene::base::{Base, BaseBuilder},
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::{Arc, Mutex},
-};
+use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Debug)]
 pub struct Sprite {
     base: Base,
-    texture: Option<Arc<Mutex<Texture>>>,
+    texture: Option<Texture>,
     color: Color,
     size: f32,
     rotation: f32,
@@ -96,13 +93,13 @@ impl Sprite {
     }
 
     /// Sets new texture for sprite.
-    pub fn set_texture(&mut self, texture: Option<Arc<Mutex<Texture>>>) {
+    pub fn set_texture(&mut self, texture: Option<Texture>) {
         self.texture = texture;
     }
 
     /// Returns current texture of sprite. Can be None if sprite has
     /// no texture.
-    pub fn texture(&self) -> Option<Arc<Mutex<Texture>>> {
+    pub fn texture(&self) -> Option<Texture> {
         self.texture.clone()
     }
 }
@@ -125,7 +122,7 @@ impl Visit for Sprite {
 /// This is typical implementation of Builder pattern.
 pub struct SpriteBuilder {
     base_builder: BaseBuilder,
-    texture: Option<Arc<Mutex<Texture>>>,
+    texture: Option<Texture>,
     color: Color,
     size: f32,
     rotation: f32,
@@ -144,13 +141,13 @@ impl SpriteBuilder {
     }
 
     /// Sets desired texture.
-    pub fn with_texture(mut self, texture: Arc<Mutex<Texture>>) -> Self {
+    pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
     }
 
     /// Sets desired texture.
-    pub fn with_opt_texture(mut self, texture: Option<Arc<Mutex<Texture>>>) -> Self {
+    pub fn with_opt_texture(mut self, texture: Option<Texture>) -> Self {
         self.texture = texture;
         self
     }

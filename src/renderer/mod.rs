@@ -29,6 +29,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::resource::texture::TextureState;
 use crate::{
     core::{
         color::Color,
@@ -67,13 +68,7 @@ use crate::{
 };
 use glutin::PossiblyCurrent;
 use std::ops::Deref;
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-    sync::{Arc, Mutex},
-    time,
-};
+use std::{cell::RefCell, collections::HashMap, rc::Rc, time};
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
@@ -432,17 +427,13 @@ pub(in crate) struct TextureCache {
 }
 
 impl TextureCache {
-    fn get(
-        &mut self,
-        state: &mut State,
-        texture: Arc<Mutex<Texture>>,
-    ) -> Option<Rc<RefCell<GpuTexture>>> {
+    fn get(&mut self, state: &mut State, texture: Texture) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
-        let key = (&*texture as *const _) as usize;
-        let texture = texture.lock().unwrap();
+        let key = texture.key();
+        let texture = texture.state();
 
-        if let Texture::Ok(texture) = texture.deref() {
+        if let TextureState::Ok(texture) = texture.deref() {
             let gpu_texture = self.map.entry(key).or_insert_with(|| {
                 let kind = GpuTextureKind::Rectangle {
                     width: texture.width as usize,
@@ -703,7 +694,7 @@ impl Renderer {
                 // TODO: However it can be dangerous to use frame texture as it may be bound to
                 //  pipeline.
                 if let Some(rt) = scene.render_target.clone() {
-                    let key = (&*rt as *const _) as usize;
+                    let key = rt.key();
 
                     self.texture_cache.map.insert(
                         key,
@@ -714,7 +705,7 @@ impl Renderer {
                     );
 
                     // Make sure to sync texture info with actual render target.
-                    if let Texture::Ok(rt) = &mut *rt.lock().unwrap() {
+                    if let TextureState::Ok(rt) = &mut *rt.state() {
                         rt.width = gbuffer.width as u32;
                         rt.height = gbuffer.height as u32;
                         // TODO: For now only RGBA8 textures are supported.

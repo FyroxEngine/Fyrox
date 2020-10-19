@@ -1094,9 +1094,9 @@ pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
     data: Option<Arc<Mutex<SurfaceSharedData>>>,
-    diffuse_texture: Option<Arc<Mutex<Texture>>>,
-    normal_texture: Option<Arc<Mutex<Texture>>>,
-    lightmap_texture: Option<Arc<Mutex<Texture>>>,
+    diffuse_texture: Option<Texture>,
+    normal_texture: Option<Texture>,
+    lightmap_texture: Option<Texture>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -1152,37 +1152,37 @@ impl Surface {
 
     /// Sets new diffuse texture.
     #[inline]
-    pub fn set_diffuse_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+    pub fn set_diffuse_texture(&mut self, tex: Option<Texture>) {
         self.diffuse_texture = tex;
     }
 
     /// Returns current diffuse texture.
     #[inline]
-    pub fn diffuse_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+    pub fn diffuse_texture(&self) -> Option<Texture> {
         self.diffuse_texture.clone()
     }
 
     /// Sets new normal map texture.
     #[inline]
-    pub fn set_normal_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+    pub fn set_normal_texture(&mut self, tex: Option<Texture>) {
         self.normal_texture = tex;
     }
 
     /// Returns current normal map texture.
     #[inline]
-    pub fn normal_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+    pub fn normal_texture(&self) -> Option<Texture> {
         self.normal_texture.clone()
     }
 
     /// Sets new lightmap texture.
     #[inline]
-    pub fn set_lightmap_texture(&mut self, tex: Option<Arc<Mutex<Texture>>>) {
+    pub fn set_lightmap_texture(&mut self, tex: Option<Texture>) {
         self.lightmap_texture = tex;
     }
 
     /// Returns lightmap texture.
     #[inline]
-    pub fn lightmap_texture(&self) -> Option<Arc<Mutex<Texture>>> {
+    pub fn lightmap_texture(&self) -> Option<Texture> {
         self.lightmap_texture.clone()
     }
 
@@ -1227,9 +1227,9 @@ impl Visit for Surface {
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
     data: Arc<Mutex<SurfaceSharedData>>,
-    diffuse_texture: Option<Arc<Mutex<Texture>>>,
-    normal_texture: Option<Arc<Mutex<Texture>>>,
-    lightmap_texture: Option<Arc<Mutex<Texture>>>,
+    diffuse_texture: Option<Texture>,
+    normal_texture: Option<Texture>,
+    lightmap_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1248,19 +1248,19 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired diffuse texture.
-    pub fn with_diffuse_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
+    pub fn with_diffuse_texture(mut self, tex: Texture) -> Self {
         self.diffuse_texture = Some(tex);
         self
     }
 
     /// Sets desired normal map texture.
-    pub fn with_normal_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
+    pub fn with_normal_texture(mut self, tex: Texture) -> Self {
         self.normal_texture = Some(tex);
         self
     }
 
     /// Sets desired lightmap texture.
-    pub fn with_lightmap_texture(mut self, tex: Arc<Mutex<Texture>>) -> Self {
+    pub fn with_lightmap_texture(mut self, tex: Texture) -> Self {
         self.lightmap_texture = Some(tex);
         self
     }

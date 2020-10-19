@@ -8,6 +8,7 @@ extern crate lexical;
 #[macro_use]
 extern crate lazy_static;
 
+extern crate futures;
 #[cfg(test)]
 extern crate imageproc;
 
