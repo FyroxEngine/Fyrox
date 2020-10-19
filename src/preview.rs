@@ -2,6 +2,7 @@ use crate::{
     gui::{UiMessage, UiNode},
     GameEngine,
 };
+use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{
         math::{aabb::AxisAlignedBoundingBox, quat::Quat, vec2::Vec2, vec3::Vec3},
@@ -84,7 +85,7 @@ impl PreviewPanel {
                             .on_row(1)
                             .with_cursor(Some(CursorIcon::Grab)),
                     )
-                    .with_texture(render_target.into())
+                    .with_texture(into_gui_texture(render_target))
                     .build(&mut engine.user_interface.build_ctx());
                     frame
                 })

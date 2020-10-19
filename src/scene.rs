@@ -867,8 +867,8 @@ macro_rules! define_simple_command {
 
 #[derive(Debug)]
 enum TextureSet {
-    Single(Arc<Mutex<Texture>>),
-    Multiple(Vec<Option<Arc<Mutex<Texture>>>>),
+    Single(Texture),
+    Multiple(Vec<Option<Texture>>),
 }
 
 #[derive(Debug)]
@@ -878,7 +878,7 @@ pub struct SetMeshTextureCommand {
 }
 
 impl SetMeshTextureCommand {
-    pub fn new(node: Handle<Node>, texture: Arc<Mutex<Texture>>) -> Self {
+    pub fn new(node: Handle<Node>, texture: Texture) -> Self {
         Self {
             node,
             set: TextureSet::Single(texture),
@@ -1044,7 +1044,7 @@ define_simple_command!(SetSpriteColorCommand, "Set Sprite Color", Color => |this
     this.value = old;
 });
 
-define_simple_command!(SetSpriteTextureCommand, "Set Sprite Texture", Option<Arc<Mutex<Texture>>> => |this: &mut SetSpriteTextureCommand, graph: &mut Graph| {
+define_simple_command!(SetSpriteTextureCommand, "Set Sprite Texture", Option<Texture> => |this: &mut SetSpriteTextureCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_sprite_mut();
     let old = node.texture();
     node.set_texture(this.value.clone());

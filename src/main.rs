@@ -40,7 +40,7 @@ use crate::{
     world_outliner::WorldOutliner,
 };
 use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::resource::texture::Texture;
+use rg3d::resource::texture::{Texture, TextureState};
 use rg3d::{
     core::{
         color::Color,
@@ -1137,8 +1137,8 @@ impl Editor {
                                                         .unwrap()
                                                         .request_texture(&relative_path);
                                                     let texture = tex.clone();
-                                                    let texture = texture.lock().unwrap();
-                                                    if let Texture::Ok(_) = *texture {
+                                                    let texture = texture.state();
+                                                    if let TextureState::Ok(_) = *texture {
                                                         match &mut engine.scenes[editor_scene.scene]
                                                             .graph[handle]
                                                         {
