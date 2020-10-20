@@ -176,7 +176,7 @@ impl ResourceManager {
     /// it immediately returns a texture which can be shared across multiple places, the loading may fail, but it is
     /// internal state of the texture. The engine does not care if texture failed to load, it just won't use
     /// such texture during the rendering. If you need to access internals of the texture you have to get state first
-    /// and then use pattern matching to get TextureDetails which contains actual texture data.
+    /// and then use pattern matching to get TextureData which contains actual texture data.
     ///
     /// # Async/.await
     ///
@@ -270,8 +270,19 @@ impl ResourceManager {
     }
 
     /// Tries to load new model resource from given path or get instance of existing, if any.
-    /// This method is **blocking**, so it will block current thread until model is loading
-    /// On failure it returns None and prints failure reason to log.
+    /// This method is asynchronous, it immediately returns a model which can be shared across
+    /// multiple places, the loading may fail, but it is internal state of the model. If you need
+    /// to access internals of the texture you have to get state first and then use pattern matching
+    /// to get ModelData which contains actual model data.
+    ///
+    /// # Async/.await
+    ///
+    /// Each Texture implements Future trait and can be used in async contexts.
+    ///
+    /// # Performance
+    ///
+    /// Currently this method creates a thread which is responsible for actual texture loading, this is very
+    /// unoptimal and will be replaced with worker threads in the near future.
     ///
     /// # Supported formats
     ///
