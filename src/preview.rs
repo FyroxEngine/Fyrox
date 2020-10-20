@@ -211,11 +211,11 @@ impl PreviewPanel {
         }
     }
 
-    pub fn set_model(&mut self, model: &Path, engine: &mut GameEngine) {
+    pub async fn set_model(&mut self, model: &Path, engine: &mut GameEngine) {
         self.clear(engine);
-        if let Some(model) = engine.resource_manager.lock().unwrap().request_model(model) {
+        if let Ok(model) = engine.resource_manager.request_model(model).await {
             let scene = &mut engine.scenes[self.scene];
-            self.model = model.lock().unwrap().instantiate_geometry(scene);
+            self.model = model.instantiate_geometry(scene).await.unwrap();
             self.fit_to_model(scene);
         }
     }

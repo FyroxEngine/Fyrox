@@ -41,7 +41,7 @@ use rg3d::{
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc, Mutex},
+    sync::mpsc::Sender,
 };
 
 pub struct WorldOutliner {
@@ -58,7 +58,7 @@ pub struct SceneItem {
     visibility_toggle: Handle<UiNode>,
     sender: Sender<Message>,
     visibility: bool,
-    resource_manager: Arc<Mutex<ResourceManager>>,
+    resource_manager: ResourceManager,
 }
 
 impl Debug for SceneItem {
@@ -227,7 +227,7 @@ impl SceneItemBuilder {
         self,
         ctx: &mut BuildContext,
         sender: Sender<Message>,
-        resource_manager: Arc<Mutex<ResourceManager>>,
+        resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let visible_texture = load_image("resources/visible.png", resource_manager.clone());
 
@@ -308,7 +308,7 @@ fn make_tree(
     handle: Handle<Node>,
     ctx: &mut BuildContext,
     sender: Sender<Message>,
-    resource_manager: Arc<Mutex<ResourceManager>>,
+    resource_manager: ResourceManager,
 ) -> Handle<UiNode> {
     let icon_path = match node {
         Node::Light(_) => "resources/light.png",

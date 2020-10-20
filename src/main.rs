@@ -84,9 +84,8 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
     sync::{
-        mpsc,
-        mpsc::{Receiver, Sender},
-        Arc, Mutex,
+        mpsc::{self, Receiver, Sender},
+        Mutex,
     },
     time::Instant,
 };
@@ -102,7 +101,7 @@ lazy_static! {
 
 pub fn load_image<P: AsRef<Path>>(
     path: P,
-    resource_manager: Arc<Mutex<ResourceManager>>,
+    resource_manager: ResourceManager,
 ) -> Option<draw::SharedTexture> {
     if let Ok(absolute_path) = STARTUP_WORKING_DIR
         .lock()
@@ -111,10 +110,7 @@ pub fn load_image<P: AsRef<Path>>(
         .canonicalize()
     {
         Some(into_gui_texture(
-            resource_manager
-                .lock()
-                .unwrap()
-                .request_texture(&absolute_path),
+            resource_manager.request_texture(&absolute_path),
         ))
     } else {
         None
@@ -274,8 +270,6 @@ impl ScenePreview {
                                             .with_texture(into_gui_texture(
                                                 engine
                                                     .resource_manager
-                                                    .lock()
-                                                    .unwrap()
                                                     .request_texture("resources/scale_arrow.png"),
                                             ))
                                             .build(ctx),
@@ -1133,8 +1127,6 @@ impl Editor {
                                                 if handle.is_some() {
                                                     let tex = engine
                                                         .resource_manager
-                                                        .lock()
-                                                        .unwrap()
                                                         .request_texture(&relative_path);
                                                     let texture = tex.clone();
                                                     let texture = texture.state();
@@ -1314,9 +1306,7 @@ impl Editor {
                     }
                 }
                 Message::LoadScene(scene_path) => {
-                    let result = {
-                        Scene::from_file(&scene_path, &mut engine.resource_manager.lock().unwrap())
-                    };
+                    let result = { Scene::from_file(&scene_path, engine.resource_manager.clone()) };
                     match result {
                         Ok(scene) => {
                             self.set_scene(engine, scene, Some(scene_path));
@@ -1380,15 +1370,10 @@ impl Editor {
 
                     engine
                         .resource_manager
-                        .lock()
-                        .unwrap()
+                        .state()
                         .set_textures_path(relative_tex_path.clone());
 
-                    engine
-                        .resource_manager
-                        .lock()
-                        .unwrap()
-                        .purge_unused_resources();
+                    engine.resource_manager.state().purge_unused_resources();
 
                     engine.renderer.flush();
 
@@ -1508,11 +1493,7 @@ fn main() {
 
     let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
 
-    engine
-        .resource_manager
-        .lock()
-        .unwrap()
-        .set_textures_path("data");
+    engine.resource_manager.state().set_textures_path("data");
 
     // Set ambient light.
     engine

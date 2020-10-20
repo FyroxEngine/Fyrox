@@ -11,10 +11,7 @@ use rg3d::{
     resource::texture::Texture,
     scene::{graph::Graph, graph::SubGraph, mesh::Mesh, node::Node, PhysicsBinder, Scene},
 };
-use std::{
-    path::PathBuf,
-    sync::{mpsc::Sender, Arc, Mutex},
-};
+use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Default)]
 pub struct Clipboard {
@@ -89,7 +86,7 @@ pub struct SceneContext<'a> {
     pub scene: &'a mut Scene,
     pub message_sender: Sender<Message>,
     pub current_selection: Selection,
-    pub resource_manager: Arc<Mutex<ResourceManager>>,
+    pub resource_manager: ResourceManager,
 }
 
 macro_rules! static_dispatch {
@@ -693,14 +690,12 @@ impl<'a> Command<'a> for LoadModelCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         if self.model.is_none() {
             // No model was loaded yet, do it.
-            if let Some(model) = context
-                .resource_manager
-                .lock()
-                .unwrap()
-                .request_model(&self.path)
-            {
-                let model = model.lock().unwrap();
-                self.model = model.instantiate(context.scene).root;
+            if let Ok(model) = rg3d::futures::executor::block_on(
+                context.resource_manager.request_model(&self.path),
+            ) {
+                self.model = rg3d::futures::executor::block_on(model.instantiate(context.scene))
+                    .unwrap()
+                    .root;
             }
         } else {
             // A model was loaded, but change was reverted and here we must put all nodes

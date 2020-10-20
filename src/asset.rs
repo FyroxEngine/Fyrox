@@ -7,7 +7,6 @@ use crate::{
     preview::PreviewPanel,
     GameEngine,
 };
-use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
@@ -26,14 +25,14 @@ use rg3d::{
         wrap_panel::WrapPanelBuilder,
         Control, HorizontalAlignment, Orientation, Thickness,
     },
+    utils::into_gui_texture,
 };
-use std::ffi::OsStr;
 use std::{
     cell::RefCell,
+    ffi::OsStr,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     rc::Rc,
-    sync::{Arc, Mutex},
 };
 
 #[derive(Debug, Clone)]
@@ -134,7 +133,7 @@ impl AssetItemBuilder {
     pub fn build(
         self,
         ctx: &mut BuildContext,
-        resource_manager: Arc<Mutex<ResourceManager>>,
+        resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let path = self.path.unwrap_or_default();
         let mut kind = AssetKind::Unknown;
@@ -143,9 +142,7 @@ impl AssetItemBuilder {
             .map(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                 "jpg" | "tga" | "png" | "bmp" => {
                     kind = AssetKind::Texture;
-                    Some(into_gui_texture(
-                        resource_manager.lock().unwrap().request_texture(&path),
-                    ))
+                    Some(into_gui_texture(resource_manager.request_texture(&path)))
                 }
                 "fbx" | "rgs" => {
                     kind = AssetKind::Model;
@@ -311,7 +308,9 @@ impl AssetBrowser {
                             {
                                 if item.kind == AssetKind::Model {
                                     let path = item.path.clone();
-                                    self.preview.set_model(&path, engine);
+                                    rg3d::futures::executor::block_on(
+                                        self.preview.set_model(&path, engine),
+                                    );
                                 }
                             }
                         }
