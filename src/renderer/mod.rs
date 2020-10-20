@@ -470,7 +470,11 @@ impl TextureCache {
                     .set_minification_filter(new_min_filter);
             }
 
-            if gpu_texture.borrow().anisotropy() != texture.anisotropy_level() {
+            if gpu_texture
+                .borrow()
+                .anisotropy()
+                .ne(&texture.anisotropy_level())
+            {
                 gpu_texture
                     .borrow_mut()
                     .bind_mut(state, 0)

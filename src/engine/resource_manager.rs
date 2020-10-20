@@ -281,7 +281,7 @@ impl ResourceManager {
     ///
     /// # Performance
     ///
-    /// Currently this method creates a thread which is responsible for actual texture loading, this is very
+    /// Currently this method creates a thread which is responsible for actual model loading, this is very
     /// unoptimal and will be replaced with worker threads in the near future.
     ///
     /// # Supported formats
@@ -589,12 +589,7 @@ impl ResourceManagerState {
 
     fn update_textures(&mut self, dt: f32) {
         for texture in self.textures.iter_mut() {
-            let ok = if let ResourceState::Ok(_) = *texture.state() {
-                true
-            } else {
-                false
-            };
-            if ok {
+            if matches!(*texture.state(), ResourceState::Ok(_)) {
                 texture.time_to_live -= dt;
                 if texture.use_count() > 1 {
                     texture.time_to_live = MAX_RESOURCE_TTL;

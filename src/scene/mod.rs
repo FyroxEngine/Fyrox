@@ -430,6 +430,11 @@ impl StaticGeometryBinder {
         self.map.len()
     }
 
+    /// Returns true if binder is empty.
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
     /// Tries to find associated static geometry of a node.
     ///
     /// # Performance
@@ -878,7 +883,7 @@ impl VisibilityCache {
     /// Replaces internal map with empty and returns previous value. This trick is useful
     /// to reuse hash map to prevent redundant memory allocations.
     pub fn invalidate(&mut self) -> HashMap<Handle<Node>, bool> {
-        std::mem::replace(&mut self.map, Default::default())
+        std::mem::take(&mut self.map)
     }
 
     /// Updates visibility cache - checks visibility for each node in given graph, also performs

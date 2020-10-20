@@ -134,6 +134,7 @@ impl SpotShadowMapRenderer {
         cascade_size(self.size, cascade)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(in crate) fn render(
         &mut self,
         state: &mut State,
