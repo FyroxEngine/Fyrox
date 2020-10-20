@@ -32,6 +32,7 @@ use crate::{
         },
         visitor::{Visit, VisitResult, Visitor},
     },
+    resource::ResourceState,
     scene::node::Node,
     utils::log::Log,
 };
@@ -339,7 +340,7 @@ impl Graph {
         model_root_handle
     }
 
-    pub(in crate) fn resolve(&mut self) {
+    pub(in crate) async fn resolve(&mut self) {
         Log::writeln("Resolving graph...".to_owned());
 
         self.update_hierachical_data();
@@ -351,12 +352,15 @@ impl Graph {
         // names.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
-                let model = model.lock().unwrap();
-                for (handle, resource_node) in model.get_scene().graph.pair_iter() {
-                    if resource_node.name() == node.name() {
-                        node.original = handle;
-                        node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
-                        break;
+                let model = model.await.unwrap();
+                let model = model.state();
+                if let ResourceState::Ok(ref data) = *model {
+                    for (handle, resource_node) in data.get_scene().graph.pair_iter() {
+                        if resource_node.name() == node.name() {
+                            node.original = handle;
+                            node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
+                            break;
+                        }
                     }
                 }
             }
@@ -382,21 +386,24 @@ impl Graph {
                 let root_handle = graph.find_model_root(node_handle);
                 let node_name = String::from(mesh.name());
                 if let Some(model) = mesh.resource() {
-                    let model = model.lock().unwrap();
-                    let resource_node_handle = model.find_node_by_name(node_name.as_str());
-                    if let Node::Mesh(resource_mesh) =
-                        &model.get_scene().graph[resource_node_handle]
-                    {
-                        // Copy surfaces from resource and assign to meshes.
-                        mesh.clear_surfaces();
-                        for resource_surface in resource_mesh.surfaces() {
-                            mesh.add_surface(resource_surface.clone());
-                        }
+                    let model = model.await.unwrap();
+                    let model = model.state();
+                    if let ResourceState::Ok(ref data) = *model {
+                        let resource_node_handle = data.find_node_by_name(node_name.as_str());
+                        if let Node::Mesh(resource_mesh) =
+                            &data.get_scene().graph[resource_node_handle]
+                        {
+                            // Copy surfaces from resource and assign to meshes.
+                            mesh.clear_surfaces();
+                            for resource_surface in resource_mesh.surfaces() {
+                                mesh.add_surface(resource_surface.clone());
+                            }
 
-                        // Remap bones
-                        for surface in mesh.surfaces_mut() {
-                            for bone_handle in surface.bones.iter_mut() {
-                                *bone_handle = graph.find_copy_of(root_handle, *bone_handle);
+                            // Remap bones
+                            for surface in mesh.surfaces_mut() {
+                                for bone_handle in surface.bones.iter_mut() {
+                                    *bone_handle = graph.find_copy_of(root_handle, *bone_handle);
+                                }
                             }
                         }
                     }

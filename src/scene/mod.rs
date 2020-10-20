@@ -563,7 +563,7 @@ impl Scene {
     /// Such scenes can be made in rusty editor.
     pub fn from_file<P: AsRef<Path>>(
         path: P,
-        resource_manager: &mut ResourceManager,
+        resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
         let mut scene = Scene::default();
         let mut visitor = Visitor::load_binary(path.as_ref())?;
@@ -573,11 +573,14 @@ impl Scene {
         // find real resources instead.
         for node in scene.graph.linear_iter_mut() {
             if let Some(shallow_resource) = node.resource.clone() {
-                node.resource =
-                    resource_manager.request_model(&shallow_resource.lock().unwrap().path);
+                node.resource = Some(
+                    resource_manager
+                        .clone()
+                        .request_model(&shallow_resource.state().path()),
+                );
             }
 
-            fn map_texture(tex: Option<Texture>, rm: &mut ResourceManager) -> Option<Texture> {
+            fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
                 if let Some(shallow_texture) = tex {
                     let shallow_texture = shallow_texture.state();
                     Some(rm.request_texture(shallow_texture.path()))
@@ -591,26 +594,28 @@ impl Scene {
                     for surface in mesh.surfaces_mut() {
                         surface.set_diffuse_texture(map_texture(
                             surface.diffuse_texture(),
-                            resource_manager,
+                            resource_manager.clone(),
                         ));
 
                         surface.set_normal_texture(map_texture(
                             surface.normal_texture(),
-                            resource_manager,
+                            resource_manager.clone(),
                         ));
 
                         surface.set_lightmap_texture(map_texture(
                             surface.lightmap_texture(),
-                            resource_manager,
+                            resource_manager.clone(),
                         ));
                     }
                 }
                 Node::Sprite(sprite) => {
-                    sprite.set_texture(map_texture(sprite.texture(), resource_manager));
+                    sprite.set_texture(map_texture(sprite.texture(), resource_manager.clone()));
                 }
                 Node::ParticleSystem(particle_system) => {
-                    particle_system
-                        .set_texture(map_texture(particle_system.texture(), resource_manager));
+                    particle_system.set_texture(map_texture(
+                        particle_system.texture(),
+                        resource_manager.clone(),
+                    ));
                 }
                 _ => (),
             }
@@ -681,7 +686,8 @@ impl Scene {
 
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Starting resolve...".to_owned());
-        self.graph.resolve();
+        // TODO: Remove blocking here.
+        futures::executor::block_on(self.graph.resolve());
         self.animations.resolve(&self.graph);
         self.restore_static_geometries();
 

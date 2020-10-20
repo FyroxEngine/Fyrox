@@ -3,6 +3,7 @@
 //! Resource module contains all structures and method to manage resources.
 
 use crate::core::visitor::{Visit, VisitResult, Visitor};
+use std::ops::{Deref, DerefMut};
 use std::{
     fmt::Debug,
     future::Future,
@@ -16,11 +17,14 @@ pub mod fbx;
 pub mod model;
 pub mod texture;
 
-/// Trait for texture data.
-pub trait ResourceData: 'static + Default + Debug + Visit + Send + Sync {
+/// A trait for resource data.
+pub trait ResourceData: 'static + Default + Debug + Visit + Send {
     /// Returns path of resource data.
     fn path(&self) -> &Path;
 }
+
+/// A trait for resource load error.
+pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
 
 /// Resource could be in three possible states:
 /// 1. Pending - it is loading.
@@ -34,7 +38,7 @@ pub trait ResourceData: 'static + Default + Debug + Visit + Send + Sync {
 /// ideally should be loaded on separate core of the CPU, but since this is
 /// asynchronous, we must have the ability to track the state of the resource.  
 #[derive(Debug)]
-pub enum ResourceState<T: ResourceData, E: 'static + Debug + Send> {
+pub enum ResourceState<T: ResourceData, E: ResourceLoadError> {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
         /// A path to load resource from.
@@ -47,13 +51,13 @@ pub enum ResourceState<T: ResourceData, E: 'static + Debug + Send> {
         /// A path at which it was impossible to load the resource.
         path: PathBuf,
         /// An error. This wrapped in Option only to be Default_ed.        
-        error: Option<E>,
+        error: Option<Arc<E>>,
     },
     /// Actual resource data when it is fully loaded.
     Ok(T),
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Visit for ResourceState<T, E> {
+impl<T: ResourceData, E: ResourceLoadError> Visit for ResourceState<T, E> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
@@ -88,11 +92,46 @@ impl<T: ResourceData, E: 'static + Debug + Send> Visit for ResourceState<T, E> {
 
 /// See module docs.
 #[derive(Debug)]
-pub struct Resource<T: ResourceData, E: 'static + Debug + Send> {
+pub struct Resource<T: ResourceData, E: ResourceLoadError> {
     state: Option<Arc<Mutex<ResourceState<T, E>>>>,
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Resource<T, E> {
+#[doc(hidden)]
+pub struct ResourceDataRef<'a, T: ResourceData, E: ResourceLoadError> {
+    guard: MutexGuard<'a, ResourceState<T, E>>,
+}
+
+impl<'a, T: ResourceData, E: ResourceLoadError> Deref for ResourceDataRef<'a, T, E> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        match *self.guard {
+            ResourceState::Pending { .. } => {
+                panic!("attempt to get reference to resource data while it is not loaded!")
+            }
+            ResourceState::LoadError { .. } => {
+                panic!("attempt to get reference to resource data which failed to load!")
+            }
+            ResourceState::Ok(ref data) => data,
+        }
+    }
+}
+
+impl<'a, T: ResourceData, E: ResourceLoadError> DerefMut for ResourceDataRef<'a, T, E> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        match *self.guard {
+            ResourceState::Pending { .. } => {
+                panic!("attempt to get reference to resource data while it is not loaded!")
+            }
+            ResourceState::LoadError { .. } => {
+                panic!("attempt to get reference to resource data which failed to load!")
+            }
+            ResourceState::Ok(ref mut data) => data,
+        }
+    }
+}
+
+impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
     /// Creates new resource with a given state.
     pub fn new(state: ResourceState<T, E>) -> Self {
         Self {
@@ -119,15 +158,30 @@ impl<T: ResourceData, E: 'static + Debug + Send> Resource<T, E> {
     pub fn key(&self) -> usize {
         (&**self.state.as_ref().unwrap() as *const _) as usize
     }
+
+    /// Allows you to obtain reference to the resource data.
+    ///
+    /// # Panic
+    ///
+    /// An attempt to use method result will panic if resource is not loaded yet, or
+    /// there was load error. Usually this is ok because normally you'd chain this call
+    /// like this `resource.await?.data_ref()`. Every resource implements Future trait
+    /// and it returns Result, so if you'll await future then you'll get Result, so
+    /// call to `data_ref` will be fine.  
+    pub fn data_ref(&self) -> ResourceDataRef<'_, T, E> {
+        ResourceDataRef {
+            guard: self.state(),
+        }
+    }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Default for Resource<T, E> {
+impl<T: ResourceData, E: ResourceLoadError> Default for Resource<T, E> {
     fn default() -> Self {
         Self { state: None }
     }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Clone for Resource<T, E> {
+impl<T: ResourceData, E: ResourceLoadError> Clone for Resource<T, E> {
     fn clone(&self) -> Self {
         Self {
             state: self.state.clone(),
@@ -135,7 +189,7 @@ impl<T: ResourceData, E: 'static + Debug + Send> Clone for Resource<T, E> {
     }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> From<Arc<Mutex<ResourceState<T, E>>>>
+impl<T: ResourceData, E: ResourceLoadError> From<Arc<Mutex<ResourceState<T, E>>>>
     for Resource<T, E>
 {
     fn from(state: Arc<Mutex<ResourceState<T, E>>>) -> Self {
@@ -143,7 +197,7 @@ impl<T: ResourceData, E: 'static + Debug + Send> From<Arc<Mutex<ResourceState<T,
     }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Into<Arc<Mutex<ResourceState<T, E>>>>
+impl<T: ResourceData, E: ResourceLoadError> Into<Arc<Mutex<ResourceState<T, E>>>>
     for Resource<T, E>
 {
     fn into(self) -> Arc<Mutex<ResourceState<T, E>>> {
@@ -151,8 +205,8 @@ impl<T: ResourceData, E: 'static + Debug + Send> Into<Arc<Mutex<ResourceState<T,
     }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Future for Resource<T, E> {
-    type Output = Self;
+impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
+    type Output = Result<Self, Arc<E>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = self.as_ref().state.clone();
@@ -168,7 +222,8 @@ impl<T: ResourceData, E: 'static + Debug + Send> Future for Resource<T, E> {
 
                 Poll::Pending
             }
-            ResourceState::LoadError { .. } | ResourceState::Ok(_) => Poll::Ready(self.clone()),
+            ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone().unwrap())),
+            ResourceState::Ok(_) => Poll::Ready(Ok(self.clone())),
         }
     }
 }
@@ -176,7 +231,7 @@ impl<T: ResourceData, E: 'static + Debug + Send> Future for Resource<T, E> {
 impl<T, E> Visit for Resource<T, E>
 where
     T: ResourceData,
-    E: 'static + Debug + Send,
+    E: ResourceLoadError,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
@@ -202,7 +257,7 @@ where
     }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> ResourceState<T, E> {
+impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
     fn id(&self) -> u32 {
         match self {
             Self::Pending { .. } => 0,
@@ -236,7 +291,7 @@ impl<T: ResourceData, E: 'static + Debug + Send> ResourceState<T, E> {
     }
 }
 
-impl<T: ResourceData, E: 'static + Debug + Send> Default for ResourceState<T, E> {
+impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
     fn default() -> Self {
         Self::Ok(Default::default())
     }

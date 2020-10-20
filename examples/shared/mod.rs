@@ -65,8 +65,7 @@ impl Game {
         // instead we telling engine to search textures in given folder.
         engine
             .resource_manager
-            .lock()
-            .unwrap()
+            .state()
             .set_textures_path("examples/data");
 
         // Set ambient light.
@@ -170,34 +169,35 @@ impl SceneLoadContext {
 }
 
 // Small helper function that loads animation from given file and retargets it to given model.
-pub fn load_animation<P: AsRef<Path>>(
+pub async fn load_animation<P: AsRef<Path>>(
     path: P,
     scene: &mut Scene,
     model: Handle<Node>,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
 ) -> Handle<Animation> {
     *resource_manager
         .request_model(path)
-        .unwrap()
-        .lock()
+        .await
         .unwrap()
         .retarget_animations(model, scene)
+        .await
+        .unwrap()
         .get(0)
         .unwrap()
 }
 
 // Small helper function that creates PlayAnimation machine node and creates
 // state from it.
-pub fn create_play_animation_state<P: AsRef<Path>>(
+pub async fn create_play_animation_state<P: AsRef<Path>>(
     path: P,
     name: &str,
     machine: &mut Machine,
     scene: &mut Scene,
     model: Handle<Node>,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
 ) -> (Handle<Animation>, Handle<State>) {
     // First of all load required animation and apply it on model.
-    let animation = load_animation(path, scene, model, resource_manager);
+    let animation = load_animation(path, scene, model, resource_manager).await;
 
     // Create PlayAnimation machine node. What is that "machine node"? First of all
     // animation blending machine is a graph, and it has two types of nodes:
@@ -236,10 +236,10 @@ impl LocomotionMachine {
 
     pub const JUMP_SIGNAL: u64 = 1;
 
-    pub fn new(
+    pub async fn new(
         scene: &mut Scene,
         model: Handle<Node>,
-        resource_manager: &mut ResourceManager,
+        resource_manager: ResourceManager,
     ) -> Self {
         let mut machine = Machine::new();
 
@@ -249,16 +249,18 @@ impl LocomotionMachine {
             &mut machine,
             scene,
             model,
-            resource_manager,
-        );
+            resource_manager.clone(),
+        )
+        .await;
         let (_, idle_state) = create_play_animation_state(
             "examples/data/idle.fbx",
             "Idle",
             &mut machine,
             scene,
             model,
-            resource_manager,
-        );
+            resource_manager.clone(),
+        )
+        .await;
 
         // Jump animation is a bit special - it must be non-looping.
         let (jump_animation, jump_state) = create_play_animation_state(
@@ -268,7 +270,8 @@ impl LocomotionMachine {
             scene,
             model,
             resource_manager,
-        );
+        )
+        .await;
         scene
             .animations
             .get_mut(jump_animation)
@@ -360,9 +363,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(
+    pub async fn new(
         scene: &mut Scene,
-        resource_manager: &mut ResourceManager,
+        resource_manager: ResourceManager,
         context: Arc<Mutex<SceneLoadContext>>,
     ) -> Self {
         // It is important to lock context for short period of time so other thread can
@@ -410,6 +413,7 @@ impl Player {
         // for all models instances, so memory footprint on GPU will be lower.
         let model_resource = resource_manager
             .request_model("examples/data/mutant.FBX")
+            .await
             .unwrap();
 
         context
@@ -419,7 +423,7 @@ impl Player {
 
         // Instantiate model on scene - but only geometry, without any animations.
         // Instantiation is a process of embedding model resource data in desired scene.
-        let model_handle = model_resource.lock().unwrap().instantiate_geometry(scene);
+        let model_handle = model_resource.instantiate_geometry(scene).await.unwrap();
 
         let body_height = 1.2;
 
@@ -446,7 +450,8 @@ impl Player {
             .unwrap()
             .report_progress(0.80, "Creating machine...");
 
-        let locomotion_machine = LocomotionMachine::new(scene, model_handle, resource_manager);
+        let locomotion_machine =
+            LocomotionMachine::new(scene, model_handle, resource_manager).await;
 
         Self {
             body,
@@ -635,9 +640,7 @@ impl Player {
     }
 }
 
-pub fn create_scene_async(
-    resource_manager: Arc<Mutex<ResourceManager>>,
-) -> Arc<Mutex<SceneLoadContext>> {
+pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadContext>> {
     // Create load context - it will be shared with caller and loader threads.
     let context = Arc::new(Mutex::new(SceneLoadContext {
         scene_data: None,
@@ -648,44 +651,45 @@ pub fn create_scene_async(
 
     // Spawn separate thread which will create scene by loading various assets.
     std::thread::spawn(move || {
-        let mut scene = Scene::new();
+        futures::executor::block_on(async move {
+            let mut scene = Scene::new();
 
-        let mut resource_manager = resource_manager.lock().unwrap();
+            context
+                .lock()
+                .unwrap()
+                .report_progress(0.25, "Loading map...");
 
-        context
-            .lock()
-            .unwrap()
-            .report_progress(0.25, "Loading map...");
+            // Load simple map.
+            resource_manager
+                .request_model("examples/data/Sponza.fbx")
+                .await
+                .unwrap()
+                .instantiate_geometry(&mut scene)
+                .await
+                .unwrap();
 
-        // Load simple map.
-        resource_manager
-            .request_model("examples/data/Sponza.fbx")
-            .unwrap()
-            .lock()
-            .unwrap()
-            .instantiate_geometry(&mut scene);
+            // And create collision mesh so our character won't fall thru ground.
+            let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
+            let collision_mesh = scene.graph[collision_mesh_handle].as_mesh_mut();
+            collision_mesh.set_visibility(false);
+            // Create collision geometry from special mesh on the level. Make sure its triangles won't be
+            // serialized by passing false as last argument.
+            let static_geometry = mesh_to_static_geometry(collision_mesh, false);
+            let static_geometry_handle = scene.physics.add_static_geometry(static_geometry);
+            // Link static geometry with collision mesh so geometry of static geometry will be taken from
+            // specified mesh on deserialization. This is very important to not save redundant info to save
+            // files and keep them as small as possible.
+            scene
+                .static_geometry_binder
+                .bind(static_geometry_handle, collision_mesh_handle);
 
-        // And create collision mesh so our character won't fall thru ground.
-        let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
-        let collision_mesh = scene.graph[collision_mesh_handle].as_mesh_mut();
-        collision_mesh.set_visibility(false);
-        // Create collision geometry from special mesh on the level. Make sure its triangles won't be
-        // serialized by passing false as last argument.
-        let static_geometry = mesh_to_static_geometry(collision_mesh, false);
-        let static_geometry_handle = scene.physics.add_static_geometry(static_geometry);
-        // Link static geometry with collision mesh so geometry of static geometry will be taken from
-        // specified mesh on deserialization. This is very important to not save redundant info to save
-        // files and keep them as small as possible.
-        scene
-            .static_geometry_binder
-            .bind(static_geometry_handle, collision_mesh_handle);
+            // Finally create player.
+            let player = Player::new(&mut scene, resource_manager, context.clone()).await;
 
-        // Finally create player.
-        let player = Player::new(&mut scene, &mut resource_manager, context.clone());
+            context.lock().unwrap().report_progress(1.0, "Done");
 
-        context.lock().unwrap().report_progress(1.0, "Done");
-
-        context.lock().unwrap().scene_data = Some(SceneLoadResult { scene, player })
+            context.lock().unwrap().scene_data = Some(SceneLoadResult { scene, player });
+        })
     });
 
     // Immediately return shared context.

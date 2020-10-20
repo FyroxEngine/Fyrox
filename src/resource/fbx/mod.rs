@@ -209,7 +209,7 @@ fn create_surfaces(
     fbx_scene: &FbxScene,
     data_set: Vec<SurfaceData>,
     mesh: &mut Mesh,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
     model: &FbxModel,
 ) -> Result<(), FbxError> {
     // Create surfaces per material
@@ -235,7 +235,7 @@ fn create_surfaces(
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
-                    let diffuse_path = resource_manager.textures_path().join(&filename);
+                    let diffuse_path = resource_manager.state().textures_path().join(&filename);
                     let texture = resource_manager.request_texture(diffuse_path.as_path());
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
@@ -255,7 +255,7 @@ fn create_surfaces(
 
 fn convert_mesh(
     fbx_scene: &FbxScene,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
     model: &FbxModel,
 ) -> Result<Mesh, FbxError> {
     let mut mesh = Mesh::default();
@@ -322,7 +322,13 @@ fn convert_mesh(
             }
         }
 
-        create_surfaces(fbx_scene, data_set, &mut mesh, resource_manager, model)?;
+        create_surfaces(
+            fbx_scene,
+            data_set,
+            &mut mesh,
+            resource_manager.clone(),
+            model,
+        )?;
 
         if geom.tangents.is_none() {
             for surface in mesh.surfaces_mut() {
@@ -337,7 +343,7 @@ fn convert_mesh(
 fn convert_model(
     fbx_scene: &FbxScene,
     model: &FbxModel,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
     graph: &mut Graph,
     animations: &mut AnimationContainer,
     animation_handle: Handle<Animation>,
@@ -444,7 +450,7 @@ fn convert_model(
 ///
 fn convert(
     fbx_scene: &FbxScene,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
     scene: &mut Scene,
 ) -> Result<Handle<Node>, FbxError> {
     let root = scene.graph.add_node(Node::Base(Base::default()));
@@ -455,7 +461,7 @@ fn convert(
             let node = convert_model(
                 fbx_scene,
                 model,
-                resource_manager,
+                resource_manager.clone(),
                 &mut scene.graph,
                 &mut scene.animations,
                 animation_handle,
@@ -525,7 +531,7 @@ fn convert(
 /// Normally you should never use this method, use resource manager to load models.
 pub fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
-    resource_manager: &mut ResourceManager,
+    resource_manager: ResourceManager,
     path: P,
 ) -> Result<Handle<Node>, FbxError> {
     let start_time = Instant::now();

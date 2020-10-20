@@ -117,9 +117,7 @@ impl SceneLoadContext {
     }
 }
 
-fn create_scene_async(
-    resource_manager: Arc<Mutex<ResourceManager>>,
-) -> Arc<Mutex<SceneLoadContext>> {
+fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadContext>> {
     // Create load context - it will be shared with caller and loader threads.
     let context = Arc::new(Mutex::new(SceneLoadContext {
         data: None,

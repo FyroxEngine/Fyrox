@@ -8,7 +8,6 @@ extern crate lexical;
 #[macro_use]
 extern crate lazy_static;
 
-extern crate futures;
 #[cfg(test)]
 extern crate imageproc;
 
@@ -22,6 +21,7 @@ pub mod utils;
 pub use glutin::*;
 pub use rand;
 
+pub use futures;
 pub use rg3d_core as core;
 pub use rg3d_physics as physics;
 pub use rg3d_sound as sound;

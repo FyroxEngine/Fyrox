@@ -15,7 +15,6 @@ use crate::{
     resource::model::Model,
     scene::{node::Node, transform::Transform},
 };
-use std::sync::{Arc, Mutex};
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -128,7 +127,7 @@ pub struct Base {
     pub(in crate) inv_bind_pose_transform: Mat4,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
-    pub(in crate) resource: Option<Arc<Mutex<Model>>>,
+    pub(in crate) resource: Option<Model>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
     pub(in crate) original: Handle<Node>,
@@ -224,7 +223,7 @@ impl Base {
     }
 
     /// Returns resource from which this node was instantiated from.
-    pub fn resource(&self) -> Option<Arc<Mutex<Model>>> {
+    pub fn resource(&self) -> Option<Model> {
         self.resource.clone()
     }
 

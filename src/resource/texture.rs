@@ -16,6 +16,7 @@
 //! will automatically provide you info about metrics of texture, but it won't give you
 //! access to pixels of render target.
 
+use crate::resource::ResourceLoadError;
 use crate::{
     core::visitor::{Visit, VisitError, VisitResult, Visitor},
     resource::{Resource, ResourceData, ResourceState},
@@ -88,6 +89,8 @@ pub type Texture = Resource<TextureData, ImageError>;
 
 /// Texture state alias.
 pub type TextureState = ResourceState<TextureData, ImageError>;
+
+impl ResourceLoadError for ImageError {}
 
 impl Texture {
     /// Creates new render target for a scene. This method automatically configures GPU texture

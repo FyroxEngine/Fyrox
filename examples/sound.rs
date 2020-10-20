@@ -20,7 +20,7 @@ use rg3d::{
     rand::Rng,
     renderer::QualitySettings,
     sound::{
-        effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
+        effects::{BaseEffect, EffectInput},
         source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
     },
     utils::translate_event,
@@ -172,8 +172,6 @@ fn main() {
                                 game
                                     .engine
                                     .resource_manager
-                                    .lock()
-                                    .unwrap()
                                     .request_sound_buffer(
                                         // Request random sound everytime.
                                         footsteps[rg3d::rand::thread_rng().gen_range(0,footsteps.len())],

@@ -3,7 +3,7 @@
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
-        model::Model,
+        model::{Model, ModelData},
         texture::{Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter},
         ResourceState,
     },
@@ -13,9 +13,12 @@ use crate::{
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
     time,
 };
+
+/// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
+pub const MAX_RESOURCE_TTL: f32 = 20.0;
 
 /// Resource container with fixed TTL (time-to-live). Resource will be removed
 /// (and unloaded) if there were no other strong references to it in given time
@@ -48,7 +51,7 @@ where
     fn default() -> Self {
         Self {
             value: Default::default(),
-            time_to_live: ResourceManager::MAX_RESOURCE_TTL,
+            time_to_live: MAX_RESOURCE_TTL,
         }
     }
 }
@@ -79,20 +82,35 @@ where
     }
 }
 
-/// Type alias for Arc<Mutex<Model>> to make code less noisy.
-pub type SharedModel = Arc<Mutex<Model>>;
 /// Type alias for Arc<Mutex<SoundBuffer>> to make code less noisy.
 pub type SharedSoundBuffer = Arc<Mutex<SoundBuffer>>;
 
 /// See module docs.
-pub struct ResourceManager {
+#[derive(Default)]
+pub struct ResourceManagerState {
     textures: Vec<TimedEntry<Texture>>,
-    models: Vec<TimedEntry<SharedModel>>,
+    models: Vec<TimedEntry<Model>>,
     sound_buffers: Vec<TimedEntry<SharedSoundBuffer>>,
     /// Path to textures, extensively used for resource files which stores path in weird
     /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
     textures_import_options: TextureImportOptions,
+}
+
+/// See module docs.
+#[derive(Clone)]
+pub struct ResourceManager {
+    state: Option<Arc<Mutex<ResourceManagerState>>>,
+}
+
+impl Visit for ResourceManager {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.state.visit("State", visitor)?;
+
+        visitor.leave_region()
+    }
 }
 
 /// Allows you to define a set of defaults for every imported texture.
@@ -143,23 +161,15 @@ impl TextureImportOptions {
 }
 
 impl ResourceManager {
-    /// Lifetime of orphaned resource in seconds (with only one strong ref which is resource manager itself)
-    pub const MAX_RESOURCE_TTL: f32 = 20.0;
-
-    pub(in crate::engine) fn new() -> Self {
+    pub(in crate) fn new() -> Self {
         Self {
-            textures: Vec::new(),
-            models: Vec::new(),
-            sound_buffers: Vec::new(),
-            textures_path: PathBuf::from("data/textures/"),
-            textures_import_options: Default::default(),
+            state: Some(Arc::new(Mutex::new(ResourceManagerState::new()))),
         }
     }
 
-    /// Sets new import options for textures. Previously loaded textures won't be affected by the
-    /// new settings.
-    pub fn set_textures_import_options(&mut self, options: TextureImportOptions) {
-        self.textures_import_options = options;
+    /// Returns a guarded reference to internal state of resource manager.
+    pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
+        self.state.as_ref().unwrap().lock().unwrap()
     }
 
     /// Tries to load texture from given path or get instance of existing, if any. This method is asynchronous,
@@ -181,8 +191,10 @@ impl ResourceManager {
     ///
     /// To load images and decode them, rg3d uses image create which supports following image
     /// formats: png, tga, bmp, dds, jpg, gif, tiff, dxt.
-    pub fn request_texture<P: AsRef<Path>>(&mut self, path: P) -> Texture {
-        if let Some(texture) = self.find_texture(path.as_ref()) {
+    pub fn request_texture<P: AsRef<Path>>(&self, path: P) -> Texture {
+        let mut state = self.state();
+
+        if let Some(texture) = state.find_texture(path.as_ref()) {
             return texture;
         }
 
@@ -190,12 +202,12 @@ impl ResourceManager {
             path: path.as_ref().to_owned(),
             wakers: Default::default(),
         });
-        self.textures.push(TimedEntry {
+        state.textures.push(TimedEntry {
             value: texture.clone(),
-            time_to_live: Self::MAX_RESOURCE_TTL,
+            time_to_live: MAX_RESOURCE_TTL,
         });
         let result = texture.clone();
-        let options = self.textures_import_options.clone();
+        let options = state.textures_import_options.clone();
 
         let path = PathBuf::from(path.as_ref());
 
@@ -244,7 +256,7 @@ impl ResourceManager {
 
                     *state = ResourceState::LoadError {
                         path,
-                        error: Some(error),
+                        error: Some(Arc::new(error)),
                     };
 
                     for waker in wakers {
@@ -265,31 +277,70 @@ impl ResourceManager {
     ///
     /// Currently only FBX (common format in game industry for storing complex 3d models)
     /// and RGS (native rusty-editor format) formats are supported.
-    pub fn request_model<P: AsRef<Path>>(&mut self, path: P) -> Option<SharedModel> {
-        if let Some(model) = self.find_model(path.as_ref()) {
-            return Some(model);
+    pub fn request_model<P: AsRef<Path>>(&self, path: P) -> Model {
+        let mut state = self.state();
+
+        if let Some(model) = state.find_model(path.as_ref()) {
+            return model;
         }
 
-        match Model::load(path.as_ref(), self) {
-            Ok(model) => {
-                let model = Arc::new(Mutex::new(model));
-                model.lock().unwrap().self_weak_ref = Some(Arc::downgrade(&model));
-                self.models.push(TimedEntry {
-                    value: model.clone(),
-                    time_to_live: Self::MAX_RESOURCE_TTL,
-                });
-                Log::writeln(format!("Model {} is loaded!", path.as_ref().display()));
-                Some(model)
+        let model = Model::new(ResourceState::Pending {
+            path: path.as_ref().to_owned(),
+            wakers: Default::default(),
+        });
+        state.models.push(TimedEntry {
+            value: model.clone(),
+            time_to_live: MAX_RESOURCE_TTL,
+        });
+        let result = model.clone();
+        let path = PathBuf::from(path.as_ref());
+
+        let resource_manager = self.clone();
+        // TODO: Replace with worker threads.
+        std::thread::spawn(move || match ModelData::load(&path, resource_manager) {
+            Ok(raw_model) => {
+                let mut state = model.state();
+
+                let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
+                    std::mem::take(wakers)
+                } else {
+                    unreachable!()
+                };
+
+                *state = ResourceState::Ok(raw_model);
+
+                Log::writeln(format!("Model {:?} is loaded!", path));
+
+                for waker in wakers {
+                    waker.wake();
+                }
             }
-            Err(e) => {
+            Err(error) => {
+                let mut state = model.state();
+
+                let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
+                    std::mem::take(wakers)
+                } else {
+                    unreachable!()
+                };
+
                 Log::writeln(format!(
                     "Unable to load model from {:?}! Reason {:?}",
-                    path.as_ref(),
-                    e
+                    path, error
                 ));
-                None
+
+                *state = ResourceState::LoadError {
+                    path,
+                    error: Some(Arc::new(error)),
+                };
+
+                for waker in wakers {
+                    waker.wake();
+                }
             }
-        }
+        });
+
+        result
     }
 
     /// Tries to load new sound buffer from given path or get instance of existing, if any.
@@ -300,11 +351,13 @@ impl ResourceManager {
     ///
     /// Currently only WAV (uncompressed) and OGG are supported.
     pub fn request_sound_buffer<P: AsRef<Path>>(
-        &mut self,
+        &self,
         path: P,
         stream: bool,
     ) -> Option<SharedSoundBuffer> {
-        if let Some(sound_buffer) = self.find_sound_buffer(path.as_ref()) {
+        let mut state = self.state();
+
+        if let Some(sound_buffer) = state.find_sound_buffer(path.as_ref()) {
             return Some(sound_buffer);
         }
 
@@ -317,9 +370,9 @@ impl ResourceManager {
                 };
                 match buffer {
                     Ok(sound_buffer) => {
-                        self.sound_buffers.push(TimedEntry {
+                        state.sound_buffers.push(TimedEntry {
                             value: sound_buffer.clone(),
-                            time_to_live: Self::MAX_RESOURCE_TTL,
+                            time_to_live: MAX_RESOURCE_TTL,
                         });
                         Log::writeln(format!(
                             "Sound buffer {} is loaded!",
@@ -343,6 +396,111 @@ impl ResourceManager {
         }
     }
 
+    /// Reloads every loaded texture. This method is **blocking**.
+    ///
+    /// TODO: Make this async.
+    pub fn reload_textures(&self) {
+        let textures = self.state().textures.to_vec();
+        for old_texture in textures {
+            let mut old_texture_state = old_texture.state();
+            let details = match TextureData::load_from_file(old_texture_state.path()) {
+                Ok(texture) => {
+                    Log::writeln(format!(
+                        "Texture {:?} successfully reloaded!",
+                        old_texture_state.path(),
+                    ));
+
+                    texture
+                }
+                Err(e) => {
+                    Log::writeln(format!(
+                        "Unable to reload {:?} texture! Reason: {}",
+                        old_texture_state.path(),
+                        e
+                    ));
+                    continue;
+                }
+            };
+            *old_texture_state = ResourceState::Ok(details);
+        }
+    }
+
+    /// Reloads every loaded model. This method is **blocking**.
+    ///
+    /// TODO: Make this async.
+    pub fn reload_models(&self) {
+        let models = self.state().models.to_vec();
+        for old_model in models {
+            let mut old_model = old_model.state();
+            let new_model = match ModelData::load(old_model.path(), self.clone()) {
+                Ok(new_model) => new_model,
+                Err(e) => {
+                    Log::writeln(format!(
+                        "Unable to reload {:?} model! Reason: {:?}",
+                        old_model.path(),
+                        e
+                    ));
+                    continue;
+                }
+            };
+            *old_model = ResourceState::Ok(new_model);
+        }
+    }
+
+    /// Reloads every loaded sound buffer. This method is **blocking**.
+    ///
+    /// TODO: Make this async.
+    pub fn reload_sound_buffers(&self) {
+        let sound_buffers = self.state().sound_buffers.to_vec();
+        for old_sound_buffer in sound_buffers {
+            let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
+            if let Some(ext_path) = old_sound_buffer.external_data_path() {
+                if let Ok(data_source) = DataSource::from_file(ext_path.as_path()) {
+                    let new_sound_buffer = match *old_sound_buffer {
+                        SoundBuffer::Generic(_) => SoundBuffer::raw_generic(data_source),
+                        SoundBuffer::Streaming(_) => SoundBuffer::raw_streaming(data_source),
+                    };
+                    let new_sound_buffer = match new_sound_buffer {
+                        Ok(new_sound_buffer) => new_sound_buffer,
+                        Err(_) => {
+                            Log::writeln(format!("Unable to reload {:?} sound buffer!", ext_path));
+                            continue;
+                        }
+                    };
+                    *old_sound_buffer = new_sound_buffer;
+                }
+            }
+        }
+    }
+
+    /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
+    /// method! This method is **blocking**.
+    ///
+    /// TODO: Make this async.
+    pub fn reload_resources(&self) {
+        self.reload_textures();
+        self.reload_models();
+        self.reload_sound_buffers();
+    }
+}
+
+impl ResourceManagerState {
+    pub(in crate::engine) fn new() -> Self {
+        Self {
+            textures: Vec::new(),
+            models: Vec::new(),
+            sound_buffers: Vec::new(),
+            textures_path: PathBuf::from("data/textures/"),
+            textures_import_options: Default::default(),
+        }
+    }
+
+    /// Sets new import options for textures. Previously loaded textures won't be affected by the
+    /// new settings.
+    pub fn set_textures_import_options(&mut self, options: TextureImportOptions) {
+        self.textures_import_options = options;
+    }
+
     /// Returns shared reference to list of available textures.
     #[inline]
     pub fn textures(&self) -> &[TimedEntry<Texture>] {
@@ -361,14 +519,14 @@ impl ResourceManager {
 
     /// Returns shared reference to list of available models.
     #[inline]
-    pub fn models(&self) -> &[TimedEntry<SharedModel>] {
+    pub fn models(&self) -> &[TimedEntry<Model>] {
         &self.models
     }
 
     /// Tries to find model by its path. Returns None if no such model was found.
-    pub fn find_model<P: AsRef<Path>>(&self, path: P) -> Option<SharedModel> {
+    pub fn find_model<P: AsRef<Path>>(&self, path: P) -> Option<Model> {
         for model in self.models.iter() {
-            if model.lock().unwrap().path.as_path() == path.as_ref() {
+            if model.state().path() == path.as_ref() {
                 return Some(model.value.clone());
             }
         }
@@ -414,8 +572,7 @@ impl ResourceManager {
     pub fn purge_unused_resources(&mut self) {
         self.sound_buffers
             .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
-        self.models
-            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+        self.models.retain(|buffer| buffer.value.use_count() > 1);
         self.textures.retain(|buffer| buffer.value.use_count() > 1);
     }
 
@@ -429,7 +586,7 @@ impl ResourceManager {
             if ok {
                 texture.time_to_live -= dt;
                 if texture.use_count() > 1 {
-                    texture.time_to_live = Self::MAX_RESOURCE_TTL;
+                    texture.time_to_live = MAX_RESOURCE_TTL;
                 }
             }
         }
@@ -448,16 +605,16 @@ impl ResourceManager {
     fn update_model(&mut self, dt: f32) {
         for model in self.models.iter_mut() {
             model.time_to_live -= dt;
-            if Arc::strong_count(model) > 1 {
-                model.time_to_live = Self::MAX_RESOURCE_TTL;
+            if model.use_count() > 1 {
+                model.time_to_live = MAX_RESOURCE_TTL;
             }
         }
         self.models.retain(|model| {
             let retain = model.time_to_live > 0.0;
-            if !retain && model.lock().unwrap().path.exists() {
+            if !retain && model.state().path().exists() {
                 Log::writeln(format!(
                     "Model resource {:?} destroyed because it not used anymore!",
-                    model.lock().unwrap().path.exists()
+                    model.state().path()
                 ));
             }
             retain
@@ -468,7 +625,7 @@ impl ResourceManager {
         for buffer in self.sound_buffers.iter_mut() {
             buffer.time_to_live -= dt;
             if Arc::strong_count(buffer) > 1 {
-                buffer.time_to_live = Self::MAX_RESOURCE_TTL;
+                buffer.time_to_live = MAX_RESOURCE_TTL;
             }
         }
         self.sound_buffers.retain(|buffer| {
@@ -490,85 +647,20 @@ impl ResourceManager {
         self.update_model(dt);
         self.update_sound_buffers(dt);
     }
-
-    fn reload_textures(&mut self) {
-        for old_texture in self.textures.iter() {
-            let mut old_texture_state = old_texture.state();
-            let details = match TextureData::load_from_file(old_texture_state.path()) {
-                Ok(texture) => texture,
-                Err(e) => {
-                    Log::writeln(format!(
-                        "Unable to reload {:?} texture! Reason: {}",
-                        old_texture_state.path(),
-                        e
-                    ));
-                    continue;
-                }
-            };
-            //old_texture.path = Default::default();
-            *old_texture_state = ResourceState::Ok(details);
-        }
-    }
-
-    fn reload_models(&mut self) {
-        for old_model in self.models().to_vec() {
-            let old_model_arc = old_model.clone();
-            let mut old_model = old_model.lock().unwrap();
-            let mut new_model = match Model::load(old_model.path.as_path(), self) {
-                Ok(new_model) => new_model,
-                Err(e) => {
-                    Log::writeln(format!(
-                        "Unable to reload {:?} model! Reason: {:?}",
-                        old_model.path, e
-                    ));
-                    continue;
-                }
-            };
-            new_model.self_weak_ref = Some(Arc::downgrade(&old_model_arc));
-            old_model.path = Default::default();
-            *old_model = new_model;
-        }
-    }
-
-    fn reload_sound_buffers(&mut self) {
-        for old_sound_buffer in self.sound_buffers() {
-            let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
-            if let Some(ext_path) = old_sound_buffer.external_data_path() {
-                if let Ok(data_source) = DataSource::from_file(ext_path.as_path()) {
-                    let new_sound_buffer = match *old_sound_buffer {
-                        SoundBuffer::Generic(_) => SoundBuffer::raw_generic(data_source),
-                        SoundBuffer::Streaming(_) => SoundBuffer::raw_streaming(data_source),
-                    };
-                    let new_sound_buffer = match new_sound_buffer {
-                        Ok(new_sound_buffer) => new_sound_buffer,
-                        Err(_) => {
-                            Log::writeln(format!("Unable to reload {:?} sound buffer!", ext_path));
-                            continue;
-                        }
-                    };
-                    *old_sound_buffer = new_sound_buffer;
-                }
-            }
-        }
-    }
-
-    /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
-    /// method!
-    pub fn reload_resources(&mut self) {
-        self.reload_textures();
-        self.reload_models();
-        self.reload_sound_buffers();
-    }
 }
 
-impl Visit for ResourceManager {
+impl Visit for ResourceManagerState {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        for texture in self.textures.iter() {
-            futures::executor::block_on(texture.value.clone());
-        }
+        futures::executor::block_on(futures::future::join_all(
+            self.textures.iter().map(|t| t.value.clone()),
+        ));
+        futures::executor::block_on(futures::future::join_all(
+            self.models.iter().map(|m| m.value.clone()),
+        ));
 
+        self.textures_path.visit("TexturesPath", visitor)?;
         self.textures.visit("Textures", visitor)?;
         self.models.visit("Models", visitor)?;
         self.sound_buffers.visit("SoundBuffers", visitor)?;

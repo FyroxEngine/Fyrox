@@ -30,10 +30,7 @@ use rg3d::{
     },
     utils::translate_event,
 };
-use std::{
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::time::Instant;
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -51,10 +48,8 @@ struct GameScene {
     model_handle: Handle<Node>,
 }
 
-fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
+async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
-
-    let mut resource_manager = resource_manager.lock().unwrap();
 
     // Camera is our eyes in the world - you won't see anything without it.
     let camera = CameraBuilder::new(
@@ -79,14 +74,15 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     // for all models instances, so memory footprint on GPU will be lower.
     let model_resource = resource_manager
         .request_model("examples/data/train.FBX")
+        .await
         .unwrap();
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
     let model_handle = model_resource
-        .lock()
-        .unwrap()
-        .instantiate_geometry(&mut scene);
+        .instantiate_geometry(&mut scene)
+        .await
+        .unwrap();
 
     // To enable level of detail we have to add lod group to model root, lod group
     // defines which parts of model should be visible at various distances.
@@ -144,8 +140,7 @@ fn main() {
     // instead we telling engine to search textures in given folder.
     engine
         .resource_manager
-        .lock()
-        .unwrap()
+        .state()
         .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
@@ -156,7 +151,7 @@ fn main() {
         scene,
         model_handle,
         camera,
-    } = create_scene(engine.resource_manager.clone());
+    } = rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some

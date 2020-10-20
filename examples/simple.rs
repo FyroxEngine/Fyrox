@@ -44,7 +44,7 @@ struct GameScene {
     walk_animation: Handle<Animation>,
 }
 
-fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
+fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     let mut resource_manager = resource_manager.lock().unwrap();
