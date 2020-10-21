@@ -28,7 +28,7 @@ byteorder = "1.3.4"
 inflate = "0.4.5"
 rand = "0.7.3"
 lazy_static = "1.4.0"
-futures = "0.3.6"
+futures = {version = "0.3.6", features = ["thread-pool"] }
 
 [dev-dependencies]
 imageproc = "0.21.0"

@@ -258,6 +258,13 @@ where
 }
 
 impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
+    pub(in crate) fn new_pending(path: PathBuf) -> Self {
+        Self::Pending {
+            path,
+            wakers: Default::default(),
+        }
+    }
+
     fn id(&self) -> u32 {
         match self {
             Self::Pending { .. } => 0,
@@ -287,6 +294,22 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
             Self::Pending { path, .. } => path,
             Self::LoadError { path, .. } => path,
             Self::Ok(details) => details.path(),
+        }
+    }
+
+    /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
+    /// Additionally it wakes all futures.
+    pub fn commit(&mut self, state: ResourceState<T, E>) {
+        let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
+            std::mem::take(wakers)
+        } else {
+            unreachable!()
+        };
+
+        *self = state;
+
+        for waker in wakers {
+            waker.wake();
         }
     }
 }

@@ -10,6 +10,7 @@ use crate::{
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
 };
+use futures::executor::ThreadPool;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -86,7 +87,6 @@ where
 pub type SharedSoundBuffer = Arc<Mutex<SoundBuffer>>;
 
 /// See module docs.
-#[derive(Default)]
 pub struct ResourceManagerState {
     textures: Vec<TimedEntry<Texture>>,
     models: Vec<TimedEntry<Model>>,
@@ -95,6 +95,20 @@ pub struct ResourceManagerState {
     /// format (either relative or absolute) which is obviously not good for engine.
     textures_path: PathBuf,
     textures_import_options: TextureImportOptions,
+    thread_pool: ThreadPool,
+}
+
+impl Default for ResourceManagerState {
+    fn default() -> Self {
+        Self {
+            textures: Default::default(),
+            models: Default::default(),
+            sound_buffers: Default::default(),
+            textures_path: Default::default(),
+            textures_import_options: Default::default(),
+            thread_pool: ThreadPool::new().unwrap(),
+        }
+    }
 }
 
 /// See module docs.
@@ -198,10 +212,7 @@ impl ResourceManager {
             return texture;
         }
 
-        let texture = Texture::new(ResourceState::Pending {
-            path: path.as_ref().to_owned(),
-            wakers: Default::default(),
-        });
+        let texture = Texture::new(ResourceState::new_pending(path.as_ref().to_owned()));
         state.textures.push(TimedEntry {
             value: texture.clone(),
             time_to_live: MAX_RESOURCE_TTL,
@@ -209,59 +220,34 @@ impl ResourceManager {
         let result = texture.clone();
         let options = state.textures_import_options.clone();
 
-        let path = PathBuf::from(path.as_ref());
+        let path = path.as_ref().to_owned();
 
-        // TODO: Replace with worker threads.
-        std::thread::spawn(move || {
+        state.thread_pool.spawn_ok(async move {
             let time = time::Instant::now();
             match TextureData::load_from_file(&path) {
                 Ok(mut raw_texture) => {
-                    raw_texture.set_magnification_filter(options.magnification_filter);
-                    raw_texture.set_minification_filter(options.minification_filter);
-                    raw_texture.set_anisotropy_level(options.anisotropy);
-
-                    let mut state = texture.state();
-
-                    let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
-                        std::mem::take(wakers)
-                    } else {
-                        unreachable!()
-                    };
-
-                    *state = ResourceState::Ok(raw_texture);
-
                     Log::writeln(format!(
                         "Texture {:?} is loaded in {:?}!",
                         path,
                         time.elapsed()
                     ));
 
-                    for waker in wakers {
-                        waker.wake();
-                    }
+                    raw_texture.set_magnification_filter(options.magnification_filter);
+                    raw_texture.set_minification_filter(options.minification_filter);
+                    raw_texture.set_anisotropy_level(options.anisotropy);
+
+                    texture.state().commit(ResourceState::Ok(raw_texture));
                 }
                 Err(error) => {
-                    let mut state = texture.state();
-
-                    let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
-                        std::mem::take(wakers)
-                    } else {
-                        unreachable!()
-                    };
-
                     Log::writeln(format!(
                         "Unable to load texture {:?}! Reason {}",
                         &path, &error
                     ));
 
-                    *state = ResourceState::LoadError {
+                    texture.state().commit(ResourceState::LoadError {
                         path,
                         error: Some(Arc::new(error)),
-                    };
-
-                    for waker in wakers {
-                        waker.wake();
-                    }
+                    });
                 }
             }
         });
@@ -295,58 +281,33 @@ impl ResourceManager {
             return model;
         }
 
-        let model = Model::new(ResourceState::Pending {
-            path: path.as_ref().to_owned(),
-            wakers: Default::default(),
-        });
+        let model = Model::new(ResourceState::new_pending(path.as_ref().to_owned()));
         state.models.push(TimedEntry {
             value: model.clone(),
             time_to_live: MAX_RESOURCE_TTL,
         });
         let result = model.clone();
-        let path = PathBuf::from(path.as_ref());
+        let path = path.as_ref().to_owned();
 
         let resource_manager = self.clone();
-        // TODO: Replace with worker threads.
-        std::thread::spawn(move || match ModelData::load(&path, resource_manager) {
-            Ok(raw_model) => {
-                let mut state = model.state();
 
-                let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
-                    std::mem::take(wakers)
-                } else {
-                    unreachable!()
-                };
+        state.thread_pool.spawn_ok(async move {
+            match ModelData::load(&path, resource_manager) {
+                Ok(raw_model) => {
+                    Log::writeln(format!("Model {:?} is loaded!", path));
 
-                *state = ResourceState::Ok(raw_model);
-
-                Log::writeln(format!("Model {:?} is loaded!", path));
-
-                for waker in wakers {
-                    waker.wake();
+                    model.state().commit(ResourceState::Ok(raw_model));
                 }
-            }
-            Err(error) => {
-                let mut state = model.state();
+                Err(error) => {
+                    Log::writeln(format!(
+                        "Unable to load model from {:?}! Reason {:?}",
+                        path, error
+                    ));
 
-                let wakers = if let ResourceState::Pending { ref mut wakers, .. } = *state {
-                    std::mem::take(wakers)
-                } else {
-                    unreachable!()
-                };
-
-                Log::writeln(format!(
-                    "Unable to load model from {:?}! Reason {:?}",
-                    path, error
-                ));
-
-                *state = ResourceState::LoadError {
-                    path,
-                    error: Some(Arc::new(error)),
-                };
-
-                for waker in wakers {
-                    waker.wake();
+                    model.state().commit(ResourceState::LoadError {
+                        path,
+                        error: Some(Arc::new(error)),
+                    });
                 }
             }
         });
@@ -503,6 +464,7 @@ impl ResourceManagerState {
             sound_buffers: Vec::new(),
             textures_path: PathBuf::from("data/textures/"),
             textures_import_options: Default::default(),
+            thread_pool: ThreadPool::new().unwrap(),
         }
     }
 
