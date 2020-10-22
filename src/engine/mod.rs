@@ -157,7 +157,7 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
         self.sound_context.lock()?.visit("SoundContext", visitor)?;
 
         if visitor.is_reading() {
-            self.resource_manager.reload_resources();
+            futures::executor::block_on(self.resource_manager.reload_resources());
             for scene in self.scenes.iter_mut() {
                 scene.resolve();
             }

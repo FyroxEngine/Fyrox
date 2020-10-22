@@ -263,7 +263,7 @@ impl ResourceManager {
     ///
     /// # Async/.await
     ///
-    /// Each Texture implements Future trait and can be used in async contexts.
+    /// Each model implements Future trait and can be used in async contexts.
     ///
     /// # Performance
     ///
@@ -322,6 +322,8 @@ impl ResourceManager {
     /// # Supported formats
     ///
     /// Currently only WAV (uncompressed) and OGG are supported.
+    ///
+    /// TODO: Make this asynchronous.
     pub fn request_sound_buffer<P: AsRef<Path>>(
         &self,
         path: P,
@@ -368,54 +370,104 @@ impl ResourceManager {
         }
     }
 
-    /// Reloads every loaded texture. This method is **blocking**.
-    ///
-    /// TODO: Make this async.
-    pub fn reload_textures(&self) {
-        let textures = self.state().textures.to_vec();
-        for old_texture in textures {
-            let mut old_texture_state = old_texture.state();
-            let details = match TextureData::load_from_file(old_texture_state.path()) {
-                Ok(texture) => {
-                    Log::writeln(format!(
-                        "Texture {:?} successfully reloaded!",
-                        old_texture_state.path(),
-                    ));
+    /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
+    /// to run reload on separate thread per texture.
+    pub async fn reload_textures(&self) {
+        // Separate block to release lock on state before await.
+        let textures = {
+            let state = self.state();
 
-                    texture
-                }
-                Err(e) => {
-                    Log::writeln(format!(
-                        "Unable to reload {:?} texture! Reason: {}",
-                        old_texture_state.path(),
-                        e
-                    ));
-                    continue;
-                }
-            };
-            *old_texture_state = ResourceState::Ok(details);
+            let textures = state
+                .textures
+                .iter()
+                .map(|e| e.value.clone())
+                .collect::<Vec<Texture>>();
+
+            for texture in textures.iter().cloned() {
+                state.thread_pool.spawn_ok(async move {
+                    let mut state = texture.state();
+                    match TextureData::load_from_file(state.path()) {
+                        Ok(data) => {
+                            Log::writeln(format!(
+                                "Texture {:?} successfully reloaded!",
+                                state.path(),
+                            ));
+
+                            *state = ResourceState::Ok(data);
+                        }
+                        Err(e) => {
+                            Log::writeln(format!(
+                                "Unable to reload {:?} texture! Reason: {}",
+                                state.path(),
+                                e
+                            ));
+
+                            *state = ResourceState::LoadError {
+                                path: state.path().to_owned(),
+                                error: Some(Arc::new(e)),
+                            }
+                        }
+                    };
+                });
+            }
+
+            textures
+        };
+
+        for texture in textures {
+            let _ = texture.await;
         }
     }
 
-    /// Reloads every loaded model. This method is **blocking**.
-    ///
-    /// TODO: Make this async.
-    pub fn reload_models(&self) {
-        let models = self.state().models.to_vec();
-        for old_model in models {
-            let mut old_model = old_model.state();
-            let new_model = match ModelData::load(old_model.path(), self.clone()) {
-                Ok(new_model) => new_model,
-                Err(e) => {
-                    Log::writeln(format!(
-                        "Unable to reload {:?} model! Reason: {:?}",
-                        old_model.path(),
-                        e
-                    ));
-                    continue;
-                }
-            };
-            *old_model = ResourceState::Ok(new_model);
+    /// Reloads every loaded model. This method is asynchronous, internally it uses thread pool
+    /// to run reload on separate thread per model.
+    pub async fn reload_models(&self) {
+        let models = {
+            let this = self.clone();
+            let state = self.state();
+
+            let models = state
+                .models
+                .iter()
+                .map(|m| m.value.clone())
+                .collect::<Vec<Model>>();
+
+            for old_model in models.iter().cloned() {
+                let this = this.clone();
+
+                state.thread_pool.spawn_ok(async move {
+                    let mut state = old_model.state();
+
+                    match ModelData::load(state.path(), this) {
+                        Ok(data) => {
+                            Log::writeln(format!(
+                                "Model {:?} successfully reloaded!",
+                                state.path(),
+                            ));
+
+                            *state = ResourceState::Ok(data);
+                        }
+                        Err(e) => {
+                            Log::writeln(format!(
+                                "Unable to reload {:?} model! Reason: {:?}",
+                                state.path(),
+                                e
+                            ));
+
+                            *state = ResourceState::LoadError {
+                                path: state.path().to_owned(),
+                                error: Some(Arc::new(e)),
+                            }
+                        }
+                    };
+                })
+            }
+
+            models
+        };
+
+        for model in models {
+            let _ = model.await;
         }
     }
 
@@ -446,12 +498,10 @@ impl ResourceManager {
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
-    /// method! This method is **blocking**.
-    ///
-    /// TODO: Make this async.
-    pub fn reload_resources(&self) {
-        self.reload_textures();
-        self.reload_models();
+    /// method! This method is asynchronous, it uses all available CPU power to reload resources as
+    /// fast as possible.     
+    pub async fn reload_resources(&self) {
+        futures::join!(self.reload_textures(), self.reload_models());
         self.reload_sound_buffers();
     }
 }
