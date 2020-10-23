@@ -97,6 +97,7 @@ impl Seek for DataSource {
 }
 
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
+#[derive(Debug)]
 pub enum SoundBuffer {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.

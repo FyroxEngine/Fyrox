@@ -21,6 +21,7 @@ struct WavHeader {
 
 /// Wav decoder for uncompressed PCM data.
 /// TODO: Add support for RLE-compressed samples.
+#[derive(Debug)]
 pub(in crate) struct WavDecoder {
     pub channel_count: usize,
     pub sample_rate: usize,

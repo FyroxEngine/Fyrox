@@ -1,5 +1,6 @@
 use crate::{buffer::DataSource, error::SoundError};
 use lewton::{inside_ogg::OggStreamReader, samples::InterleavedSamples};
+use std::fmt::{Debug, Formatter};
 use std::{
     io::{Read, Seek, SeekFrom},
     time::Duration,
@@ -14,6 +15,12 @@ pub struct OggDecoder {
     samples: vec::IntoIter<f32>,
     pub channel_count: usize,
     pub sample_rate: usize,
+}
+
+impl Debug for OggDecoder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "OggDecoder")
+    }
 }
 
 impl Iterator for OggDecoder {

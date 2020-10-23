@@ -22,9 +22,11 @@
 
 use crate::{buffer::DataSource, decoder::Decoder};
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
+use std::path::Path;
 use std::{path::PathBuf, time::Duration};
 
 /// Generic sound buffer that contains decoded samples and allows random access.
+#[derive(Debug)]
 pub struct GenericBuffer {
     /// Interleaved decoded samples (mono sounds: L..., stereo sounds: LR...)
     /// For streaming buffers it contains only small part of decoded data
@@ -109,8 +111,10 @@ impl GenericBuffer {
     /// serialization needs where you just need to know which file needs to be reloaded from disk
     /// when you loading a saved game.
     #[inline]
-    pub fn external_data_path(&self) -> Option<PathBuf> {
-        self.external_source_path.clone()
+    pub fn external_data_path(&self) -> Option<&Path> {
+        self.external_source_path
+            .as_ref()
+            .and_then(|p| Some(p.as_path()))
     }
 
     /// Checks if buffer is empty or not.

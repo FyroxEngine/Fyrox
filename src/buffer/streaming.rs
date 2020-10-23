@@ -36,6 +36,7 @@ use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
 /// Streaming buffer for long sounds. Does not support random access.
+#[derive(Debug)]
 pub struct StreamingBuffer {
     pub(in crate) generic: GenericBuffer,
     /// Count of sources that share this buffer, it is important to keep only one

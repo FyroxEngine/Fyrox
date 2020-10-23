@@ -8,6 +8,7 @@ use std::time::Duration;
 mod vorbis;
 mod wav;
 
+#[derive(Debug)]
 pub(in crate) enum Decoder {
     Null,
     Wav(WavDecoder),
