@@ -169,20 +169,19 @@ fn main() {
 
                             // Request foot step sound buffer from resources directory.
                             let foot_step =
-                                game
+                               rg3d::futures::executor::block_on( game
                                     .engine
                                     .resource_manager
                                     .request_sound_buffer(
                                         // Request random sound everytime.
                                         footsteps[rg3d::rand::thread_rng().gen_range(0,footsteps.len())],
-                                        false)
-                                    .unwrap();
+                                        false)).unwrap();
 
                             // Create new temporary foot step sound source.
                             let source = ctx
                                 .add_source(
                                     SpatialSourceBuilder::new(
-                                        GenericSourceBuilder::new(foot_step)
+                                        GenericSourceBuilder::new(foot_step.into())
                                             // rg3d-sound provides built-in way to create temporary sounds that will die immediately 
                                             // after first play. This is very useful for foot step sounds.
                                             .with_play_once(true)

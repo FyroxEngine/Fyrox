@@ -3,6 +3,7 @@
 //! Resource module contains all structures and method to manage resources.
 
 use crate::core::visitor::{Visit, VisitResult, Visitor};
+use std::borrow::Cow;
 use std::ops::{Deref, DerefMut};
 use std::{
     fmt::Debug,
@@ -20,11 +21,13 @@ pub mod texture;
 /// A trait for resource data.
 pub trait ResourceData: 'static + Default + Debug + Visit + Send {
     /// Returns path of resource data.
-    fn path(&self) -> &Path;
+    fn path(&self) -> Cow<Path>;
 }
 
 /// A trait for resource load error.
 pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
+
+impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 
 /// Resource could be in three possible states:
 /// 1. Pending - it is loading.
@@ -206,7 +209,7 @@ impl<T: ResourceData, E: ResourceLoadError> Into<Arc<Mutex<ResourceState<T, E>>>
 }
 
 impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
-    type Output = Result<Self, Arc<E>>;
+    type Output = Result<Self, Option<Arc<E>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = self.as_ref().state.clone();
@@ -222,7 +225,7 @@ impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
 
                 Poll::Pending
             }
-            ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone().unwrap())),
+            ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),
             ResourceState::Ok(_) => Poll::Ready(Ok(self.clone())),
         }
     }
@@ -289,10 +292,10 @@ impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
     }
 
     /// Returns a path to the resource source.
-    pub fn path(&self) -> &Path {
+    pub fn path(&self) -> Cow<Path> {
         match self {
-            Self::Pending { path, .. } => path,
-            Self::LoadError { path, .. } => path,
+            Self::Pending { path, .. } => Cow::Borrowed(path.as_path()),
+            Self::LoadError { path, .. } => Cow::Borrowed(path.as_path()),
             Self::Ok(details) => details.path(),
         }
     }

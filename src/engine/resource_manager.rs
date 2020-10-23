@@ -5,13 +5,14 @@ use crate::{
     resource::{
         model::{Model, ModelData},
         texture::{Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter},
-        ResourceState,
+        Resource, ResourceData, ResourceState,
     },
     sound::buffer::{DataSource, SoundBuffer},
     utils::log::Log,
 };
 use futures::executor::ThreadPool;
 use std::{
+    borrow::Cow,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, MutexGuard},
@@ -83,8 +84,24 @@ where
     }
 }
 
-/// Type alias for Arc<Mutex<SoundBuffer>> to make code less noisy.
-pub type SharedSoundBuffer = Arc<Mutex<SoundBuffer>>;
+impl ResourceData for Arc<Mutex<SoundBuffer>> {
+    fn path(&self) -> Cow<Path> {
+        self.lock()
+            .unwrap()
+            .external_data_path()
+            .and_then(|p| Some(Cow::Owned(p.to_owned())))
+            .unwrap_or(Cow::Owned(Path::new("").to_owned()))
+    }
+}
+
+/// Type alias for sound buffer resource.
+pub type SharedSoundBuffer = Resource<Arc<Mutex<SoundBuffer>>, ()>;
+
+impl Into<Arc<Mutex<SoundBuffer>>> for SharedSoundBuffer {
+    fn into(self) -> Arc<Mutex<SoundBuffer>> {
+        self.data_ref().clone()
+    }
+}
 
 /// See module docs.
 pub struct ResourceManagerState {
@@ -292,7 +309,7 @@ impl ResourceManager {
         let resource_manager = self.clone();
 
         state.thread_pool.spawn_ok(async move {
-            match ModelData::load(&path, resource_manager) {
+            match ModelData::load(&path, resource_manager).await {
                 Ok(raw_model) => {
                     Log::writeln(format!("Model {:?} is loaded!", path));
 
@@ -324,50 +341,57 @@ impl ResourceManager {
     /// Currently only WAV (uncompressed) and OGG are supported.
     ///
     /// TODO: Make this asynchronous.
-    pub fn request_sound_buffer<P: AsRef<Path>>(
-        &self,
-        path: P,
-        stream: bool,
-    ) -> Option<SharedSoundBuffer> {
+    pub fn request_sound_buffer<P: AsRef<Path>>(&self, path: P, stream: bool) -> SharedSoundBuffer {
         let mut state = self.state();
 
         if let Some(sound_buffer) = state.find_sound_buffer(path.as_ref()) {
-            return Some(sound_buffer);
+            return sound_buffer;
         }
 
-        match DataSource::from_file(path.as_ref()) {
-            Ok(source) => {
-                let buffer = if stream {
-                    SoundBuffer::new_streaming(source)
-                } else {
-                    SoundBuffer::new_generic(source)
-                };
-                match buffer {
-                    Ok(sound_buffer) => {
-                        state.sound_buffers.push(TimedEntry {
-                            value: sound_buffer.clone(),
-                            time_to_live: MAX_RESOURCE_TTL,
-                        });
-                        Log::writeln(format!(
-                            "Sound buffer {} is loaded!",
-                            path.as_ref().display()
-                        ));
-                        Some(sound_buffer)
-                    }
-                    Err(_) => {
-                        Log::writeln(format!(
-                            "Unable to load sound buffer from {}!",
-                            path.as_ref().display()
-                        ));
-                        None
+        let resource = SharedSoundBuffer::new(ResourceState::new_pending(path.as_ref().to_owned()));
+        state.sound_buffers.push(TimedEntry {
+            value: resource.clone(),
+            time_to_live: MAX_RESOURCE_TTL,
+        });
+        let result = resource.clone();
+        let path = path.as_ref().to_owned();
+
+        state.thread_pool.spawn_ok(async move {
+            match DataSource::from_file(&path) {
+                Ok(source) => {
+                    let buffer = if stream {
+                        SoundBuffer::new_streaming(source)
+                    } else {
+                        SoundBuffer::new_generic(source)
+                    };
+                    match buffer {
+                        Ok(sound_buffer) => {
+                            Log::writeln(format!("Sound buffer {:?} is loaded!", path));
+
+                            resource.state().commit(ResourceState::Ok(sound_buffer));
+                        }
+                        Err(_) => {
+                            Log::writeln(format!("Unable to load sound buffer from {:?}!", path));
+
+                            resource.state().commit(ResourceState::LoadError {
+                                path: path.clone(),
+                                error: Some(Arc::new(())),
+                            })
+                        }
                     }
                 }
+                Err(e) => {
+                    Log::writeln(format!("Invalid data source: {:?}", e));
+
+                    resource.state().commit(ResourceState::LoadError {
+                        path: path.clone(),
+                        error: Some(Arc::new(())),
+                    })
+                }
             }
-            Err(e) => {
-                Log::writeln(format!("Invalid data source: {:?}", e));
-                None
-            }
-        }
+        });
+
+        result
     }
 
     /// Reloads every loaded texture. This method is asynchronous, internally it uses thread pool
@@ -383,29 +407,26 @@ impl ResourceManager {
                 .map(|e| e.value.clone())
                 .collect::<Vec<Texture>>();
 
-            for texture in textures.iter().cloned() {
+            for resource in textures.iter().cloned() {
+                let path = resource.state().path().to_path_buf();
+                *resource.state() = ResourceState::new_pending(path.clone());
                 state.thread_pool.spawn_ok(async move {
-                    let mut state = texture.state();
-                    match TextureData::load_from_file(state.path()) {
+                    match TextureData::load_from_file(&path) {
                         Ok(data) => {
-                            Log::writeln(format!(
-                                "Texture {:?} successfully reloaded!",
-                                state.path(),
-                            ));
+                            Log::writeln(format!("Texture {:?} successfully reloaded!", path,));
 
-                            *state = ResourceState::Ok(data);
+                            resource.state().commit(ResourceState::Ok(data));
                         }
                         Err(e) => {
                             Log::writeln(format!(
                                 "Unable to reload {:?} texture! Reason: {}",
-                                state.path(),
-                                e
+                                path, e
                             ));
 
-                            *state = ResourceState::LoadError {
-                                path: state.path().to_owned(),
+                            resource.state().commit(ResourceState::LoadError {
+                                path,
                                 error: Some(Arc::new(e)),
-                            }
+                            });
                         }
                     };
                 });
@@ -414,9 +435,7 @@ impl ResourceManager {
             textures
         };
 
-        for texture in textures {
-            let _ = texture.await;
-        }
+        futures::future::join_all(textures).await;
     }
 
     /// Reloads every loaded model. This method is asynchronous, internally it uses thread pool
@@ -432,32 +451,27 @@ impl ResourceManager {
                 .map(|m| m.value.clone())
                 .collect::<Vec<Model>>();
 
-            for old_model in models.iter().cloned() {
+            for model in models.iter().cloned() {
                 let this = this.clone();
-
+                let path = model.state().path().to_path_buf();
+                *model.state() = ResourceState::new_pending(path.clone());
                 state.thread_pool.spawn_ok(async move {
-                    let mut state = old_model.state();
-
-                    match ModelData::load(state.path(), this) {
+                    match ModelData::load(&path, this).await {
                         Ok(data) => {
-                            Log::writeln(format!(
-                                "Model {:?} successfully reloaded!",
-                                state.path(),
-                            ));
+                            Log::writeln(format!("Model {:?} successfully reloaded!", path,));
 
-                            *state = ResourceState::Ok(data);
+                            model.state().commit(ResourceState::Ok(data));
                         }
                         Err(e) => {
                             Log::writeln(format!(
                                 "Unable to reload {:?} model! Reason: {:?}",
-                                state.path(),
-                                e
+                                path, e
                             ));
 
-                            *state = ResourceState::LoadError {
-                                path: state.path().to_owned(),
+                            model.state().commit(ResourceState::LoadError {
+                                path,
                                 error: Some(Arc::new(e)),
-                            }
+                            })
                         }
                     };
                 })
@@ -466,43 +480,88 @@ impl ResourceManager {
             models
         };
 
-        for model in models {
-            let _ = model.await;
-        }
+        futures::future::join_all(models).await;
+
+        Log::write("All model resources reloaded!".to_owned());
     }
 
-    /// Reloads every loaded sound buffer. This method is **blocking**.
-    ///
-    /// TODO: Make this async.
-    pub fn reload_sound_buffers(&self) {
-        let sound_buffers = self.state().sound_buffers.to_vec();
-        for old_sound_buffer in sound_buffers {
-            let mut old_sound_buffer = old_sound_buffer.lock().unwrap();
-            if let Some(ext_path) = old_sound_buffer.external_data_path() {
-                if let Ok(data_source) = DataSource::from_file(ext_path.as_path()) {
-                    let new_sound_buffer = match *old_sound_buffer {
-                        SoundBuffer::Generic(_) => SoundBuffer::raw_generic(data_source),
-                        SoundBuffer::Streaming(_) => SoundBuffer::raw_streaming(data_source),
+    /// Reloads every loaded sound buffer. This method is asynchronous, internally it uses thread pool
+    /// to run reload on separate thread per sound buffer.
+    pub async fn reload_sound_buffers(&self) {
+        let buffers = {
+            let state = self.state();
+
+            let sound_buffers = state
+                .sound_buffers
+                .iter()
+                .map(|b| b.value.clone())
+                .collect::<Vec<SharedSoundBuffer>>();
+
+            for resource in sound_buffers.iter().cloned() {
+                let (stream, path, inner_buffer) = {
+                    let inner_buffer_ref = resource.data_ref();
+                    let inner_buffer = inner_buffer_ref.lock().unwrap();
+                    let stream = match *inner_buffer {
+                        SoundBuffer::Generic(_) => false,
+                        SoundBuffer::Streaming(_) => true,
                     };
-                    let new_sound_buffer = match new_sound_buffer {
-                        Ok(new_sound_buffer) => new_sound_buffer,
-                        Err(_) => {
-                            Log::writeln(format!("Unable to reload {:?} sound buffer!", ext_path));
-                            continue;
+                    (
+                        stream,
+                        inner_buffer.external_data_path().map(|p| p.to_owned()),
+                        inner_buffer_ref.clone(),
+                    )
+                };
+                if let Some(ext_path) = path {
+                    *resource.state() = ResourceState::new_pending(ext_path.clone());
+
+                    state.thread_pool.spawn_ok(async move {
+                        if let Ok(data_source) = DataSource::from_file(&ext_path) {
+                            let new_sound_buffer = match stream {
+                                false => SoundBuffer::raw_generic(data_source),
+                                true => SoundBuffer::raw_streaming(data_source),
+                            };
+                            match new_sound_buffer {
+                                Ok(new_sound_buffer) => {
+                                    Log::writeln(format!(
+                                        "Sound buffer {:?} successfully reloaded!",
+                                        ext_path,
+                                    ));
+
+                                    *inner_buffer.lock().unwrap() = new_sound_buffer;
+                                    resource.state().commit(ResourceState::Ok(inner_buffer));
+                                }
+                                Err(_) => {
+                                    Log::writeln(format!(
+                                        "Unable to reload {:?} sound buffer!",
+                                        ext_path
+                                    ));
+
+                                    resource.state().commit(ResourceState::LoadError {
+                                        path: ext_path,
+                                        error: Some(Arc::new(())),
+                                    })
+                                }
+                            }
                         }
-                    };
-                    *old_sound_buffer = new_sound_buffer;
+                    });
                 }
             }
-        }
+
+            sound_buffers
+        };
+
+        futures::future::join_all(buffers).await;
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
     /// method! This method is asynchronous, it uses all available CPU power to reload resources as
     /// fast as possible.     
     pub async fn reload_resources(&self) {
-        futures::join!(self.reload_textures(), self.reload_models());
-        self.reload_sound_buffers();
+        futures::join!(
+            self.reload_textures(),
+            self.reload_models(),
+            self.reload_sound_buffers()
+        );
     }
 }
 
@@ -565,10 +624,8 @@ impl ResourceManagerState {
     /// Tries to find sound buffer by its path. Returns None if no such sound buffer was found.
     pub fn find_sound_buffer<P: AsRef<Path>>(&self, path: P) -> Option<SharedSoundBuffer> {
         for sound_buffer in self.sound_buffers.iter() {
-            if let Some(ext_path) = sound_buffer.lock().unwrap().external_data_path() {
-                if ext_path == path.as_ref() {
-                    return Some(sound_buffer.value.clone());
-                }
+            if sound_buffer.state().path() == path.as_ref() {
+                return Some(sound_buffer.value.clone());
             }
         }
         None
@@ -594,7 +651,7 @@ impl ResourceManagerState {
     /// Immediately destroys all unused resources.
     pub fn purge_unused_resources(&mut self) {
         self.sound_buffers
-            .retain(|buffer| Arc::strong_count(&buffer.value) > 1);
+            .retain(|buffer| buffer.value.use_count() > 1);
         self.models.retain(|buffer| buffer.value.use_count() > 1);
         self.textures.retain(|buffer| buffer.value.use_count() > 1);
     }
@@ -642,19 +699,17 @@ impl ResourceManagerState {
     fn update_sound_buffers(&mut self, dt: f32) {
         for buffer in self.sound_buffers.iter_mut() {
             buffer.time_to_live -= dt;
-            if Arc::strong_count(buffer) > 1 {
+            if buffer.use_count() > 1 {
                 buffer.time_to_live = MAX_RESOURCE_TTL;
             }
         }
         self.sound_buffers.retain(|buffer| {
             let retain = buffer.time_to_live > 0.0;
             if !retain {
-                if let Some(path) = buffer.lock().unwrap().external_data_path().as_ref() {
-                    Log::writeln(format!(
-                        "Sound resource {:?} destroyed because it not used anymore!",
-                        path
-                    ));
-                }
+                Log::writeln(format!(
+                    "Sound resource {:?} destroyed because it not used anymore!",
+                    buffer.state().path()
+                ));
             }
             retain
         });
@@ -676,6 +731,9 @@ impl Visit for ResourceManagerState {
         ));
         futures::executor::block_on(futures::future::join_all(
             self.models.iter().map(|m| m.value.clone()),
+        ));
+        futures::executor::block_on(futures::future::join_all(
+            self.sound_buffers.iter().map(|m| m.value.clone()),
         ));
 
         self.textures_path.visit("TexturesPath", visitor)?;

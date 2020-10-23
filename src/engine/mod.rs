@@ -158,6 +158,9 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
 
         if visitor.is_reading() {
             futures::executor::block_on(self.resource_manager.reload_resources());
+
+            dbg!();
+
             for scene in self.scenes.iter_mut() {
                 scene.resolve();
             }

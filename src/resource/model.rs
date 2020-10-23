@@ -24,14 +24,12 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::{fbx, fbx::error::FbxError, Resource, ResourceData, ResourceLoadError},
+    resource::{fbx, fbx::error::FbxError, Resource, ResourceData},
     scene::{node::Node, Scene},
     utils::log::Log,
 };
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
 /// See module docs.
 #[derive(Debug)]
@@ -43,17 +41,11 @@ pub struct ModelData {
 /// See module docs.
 pub type Model = Resource<ModelData, ModelLoadError>;
 
-impl ResourceLoadError for ModelLoadError {}
-
 impl Model {
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
-    pub async fn instantiate_geometry(
-        &self,
-        dest_scene: &mut Scene,
-    ) -> Result<Handle<Node>, Arc<ModelLoadError>> {
-        let this = self.clone().await?;
-        let data = this.data_ref();
+    pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
+        let data = self.data_ref();
 
         let (root, _) = data.scene.graph.copy_node(
             data.scene.graph.get_root(),
@@ -74,20 +66,17 @@ impl Model {
             stack.extend_from_slice(node.children());
         }
 
-        Ok(root)
+        root
     }
 
     /// Tries to instantiate model from given resource.
     /// Returns root handle to node of model instance along with available animations
-    pub async fn instantiate(
-        &self,
-        dest_scene: &mut Scene,
-    ) -> Result<ModelInstance, Arc<ModelLoadError>> {
-        let root = self.instantiate_geometry(dest_scene).await?;
-        Ok(ModelInstance {
+    pub fn instantiate(&self, dest_scene: &mut Scene) -> ModelInstance {
+        let root = self.instantiate_geometry(dest_scene);
+        ModelInstance {
             root,
-            animations: self.retarget_animations(root, dest_scene).await?,
-        })
+            animations: self.retarget_animations(root, dest_scene),
+        }
     }
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
@@ -111,13 +100,12 @@ impl Model {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    pub async fn retarget_animations(
+    pub fn retarget_animations(
         &self,
         root: Handle<Node>,
         dest_scene: &mut Scene,
-    ) -> Result<Vec<Handle<Animation>>, Arc<ModelLoadError>> {
-        let this = self.clone().await?;
-        let data = this.data_ref();
+    ) -> Vec<Handle<Animation>> {
+        let data = self.data_ref();
         let mut animation_handles = Vec::new();
 
         for ref_anim in data.scene.animations.iter() {
@@ -148,13 +136,13 @@ impl Model {
             animation_handles.push(dest_scene.animations.add(anim_copy));
         }
 
-        Ok(animation_handles)
+        animation_handles
     }
 }
 
 impl ResourceData for ModelData {
-    fn path(&self) -> &Path {
-        &self.path
+    fn path(&self) -> Cow<Path> {
+        Cow::Borrowed(&self.path)
     }
 }
 
@@ -213,7 +201,7 @@ impl From<VisitError> for ModelLoadError {
 }
 
 impl ModelData {
-    pub(in crate) fn load<P: AsRef<Path>>(
+    pub(in crate) async fn load<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
     ) -> Result<Self, ModelLoadError> {
@@ -232,7 +220,7 @@ impl ModelData {
             }
             // Scene can be used directly as model resource. Such scenes can be created from
             // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
-            "rgs" => Scene::from_file(path.as_ref(), resource_manager)?,
+            "rgs" => Scene::from_file(path.as_ref(), resource_manager).await?,
             // TODO: Add more formats.
             _ => {
                 return Err(ModelLoadError::NotSupported(format!(

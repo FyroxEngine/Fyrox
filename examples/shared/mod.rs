@@ -180,8 +180,6 @@ pub async fn load_animation<P: AsRef<Path>>(
         .await
         .unwrap()
         .retarget_animations(model, scene)
-        .await
-        .unwrap()
         .get(0)
         .unwrap()
 }
@@ -423,7 +421,7 @@ impl Player {
 
         // Instantiate model on scene - but only geometry, without any animations.
         // Instantiation is a process of embedding model resource data in desired scene.
-        let model_handle = model_resource.instantiate_geometry(scene).await.unwrap();
+        let model_handle = model_resource.instantiate_geometry(scene);
 
         let body_height = 1.2;
 
@@ -664,9 +662,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
                 .request_model("examples/data/Sponza.fbx")
                 .await
                 .unwrap()
-                .instantiate_geometry(&mut scene)
-                .await
-                .unwrap();
+                .instantiate_geometry(&mut scene);
 
             // And create collision mesh so our character won't fall thru ground.
             let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");

@@ -566,25 +566,33 @@ impl Scene {
 
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
-    pub fn from_file<P: AsRef<Path>>(
+    pub async fn from_file<P: AsRef<Path>>(
         path: P,
         resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
         let mut scene = Scene::default();
-        let mut visitor = Visitor::load_binary(path.as_ref())?;
-        scene.visit("Scene", &mut visitor)?;
+        {
+            let mut visitor = Visitor::load_binary(path.as_ref())?;
+            scene.visit("Scene", &mut visitor)?;
+        }
+
+        // Collect all used resources and wait for them.
+        let mut resources = Vec::new();
+        for node in scene.graph.linear_iter_mut() {
+            if let Some(shallow_resource) = node.resource.clone() {
+                let resource = resource_manager
+                    .clone()
+                    .request_model(&shallow_resource.state().path());
+                node.resource = Some(resource.clone());
+                resources.push(resource);
+            }
+        }
+
+        let _ = futures::future::join_all(resources).await;
 
         // Restore pointers to resources. Scene saves only paths to resources, here we must
         // find real resources instead.
         for node in scene.graph.linear_iter_mut() {
-            if let Some(shallow_resource) = node.resource.clone() {
-                node.resource = Some(
-                    resource_manager
-                        .clone()
-                        .request_model(&shallow_resource.state().path()),
-                );
-            }
-
             fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
                 if let Some(shallow_texture) = tex {
                     let shallow_texture = shallow_texture.state();
@@ -691,8 +699,8 @@ impl Scene {
 
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Starting resolve...".to_owned());
-        // TODO: Remove blocking here.
-        futures::executor::block_on(self.graph.resolve());
+
+        self.graph.resolve();
         self.animations.resolve(&self.graph);
         self.restore_static_geometries();
 

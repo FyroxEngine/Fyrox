@@ -16,7 +16,7 @@ use rg3d::{
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         border::BorderBuilder,
@@ -306,10 +306,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource
-        .instantiate_geometry(&mut scene)
-        .await
-        .unwrap();
+    let model_handle = model_resource.instantiate_geometry(&mut scene);
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
@@ -324,8 +321,6 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // model instance so animation will know about nodes it should operate on.
     let walk_animation = *walk_animation_resource
         .retarget_animations(model_handle, &mut scene)
-        .await
-        .unwrap()
         .get(0)
         .unwrap();
 
@@ -528,7 +523,7 @@ fn main() {
                     engine.user_interface.process_os_event(&os_event);
                 }
             }
-            Event::DeviceEvent { event, .. } => {
+            Event::DeviceEvent { .. } => {
                 // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,

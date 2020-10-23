@@ -16,7 +16,7 @@ use rg3d::{
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         grid::{Column, GridBuilder, Row},
@@ -128,86 +128,83 @@ fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadC
 
     // Spawn separate thread which will create scene by loading various assets.
     std::thread::spawn(move || {
-        let mut scene = Scene::new();
+        futures::executor::block_on(async move {
+            let mut scene = Scene::new();
 
-        let mut resource_manager = resource_manager.lock().unwrap();
+            // It is important to lock context for short period of time so other thread can
+            // read data from it as soon as possible - not when everything was loaded.
+            context
+                .lock()
+                .unwrap()
+                .report_progress(0.0, "Creating camera...");
 
-        // It is important to lock context for short period of time so other thread can
-        // read data from it as soon as possible - not when everything was loaded.
-        context
-            .lock()
-            .unwrap()
-            .report_progress(0.0, "Creating camera...");
+            // Camera is our eyes in the world - you won't see anything without it.
+            let camera = CameraBuilder::new(
+                BaseBuilder::new().with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vec3::new(0.0, 6.0, -12.0))
+                        .build(),
+                ),
+            )
+            .build();
 
-        // Camera is our eyes in the world - you won't see anything without it.
-        let camera = CameraBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-                    .build(),
-            ),
-        )
-        .build();
+            scene.graph.add_node(Node::Camera(camera));
 
-        scene.graph.add_node(Node::Camera(camera));
+            context
+                .lock()
+                .unwrap()
+                .report_progress(0.33, "Loading model...");
 
-        context
-            .lock()
-            .unwrap()
-            .report_progress(0.33, "Loading model...");
+            // Load model resource. Is does *not* adds anything to our scene - it just loads a
+            // resource then can be used later on to instantiate models from it on scene. Why
+            // loading of resource is separated from instantiation? Because there it is too
+            // inefficient to load a resource every time you trying to create instance of it -
+            // much more efficient is to load it one and then make copies of it. In case of
+            // models it is very efficient because single vertex and index buffer can be used
+            // for all models instances, so memory footprint on GPU will be lower.
+            let model_resource = resource_manager
+                .request_model("examples/data/mutant.FBX")
+                .await
+                .unwrap();
 
-        // Load model resource. Is does *not* adds anything to our scene - it just loads a
-        // resource then can be used later on to instantiate models from it on scene. Why
-        // loading of resource is separated from instantiation? Because there it is too
-        // inefficient to load a resource every time you trying to create instance of it -
-        // much more efficient is to load it one and then make copies of it. In case of
-        // models it is very efficient because single vertex and index buffer can be used
-        // for all models instances, so memory footprint on GPU will be lower.
-        let model_resource = resource_manager
-            .request_model("examples/data/mutant.FBX")
-            .unwrap();
+            // Instantiate model on scene - but only geometry, without any animations.
+            // Instantiation is a process of embedding model resource data in desired scene.
+            let model_handle = model_resource.instantiate_geometry(&mut scene);
 
-        // Instantiate model on scene - but only geometry, without any animations.
-        // Instantiation is a process of embedding model resource data in desired scene.
-        let model_handle = model_resource
-            .lock()
-            .unwrap()
-            .instantiate_geometry(&mut scene);
+            // Now we have whole sub-graph instantiated, we can start modifying model instance.
+            scene.graph[model_handle]
+                .local_transform_mut()
+                // Our model is too big, fix it by scale.
+                .set_scale(Vec3::new(0.05, 0.05, 0.05));
 
-        // Now we have whole sub-graph instantiated, we can start modifying model instance.
-        scene.graph[model_handle]
-            .local_transform_mut()
-            // Our model is too big, fix it by scale.
-            .set_scale(Vec3::new(0.05, 0.05, 0.05));
+            context
+                .lock()
+                .unwrap()
+                .report_progress(0.66, "Loading animation...");
 
-        context
-            .lock()
-            .unwrap()
-            .report_progress(0.66, "Loading animation...");
+            // Add simple animation for our model. Animations are loaded from model resources -
+            // this is because animation is a set of skeleton bones with their own transforms.
+            let walk_animation_resource = resource_manager
+                .request_model("examples/data/walk.fbx")
+                .await
+                .unwrap();
 
-        // Add simple animation for our model. Animations are loaded from model resources -
-        // this is because animation is a set of skeleton bones with their own transforms.
-        let walk_animation_resource = resource_manager
-            .request_model("examples/data/walk.fbx")
-            .unwrap();
+            // Once animation resource is loaded it must be re-targeted to our model instance.
+            // Why? Because animation in *resource* uses information about *resource* bones,
+            // not model instance bones, retarget_animations maps animations of each bone on
+            // model instance so animation will know about nodes it should operate on.
+            let walk_animation = *walk_animation_resource
+                .retarget_animations(model_handle, &mut scene)
+                .get(0)
+                .unwrap();
 
-        // Once animation resource is loaded it must be re-targeted to our model instance.
-        // Why? Because animation in *resource* uses information about *resource* bones,
-        // not model instance bones, retarget_animations maps animations of each bone on
-        // model instance so animation will know about nodes it should operate on.
-        let walk_animation = *walk_animation_resource
-            .lock()
-            .unwrap()
-            .retarget_animations(model_handle, &mut scene)
-            .get(0)
-            .unwrap();
+            context.lock().unwrap().report_progress(1.0, "Done");
 
-        context.lock().unwrap().report_progress(1.0, "Done");
-
-        context.lock().unwrap().data = Some(GameScene {
-            scene,
-            model_handle,
-            walk_animation,
+            context.lock().unwrap().data = Some(GameScene {
+                scene,
+                model_handle,
+                walk_animation,
+            })
         })
     });
 
@@ -235,8 +232,7 @@ fn main() {
     // instead we telling engine to search textures in given folder.
     engine
         .resource_manager
-        .lock()
-        .unwrap()
+        .state()
         .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
@@ -404,7 +400,7 @@ fn main() {
                     engine.user_interface.process_os_event(&os_event);
                 }
             }
-            Event::DeviceEvent { event, .. } => {
+            Event::DeviceEvent { .. } => {
                 // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,

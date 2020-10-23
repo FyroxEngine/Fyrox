@@ -79,10 +79,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource
-        .instantiate_geometry(&mut scene)
-        .await
-        .unwrap();
+    let model_handle = model_resource.instantiate_geometry(&mut scene);
 
     // To enable level of detail we have to add lod group to model root, lod group
     // defines which parts of model should be visible at various distances.

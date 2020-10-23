@@ -63,8 +63,6 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .await
         .unwrap()
         .instantiate(&mut scene)
-        .await
-        .unwrap()
         .root;
 
     GameScene { scene, root }

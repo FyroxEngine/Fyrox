@@ -529,7 +529,6 @@ impl Animation {
         // do not store key frames in save file, but just keep reference to resource
         // from which key frames should be taken on load.
         if let Some(resource) = self.resource.clone() {
-            futures::executor::block_on(resource.clone()).unwrap();
             let resource = resource.state();
             if let ResourceState::Ok(ref data) = *resource {
                 // TODO: Here we assume that resource contains only *one* animation.

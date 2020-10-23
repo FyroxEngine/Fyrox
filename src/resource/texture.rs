@@ -16,12 +16,12 @@
 //! will automatically provide you info about metrics of texture, but it won't give you
 //! access to pixels of render target.
 
-use crate::resource::ResourceLoadError;
 use crate::{
     core::visitor::{Visit, VisitError, VisitResult, Visitor},
     resource::{Resource, ResourceData, ResourceState},
 };
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
+use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 /// Actual texture data.
@@ -38,8 +38,8 @@ pub struct TextureData {
 }
 
 impl ResourceData for TextureData {
-    fn path(&self) -> &Path {
-        &self.path
+    fn path(&self) -> Cow<Path> {
+        Cow::Borrowed(&self.path)
     }
 }
 
@@ -89,8 +89,6 @@ pub type Texture = Resource<TextureData, ImageError>;
 
 /// Texture state alias.
 pub type TextureState = ResourceState<TextureData, ImageError>;
-
-impl ResourceLoadError for ImageError {}
 
 impl Texture {
     /// Creates new render target for a scene. This method automatically configures GPU texture
