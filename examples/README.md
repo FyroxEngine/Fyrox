@@ -1,7 +1,8 @@
 # Examples
 
-The engine contains examples for various aspects. Currently there is not much, but I'm working on it. 
-It is better to run examples with `--release` flag, because Debug version is too slow.
+The engine contains examples for various aspects. Currently, there is not much, but I'm working on it. 
+It is better to run examples with `--release` flag, because Debug is too slow. Also Debug may suffer from
+a "glitch" when model loads faster than its textures, it is due asynchronous resource loading.
 
 ## How to build
 

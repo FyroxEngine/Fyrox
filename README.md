@@ -59,7 +59,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - [Advanced node-based UI](https://github.com/mrDIMAS/rg3d-ui) with lots of widgets.
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
-- Asset management (textures, models, sound buffers).
+- Async asset management (textures, models, sound buffers).
 - [Simple physics](https://github.com/mrDIMAS/rg3d-physics).
 - [Core library](https://github.com/mrDIMAS/rg3d-core).
 - Fast iterative compilation 
