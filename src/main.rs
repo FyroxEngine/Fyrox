@@ -1306,7 +1306,12 @@ impl Editor {
                     }
                 }
                 Message::LoadScene(scene_path) => {
-                    let result = { Scene::from_file(&scene_path, engine.resource_manager.clone()) };
+                    let result = {
+                        rg3d::futures::executor::block_on(Scene::from_file(
+                            &scene_path,
+                            engine.resource_manager.clone(),
+                        ))
+                    };
                     match result {
                         Ok(scene) => {
                             self.set_scene(engine, scene, Some(scene_path));

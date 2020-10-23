@@ -215,7 +215,7 @@ impl PreviewPanel {
         self.clear(engine);
         if let Ok(model) = engine.resource_manager.request_model(model).await {
             let scene = &mut engine.scenes[self.scene];
-            self.model = model.instantiate_geometry(scene).await.unwrap();
+            self.model = model.instantiate_geometry(scene);
             self.fit_to_model(scene);
         }
     }

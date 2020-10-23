@@ -693,9 +693,7 @@ impl<'a> Command<'a> for LoadModelCommand {
             if let Ok(model) = rg3d::futures::executor::block_on(
                 context.resource_manager.request_model(&self.path),
             ) {
-                self.model = rg3d::futures::executor::block_on(model.instantiate(context.scene))
-                    .unwrap()
-                    .root;
+                model.instantiate(context.scene).root;
             }
         } else {
             // A model was loaded, but change was reverted and here we must put all nodes
