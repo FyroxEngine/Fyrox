@@ -68,7 +68,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     pub(in crate) arrange_valid: Cell<bool>,
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
-    /// Desired size of the node after iMeasure pass.
+    /// Desired size of the node after Measure pass.
     pub(in crate) desired_size: Cell<Vec2>,
     /// Actual node local position after Arrange pass.
     pub(in crate) actual_local_position: Cell<Vec2>,
