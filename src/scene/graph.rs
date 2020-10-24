@@ -464,51 +464,40 @@ impl Graph {
     pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
         self.update_hierachical_data();
 
-        // At first, update visibility cache of each camera.
         for i in 0..self.pool.get_capacity() {
             if let Some(node) = self.pool.at_mut(i) {
-                if let Node::Camera(camera) = node {
-                    let old_cache = camera.visibility_cache.invalidate();
-                    let mut new_cache = VisibilityCache::from(old_cache);
-                    let view_matrix = camera.view_matrix();
-                    let z_far = camera.z_far();
-                    let frustum =
-                        Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
-                    new_cache.update(self, view_matrix, z_far, Some(&frustum));
-                    self.pool
-                        .at_mut(i)
-                        .unwrap()
-                        .as_camera_mut()
-                        .visibility_cache = new_cache;
+                if let Some(lifetime) = node.lifetime.as_mut() {
+                    *lifetime -= dt;
                 }
-            }
-        }
 
-        for node in self.pool.iter_mut() {
-            if let Some(lifetime) = node.lifetime() {
-                node.set_lifetime(lifetime - dt);
-            }
-
-            match node {
-                Node::Camera(camera) => camera.calculate_matrices(frame_size),
-                Node::ParticleSystem(particle_system) => particle_system.update(dt),
-                _ => (),
-            }
-        }
-
-        for i in 0..self.pool.get_capacity() {
-            let remove = if let Some(node) = self.pool.at(i) {
-                if let Some(lifetime) = node.lifetime() {
-                    lifetime <= 0.0
+                if node.lifetime.map_or(false, |l| l <= 0.0) {
+                    self.remove_node(self.pool.handle_from_index(i));
                 } else {
-                    false
-                }
-            } else {
-                continue;
-            };
+                    match node {
+                        Node::Camera(camera) => {
+                            camera.calculate_matrices(frame_size);
 
-            if remove {
-                self.remove_node(self.pool.handle_from_index(i));
+                            let old_cache = camera.visibility_cache.invalidate();
+                            let mut new_cache = VisibilityCache::from(old_cache);
+                            let view_matrix = camera.view_matrix();
+                            let z_far = camera.z_far();
+                            let frustum =
+                                Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
+                            new_cache.update(self, view_matrix, z_far, Some(&frustum));
+                            // We have to re-borrow camera again because borrow check cannot proof that
+                            // camera reference is still valid after passing `self` to `new_cache.update(...)`
+                            // This is ok since there are only few camera per level and there performance
+                            // penalty is negligible.
+                            self.pool
+                                .at_mut(i)
+                                .unwrap()
+                                .as_camera_mut()
+                                .visibility_cache = new_cache;
+                        }
+                        Node::ParticleSystem(particle_system) => particle_system.update(dt),
+                        _ => (),
+                    }
+                }
             }
         }
     }

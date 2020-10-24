@@ -137,7 +137,7 @@ pub struct Base {
     pub(in crate) is_resource_instance: bool,
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
-    lifetime: Option<f32>,
+    pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
 }
