@@ -583,11 +583,11 @@ pub enum WindowTitle<M: MessageData, C: Control<M, C>> {
 
 impl<M: MessageData, C: Control<M, C>> WindowTitle<M, C> {
     pub fn text<P: AsRef<str>>(text: P) -> Self {
-        WindowTitle::Text(text.as_ref().to_owned())
+        Self::Text(text.as_ref().to_owned())
     }
 
     pub fn node(node: Handle<UINode<M, C>>) -> Self {
-        WindowTitle::Node(node)
+        Self::Node(node)
     }
 }
 

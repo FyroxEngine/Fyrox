@@ -908,8 +908,8 @@ impl MessageDirection {
     /// Reverses direction.
     pub fn reverse(self) -> Self {
         match self {
-            MessageDirection::ToWidget => MessageDirection::FromWidget,
-            MessageDirection::FromWidget => MessageDirection::ToWidget,
+            Self::ToWidget => Self::FromWidget,
+            Self::FromWidget => Self::ToWidget,
         }
     }
 }
@@ -997,7 +997,7 @@ impl<M: MessageData, C: Control<M, C>> UiMessage<M, C> {
 
     /// Allows you to construct a new user-defined message.
     pub fn user(destination: Handle<UINode<M, C>>, direction: MessageDirection, msg: M) -> Self {
-        UiMessage {
+        Self {
             handled: Cell::new(false),
             data: UiMessageData::User(msg),
             destination,
