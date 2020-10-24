@@ -48,19 +48,7 @@ pub struct FileBrowser<M: MessageData, C: Control<M, C>> {
     filter: Option<Rc<RefCell<Filter>>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for FileBrowser<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for FileBrowser<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(FileBrowser<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for FileBrowser<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

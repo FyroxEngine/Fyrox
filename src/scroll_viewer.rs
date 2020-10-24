@@ -21,19 +21,7 @@ pub struct ScrollViewer<M: MessageData, C: Control<M, C>> {
     pub h_scroll_bar: Handle<UINode<M, C>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ScrollViewer<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ScrollViewer<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ScrollViewer<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> ScrollViewer<M, C> {
     pub fn new(

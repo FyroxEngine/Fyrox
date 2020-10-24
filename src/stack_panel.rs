@@ -17,19 +17,7 @@ pub struct StackPanel<M: MessageData, C: Control<M, C>> {
     orientation: Orientation,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for StackPanel<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for StackPanel<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(StackPanel<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> StackPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {

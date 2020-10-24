@@ -29,19 +29,7 @@ pub struct Tree<M: MessageData, C: Control<M, C>> {
     always_show_expander: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Tree<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Tree<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Tree<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -380,19 +368,7 @@ pub struct TreeRoot<M: MessageData, C: Control<M, C>> {
     selected: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for TreeRoot<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for TreeRoot<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(TreeRoot<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for TreeRoot<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

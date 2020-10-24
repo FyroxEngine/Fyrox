@@ -124,19 +124,7 @@ pub struct Grid<M: MessageData, C: Control<M, C>> {
     border_thickness: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Grid<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Grid<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Grid<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Grid<M, C> {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
@@ -274,7 +262,7 @@ pub struct GridBuilder<M: MessageData, C: Control<M, C>> {
 
 impl<M: MessageData, C: Control<M, C>> GridBuilder<M, C> {
     pub fn new(widget_builder: WidgetBuilder<M, C>) -> Self {
-        GridBuilder {
+        Self {
             widget_builder,
             rows: Vec::new(),
             columns: Vec::new(),

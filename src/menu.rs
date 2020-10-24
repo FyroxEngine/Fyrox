@@ -32,19 +32,7 @@ pub struct Menu<M: MessageData, C: Control<M, C>> {
     active: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Menu<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Menu<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Menu<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Menu<M, C> {
     fn handle_routed_message(
@@ -155,19 +143,7 @@ pub struct MenuItem<M: MessageData, C: Control<M, C>> {
     placement: MenuItemPlacement,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for MenuItem<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for MenuItem<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(MenuItem<M, C>);
 
 // MenuItem uses popup to show its content, popup can be top-most only if it is
 // direct child of root canvas of UI. This fact adds some complications to search

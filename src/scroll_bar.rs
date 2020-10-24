@@ -39,19 +39,7 @@ pub struct ScrollBar<M: MessageData, C: Control<M, C>> {
     pub value_precision: usize,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ScrollBar<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ScrollBar<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ScrollBar<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

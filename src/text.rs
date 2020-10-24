@@ -21,19 +21,7 @@ pub struct Text<M: MessageData, C: Control<M, C>> {
     formatted_text: RefCell<FormattedText>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Text<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Text<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Text<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Text<M, C> {
     fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

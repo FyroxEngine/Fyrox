@@ -22,19 +22,7 @@ pub struct ScrollPanel<M: MessageData, C: Control<M, C>> {
     horizontal_scroll_allowed: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ScrollPanel<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ScrollPanel<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ScrollPanel<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
     fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {

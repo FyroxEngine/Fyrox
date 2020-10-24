@@ -21,19 +21,7 @@ pub struct Button<M: MessageData, C: Control<M, C>> {
     content: Handle<UINode<M, C>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Button<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Button<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Button<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Button<M, C> {
     pub fn new(

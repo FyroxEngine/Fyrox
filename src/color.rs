@@ -31,19 +31,7 @@ pub struct AlphaBar<M: MessageData, C: Control<M, C>> {
     is_picking: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for AlphaBar<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for AlphaBar<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(AlphaBar<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> AlphaBar<M, C> {
     fn alpha_at(&self, mouse_pos: Vec2) -> f32 {
@@ -296,19 +284,7 @@ pub struct HueBar<M: MessageData, C: Control<M, C>> {
     hue: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for HueBar<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for HueBar<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(HueBar<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> HueBar<M, C> {
     fn hue_at(&self, mouse_pos: Vec2) -> f32 {
@@ -463,19 +439,7 @@ pub struct SaturationBrightnessField<M: MessageData, C: Control<M, C>> {
     brightness: f32,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for SaturationBrightnessField<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for SaturationBrightnessField<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(SaturationBrightnessField<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> SaturationBrightnessField<M, C> {
     fn saturation_at(&self, mouse_pos: Vec2) -> f32 {
@@ -692,19 +656,7 @@ pub struct ColorPicker<M: MessageData, C: Control<M, C>> {
     hsv: Hsv,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ColorPicker<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ColorPicker<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ColorPicker<M, C>);
 
 fn mark_handled<M: MessageData, C: Control<M, C>>(message: UiMessage<M, C>) -> UiMessage<M, C> {
     message.set_handled(true);
@@ -1137,19 +1089,7 @@ pub struct ColorField<M: MessageData, C: Control<M, C>> {
     color: Color,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ColorField<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ColorField<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ColorField<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ColorField<M, C> {
     fn draw(&self, drawing_context: &mut DrawingContext) {

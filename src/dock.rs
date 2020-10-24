@@ -65,19 +65,7 @@ pub struct Tile<M: MessageData, C: Control<M, C>> {
     drop_anchor: Cell<Handle<UINode<M, C>>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Tile<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Tile<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Tile<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tile<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -808,19 +796,7 @@ pub struct DockingManager<M: MessageData, C: Control<M, C>> {
     floating_windows: RefCell<Vec<Handle<UINode<M, C>>>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for DockingManager<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for DockingManager<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(DockingManager<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for DockingManager<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

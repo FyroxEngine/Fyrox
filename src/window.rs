@@ -81,19 +81,7 @@ impl Grip {
     }
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Window<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Window<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Window<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {
@@ -583,7 +571,7 @@ pub enum WindowTitle<M: MessageData, C: Control<M, C>> {
 
 impl<M: MessageData, C: Control<M, C>> WindowTitle<M, C> {
     pub fn text<P: AsRef<str>>(text: P) -> Self {
-        Self::Text(text.as_ref().to_owned())
+        WindowTitle::Text(text.as_ref().to_owned())
     }
 
     pub fn node(node: Handle<UINode<M, C>>) -> Self {

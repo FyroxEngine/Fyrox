@@ -68,7 +68,7 @@ pub struct Widget<M: MessageData, C: Control<M, C>> {
     pub(in crate) arrange_valid: Cell<bool>,
     pub(in crate) prev_measure: Cell<Vec2>,
     pub(in crate) prev_arrange: Cell<Rect<f32>>,
-    /// Desired size of the node after Measure pass.
+    /// Desired size of the node after iMeasure pass.
     pub(in crate) desired_size: Cell<Vec2>,
     /// Actual node local position after Arrange pass.
     pub(in crate) actual_local_position: Cell<Vec2>,
@@ -587,6 +587,25 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
             .unwrap()
             .downcast_ref::<T>()
             .unwrap()
+    }
+}
+
+#[macro_export]
+macro_rules! define_widget_deref {
+    ($ty: ty) => {
+        impl<M: MessageData, C: Control<M, C>> Deref for $ty {
+            type Target = Widget<M, C>;
+        
+            fn deref(&self) -> &Self::Target {
+                &self.widget
+            }
+        }
+        
+        impl<M: MessageData, C: Control<M, C>> DerefMut for $ty {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.widget
+            }
+        }
     }
 }
 
