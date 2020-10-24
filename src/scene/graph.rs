@@ -22,10 +22,9 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::VisibilityCache;
 use crate::{
     core::{
-        math::{mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
+        math::{frustum::Frustum, mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
             Ticket,
@@ -33,10 +32,9 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::ResourceState,
-    scene::node::Node,
+    scene::{node::Node, VisibilityCache},
     utils::log::Log,
 };
-use rg3d_core::math::frustum::Frustum;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -343,7 +341,7 @@ impl Graph {
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Resolving graph...".to_owned());
 
-        self.update_hierachical_data();
+        self.update_hierarchical_data();
 
         // Resolve original handles. Original handle is a handle to a node in resource from which
         // a node was instantiated from. We can resolve it only by names of nodes, but this is not
@@ -431,20 +429,18 @@ impl Graph {
     /// on each frame. However there is one use case - when you setup complex hierarchy and
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
-    pub fn update_hierachical_data(&mut self) {
-        // Calculate transforms on nodes
+    pub fn update_hierarchical_data(&mut self) {
         self.stack.clear();
         self.stack.push(self.root);
         while let Some(node_handle) = self.stack.pop() {
-            // Calculate local transform and get parent handle
             let parent_handle = self.pool[node_handle].parent();
 
-            let (parent_global_transform, parent_visibility) = if parent_handle.is_some() {
-                let parent = &self.pool[parent_handle];
-                (parent.global_transform(), parent.global_visibility())
-            } else {
-                (Mat4::IDENTITY, true)
-            };
+            let (parent_global_transform, parent_visibility) =
+                if let Some(parent) = self.pool.try_borrow(parent_handle) {
+                    (parent.global_transform(), parent.global_visibility())
+                } else {
+                    (Mat4::IDENTITY, true)
+                };
 
             let node = &mut self.pool[node_handle];
             node.global_transform = parent_global_transform * node.local_transform().matrix();
@@ -462,7 +458,7 @@ impl Graph {
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
-        self.update_hierachical_data();
+        self.update_hierarchical_data();
 
         for i in 0..self.pool.get_capacity() {
             if let Some(node) = self.pool.at_mut(i) {

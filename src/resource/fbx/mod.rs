@@ -480,7 +480,7 @@ fn convert(
             }
         }
     }
-    scene.graph.update_hierachical_data();
+    scene.graph.update_hierarchical_data();
 
     // Remap handles from fbx model to handles of instantiated nodes
     // on each surface of each mesh.

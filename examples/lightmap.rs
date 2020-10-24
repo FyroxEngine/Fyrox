@@ -7,7 +7,6 @@
 
 extern crate rg3d;
 
-use rg3d::gui::message::MessageDirection;
 use rg3d::{
     core::{
         color::Color,
@@ -17,7 +16,12 @@ use rg3d::{
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::{message::TextMessage, node::StubNode, text::TextBuilder, widget::WidgetBuilder},
+    gui::{
+        message::{MessageDirection, TextMessage},
+        node::StubNode,
+        text::TextBuilder,
+        widget::WidgetBuilder,
+    },
     scene::{
         base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
     },
@@ -63,7 +67,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .unwrap()
         .instantiate(&mut scene)
         .root;
-    scene.graph.update_hierachical_data();
+    scene.graph.update_hierarchical_data();
 
     for node in scene.graph.linear_iter() {
         if let Node::Mesh(mesh) = node {
