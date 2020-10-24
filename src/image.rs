@@ -19,19 +19,7 @@ pub struct Image<M: MessageData, C: Control<M, C>> {
     flip: bool,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Image<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Image<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Image<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Image<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {

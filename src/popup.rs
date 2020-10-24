@@ -30,19 +30,7 @@ pub struct Popup<M: MessageData, C: Control<M, C>> {
     body: Handle<UINode<M, C>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Popup<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Popup<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Popup<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

@@ -590,6 +590,25 @@ impl<M: MessageData, C: Control<M, C>> Widget<M, C> {
     }
 }
 
+#[macro_export]
+macro_rules! define_widget_deref {
+    ($ty: ty) => {
+        impl<M: MessageData, C: Control<M, C>> Deref for $ty {
+            type Target = Widget<M, C>;
+        
+            fn deref(&self) -> &Self::Target {
+                &self.widget
+            }
+        }
+        
+        impl<M: MessageData, C: Control<M, C>> DerefMut for $ty {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.widget
+            }
+        }
+    }
+}
+
 pub struct WidgetBuilder<M: MessageData, C: Control<M, C>> {
     pub name: String,
     pub width: f32,

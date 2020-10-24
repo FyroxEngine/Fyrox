@@ -17,19 +17,7 @@ pub struct Canvas<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Canvas<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Canvas<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Canvas<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Canvas<M, C> {
     fn measure_override(&self, ui: &UserInterface<M, C>, _available_size: Vec2) -> Vec2 {

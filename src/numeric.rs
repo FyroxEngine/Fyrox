@@ -31,19 +31,7 @@ pub struct NumericUpDown<M: MessageData, C: Control<M, C>> {
     precision: usize,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for NumericUpDown<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for NumericUpDown<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(NumericUpDown<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> NumericUpDown<M, C> {
     fn try_parse_value(&mut self, ui: &mut UserInterface<M, C>) {

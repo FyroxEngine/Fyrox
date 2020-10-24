@@ -16,19 +16,7 @@ pub struct CheckBox<M: MessageData, C: Control<M, C>> {
     pub check_mark: Handle<UINode<M, C>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for CheckBox<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for CheckBox<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(CheckBox<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for CheckBox<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

@@ -22,19 +22,7 @@ pub struct ListView<M: MessageData, C: Control<M, C>> {
     items: Vec<Handle<UINode<M, C>>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ListView<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ListView<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ListView<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> ListView<M, C> {
     pub fn new(widget: Widget<M, C>, items: Vec<Handle<UINode<M, C>>>) -> Self {
@@ -66,19 +54,7 @@ pub struct ListViewItem<M: MessageData, C: Control<M, C>> {
     index: usize,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for ListViewItem<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for ListViewItem<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(ListViewItem<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> ListViewItem<M, C> {
     pub fn index(&self) -> usize {

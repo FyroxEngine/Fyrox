@@ -22,19 +22,7 @@ pub struct Vec3Editor<M: MessageData, C: Control<M, C>> {
     value: Vec3,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for Vec3Editor<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for Vec3Editor<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(Vec3Editor<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Vec3Editor<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

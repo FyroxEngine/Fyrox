@@ -26,19 +26,7 @@ pub struct DropdownList<M: MessageData, C: Control<M, C>> {
     selection: Option<usize>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for DropdownList<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for DropdownList<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(DropdownList<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
     fn resolve(&mut self, node_map: &NodeHandleMapping<M, C>) {

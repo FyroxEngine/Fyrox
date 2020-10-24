@@ -22,19 +22,7 @@ pub struct WrapPanel<M: MessageData, C: Control<M, C>> {
     lines: RefCell<Vec<Line>>,
 }
 
-impl<M: MessageData, C: Control<M, C>> Deref for WrapPanel<M, C> {
-    type Target = Widget<M, C>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.widget
-    }
-}
-
-impl<M: MessageData, C: Control<M, C>> DerefMut for WrapPanel<M, C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.widget
-    }
-}
+crate::define_widget_deref!(WrapPanel<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> WrapPanel<M, C> {
     pub fn new(widget: Widget<M, C>) -> Self {
