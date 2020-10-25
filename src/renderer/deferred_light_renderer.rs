@@ -1,3 +1,6 @@
+use crate::core::math::vec2::Vec2;
+use crate::renderer::framework::framebuffer::DrawPartContext;
+use crate::renderer::surface::Vertex;
 use crate::{
     core::{
         color::Color,
@@ -25,6 +28,7 @@ use crate::{
     },
     scene::{camera::Camera, light::Light, node::Node, Scene},
 };
+use rg3d_core::math::TriangleDefinition;
 use std::{cell::RefCell, rc::Rc};
 
 struct AmbientLightShader {
@@ -185,6 +189,7 @@ pub struct DeferredLightRenderer {
     ambient_light_shader: AmbientLightShader,
     quad: SurfaceSharedData,
     sphere: SurfaceSharedData,
+    skybox: SurfaceSharedData,
     flat_shader: FlatShader,
     spot_shadow_map_renderer: SpotShadowMapRenderer,
     point_shadow_map_renderer: PointShadowMapRenderer,
@@ -220,6 +225,55 @@ impl DeferredLightRenderer {
             directional_light_shader: DirectionalLightShader::new()?,
             ambient_light_shader: AmbientLightShader::new()?,
             quad: SurfaceSharedData::make_unit_xy_quad(),
+            skybox: SurfaceSharedData::new(
+                vec![
+                    // Front
+                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, -0.5), Vec2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, -0.5), Vec2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, -0.5), Vec2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    // Back
+                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, 0.5), Vec2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, 0.5), Vec2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, 0.5), Vec2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, 0.5), Vec2::new(0.0, 1.0)),
+                    // Left
+                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, -0.5), Vec2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, 0.5), Vec2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, 0.5), Vec2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    // Right
+                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, 0.5), Vec2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, -0.5), Vec2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, -0.5), Vec2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, 0.5), Vec2::new(0.0, 1.0)),
+                    // Up
+                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, 0.5), Vec2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, 0.5), Vec2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, 0.5, -0.5), Vec2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, 0.5, -0.5), Vec2::new(0.0, 1.0)),
+                    // Down
+                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, 0.5), Vec2::new(0.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, 0.5), Vec2::new(1.0, 0.0)),
+                    Vertex::from_pos_uv(Vec3::new(0.5, -0.5, -0.5), Vec2::new(1.0, 1.0)),
+                    Vertex::from_pos_uv(Vec3::new(-0.5, -0.5, -0.5), Vec2::new(0.0, 1.0)),
+                ],
+                vec![
+                    TriangleDefinition([0, 1, 2]),
+                    TriangleDefinition([0, 2, 3]),
+                    TriangleDefinition([4, 5, 6]),
+                    TriangleDefinition([4, 6, 7]),
+                    TriangleDefinition([8, 9, 10]),
+                    TriangleDefinition([8, 10, 11]),
+                    TriangleDefinition([12, 13, 14]),
+                    TriangleDefinition([12, 14, 15]),
+                    TriangleDefinition([16, 17, 18]),
+                    TriangleDefinition([16, 18, 19]),
+                    TriangleDefinition([20, 21, 22]),
+                    TriangleDefinition([20, 22, 23]),
+                ],
+                true,
+            ),
             sphere: SurfaceSharedData::make_sphere(6, 6, 1.0),
             flat_shader: FlatShader::new()?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
@@ -311,6 +365,61 @@ impl DeferredLightRenderer {
             Some(0),
         );
 
+        // Render skybox (if any).
+        if let Some(skybox) = camera.skybox_ref() {
+            let size = camera.z_far() / 2.0f32.sqrt();
+            let scale = Mat4::scale(Vec3::new(size, size, size));
+            let wvp = Mat4::translate(camera.global_position()) * scale;
+
+            // TODO: Ideally this should be drawn in a single draw call using cube map.
+            // Cubemaps still not supported so we'll draw this as six separate planes for now.
+            for (face, texture) in skybox
+                .textures
+                .iter()
+                .enumerate()
+                .filter_map(|(face, tex)| tex.clone().map(|tex| (face, tex)))
+            {
+                if let Some(gpu_texture) = textures.get(state, texture) {
+                    statistics += gbuffer
+                        .final_frame
+                        .draw_part(DrawPartContext {
+                            geometry: geometry_cache.get(state, &self.skybox),
+                            state,
+                            viewport,
+                            program: &mut self.flat_shader.program,
+                            params: DrawParameters {
+                                cull_face: CullFace::Back,
+                                culling: false,
+                                color_write: Default::default(),
+                                depth_write: false,
+                                stencil_test: false,
+                                depth_test: false,
+                                blend: false,
+                            },
+                            uniforms: &[
+                                (
+                                    self.flat_shader.diffuse_texture,
+                                    UniformValue::Sampler {
+                                        index: 0,
+                                        texture: gpu_texture,
+                                    },
+                                ),
+                                (
+                                    self.flat_shader.wvp_matrix,
+                                    UniformValue::Mat4(view_projection * wvp),
+                                ),
+                            ],
+                            offset: face * 2,
+                            count: 2,
+                        })
+                        .unwrap();
+                }
+            }
+        }
+
+        state.set_blend(true);
+        state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+
         // Ambient light.
         gbuffer.final_frame.draw(
             geometry_cache.get(state, &self.quad),
@@ -324,7 +433,7 @@ impl DeferredLightRenderer {
                 depth_write: false,
                 stencil_test: false,
                 depth_test: false,
-                blend: false,
+                blend: true,
             },
             &[
                 (
@@ -363,7 +472,6 @@ impl DeferredLightRenderer {
             ],
         );
 
-        state.set_blend(true);
         state.set_blend_func(gl::ONE, gl::ONE);
 
         for light in scene.graph.linear_iter().filter_map(|node| {

@@ -19,6 +19,7 @@ use crate::{
         math::{mat4::Mat4, ray::Ray, vec2::Vec2, vec3::Vec3, vec4::Vec4, Rect},
         visitor::{Visit, VisitResult, Visitor},
     },
+    resource::texture::Texture,
     scene::{
         base::{Base, BaseBuilder},
         node::Node,
@@ -38,6 +39,7 @@ pub struct Camera {
     view_matrix: Mat4,
     projection_matrix: Mat4,
     enabled: bool,
+    skybox: Option<SkyBox>,
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     pub visibility_cache: VisibilityCache,
 }
@@ -71,6 +73,7 @@ impl Visit for Camera {
         self.viewport.visit("Viewport", visitor)?;
         self.base.visit("Base", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
+        let _ = self.skybox.visit("SkyBox", visitor);
         // self.visibility_cache intentionally not serialized. It is valid only for one frame.
         visitor.leave_region()
     }
@@ -197,6 +200,22 @@ impl Camera {
         self
     }
 
+    /// Sets new skybox. Could be None if no skybox needed.
+    pub fn set_skybox(&mut self, skybox: Option<SkyBox>) -> &mut Self {
+        self.skybox = skybox;
+        self
+    }
+
+    /// Return optional mutable reference to current skybox.
+    pub fn skybox_mut(&mut self) -> Option<&mut SkyBox> {
+        self.skybox.as_mut()
+    }
+
+    /// Return optional shared reference to current skybox.  
+    pub fn skybox_ref(&self) -> Option<&SkyBox> {
+        self.skybox.as_ref()
+    }
+
     /// Creates picking ray from given screen coordinates.
     pub fn make_ray(&self, screen_coord: Vec2, screen_size: Vec2) -> Ray {
         let viewport = self.viewport_pixels(screen_size);
@@ -240,6 +259,7 @@ impl Camera {
             view_matrix: self.view_matrix,
             projection_matrix: self.projection_matrix,
             enabled: self.enabled,
+            skybox: self.skybox.clone(),
             // No need to copy cache. It is valid only for one frame.
             visibility_cache: Default::default(),
         }
@@ -255,6 +275,7 @@ pub struct CameraBuilder {
     z_far: f32,
     viewport: Rect<f32>,
     enabled: bool,
+    skybox: Option<SkyBox>,
 }
 
 impl CameraBuilder {
@@ -272,6 +293,7 @@ impl CameraBuilder {
                 w: 1.0,
                 h: 1.0,
             },
+            skybox: None,
         }
     }
 
@@ -305,6 +327,12 @@ impl CameraBuilder {
         self
     }
 
+    /// Sets desired skybox.
+    pub fn with_skybox(mut self, skybox: SkyBox) -> Self {
+        self.skybox = Some(skybox);
+        self
+    }
+
     /// Creates new instance of camera node. Do not forget to add node to scene,
     /// otherwise it is useless.
     pub fn build(self) -> Camera {
@@ -320,11 +348,43 @@ impl CameraBuilder {
             view_matrix: Mat4::IDENTITY,
             projection_matrix: Mat4::IDENTITY,
             visibility_cache: Default::default(),
+            skybox: self.skybox,
         }
     }
 
     /// Creates new node instance.
     pub fn build_node(self) -> Node {
         Node::Camera(self.build())
+    }
+}
+
+/// Skybox is a huge box around camera. Each face has its own texture, when textures are
+/// properly made, there is no seams and you get good decoration which contains static
+/// skies and/or some other objects (mountains, buildings, etc.). Usually skyboxes used
+/// in outdoor scenes, however real use of it limited only by your imagination. Skybox
+/// will be drawn first, none of objects could be drawn before skybox.
+#[derive(Debug, Clone, Default)]
+pub struct SkyBox {
+    /// 0 - Front
+    /// 1 - Back
+    /// 2 - Left
+    /// 3 - Right
+    /// 4 - Top
+    /// 5 - Bottom
+    pub textures: [Option<Texture>; 6],
+}
+
+impl Visit for SkyBox {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.textures[0].visit("Front", visitor)?;
+        self.textures[1].visit("Back", visitor)?;
+        self.textures[2].visit("Left", visitor)?;
+        self.textures[3].visit("Right", visitor)?;
+        self.textures[4].visit("Top", visitor)?;
+        self.textures[5].visit("Bottom", visitor)?;
+
+        visitor.leave_region()
     }
 }

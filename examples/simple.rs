@@ -7,6 +7,7 @@
 extern crate rg3d;
 
 use rg3d::gui::message::MessageDirection;
+use rg3d::scene::camera::SkyBox;
 use rg3d::{
     animation::Animation,
     core::{
@@ -15,7 +16,7 @@ use rg3d::{
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{message::TextMessage, node::StubNode, text::TextBuilder, widget::WidgetBuilder},
     scene::{
@@ -52,25 +53,53 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                 .build(),
         ),
     )
+    .with_skybox(SkyBox {
+        textures: [
+            Some(
+                resource_manager
+                    .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
+            ),
+            Some(
+                resource_manager
+                    .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
+            ),
+            Some(
+                resource_manager
+                    .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
+            ),
+            Some(
+                resource_manager
+                    .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
+            ),
+            Some(
+                resource_manager
+                    .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
+            ),
+            Some(
+                resource_manager
+                    .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png"),
+            ),
+        ],
+    })
     .build();
 
     scene.graph.add_node(Node::Camera(camera));
 
-    // Load model resource. Is does *not* adds anything to our scene - it just loads a
-    // resource then can be used later on to instantiate models from it on scene. Why
-    // loading of resource is separated from instantiation? Because there it is too
-    // inefficient to load a resource every time you trying to create instance of it -
-    // much more efficient is to load it one and then make copies of it. In case of
-    // models it is very efficient because single vertex and index buffer can be used
-    // for all models instances, so memory footprint on GPU will be lower.
-    let model_resource = resource_manager
-        .request_model("examples/data/mutant.FBX")
-        .await
-        .unwrap();
+    // Load model and animation resource in parallel. Is does *not* adds anything to
+    // our scene - it just loads a resource then can be used later on to instantiate
+    // models from it on scene. Why loading of resource is separated from instantiation?
+    // Because it is too inefficient to load a resource every time you trying to
+    // create instance of it - much more efficient is to load it once and then make copies
+    // of it. In case of models it is very efficient because single vertex and index buffer
+    // can be used for all models instances, so memory footprint on GPU will be lower.
+    let (model_resource, walk_animation_resource) = rg3d::futures::join!(
+        resource_manager.request_model("examples/data/mutant.FBX"),
+        resource_manager.request_model("examples/data/walk.fbx")
+    );
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource.instantiate_geometry(&mut scene);
+    let model_handle = model_resource.unwrap().instantiate_geometry(&mut scene);
 
     // Now we have whole sub-graph instantiated, we can start modifying model instance.
     scene.graph[model_handle]
@@ -80,16 +109,12 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
-    let walk_animation_resource = resource_manager
-        .request_model("examples/data/walk.fbx")
-        .await
-        .unwrap();
-
     // Once animation resource is loaded it must be re-targeted to our model instance.
     // Why? Because animation in *resource* uses information about *resource* bones,
     // not model instance bones, retarget_animations maps animations of each bone on
     // model instance so animation will know about nodes it should operate on.
     let walk_animation = *walk_animation_resource
+        .unwrap()
         .retarget_animations(model_handle, &mut scene)
         .get(0)
         .unwrap();
@@ -265,7 +290,7 @@ fn main() {
                     engine.user_interface.process_os_event(&os_event);
                 }
             }
-            Event::DeviceEvent { event, .. } => {
+            Event::DeviceEvent { .. } => {
                 // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,
