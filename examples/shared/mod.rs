@@ -4,13 +4,15 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
-use rg3d::core::color::Color;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
-    core::{math::quat::Quat, math::vec2::Vec2, math::vec3::Vec3, math::SmoothAngle, pool::Handle},
+    core::{
+        color::Color, math::quat::Quat, math::vec2::Vec2, math::vec3::Vec3, math::SmoothAngle,
+        pool::Handle,
+    },
     engine::resource_manager::ResourceManager,
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
@@ -27,8 +29,13 @@ use rg3d::{
         rigid_body::RigidBody,
     },
     renderer::QualitySettings,
+    resource::texture::TextureWrapMode,
     scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+        base::BaseBuilder,
+        camera::{Camera, CameraBuilder, SkyBox},
+        node::Node,
+        transform::TransformBuilder,
+        Scene,
     },
     utils::mesh_to_static_geometry,
 };
@@ -42,6 +49,53 @@ use std::{
 pub type GameEngine = rg3d::engine::Engine<(), StubNode>;
 pub type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
+
+/// Creates a camera at given position with a skybox.
+pub async fn create_camera(resource_manager: ResourceManager, position: Vec3) -> Camera {
+    // Load skybox textures in parallel.
+    let (front, back, left, right, top, bottom) = rg3d::futures::join!(
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
+        resource_manager.request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
+        resource_manager
+            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
+    );
+
+    // Unwrap everything.
+    let skybox = SkyBox {
+        front: Some(front.unwrap()),
+        back: Some(back.unwrap()),
+        left: Some(left.unwrap()),
+        right: Some(right.unwrap()),
+        top: Some(top.unwrap()),
+        bottom: Some(bottom.unwrap()),
+    };
+
+    // Set S and T coordinate wrap mode, ClampToEdge will remove any possible seams on edges
+    // of the skybox.
+    for skybox_texture in skybox.textures().iter().filter_map(|t| t.clone()) {
+        let mut data = skybox_texture.data_ref();
+        data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+        data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+    }
+
+    // Camera is our eyes in the world - you won't see anything without it.
+    CameraBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(position)
+                .build(),
+        ),
+    )
+    .with_skybox(skybox)
+    .build()
+}
 
 pub struct Game {
     pub game_scene: Option<GameScene>,
@@ -374,14 +428,7 @@ impl Player {
             .report_progress(0.0, "Creating camera...");
 
         // Camera is our eyes in the world - you won't see anything without it.
-        let camera = CameraBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vec3::new(0.0, 0.0, -3.0))
-                    .build(),
-            ),
-        )
-        .build();
+        let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 0.0, -3.0)).await;
         let camera = scene.graph.add_node(Node::Camera(camera));
 
         let camera_pivot = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));

@@ -8,6 +8,9 @@
 
 extern crate rg3d;
 
+pub mod shared;
+
+use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
@@ -25,7 +28,8 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            ButtonMessage, DropdownListMessage, ScrollBarMessage, TextMessage, UiMessageData,
+            ButtonMessage, DropdownListMessage, MessageDirection, ScrollBarMessage, TextMessage,
+            UiMessageData,
         },
         node::StubNode,
         scroll_bar::ScrollBarBuilder,
@@ -42,7 +46,6 @@ use rg3d::{
     utils::translate_event,
     window::Fullscreen,
 };
-use rg3d_ui::message::MessageDirection;
 use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
@@ -281,14 +284,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-                .build(),
-        ),
-    )
-    .build();
+    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
 
     scene.graph.add_node(Node::Camera(camera));
 

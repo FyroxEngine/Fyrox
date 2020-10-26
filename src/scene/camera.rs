@@ -365,25 +365,45 @@ impl CameraBuilder {
 /// will be drawn first, none of objects could be drawn before skybox.
 #[derive(Debug, Clone, Default)]
 pub struct SkyBox {
-    /// 0 - Front
-    /// 1 - Back
-    /// 2 - Left
-    /// 3 - Right
-    /// 4 - Top
-    /// 5 - Bottom
-    pub textures: [Option<Texture>; 6],
+    /// Texture for front face.
+    pub front: Option<Texture>,
+    /// Texture for back face.
+    pub back: Option<Texture>,
+    /// Texture for left face.
+    pub left: Option<Texture>,
+    /// Texture for right face.
+    pub right: Option<Texture>,
+    /// Texture for top face.
+    pub top: Option<Texture>,
+    /// Texture for bottom face.
+    pub bottom: Option<Texture>,
+}
+
+impl SkyBox {
+    /// Returns slice with all textures, where: 0 - Front, 1 - Back, 2 - Left, 3 - Right
+    /// 4 - Top, 5 - Bottom
+    pub fn textures(&self) -> [Option<Texture>; 6] {
+        [
+            self.front.clone(),
+            self.back.clone(),
+            self.left.clone(),
+            self.right.clone(),
+            self.top.clone(),
+            self.bottom.clone(),
+        ]
+    }
 }
 
 impl Visit for SkyBox {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.textures[0].visit("Front", visitor)?;
-        self.textures[1].visit("Back", visitor)?;
-        self.textures[2].visit("Left", visitor)?;
-        self.textures[3].visit("Right", visitor)?;
-        self.textures[4].visit("Top", visitor)?;
-        self.textures[5].visit("Bottom", visitor)?;
+        self.front.visit("Front", visitor)?;
+        self.back.visit("Back", visitor)?;
+        self.left.visit("Left", visitor)?;
+        self.right.visit("Right", visitor)?;
+        self.top.visit("Top", visitor)?;
+        self.bottom.visit("Bottom", visitor)?;
 
         visitor.leave_region()
     }

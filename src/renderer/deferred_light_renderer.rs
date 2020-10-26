@@ -374,7 +374,7 @@ impl DeferredLightRenderer {
             // TODO: Ideally this should be drawn in a single draw call using cube map.
             // Cubemaps still not supported so we'll draw this as six separate planes for now.
             for (face, texture) in skybox
-                .textures
+                .textures()
                 .iter()
                 .enumerate()
                 .filter_map(|(face, tex)| tex.clone().map(|tex| (face, tex)))

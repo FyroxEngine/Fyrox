@@ -29,7 +29,6 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::resource::texture::TextureState;
 use crate::{
     core::{
         color::Color,
@@ -53,7 +52,8 @@ use crate::{
             gl,
             gpu_program::UniformValue,
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind,
             },
             state::State,
         },
@@ -63,12 +63,11 @@ use crate::{
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{Texture, TexturePixelKind, TextureState},
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
-use std::ops::Deref;
-use std::{cell::RefCell, collections::HashMap, rc::Rc, time};
+use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc, time};
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
@@ -442,7 +441,7 @@ impl TextureCache {
                 let gpu_texture = GpuTexture::new(
                     state,
                     kind,
-                    PixelKind::from(texture.kind),
+                    PixelKind::from(texture.pixel_kind),
                     texture.minification_filter().into(),
                     texture.magnification_filter().into(),
                     Some(texture.bytes.as_slice()),
@@ -479,6 +478,22 @@ impl TextureCache {
                     .borrow_mut()
                     .bind_mut(state, 0)
                     .set_anisotropy(texture.anisotropy_level());
+            }
+
+            let new_s_wrap_mode = texture.s_wrap_mode().into();
+            if gpu_texture.borrow().s_wrap_mode() != new_s_wrap_mode {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_wrap(Coordinate::S, new_s_wrap_mode);
+            }
+
+            let new_t_wrap_mode = texture.t_wrap_mode().into();
+            if gpu_texture.borrow().t_wrap_mode() != new_t_wrap_mode {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_wrap(Coordinate::T, new_t_wrap_mode);
             }
 
             // Texture won't be destroyed while it used.
@@ -713,7 +728,7 @@ impl Renderer {
                         rt.width = gbuffer.width as u32;
                         rt.height = gbuffer.height as u32;
                         // TODO: For now only RGBA8 textures are supported.
-                        rt.kind = TextureKind::RGBA8;
+                        rt.pixel_kind = TexturePixelKind::RGBA8;
                     }
                 }
 

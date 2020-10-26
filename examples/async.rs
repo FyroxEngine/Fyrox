@@ -7,6 +7,8 @@
 
 extern crate rg3d;
 
+pub mod shared;
+
 use rg3d::gui::message::MessageDirection;
 use rg3d::{
     animation::Animation,
@@ -36,6 +38,8 @@ use std::{
     sync::{Arc, Mutex},
     time::Instant,
 };
+
+use crate::shared::create_camera;
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -139,14 +143,7 @@ fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadC
                 .report_progress(0.0, "Creating camera...");
 
             // Camera is our eyes in the world - you won't see anything without it.
-            let camera = CameraBuilder::new(
-                BaseBuilder::new().with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-                        .build(),
-                ),
-            )
-            .build();
+            let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
 
             scene.graph.add_node(Node::Camera(camera));
 

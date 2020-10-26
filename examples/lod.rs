@@ -6,6 +6,10 @@
 
 extern crate rg3d;
 
+pub mod shared;
+
+use crate::shared::create_camera;
+
 use rg3d::{
     core::{
         color::Color,
@@ -52,17 +56,9 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 1.5, -5.0))
-                .build(),
-        ),
-    )
+    let mut camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 1.5, -5.0)).await;
     // Set small z far for the sake of example.
-    .with_z_far(32.0)
-    .build();
-
+    camera.set_z_far(32.0);
     let camera = scene.graph.add_node(Node::Camera(camera));
 
     // Load model resource. Is does *not* adds anything to our scene - it just loads a

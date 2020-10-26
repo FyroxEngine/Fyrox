@@ -21,8 +21,10 @@ use crate::{
     resource::{Resource, ResourceData, ResourceState},
 };
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
-use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 /// Actual texture data.
 #[derive(Debug)]
@@ -31,9 +33,11 @@ pub struct TextureData {
     pub(in crate) width: u32,
     pub(in crate) height: u32,
     pub(in crate) bytes: Vec<u8>,
-    pub(in crate) kind: TextureKind,
+    pub(in crate) pixel_kind: TexturePixelKind,
     minification_filter: TextureMinificationFilter,
     magnification_filter: TextureMagnificationFilter,
+    s_wrap_mode: TextureWrapMode,
+    t_wrap_mode: TextureWrapMode,
     anisotropy: f32,
 }
 
@@ -47,13 +51,15 @@ impl Visit for TextureData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        let mut kind = self.kind.id();
+        let mut kind = self.pixel_kind.id();
         kind.visit("KindId", visitor)?;
         if visitor.is_reading() {
-            self.kind = TextureKind::new(kind)?;
+            self.pixel_kind = TexturePixelKind::new(kind)?;
         }
 
         self.path.visit("Path", visitor)?;
+
+        // Ignore result for backward compatibility.
         let _ = self
             .minification_filter
             .visit("MinificationFilter", visitor);
@@ -61,6 +67,8 @@ impl Visit for TextureData {
             .magnification_filter
             .visit("MagnificationFilter", visitor);
         let _ = self.anisotropy.visit("Anisotropy", visitor);
+        let _ = self.s_wrap_mode.visit("SWrapMode", visitor);
+        let _ = self.t_wrap_mode.visit("TWrapMode", visitor);
 
         visitor.leave_region()
     }
@@ -76,9 +84,11 @@ impl Default for TextureData {
             width: 0,
             height: 0,
             bytes: Vec::new(),
-            kind: TextureKind::RGBA8,
+            pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::LinearMipMapLinear,
             magnification_filter: TextureMagnificationFilter::Linear,
+            s_wrap_mode: TextureWrapMode::Repeat,
+            t_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
         }
     }
@@ -97,12 +107,15 @@ impl Texture {
     pub fn new_render_target() -> Self {
         Self::new(TextureState::Ok(TextureData {
             path: Default::default(),
+            // Render target will automatically set width and height before rendering.
             width: 0,
             height: 0,
             bytes: Vec::new(),
-            kind: TextureKind::RGBA8,
+            pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::Nearest,
             magnification_filter: TextureMagnificationFilter::Nearest,
+            s_wrap_mode: TextureWrapMode::ClampToEdge,
+            t_wrap_mode: TextureWrapMode::ClampToEdge,
             anisotropy: 1.0,
         }))
     }
@@ -210,10 +223,61 @@ impl Visit for TextureMinificationFilter {
     }
 }
 
+/// Defines a law of texture coordinate modification.
+#[derive(Copy, Clone, Debug, Hash, PartialOrd, PartialEq)]
+#[repr(u32)]
+pub enum TextureWrapMode {
+    /// Causes the integer part of a coordinate to be ignored; GPU uses only the fractional part,
+    /// thereby creating a repeating pattern.
+    Repeat = 0,
+
+    /// Causes a coordinates to be clamped to the range range, where N is the size of the texture
+    /// in the direction of clamping
+    ClampToEdge = 1,
+
+    /// Evaluates a coordinates in a similar manner to ClampToEdge. However, in cases where clamping
+    /// would have occurred in ClampToEdge mode, the fetched texel data is substituted with the values
+    /// specified by border color.     
+    ClampToBorder = 2,
+
+    /// Causes the a coordinate to be set to the fractional part of the texture coordinate if the integer
+    /// part of coordinate is even; if the integer part of coordinate is odd, then the coordinate texture
+    /// coordinate is set to 1-frac, where frac represents the fractional part of coordinate.
+    MirroredRepeat = 3,
+
+    /// Causes a coordinate to be repeated as for MirroredRepeat for one repetition of the texture, at
+    /// which point the coordinate to be clamped as in ClampToEdge.
+    MirrorClampToEdge = 4,
+}
+
+impl Visit for TextureWrapMode {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut id = *self as u32;
+        id.visit("Id", visitor)?;
+
+        if visitor.is_reading() {
+            *self = match id {
+                0 => TextureWrapMode::Repeat,
+                1 => TextureWrapMode::ClampToEdge,
+                2 => TextureWrapMode::ClampToBorder,
+                3 => TextureWrapMode::MirroredRepeat,
+                4 => TextureWrapMode::MirrorClampToEdge,
+                _ => {
+                    return VisitResult::Err(VisitError::User(format!("Invalid wrap mode {}!", id)))
+                }
+            }
+        }
+
+        visitor.leave_region()
+    }
+}
+
 /// Texture kind defines pixel format of texture.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[repr(u32)]
-pub enum TextureKind {
+pub enum TexturePixelKind {
     /// 1 byte red.
     R8 = 0,
 
@@ -245,7 +309,7 @@ pub enum TextureKind {
     RGBA16 = 9,
 }
 
-impl TextureKind {
+impl TexturePixelKind {
     fn new(id: u32) -> Result<Self, String> {
         match id {
             0 => Ok(Self::R8),
@@ -286,20 +350,20 @@ impl TextureData {
         let height = dyn_img.height();
 
         let kind = match dyn_img {
-            DynamicImage::ImageLuma8(_) => TextureKind::R8,
-            DynamicImage::ImageLumaA8(_) => TextureKind::RG8,
-            DynamicImage::ImageRgb8(_) => TextureKind::RGB8,
-            DynamicImage::ImageRgba8(_) => TextureKind::RGBA8,
-            DynamicImage::ImageBgr8(_) => TextureKind::BGR8,
-            DynamicImage::ImageBgra8(_) => TextureKind::BGRA8,
-            DynamicImage::ImageLuma16(_) => TextureKind::R16,
-            DynamicImage::ImageLumaA16(_) => TextureKind::RG16,
-            DynamicImage::ImageRgb16(_) => TextureKind::RGB16,
-            DynamicImage::ImageRgba16(_) => TextureKind::RGBA16,
+            DynamicImage::ImageLuma8(_) => TexturePixelKind::R8,
+            DynamicImage::ImageLumaA8(_) => TexturePixelKind::RG8,
+            DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
+            DynamicImage::ImageRgba8(_) => TexturePixelKind::RGBA8,
+            DynamicImage::ImageBgr8(_) => TexturePixelKind::BGR8,
+            DynamicImage::ImageBgra8(_) => TexturePixelKind::BGRA8,
+            DynamicImage::ImageLuma16(_) => TexturePixelKind::R16,
+            DynamicImage::ImageLumaA16(_) => TexturePixelKind::RG16,
+            DynamicImage::ImageRgb16(_) => TexturePixelKind::RGB16,
+            DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
         };
 
         Ok(Self {
-            kind,
+            pixel_kind: kind,
             width,
             height,
             bytes: dyn_img.to_bytes(),
@@ -312,7 +376,7 @@ impl TextureData {
     pub fn from_bytes(
         width: u32,
         height: u32,
-        kind: TextureKind,
+        kind: TexturePixelKind,
         bytes: Vec<u8>,
     ) -> Result<Self, ()> {
         let bpp = kind.bytes_per_pixel();
@@ -325,7 +389,7 @@ impl TextureData {
                 width,
                 height,
                 bytes,
-                kind,
+                pixel_kind: kind,
                 ..Default::default()
             })
         }
@@ -351,6 +415,26 @@ impl TextureData {
         self.magnification_filter
     }
 
+    /// Sets new S coordinate wrap mode.
+    pub fn set_s_wrap_mode(&mut self, s_wrap_mode: TextureWrapMode) {
+        self.s_wrap_mode = s_wrap_mode;
+    }
+
+    /// Returns current S coordinate wrap mode.
+    pub fn s_wrap_mode(&self) -> TextureWrapMode {
+        self.s_wrap_mode
+    }
+
+    /// Sets new T coordinate wrap mode.
+    pub fn set_t_wrap_mode(&mut self, t_wrap_mode: TextureWrapMode) {
+        self.t_wrap_mode = t_wrap_mode;
+    }
+
+    /// Returns current T coordinate wrap mode.
+    pub fn t_wrap_mode(&self) -> TextureWrapMode {
+        self.t_wrap_mode
+    }
+
     /// Max samples for anisotropic filtering. Default value is 16.0 (max).
     /// However real value passed to GPU will be clamped to maximum supported
     /// by current GPU. To disable anisotropic filtering set this to 1.0.
@@ -371,17 +455,17 @@ impl TextureData {
 
     /// Tries to save internal buffer into source file.
     pub fn save(&self) -> Result<(), ImageError> {
-        let color_type = match self.kind {
-            TextureKind::R8 => ColorType::L8,
-            TextureKind::RGB8 => ColorType::Rgb8,
-            TextureKind::RGBA8 => ColorType::Rgba8,
-            TextureKind::RG8 => ColorType::La8,
-            TextureKind::R16 => ColorType::L16,
-            TextureKind::RG16 => ColorType::La16,
-            TextureKind::BGR8 => ColorType::Bgr8,
-            TextureKind::BGRA8 => ColorType::Bgra8,
-            TextureKind::RGB16 => ColorType::Rgb16,
-            TextureKind::RGBA16 => ColorType::Rgba16,
+        let color_type = match self.pixel_kind {
+            TexturePixelKind::R8 => ColorType::L8,
+            TexturePixelKind::RGB8 => ColorType::Rgb8,
+            TexturePixelKind::RGBA8 => ColorType::Rgba8,
+            TexturePixelKind::RG8 => ColorType::La8,
+            TexturePixelKind::R16 => ColorType::L16,
+            TexturePixelKind::RG16 => ColorType::La16,
+            TexturePixelKind::BGR8 => ColorType::Bgr8,
+            TexturePixelKind::BGRA8 => ColorType::Bgra8,
+            TexturePixelKind::RGB16 => ColorType::Rgb16,
+            TexturePixelKind::RGBA16 => ColorType::Rgba16,
         };
         image::save_buffer(
             &self.path,

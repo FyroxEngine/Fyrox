@@ -26,7 +26,7 @@ use crate::{
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{Texture, TexturePixelKind},
 };
 use std::{
     cell::RefCell,
@@ -186,7 +186,7 @@ impl UiRenderer {
                                 if let Ok(details) = TextureData::from_bytes(
                                     size,
                                     size,
-                                    TextureKind::R8,
+                                    TexturePixelKind::R8,
                                     font.atlas_pixels().to_vec(),
                                 ) {
                                     font.texture = Some(SharedTexture(Arc::new(Mutex::new(

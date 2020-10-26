@@ -36,7 +36,7 @@
 //! use rg3d::scene::base::BaseBuilder;
 //! use rg3d::core::color::Color;
 //! use std::path::Path;
-//! use rg3d::resource::texture::TextureKind;
+//! use rg3d::resource::texture::TexturePixelKind;
 //!
 //! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vec3) {
 //!     graph.add_node(Node::ParticleSystem(ParticleSystemBuilder::new(BaseBuilder::new()
@@ -63,7 +63,7 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_opt_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), TextureKind::R8))
+//!         .with_opt_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), TexturePixelKind::R8))
 //!         .build()));
 //! }
 //! ```

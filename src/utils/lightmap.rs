@@ -16,7 +16,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{Texture, TexturePixelKind},
     scene::{light::Light, node::Node, Scene},
 };
 use image::ImageError;
@@ -491,7 +491,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes.push(color.b);
         bytes.push(color.a);
     }
-    TextureData::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
+    TextureData::from_bytes(size, size, TexturePixelKind::RGBA8, bytes).unwrap()
 }
 
 #[cfg(test)]

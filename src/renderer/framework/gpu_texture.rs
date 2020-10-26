@@ -1,13 +1,14 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
+use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::color::Color,
     renderer::{
         error::RendererError,
         framework::{gl, gl::types::GLuint, state::State},
     },
-    resource::texture::{TextureKind, TextureMagnificationFilter, TextureMinificationFilter},
+    resource::texture::{TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind},
     utils::log::Log,
 };
 use std::{ffi::c_void, marker::PhantomData};
@@ -62,19 +63,19 @@ pub enum PixelKind {
     RGBA16,
 }
 
-impl From<TextureKind> for PixelKind {
-    fn from(texture_kind: TextureKind) -> Self {
+impl From<TexturePixelKind> for PixelKind {
+    fn from(texture_kind: TexturePixelKind) -> Self {
         match texture_kind {
-            TextureKind::R8 => Self::R8,
-            TextureKind::RGB8 => Self::RGB8,
-            TextureKind::RGBA8 => Self::RGBA8,
-            TextureKind::RG8 => Self::RG8,
-            TextureKind::R16 => Self::R16,
-            TextureKind::RG16 => Self::RG16,
-            TextureKind::BGR8 => Self::BGR8,
-            TextureKind::BGRA8 => Self::BGRA8,
-            TextureKind::RGB16 => Self::RGB16,
-            TextureKind::RGBA16 => Self::RGBA16,
+            TexturePixelKind::R8 => Self::R8,
+            TexturePixelKind::RGB8 => Self::RGB8,
+            TexturePixelKind::RGBA8 => Self::RGBA8,
+            TexturePixelKind::RG8 => Self::RG8,
+            TexturePixelKind::R16 => Self::R16,
+            TexturePixelKind::RG16 => Self::RG16,
+            TexturePixelKind::BGR8 => Self::BGR8,
+            TexturePixelKind::BGRA8 => Self::BGRA8,
+            TexturePixelKind::RGB16 => Self::RGB16,
+            TexturePixelKind::RGBA16 => Self::RGBA16,
         }
     }
 }
@@ -84,6 +85,8 @@ pub struct GpuTexture {
     kind: GpuTextureKind,
     min_filter: MinificationFilter,
     mag_filter: MagnificationFilter,
+    s_wrap_mode: WrapMode,
+    t_wrap_mode: WrapMode,
     anisotropy: f32,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
@@ -120,6 +123,7 @@ impl PixelKind {
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[repr(u32)]
 pub enum MagnificationFilter {
     Nearest,
     Linear,
@@ -144,13 +148,14 @@ impl From<TextureMagnificationFilter> for MagnificationFilter {
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[repr(u32)]
 pub enum MinificationFilter {
-    Nearest,
-    NearestMipMapNearest,
-    NearestMipMapLinear,
-    Linear,
-    LinearMipMapNearest,
-    LinearMipMapLinear,
+    Nearest = gl::NEAREST,
+    NearestMipMapNearest = gl::NEAREST_MIPMAP_NEAREST,
+    NearestMipMapLinear = gl::NEAREST_MIPMAP_LINEAR,
+    Linear = gl::LINEAR,
+    LinearMipMapNearest = gl::LINEAR_MIPMAP_NEAREST,
+    LinearMipMapLinear = gl::LINEAR_MIPMAP_LINEAR,
 }
 
 impl From<TextureMinificationFilter> for MinificationFilter {
@@ -167,31 +172,35 @@ impl From<TextureMinificationFilter> for MinificationFilter {
 }
 impl MinificationFilter {
     pub fn into_gl_value(self) -> i32 {
-        (match self {
-            Self::Nearest => gl::NEAREST,
-            Self::NearestMipMapNearest => gl::NEAREST_MIPMAP_NEAREST,
-            Self::NearestMipMapLinear => gl::NEAREST_MIPMAP_LINEAR,
-            Self::Linear => gl::LINEAR,
-            Self::LinearMipMapNearest => gl::LINEAR_MIPMAP_NEAREST,
-            Self::LinearMipMapLinear => gl::LINEAR_MIPMAP_LINEAR,
-        }) as i32
+        self as i32
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
 pub enum WrapMode {
-    Repeat,
-    ClampToEdge,
-    ClampToBorder,
+    Repeat = gl::REPEAT,
+    ClampToEdge = gl::CLAMP_TO_EDGE,
+    ClampToBorder = gl::CLAMP_TO_BORDER,
+    MirroredRepeat = gl::MIRRORED_REPEAT,
+    MirrorClampToEdge = gl::MIRROR_CLAMP_TO_EDGE,
 }
 
 impl WrapMode {
     pub fn into_gl_value(self) -> i32 {
-        (match self {
-            Self::Repeat => gl::REPEAT,
-            Self::ClampToEdge => gl::CLAMP_TO_EDGE,
-            Self::ClampToBorder => gl::CLAMP_TO_BORDER,
-        }) as i32
+        self as i32
+    }
+}
+
+impl From<TextureWrapMode> for WrapMode {
+    fn from(v: TextureWrapMode) -> Self {
+        match v {
+            TextureWrapMode::Repeat => WrapMode::Repeat,
+            TextureWrapMode::ClampToEdge => WrapMode::ClampToEdge,
+            TextureWrapMode::ClampToBorder => WrapMode::ClampToBorder,
+            TextureWrapMode::MirroredRepeat => WrapMode::MirroredRepeat,
+            TextureWrapMode::MirrorClampToEdge => WrapMode::MirrorClampToEdge,
+        }
     }
 }
 
@@ -292,6 +301,11 @@ impl<'a> TextureBinding<'a> {
                 coordinate.into_gl_value(),
                 wrap.into_gl_value(),
             );
+
+            match coordinate {
+                Coordinate::S => self.texture.s_wrap_mode = wrap,
+                Coordinate::T => self.texture.t_wrap_mode = wrap,
+            }
         }
         self
     }
@@ -482,6 +496,8 @@ impl GpuTexture {
                 kind,
                 min_filter,
                 mag_filter,
+                s_wrap_mode: WrapMode::Repeat,
+                t_wrap_mode: WrapMode::Repeat,
                 anisotropy: 1.0,
                 thread_mark: PhantomData,
             })
@@ -511,6 +527,14 @@ impl GpuTexture {
 
     pub fn magnification_filter(&self) -> MagnificationFilter {
         self.mag_filter
+    }
+
+    pub fn s_wrap_mode(&self) -> WrapMode {
+        self.s_wrap_mode
+    }
+
+    pub fn t_wrap_mode(&self) -> WrapMode {
+        self.t_wrap_mode
     }
 
     pub fn anisotropy(&self) -> f32 {

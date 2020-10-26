@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -149,6 +150,8 @@ impl Visit for ResourceManager {
 pub struct TextureImportOptions {
     minification_filter: TextureMinificationFilter,
     magnification_filter: TextureMagnificationFilter,
+    s_wrap_mode: TextureWrapMode,
+    t_wrap_mode: TextureWrapMode,
     anisotropy: f32,
 }
 
@@ -157,6 +160,8 @@ impl Default for TextureImportOptions {
         Self {
             minification_filter: TextureMinificationFilter::LinearMipMapLinear,
             magnification_filter: TextureMagnificationFilter::Linear,
+            s_wrap_mode: TextureWrapMode::Repeat,
+            t_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
         }
     }
@@ -180,6 +185,20 @@ impl TextureImportOptions {
         magnification_filter: TextureMagnificationFilter,
     ) -> Self {
         self.magnification_filter = magnification_filter;
+        self
+    }
+
+    /// Sets new S coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn with_s_wrap_mode(mut self, s_wrap_mode: TextureWrapMode) -> Self {
+        self.s_wrap_mode = s_wrap_mode;
+        self
+    }
+
+    /// Sets new T coordinate wrap mode which will be applied to every imported texture as
+    /// default value.
+    pub fn with_t_wrap_mode(mut self, t_wrap_mode: TextureWrapMode) -> Self {
+        self.t_wrap_mode = t_wrap_mode;
         self
     }
 
@@ -252,6 +271,8 @@ impl ResourceManager {
                     raw_texture.set_magnification_filter(options.magnification_filter);
                     raw_texture.set_minification_filter(options.minification_filter);
                     raw_texture.set_anisotropy_level(options.anisotropy);
+                    raw_texture.set_s_wrap_mode(options.s_wrap_mode);
+                    raw_texture.set_t_wrap_mode(options.t_wrap_mode);
 
                     texture.state().commit(ResourceState::Ok(raw_texture));
                 }
