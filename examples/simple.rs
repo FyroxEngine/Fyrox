@@ -9,7 +9,9 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::renderer::surface::{SurfaceBuilder, SurfaceSharedData};
 use rg3d::resource::texture::TextureWrapMode;
+use rg3d::scene::mesh::MeshBuilder;
 use rg3d::{
     animation::Animation,
     core::{
@@ -32,6 +34,8 @@ use rg3d::{
     },
     utils::translate_event,
 };
+use rg3d_core::math::mat4::Mat4;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 // Create our own engine type aliases. These specializations are needed
@@ -124,6 +128,22 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .retarget_animations(model_handle, &mut scene)
         .get(0)
         .unwrap();
+
+    scene.graph.add_node(
+        MeshBuilder::new(
+            BaseBuilder::new().with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vec3::new(0.0, -0.25, 0.0))
+                    .build(),
+            ),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+            SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(25.0, 0.25, 25.0))),
+        )))
+        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+        .build()])
+        .build_node(),
+    );
 
     GameScene {
         scene,

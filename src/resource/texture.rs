@@ -20,24 +20,130 @@ use crate::{
     core::visitor::{Visit, VisitError, VisitResult, Visitor},
     resource::{Resource, ResourceData, ResourceState},
 };
+use ddsfile::{Caps2, D3DFormat};
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
 use std::{
     borrow::Cow,
+    fs::File,
     path::{Path, PathBuf},
 };
+
+/// Texture kind.
+#[derive(Copy, Clone, Debug)]
+pub enum TextureKind {
+    /// 1D texture.
+    Line {
+        /// Length of the texture.
+        length: u32,
+    },
+    /// 2D texture.
+    Rectangle {
+        /// Width of the texture.
+        width: u32,
+        /// Height of the texture.
+        height: u32,
+    },
+    /// Cube texture.
+    Cube {
+        /// Width of the cube face.
+        width: u32,
+        /// Height of the cube face.
+        height: u32,
+    },
+    /// Volume texture (3D).
+    Volume {
+        /// Width of the volume.
+        width: u32,
+        /// Height of the volume.
+        height: u32,
+        /// Depth of the volume.
+        depth: u32,
+    },
+}
+
+impl Default for TextureKind {
+    fn default() -> Self {
+        Self::Rectangle {
+            width: 0,
+            height: 0,
+        }
+    }
+}
+
+impl Visit for TextureKind {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut id = match self {
+            TextureKind::Line { .. } => 0,
+            TextureKind::Rectangle { .. } => 1,
+            TextureKind::Cube { .. } => 2,
+            TextureKind::Volume { .. } => 3,
+        };
+        id.visit("Id", visitor)?;
+        if visitor.is_reading() {
+            *self = match id {
+                0 => TextureKind::Line { length: 0 },
+                1 => TextureKind::Rectangle {
+                    width: 0,
+                    height: 0,
+                },
+                2 => TextureKind::Cube {
+                    width: 0,
+                    height: 0,
+                },
+                3 => TextureKind::Volume {
+                    width: 0,
+                    height: 0,
+                    depth: 0,
+                },
+                _ => {
+                    return VisitResult::Err(VisitError::User(format!(
+                        "Invalid texture kind {}!",
+                        id
+                    )))
+                }
+            };
+        }
+        match self {
+            TextureKind::Line { length } => {
+                length.visit("Length", visitor)?;
+            }
+            TextureKind::Rectangle { width, height } => {
+                width.visit("Width", visitor)?;
+                height.visit("Height", visitor)?;
+            }
+            TextureKind::Cube { width, height } => {
+                width.visit("Width", visitor)?;
+                height.visit("Height", visitor)?;
+            }
+            TextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => {
+                width.visit("Width", visitor)?;
+                height.visit("Height", visitor)?;
+                depth.visit("Depth", visitor)?;
+            }
+        }
+
+        visitor.leave_region()
+    }
+}
 
 /// Actual texture data.
 #[derive(Debug)]
 pub struct TextureData {
     pub(in crate) path: PathBuf,
-    pub(in crate) width: u32,
-    pub(in crate) height: u32,
+    pub(in crate) kind: TextureKind,
     pub(in crate) bytes: Vec<u8>,
     pub(in crate) pixel_kind: TexturePixelKind,
     minification_filter: TextureMinificationFilter,
     magnification_filter: TextureMagnificationFilter,
     s_wrap_mode: TextureWrapMode,
     t_wrap_mode: TextureWrapMode,
+    mip_count: u32,
     anisotropy: f32,
 }
 
@@ -59,7 +165,7 @@ impl Visit for TextureData {
 
         self.path.visit("Path", visitor)?;
 
-        // Ignore result for backward compatibility.
+        // Ignore results for backward compatibility.
         let _ = self
             .minification_filter
             .visit("MinificationFilter", visitor);
@@ -69,6 +175,8 @@ impl Visit for TextureData {
         let _ = self.anisotropy.visit("Anisotropy", visitor);
         let _ = self.s_wrap_mode.visit("SWrapMode", visitor);
         let _ = self.t_wrap_mode.visit("TWrapMode", visitor);
+        let _ = self.mip_count.visit("MipCount", visitor);
+        let _ = self.kind.visit("Kind", visitor);
 
         visitor.leave_region()
     }
@@ -81,14 +189,17 @@ impl Default for TextureData {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
-            width: 0,
-            height: 0,
+            kind: TextureKind::Rectangle {
+                width: 0,
+                height: 0,
+            },
             bytes: Vec::new(),
             pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::LinearMipMapLinear,
             magnification_filter: TextureMagnificationFilter::Linear,
             s_wrap_mode: TextureWrapMode::Repeat,
             t_wrap_mode: TextureWrapMode::Repeat,
+            mip_count: 1,
             anisotropy: 16.0,
         }
     }
@@ -108,14 +219,17 @@ impl Texture {
         Self::new(TextureState::Ok(TextureData {
             path: Default::default(),
             // Render target will automatically set width and height before rendering.
-            width: 0,
-            height: 0,
+            kind: TextureKind::Rectangle {
+                width: 0,
+                height: 0,
+            },
             bytes: Vec::new(),
             pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::Nearest,
             magnification_filter: TextureMagnificationFilter::Nearest,
             s_wrap_mode: TextureWrapMode::ClampToEdge,
             t_wrap_mode: TextureWrapMode::ClampToEdge,
+            mip_count: 1,
             anisotropy: 1.0,
         }))
     }
@@ -307,6 +421,18 @@ pub enum TexturePixelKind {
 
     /// Red, green, blue, and alpha components, each by 2 byte.
     RGBA16 = 9,
+
+    /// Compressed S3TC DXT1 RGB (no alpha).
+    DXT1RGB = 10,
+
+    /// Compressed S3TC DXT1 RGBA.
+    DXT1RGBA = 11,
+
+    /// Compressed S3TC DXT3 RGBA.
+    DXT3RGBA = 12,
+
+    /// Compressed S3TC DXT5 RGBA.
+    DXT5RGBA = 13,
 }
 
 impl TexturePixelKind {
@@ -322,6 +448,10 @@ impl TexturePixelKind {
             7 => Ok(Self::BGRA8),
             8 => Ok(Self::RGB16),
             9 => Ok(Self::RGBA16),
+            10 => Ok(Self::DXT1RGB),
+            11 => Ok(Self::DXT1RGBA),
+            12 => Ok(Self::DXT3RGBA),
+            13 => Ok(Self::DXT5RGBA),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
@@ -329,67 +459,146 @@ impl TexturePixelKind {
     fn id(self) -> u32 {
         self as u32
     }
+}
 
-    fn bytes_per_pixel(&self) -> u32 {
-        match self {
-            Self::R8 => 1,
-            Self::R16 | Self::RG8 => 2,
-            Self::RGB8 | Self::BGR8 => 3,
-            Self::RGBA8 | Self::BGRA8 | Self::RG16 => 4,
-            Self::RGB16 => 6,
-            Self::RGBA16 => 8,
-        }
-    }
+fn ceil_div_4(x: u32) -> u32 {
+    (x + 3) / 4
 }
 
 impl TextureData {
     pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, image::ImageError> {
-        let dyn_img = image::open(path.as_ref())?;
+        // DDS is special.
+        if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
+            let pixel_kind = match dds.get_d3d_format().unwrap() {
+                D3DFormat::DXT1 => TexturePixelKind::DXT1RGBA,
+                D3DFormat::DXT3 => TexturePixelKind::DXT3RGBA,
+                D3DFormat::DXT5 => TexturePixelKind::DXT5RGBA,
+                D3DFormat::L8 => TexturePixelKind::R8,
+                D3DFormat::L16 => TexturePixelKind::R16,
+                D3DFormat::R8G8B8 => TexturePixelKind::RGB8,
+                // FIXME: Swap alpha and blue for this.
+                D3DFormat::A8R8G8B8 => TexturePixelKind::RGBA8,
+                _ => unreachable!(),
+            };
 
-        let width = dyn_img.width();
-        let height = dyn_img.height();
+            Ok(Self {
+                pixel_kind,
+                minification_filter: TextureMinificationFilter::LinearMipMapLinear,
+                magnification_filter: TextureMagnificationFilter::Linear,
+                s_wrap_mode: TextureWrapMode::Repeat,
+                t_wrap_mode: TextureWrapMode::Repeat,
+                mip_count: dds.get_num_mipmap_levels(),
+                bytes: dds.data,
+                path: path.as_ref().to_path_buf(),
+                kind: if dds.header.caps2 & Caps2::CUBEMAP == Caps2::CUBEMAP {
+                    TextureKind::Cube {
+                        width: dds.header.width,
+                        height: dds.header.height,
+                    }
+                } else if dds.header.caps2 & Caps2::VOLUME == Caps2::VOLUME {
+                    TextureKind::Volume {
+                        width: dds.header.width,
+                        height: dds.header.height,
+                        depth: dds.header.depth.unwrap(),
+                    }
+                } else {
+                    TextureKind::Rectangle {
+                        width: dds.header.width,
+                        height: dds.header.height,
+                    }
+                },
+                anisotropy: 1.0,
+            })
+        } else {
+            let dyn_img = image::open(path.as_ref())?;
 
-        let kind = match dyn_img {
-            DynamicImage::ImageLuma8(_) => TexturePixelKind::R8,
-            DynamicImage::ImageLumaA8(_) => TexturePixelKind::RG8,
-            DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
-            DynamicImage::ImageRgba8(_) => TexturePixelKind::RGBA8,
-            DynamicImage::ImageBgr8(_) => TexturePixelKind::BGR8,
-            DynamicImage::ImageBgra8(_) => TexturePixelKind::BGRA8,
-            DynamicImage::ImageLuma16(_) => TexturePixelKind::R16,
-            DynamicImage::ImageLumaA16(_) => TexturePixelKind::RG16,
-            DynamicImage::ImageRgb16(_) => TexturePixelKind::RGB16,
-            DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
-        };
+            let width = dyn_img.width();
+            let height = dyn_img.height();
 
-        Ok(Self {
-            pixel_kind: kind,
-            width,
-            height,
-            bytes: dyn_img.to_bytes(),
-            path: path.as_ref().to_path_buf(),
-            ..Default::default()
-        })
+            let kind = match dyn_img {
+                DynamicImage::ImageLuma8(_) => TexturePixelKind::R8,
+                DynamicImage::ImageLumaA8(_) => TexturePixelKind::RG8,
+                DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
+                DynamicImage::ImageRgba8(_) => TexturePixelKind::RGBA8,
+                DynamicImage::ImageBgr8(_) => TexturePixelKind::BGR8,
+                DynamicImage::ImageBgra8(_) => TexturePixelKind::BGRA8,
+                DynamicImage::ImageLuma16(_) => TexturePixelKind::R16,
+                DynamicImage::ImageLumaA16(_) => TexturePixelKind::RG16,
+                DynamicImage::ImageRgb16(_) => TexturePixelKind::RGB16,
+                DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
+            };
+
+            Ok(Self {
+                pixel_kind: kind,
+                kind: TextureKind::Rectangle { width, height },
+                bytes: dyn_img.to_bytes(),
+                path: path.as_ref().to_path_buf(),
+                ..Default::default()
+            })
+        }
     }
 
     /// Creates new texture instance from given parameters.
     pub fn from_bytes(
-        width: u32,
-        height: u32,
-        kind: TexturePixelKind,
+        kind: TextureKind,
+        pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
     ) -> Result<Self, ()> {
-        let bpp = kind.bytes_per_pixel();
-        let required_bytes = width * height * bpp;
+        let pixel_count = match kind {
+            TextureKind::Line { length } => length,
+            TextureKind::Rectangle { width, height } => width * height,
+            TextureKind::Cube { width, height } => width * height,
+            TextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => width * height * depth,
+        };
+        let required_bytes = match pixel_kind {
+            // Uncompressed formats.
+            TexturePixelKind::R8 => 1 * pixel_count,
+            TexturePixelKind::R16 | TexturePixelKind::RG8 => 2 * pixel_count,
+            TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
+            TexturePixelKind::RGBA8 | TexturePixelKind::BGRA8 | TexturePixelKind::RG16 => {
+                4 * pixel_count
+            }
+            TexturePixelKind::RGB16 => 6 * pixel_count,
+            TexturePixelKind::RGBA16 => 8 * pixel_count,
+
+            // Compressed formats.
+            TexturePixelKind::DXT1RGB
+            | TexturePixelKind::DXT1RGBA
+            | TexturePixelKind::DXT3RGBA
+            | TexturePixelKind::DXT5RGBA => {
+                let block_size = match pixel_kind {
+                    TexturePixelKind::DXT1RGB | TexturePixelKind::DXT1RGBA => 8,
+                    TexturePixelKind::DXT3RGBA | TexturePixelKind::DXT5RGBA => 16,
+                    _ => unreachable!(),
+                };
+                match kind {
+                    TextureKind::Line { length } => ceil_div_4(length) * block_size,
+                    TextureKind::Rectangle { width, height } => {
+                        ceil_div_4(width) * ceil_div_4(height) * block_size
+                    }
+                    TextureKind::Cube { width, height } => {
+                        ceil_div_4(width) * ceil_div_4(height) * block_size
+                    }
+                    TextureKind::Volume {
+                        width,
+                        height,
+                        depth,
+                    } => ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * block_size,
+                }
+            }
+        };
         if required_bytes != bytes.len() as u32 {
             Err(())
         } else {
             Ok(Self {
                 path: Default::default(),
-                width,
-                height,
+                kind,
                 bytes,
-                pixel_kind: kind,
+                pixel_kind,
                 ..Default::default()
             })
         }
@@ -435,6 +644,11 @@ impl TextureData {
         self.t_wrap_mode
     }
 
+    /// Returns total mip count.
+    pub fn mip_count(&self) -> u32 {
+        self.mip_count
+    }
+
     /// Max samples for anisotropic filtering. Default value is 16.0 (max).
     /// However real value passed to GPU will be clamped to maximum supported
     /// by current GPU. To disable anisotropic filtering set this to 1.0.
@@ -466,13 +680,15 @@ impl TextureData {
             TexturePixelKind::BGRA8 => ColorType::Bgra8,
             TexturePixelKind::RGB16 => ColorType::Rgb16,
             TexturePixelKind::RGBA16 => ColorType::Rgba16,
+            TexturePixelKind::DXT1RGB => panic!("unable to save compressed image."),
+            TexturePixelKind::DXT1RGBA => panic!("unable to save compressed image."),
+            TexturePixelKind::DXT3RGBA => panic!("unable to save compressed image."),
+            TexturePixelKind::DXT5RGBA => panic!("unable to save compressed image."),
         };
-        image::save_buffer(
-            &self.path,
-            self.bytes.as_ref(),
-            self.width,
-            self.height,
-            color_type,
-        )
+        if let TextureKind::Rectangle { width, height } = self.kind {
+            image::save_buffer(&self.path, self.bytes.as_ref(), width, height, color_type)
+        } else {
+            Ok(())
+        }
     }
 }

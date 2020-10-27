@@ -1,14 +1,16 @@
 // Keep this for now, some texture kind might be used in future.
 #![allow(dead_code)]
 
-use crate::resource::texture::TextureWrapMode;
 use crate::{
     core::color::Color,
     renderer::{
         error::RendererError,
         framework::{gl, gl::types::GLuint, state::State},
     },
-    resource::texture::{TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind},
+    resource::texture::{
+        TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
+        TextureWrapMode,
+    },
     utils::log::Log,
 };
 use std::{ffi::c_void, marker::PhantomData};
@@ -31,6 +33,33 @@ pub enum GpuTextureKind {
         height: usize,
         depth: usize,
     },
+}
+
+impl From<TextureKind> for GpuTextureKind {
+    fn from(v: TextureKind) -> Self {
+        match v {
+            TextureKind::Line { length } => GpuTextureKind::Line {
+                length: length as usize,
+            },
+            TextureKind::Rectangle { width, height } => GpuTextureKind::Rectangle {
+                width: width as usize,
+                height: height as usize,
+            },
+            TextureKind::Cube { width, height } => GpuTextureKind::Cube {
+                width: width as usize,
+                height: height as usize,
+            },
+            TextureKind::Volume {
+                width,
+                height,
+                depth,
+            } => GpuTextureKind::Volume {
+                width: width as usize,
+                height: height as usize,
+                depth: depth as usize,
+            },
+        }
+    }
 }
 
 impl GpuTextureKind {
@@ -61,6 +90,10 @@ pub enum PixelKind {
     R16,
     RGB16,
     RGBA16,
+    DXT1RGB,
+    DXT1RGBA,
+    DXT3RGBA,
+    DXT5RGBA,
 }
 
 impl From<TexturePixelKind> for PixelKind {
@@ -76,6 +109,53 @@ impl From<TexturePixelKind> for PixelKind {
             TexturePixelKind::BGRA8 => Self::BGRA8,
             TexturePixelKind::RGB16 => Self::RGB16,
             TexturePixelKind::RGBA16 => Self::RGBA16,
+            TexturePixelKind::DXT1RGB => Self::DXT1RGB,
+            TexturePixelKind::DXT1RGBA => Self::DXT1RGBA,
+            TexturePixelKind::DXT3RGBA => Self::DXT3RGBA,
+            TexturePixelKind::DXT5RGBA => Self::DXT5RGBA,
+        }
+    }
+}
+
+impl PixelKind {
+    fn unpack_alignment(self) -> i32 {
+        match self {
+            Self::RGBA16 | Self::RGB16 => 8,
+            Self::RGBA8
+            | Self::RGB8
+            | Self::BGRA8
+            | Self::BGR8
+            | Self::RG16
+            | Self::R16
+            | Self::D24S8
+            | Self::D32
+            | Self::F32 => 4,
+            Self::RG8 | Self::D16 | Self::F16 => 2,
+            Self::R8 => 1,
+            Self::DXT1RGB | Self::DXT1RGBA | Self::DXT3RGBA | Self::DXT5RGBA => unreachable!(),
+        }
+    }
+
+    fn is_compressed(self) -> bool {
+        match self {
+            Self::DXT1RGB | Self::DXT1RGBA | Self::DXT3RGBA | Self::DXT5RGBA => true,
+            // Explicit match for rest of formats instead of _ will help to not forget
+            // to add new entry here.
+            Self::RGBA16
+            | Self::RGB16
+            | Self::RGBA8
+            | Self::RGB8
+            | Self::BGRA8
+            | Self::BGR8
+            | Self::RG16
+            | Self::R16
+            | Self::D24S8
+            | Self::D32
+            | Self::F32
+            | Self::RG8
+            | Self::D16
+            | Self::F16
+            | Self::R8 => false,
         }
     }
 }
@@ -92,32 +172,80 @@ pub struct GpuTexture {
     thread_mark: PhantomData<*const u8>,
 }
 
-impl PixelKind {
-    fn size_bytes(self) -> usize {
-        match self {
-            Self::RGBA16 => 8,
-            Self::RGB16 => 6,
-            Self::RGBA8 | Self::BGRA8 | Self::RG16 | Self::D24S8 | Self::D32 | Self::F32 => 4,
-            Self::RGB8 | Self::BGR8 => 3,
-            Self::RG8 | Self::R16 | Self::D16 | Self::F16 => 2,
-            Self::R8 => 1,
+fn ceil_div_4(x: usize) -> usize {
+    (x + 3) / 4
+}
+
+fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth: usize) -> usize {
+    let pixel_count = width * height * depth;
+    match pixel_kind {
+        PixelKind::RGBA16 => 8 * pixel_count,
+        PixelKind::RGB16 => 6 * pixel_count,
+        PixelKind::RGBA8
+        | PixelKind::BGRA8
+        | PixelKind::RG16
+        | PixelKind::D24S8
+        | PixelKind::D32
+        | PixelKind::F32 => 4 * pixel_count,
+        PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
+        PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
+        PixelKind::R8 => 1 * pixel_count,
+        PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
+            // 8 here is block size.
+            ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * 8
+        }
+        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA => {
+            // 16 here is block size.
+            ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * 16
         }
     }
+}
 
-    fn unpack_alignment(self) -> i32 {
-        match self {
-            Self::RGBA16 | Self::RGB16 => 8,
-            Self::RGBA8
-            | Self::RGB8
-            | Self::BGRA8
-            | Self::BGR8
-            | Self::RG16
-            | Self::R16
-            | Self::D24S8
-            | Self::D32
-            | Self::F32 => 4,
-            Self::RG8 | Self::D16 | Self::F16 => 2,
-            Self::R8 => 1,
+fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> usize {
+    let pixel_count = width * height;
+    match pixel_kind {
+        PixelKind::RGBA16 => 8 * pixel_count,
+        PixelKind::RGB16 => 6 * pixel_count,
+        PixelKind::RGBA8
+        | PixelKind::BGRA8
+        | PixelKind::RG16
+        | PixelKind::D24S8
+        | PixelKind::D32
+        | PixelKind::F32 => 4 * pixel_count,
+        PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
+        PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
+        PixelKind::R8 => 1 * pixel_count,
+        PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
+            // 8 here is block size.
+            ceil_div_4(width) * ceil_div_4(height) * 8
+        }
+        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA => {
+            // 16 here is block size.
+            ceil_div_4(width) * ceil_div_4(height) * 16
+        }
+    }
+}
+
+fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
+    match pixel_kind {
+        PixelKind::RGBA16 => 8 * length,
+        PixelKind::RGB16 => 6 * length,
+        PixelKind::RGBA8
+        | PixelKind::BGRA8
+        | PixelKind::RG16
+        | PixelKind::D24S8
+        | PixelKind::D32
+        | PixelKind::F32 => 4 * length,
+        PixelKind::RGB8 | PixelKind::BGR8 => 3 * length,
+        PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * length,
+        PixelKind::R8 => 1 * length,
+        PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
+            // 8 here is block size.
+            ceil_div_4(length) * 8
+        }
+        PixelKind::DXT3RGBA | PixelKind::DXT5RGBA => {
+            // 16 here is block size.
+            ceil_div_4(length) * 16
         }
     }
 }
@@ -331,36 +459,86 @@ impl<'a> TextureBinding<'a> {
     }
 }
 
+const GL_COMPRESSED_RGB_S3TC_DXT1_EXT: u32 = 0x83F0;
+const GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: u32 = 0x83F1;
+const GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: u32 = 0x83F2;
+const GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: u32 = 0x83F3;
+
 impl GpuTexture {
-    /// Creates new GPU texture of specified kind
+    /// Creates new GPU texture of specified kind. Mip count must be at least 1, it means
+    /// that there is only main level of detail.
     ///
     /// # Data layout
     ///
     /// In case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
-    /// +X, -X, +Y, -Y, +Z, -Z
+    /// +X, -X, +Y, -Y, +Z, -Z. Cube mips must follow one after another.
     ///
     /// Produced texture can be used as render target for framebuffer, in this case `data`
     /// parameter can be None.
+    ///
+    /// # Compressed textures
+    ///
+    /// For compressed textures data must contain all mips, where each mip must be 2 times
+    /// smaller than previous.
     pub fn new(
         state: &mut State,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         min_filter: MinificationFilter,
         mag_filter: MagnificationFilter,
+        mip_count: usize,
         data: Option<&[u8]>,
     ) -> Result<Self, RendererError> {
-        let bytes_per_pixel = pixel_kind.size_bytes();
+        let mip_count = mip_count.max(1);
 
-        let desired_byte_count = match kind {
-            GpuTextureKind::Line { length } => length * bytes_per_pixel,
-            GpuTextureKind::Rectangle { width, height } => width * height * bytes_per_pixel,
-            GpuTextureKind::Cube { width, height } => 6 * width * height * bytes_per_pixel,
-            GpuTextureKind::Volume {
-                width,
-                height,
-                depth,
-            } => width * height * depth * bytes_per_pixel,
-        };
+        let mut desired_byte_count = 0;
+
+        'mip_loop: for mip in 0..mip_count {
+            match kind {
+                GpuTextureKind::Line { length } => {
+                    if let Some(length) = length.checked_shr(mip as u32) {
+                        desired_byte_count += image_1d_size_bytes(pixel_kind, length);
+                    } else {
+                        break 'mip_loop;
+                    }
+                }
+                GpuTextureKind::Rectangle { width, height } => {
+                    if let (Some(width), Some(height)) = (
+                        width.checked_shr(mip as u32),
+                        height.checked_shr(mip as u32),
+                    ) {
+                        desired_byte_count += image_2d_size_bytes(pixel_kind, width, height);
+                    } else {
+                        break 'mip_loop;
+                    }
+                }
+                GpuTextureKind::Cube { width, height } => {
+                    if let (Some(width), Some(height)) = (
+                        width.checked_shr(mip as u32),
+                        height.checked_shr(mip as u32),
+                    ) {
+                        desired_byte_count += 6 * image_2d_size_bytes(pixel_kind, width, height);
+                    } else {
+                        break 'mip_loop;
+                    }
+                }
+                GpuTextureKind::Volume {
+                    width,
+                    height,
+                    depth,
+                } => {
+                    if let (Some(width), Some(height), Some(depth)) = (
+                        width.checked_shr(mip as u32),
+                        height.checked_shr(mip as u32),
+                        depth.checked_shr(mip as u32),
+                    ) {
+                        desired_byte_count += image_3d_size_bytes(pixel_kind, width, height, depth);
+                    } else {
+                        break 'mip_loop;
+                    }
+                }
+            };
+        }
 
         if let Some(data) = data {
             if data.len() != desired_byte_count {
@@ -399,90 +577,211 @@ impl GpuTexture {
                 PixelKind::R16 => (gl::UNSIGNED_SHORT, gl::RED, gl::R16),
                 PixelKind::RGB16 => (gl::UNSIGNED_SHORT, gl::RGB, gl::RGB16),
                 PixelKind::RGBA16 => (gl::UNSIGNED_SHORT, gl::RGBA, gl::RGBA16),
+                PixelKind::DXT1RGB => (0, 0, GL_COMPRESSED_RGB_S3TC_DXT1_EXT),
+                PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
+                PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
+                PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
             };
 
-            gl::PixelStorei(gl::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
+            let is_compressed = pixel_kind.is_compressed();
 
-            let pixels = match data {
-                None => std::ptr::null(),
-                Some(data) => data.as_ptr() as *const c_void,
-            };
+            // Compressed textures does not have such term as "unpack alignment", so we have to check
+            // for compressed textures here.
+            if !is_compressed {
+                gl::PixelStorei(gl::UNPACK_ALIGNMENT, pixel_kind.unpack_alignment());
+            }
 
-            match kind {
-                GpuTextureKind::Line { length } => {
-                    gl::TexImage1D(
-                        gl::TEXTURE_1D,
-                        0,
-                        internal_format as i32,
-                        length as i32,
-                        0,
-                        format,
-                        type_,
-                        pixels,
-                    );
-                }
-                GpuTextureKind::Rectangle { width, height } => {
-                    gl::TexImage2D(
-                        gl::TEXTURE_2D,
-                        0,
-                        internal_format as i32,
-                        width as i32,
-                        height as i32,
-                        0,
-                        format,
-                        type_,
-                        pixels,
-                    );
-                }
-                GpuTextureKind::Cube { width, height } => {
-                    for face in 0..6 {
-                        let bytes_per_face = width * height * bytes_per_pixel;
+            let mut mip_byte_offset = 0;
+            'mip_loop2: for mip in 0..mip_count {
+                match kind {
+                    GpuTextureKind::Line { length } => {
+                        if let Some(length) = length.checked_shr(mip as u32) {
+                            let pixels = match data {
+                                None => std::ptr::null(),
+                                Some(data) => data[mip_byte_offset..].as_ptr() as *const c_void,
+                            };
 
-                        let begin = face * bytes_per_face;
-                        let end = (face + 1) * bytes_per_face;
+                            let size = image_1d_size_bytes(pixel_kind, length) as i32;
 
-                        let face_pixels = match data {
-                            None => std::ptr::null(),
-                            Some(data) => data[begin..end].as_ptr() as *const c_void,
-                        };
+                            if is_compressed {
+                                gl::CompressedTexImage1D(
+                                    gl::TEXTURE_1D,
+                                    mip as i32,
+                                    internal_format,
+                                    length as i32,
+                                    0,
+                                    size,
+                                    pixels,
+                                );
+                            } else {
+                                gl::TexImage1D(
+                                    gl::TEXTURE_1D,
+                                    mip as i32,
+                                    internal_format as i32,
+                                    length as i32,
+                                    0,
+                                    format,
+                                    type_,
+                                    pixels,
+                                );
+                            }
 
-                        gl::TexImage2D(
-                            gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
-                            0,
-                            internal_format as i32,
-                            width as i32,
-                            height as i32,
-                            0,
-                            format,
-                            type_,
-                            face_pixels,
-                        );
+                            mip_byte_offset += size as usize;
+                        } else {
+                            // No need to add degenerated mips (0x1, 0x2, 4x0, etc).
+                            break 'mip_loop2;
+                        }
                     }
-                }
-                GpuTextureKind::Volume {
-                    width,
-                    height,
-                    depth,
-                } => {
-                    gl::TexImage3D(
-                        gl::TEXTURE_3D,
-                        0,
-                        internal_format as i32,
-                        width as i32,
-                        height as i32,
-                        depth as i32,
-                        0,
-                        format,
-                        type_,
-                        pixels,
-                    );
+                    GpuTextureKind::Rectangle { width, height } => {
+                        if let (Some(width), Some(height)) = (
+                            width.checked_shr(mip as u32),
+                            height.checked_shr(mip as u32),
+                        ) {
+                            let pixels = match data {
+                                None => std::ptr::null(),
+                                Some(data) => data[mip_byte_offset..].as_ptr() as *const c_void,
+                            };
+
+                            let size = image_2d_size_bytes(pixel_kind, width, height) as i32;
+
+                            if is_compressed {
+                                gl::CompressedTexImage2D(
+                                    gl::TEXTURE_2D,
+                                    mip as i32,
+                                    internal_format as u32,
+                                    width as i32,
+                                    height as i32,
+                                    0,
+                                    size,
+                                    pixels,
+                                );
+                            } else {
+                                gl::TexImage2D(
+                                    gl::TEXTURE_2D,
+                                    mip as i32,
+                                    internal_format as i32,
+                                    width as i32,
+                                    height as i32,
+                                    0,
+                                    format,
+                                    type_,
+                                    pixels,
+                                );
+                            }
+
+                            mip_byte_offset += size as usize;
+                        } else {
+                            // No need to add degenerated mips (0x1, 0x2, 4x0, etc).
+                            break 'mip_loop2;
+                        }
+                    }
+                    GpuTextureKind::Cube { width, height } => {
+                        if let (Some(width), Some(height)) = (
+                            width.checked_shr(mip as u32),
+                            height.checked_shr(mip as u32),
+                        ) {
+                            for face in 0..6 {
+                                let bytes_per_face = image_2d_size_bytes(pixel_kind, width, height);
+
+                                let begin = mip_byte_offset + face * bytes_per_face;
+                                let end = mip_byte_offset + (face + 1) * bytes_per_face;
+
+                                let face_pixels = match data {
+                                    None => std::ptr::null(),
+                                    Some(data) => data[begin..end].as_ptr() as *const c_void,
+                                };
+
+                                if is_compressed {
+                                    gl::CompressedTexImage2D(
+                                        gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
+                                        mip as i32,
+                                        internal_format as u32,
+                                        width as i32,
+                                        height as i32,
+                                        0,
+                                        bytes_per_face as i32,
+                                        face_pixels,
+                                    );
+                                } else {
+                                    gl::TexImage2D(
+                                        gl::TEXTURE_CUBE_MAP_POSITIVE_X + face as u32,
+                                        mip as i32,
+                                        internal_format as i32,
+                                        width as i32,
+                                        height as i32,
+                                        0,
+                                        format,
+                                        type_,
+                                        face_pixels,
+                                    );
+                                }
+
+                                mip_byte_offset += bytes_per_face as usize;
+                            }
+                        } else {
+                            // No need to add degenerated mips (0x1, 0x2, 4x0, etc).
+                            break 'mip_loop2;
+                        }
+                    }
+                    GpuTextureKind::Volume {
+                        width,
+                        height,
+                        depth,
+                    } => {
+                        if let (Some(width), Some(height), Some(depth)) = (
+                            width.checked_shr(mip as u32),
+                            height.checked_shr(mip as u32),
+                            depth.checked_shr(mip as u32),
+                        ) {
+                            let pixels = match data {
+                                None => std::ptr::null(),
+                                Some(data) => data[mip_byte_offset..].as_ptr() as *const c_void,
+                            };
+
+                            let size = image_3d_size_bytes(pixel_kind, width, height, depth) as i32;
+
+                            if is_compressed {
+                                gl::CompressedTexImage3D(
+                                    gl::TEXTURE_3D,
+                                    0,
+                                    internal_format as u32,
+                                    width as i32,
+                                    height as i32,
+                                    depth as i32,
+                                    0,
+                                    size,
+                                    pixels,
+                                );
+                            } else {
+                                gl::TexImage3D(
+                                    gl::TEXTURE_3D,
+                                    0,
+                                    internal_format as i32,
+                                    width as i32,
+                                    height as i32,
+                                    depth as i32,
+                                    0,
+                                    format,
+                                    type_,
+                                    pixels,
+                                );
+                            }
+
+                            mip_byte_offset += size as usize;
+                        } else {
+                            // No need to add degenerated mips (0x1, 0x2, 4x0, etc).
+                            break 'mip_loop2;
+                        }
+                    }
                 }
             }
 
             gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
             gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
 
-            if min_filter != MinificationFilter::Linear && min_filter != MinificationFilter::Nearest
+            if min_filter != MinificationFilter::Linear
+                && min_filter != MinificationFilter::Nearest
+                && mip_count == 1
             {
                 gl::GenerateMipmap(target);
             }

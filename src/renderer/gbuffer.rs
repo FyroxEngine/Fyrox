@@ -81,6 +81,7 @@ impl GBuffer {
             PixelKind::D24S8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         depth_stencil_texture
@@ -96,6 +97,7 @@ impl GBuffer {
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         diffuse_texture
@@ -109,6 +111,7 @@ impl GBuffer {
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         normal_texture
@@ -122,6 +125,7 @@ impl GBuffer {
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         ambient_texture
@@ -157,6 +161,7 @@ impl GBuffer {
             PixelKind::RGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
+            1,
             None,
         )?;
 

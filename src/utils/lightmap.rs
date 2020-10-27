@@ -7,7 +7,7 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::resource::texture::{TextureData, TextureState};
+use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -491,7 +491,15 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes.push(color.b);
         bytes.push(color.a);
     }
-    TextureData::from_bytes(size, size, TexturePixelKind::RGBA8, bytes).unwrap()
+    TextureData::from_bytes(
+        TextureKind::Rectangle {
+            width: size,
+            height: size,
+        },
+        TexturePixelKind::RGBA8,
+        bytes,
+    )
+    .unwrap()
 }
 
 #[cfg(test)]

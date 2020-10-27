@@ -84,6 +84,7 @@ impl SpotShadowMapRenderer {
                     PixelKind::D16,
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,
+                    1,
                     None,
                 )?;
                 texture
@@ -392,6 +393,7 @@ impl PointShadowMapRenderer {
                     PixelKind::D16,
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,
+                    1,
                     None,
                 )?;
                 texture
@@ -414,6 +416,7 @@ impl PointShadowMapRenderer {
                     PixelKind::F16,
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,
+                    1,
                     None,
                 )?;
                 texture

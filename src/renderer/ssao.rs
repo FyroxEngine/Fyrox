@@ -98,6 +98,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 PixelKind::F32,
                 MinificationFilter::Nearest,
                 MagnificationFilter::Nearest,
+                1,
                 None,
             )?;
             texture
@@ -159,6 +160,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     PixelKind::RGB8,
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,
+                    1,
                     Some(&pixels),
                 )?;
                 texture

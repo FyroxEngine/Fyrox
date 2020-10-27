@@ -1,4 +1,4 @@
-use crate::resource::texture::{TextureData, TextureState};
+use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -184,8 +184,10 @@ impl UiRenderer {
                             if font.texture.is_none() {
                                 let size = font.atlas_size() as u32;
                                 if let Ok(details) = TextureData::from_bytes(
-                                    size,
-                                    size,
+                                    TextureKind::Rectangle {
+                                        width: size,
+                                        height: size,
+                                    },
                                     TexturePixelKind::R8,
                                     font.atlas_pixels().to_vec(),
                                 ) {

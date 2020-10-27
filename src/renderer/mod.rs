@@ -29,6 +29,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::resource::texture::TextureKind;
 use crate::{
     core::{
         color::Color,
@@ -434,19 +435,17 @@ impl TextureCache {
 
         if let TextureState::Ok(texture) = texture.deref() {
             let gpu_texture = self.map.entry(key).or_insert_with(|| {
-                let kind = GpuTextureKind::Rectangle {
-                    width: texture.width as usize,
-                    height: texture.height as usize,
-                };
                 let gpu_texture = GpuTexture::new(
                     state,
-                    kind,
+                    texture.kind.into(),
                     PixelKind::from(texture.pixel_kind),
                     texture.minification_filter().into(),
                     texture.magnification_filter().into(),
+                    texture.mip_count() as usize,
                     Some(texture.bytes.as_slice()),
                 )
                 .unwrap();
+
                 TimedEntry {
                     value: Rc::new(RefCell::new(gpu_texture)),
                     time_to_live: 20.0,
@@ -544,6 +543,7 @@ impl Renderer {
                 PixelKind::RGBA8,
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
+                1,
                 Some(&[255, 255, 255, 255]),
             )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
@@ -555,6 +555,7 @@ impl Renderer {
                 PixelKind::RGBA8,
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
+                1,
                 Some(&[128, 128, 255, 255]),
             )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
@@ -725,10 +726,14 @@ impl Renderer {
 
                     // Make sure to sync texture info with actual render target.
                     if let TextureState::Ok(rt) = &mut *rt.state() {
-                        rt.width = gbuffer.width as u32;
-                        rt.height = gbuffer.height as u32;
-                        // TODO: For now only RGBA8 textures are supported.
-                        rt.pixel_kind = TexturePixelKind::RGBA8;
+                        if let TextureKind::Rectangle { width, height } = &mut rt.kind {
+                            *width = gbuffer.width as u32;
+                            *height = gbuffer.height as u32;
+                            // TODO: For now only RGBA8 textures are supported.
+                            rt.pixel_kind = TexturePixelKind::RGBA8;
+                        } else {
+                            panic!("only rectangle textures can be used as render target!")
+                        }
                     }
                 }
 

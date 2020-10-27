@@ -58,6 +58,7 @@ impl Blur {
                 PixelKind::F32,
                 MinificationFilter::Nearest,
                 MagnificationFilter::Nearest,
+                1,
                 None,
             )?;
             texture
