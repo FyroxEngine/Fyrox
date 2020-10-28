@@ -44,6 +44,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Soft shadows.
 	- Volumetric light (spot, point).
 - Render in texture.
+- Sky box.
 - Multi-camera rendering.
 - Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
@@ -56,6 +57,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - FBX Loader.
 - Full TTF/OTF fonts support (thanks to [fontdue](https://github.com/mooman219/fontdue) and [ttf-parser](https://github.com/RazrFalcon/ttf-parser) crates).
 - PNG, JPG, TGA, DDS, etc. textures (thanks to [image](https://github.com/image-rs/image) crate).
+- Compressed textures support (DXT1, DXT3, DTX5)
 - [Advanced node-based UI](https://github.com/mrDIMAS/rg3d-ui) with lots of widgets.
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
@@ -65,6 +67,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Fast iterative compilation 
 	- Debug: ~3 seconds
 	- Release: ~8 seconds
+- Lots of examples.
 
 ## Contributing
 
