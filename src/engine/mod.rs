@@ -6,6 +6,7 @@
 pub mod error;
 pub mod resource_manager;
 
+use crate::resource::texture::TextureKind;
 use crate::{
     core::{
         math::vec2::Vec2,
@@ -115,16 +116,24 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// functioning.
     pub fn update(&mut self, dt: f32) {
         let inner_size = self.context.window().inner_size();
-        let frame_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
+        let window_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
 
         self.resource_manager.state().update(dt);
 
         for scene in self.scenes.iter_mut() {
+            let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
+                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                    Vec2::new(width as f32, height as f32)
+                } else {
+                    panic!("only rectangle textures can be used as render target!");
+                }
+            });
+
             scene.update(frame_size, dt);
         }
 
         let time = time::Instant::now();
-        self.user_interface.update(frame_size, dt);
+        self.user_interface.update(window_size, dt);
         self.ui_time = time::Instant::now() - time;
     }
 

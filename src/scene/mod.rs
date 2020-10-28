@@ -811,6 +811,11 @@ impl SceneContainer {
         Self { pool: Pool::new() }
     }
 
+    /// Returns pair iterator which yields (handle, scene_ref) pairs.
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Scene>, &Scene)> {
+        self.pool.pair_iter()
+    }
+
     /// Creates new iterator over scenes in container.
     #[inline]
     pub fn iter(&self) -> PoolIterator<Scene> {

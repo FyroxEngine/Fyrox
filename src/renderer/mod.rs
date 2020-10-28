@@ -30,6 +30,7 @@ mod ssao;
 mod ui_renderer;
 
 use crate::resource::texture::TextureKind;
+use crate::scene::Scene;
 use crate::{
     core::{
         color::Color,
@@ -64,7 +65,7 @@ use crate::{
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{Texture, TexturePixelKind, TextureState},
+    resource::texture::{Texture, TextureState},
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
@@ -336,7 +337,7 @@ pub struct Renderer {
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
     /// Camera to G-buffer mapping.
-    gbuffers: HashMap<Handle<Node>, GBuffer>,
+    gbuffers: HashMap<Handle<Scene>, GBuffer>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
@@ -672,70 +673,69 @@ impl Renderer {
             Some(0),
         );
 
-        let frame_width = self.frame_size.0 as f32;
-        let frame_height = self.frame_size.1 as f32;
+        let backbuffer_width = self.frame_size.0 as f32;
+        let backbuffer_height = self.frame_size.1 as f32;
 
-        for scene in scenes.iter() {
+        for (scene_handle, scene) in scenes.pair_iter() {
             let graph = &scene.graph;
 
-            for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
+            let frame_size = scene.render_target.as_ref().map_or_else(
+                // Use either backbuffer size
+                || Vec2::new(backbuffer_width, backbuffer_height),
+                // Or framebuffer size
+                |rt| {
+                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                        Vec2::new(width as f32, height as f32)
+                    } else {
+                        panic!("only rectangle textures can be used as render target!")
+                    }
+                },
+            );
+
+            let state = &mut self.state;
+            let gbuffer = self
+                .gbuffers
+                .entry(scene_handle)
+                .and_modify(|buf| {
+                    if buf.width != frame_size.x as i32 || buf.height != frame_size.y as i32 {
+                        let width = (frame_size.x as usize).max(1);
+                        let height = (frame_size.y as usize).max(1);
+                        *buf = GBuffer::new(state, width, height).unwrap();
+                    }
+                })
+                .or_insert_with(|| {
+                    let width = (frame_size.x as usize).max(1);
+                    let height = (frame_size.y as usize).max(1);
+                    GBuffer::new(state, width, height).unwrap()
+                });
+
+            // If we specified a texture to draw to, we have to register it in texture cache
+            // so it can be used in later on as texture. This is useful in case if you need
+            // to draw something on offscreen and then draw it on some mesh.
+            // TODO: However it can be dangerous to use frame texture as it may be bound to
+            //  pipeline.
+            if let Some(rt) = scene.render_target.clone() {
+                self.texture_cache.map.insert(
+                    rt.key(),
+                    TimedEntry {
+                        value: gbuffer.frame_texture(),
+                        time_to_live: std::f32::INFINITY,
+                    },
+                );
+            }
+
+            for camera in graph.linear_iter().filter_map(|node| {
                 if let Node::Camera(camera) = node {
-                    Some((handle, camera))
+                    if camera.is_enabled() {
+                        Some(camera)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             }) {
-                if !camera.is_enabled() {
-                    continue;
-                }
-
-                let viewport = camera.viewport_pixels(Vec2::new(frame_width, frame_height));
-
-                let state = &mut self.state;
-                let gbuffer = self
-                    .gbuffers
-                    .entry(camera_handle)
-                    .and_modify(|buf| {
-                        if buf.width != viewport.w || buf.height != viewport.h {
-                            let width = (viewport.w as usize).max(1);
-                            let height = (viewport.h as usize).max(1);
-                            *buf = GBuffer::new(state, width, height).unwrap();
-                        }
-                    })
-                    .or_insert_with(|| {
-                        let width = (viewport.w as usize).max(1);
-                        let height = (viewport.h as usize).max(1);
-                        GBuffer::new(state, width, height).unwrap()
-                    });
-
-                // If we specified a texture to draw to, we have to register it in texture cache
-                // so it can be used in later on as texture. This is useful in case if you need
-                // to draw something on offscreen and then draw it on some mesh.
-                // TODO: However it can be dangerous to use frame texture as it may be bound to
-                //  pipeline.
-                if let Some(rt) = scene.render_target.clone() {
-                    let key = rt.key();
-
-                    self.texture_cache.map.insert(
-                        key,
-                        TimedEntry {
-                            value: gbuffer.frame_texture(),
-                            time_to_live: std::f32::INFINITY,
-                        },
-                    );
-
-                    // Make sure to sync texture info with actual render target.
-                    if let TextureState::Ok(rt) = &mut *rt.state() {
-                        if let TextureKind::Rectangle { width, height } = &mut rt.kind {
-                            *width = gbuffer.width as u32;
-                            *height = gbuffer.height as u32;
-                            // TODO: For now only RGBA8 textures are supported.
-                            rt.pixel_kind = TexturePixelKind::RGBA8;
-                        } else {
-                            panic!("only rectangle textures can be used as render target!")
-                        }
-                    }
-                }
+                let viewport = camera.viewport_pixels(frame_size);
 
                 self.statistics += gbuffer.fill(GBufferRenderContext {
                     state,
@@ -772,8 +772,8 @@ impl Renderer {
                             camera,
                             white_dummy: self.white_dummy.clone(),
                             depth,
-                            frame_width,
-                            frame_height,
+                            frame_width: frame_size.x,
+                            frame_height: frame_size.y,
                             viewport,
                             texture_cache: &mut self.texture_cache,
                         });
@@ -849,8 +849,8 @@ impl Renderer {
             state: &mut self.state,
             viewport: window_viewport,
             backbuffer: &mut self.backbuffer,
-            frame_width,
-            frame_height,
+            frame_width: backbuffer_width,
+            frame_height: backbuffer_height,
             drawing_context,
             white_dummy: self.white_dummy.clone(),
             texture_cache: &mut self.texture_cache,

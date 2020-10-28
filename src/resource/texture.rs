@@ -215,20 +215,17 @@ impl Texture {
     /// Creates new render target for a scene. This method automatically configures GPU texture
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
-    pub fn new_render_target() -> Self {
+    pub fn new_render_target(width: u32, height: u32) -> Self {
         Self::new(TextureState::Ok(TextureData {
             path: Default::default(),
             // Render target will automatically set width and height before rendering.
-            kind: TextureKind::Rectangle {
-                width: 0,
-                height: 0,
-            },
+            kind: TextureKind::Rectangle { width, height },
             bytes: Vec::new(),
             pixel_kind: TexturePixelKind::RGBA8,
             minification_filter: TextureMinificationFilter::Nearest,
             magnification_filter: TextureMagnificationFilter::Nearest,
-            s_wrap_mode: TextureWrapMode::ClampToEdge,
-            t_wrap_mode: TextureWrapMode::ClampToEdge,
+            s_wrap_mode: TextureWrapMode::Repeat,
+            t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 1.0,
         }))
@@ -647,6 +644,11 @@ impl TextureData {
     /// Returns total mip count.
     pub fn mip_count(&self) -> u32 {
         self.mip_count
+    }
+
+    /// Returns texture kind.
+    pub fn kind(&self) -> TextureKind {
+        self.kind
     }
 
     /// Max samples for anisotropic filtering. Default value is 16.0 (max).

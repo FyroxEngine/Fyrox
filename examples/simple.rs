@@ -9,14 +9,11 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::renderer::surface::{SurfaceBuilder, SurfaceSharedData};
-use rg3d::resource::texture::TextureWrapMode;
-use rg3d::scene::mesh::MeshBuilder;
 use rg3d::{
     animation::Animation,
     core::{
         color::Color,
-        math::{quat::Quat, vec3::Vec3},
+        math::{mat4::Mat4, quat::Quat, vec3::Vec3},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
@@ -28,15 +25,16 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, camera::SkyBox, node::Node,
-        transform::TransformBuilder, Scene,
-    },
+    renderer::surface::{SurfaceBuilder, SurfaceSharedData},
+    resource::texture::TextureWrapMode,
+    scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
     utils::translate_event,
 };
-use rg3d_core::math::mat4::Mat4;
-use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use rg3d_core::math::Rect;
+use std::{
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
