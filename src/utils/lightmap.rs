@@ -7,7 +7,6 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -16,10 +15,11 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
-    resource::texture::{Texture, TexturePixelKind},
+    resource::texture::{
+        Texture, TextureData, TextureError, TextureKind, TexturePixelKind, TextureState,
+    },
     scene::{light::Light, node::Node, Scene},
 };
-use image::ImageError;
 use std::{collections::HashMap, path::Path, time};
 
 ///
@@ -141,7 +141,7 @@ impl Lightmap {
     }
 
     /// Saves lightmap textures into specified folder.
-    pub fn save<P: AsRef<Path>>(&self, base_path: P) -> Result<(), ImageError> {
+    pub fn save<P: AsRef<Path>>(&self, base_path: P) -> Result<(), TextureError> {
         for (handle, entries) in self.map.iter() {
             let handle_path = handle.index().to_string();
             for (i, entry) in entries.iter().enumerate() {

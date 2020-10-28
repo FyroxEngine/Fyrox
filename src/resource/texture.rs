@@ -21,6 +21,7 @@ use crate::{
     resource::{Resource, ResourceData, ResourceState},
 };
 use ddsfile::{Caps2, D3DFormat};
+use futures::io::Error;
 use image::{ColorType, DynamicImage, GenericImageView, ImageError};
 use std::{
     borrow::Cow,
@@ -206,10 +207,10 @@ impl Default for TextureData {
 }
 
 /// See module docs.
-pub type Texture = Resource<TextureData, ImageError>;
+pub type Texture = Resource<TextureData, TextureError>;
 
 /// Texture state alias.
-pub type TextureState = ResourceState<TextureData, ImageError>;
+pub type TextureState = ResourceState<TextureData, TextureError>;
 
 impl Texture {
     /// Creates new render target for a scene. This method automatically configures GPU texture
@@ -458,12 +459,35 @@ impl TexturePixelKind {
     }
 }
 
+/// An error that may occur during texture operations.
+#[derive(Debug)]
+pub enum TextureError {
+    /// Format (pixel format, dimensions) is not supported.
+    UnsupportedFormat,
+    /// An io error.
+    Io(std::io::Error),
+    /// Internal image crate error.
+    Image(image::ImageError),
+}
+
+impl From<image::ImageError> for TextureError {
+    fn from(v: ImageError) -> Self {
+        Self::Image(v)
+    }
+}
+
+impl From<std::io::Error> for TextureError {
+    fn from(v: Error) -> Self {
+        Self::Io(v)
+    }
+}
+
 fn ceil_div_4(x: u32) -> u32 {
     (x + 3) / 4
 }
 
 impl TextureData {
-    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, image::ImageError> {
+    pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, TextureError> {
         // DDS is special.
         if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
             let pixel_kind = match dds.get_d3d_format().unwrap() {
@@ -475,7 +499,7 @@ impl TextureData {
                 D3DFormat::R8G8B8 => TexturePixelKind::RGB8,
                 // FIXME: Swap alpha and blue for this.
                 D3DFormat::A8R8G8B8 => TexturePixelKind::RGBA8,
-                _ => unreachable!(),
+                _ => return Err(TextureError::UnsupportedFormat),
             };
 
             Ok(Self {
@@ -670,7 +694,7 @@ impl TextureData {
     }
 
     /// Tries to save internal buffer into source file.
-    pub fn save(&self) -> Result<(), ImageError> {
+    pub fn save(&self) -> Result<(), TextureError> {
         let color_type = match self.pixel_kind {
             TexturePixelKind::R8 => ColorType::L8,
             TexturePixelKind::RGB8 => ColorType::Rgb8,
@@ -682,15 +706,21 @@ impl TextureData {
             TexturePixelKind::BGRA8 => ColorType::Bgra8,
             TexturePixelKind::RGB16 => ColorType::Rgb16,
             TexturePixelKind::RGBA16 => ColorType::Rgba16,
-            TexturePixelKind::DXT1RGB => panic!("unable to save compressed image."),
-            TexturePixelKind::DXT1RGBA => panic!("unable to save compressed image."),
-            TexturePixelKind::DXT3RGBA => panic!("unable to save compressed image."),
-            TexturePixelKind::DXT5RGBA => panic!("unable to save compressed image."),
+            TexturePixelKind::DXT1RGB
+            | TexturePixelKind::DXT1RGBA
+            | TexturePixelKind::DXT3RGBA
+            | TexturePixelKind::DXT5RGBA => return Err(TextureError::UnsupportedFormat),
         };
         if let TextureKind::Rectangle { width, height } = self.kind {
-            image::save_buffer(&self.path, self.bytes.as_ref(), width, height, color_type)
+            Ok(image::save_buffer(
+                &self.path,
+                self.bytes.as_ref(),
+                width,
+                height,
+                color_type,
+            )?)
         } else {
-            Ok(())
+            Err(TextureError::UnsupportedFormat)
         }
     }
 }

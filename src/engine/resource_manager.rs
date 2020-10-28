@@ -278,7 +278,7 @@ impl ResourceManager {
                 }
                 Err(error) => {
                     Log::writeln(format!(
-                        "Unable to load texture {:?}! Reason {}",
+                        "Unable to load texture {:?}! Reason {:?}",
                         &path, &error
                     ));
 
@@ -440,7 +440,7 @@ impl ResourceManager {
                         }
                         Err(e) => {
                             Log::writeln(format!(
-                                "Unable to reload {:?} texture! Reason: {}",
+                                "Unable to reload {:?} texture! Reason: {:?}",
                                 path, e
                             ));
 

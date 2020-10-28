@@ -26,11 +26,9 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     renderer::surface::{SurfaceBuilder, SurfaceSharedData},
-    resource::texture::TextureWrapMode,
     scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
     utils::translate_event,
 };
-use rg3d_core::math::Rect;
 use std::{
     sync::{Arc, Mutex},
     time::Instant,
@@ -54,39 +52,6 @@ struct GameScene {
 
 async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
-
-    // Load skybox textures in parallel.
-    let (front, back, left, right, top, bottom) = rg3d::futures::join!(
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
-        resource_manager.request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
-        resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
-    );
-
-    // Unwrap everything.
-    let (front, back, left, right, top, bottom) = (
-        front.unwrap(),
-        back.unwrap(),
-        left.unwrap(),
-        right.unwrap(),
-        top.unwrap(),
-        bottom.unwrap(),
-    );
-
-    // Set S and T coordinate wrap mode, ClampToEdge will remove any possible seams on edges
-    // of the skybox.
-    for skybox_texture in &[&front, &back, &left, &right, &top, &bottom] {
-        let mut data = skybox_texture.data_ref();
-        data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
-        data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
-    }
 
     // Camera is our eyes in the world - you won't see anything without it.
     let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
