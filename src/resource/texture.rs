@@ -488,17 +488,60 @@ fn ceil_div_4(x: u32) -> u32 {
 
 impl TextureData {
     pub(in crate) fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, TextureError> {
-        // DDS is special.
+        // DDS is special. It can contain various kinds of textures as well as textures with
+        // various pixel formats.
+        //
+        // TODO: Add support for DXGI formats. This could be difficult because of mismatch
+        // between OpenGL and DirectX formats.
         if let Ok(dds) = ddsfile::Dds::read(&mut File::open(path.as_ref())?) {
-            let pixel_kind = match dds.get_d3d_format().unwrap() {
+            let d3dformat = dds
+                .get_d3d_format()
+                .ok_or(TextureError::UnsupportedFormat)?;
+            let mip_count = dds.get_num_mipmap_levels();
+            let mut bytes = dds.data;
+
+            // Try to use as much formats as possible.
+            let pixel_kind = match d3dformat {
                 D3DFormat::DXT1 => TexturePixelKind::DXT1RGBA,
                 D3DFormat::DXT3 => TexturePixelKind::DXT3RGBA,
                 D3DFormat::DXT5 => TexturePixelKind::DXT5RGBA,
-                D3DFormat::L8 => TexturePixelKind::R8,
+                D3DFormat::L8 | D3DFormat::A8 => TexturePixelKind::R8,
                 D3DFormat::L16 => TexturePixelKind::R16,
                 D3DFormat::R8G8B8 => TexturePixelKind::RGB8,
-                // FIXME: Swap alpha and blue for this.
-                D3DFormat::A8R8G8B8 => TexturePixelKind::RGBA8,
+                D3DFormat::A8L8 => TexturePixelKind::RG8,
+                D3DFormat::A8R8G8B8 => {
+                    // ARGB8 -> RGBA8
+                    assert_eq!(bytes.len() % 4, 0);
+                    for chunk in bytes.chunks_exact_mut(4) {
+                        let a = chunk[0];
+                        let r = chunk[1];
+                        let g = chunk[2];
+                        let b = chunk[3];
+                        chunk[0] = r;
+                        chunk[1] = g;
+                        chunk[2] = b;
+                        chunk[3] = a;
+                    }
+                    TexturePixelKind::RGBA8
+                }
+                D3DFormat::G16R16 => {
+                    // GR16 -> RG16
+                    assert_eq!(bytes.len() % 4, 0);
+                    for chunk in bytes.chunks_exact_mut(4) {
+                        // Red Hi + Lo bytes
+                        let gh = chunk[0];
+                        let gl = chunk[1];
+                        // Green Hi + Lo bytes
+                        let rh = chunk[2];
+                        let rl = chunk[3];
+                        // Swap
+                        chunk[0] = rh;
+                        chunk[1] = rl;
+                        chunk[2] = gh;
+                        chunk[3] = gl;
+                    }
+                    TexturePixelKind::RG16
+                }
                 _ => return Err(TextureError::UnsupportedFormat),
             };
 
@@ -508,8 +551,8 @@ impl TextureData {
                 magnification_filter: TextureMagnificationFilter::Linear,
                 s_wrap_mode: TextureWrapMode::Repeat,
                 t_wrap_mode: TextureWrapMode::Repeat,
-                mip_count: dds.get_num_mipmap_levels(),
-                bytes: dds.data,
+                mip_count,
+                bytes,
                 path: path.as_ref().to_path_buf(),
                 kind: if dds.header.caps2 & Caps2::CUBEMAP == Caps2::CUBEMAP {
                     TextureKind::Cube {
@@ -531,6 +574,8 @@ impl TextureData {
                 anisotropy: 1.0,
             })
         } else {
+            // Commonly used formats are all rectangle textures.
+
             let dyn_img = image::open(path.as_ref())?;
 
             let width = dyn_img.width();
@@ -577,7 +622,7 @@ impl TextureData {
         };
         let required_bytes = match pixel_kind {
             // Uncompressed formats.
-            TexturePixelKind::R8 => 1 * pixel_count,
+            TexturePixelKind::R8 => pixel_count,
             TexturePixelKind::R16 | TexturePixelKind::RG8 => 2 * pixel_count,
             TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
             TexturePixelKind::RGBA8 | TexturePixelKind::BGRA8 | TexturePixelKind::RG16 => {

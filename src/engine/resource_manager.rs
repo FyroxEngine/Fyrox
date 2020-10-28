@@ -90,8 +90,8 @@ impl ResourceData for Arc<Mutex<SoundBuffer>> {
         self.lock()
             .unwrap()
             .external_data_path()
-            .and_then(|p| Some(Cow::Owned(p.to_owned())))
-            .unwrap_or(Cow::Owned(Path::new("").to_owned()))
+            .map(|p| Cow::Owned(p.to_owned()))
+            .unwrap_or_else(|| Cow::Owned(Path::new("").to_owned()))
     }
 }
 

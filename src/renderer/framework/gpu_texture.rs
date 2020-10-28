@@ -189,7 +189,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         | PixelKind::F32 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
-        PixelKind::R8 => 1 * pixel_count,
+        PixelKind::R8 => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
             // 8 here is block size.
             ceil_div_4(width) * ceil_div_4(height) * ceil_div_4(depth) * 8
@@ -214,7 +214,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         | PixelKind::F32 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * pixel_count,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * pixel_count,
-        PixelKind::R8 => 1 * pixel_count,
+        PixelKind::R8 => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
             // 8 here is block size.
             ceil_div_4(width) * ceil_div_4(height) * 8
@@ -238,7 +238,7 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::F32 => 4 * length,
         PixelKind::RGB8 | PixelKind::BGR8 => 3 * length,
         PixelKind::RG8 | PixelKind::R16 | PixelKind::D16 | PixelKind::F16 => 2 * length,
-        PixelKind::R8 => 1 * length,
+        PixelKind::R8 => length,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA => {
             // 8 here is block size.
             ceil_div_4(length) * 8
