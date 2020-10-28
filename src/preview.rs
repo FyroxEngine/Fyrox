@@ -50,7 +50,7 @@ pub struct PreviewPanel {
 }
 
 impl PreviewPanel {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut GameEngine, width: u32, height: u32) -> Self {
         let mut scene = Scene::new();
 
         let camera_pivot = scene.graph.add_node(BaseBuilder::new().build_node());
@@ -69,7 +69,7 @@ impl PreviewPanel {
         scene.graph.link_nodes(hinge, camera_pivot);
         scene.graph.link_nodes(camera, hinge);
 
-        let render_target = Texture::new_render_target();
+        let render_target = Texture::new_render_target(width, height);
         scene.render_target = Some(render_target.clone());
 
         let scene = engine.scenes.add(scene);

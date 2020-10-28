@@ -40,11 +40,11 @@ use crate::{
     world_outliner::WorldOutliner,
 };
 use rg3d::core::math::aabb::AxisAlignedBoundingBox;
-use rg3d::resource::texture::{Texture, TextureState};
+use rg3d::resource::texture::{Texture, TextureKind, TextureState};
 use rg3d::{
     core::{
         color::Color,
-        math::{vec2::Vec2, Rect},
+        math::vec2::Vec2,
         pool::Handle,
         scope_profile,
         visitor::{Visit, Visitor},
@@ -823,7 +823,7 @@ impl Editor {
         // We must explicitly turn off physics, otherwise all objects with physics will fly away.
         scene.physics.set_enabled(false);
 
-        scene.render_target = Some(Texture::new_render_target());
+        scene.render_target = Some(Texture::new_render_target(0, 0));
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
             MessageDirection::ToWidget,
@@ -919,6 +919,13 @@ impl Editor {
 
             self.preview.handle_ui_message(message);
 
+            let frame_size: Vec2 = engine
+                .user_interface
+                .node(self.preview.frame)
+                .screen_bounds()
+                .size()
+                .into();
+
             if message.destination() == self.preview.frame {
                 if let UiMessageData::Widget(msg) = &message.data() {
                     match *msg {
@@ -936,7 +943,12 @@ impl Editor {
                                     self.preview.click_mouse_pos = Some(rel_pos);
 
                                     self.interaction_modes[current_im as usize]
-                                        .on_left_mouse_button_down(editor_scene, engine, rel_pos);
+                                        .on_left_mouse_button_down(
+                                            editor_scene,
+                                            engine,
+                                            rel_pos,
+                                            frame_size,
+                                        );
                                 }
                             }
                             editor_scene.camera_controller.on_mouse_button_down(button);
@@ -954,7 +966,12 @@ impl Editor {
                                     let rel_pos =
                                         Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
                                     self.interaction_modes[current_im as usize]
-                                        .on_left_mouse_button_up(editor_scene, engine, rel_pos);
+                                        .on_left_mouse_button_up(
+                                            editor_scene,
+                                            engine,
+                                            rel_pos,
+                                            frame_size,
+                                        );
                                 }
                             }
                             editor_scene.camera_controller.on_mouse_button_up(button);
@@ -1120,7 +1137,7 @@ impl Editor {
                                                     rel_pos,
                                                     graph,
                                                     editor_scene.root,
-                                                    engine.renderer.get_frame_bounds(),
+                                                    frame_size,
                                                     false,
                                                     |_, _| true,
                                                 );
@@ -1397,27 +1414,28 @@ impl Editor {
 
         if let Some(editor_scene) = self.scene.as_mut() {
             // Adjust camera viewport to size of frame.
-            let frame_size = engine.renderer.get_frame_size();
             let scene = &mut engine.scenes[editor_scene.scene];
 
             scene.drawing_context.clear_lines();
 
-            if let Node::Camera(camera) = &mut scene.graph[editor_scene.camera_controller.camera] {
-                let frame_size = Vec2::new(frame_size.0 as f32, frame_size.1 as f32);
-                let viewport = camera.viewport_pixels(frame_size);
-
-                if let UiNode::Image(frame) = engine.user_interface.node(self.preview.frame) {
-                    let preview_frame_size = frame.actual_size();
-                    if viewport.w != preview_frame_size.x as i32
-                        || viewport.h != preview_frame_size.y as i32
-                    {
-                        camera.set_viewport(Rect {
-                            x: 0.0,
-                            y: 0.0,
-                            w: preview_frame_size.x / frame_size.x,
-                            h: preview_frame_size.y / frame_size.y,
-                        });
-                    }
+            // Create new render target if preview frame has changed its size.
+            let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
+                scene.render_target.clone().unwrap().data_ref().kind()
+            {
+                (width, height)
+            } else {
+                unreachable!();
+            };
+            if let UiNode::Image(frame) = engine.user_interface.node(self.preview.frame) {
+                let frame_size = frame.actual_size();
+                if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
+                    let rt = Texture::new_render_target(frame_size.x as u32, frame_size.y as u32);
+                    scene.render_target = Some(rt.clone());
+                    engine.user_interface.send_message(ImageMessage::texture(
+                        self.preview.frame,
+                        MessageDirection::ToWidget,
+                        Some(into_gui_texture(rt)),
+                    ));
                 }
             }
 

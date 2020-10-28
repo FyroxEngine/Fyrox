@@ -214,7 +214,7 @@ pub struct AssetBrowser {
 
 impl AssetBrowser {
     pub fn new(engine: &mut GameEngine) -> Self {
-        let preview = PreviewPanel::new(engine);
+        let preview = PreviewPanel::new(engine, 250, 250);
         let mut ctx = engine.user_interface.build_ctx();
 
         let content_panel;

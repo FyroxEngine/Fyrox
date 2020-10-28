@@ -29,12 +29,14 @@ pub trait InteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     );
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     );
     fn on_mouse_move(
         &mut self,
@@ -405,6 +407,7 @@ impl InteractionMode for MoveInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -415,7 +418,7 @@ impl InteractionMode for MoveInteractionMode {
             mouse_pos,
             graph,
             editor_scene.root,
-            engine.renderer.get_frame_bounds(),
+            frame_size,
             true,
             |handle, _| handle != camera && handle != camera_pivot,
         );
@@ -435,6 +438,7 @@ impl InteractionMode for MoveInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -467,7 +471,7 @@ impl InteractionMode for MoveInteractionMode {
                 mouse_pos,
                 graph,
                 editor_scene.root,
-                engine.renderer.get_frame_bounds(),
+                frame_size,
                 false,
                 |_, _| true,
             );
@@ -828,6 +832,7 @@ impl InteractionMode for ScaleInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -838,7 +843,7 @@ impl InteractionMode for ScaleInteractionMode {
             mouse_pos,
             graph,
             editor_scene.root,
-            engine.renderer.get_frame_bounds(),
+            frame_size,
             true,
             |handle, _| handle != camera && handle != camera_pivot,
         );
@@ -858,6 +863,7 @@ impl InteractionMode for ScaleInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -892,7 +898,7 @@ impl InteractionMode for ScaleInteractionMode {
                 mouse_pos,
                 graph,
                 editor_scene.root,
-                engine.renderer.get_frame_bounds(),
+                frame_size,
                 false,
                 |_, _| true,
             );
@@ -1206,6 +1212,7 @@ impl InteractionMode for RotateInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -1216,7 +1223,7 @@ impl InteractionMode for RotateInteractionMode {
             mouse_pos,
             graph,
             editor_scene.root,
-            engine.renderer.get_frame_bounds(),
+            frame_size,
             true,
             |handle, _| handle != camera && handle != camera_pivot,
         );
@@ -1236,6 +1243,7 @@ impl InteractionMode for RotateInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -1272,7 +1280,7 @@ impl InteractionMode for RotateInteractionMode {
                 mouse_pos,
                 graph,
                 editor_scene.root,
-                engine.renderer.get_frame_bounds(),
+                frame_size,
                 false,
                 |_, _| true,
             );
@@ -1376,6 +1384,7 @@ impl InteractionMode for SelectInteractionMode {
         _editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         mouse_pos: Vec2,
+        _frame_size: Vec2,
     ) {
         self.click_pos = mouse_pos;
         let ui = &mut engine.user_interface;
@@ -1406,6 +1415,7 @@ impl InteractionMode for SelectInteractionMode {
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
         _mouse_pos: Vec2,
+        frame_size: Vec2,
     ) {
         let scene = &engine.scenes[editor_scene.scene];
         let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
@@ -1437,14 +1447,10 @@ impl InteractionMode for SelectInteractionMode {
                 Node::ParticleSystem(_) => AxisAlignedBoundingBox::UNIT,
             };
 
-            let fsize = Vec2::new(
-                engine.renderer.get_frame_size().0 as f32,
-                engine.renderer.get_frame_size().1 as f32,
-            );
             for screen_corner in aabb
                 .corners()
                 .iter()
-                .filter_map(|&p| camera.project(p + node.global_position(), fsize))
+                .filter_map(|&p| camera.project(p + node.global_position(), frame_size))
             {
                 if relative_bounds.contains(screen_corner.x, screen_corner.y) {
                     selection.insert_or_exclude(handle);
