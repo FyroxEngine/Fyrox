@@ -113,8 +113,7 @@ impl GenericBuffer {
     #[inline]
     pub fn external_data_path(&self) -> Option<&Path> {
         self.external_source_path
-            .as_ref()
-            .and_then(|p| Some(p.as_path()))
+            .as_deref()
     }
 
     /// Checks if buffer is empty or not.
