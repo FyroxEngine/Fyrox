@@ -40,9 +40,7 @@ use rg3d::{
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
     monitor::VideoMode,
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
-    },
+    scene::{node::Node, Scene},
     utils::translate_event,
     window::Fullscreen,
 };

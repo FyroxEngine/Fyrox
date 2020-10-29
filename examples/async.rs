@@ -9,7 +9,6 @@ extern crate rg3d;
 
 pub mod shared;
 
-use rg3d::gui::message::MessageDirection;
 use rg3d::{
     animation::Animation,
     core::{
@@ -22,16 +21,14 @@ use rg3d::{
     event_loop::{ControlFlow, EventLoop},
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::{ProgressBarMessage, TextMessage, WidgetMessage},
+        message::{MessageDirection, ProgressBarMessage, TextMessage, WidgetMessage},
         node::StubNode,
         progress_bar::ProgressBarBuilder,
         text::TextBuilder,
         widget::WidgetBuilder,
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
-    },
+    scene::{node::Node, Scene},
     utils::translate_event,
 };
 use std::{

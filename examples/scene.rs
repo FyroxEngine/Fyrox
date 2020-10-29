@@ -11,8 +11,6 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::gui::message::MessageDirection;
-use rg3d::renderer::QualitySettings;
 use rg3d::{
     core::{
         color::Color,
@@ -22,10 +20,13 @@ use rg3d::{
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::{message::TextMessage, node::StubNode, text::TextBuilder, widget::WidgetBuilder},
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+    gui::{
+        message::{MessageDirection, TextMessage},
+        node::StubNode,
+        text::TextBuilder,
+        widget::WidgetBuilder,
     },
+    scene::{node::Node, Scene},
     utils::translate_event,
 };
 use std::time::Instant;

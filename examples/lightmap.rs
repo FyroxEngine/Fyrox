@@ -25,9 +25,7 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
-    },
+    scene::{node::Node, Scene},
     utils::{lightmap::Lightmap, translate_event, uvgen},
 };
 use std::{path::Path, time::Instant};
