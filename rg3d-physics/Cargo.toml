@@ -8,6 +8,7 @@ description = "Physics library for rg3d-engine."
 keywords = ["physics", "game"]
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 readme = "README.md"
+repository = "https://github.com/mrDIMAS/rg3d"
 
 [dependencies]
 rg3d-core = { path = "../rg3d-core", version = "0.10.0" }
