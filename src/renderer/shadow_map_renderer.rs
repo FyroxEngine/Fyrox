@@ -423,9 +423,9 @@ impl PointShadowMapRenderer {
                     .bind_mut(state, 0)
                     .set_minification_filter(MinificationFilter::Linear)
                     .set_magnification_filter(MagnificationFilter::Linear)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                    .set_border_color(Color::WHITE);
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::R, WrapMode::ClampToEdge);
                 texture
             };
 

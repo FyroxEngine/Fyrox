@@ -76,6 +76,7 @@ struct SpotLightShader {
     half_cone_angle_cos: UniformLocation,
     inv_view_proj_matrix: UniformLocation,
     camera_position: UniformLocation,
+    shadow_bias: UniformLocation,
 }
 
 impl SpotLightShader {
@@ -102,6 +103,7 @@ impl SpotLightShader {
             half_cone_angle_cos: program.uniform_location("halfConeAngleCos")?,
             inv_view_proj_matrix: program.uniform_location("invViewProj")?,
             camera_position: program.uniform_location("cameraPosition")?,
+            shadow_bias: program.uniform_location("shadowBias")?,
 
             program,
         })
@@ -122,6 +124,7 @@ struct PointLightShader {
     light_color: UniformLocation,
     inv_view_proj_matrix: UniformLocation,
     camera_position: UniformLocation,
+    shadow_bias: UniformLocation,
 }
 
 impl PointLightShader {
@@ -143,6 +146,7 @@ impl PointLightShader {
             light_color: program.uniform_location("lightColor")?,
             inv_view_proj_matrix: program.uniform_location("invViewProj")?,
             camera_position: program.uniform_location("cameraPosition")?,
+            shadow_bias: program.uniform_location("shadowBias")?,
 
             program,
         })
@@ -740,6 +744,10 @@ impl DeferredLightRenderer {
                                     .cascade_texture(cascade_index),
                             },
                         ),
+                        (
+                            shader.shadow_bias,
+                            UniformValue::Float(spot_light.shadow_bias()),
+                        ),
                     ];
 
                     gbuffer.final_frame.draw(
@@ -751,7 +759,7 @@ impl DeferredLightRenderer {
                         &uniforms,
                     )
                 }
-                Light::Point(_) => {
+                Light::Point(point_light) => {
                     let shader = &self.point_light_shader;
 
                     let uniforms = [
@@ -801,6 +809,10 @@ impl DeferredLightRenderer {
                                     .point_shadow_map_renderer
                                     .cascade_texture(cascade_index),
                             },
+                        ),
+                        (
+                            shader.shadow_bias,
+                            UniformValue::Float(point_light.shadow_bias()),
                         ),
                     ];
 

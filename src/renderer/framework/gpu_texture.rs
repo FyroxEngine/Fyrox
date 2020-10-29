@@ -167,6 +167,7 @@ pub struct GpuTexture {
     mag_filter: MagnificationFilter,
     s_wrap_mode: WrapMode,
     t_wrap_mode: WrapMode,
+    r_wrap_mode: WrapMode,
     anisotropy: f32,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
@@ -333,17 +334,16 @@ impl From<TextureWrapMode> for WrapMode {
 }
 
 #[derive(Copy, Clone)]
+#[repr(u32)]
 pub enum Coordinate {
-    S,
-    T,
+    S = gl::TEXTURE_WRAP_S,
+    T = gl::TEXTURE_WRAP_T,
+    R = gl::TEXTURE_WRAP_R,
 }
 
 impl Coordinate {
     pub fn into_gl_value(self) -> u32 {
-        match self {
-            Self::S => gl::TEXTURE_WRAP_S,
-            Self::T => gl::TEXTURE_WRAP_T,
-        }
+        self as u32
     }
 }
 
@@ -433,6 +433,7 @@ impl<'a> TextureBinding<'a> {
             match coordinate {
                 Coordinate::S => self.texture.s_wrap_mode = wrap,
                 Coordinate::T => self.texture.t_wrap_mode = wrap,
+                Coordinate::R => self.texture.r_wrap_mode = wrap,
             }
         }
         self
@@ -797,6 +798,7 @@ impl GpuTexture {
                 mag_filter,
                 s_wrap_mode: WrapMode::Repeat,
                 t_wrap_mode: WrapMode::Repeat,
+                r_wrap_mode: WrapMode::Repeat,
                 anisotropy: 1.0,
                 thread_mark: PhantomData,
             })

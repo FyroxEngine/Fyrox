@@ -12,6 +12,7 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use rg3d::gui::message::MessageDirection;
+use rg3d::renderer::QualitySettings;
 use rg3d::{
     core::{
         color::Color,
@@ -78,6 +79,10 @@ fn main() {
 
     let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
 
+    let mut settings = QualitySettings::ultra();
+    settings.use_ssao = false;
+    engine.renderer.set_quality_settings(&settings);
+
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
     // model formats store absolute paths, we can't use them as direct path to load texture
@@ -100,9 +105,7 @@ fn main() {
     let scene_handle = engine.scenes.add(scene);
 
     // Set ambient light.
-    engine
-        .renderer
-        .set_ambient_color(Color::opaque(200, 200, 200));
+    engine.renderer.set_ambient_color(Color::opaque(0, 0, 0));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
