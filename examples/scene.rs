@@ -79,10 +79,6 @@ fn main() {
 
     let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
 
-    let mut settings = QualitySettings::ultra();
-    settings.use_ssao = false;
-    engine.renderer.set_quality_settings(&settings);
-
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
     // model formats store absolute paths, we can't use them as direct path to load texture
