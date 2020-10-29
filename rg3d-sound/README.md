@@ -2,6 +2,8 @@
 
 Sound library for games and interactive applications written in Rust.
 
+**WARNING:** even this crate has `rg3d` prefix in its name, it could be used separately without any issues.
+
 ## Key features
 
 - Generic and Spatial sound sources.

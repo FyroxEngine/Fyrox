@@ -2,6 +2,8 @@
 
 Retained mode, general purpose, graphics API agnostic user interface library. Inspired by WPF.
 
+**WARNING:** even this crate has `rg3d` prefix in its name, it could be used separately without any issues.
+
 ## Features
 
 - More than 28 widgets
