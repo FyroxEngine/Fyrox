@@ -7,7 +7,9 @@
 
 extern crate rg3d;
 
-use rg3d::gui::message::MessageDirection;
+pub mod shared;
+
+use crate::shared::create_camera;
 use rg3d::{
     core::{
         color::Color,
@@ -17,17 +19,16 @@ use rg3d::{
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::{message::TextMessage, node::StubNode, text::TextBuilder, widget::WidgetBuilder},
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+    gui::{
+        message::{MessageDirection, TextMessage},
+        node::StubNode,
+        text::TextBuilder,
+        widget::WidgetBuilder,
     },
+    scene::{node::Node, Scene},
     utils::{lightmap::Lightmap, translate_event, uvgen},
 };
-use std::path::Path;
-use std::{
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::{path::Path, time::Instant};
 
 // Create our own engine type aliases. These specializations are needed
 // because engine provides a way to extend UI with custom nodes and messages.
@@ -44,20 +45,11 @@ struct GameScene {
     root: Handle<Node>,
 }
 
-fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
+async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
-    let mut resource_manager = resource_manager.lock().unwrap();
-
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 4.0, -8.0))
-                .build(),
-        ),
-    )
-    .build();
+    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 4.0, -8.0)).await;
 
     scene.graph.add_node(Node::Camera(camera));
 
@@ -65,12 +57,11 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     // model file, so any scene can be used directly as resource.
     let root = resource_manager
         .request_model("examples/data/test_scene.rgs")
-        .unwrap()
-        .lock()
+        .await
         .unwrap()
         .instantiate(&mut scene)
         .root;
-    scene.graph.update_hierachical_data();
+    scene.graph.update_hierarchical_data();
 
     for node in scene.graph.linear_iter() {
         if let Node::Mesh(mesh) = node {
@@ -115,15 +106,15 @@ fn main() {
     // instead we telling engine to search textures in given folder.
     engine
         .resource_manager
-        .lock()
-        .unwrap()
+        .state()
         .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
     let debug_text = create_ui(&mut engine.user_interface.build_ctx());
 
     // Create test scene.
-    let GameScene { scene, root } = create_scene(engine.resource_manager.clone());
+    let GameScene { scene, root } =
+        rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some

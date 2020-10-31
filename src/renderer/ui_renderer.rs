@@ -1,3 +1,4 @@
+use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
     core::{
         color::Color,
@@ -25,7 +26,7 @@ use crate::{
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{Texture, TexturePixelKind},
 };
 use std::{
     cell::RefCell,
@@ -182,31 +183,37 @@ impl UiRenderer {
                             let mut font = font_arc.0.lock().unwrap();
                             if font.texture.is_none() {
                                 let size = font.atlas_size() as u32;
-                                if let Ok(tex) = Texture::from_bytes(
-                                    size,
-                                    size,
-                                    TextureKind::R8,
+                                if let Ok(details) = TextureData::from_bytes(
+                                    TextureKind::Rectangle {
+                                        width: size,
+                                        height: size,
+                                    },
+                                    TexturePixelKind::R8,
                                     font.atlas_pixels().to_vec(),
                                 ) {
-                                    font.texture = Some(SharedTexture(Arc::new(Mutex::new(tex))));
+                                    font.texture = Some(SharedTexture(Arc::new(Mutex::new(
+                                        TextureState::Ok(details),
+                                    ))));
                                 }
                             }
-                            if let Some(texture) = texture_cache.get(
-                                state,
-                                font.texture
-                                    .clone()
-                                    .unwrap()
-                                    .0
-                                    .downcast::<Mutex<Texture>>()
-                                    .unwrap(),
-                            ) {
+                            let tex = font
+                                .texture
+                                .clone()
+                                .unwrap()
+                                .0
+                                .downcast::<Mutex<TextureState>>()
+                                .unwrap();
+                            if let Some(texture) = texture_cache.get(state, Texture::from(tex)) {
                                 diffuse_texture = texture;
                             }
                             is_font_texture = true;
                         }
                         CommandTexture::Texture(texture) => {
-                            if let Ok(texture) = texture.clone().0.downcast::<Mutex<Texture>>() {
-                                if let Some(texture) = texture_cache.get(state, texture) {
+                            if let Ok(texture) = texture.clone().0.downcast::<Mutex<TextureState>>()
+                            {
+                                if let Some(texture) =
+                                    texture_cache.get(state, Texture::from(texture))
+                                {
                                     diffuse_texture = texture;
                                 }
                             }

@@ -62,6 +62,7 @@ pub struct SpotLight {
     base_light: BaseLight,
     hotspot_cone_angle: f32,
     falloff_angle_delta: f32,
+    shadow_bias: f32,
     distance: f32,
 }
 
@@ -85,6 +86,7 @@ impl Default for SpotLight {
             base_light: Default::default(),
             hotspot_cone_angle: 90.0f32.to_radians(),
             falloff_angle_delta: 5.0f32.to_radians(),
+            shadow_bias: 0.00005,
             distance: 10.0,
         }
     }
@@ -123,6 +125,17 @@ impl SpotLight {
         self.hotspot_cone_angle + self.falloff_angle_delta
     }
 
+    /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
+    /// compare it with shadow map value, it is used to remove "shadow acne".
+    pub fn set_shadow_bias(&mut self, bias: f32) {
+        self.shadow_bias = bias;
+    }
+
+    /// Returns current value of shadow bias.
+    pub fn shadow_bias(&self) -> f32 {
+        self.shadow_bias
+    }
+
     /// Sets maximum distance at which light intensity will be zero. Intensity
     /// of light will be calculated using inverse square root law.
     #[inline]
@@ -143,6 +156,7 @@ impl SpotLight {
             base_light: self.base_light.raw_copy(),
             hotspot_cone_angle: self.hotspot_cone_angle,
             falloff_angle_delta: self.falloff_angle_delta,
+            shadow_bias: self.shadow_bias,
             distance: self.distance,
         }
     }
@@ -157,6 +171,7 @@ impl Visit for SpotLight {
         self.falloff_angle_delta
             .visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
+        let _ = self.shadow_bias.visit("ShadowBias", visitor);
 
         visitor.leave_region()
     }
@@ -167,6 +182,7 @@ pub struct SpotLightBuilder {
     base_light_builder: BaseLightBuilder,
     hotspot_cone_angle: f32,
     falloff_angle_delta: f32,
+    shadow_bias: f32,
     distance: f32,
 }
 
@@ -177,6 +193,7 @@ impl SpotLightBuilder {
             base_light_builder,
             hotspot_cone_angle: 90.0f32.to_radians(),
             falloff_angle_delta: 5.0f32.to_radians(),
+            shadow_bias: 0.00005,
             distance: 10.0,
         }
     }
@@ -199,12 +216,19 @@ impl SpotLightBuilder {
         self
     }
 
+    /// Sets desired shadow bias.
+    pub fn with_shadow_bias(mut self, bias: f32) -> Self {
+        self.shadow_bias = bias;
+        self
+    }
+
     /// Builds new spot light instance.
     pub fn build(self) -> SpotLight {
         SpotLight {
             base_light: self.base_light_builder.build(),
             hotspot_cone_angle: self.hotspot_cone_angle,
             falloff_angle_delta: self.falloff_angle_delta,
+            shadow_bias: self.shadow_bias,
             distance: self.distance,
         }
     }
@@ -236,6 +260,7 @@ impl SpotLightBuilder {
 #[derive(Debug)]
 pub struct PointLight {
     base_light: BaseLight,
+    shadow_bias: f32,
     radius: f32,
 }
 
@@ -267,11 +292,23 @@ impl PointLight {
         self.radius
     }
 
+    /// Sets new shadow bias value. Bias will be used to offset fragment's depth before
+    /// compare it with shadow map value, it is used to remove "shadow acne".
+    pub fn set_shadow_bias(&mut self, bias: f32) {
+        self.shadow_bias = bias;
+    }
+
+    /// Returns current value of shadow bias.
+    pub fn shadow_bias(&self) -> f32 {
+        self.shadow_bias
+    }
+
     /// Creates a raw copy of a point light node.
     pub fn raw_copy(&self) -> Self {
         Self {
             base_light: self.base_light.raw_copy(),
             radius: self.radius,
+            shadow_bias: self.shadow_bias,
         }
     }
 }
@@ -282,6 +319,7 @@ impl Visit for PointLight {
 
         self.base_light.visit("BaseLight", visitor)?;
         self.radius.visit("Radius", visitor)?;
+        let _ = self.shadow_bias.visit("ShadowBias", visitor);
 
         visitor.leave_region()
     }
@@ -291,6 +329,7 @@ impl Default for PointLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
+            shadow_bias: 0.025,
             radius: 10.0,
         }
     }
@@ -299,6 +338,7 @@ impl Default for PointLight {
 /// Allows you to build point light in declarative manner.
 pub struct PointLightBuilder {
     base_light_builder: BaseLightBuilder,
+    shadow_bias: f32,
     radius: f32,
 }
 
@@ -307,6 +347,7 @@ impl PointLightBuilder {
     pub fn new(base_light_builder: BaseLightBuilder) -> Self {
         Self {
             base_light_builder,
+            shadow_bias: 0.025,
             radius: 10.0,
         }
     }
@@ -317,11 +358,18 @@ impl PointLightBuilder {
         self
     }
 
+    /// Sets desired shadow bias.
+    pub fn with_shadow_bias(mut self, bias: f32) -> Self {
+        self.shadow_bias = bias;
+        self
+    }
+
     /// Builds new instance of point light.
     pub fn build(self) -> PointLight {
         PointLight {
             base_light: self.base_light_builder.build(),
             radius: self.radius,
+            shadow_bias: self.shadow_bias,
         }
     }
 

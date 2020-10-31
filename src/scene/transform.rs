@@ -125,9 +125,11 @@ impl Transform {
 
     /// Sets position of transform.
     #[inline]
-    pub fn set_position(&mut self, pos: Vec3) -> &mut Self {
-        self.local_position = pos;
-        self.dirty.set(true);
+    pub fn set_position(&mut self, local_position: Vec3) -> &mut Self {
+        if self.dirty.get() || self.local_position != local_position {
+            self.local_position = local_position;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -139,9 +141,11 @@ impl Transform {
 
     /// Sets rotation of transform.
     #[inline]
-    pub fn set_rotation(&mut self, rot: Quat) -> &mut Self {
-        self.local_rotation = rot;
-        self.dirty.set(true);
+    pub fn set_rotation(&mut self, local_rotation: Quat) -> &mut Self {
+        if self.dirty.get() || self.local_rotation != local_rotation {
+            self.local_rotation = local_rotation;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -156,9 +160,11 @@ impl Transform {
     /// non-uniform scaling possible will be removed in future, especially if engine
     /// migrate to some full-featured physics engine.
     #[inline]
-    pub fn set_scale(&mut self, scl: Vec3) -> &mut Self {
-        self.local_scale = scl;
-        self.dirty.set(true);
+    pub fn set_scale(&mut self, local_scale: Vec3) -> &mut Self {
+        if self.dirty.get() || self.local_scale != local_scale {
+            self.local_scale = local_scale;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -167,8 +173,10 @@ impl Transform {
     /// never used in other places of engine.
     #[inline]
     pub fn set_pre_rotation(&mut self, pre_rotation: Quat) -> &mut Self {
-        self.pre_rotation = pre_rotation;
-        self.dirty.set(true);
+        if self.dirty.get() || self.pre_rotation != pre_rotation {
+            self.pre_rotation = pre_rotation;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -183,8 +191,10 @@ impl Transform {
     /// never used in other places of engine.
     #[inline]
     pub fn set_post_rotation(&mut self, post_rotation: Quat) -> &mut Self {
-        self.post_rotation = post_rotation;
-        self.dirty.set(true);
+        if self.dirty.get() || self.post_rotation != post_rotation {
+            self.post_rotation = post_rotation;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -198,8 +208,10 @@ impl Transform {
     /// it results in rotation being performed around rotation pivot with some offset.
     #[inline]
     pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) -> &mut Self {
-        self.rotation_offset = rotation_offset;
-        self.dirty.set(true);
+        if self.dirty.get() || self.rotation_offset != rotation_offset {
+            self.rotation_offset = rotation_offset;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -214,8 +226,10 @@ impl Transform {
     /// its vertex.
     #[inline]
     pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) -> &mut Self {
-        self.rotation_pivot = rotation_pivot;
-        self.dirty.set(true);
+        if self.dirty.get() || self.rotation_pivot != rotation_pivot {
+            self.rotation_pivot = rotation_pivot;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -229,8 +243,10 @@ impl Transform {
     /// pivot.
     #[inline]
     pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) -> &mut Self {
-        self.scaling_offset = scaling_offset;
-        self.dirty.set(true);
+        if self.dirty.get() || self.scaling_offset != scaling_offset {
+            self.scaling_offset = scaling_offset;
+            self.dirty.set(true);
+        }
         self
     }
 
@@ -244,8 +260,10 @@ impl Transform {
     /// performed.
     #[inline]
     pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) -> &mut Self {
-        self.scaling_pivot = scaling_pivot;
-        self.dirty.set(true);
+        if self.dirty.get() || self.scaling_pivot != scaling_pivot {
+            self.scaling_pivot = scaling_pivot;
+            self.dirty.set(true);
+        }
         self
     }
 

@@ -78,7 +78,15 @@ impl SpotShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::D16,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    1,
+                    None,
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_magnification_filter(MagnificationFilter::Linear)
@@ -127,6 +135,7 @@ impl SpotShadowMapRenderer {
         cascade_size(self.size, cascade)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(in crate) fn render(
         &mut self,
         state: &mut State,
@@ -378,7 +387,15 @@ impl PointShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::D16, None)?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::D16,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    1,
+                    None,
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_minification_filter(MinificationFilter::Nearest)
@@ -393,14 +410,22 @@ impl PointShadowMapRenderer {
                     width: size,
                     height: size,
                 };
-                let mut texture = GpuTexture::new(state, kind, PixelKind::F16, None)?;
+                let mut texture = GpuTexture::new(
+                    state,
+                    kind,
+                    PixelKind::F16,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
+                    1,
+                    None,
+                )?;
                 texture
                     .bind_mut(state, 0)
                     .set_minification_filter(MinificationFilter::Linear)
                     .set_magnification_filter(MagnificationFilter::Linear)
-                    .set_wrap(Coordinate::S, WrapMode::ClampToBorder)
-                    .set_wrap(Coordinate::T, WrapMode::ClampToBorder)
-                    .set_border_color(Color::WHITE);
+                    .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::T, WrapMode::ClampToEdge)
+                    .set_wrap(Coordinate::R, WrapMode::ClampToEdge);
                 texture
             };
 

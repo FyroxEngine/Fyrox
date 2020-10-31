@@ -29,6 +29,8 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::resource::texture::TextureKind;
+use crate::scene::Scene;
 use crate::{
     core::{
         color::Color,
@@ -52,7 +54,8 @@ use crate::{
             gl,
             gpu_program::UniformValue,
             gpu_texture::{
-                GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter, PixelKind,
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind,
             },
             state::State,
         },
@@ -62,19 +65,13 @@ use crate::{
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{Texture, TextureState},
     scene::{node::Node, SceneContainer},
 };
 use glutin::PossiblyCurrent;
 #[cfg(feature = "serde_integration")]
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    rc::Rc,
-    sync::{Arc, Mutex},
-    time,
-};
+use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc, time};
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
@@ -343,7 +340,7 @@ pub struct Renderer {
     /// Debug renderer instance can be used for debugging purposes
     pub debug_renderer: DebugRenderer,
     /// Camera to G-buffer mapping.
-    gbuffers: HashMap<Handle<Node>, GBuffer>,
+    gbuffers: HashMap<Handle<Scene>, GBuffer>,
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
@@ -434,39 +431,74 @@ pub(in crate) struct TextureCache {
 }
 
 impl TextureCache {
-    fn get(
-        &mut self,
-        state: &mut State,
-        texture: Arc<Mutex<Texture>>,
-    ) -> Option<Rc<RefCell<GpuTexture>>> {
+    fn get(&mut self, state: &mut State, texture: Texture) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
-        if texture.lock().unwrap().loaded {
-            let key = (&*texture as *const _) as usize;
-            let gpu_texture = self.map.entry(key).or_insert_with(move || {
-                let texture = texture.lock().unwrap();
-                let kind = GpuTextureKind::Rectangle {
-                    width: texture.width as usize,
-                    height: texture.height as usize,
-                };
-                let mut gpu_texture = GpuTexture::new(
+        let key = texture.key();
+        let texture = texture.state();
+
+        if let TextureState::Ok(texture) = texture.deref() {
+            let gpu_texture = self.map.entry(key).or_insert_with(|| {
+                let gpu_texture = GpuTexture::new(
                     state,
-                    kind,
-                    PixelKind::from(texture.kind),
+                    texture.kind.into(),
+                    PixelKind::from(texture.pixel_kind),
+                    texture.minification_filter().into(),
+                    texture.magnification_filter().into(),
+                    texture.mip_count() as usize,
                     Some(texture.bytes.as_slice()),
                 )
                 .unwrap();
-                gpu_texture
-                    .bind_mut(state, 0)
-                    .generate_mip_maps()
-                    .set_minification_filter(MinificationFilter::LinearMip)
-                    .set_magnification_filter(MagnificationFilter::Linear)
-                    .set_max_anisotropy();
+
                 TimedEntry {
                     value: Rc::new(RefCell::new(gpu_texture)),
                     time_to_live: 20.0,
                 }
             });
+
+            let new_mag_filter = texture.magnification_filter().into();
+            if gpu_texture.borrow().magnification_filter() != new_mag_filter {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_magnification_filter(new_mag_filter);
+            }
+
+            let new_min_filter = texture.minification_filter().into();
+            if gpu_texture.borrow().minification_filter() != new_min_filter {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_minification_filter(new_min_filter);
+            }
+
+            if gpu_texture
+                .borrow()
+                .anisotropy()
+                .ne(&texture.anisotropy_level())
+            {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_anisotropy(texture.anisotropy_level());
+            }
+
+            let new_s_wrap_mode = texture.s_wrap_mode().into();
+            if gpu_texture.borrow().s_wrap_mode() != new_s_wrap_mode {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_wrap(Coordinate::S, new_s_wrap_mode);
+            }
+
+            let new_t_wrap_mode = texture.t_wrap_mode().into();
+            if gpu_texture.borrow().t_wrap_mode() != new_t_wrap_mode {
+                gpu_texture
+                    .borrow_mut()
+                    .bind_mut(state, 0)
+                    .set_wrap(Coordinate::T, new_t_wrap_mode);
+            }
+
             // Texture won't be destroyed while it used.
             gpu_texture.time_to_live = 20.0;
             Some(gpu_texture.value.clone())
@@ -513,6 +545,9 @@ impl Renderer {
                     height: 1,
                 },
                 PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
                 Some(&[255, 255, 255, 255]),
             )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
@@ -522,6 +557,9 @@ impl Renderer {
                     height: 1,
                 },
                 PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
                 Some(&[128, 128, 255, 255]),
             )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
@@ -579,6 +617,11 @@ impl Renderer {
         self.frame_size
     }
 
+    /// Returns current bounds of back buffer.
+    pub fn get_frame_bounds(&self) -> Vec2 {
+        Vec2::new(self.frame_size.0 as f32, self.frame_size.1 as f32)
+    }
+
     /// Sets new quality settings for renderer. Never call this method in a loop, otherwise
     /// you may get **significant** lags. Always check if current quality setting differs
     /// from new!
@@ -633,66 +676,69 @@ impl Renderer {
             Some(0),
         );
 
-        let frame_width = self.frame_size.0 as f32;
-        let frame_height = self.frame_size.1 as f32;
+        let backbuffer_width = self.frame_size.0 as f32;
+        let backbuffer_height = self.frame_size.1 as f32;
 
-        for scene in scenes.iter() {
+        for (scene_handle, scene) in scenes.pair_iter() {
             let graph = &scene.graph;
 
-            for (camera_handle, camera) in graph.pair_iter().filter_map(|(handle, node)| {
+            let frame_size = scene.render_target.as_ref().map_or_else(
+                // Use either backbuffer size
+                || Vec2::new(backbuffer_width, backbuffer_height),
+                // Or framebuffer size
+                |rt| {
+                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                        Vec2::new(width as f32, height as f32)
+                    } else {
+                        panic!("only rectangle textures can be used as render target!")
+                    }
+                },
+            );
+
+            let state = &mut self.state;
+            let gbuffer = self
+                .gbuffers
+                .entry(scene_handle)
+                .and_modify(|buf| {
+                    if buf.width != frame_size.x as i32 || buf.height != frame_size.y as i32 {
+                        let width = (frame_size.x as usize).max(1);
+                        let height = (frame_size.y as usize).max(1);
+                        *buf = GBuffer::new(state, width, height).unwrap();
+                    }
+                })
+                .or_insert_with(|| {
+                    let width = (frame_size.x as usize).max(1);
+                    let height = (frame_size.y as usize).max(1);
+                    GBuffer::new(state, width, height).unwrap()
+                });
+
+            // If we specified a texture to draw to, we have to register it in texture cache
+            // so it can be used in later on as texture. This is useful in case if you need
+            // to draw something on offscreen and then draw it on some mesh.
+            // TODO: However it can be dangerous to use frame texture as it may be bound to
+            //  pipeline.
+            if let Some(rt) = scene.render_target.clone() {
+                self.texture_cache.map.insert(
+                    rt.key(),
+                    TimedEntry {
+                        value: gbuffer.frame_texture(),
+                        time_to_live: std::f32::INFINITY,
+                    },
+                );
+            }
+
+            for camera in graph.linear_iter().filter_map(|node| {
                 if let Node::Camera(camera) = node {
-                    Some((handle, camera))
+                    if camera.is_enabled() {
+                        Some(camera)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
             }) {
-                if !camera.is_enabled() {
-                    continue;
-                }
-
-                let viewport = camera.viewport_pixels(Vec2::new(frame_width, frame_height));
-
-                let state = &mut self.state;
-                let gbuffer = self
-                    .gbuffers
-                    .entry(camera_handle)
-                    .and_modify(|buf| {
-                        if buf.width != viewport.w || buf.height != viewport.h {
-                            let width = (viewport.w as usize).max(1);
-                            let height = (viewport.h as usize).max(1);
-                            *buf = GBuffer::new(state, width, height).unwrap();
-                        }
-                    })
-                    .or_insert_with(|| {
-                        let width = (viewport.w as usize).max(1);
-                        let height = (viewport.h as usize).max(1);
-                        GBuffer::new(state, width, height).unwrap()
-                    });
-
-                // If we specified a texture to draw to, we have to register it in texture cache
-                // so it can be used in later on as texture. This is useful in case if you need
-                // to draw something on offscreen and then draw it on some mesh.
-                // TODO: However it can be dangerous to use frame texture as it may be bound to
-                //  pipeline.
-                if let Some(rt) = scene.render_target.clone() {
-                    let key = (&*rt as *const _) as usize;
-
-                    self.texture_cache.map.insert(
-                        key,
-                        TimedEntry {
-                            value: gbuffer.frame_texture(),
-                            time_to_live: std::f32::INFINITY,
-                        },
-                    );
-
-                    // Make sure to sync texture info with actual render target.
-                    if let Ok(mut rt) = rt.lock() {
-                        rt.width = gbuffer.width as u32;
-                        rt.height = gbuffer.height as u32;
-                        // TODO: For now only RGBA8 textures are supported.
-                        rt.kind = TextureKind::RGBA8;
-                    }
-                }
+                let viewport = camera.viewport_pixels(frame_size);
 
                 self.statistics += gbuffer.fill(GBufferRenderContext {
                     state,
@@ -729,8 +775,8 @@ impl Renderer {
                             camera,
                             white_dummy: self.white_dummy.clone(),
                             depth,
-                            frame_width,
-                            frame_height,
+                            frame_width: frame_size.x,
+                            frame_height: frame_size.y,
                             viewport,
                             texture_cache: &mut self.texture_cache,
                         });
@@ -806,8 +852,8 @@ impl Renderer {
             state: &mut self.state,
             viewport: window_viewport,
             backbuffer: &mut self.backbuffer,
-            frame_width,
-            frame_height,
+            frame_width: backbuffer_width,
+            frame_height: backbuffer_height,
             drawing_context,
             white_dummy: self.white_dummy.clone(),
             texture_cache: &mut self.texture_cache,

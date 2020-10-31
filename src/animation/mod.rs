@@ -10,13 +10,11 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     resource::model::Model,
+    resource::ResourceState,
     scene::{graph::Graph, node::Node},
     utils::log::Log,
 };
-use std::{
-    collections::{HashMap, VecDeque},
-    sync::{Arc, Mutex},
-};
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Copy, Clone, Debug)]
 pub struct KeyFrame {
@@ -270,7 +268,7 @@ pub struct Animation {
     speed: f32,
     looped: bool,
     enabled: bool,
-    pub(in crate) resource: Option<Arc<Mutex<Model>>>,
+    pub(in crate) resource: Option<Model>,
     pose: AnimationPose,
     signals: Vec<AnimationSignal>,
     events: VecDeque<AnimationEvent>,
@@ -469,7 +467,7 @@ impl Animation {
         &mut self.tracks
     }
 
-    pub fn get_resource(&self) -> Option<Arc<Mutex<Model>>> {
+    pub fn get_resource(&self) -> Option<Model> {
         self.resource.clone()
     }
 
@@ -531,42 +529,46 @@ impl Animation {
         // do not store key frames in save file, but just keep reference to resource
         // from which key frames should be taken on load.
         if let Some(resource) = self.resource.clone() {
-            let resource = resource.lock().unwrap();
-            // TODO: Here we assume that resource contains only *one* animation.
-            if let Some(ref_animation) = resource.get_scene().animations.pool.at(0) {
-                for track in self.get_tracks_mut() {
-                    // This may panic if animation has track that refers to a deleted node,
-                    // it can happen if you deleted a node but forgot to remove animation
-                    // that uses this node.
-                    let track_node = &graph[track.get_node()];
+            let resource = resource.state();
+            if let ResourceState::Ok(ref data) = *resource {
+                // TODO: Here we assume that resource contains only *one* animation.
+                if let Some(ref_animation) = data.get_scene().animations.pool.at(0) {
+                    for track in self.get_tracks_mut() {
+                        // This may panic if animation has track that refers to a deleted node,
+                        // it can happen if you deleted a node but forgot to remove animation
+                        // that uses this node.
+                        let track_node = &graph[track.get_node()];
 
-                    // Find corresponding track in resource using names of nodes, not
-                    // original handles of instantiated nodes. We can't use original
-                    // handles here because animation can be targetted to a node that
-                    // wasn't instantiated from animation resource. It can be instantiated
-                    // from some other resource. For example you have a character with
-                    // multiple animations. Character "lives" in its own file without animations
-                    // but with skin. Each animation "lives" in its own file too, then
-                    // you did animation retargetting from animation resource to your character
-                    // instantiated model, which is essentially copies key frames to new
-                    // animation targetted to character instance.
-                    let mut found = false;
-                    for ref_track in ref_animation.get_tracks().iter() {
-                        if track_node.name()
-                            == resource.get_scene().graph[ref_track.get_node()].name()
-                        {
-                            track.set_key_frames(ref_track.get_key_frames());
-                            found = true;
-                            break;
+                        // Find corresponding track in resource using names of nodes, not
+                        // original handles of instantiated nodes. We can't use original
+                        // handles here because animation can be targetted to a node that
+                        // wasn't instantiated from animation resource. It can be instantiated
+                        // from some other resource. For example you have a character with
+                        // multiple animations. Character "lives" in its own file without animations
+                        // but with skin. Each animation "lives" in its own file too, then
+                        // you did animation retargetting from animation resource to your character
+                        // instantiated model, which is essentially copies key frames to new
+                        // animation targetted to character instance.
+                        let mut found = false;
+                        for ref_track in ref_animation.get_tracks().iter() {
+                            if track_node.name()
+                                == data.get_scene().graph[ref_track.get_node()].name()
+                            {
+                                track.set_key_frames(ref_track.get_key_frames());
+                                found = true;
+                                break;
+                            }
+                        }
+                        if !found {
+                            Log::write(format!(
+                                "Failed to copy key frames for node {}!",
+                                track_node.name()
+                            ));
                         }
                     }
-                    if !found {
-                        Log::write(format!(
-                            "Failed to copy key frames for node {}!",
-                            track_node.name()
-                        ));
-                    }
                 }
+            } else {
+                unreachable!()
             }
         }
     }

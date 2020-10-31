@@ -25,16 +25,15 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    physics::{rigid_body::RigidBody, Physics},
+    physics::{rigid_body::RigidBody, static_geometry::StaticGeometry, Physics},
     resource::texture::Texture,
     scene::{graph::Graph, node::Node},
-    utils::{lightmap::Lightmap, log::Log},
+    utils::{self, lightmap::Lightmap, log::Log},
 };
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
     path::Path,
-    sync::{Arc, Mutex},
 };
 
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
@@ -400,6 +399,95 @@ impl SceneDrawingContext {
     }
 }
 
+/// Allows you to bind a mesh and a static geometry together, it is used on deserialization
+/// stage to fill a static geometry by geometry from a mesh. This is useful in situations
+/// when you need to use a model from your map as static geometry for physics. In this case
+/// there is no need to serialize static geometry in a file. This is somewhat similar to mesh
+/// geometry resolving at deserialization - it takes geometry from resource, not from data in
+/// a file.
+#[derive(Default, Clone, Debug)]
+pub struct StaticGeometryBinder {
+    map: HashMap<Handle<StaticGeometry>, Handle<Node>>,
+}
+
+impl StaticGeometryBinder {
+    /// Links given static geometry with specified mesh.
+    pub fn bind(
+        &mut self,
+        geom: Handle<StaticGeometry>,
+        node: Handle<Node>,
+    ) -> Option<Handle<Node>> {
+        self.map.insert(geom, node)
+    }
+
+    /// Unlinks given static geometry from its associated mesh (if any).
+    pub fn unbind(&mut self, geom: Handle<StaticGeometry>) -> Option<Handle<Node>> {
+        self.map.remove(&geom)
+    }
+
+    /// Returns amount of entries in the binder.
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    /// Returns true if binder is empty.
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
+    /// Tries to find associated static geometry of a node.
+    ///
+    /// # Performance
+    ///
+    /// This method performs linear search so it could be slow for some applications.
+    pub fn static_geometry_of_node(&self, node: Handle<Node>) -> Option<Handle<StaticGeometry>> {
+        for (&geom, &node_handle) in self.map.iter() {
+            if node_handle == node {
+                return Some(geom);
+            }
+        }
+        None
+    }
+
+    /// Unlinks given static geometry from a node.
+    ///
+    /// # Performance
+    ///
+    /// This method is slow because of two reasons:
+    ///
+    /// 1) Search is linear
+    /// 2) Additional memory is allocated
+    ///
+    /// So it is not advised to call it in performance critical places.
+    pub fn unbind_by_node(&mut self, node: Handle<Node>) -> Handle<StaticGeometry> {
+        let mut geom_handle = Handle::NONE;
+        self.map = self
+            .map
+            .clone()
+            .into_iter()
+            .filter(|&(g, n)| {
+                if n == node {
+                    geom_handle = g;
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+        geom_handle
+    }
+}
+
+impl Visit for StaticGeometryBinder {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.map.visit("Map", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Scene {
@@ -427,10 +515,14 @@ pub struct Scene {
     /// main scene you can attach this texture to some quad which will be used as
     /// monitor. Other usage could be previewer of models, like pictogram of character
     /// in real-time strategies, in other words there are plenty of possible uses.
-    pub render_target: Option<Arc<Mutex<Texture>>>,
+    pub render_target: Option<Texture>,
 
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
+
+    /// Links static geometry with a mesh to be able to get geometry data at deserialization
+    /// stage.
+    pub static_geometry_binder: StaticGeometryBinder,
 
     lightmap: Option<Lightmap>,
 }
@@ -445,6 +537,7 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            static_geometry_binder: Default::default(),
         }
     }
 }
@@ -467,35 +560,43 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
+            static_geometry_binder: Default::default(),
         }
     }
 
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.
-    pub fn from_file<P: AsRef<Path>>(
+    pub async fn from_file<P: AsRef<Path>>(
         path: P,
-        resource_manager: &mut ResourceManager,
+        resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
         let mut scene = Scene::default();
-        let mut visitor = Visitor::load_binary(path.as_ref())?;
-        scene.visit("Scene", &mut visitor)?;
+        {
+            let mut visitor = Visitor::load_binary(path.as_ref())?;
+            scene.visit("Scene", &mut visitor)?;
+        }
+
+        // Collect all used resources and wait for them.
+        let mut resources = Vec::new();
+        for node in scene.graph.linear_iter_mut() {
+            if let Some(shallow_resource) = node.resource.clone() {
+                let resource = resource_manager
+                    .clone()
+                    .request_model(&shallow_resource.state().path());
+                node.resource = Some(resource.clone());
+                resources.push(resource);
+            }
+        }
+
+        let _ = futures::future::join_all(resources).await;
 
         // Restore pointers to resources. Scene saves only paths to resources, here we must
         // find real resources instead.
         for node in scene.graph.linear_iter_mut() {
-            if let Some(shallow_resource) = node.resource.clone() {
-                node.resource =
-                    resource_manager.request_model(&shallow_resource.lock().unwrap().path);
-            }
-
-            fn map_texture(
-                tex: Option<Arc<Mutex<Texture>>>,
-                rm: &mut ResourceManager,
-            ) -> Option<Arc<Mutex<Texture>>> {
+            fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
                 if let Some(shallow_texture) = tex {
-                    let shallow_texture = shallow_texture.lock().unwrap();
-                    let kind = shallow_texture.kind;
-                    rm.request_texture(&shallow_texture.path, kind)
+                    let shallow_texture = shallow_texture.state();
+                    Some(rm.request_texture(shallow_texture.path()))
                 } else {
                     None
                 }
@@ -506,26 +607,28 @@ impl Scene {
                     for surface in mesh.surfaces_mut() {
                         surface.set_diffuse_texture(map_texture(
                             surface.diffuse_texture(),
-                            resource_manager,
+                            resource_manager.clone(),
                         ));
 
                         surface.set_normal_texture(map_texture(
                             surface.normal_texture(),
-                            resource_manager,
+                            resource_manager.clone(),
                         ));
 
                         surface.set_lightmap_texture(map_texture(
                             surface.lightmap_texture(),
-                            resource_manager,
+                            resource_manager.clone(),
                         ));
                     }
                 }
                 Node::Sprite(sprite) => {
-                    sprite.set_texture(map_texture(sprite.texture(), resource_manager));
+                    sprite.set_texture(map_texture(sprite.texture(), resource_manager.clone()));
                 }
                 Node::ParticleSystem(particle_system) => {
-                    particle_system
-                        .set_texture(map_texture(particle_system.texture(), resource_manager));
+                    particle_system.set_texture(map_texture(
+                        particle_system.texture(),
+                        resource_manager.clone(),
+                    ));
                 }
                 _ => (),
             }
@@ -579,10 +682,28 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
+    fn restore_static_geometries(&mut self) {
+        Log::writeln(
+            "Trying to restore data for static geometries from associated nodes...".to_owned(),
+        );
+        // Obtain geometry for static geometries from linked meshes.
+        for (&geom_handle, &node_handle) in self.static_geometry_binder.map.iter() {
+            if self.graph.is_valid_handle(node_handle) {
+                *self.physics.borrow_static_geometry_mut(geom_handle) =
+                    utils::mesh_to_static_geometry(self.graph[node_handle].as_mesh(), false);
+            } else {
+                Log::writeln(format!("Unable to get geometry for static geometry, node at handle {:?} does not exists!", node_handle))
+            }
+        }
+    }
+
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Starting resolve...".to_owned());
+
         self.graph.resolve();
         self.animations.resolve(&self.graph);
+        self.restore_static_geometries();
+
         Log::writeln("Resolve succeeded!".to_owned());
     }
 
@@ -641,11 +762,21 @@ impl Scene {
                 physics_binder.bind(new_node, body);
             }
         }
+        let mut static_geometry_binder = StaticGeometryBinder::default();
+        for (&geom, node) in self.static_geometry_binder.map.iter() {
+            // Make sure we bind existing node with new physical body.
+            if let Some(&new_node) = old_new_map.get(node) {
+                // Re-use of body handle is fine here because physics copy bodies
+                // directly and handles from previous pool is still suitable for copy.
+                static_geometry_binder.bind(geom, new_node);
+            }
+        }
         Self {
             graph,
             animations,
             physics,
             physics_binder,
+            static_geometry_binder,
             // Render target is intentionally not copied, because it does not makes sense - a copy
             // will redraw frame completely.
             render_target: Default::default(),
@@ -663,6 +794,9 @@ impl Visit for Scene {
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
         let _ = self.lightmap.visit("Lightmap", visitor);
+        let _ = self
+            .static_geometry_binder
+            .visit("StaticGeometryBinder", visitor);
         visitor.leave_region()
     }
 }
@@ -675,6 +809,11 @@ pub struct SceneContainer {
 impl SceneContainer {
     pub(in crate) fn new() -> Self {
         Self { pool: Pool::new() }
+    }
+
+    /// Returns pair iterator which yields (handle, scene_ref) pairs.
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Scene>, &Scene)> {
+        self.pool.pair_iter()
     }
 
     /// Creates new iterator over scenes in container.
@@ -737,5 +876,77 @@ impl Visit for SceneContainer {
         self.pool.visit("Pool", visitor)?;
 
         visitor.leave_region()
+    }
+}
+
+/// Visibility cache stores information about objects visibility for a single frame.
+/// Allows you to quickly check if object is visible or not.
+#[derive(Default, Debug)]
+pub struct VisibilityCache {
+    map: HashMap<Handle<Node>, bool>,
+}
+
+impl From<HashMap<Handle<Node>, bool>> for VisibilityCache {
+    fn from(map: HashMap<Handle<Node>, bool>) -> Self {
+        Self { map }
+    }
+}
+
+impl VisibilityCache {
+    /// Replaces internal map with empty and returns previous value. This trick is useful
+    /// to reuse hash map to prevent redundant memory allocations.
+    pub fn invalidate(&mut self) -> HashMap<Handle<Node>, bool> {
+        std::mem::take(&mut self.map)
+    }
+
+    /// Updates visibility cache - checks visibility for each node in given graph, also performs
+    /// frustum culling if frustum specified.
+    pub fn update(
+        &mut self,
+        graph: &Graph,
+        view_matrix: Mat4,
+        z_far: f32,
+        frustum: Option<&Frustum>,
+    ) {
+        self.map.clear();
+
+        let view_position = view_matrix.position();
+
+        // Check LODs first, it has priority over other visibility settings.
+        for node in graph.linear_iter() {
+            if let Some(lod_group) = node.lod_group() {
+                for level in lod_group.levels.iter() {
+                    for &object in level.objects.iter() {
+                        let normalized_distance =
+                            view_position.distance(&graph[object].global_position()) / z_far;
+                        let visible = normalized_distance >= level.begin()
+                            && normalized_distance <= level.end();
+                        self.map.insert(object, visible);
+                    }
+                }
+            }
+        }
+
+        // Fill rest of data from global visibility flag of nodes.
+        for (handle, node) in graph.pair_iter() {
+            // We need to fill only unfilled entries, none of visibility flags of a node can
+            // make it visible again if lod group hid it.
+            self.map.entry(handle).or_insert_with(|| {
+                let mut visibility = node.global_visibility();
+                if visibility {
+                    if let Some(frustum) = frustum {
+                        if let Node::Mesh(mesh) = node {
+                            visibility = mesh.is_intersect_frustum(graph, frustum);
+                        }
+                    }
+                }
+                visibility
+            });
+        }
+    }
+
+    /// Checks if given node is visible or not.
+    pub fn is_visible(&self, node: Handle<Node>) -> bool {
+        self.map.get(&node).cloned().unwrap_or(false)
     }
 }

@@ -17,6 +17,7 @@ uniform vec3 cameraPosition;
 uniform bool shadowsEnabled;
 uniform bool softShadows;
 uniform float shadowMapInvSize;
+uniform float shadowBias;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -39,7 +40,6 @@ void main()
     if (shadowsEnabled)
     {
         vec3 lightSpacePosition = S_Project(ctx.fragmentPosition, lightViewProjMatrix);
-        const float bias = 0.00005;
         if (softShadows)
         {
             for (float y = -1.5; y <= 1.5; y += 0.5)
@@ -47,7 +47,7 @@ void main()
                 for (float x = -1.5; x <= 1.5; x += 0.5)
                 {
                     vec2 fetchTexCoord = lightSpacePosition.xy + vec2(x, y) * shadowMapInvSize;
-                    if (lightSpacePosition.z - bias > texture(spotShadowTexture, fetchTexCoord).r)
+                    if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, fetchTexCoord).r)
                     {
                         shadow += 1.0;
                     }
@@ -58,7 +58,7 @@ void main()
         }
         else
         {
-            if (lightSpacePosition.z - bias > texture(spotShadowTexture, lightSpacePosition.xy).r)
+            if (lightSpacePosition.z - shadowBias > texture(spotShadowTexture, lightSpacePosition.xy).r)
             {
                 shadow = 0.0;
             }

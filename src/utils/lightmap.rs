@@ -15,16 +15,12 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{
+        Texture, TextureData, TextureError, TextureKind, TexturePixelKind, TextureState,
+    },
     scene::{light::Light, node::Node, Scene},
 };
-use image::ImageError;
-use std::{
-    collections::HashMap,
-    path::Path,
-    sync::{Arc, Mutex},
-    time,
-};
+use std::{collections::HashMap, path::Path, time};
 
 ///
 #[derive(Default, Clone, Debug)]
@@ -34,7 +30,7 @@ pub struct LightmapEntry {
     /// TODO: Is single texture enough? There may be surfaces with huge amount of faces
     ///  which may not fit into texture, because there is hardware limit on most GPUs
     ///  up to 8192x8192 pixels.
-    pub texture: Option<Arc<Mutex<Texture>>>,
+    pub texture: Option<Texture>,
     /// List of lights that were used to generate this lightmap. This list is used for
     /// masking when applying dynamic lights for surfaces with light, it prevents double
     /// lighting.
@@ -131,7 +127,7 @@ impl Lightmap {
                         texels_per_unit,
                     );
                     surface_lightmaps.push(LightmapEntry {
-                        texture: Some(Arc::new(Mutex::new(lightmap))),
+                        texture: Some(Texture::new(TextureState::Ok(lightmap))),
                         lights: lights
                             .iter()
                             .map(|(light_handle, _)| *light_handle)
@@ -145,15 +141,17 @@ impl Lightmap {
     }
 
     /// Saves lightmap textures into specified folder.
-    pub fn save<P: AsRef<Path>>(&self, base_path: P) -> Result<(), ImageError> {
+    pub fn save<P: AsRef<Path>>(&self, base_path: P) -> Result<(), TextureError> {
         for (handle, entries) in self.map.iter() {
             let handle_path = handle.index().to_string();
             for (i, entry) in entries.iter().enumerate() {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
-                let mut texture = texture.lock().unwrap();
-                texture.set_path(&base_path.as_ref().join(file_path));
-                texture.save()?;
+                let mut texture = texture.state();
+                if let TextureState::Ok(texture) = &mut *texture {
+                    texture.set_path(&base_path.as_ref().join(file_path));
+                    texture.save()?;
+                }
             }
         }
         Ok(())
@@ -380,7 +378,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     transform: &Mat4,
     lights: I,
     texels_per_unit: u32,
-) -> Texture {
+) -> TextureData {
     let world_positions = transform_vertices(data, transform);
     let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
     let mut pixels = Vec::<Pixel>::with_capacity((size * size) as usize);
@@ -493,7 +491,15 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes.push(color.b);
         bytes.push(color.a);
     }
-    Texture::from_bytes(size, size, TextureKind::RGBA8, bytes).unwrap()
+    TextureData::from_bytes(
+        TextureKind::Rectangle {
+            width: size,
+            height: size,
+        },
+        TexturePixelKind::RGBA8,
+        bytes,
+    )
+    .unwrap()
 }
 
 #[cfg(test)]

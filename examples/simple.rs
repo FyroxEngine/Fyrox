@@ -6,21 +6,27 @@
 
 extern crate rg3d;
 
-use rg3d::gui::message::MessageDirection;
+pub mod shared;
+
+use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
         color::Color,
-        math::{quat::Quat, vec3::Vec3},
+        math::{mat4::Mat4, quat::Quat, vec3::Vec3},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    gui::{message::TextMessage, node::StubNode, text::TextBuilder, widget::WidgetBuilder},
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
+    gui::{
+        message::{MessageDirection, TextMessage},
+        node::StubNode,
+        text::TextBuilder,
+        widget::WidgetBuilder,
     },
+    renderer::surface::{SurfaceBuilder, SurfaceSharedData},
+    scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
     utils::translate_event,
 };
 use std::{
@@ -44,40 +50,29 @@ struct GameScene {
     walk_animation: Handle<Animation>,
 }
 
-fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
+async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
-    let mut resource_manager = resource_manager.lock().unwrap();
-
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-                .build(),
-        ),
-    )
-    .build();
+    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
 
     scene.graph.add_node(Node::Camera(camera));
 
-    // Load model resource. Is does *not* adds anything to our scene - it just loads a
-    // resource then can be used later on to instantiate models from it on scene. Why
-    // loading of resource is separated from instantiation? Because there it is too
-    // inefficient to load a resource every time you trying to create instance of it -
-    // much more efficient is to load it one and then make copies of it. In case of
-    // models it is very efficient because single vertex and index buffer can be used
-    // for all models instances, so memory footprint on GPU will be lower.
-    let model_resource = resource_manager
-        .request_model("examples/data/mutant.FBX")
-        .unwrap();
+    // Load model and animation resource in parallel. Is does *not* adds anything to
+    // our scene - it just loads a resource then can be used later on to instantiate
+    // models from it on scene. Why loading of resource is separated from instantiation?
+    // Because it is too inefficient to load a resource every time you trying to
+    // create instance of it - much more efficient is to load it once and then make copies
+    // of it. In case of models it is very efficient because single vertex and index buffer
+    // can be used for all models instances, so memory footprint on GPU will be lower.
+    let (model_resource, walk_animation_resource) = rg3d::futures::join!(
+        resource_manager.request_model("examples/data/mutant.FBX"),
+        resource_manager.request_model("examples/data/walk.fbx")
+    );
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource
-        .lock()
-        .unwrap()
-        .instantiate_geometry(&mut scene);
+    let model_handle = model_resource.unwrap().instantiate_geometry(&mut scene);
 
     // Now we have whole sub-graph instantiated, we can start modifying model instance.
     scene.graph[model_handle]
@@ -87,20 +82,31 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
-    let walk_animation_resource = resource_manager
-        .request_model("examples/data/walk.fbx")
-        .unwrap();
-
     // Once animation resource is loaded it must be re-targeted to our model instance.
     // Why? Because animation in *resource* uses information about *resource* bones,
     // not model instance bones, retarget_animations maps animations of each bone on
     // model instance so animation will know about nodes it should operate on.
     let walk_animation = *walk_animation_resource
-        .lock()
         .unwrap()
         .retarget_animations(model_handle, &mut scene)
         .get(0)
         .unwrap();
+
+    scene.graph.add_node(
+        MeshBuilder::new(
+            BaseBuilder::new().with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vec3::new(0.0, -0.25, 0.0))
+                    .build(),
+            ),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+            SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(25.0, 0.25, 25.0))),
+        )))
+        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+        .build()])
+        .build_node(),
+    );
 
     GameScene {
         scene,
@@ -129,8 +135,7 @@ fn main() {
     // instead we telling engine to search textures in given folder.
     engine
         .resource_manager
-        .lock()
-        .unwrap()
+        .state()
         .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
@@ -141,7 +146,7 @@ fn main() {
         scene,
         model_handle,
         walk_animation,
-    } = create_scene(engine.resource_manager.clone());
+    } = rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -274,7 +279,7 @@ fn main() {
                     engine.user_interface.process_os_event(&os_event);
                 }
             }
-            Event::DeviceEvent { event, .. } => {
+            Event::DeviceEvent { .. } => {
                 // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,

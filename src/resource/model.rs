@@ -24,135 +24,31 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    resource::{fbx, fbx::error::FbxError},
+    resource::{fbx, fbx::error::FbxError, Resource, ResourceData},
     scene::{node::Node, Scene},
     utils::log::Log,
 };
-use std::{
-    path::{Path, PathBuf},
-    sync::{Arc, Mutex, Weak},
-};
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
 /// See module docs.
 #[derive(Debug)]
-pub struct Model {
-    // enable_shared_from_this trick from C++
-    pub(in crate) self_weak_ref: Option<Weak<Mutex<Model>>>,
+pub struct ModelData {
     pub(in crate) path: PathBuf,
     scene: Scene,
 }
 
-impl Default for Model {
-    fn default() -> Self {
-        Self {
-            self_weak_ref: None,
-            path: PathBuf::new(),
-            scene: Scene::new(),
-        }
-    }
-}
-
-impl Visit for Model {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.self_weak_ref.visit("SelfWeakRef", visitor)?;
-        self.path.visit("Path", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
-/// Model instance is a combination of handle to root node of instance in a scene,
-/// and list of all animations from model which were instantiated on a scene.
-pub struct ModelInstance {
-    /// Handle of root node of instance.
-    pub root: Handle<Node>,
-
-    /// List of instantiated animations that were inside model resource.
-    /// You must free them when you do not need model anymore
-    pub animations: Vec<Handle<Animation>>,
-}
-
-fn upgrade_self_weak_ref(self_weak_ref: &Option<Weak<Mutex<Model>>>) -> Arc<Mutex<Model>> {
-    // This .expect will never be triggered in normal conditions because there is only
-    // one way to get resource - through resource manager which always returns Arc and
-    // sets correct self ref.
-    let self_weak_ref = self_weak_ref
-        .as_ref()
-        .expect("Model self weak ref cannon be None!");
-
-    self_weak_ref
-        .upgrade()
-        .expect("Model self weak ref must be valid!")
-}
-
-/// All possible errors that may occur while trying to load model from some
-/// data source.
-#[derive(Debug)]
-pub enum ModelLoadError {
-    /// An error occurred while reading some data source.
-    Visit(VisitError),
-    /// Format is not supported.
-    NotSupported(String),
-    /// An error occurred while loading FBX file.
-    Fbx(FbxError),
-}
-
-impl From<FbxError> for ModelLoadError {
-    fn from(fbx: FbxError) -> Self {
-        ModelLoadError::Fbx(fbx)
-    }
-}
-
-impl From<VisitError> for ModelLoadError {
-    fn from(e: VisitError) -> Self {
-        ModelLoadError::Visit(e)
-    }
-}
+/// See module docs.
+pub type Model = Resource<ModelData, ModelLoadError>;
 
 impl Model {
-    pub(in crate) fn load<P: AsRef<Path>>(
-        path: P,
-        resource_manager: &mut ResourceManager,
-    ) -> Result<Model, ModelLoadError> {
-        let extension = path
-            .as_ref()
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .as_ref()
-            .to_lowercase();
-        let scene = match extension.as_ref() {
-            "fbx" => {
-                let mut scene = Scene::new();
-                fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
-                scene
-            }
-            // Scene can be used directly as model resource. Such scenes can be created from
-            // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
-            "rgs" => Scene::from_file(path.as_ref(), resource_manager)?,
-            // TODO: Add more formats.
-            _ => {
-                return Err(ModelLoadError::NotSupported(format!(
-                    "Unsupported model resource format: {}",
-                    extension
-                )))
-            }
-        };
-
-        Ok(Model {
-            self_weak_ref: None,
-            path: path.as_ref().to_owned(),
-            scene,
-        })
-    }
-
     /// Tries to instantiate model from given resource. Does not retarget available
     /// animations from model to its instance. Can be helpful if you only need geometry.
     pub fn instantiate_geometry(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let (root, _) = self.scene.graph.copy_node(
-            self.scene.graph.get_root(),
+        let data = self.data_ref();
+
+        let (root, _) = data.scene.graph.copy_node(
+            data.scene.graph.get_root(),
             &mut dest_scene.graph,
             &mut |_, _| true,
         );
@@ -164,7 +60,7 @@ impl Model {
         while let Some(node_handle) = stack.pop() {
             let node = &mut dest_scene.graph[node_handle];
 
-            node.resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
+            node.resource = Some(self.clone());
 
             // Continue on children.
             stack.extend_from_slice(node.children());
@@ -209,26 +105,27 @@ impl Model {
         root: Handle<Node>,
         dest_scene: &mut Scene,
     ) -> Vec<Handle<Animation>> {
+        let data = self.data_ref();
         let mut animation_handles = Vec::new();
 
-        for ref_anim in self.scene.animations.iter() {
+        for ref_anim in data.scene.animations.iter() {
             let mut anim_copy = ref_anim.clone();
 
             // Keep reference to resource from which this animation was taken from. This will help
             // us to correctly reload keyframes for each track when we'll be loading a save file.
-            anim_copy.resource = Some(upgrade_self_weak_ref(&self.self_weak_ref));
+            anim_copy.resource = Some(self.clone());
 
             // Remap animation track nodes from resource to instance. This is required
             // because we've made a plain copy and it has tracks with node handles mapped
             // to nodes of internal scene.
             for (i, ref_track) in ref_anim.get_tracks().iter().enumerate() {
-                let ref_node = &self.scene.graph[ref_track.get_node()];
+                let ref_node = &data.scene.graph[ref_track.get_node()];
                 // Find instantiated node that corresponds to node in resource
                 let instance_node = dest_scene.graph.find_by_name(root, ref_node.name());
                 if instance_node.is_none() {
                     Log::writeln(format!(
                         "Failed to retarget animation {:?} for node {}",
-                        self.path,
+                        data.path(),
                         ref_node.name()
                     ));
                 }
@@ -240,6 +137,103 @@ impl Model {
         }
 
         animation_handles
+    }
+}
+
+impl ResourceData for ModelData {
+    fn path(&self) -> Cow<Path> {
+        Cow::Borrowed(&self.path)
+    }
+}
+
+impl Default for ModelData {
+    fn default() -> Self {
+        Self {
+            path: PathBuf::new(),
+            scene: Scene::new(),
+        }
+    }
+}
+
+impl Visit for ModelData {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.path.visit("Path", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+/// Model instance is a combination of handle to root node of instance in a scene,
+/// and list of all animations from model which were instantiated on a scene.
+pub struct ModelInstance {
+    /// Handle of root node of instance.
+    pub root: Handle<Node>,
+
+    /// List of instantiated animations that were inside model resource.
+    /// You must free them when you do not need model anymore
+    pub animations: Vec<Handle<Animation>>,
+}
+
+/// All possible errors that may occur while trying to load model from some
+/// data source.
+#[derive(Debug)]
+pub enum ModelLoadError {
+    /// An error occurred while reading some data source.
+    Visit(VisitError),
+    /// Format is not supported.
+    NotSupported(String),
+    /// An error occurred while loading FBX file.
+    Fbx(FbxError),
+}
+
+impl From<FbxError> for ModelLoadError {
+    fn from(fbx: FbxError) -> Self {
+        ModelLoadError::Fbx(fbx)
+    }
+}
+
+impl From<VisitError> for ModelLoadError {
+    fn from(e: VisitError) -> Self {
+        ModelLoadError::Visit(e)
+    }
+}
+
+impl ModelData {
+    pub(in crate) async fn load<P: AsRef<Path>>(
+        path: P,
+        resource_manager: ResourceManager,
+    ) -> Result<Self, ModelLoadError> {
+        let extension = path
+            .as_ref()
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .as_ref()
+            .to_lowercase();
+        let scene = match extension.as_ref() {
+            "fbx" => {
+                let mut scene = Scene::new();
+                fbx::load_to_scene(&mut scene, resource_manager, path.as_ref())?;
+                scene
+            }
+            // Scene can be used directly as model resource. Such scenes can be created from
+            // rusty-editor (https://github.com/mrDIMAS/rusty-editor) for example.
+            "rgs" => Scene::from_file(path.as_ref(), resource_manager).await?,
+            // TODO: Add more formats.
+            _ => {
+                return Err(ModelLoadError::NotSupported(format!(
+                    "Unsupported model resource format: {}",
+                    extension
+                )))
+            }
+        };
+
+        Ok(Self {
+            path: path.as_ref().to_owned(),
+            scene,
+        })
     }
 
     /// Returns shared reference to internal scene, there is no way to obtain

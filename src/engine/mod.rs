@@ -6,6 +6,7 @@
 pub mod error;
 pub mod resource_manager;
 
+use crate::resource::texture::TextureKind;
 use crate::{
     core::{
         math::vec2::Vec2,
@@ -43,7 +44,7 @@ pub struct Engine<M: MessageData, C: Control<M, C>> {
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
     /// your CPU.
-    pub resource_manager: Arc<Mutex<ResourceManager>>,
+    pub resource_manager: ResourceManager,
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
     /// The time user interface took for internal needs. TODO: This is not the right place
@@ -91,7 +92,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
 
         Ok(Self {
             renderer: Renderer::new(&mut context, client_size.into())?,
-            resource_manager: Arc::new(Mutex::new(ResourceManager::new())),
+            resource_manager: ResourceManager::new(),
             sound_context: Context::new()?,
             scenes: SceneContainer::new(),
             user_interface: UserInterface::new(Vec2::new(
@@ -115,21 +116,24 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// functioning.
     pub fn update(&mut self, dt: f32) {
         let inner_size = self.context.window().inner_size();
-        let frame_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
+        let window_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
 
-        // Resource manager might be locked by some other worker thread and it cannot be updated,
-        // engine will try to update it in next frame. Resource update is just controls TTLs of
-        // resource so it is not problem to defer update call.
-        if let Ok(mut resource_manager) = self.resource_manager.try_lock() {
-            resource_manager.update(dt);
-        }
+        self.resource_manager.state().update(dt);
 
         for scene in self.scenes.iter_mut() {
+            let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
+                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
+                    Vec2::new(width as f32, height as f32)
+                } else {
+                    panic!("only rectangle textures can be used as render target!");
+                }
+            });
+
             scene.update(frame_size, dt);
         }
 
         let time = time::Instant::now();
-        self.user_interface.update(frame_size, dt);
+        self.user_interface.update(window_size, dt);
         self.ui_time = time::Instant::now() - time;
     }
 
@@ -153,18 +157,19 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
 
         if visitor.is_reading() {
             self.renderer.flush();
-            self.resource_manager.lock().unwrap().update(0.0);
+            self.resource_manager.state().update(0.0);
             self.scenes.clear();
         }
 
-        self.resource_manager
-            .lock()?
-            .visit("ResourceManager", visitor)?;
+        self.resource_manager.visit("ResourceManager", visitor)?;
         self.scenes.visit("Scenes", visitor)?;
         self.sound_context.lock()?.visit("SoundContext", visitor)?;
 
         if visitor.is_reading() {
-            self.resource_manager.lock()?.reload_resources();
+            futures::executor::block_on(self.resource_manager.reload_resources());
+
+            dbg!();
+
             for scene in self.scenes.iter_mut() {
                 scene.resolve();
             }

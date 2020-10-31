@@ -20,7 +20,7 @@ use crate::{
     resource::texture::Texture,
     scene::mesh::Mesh,
 };
-use std::{any::Any, sync::Arc, sync::Mutex};
+use std::{any::Any, sync::Arc};
 
 /// Small helper that creates static physics geometry from given mesh.
 ///
@@ -30,7 +30,7 @@ use std::{any::Any, sync::Arc, sync::Mutex};
 /// data. So if given mesh was at some position with any rotation and scale
 /// resulting static geometry will have vertices that exactly matches given
 /// mesh.
-pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
+pub fn mesh_to_static_geometry(mesh: &Mesh, save_triangles: bool) -> StaticGeometry {
     let mut triangles = Vec::new();
     let global_transform = mesh.global_transform();
     for surface in mesh.surfaces() {
@@ -49,7 +49,7 @@ pub fn mesh_to_static_geometry(mesh: &Mesh) -> StaticGeometry {
             }
         }
     }
-    StaticGeometry::new(triangles)
+    StaticGeometry::new(triangles, save_triangles)
 }
 
 /// Translated key code to rg3d-ui key code.
@@ -501,6 +501,6 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 }
 
 /// Converts engine's optional texture "pointer" to rg3d-ui's.
-pub fn into_gui_texture(this: Option<Arc<Mutex<Texture>>>) -> Option<draw::SharedTexture> {
-    this.map(|v| draw::SharedTexture(v))
+pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
+    draw::SharedTexture(this.into_inner())
 }

@@ -1,0 +1,27 @@
+[package]
+name = "rg3d-sound"
+version = "0.17.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2018"
+license = "MIT"
+description = "Sound library for games."
+keywords = ["sound", "game", "hrtf", "binaural", "reverb"]
+repository = "https://github.com/mrDIMAS/rg3d"
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/examples/*"]
+documentation = "https://docs.rs/rg3d-sound"
+readme = "README.md"
+
+[dependencies]
+rg3d-core = { path = "../rg3d-core", version = "0.10.0" }
+byteorder = "1.3.4"
+lewton = "0.10.0"
+hrtf = "0.2.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winapi = {version = "0.3.8", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+alsa-sys = { version = "0.2.0" }
+
+[features]
+enable_profiler = ["hrtf/enable_profiler"]

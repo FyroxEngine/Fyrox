@@ -24,14 +24,15 @@
 
 use crate::{
     core::{
-        math::{mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
+        math::{frustum::Frustum, mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
             Ticket,
         },
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::node::Node,
+    resource::ResourceState,
+    scene::{node::Node, VisibilityCache},
     utils::log::Log,
 };
 use std::{
@@ -340,7 +341,7 @@ impl Graph {
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Resolving graph...".to_owned());
 
-        self.update_hierachical_data();
+        self.update_hierarchical_data();
 
         // Resolve original handles. Original handle is a handle to a node in resource from which
         // a node was instantiated from. We can resolve it only by names of nodes, but this is not
@@ -349,13 +350,22 @@ impl Graph {
         // names.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
-                let model = model.lock().unwrap();
-                for (handle, resource_node) in model.get_scene().graph.pair_iter() {
-                    if resource_node.name() == node.name() {
-                        node.original = handle;
-                        node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
-                        break;
+                let model = model.state();
+                match *model {
+                    ResourceState::Ok(ref data) => {
+                        for (handle, resource_node) in data.get_scene().graph.pair_iter() {
+                            if resource_node.name() == node.name() {
+                                node.original = handle;
+                                node.inv_bind_pose_transform =
+                                    resource_node.inv_bind_pose_transform();
+                                break;
+                            }
+                        }
                     }
+                    ResourceState::Pending { .. } => {
+                        panic!("resources must be awaited before doing resolve!")
+                    }
+                    _ => {}
                 }
             }
         }
@@ -380,23 +390,32 @@ impl Graph {
                 let root_handle = graph.find_model_root(node_handle);
                 let node_name = String::from(mesh.name());
                 if let Some(model) = mesh.resource() {
-                    let model = model.lock().unwrap();
-                    let resource_node_handle = model.find_node_by_name(node_name.as_str());
-                    if let Node::Mesh(resource_mesh) =
-                        &model.get_scene().graph[resource_node_handle]
-                    {
-                        // Copy surfaces from resource and assign to meshes.
-                        mesh.clear_surfaces();
-                        for resource_surface in resource_mesh.surfaces() {
-                            mesh.add_surface(resource_surface.clone());
-                        }
+                    let model = model.state();
+                    match *model {
+                        ResourceState::Ok(ref data) => {
+                            let resource_node_handle = data.find_node_by_name(node_name.as_str());
+                            if let Node::Mesh(resource_mesh) =
+                                &data.get_scene().graph[resource_node_handle]
+                            {
+                                // Copy surfaces from resource and assign to meshes.
+                                mesh.clear_surfaces();
+                                for resource_surface in resource_mesh.surfaces() {
+                                    mesh.add_surface(resource_surface.clone());
+                                }
 
-                        // Remap bones
-                        for surface in mesh.surfaces_mut() {
-                            for bone_handle in surface.bones.iter_mut() {
-                                *bone_handle = graph.find_copy_of(root_handle, *bone_handle);
+                                // Remap bones
+                                for surface in mesh.surfaces_mut() {
+                                    for bone_handle in surface.bones.iter_mut() {
+                                        *bone_handle =
+                                            graph.find_copy_of(root_handle, *bone_handle);
+                                    }
+                                }
                             }
                         }
+                        ResourceState::Pending { .. } => {
+                            panic!("resources must be awaited before doing resolve!")
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -410,20 +429,18 @@ impl Graph {
     /// on each frame. However there is one use case - when you setup complex hierarchy and
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
-    pub fn update_hierachical_data(&mut self) {
-        // Calculate transforms on nodes
+    pub fn update_hierarchical_data(&mut self) {
         self.stack.clear();
         self.stack.push(self.root);
         while let Some(node_handle) = self.stack.pop() {
-            // Calculate local transform and get parent handle
             let parent_handle = self.pool[node_handle].parent();
 
-            let (parent_global_transform, parent_visibility) = if parent_handle.is_some() {
-                let parent = &self.pool[parent_handle];
-                (parent.global_transform(), parent.global_visibility())
-            } else {
-                (Mat4::IDENTITY, true)
-            };
+            let (parent_global_transform, parent_visibility) =
+                if let Some(parent) = self.pool.try_borrow(parent_handle) {
+                    (parent.global_transform(), parent.global_visibility())
+                } else {
+                    (Mat4::IDENTITY, true)
+                };
 
             let node = &mut self.pool[node_handle];
             node.global_transform = parent_global_transform * node.local_transform().matrix();
@@ -441,33 +458,42 @@ impl Graph {
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
     pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
-        self.update_hierachical_data();
-
-        for node in self.pool.iter_mut() {
-            if let Some(lifetime) = node.lifetime() {
-                node.set_lifetime(lifetime - dt);
-            }
-
-            match node {
-                Node::Camera(camera) => camera.calculate_matrices(frame_size),
-                Node::ParticleSystem(particle_system) => particle_system.update(dt),
-                _ => (),
-            }
-        }
+        self.update_hierarchical_data();
 
         for i in 0..self.pool.get_capacity() {
-            let remove = if let Some(node) = self.pool.at(i) {
-                if let Some(lifetime) = node.lifetime() {
-                    lifetime <= 0.0
-                } else {
-                    false
+            if let Some(node) = self.pool.at_mut(i) {
+                if let Some(lifetime) = node.lifetime.as_mut() {
+                    *lifetime -= dt;
                 }
-            } else {
-                continue;
-            };
 
-            if remove {
-                self.remove_node(self.pool.handle_from_index(i));
+                if node.lifetime.map_or(false, |l| l <= 0.0) {
+                    self.remove_node(self.pool.handle_from_index(i));
+                } else {
+                    match node {
+                        Node::Camera(camera) => {
+                            camera.calculate_matrices(frame_size);
+
+                            let old_cache = camera.visibility_cache.invalidate();
+                            let mut new_cache = VisibilityCache::from(old_cache);
+                            let view_matrix = camera.view_matrix();
+                            let z_far = camera.z_far();
+                            let frustum =
+                                Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
+                            new_cache.update(self, view_matrix, z_far, Some(&frustum));
+                            // We have to re-borrow camera again because borrow check cannot proof that
+                            // camera reference is still valid after passing `self` to `new_cache.update(...)`
+                            // This is ok since there are only few camera per level and there performance
+                            // penalty is negligible.
+                            self.pool
+                                .at_mut(i)
+                                .unwrap()
+                                .as_camera_mut()
+                                .visibility_cache = new_cache;
+                        }
+                        Node::ParticleSystem(particle_system) => particle_system.update(dt),
+                        _ => (),
+                    }
+                }
             }
         }
     }
@@ -657,6 +683,17 @@ impl Graph {
         }
     }
 
+    /// Returns global scale matrix of a node.
+    pub fn global_scale_matrix(&self, node: Handle<Node>) -> Mat4 {
+        let node = &self[node];
+        let local_scale_matrix = Mat4::scale(node.local_transform().scale());
+        if node.parent().is_some() {
+            self.global_scale_matrix(node.parent()) * local_scale_matrix
+        } else {
+            local_scale_matrix
+        }
+    }
+
     /// Returns rotation quaternion of a node in world coordinates.
     pub fn global_rotation(&self, node: Handle<Node>) -> Quat {
         Quat::from(self.global_transform_no_scale(node).basis())
@@ -665,6 +702,12 @@ impl Graph {
     /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
     pub fn global_rotation_position_no_scale(&self, node: Handle<Node>) -> (Quat, Vec3) {
         (self.global_rotation(node), self[node].global_position())
+    }
+
+    /// Returns global scale of a node.
+    pub fn global_scale(&self, node: Handle<Node>) -> Vec3 {
+        let m = self.global_scale_matrix(node);
+        Vec3::new(m.f[0], m.f[5], m.f[10])
     }
 }
 

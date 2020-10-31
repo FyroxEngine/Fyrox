@@ -4,7 +4,8 @@
 
 ## Support
 
-If you want to support the development of the project, click the link below.
+If you want to support the development of the project, click the link below. I'm working on the project full time and
+use my savings to drive development forward, I'm looking for any financial support. 
 
 [![Become a patron!](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/mrdimas)
 
@@ -27,7 +28,7 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 ## [Examples](https://github.com/mrDIMAS/rg3d/tree/master/examples)
 
-There are many examples covering various aspects of the engine. Also don't hesitate to create an issue if need help!
+There are many examples covering various aspects of the engine. Also don't hesitate to create an issue if you need help!
 
 ## [Editor](https://github.com/mrDIMAS/rusty-editor/)
 
@@ -44,10 +45,12 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Soft shadows.
 	- Volumetric light (spot, point).
 - Render in texture.
+- Sky box.
 - Multi-camera rendering.
+- Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
 - Built-in save/load - save/load state of engine in one call.
-- [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound).
+- [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound).
 - Skinning.
 - Particle systems with soft particles.
 - A* pathfinder.
@@ -55,15 +58,29 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - FBX Loader.
 - Full TTF/OTF fonts support (thanks to [fontdue](https://github.com/mooman219/fontdue) and [ttf-parser](https://github.com/RazrFalcon/ttf-parser) crates).
 - PNG, JPG, TGA, DDS, etc. textures (thanks to [image](https://github.com/image-rs/image) crate).
-- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d-ui) with lots of widgets.
+- Compressed textures support (DXT1, DXT3, DTX5)
+- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-ui) with lots of widgets.
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
-- Asset management (textures, models, sound buffers).
-- [Simple physics](https://github.com/mrDIMAS/rg3d-physics).
-- [Core library](https://github.com/mrDIMAS/rg3d-core).
+- Async asset management (textures, models, sound buffers).
+- [Simple physics](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-physics).
+- [Core library](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-core).
 - Fast iterative compilation 
 	- Debug: ~3 seconds
 	- Release: ~8 seconds
+- Lots of examples.
+
+## Supported Operating Systems
+
+- Windows - **full support**
+- Linux - **full support**
+- macOS - **partial support**: currently there is no sound backend for macOS so there will be no sound on macOS. 
+Check [this issue](https://github.com/mrDIMAS/rg3d/issues/45) for more info.
+- WebAssembly - **not supported**
+
+## Compiler version
+
+rg3d require latest stable Rust compiler.
 
 ## Contributing
 

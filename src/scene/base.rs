@@ -15,7 +15,103 @@ use crate::{
     resource::model::Model,
     scene::{node::Node, transform::Transform},
 };
-use std::sync::{Arc, Mutex};
+
+/// Level of detail is a collection of objects for given normalized distance range.
+/// Objects will be rendered **only** if they're in specified range.
+/// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
+/// 1 - farthest. Real distance can be obtained by multiplying normalized distance
+/// with z_far of current projection matrix.
+#[derive(Debug, Default)]
+pub struct LevelOfDetail {
+    begin: f32,
+    end: f32,
+    /// List of objects, where each object represents level of detail of parent's
+    /// LOD group.
+    pub objects: Vec<Handle<Node>>,
+}
+
+impl LevelOfDetail {
+    /// Creates new level of detail.    
+    pub fn new(begin: f32, end: f32, objects: Vec<Handle<Node>>) -> Self {
+        for object in objects.iter() {
+            // Invalid handles are not allowed.
+            assert!(object.is_some());
+        }
+        let begin = begin.min(end);
+        let end = end.max(begin);
+        Self {
+            begin: begin.min(1.0).max(0.0),
+            end: end.min(1.0).max(0.0),
+            objects,
+        }
+    }
+
+    /// Sets new starting point in distance range. Input value will be clamped in
+    /// (0; 1) range.
+    pub fn set_begin(&mut self, percent: f32) {
+        self.begin = percent.min(1.0).max(0.0);
+        if self.begin > self.end {
+            std::mem::swap(&mut self.begin, &mut self.end);
+        }
+    }
+
+    /// Returns starting point of the range.
+    pub fn begin(&self) -> f32 {
+        self.begin
+    }
+
+    /// Sets new end point in distance range. Input value will be clamped in
+    /// (0; 1) range.
+    pub fn set_end(&mut self, percent: f32) {
+        self.end = percent.min(1.0).max(0.0);
+        if self.end < self.begin {
+            std::mem::swap(&mut self.begin, &mut self.end);
+        }
+    }
+
+    /// Returns end point of the range.
+    pub fn end(&self) -> f32 {
+        self.end
+    }
+}
+
+impl Visit for LevelOfDetail {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.begin.visit("Begin", visitor)?;
+        self.end.visit("End", visitor)?;
+        self.objects.visit("Objects", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+/// LOD (Level-Of-Detail) group is a set of cascades (levels), where each cascade takes specific
+/// distance range. Each cascade contains list of objects that should or shouldn't be rendered
+/// if distance satisfy cascade range. LOD may significantly improve performance if your scene
+/// contains lots of high poly objects and objects may be far away from camera. Distant objects
+/// in this case will be rendered with lower details freeing precious GPU resources for other
+/// useful tasks.   
+///
+/// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
+/// that belongs to level of detail. Engine does not care if you create overlapping cascades,
+/// it is your responsibility to create non-overlapping cascades.
+#[derive(Debug, Default)]
+pub struct LodGroup {
+    /// Set of cascades.
+    pub levels: Vec<LevelOfDetail>,
+}
+
+impl Visit for LodGroup {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.levels.visit("Levels", visitor)?;
+
+        visitor.leave_region()
+    }
+}
 
 /// See module docs.
 #[derive(Debug)]
@@ -31,7 +127,7 @@ pub struct Base {
     pub(in crate) inv_bind_pose_transform: Mat4,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
-    pub(in crate) resource: Option<Arc<Mutex<Model>>>,
+    pub(in crate) resource: Option<Model>,
     /// Handle to node in scene of model resource from which this node
     /// was instantiated from.
     pub(in crate) original: Handle<Node>,
@@ -41,8 +137,9 @@ pub struct Base {
     pub(in crate) is_resource_instance: bool,
     /// Maximum amount of Some(time) that node will "live" or None
     /// if node has undefined lifetime.
-    lifetime: Option<f32>,
+    pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
+    lod_group: Option<LodGroup>,
 }
 
 impl Base {
@@ -126,7 +223,7 @@ impl Base {
     }
 
     /// Returns resource from which this node was instantiated from.
-    pub fn resource(&self) -> Option<Arc<Mutex<Model>>> {
+    pub fn resource(&self) -> Option<Model> {
         self.resource.clone()
     }
 
@@ -199,6 +296,21 @@ impl Base {
         self.depth_offset
     }
 
+    /// Sets new lod group.
+    pub fn set_lod_group(&mut self, lod_group: LodGroup) -> Option<LodGroup> {
+        self.lod_group.replace(lod_group)
+    }
+
+    /// Returns shared reference to current lod group.
+    pub fn lod_group(&self) -> Option<&LodGroup> {
+        self.lod_group.as_ref()
+    }
+
+    /// Returns mutable reference to current lod group.
+    pub fn lod_group_mut(&mut self) -> Option<&mut LodGroup> {
+        self.lod_group.as_mut()
+    }
+
     /// Shallow copy of node data. You should never use this directly, shallow copy
     /// will produce invalid node in most cases!
     pub fn raw_copy(&self) -> Self {
@@ -238,6 +350,7 @@ impl Visit for Base {
             .visit("IsResourceInstance", visitor)?;
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
+        let _ = self.lod_group.visit("LodGroup", visitor);
 
         visitor.leave_region()
     }
@@ -251,6 +364,7 @@ pub struct BaseBuilder {
     children: Option<Vec<Handle<Node>>>,
     lifetime: Option<f32>,
     depth_offset: f32,
+    lod_group: Option<LodGroup>,
 }
 
 impl Default for BaseBuilder {
@@ -269,6 +383,7 @@ impl BaseBuilder {
             children: None,
             lifetime: None,
             depth_offset: 0.0,
+            lod_group: None,
         }
     }
 
@@ -308,6 +423,12 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired lod group.
+    pub fn with_lod_group(mut self, lod_group: LodGroup) -> Self {
+        self.lod_group = Some(lod_group);
+        self
+    }
+
     /// Creates new instance of base scene node. Do not forget to add
     /// node to scene or pass to other nodes as base.
     pub fn build(self) -> Base {
@@ -325,6 +446,7 @@ impl BaseBuilder {
             original: Handle::NONE,
             is_resource_instance: false,
             depth_offset: self.depth_offset,
+            lod_group: self.lod_group,
         }
     }
 

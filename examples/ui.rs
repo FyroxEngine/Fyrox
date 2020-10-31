@@ -8,6 +8,9 @@
 
 extern crate rg3d;
 
+pub mod shared;
+
+use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
@@ -16,7 +19,7 @@ use rg3d::{
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         border::BorderBuilder,
@@ -25,7 +28,8 @@ use rg3d::{
         dropdown_list::DropdownListBuilder,
         grid::{Column, GridBuilder, Row},
         message::{
-            ButtonMessage, DropdownListMessage, ScrollBarMessage, TextMessage, UiMessageData,
+            ButtonMessage, DropdownListMessage, MessageDirection, ScrollBarMessage, TextMessage,
+            UiMessageData,
         },
         node::StubNode,
         scroll_bar::ScrollBarBuilder,
@@ -36,17 +40,11 @@ use rg3d::{
         HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
     },
     monitor::VideoMode,
-    scene::{
-        base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
-    },
+    scene::{node::Node, Scene},
     utils::translate_event,
     window::Fullscreen,
 };
-use rg3d_ui::message::MessageDirection;
-use std::{
-    sync::{Arc, Mutex},
-    time::Instant,
-};
+use std::time::Instant;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
 const DEFAULT_MODEL_SCALE: f32 = 0.05;
@@ -280,20 +278,11 @@ struct GameScene {
     walk_animation: Handle<Animation>,
 }
 
-fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
+async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
-    let mut resource_manager = resource_manager.lock().unwrap();
-
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = CameraBuilder::new(
-        BaseBuilder::new().with_local_transform(
-            TransformBuilder::new()
-                .with_local_position(Vec3::new(0.0, 6.0, -12.0))
-                .build(),
-        ),
-    )
-    .build();
+    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
 
     scene.graph.add_node(Node::Camera(camera));
 
@@ -306,19 +295,18 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     // for all models instances, so memory footprint on GPU will be lower.
     let model_resource = resource_manager
         .request_model("examples/data/mutant.FBX")
+        .await
         .unwrap();
 
     // Instantiate model on scene - but only geometry, without any animations.
     // Instantiation is a process of embedding model resource data in desired scene.
-    let model_handle = model_resource
-        .lock()
-        .unwrap()
-        .instantiate_geometry(&mut scene);
+    let model_handle = model_resource.instantiate_geometry(&mut scene);
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
     let walk_animation_resource = resource_manager
         .request_model("examples/data/walk.fbx")
+        .await
         .unwrap();
 
     // Once animation resource is loaded it must be re-targeted to our model instance.
@@ -326,8 +314,6 @@ fn create_scene(resource_manager: Arc<Mutex<ResourceManager>>) -> GameScene {
     // not model instance bones, retarget_animations maps animations of each bone on
     // model instance so animation will know about nodes it should operate on.
     let walk_animation = *walk_animation_resource
-        .lock()
-        .unwrap()
         .retarget_animations(model_handle, &mut scene)
         .get(0)
         .unwrap();
@@ -354,8 +340,7 @@ fn main() {
     // instead we telling engine to search textures in given folder.
     engine
         .resource_manager
-        .lock()
-        .unwrap()
+        .state()
         .set_textures_path("examples/data");
 
     // Create simple user interface that will show some useful info.
@@ -366,7 +351,7 @@ fn main() {
         scene,
         model_handle,
         walk_animation,
-    } = create_scene(engine.resource_manager.clone());
+    } = rg3d::futures::executor::block_on(create_scene(engine.resource_manager.clone()));
 
     // Add scene to engine - engine will take ownership over scene and will return
     // you a handle to scene which can be used later on to borrow it and do some
@@ -532,7 +517,7 @@ fn main() {
                     engine.user_interface.process_os_event(&os_event);
                 }
             }
-            Event::DeviceEvent { event, .. } => {
+            Event::DeviceEvent { .. } => {
                 // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,

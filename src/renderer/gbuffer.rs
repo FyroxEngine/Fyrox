@@ -1,7 +1,8 @@
+use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
     core::{
         color::Color,
-        math::{frustum::Frustum, mat4::Mat4, Rect},
+        math::{mat4::Mat4, Rect},
         scope_profile,
     },
     renderer::{
@@ -78,6 +79,9 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::D24S8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         depth_stencil_texture
@@ -91,6 +95,9 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         diffuse_texture
@@ -102,6 +109,9 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         normal_texture
@@ -113,6 +123,9 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
             None,
         )?;
         ambient_texture
@@ -146,6 +159,9 @@ impl GBuffer {
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
+            1,
             None,
         )?;
 
@@ -207,8 +223,6 @@ impl GBuffer {
             geom_cache,
         } = args;
 
-        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap();
-
         let viewport = Rect::new(0, 0, self.width, self.height);
         self.framebuffer.clear(
             state,
@@ -220,21 +234,13 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
-        'mesh_loop: for mesh in graph.linear_iter().filter_map(|node| {
-            if let Node::Mesh(mesh) = node {
+        for mesh in graph.pair_iter().filter_map(|(handle, node)| {
+            if let (Node::Mesh(mesh), true) = (node, camera.visibility_cache.is_visible(handle)) {
                 Some(mesh)
             } else {
                 None
             }
         }) {
-            if !mesh.is_intersect_frustum(graph, &frustum) {
-                continue 'mesh_loop;
-            }
-
-            if !mesh.global_visibility() {
-                continue 'mesh_loop;
-            }
-
             let view_projection = if mesh.depth_offset_factor() != 0.0 {
                 let mut projection = camera.projection_matrix();
                 projection.f[14] -= mesh.depth_offset_factor();

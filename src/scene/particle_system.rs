@@ -36,7 +36,7 @@
 //! use rg3d::scene::base::BaseBuilder;
 //! use rg3d::core::color::Color;
 //! use std::path::Path;
-//! use rg3d::resource::texture::TextureKind;
+//! use rg3d::resource::texture::TexturePixelKind;
 //!
 //! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vec3) {
 //!     graph.add_node(Node::ParticleSystem(ParticleSystemBuilder::new(BaseBuilder::new()
@@ -63,7 +63,7 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_opt_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), TextureKind::R8))
+//!         .with_opt_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), TexturePixelKind::R8))
 //!         .build()));
 //! }
 //! ```
@@ -87,7 +87,7 @@ use std::{
     cmp::Ordering,
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::{Arc, LockResult, Mutex, MutexGuard},
+    sync::{LockResult, Mutex, MutexGuard},
 };
 
 /// OpenGL expects this structure packed as in C.
@@ -1071,7 +1071,7 @@ pub struct ParticleSystem {
     particles: Vec<Particle>,
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
-    texture: Option<Arc<Mutex<Texture>>>,
+    texture: Option<Texture>,
     acceleration: Vec3,
     color_over_lifetime: Option<ColorGradient>,
 }
@@ -1270,12 +1270,12 @@ impl ParticleSystem {
     }
 
     /// Sets new texture for particle system.
-    pub fn set_texture(&mut self, texture: Option<Arc<Mutex<Texture>>>) {
+    pub fn set_texture(&mut self, texture: Option<Texture>) {
         self.texture = texture
     }
 
     /// Returns current texture used by particle system.
-    pub fn texture(&self) -> Option<Arc<Mutex<Texture>>> {
+    pub fn texture(&self) -> Option<Texture> {
         self.texture.clone()
     }
 }
@@ -1307,7 +1307,7 @@ impl Default for ParticleSystem {
 pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
     emitters: Vec<Emitter>,
-    texture: Option<Arc<Mutex<Texture>>>,
+    texture: Option<Texture>,
     acceleration: Vec3,
     color_over_lifetime: Option<ColorGradient>,
 }
@@ -1331,13 +1331,13 @@ impl ParticleSystemBuilder {
     }
 
     /// Sets desired texture for particle system.
-    pub fn with_texture(mut self, texture: Arc<Mutex<Texture>>) -> Self {
+    pub fn with_texture(mut self, texture: Texture) -> Self {
         self.texture = Some(texture);
         self
     }
 
     /// Sets desired texture for particle system.
-    pub fn with_opt_texture(mut self, texture: Option<Arc<Mutex<Texture>>>) -> Self {
+    pub fn with_opt_texture(mut self, texture: Option<Texture>) -> Self {
         self.texture = texture;
         self
     }

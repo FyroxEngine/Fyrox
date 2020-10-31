@@ -1,38 +1,8 @@
 # Examples
 
-The engine contains examples for various aspects. Currently there is not much, but I'm working on it. 
-It is better to run examples with `--release` flag, because Debug version is too slow.
-
-## How to build
-
-Make sure you have latest `rg3d` dependencies near `rg3d` crate: this is needed because engine split into multiple crates which are decoupled from each other. You need to get `rg3d-ui` `rg3d-sound` `rg3d-core` and `rg3d-physics` crates. So typical build script can be:
-
-```
-git clone https://github.com/mrDIMAS/rg3d
-git clone https://github.com/mrDIMAS/rg3d-ui
-git clone https://github.com/mrDIMAS/rg3d-core
-git clone https://github.com/mrDIMAS/rg3d-sound
-git clone https://github.com/mrDIMAS/rg3d-physics
-cd rg3d
-cargo run --example <example_name> --release
-```
-
-Or if you already have all dependencies, you can do:
-
-```
-cd rg3d
-git pull
-cd ../rg3d-ui
-git pull
-cd ../rg3d-core
-git pull
-cd ../rg3d-sound
-git pull
-cd ../rg3d-physics
-git pull
-cd ../rg3d
-cargo run --example <example_name> --release
-```
+The engine contains examples for various aspects. Currently, there is not much, but I'm working on it. 
+It is better to run examples with `--release` flag, because Debug is too slow. Also Debug may suffer from
+a "glitch" when model loads faster than its textures, it is due asynchronous resource loading.
 
 ## Example 01 - Simple Scene
 
@@ -85,6 +55,13 @@ Same as Example 03, but also has "save/load" functionality - F5 and F9 keys resp
 
 Same as Example 04, but also has foot step sounds and reverb effect.
 
-## Example 08 - Simple game
+## Example 08 - Level of detail
+
+This example shows how to create and use lod groups to improve performance.
+TODO: It still should be improved, it needs to use more high poly model to show true power of the technique.
+
+![Example 08](screenshots/lod.png?raw=true "Example 08")
+
+## Example 09 - Simple game
 
 - TODO

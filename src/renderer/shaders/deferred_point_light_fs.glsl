@@ -12,6 +12,7 @@ uniform mat4 invViewProj;
 uniform vec3 cameraPosition;
 uniform bool softShadows;
 uniform bool shadowsEnabled;
+uniform float shadowBias;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -28,8 +29,6 @@ void main()
     TBlinnPhong lighting = S_BlinnPhong(ctx);
 
     float shadow = 1.0;
-
-    const float bias = 0.01;
 
     if (shadowsEnabled)
     {
@@ -51,7 +50,7 @@ void main()
             {
                 vec3 fetchDirection = -lighting.direction + directions[i] * diskRadius;
                 float shadowDistanceToLight = texture(pointShadowTexture, fetchDirection).r;
-                if (lighting.distance - bias > shadowDistanceToLight)
+                if (lighting.distance - shadowBias > shadowDistanceToLight)
                 {
                     shadow += 1.0;
                 }
@@ -62,7 +61,7 @@ void main()
         else
         {
             float shadowDistanceToLight = texture(pointShadowTexture, -lighting.direction).r;
-            if (lighting.distance - bias > shadowDistanceToLight)
+            if (lighting.distance - shadowBias > shadowDistanceToLight)
             {
                 shadow = 0.0;
             }
