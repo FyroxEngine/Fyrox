@@ -50,7 +50,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
 - Built-in save/load - save/load state of engine in one call.
-- [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d-sound).
+- [High quality binaural sound with HRTF support](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-sound).
 - Skinning.
 - Particle systems with soft particles.
 - A* pathfinder.
@@ -59,12 +59,12 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Full TTF/OTF fonts support (thanks to [fontdue](https://github.com/mooman219/fontdue) and [ttf-parser](https://github.com/RazrFalcon/ttf-parser) crates).
 - PNG, JPG, TGA, DDS, etc. textures (thanks to [image](https://github.com/image-rs/image) crate).
 - Compressed textures support (DXT1, DXT3, DTX5)
-- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d-ui) with lots of widgets.
+- [Advanced node-based UI](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-ui) with lots of widgets.
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
 - Async asset management (textures, models, sound buffers).
-- [Simple physics](https://github.com/mrDIMAS/rg3d-physics).
-- [Core library](https://github.com/mrDIMAS/rg3d-core).
+- [Simple physics](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-physics).
+- [Core library](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-core).
 - Fast iterative compilation 
 	- Debug: ~3 seconds
 	- Release: ~8 seconds
