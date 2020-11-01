@@ -61,12 +61,24 @@ fn main() {
     let mut elapsed_time = 0.0;
 
     // We'll use four footstep sounds to randomize sound and make it more natural.
-    let footsteps = [
+    let footstep_paths = [
         "examples/data/sounds/FootStep_shoe_stone_step1.wav",
         "examples/data/sounds/FootStep_shoe_stone_step2.wav",
         "examples/data/sounds/FootStep_shoe_stone_step3.wav",
         "examples/data/sounds/FootStep_shoe_stone_step4.wav",
     ];
+
+    // Request foot step sound buffer from resources directory.
+    let footstep_buffers = rg3d::futures::executor::block_on(rg3d::futures::future::join_all(
+        footstep_paths.iter().map(|&path| {
+            game.engine
+                .resource_manager
+                .request_sound_buffer(path, false)
+        }),
+    ))
+    .into_iter()
+    .map(|r| r.unwrap())
+    .collect::<Vec<_>>();
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly.
@@ -95,9 +107,9 @@ fn main() {
                                 .animations
                                 .get_mut(load_result.player.locomotion_machine.walk_animation)
                                 // Add signals to the walk animation timeline, we'll use signals to emit foot step
-                                // sounds. 
-                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.5))
-                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 1.25));
+                                // sounds.
+                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.2))
+                                .add_signal(AnimationSignal::new(FOOTSTEP_SIGNAL, 0.95));
 
                             // Add scene to engine - engine will take ownership over scene and will return
                             // you a handle to scene which can be used later on to borrow it and do some
@@ -163,26 +175,18 @@ fn main() {
                                 continue;
                             }
 
-                            // We'll emit sounds on player's center, this is not accurate, we could use feet position instead
-                            // but it left as is just for simplicity.
-                            let position = scene.graph[game_scene.player.pivot].global_position();
+                            // We'll emit sounds on player's feet.
+                            let mut position = scene.graph[game_scene.player.pivot].global_position();
+                            position.y -= 0.5;
 
-                            // Request foot step sound buffer from resources directory.
-                            let foot_step =
-                               rg3d::futures::executor::block_on( game
-                                    .engine
-                                    .resource_manager
-                                    .request_sound_buffer(
-                                        // Request random sound everytime.
-                                        footsteps[rg3d::rand::thread_rng().gen_range(0,footsteps.len())],
-                                        false)).unwrap();
+                            let foot_step = footstep_buffers[rg3d::rand::thread_rng().gen_range(0, footstep_buffers.len())].clone();
 
                             // Create new temporary foot step sound source.
                             let source = ctx
                                 .add_source(
                                     SpatialSourceBuilder::new(
                                         GenericSourceBuilder::new(foot_step.into())
-                                            // rg3d-sound provides built-in way to create temporary sounds that will die immediately 
+                                            // rg3d-sound provides built-in way to create temporary sounds that will die immediately
                                             // after first play. This is very useful for foot step sounds.
                                             .with_play_once(true)
                                             // Every sound source must be explicity set to Playing status, otherwise it will be stopped.

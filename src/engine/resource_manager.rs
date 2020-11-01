@@ -360,8 +360,6 @@ impl ResourceManager {
     /// # Supported formats
     ///
     /// Currently only WAV (uncompressed) and OGG are supported.
-    ///
-    /// TODO: Make this asynchronous.
     pub fn request_sound_buffer<P: AsRef<Path>>(&self, path: P, stream: bool) -> SharedSoundBuffer {
         let mut state = self.state();
 
@@ -576,7 +574,7 @@ impl ResourceManager {
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
     /// method! This method is asynchronous, it uses all available CPU power to reload resources as
-    /// fast as possible.     
+    /// fast as possible.
     pub async fn reload_resources(&self) {
         futures::join!(
             self.reload_textures(),
