@@ -1,10 +1,7 @@
-use crate::ttf::SharedFont;
 use crate::{
     brush::Brush,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-    },
+    core::{algebra::Vector2, color::Color, math::Rect},
+    ttf::SharedFont,
     HorizontalAlignment, VerticalAlignment,
 };
 use std::ops::Range;
@@ -12,7 +9,7 @@ use std::ops::Range;
 #[derive(Debug, Clone)]
 pub struct TextGlyph {
     bounds: Rect<f32>,
-    tex_coords: [Vec2; 4],
+    tex_coords: [Vector2<f32>; 4],
 }
 
 impl TextGlyph {
@@ -20,7 +17,7 @@ impl TextGlyph {
         self.bounds
     }
 
-    pub fn get_tex_coords(&self) -> &[Vec2; 4] {
+    pub fn get_tex_coords(&self) -> &[Vector2<f32>; 4] {
         &self.tex_coords
     }
 }
@@ -76,7 +73,7 @@ pub struct FormattedText {
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     brush: Brush,
-    constraint: Vec2,
+    constraint: Vector2<f32>,
     wrap: bool,
 }
 
@@ -128,7 +125,7 @@ impl FormattedText {
         self.brush.clone()
     }
 
-    pub fn set_constraint(&mut self, constraint: Vec2) -> &mut Self {
+    pub fn set_constraint(&mut self, constraint: Vector2<f32>) -> &mut Self {
         self.constraint = constraint;
         self
     }
@@ -193,11 +190,11 @@ impl FormattedText {
         self
     }
 
-    pub fn build(&mut self) -> Vec2 {
+    pub fn build(&mut self) -> Vector2<f32> {
         let font = if let Some(font) = &self.font {
             font.0.lock().unwrap()
         } else {
-            return Vec2::ZERO;
+            return Vector2::default();
         };
 
         // Split on lines.
@@ -286,7 +283,7 @@ impl FormattedText {
             self.constraint.x
         };
 
-        let mut cursor = Vec2::new(cursor_x_start, cursor_y_start);
+        let mut cursor = Vector2::new(cursor_x_start, cursor_y_start);
         for line in self.lines.iter_mut() {
             cursor.x = line.x_offset;
 
@@ -296,14 +293,14 @@ impl FormattedText {
                 match font.glyph(code) {
                     Some(glyph) => {
                         // Insert glyph
-                        let rect = Rect {
-                            x: cursor.x + glyph.left.floor(),
-                            y: cursor.y + font.ascender().floor()
+                        let rect = Rect::new(
+                            cursor.x + glyph.left.floor(),
+                            cursor.y + font.ascender().floor()
                                 - glyph.top.floor()
                                 - glyph.bitmap_height as f32,
-                            w: glyph.bitmap_width as f32,
-                            h: glyph.bitmap_height as f32,
-                        };
+                            glyph.bitmap_width as f32,
+                            glyph.bitmap_height as f32,
+                        );
                         let text_glyph = TextGlyph {
                             bounds: rect,
                             tex_coords: glyph.tex_coords,
@@ -314,17 +311,17 @@ impl FormattedText {
                     }
                     None => {
                         // Insert invalid symbol
-                        let rect = Rect {
-                            x: cursor.x,
-                            y: cursor.y + font.ascender(),
-                            w: font.height(),
-                            h: font.height(),
-                        };
+                        let rect = Rect::new(
+                            cursor.x,
+                            cursor.y + font.ascender(),
+                            font.height(),
+                            font.height(),
+                        );
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
-                            tex_coords: [Vec2::ZERO; 4],
+                            tex_coords: [Vector2::default(); 4],
                         });
-                        cursor.x += rect.w;
+                        cursor.x += rect.w();
                     }
                 }
             }
@@ -333,7 +330,7 @@ impl FormattedText {
             cursor.y += font.ascender();
         }
 
-        let mut full_size = Vec2::new(0.0, total_height);
+        let mut full_size = Vector2::new(0.0, total_height);
         for line in self.lines.iter() {
             full_size.x = line.width.max(full_size.x);
         }
@@ -344,7 +341,7 @@ impl FormattedText {
 pub struct FormattedTextBuilder {
     font: Option<SharedFont>,
     brush: Brush,
-    constraint: Vec2,
+    constraint: Vector2<f32>,
     text: String,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
@@ -366,7 +363,7 @@ impl FormattedTextBuilder {
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
             brush: Brush::Solid(Color::WHITE),
-            constraint: Vec2::new(128.0, 128.0),
+            constraint: Vector2::new(128.0, 128.0),
             wrap: false,
         }
     }
@@ -396,7 +393,7 @@ impl FormattedTextBuilder {
         self
     }
 
-    pub fn with_constraint(mut self, constraint: Vec2) -> Self {
+    pub fn with_constraint(mut self, constraint: Vector2<f32>) -> Self {
         self.constraint = constraint;
         self
     }

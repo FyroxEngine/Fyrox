@@ -1,12 +1,8 @@
-use crate::draw::SharedTexture;
-use crate::message::{ImageMessage, MessageData, UiMessageData};
 use crate::{
     brush::Brush,
-    core::math::vec2::Vec2,
-    core::{color::Color, pool::Handle},
-    draw::CommandTexture,
-    draw::{CommandKind, DrawingContext},
-    message::UiMessage,
+    core::{algebra::Vector2, color::Color, pool::Handle},
+    draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
+    message::{ImageMessage, MessageData, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UINode, UserInterface,
 };
@@ -40,10 +36,10 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Image<M, C> {
         let bounds = self.widget.screen_bounds();
         let tex_coords = if self.flip {
             Some([
-                Vec2::new(0.0, 0.0),
-                Vec2::new(1.0, 0.0),
-                Vec2::new(1.0, -1.0),
-                Vec2::new(0.0, -1.0),
+                Vector2::new(0.0, 0.0),
+                Vector2::new(1.0, 0.0),
+                Vector2::new(1.0, -1.0),
+                Vector2::new(0.0, -1.0),
             ])
         } else {
             None

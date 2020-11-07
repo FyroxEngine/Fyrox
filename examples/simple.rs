@@ -12,8 +12,8 @@ use crate::shared::create_camera;
 use rg3d::{
     animation::Animation,
     core::{
+        algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
-        math::{mat4::Mat4, quat::Quat, vec3::Vec3},
         pool::Handle,
     },
     engine::resource_manager::ResourceManager,
@@ -54,7 +54,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 6.0, -12.0)).await;
+    let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 6.0, -12.0)).await;
 
     scene.graph.add_node(Node::Camera(camera));
 
@@ -78,7 +78,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     scene.graph[model_handle]
         .local_transform_mut()
         // Our model is too big, fix it by scale.
-        .set_scale(Vec3::new(0.05, 0.05, 0.05));
+        .set_scale(Vector3::new(0.05, 0.05, 0.05));
 
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
@@ -96,12 +96,14 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         MeshBuilder::new(
             BaseBuilder::new().with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(Vec3::new(0.0, -0.25, 0.0))
+                    .with_local_position(Vector3::new(0.0, -0.25, 0.0))
                     .build(),
             ),
         )
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-            SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(25.0, 0.25, 25.0))),
+            SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+                25.0, 0.25, 25.0,
+            ))),
         )))
         .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
         .build()])
@@ -210,7 +212,10 @@ fn main() {
 
                     scene.graph[model_handle]
                         .local_transform_mut()
-                        .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
+                        .set_rotation(UnitQuaternion::from_axis_angle(
+                            &Vector3::y_axis(),
+                            model_angle,
+                        ));
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(

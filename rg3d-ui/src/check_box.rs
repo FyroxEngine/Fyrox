@@ -174,7 +174,7 @@ impl<M: MessageData, C: Control<M, C>> CheckBoxBuilder<M, C> {
 mod test {
     use crate::{
         check_box::CheckBoxBuilder,
-        core::math::vec2::Vec2,
+        core::math::vec2::Vector2,
         message::{CheckBoxMessage, MessageDirection},
         node::StubNode,
         widget::WidgetBuilder,
@@ -183,7 +183,7 @@ mod test {
 
     #[test]
     fn check_box() {
-        let mut ui = UserInterface::<(), StubNode>::new(Vec2::new(1000.0, 1000.0));
+        let mut ui = UserInterface::<(), StubNode>::new(Vector2::new(1000.0, 1000.0));
 
         assert_eq!(ui.poll_message(), None);
 

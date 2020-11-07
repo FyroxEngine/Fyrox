@@ -11,36 +11,101 @@ pub mod light;
 pub mod mesh;
 pub mod node;
 pub mod particle_system;
+pub mod physics;
 pub mod sprite;
 pub mod transform;
 
 use crate::{
     animation::AnimationContainer,
     core::{
+        algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        math::{
-            aabb::AxisAlignedBoundingBox, frustum::Frustum, mat4::Mat4, vec2::Vec2, vec3::Vec3,
-        },
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::{Handle, Pool, PoolIterator, PoolIteratorMut},
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::resource_manager::ResourceManager,
-    physics::{rigid_body::RigidBody, static_geometry::StaticGeometry, Physics},
     resource::texture::Texture,
-    scene::{graph::Graph, node::Node},
-    utils::{self, lightmap::Lightmap, log::Log},
+    scene::{graph::Graph, node::Node, physics::Physics},
+    utils::{lightmap::Lightmap, log::Log},
 };
+use rapier3d::na::Point3;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
     path::Path,
 };
 
+/// Wrap to new type to be able to implement Visit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct RapierHandle(pub rapier3d::data::arena::Index);
+
+/// A type alias for a rigid body handle.
+pub type RigidBodyHandle = RapierHandle;
+
+/// A type alias for a collider handle.
+pub type ColliderHandle = RapierHandle;
+
+/// A type alias for a joint handle.
+pub type JointHandle = RapierHandle;
+
+impl From<rapier3d::data::arena::Index> for RapierHandle {
+    fn from(inner: rapier3d::data::arena::Index) -> Self {
+        Self(inner)
+    }
+}
+
+impl Into<rapier3d::data::arena::Index> for RapierHandle {
+    fn into(self) -> rapier3d::data::arena::Index {
+        self.0
+    }
+}
+
+impl Default for RapierHandle {
+    fn default() -> Self {
+        Self(rapier3d::data::arena::Index::from_raw_parts(
+            usize::max_value(),
+            u64::max_value(),
+        ))
+    }
+}
+
+impl RapierHandle {
+    /// Checks if handle is invalid.
+    pub fn is_none(&self) -> bool {
+        *self == Default::default()
+    }
+
+    /// Checks if handle is valid.
+    pub fn is_some(&self) -> bool {
+        !self.is_none()
+    }
+}
+
+impl Visit for RapierHandle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let (index, mut generation) = self.0.into_raw_parts();
+        let mut index = index as u64;
+
+        index.visit("Index", visitor)?;
+        generation.visit("Generation", visitor)?;
+
+        if visitor.is_reading() {
+            self.0 = rapier3d::data::arena::Index::from_raw_parts(index as usize, generation);
+        }
+
+        visitor.leave_region()
+    }
+}
+
 /// Physics binder is used to link graph nodes with rigid bodies. Scene will
 /// sync transform of node with its associated rigid body.
 #[derive(Clone, Debug)]
 pub struct PhysicsBinder {
-    node_rigid_body_map: HashMap<Handle<Node>, Handle<RigidBody>>,
+    /// Mapping Node -> RigidBody.
+    pub node_rigid_body_map: HashMap<Handle<Node>, RigidBodyHandle>,
 }
 
 impl Default for PhysicsBinder {
@@ -56,13 +121,13 @@ impl PhysicsBinder {
     pub fn bind(
         &mut self,
         node: Handle<Node>,
-        rigid_body: Handle<RigidBody>,
-    ) -> Option<Handle<RigidBody>> {
+        rigid_body: RigidBodyHandle,
+    ) -> Option<RigidBodyHandle> {
         self.node_rigid_body_map.insert(node, rigid_body)
     }
 
     /// Unlinks given graph node from its associated rigid body (if any).
-    pub fn unbind(&mut self, node: Handle<Node>) -> Option<Handle<RigidBody>> {
+    pub fn unbind(&mut self, node: Handle<Node>) -> Option<RigidBodyHandle> {
         self.node_rigid_body_map.remove(&node)
     }
 
@@ -76,7 +141,7 @@ impl PhysicsBinder {
     /// 2) Additional memory is allocated
     ///
     /// So it is not advised to call it in performance critical places.
-    pub fn unbind_by_body(&mut self, body: Handle<RigidBody>) -> Handle<Node> {
+    pub fn unbind_by_body(&mut self, body: RigidBodyHandle) -> Handle<Node> {
         let mut node = Handle::NONE;
         self.node_rigid_body_map = self
             .node_rigid_body_map
@@ -96,11 +161,18 @@ impl PhysicsBinder {
 
     /// Returns handle of rigid body associated with given node. It will return
     /// Handle::NONE if given node isn't linked to a rigid body.
-    pub fn body_of(&self, node: Handle<Node>) -> Handle<RigidBody> {
-        self.node_rigid_body_map
-            .get(&node)
-            .copied()
-            .unwrap_or_default()
+    pub fn body_of(&self, node: Handle<Node>) -> Option<RigidBodyHandle> {
+        self.node_rigid_body_map.get(&node).copied()
+    }
+
+    /// Tries to find a node for a given rigid body.
+    pub fn node_of(&self, body: RigidBodyHandle) -> Option<Handle<Node>> {
+        for (&node, &other_body) in self.node_rigid_body_map.iter() {
+            if body == other_body {
+                return Some(node);
+            }
+        }
+        None
     }
 }
 
@@ -118,9 +190,9 @@ impl Visit for PhysicsBinder {
 #[derive(Clone, Debug)]
 pub struct Line {
     /// Beginning of the line.
-    pub begin: Vec3,
+    pub begin: Vector3<f32>,
     /// End of the line.    
-    pub end: Vec3,
+    pub end: Vector3<f32>,
     /// Color of the line.
     pub color: Color,
 }
@@ -221,15 +293,15 @@ impl SceneDrawingContext {
     /// it only pushes lines for bounding box into internal buffer. It will be drawn
     /// later on in separate render pass.
     pub fn draw_aabb(&mut self, aabb: &AxisAlignedBoundingBox, color: Color) {
-        let left_bottom_front = Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z);
-        let left_top_front = Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z);
-        let right_top_front = Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z);
-        let right_bottom_front = Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z);
+        let left_bottom_front = Vector3::new(aabb.min.x, aabb.min.y, aabb.max.z);
+        let left_top_front = Vector3::new(aabb.min.x, aabb.max.y, aabb.max.z);
+        let right_top_front = Vector3::new(aabb.max.x, aabb.max.y, aabb.max.z);
+        let right_bottom_front = Vector3::new(aabb.max.x, aabb.min.y, aabb.max.z);
 
-        let left_bottom_back = Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z);
-        let left_top_back = Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z);
-        let right_top_back = Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z);
-        let right_bottom_back = Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z);
+        let left_bottom_back = Vector3::new(aabb.min.x, aabb.min.y, aabb.min.z);
+        let left_top_back = Vector3::new(aabb.min.x, aabb.max.y, aabb.min.z);
+        let right_top_back = Vector3::new(aabb.max.x, aabb.max.y, aabb.min.z);
+        let right_bottom_back = Vector3::new(aabb.max.x, aabb.min.y, aabb.min.z);
 
         // Front face
         self.add_line(Line {
@@ -301,24 +373,37 @@ impl SceneDrawingContext {
     /// Draws object-oriented bounding box with given color. Drawing is not immediate,
     /// it only pushes lines for object-oriented bounding box into internal buffer. It
     /// will be drawn later on in separate render pass.
-    pub fn draw_oob(&mut self, aabb: &AxisAlignedBoundingBox, transform: Mat4, color: Color) {
-        let left_bottom_front =
-            transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.max.z));
-        let left_top_front =
-            transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.max.z));
-        let right_top_front =
-            transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.max.z));
-        let right_bottom_front =
-            transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.max.z));
+    pub fn draw_oob(
+        &mut self,
+        aabb: &AxisAlignedBoundingBox,
+        transform: Matrix4<f32>,
+        color: Color,
+    ) {
+        let left_bottom_front = transform
+            .transform_point(&Point3::new(aabb.min.x, aabb.min.y, aabb.max.z))
+            .coords;
+        let left_top_front = transform
+            .transform_point(&Point3::new(aabb.min.x, aabb.max.y, aabb.max.z))
+            .coords;
+        let right_top_front = transform
+            .transform_point(&Point3::new(aabb.max.x, aabb.max.y, aabb.max.z))
+            .coords;
+        let right_bottom_front = transform
+            .transform_point(&Point3::new(aabb.max.x, aabb.min.y, aabb.max.z))
+            .coords;
 
-        let left_bottom_back =
-            transform.transform_vector(Vec3::new(aabb.min.x, aabb.min.y, aabb.min.z));
-        let left_top_back =
-            transform.transform_vector(Vec3::new(aabb.min.x, aabb.max.y, aabb.min.z));
-        let right_top_back =
-            transform.transform_vector(Vec3::new(aabb.max.x, aabb.max.y, aabb.min.z));
-        let right_bottom_back =
-            transform.transform_vector(Vec3::new(aabb.max.x, aabb.min.y, aabb.min.z));
+        let left_bottom_back = transform
+            .transform_point(&Point3::new(aabb.min.x, aabb.min.y, aabb.min.z))
+            .coords;
+        let left_top_back = transform
+            .transform_point(&Point3::new(aabb.min.x, aabb.max.y, aabb.min.z))
+            .coords;
+        let right_top_back = transform
+            .transform_point(&Point3::new(aabb.max.x, aabb.max.y, aabb.min.z))
+            .coords;
+        let right_bottom_back = transform
+            .transform_point(&Point3::new(aabb.max.x, aabb.min.y, aabb.min.z))
+            .coords;
 
         // Front face
         self.add_line(Line {
@@ -399,95 +484,6 @@ impl SceneDrawingContext {
     }
 }
 
-/// Allows you to bind a mesh and a static geometry together, it is used on deserialization
-/// stage to fill a static geometry by geometry from a mesh. This is useful in situations
-/// when you need to use a model from your map as static geometry for physics. In this case
-/// there is no need to serialize static geometry in a file. This is somewhat similar to mesh
-/// geometry resolving at deserialization - it takes geometry from resource, not from data in
-/// a file.
-#[derive(Default, Clone, Debug)]
-pub struct StaticGeometryBinder {
-    map: HashMap<Handle<StaticGeometry>, Handle<Node>>,
-}
-
-impl StaticGeometryBinder {
-    /// Links given static geometry with specified mesh.
-    pub fn bind(
-        &mut self,
-        geom: Handle<StaticGeometry>,
-        node: Handle<Node>,
-    ) -> Option<Handle<Node>> {
-        self.map.insert(geom, node)
-    }
-
-    /// Unlinks given static geometry from its associated mesh (if any).
-    pub fn unbind(&mut self, geom: Handle<StaticGeometry>) -> Option<Handle<Node>> {
-        self.map.remove(&geom)
-    }
-
-    /// Returns amount of entries in the binder.
-    pub fn len(&self) -> usize {
-        self.map.len()
-    }
-
-    /// Returns true if binder is empty.
-    pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
-    }
-
-    /// Tries to find associated static geometry of a node.
-    ///
-    /// # Performance
-    ///
-    /// This method performs linear search so it could be slow for some applications.
-    pub fn static_geometry_of_node(&self, node: Handle<Node>) -> Option<Handle<StaticGeometry>> {
-        for (&geom, &node_handle) in self.map.iter() {
-            if node_handle == node {
-                return Some(geom);
-            }
-        }
-        None
-    }
-
-    /// Unlinks given static geometry from a node.
-    ///
-    /// # Performance
-    ///
-    /// This method is slow because of two reasons:
-    ///
-    /// 1) Search is linear
-    /// 2) Additional memory is allocated
-    ///
-    /// So it is not advised to call it in performance critical places.
-    pub fn unbind_by_node(&mut self, node: Handle<Node>) -> Handle<StaticGeometry> {
-        let mut geom_handle = Handle::NONE;
-        self.map = self
-            .map
-            .clone()
-            .into_iter()
-            .filter(|&(g, n)| {
-                if n == node {
-                    geom_handle = g;
-                    false
-                } else {
-                    true
-                }
-            })
-            .collect();
-        geom_handle
-    }
-}
-
-impl Visit for StaticGeometryBinder {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        visitor.enter_region(name)?;
-
-        self.map.visit("Map", visitor)?;
-
-        visitor.leave_region()
-    }
-}
-
 /// See module docs.
 #[derive(Debug)]
 pub struct Scene {
@@ -520,10 +516,6 @@ pub struct Scene {
     /// Drawing context for simple graphics.
     pub drawing_context: SceneDrawingContext,
 
-    /// Links static geometry with a mesh to be able to get geometry data at deserialization
-    /// stage.
-    pub static_geometry_binder: StaticGeometryBinder,
-
     lightmap: Option<Lightmap>,
 }
 
@@ -537,7 +529,6 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            static_geometry_binder: Default::default(),
         }
     }
 }
@@ -560,7 +551,6 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            static_geometry_binder: Default::default(),
         }
     }
 
@@ -640,8 +630,8 @@ impl Scene {
         Ok(scene)
     }
 
-    fn update_physics(&mut self, dt: f32) {
-        self.physics.step(dt);
+    fn update_physics(&mut self) {
+        self.physics.step();
 
         // Keep pair when node and body are both alive.
         let graph = &self.graph;
@@ -649,15 +639,16 @@ impl Scene {
         self.physics_binder
             .node_rigid_body_map
             .retain(|node, body| {
-                graph.is_valid_handle(*node) && physics.is_valid_body_handle(*body)
+                graph.is_valid_handle(*node) && physics.bodies.contains(body.clone().into())
             });
 
         // Sync node positions with assigned physics bodies
         for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
-            let body = physics.borrow_body(*body);
+            let body = physics.bodies.get(body.clone().into()).unwrap();
             self.graph[*node]
                 .local_transform_mut()
-                .set_position(body.get_position());
+                .set_position(body.position.translation.vector)
+                .set_rotation(body.position.rotation);
         }
     }
 
@@ -682,27 +673,14 @@ impl Scene {
         self.graph.remove_node(handle)
     }
 
-    fn restore_static_geometries(&mut self) {
-        Log::writeln(
-            "Trying to restore data for static geometries from associated nodes...".to_owned(),
-        );
-        // Obtain geometry for static geometries from linked meshes.
-        for (&geom_handle, &node_handle) in self.static_geometry_binder.map.iter() {
-            if self.graph.is_valid_handle(node_handle) {
-                *self.physics.borrow_static_geometry_mut(geom_handle) =
-                    utils::mesh_to_static_geometry(self.graph[node_handle].as_mesh(), false);
-            } else {
-                Log::writeln(format!("Unable to get geometry for static geometry, node at handle {:?} does not exists!", node_handle))
-            }
-        }
-    }
-
     pub(in crate) fn resolve(&mut self) {
         Log::writeln("Starting resolve...".to_owned());
 
         self.graph.resolve();
         self.animations.resolve(&self.graph);
-        self.restore_static_geometries();
+
+        self.graph.update_hierarchical_data();
+        self.physics.resolve(&self.physics_binder, &self.graph);
 
         Log::writeln("Resolve succeeded!".to_owned());
     }
@@ -730,15 +708,15 @@ impl Scene {
     /// Performs single update tick with given delta time from last frame. Internally
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
-    pub fn update(&mut self, frame_size: Vec2, dt: f32) {
-        self.update_physics(dt);
+    pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32) {
+        self.update_physics();
         self.animations.update_animations(dt);
         self.graph.update_nodes(frame_size, dt);
     }
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F>(&self, filter: &mut F) -> Self
+    pub fn clone<F>(&self, filter: &mut F) -> (Self, HashMap<Handle<Node>, Handle<Node>>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
@@ -752,7 +730,8 @@ impl Scene {
                 track.set_node(old_new_map[&track.get_node()]);
             }
         }
-        let physics = self.physics.clone();
+        // It is ok to use old binder here, because handles maps one-to-one.
+        let physics = self.physics.deep_copy(&self.physics_binder, &graph);
         let mut physics_binder = PhysicsBinder::default();
         for (node, &body) in self.physics_binder.node_rigid_body_map.iter() {
             // Make sure we bind existing node with new physical body.
@@ -762,27 +741,20 @@ impl Scene {
                 physics_binder.bind(new_node, body);
             }
         }
-        let mut static_geometry_binder = StaticGeometryBinder::default();
-        for (&geom, node) in self.static_geometry_binder.map.iter() {
-            // Make sure we bind existing node with new physical body.
-            if let Some(&new_node) = old_new_map.get(node) {
-                // Re-use of body handle is fine here because physics copy bodies
-                // directly and handles from previous pool is still suitable for copy.
-                static_geometry_binder.bind(geom, new_node);
-            }
-        }
-        Self {
-            graph,
-            animations,
-            physics,
-            physics_binder,
-            static_geometry_binder,
-            // Render target is intentionally not copied, because it does not makes sense - a copy
-            // will redraw frame completely.
-            render_target: Default::default(),
-            lightmap: self.lightmap.clone(),
-            drawing_context: self.drawing_context.clone(),
-        }
+        (
+            Self {
+                graph,
+                animations,
+                physics,
+                physics_binder,
+                // Render target is intentionally not copied, because it does not makes sense - a copy
+                // will redraw frame completely.
+                render_target: Default::default(),
+                lightmap: self.lightmap.clone(),
+                drawing_context: self.drawing_context.clone(),
+            },
+            old_new_map,
+        )
     }
 }
 
@@ -794,9 +766,6 @@ impl Visit for Scene {
         self.animations.visit("Animations", visitor)?;
         self.physics.visit("Physics", visitor)?;
         let _ = self.lightmap.visit("Lightmap", visitor);
-        let _ = self
-            .static_geometry_binder
-            .visit("StaticGeometryBinder", visitor);
         visitor.leave_region()
     }
 }
@@ -904,7 +873,7 @@ impl VisibilityCache {
     pub fn update(
         &mut self,
         graph: &Graph,
-        view_matrix: Mat4,
+        view_matrix: Matrix4<f32>,
         z_far: f32,
         frustum: Option<&Frustum>,
     ) {
@@ -918,7 +887,7 @@ impl VisibilityCache {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
                         let normalized_distance =
-                            view_position.distance(&graph[object].global_position()) / z_far;
+                            view_position.metric_distance(&graph[object].global_position()) / z_far;
                         let visible = normalized_distance >= level.begin()
                             && normalized_distance <= level.end();
                         self.map.insert(object, visible);

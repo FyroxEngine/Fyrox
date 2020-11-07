@@ -1,12 +1,12 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::ButtonBuilder,
     canvas::CanvasBuilder,
     core::{
+        algebra::Vector2,
         color::Color,
-        math::{self, vec2::Vec2},
+        math::{self},
         pool::Handle,
     },
     decorator::DecoratorBuilder,
@@ -14,6 +14,7 @@ use crate::{
     message::{
         ButtonMessage, ScrollBarMessage, TextMessage, UiMessage, UiMessageData, WidgetMessage,
     },
+    message::{MessageData, MessageDirection},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UINode,
@@ -30,7 +31,7 @@ pub struct ScrollBar<M: MessageData, C: Control<M, C>> {
     pub step: f32,
     pub orientation: Orientation,
     pub is_dragging: bool,
-    pub offset: Vec2,
+    pub offset: Vector2<f32>,
     pub increase: Handle<UINode<M, C>>,
     pub decrease: Handle<UINode<M, C>>,
     pub indicator: Handle<UINode<M, C>>,
@@ -50,7 +51,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
         node_map.resolve(&mut self.field);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         // Adjust indicator position according to current value
@@ -66,7 +67,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     MessageDirection::ToWidget,
                     field_size.y,
                 ));
-                let position = Vec2::new(
+                let position = Vector2::new(
                     percent * (field_size.x - indicator.actual_size().x).max(0.0),
                     0.0,
                 );
@@ -82,7 +83,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollBar<M, C> {
                     MessageDirection::ToWidget,
                     field_size.x,
                 ));
-                let position = Vec2::new(
+                let position = Vector2::new(
                     0.0,
                     percent * (field_size.y - indicator.actual_size().y).max(0.0),
                 );
@@ -473,12 +474,12 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
         match orientation {
             Orientation::Vertical => {
                 ctx[indicator]
-                    .set_min_size(Vec2::new(0.0, 30.0))
+                    .set_min_size(Vector2::new(0.0, 30.0))
                     .set_width(30.0);
             }
             Orientation::Horizontal => {
                 ctx[indicator]
-                    .set_min_size(Vec2::new(30.0, 0.0))
+                    .set_min_size(Vector2::new(30.0, 0.0))
                     .set_height(30.0);
             }
         }
@@ -556,7 +557,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollBarBuilder<M, C> {
             step: self.step.unwrap_or(1.0),
             orientation,
             is_dragging: false,
-            offset: Vec2::ZERO,
+            offset: Vector2::default(),
             increase,
             decrease,
             indicator,

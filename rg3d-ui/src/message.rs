@@ -13,12 +13,12 @@
 //! However [WidgetMessage::GotFocus](enum.WidgetMessage.html) has "Direction: From UI" which means that only
 //! internal library code can send such messages without a risk of breaking anything.
 
+use crate::core::algebra::{Vector2, Vector3};
 use crate::dock::SplitDirection;
 use crate::{
     brush::Brush,
     core::{
         color::{Color, Hsv},
-        math::{vec2::Vec2, vec3::Vec3},
         pool::Handle,
     },
     dock::TileContent,
@@ -116,7 +116,7 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Direction: **From UI**.
     MouseDown {
         /// Position of cursor.
-        pos: Vec2,
+        pos: Vector2<f32>,
         /// A button that was pressed.
         button: MouseButton,
     },
@@ -126,7 +126,7 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Direction: **From UI**.
     MouseUp {
         /// Position of cursor.
-        pos: Vec2,
+        pos: Vector2<f32>,
         /// A button that was released.
         button: MouseButton,
     },
@@ -136,7 +136,7 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Direction: **From/To UI**.
     MouseMove {
         /// New position of cursor in screen coordinates.
-        pos: Vec2,
+        pos: Vector2<f32>,
         /// State of mouse buttons.
         state: MouseState,
     },
@@ -146,7 +146,7 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// Direction: **From/To UI**.
     MouseWheel {
         /// Position of cursor.
-        pos: Vec2,
+        pos: Vector2<f32>,
         /// Amount of lines per mouse wheel turn.
         amount: f32,
     },
@@ -268,14 +268,14 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// would be stretched to fill entire cell.
     ///
     /// Direction: **From/To UI**
-    MaxSize(Vec2),
+    MaxSize(Vector2<f32>),
 
     /// A request to set minimum size of widget. Minimum size restricts size of a widget during layout pass. For example
     /// you can set minimum size to a button which was placed into a grid's cell, if minimum size wouldn't be set, button
     /// would be compressed to fill entire cell.
     ///
     /// Direction: **From/To UI**
-    MinSize(Vec2),
+    MinSize(Vector2<f32>),
 
     /// A request to set row number of a grid to which widget should belong to.
     ///
@@ -327,7 +327,7 @@ pub enum WidgetMessage<M: MessageData, C: Control<M, C>> {
     /// (Canvas for example).
     ///
     /// Direction: **From/To UI**
-    DesiredPosition(Vec2),
+    DesiredPosition(Vector2<f32>),
 
     /// A request to enable or disable widget. Disabled widget won't receive mouse events and may look differently (it is defined
     /// by internal styling).
@@ -355,7 +355,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:Visibility) => fn visibility(bool), layout: false);
     define_constructor!(Widget(WidgetMessage:Width) => fn width(f32), layout: false);
     define_constructor!(Widget(WidgetMessage:Height) => fn height(f32), layout: false);
-    define_constructor!(Widget(WidgetMessage:DesiredPosition) => fn desired_position(Vec2), layout: false);
+    define_constructor!(Widget(WidgetMessage:DesiredPosition) => fn desired_position(Vector2<f32>), layout: false);
     define_constructor!(Widget(WidgetMessage:Center) => fn center(), layout: true);
     define_constructor!(Widget(WidgetMessage:TopMost) => fn topmost(), layout: false);
     define_constructor!(Widget(WidgetMessage:Enabled) => fn enabled(bool), layout: false);
@@ -366,18 +366,18 @@ impl<M: MessageData, C: Control<M, C>> WidgetMessage<M, C> {
     define_constructor!(Widget(WidgetMessage:ZIndex) => fn z_index(usize), layout: false);
     define_constructor!(Widget(WidgetMessage:HitTestVisibility) => fn hit_test_visibility(bool), layout: false);
     define_constructor!(Widget(WidgetMessage:Margin) => fn margin(Thickness), layout: false);
-    define_constructor!(Widget(WidgetMessage:MinSize) => fn min_size(Vec2), layout: false);
-    define_constructor!(Widget(WidgetMessage:MaxSize) => fn max_size(Vec2), layout: false);
+    define_constructor!(Widget(WidgetMessage:MinSize) => fn min_size(Vector2<f32>), layout: false);
+    define_constructor!(Widget(WidgetMessage:MaxSize) => fn max_size(Vector2<f32>), layout: false);
     define_constructor!(Widget(WidgetMessage:HorizontalAlignment) => fn horizontal_alignment(HorizontalAlignment), layout: false);
     define_constructor!(Widget(WidgetMessage:VerticalAlignment) => fn vertical_alignment(VerticalAlignment), layout: false);
 
     // Internal messages. Do not use.
     define_constructor!(Widget(WidgetMessage:GotFocus) => fn got_focus(), layout: false);
     define_constructor!(Widget(WidgetMessage:LostFocus) => fn lost_focus(), layout: false);
-    define_constructor!(Widget(WidgetMessage:MouseDown) => fn mouse_down(pos: Vec2, button: MouseButton), layout: false);
-    define_constructor!(Widget(WidgetMessage:MouseUp) => fn mouse_up(pos: Vec2, button: MouseButton), layout: false);
-    define_constructor!(Widget(WidgetMessage:MouseMove) => fn mouse_move(pos: Vec2, state: MouseState), layout: false);
-    define_constructor!(Widget(WidgetMessage:MouseWheel) => fn mouse_wheel(pos: Vec2, amount: f32), layout: false);
+    define_constructor!(Widget(WidgetMessage:MouseDown) => fn mouse_down(pos: Vector2<f32>, button: MouseButton), layout: false);
+    define_constructor!(Widget(WidgetMessage:MouseUp) => fn mouse_up(pos: Vector2<f32>, button: MouseButton), layout: false);
+    define_constructor!(Widget(WidgetMessage:MouseMove) => fn mouse_move(pos: Vector2<f32>, state: MouseState), layout: false);
+    define_constructor!(Widget(WidgetMessage:MouseWheel) => fn mouse_wheel(pos: Vector2<f32>, amount: f32), layout: false);
     define_constructor!(Widget(WidgetMessage:MouseLeave) => fn mouse_leave(), layout: false);
     define_constructor!(Widget(WidgetMessage:MouseEnter) => fn mouse_enter(), layout: false);
     define_constructor!(Widget(WidgetMessage:Text) => fn text(char), layout: false);
@@ -451,7 +451,7 @@ pub enum WindowMessage<M: MessageData, C: Control<M, C>> {
     MoveStart,
 
     /// Moves window to a new position in local coordinates.
-    Move(Vec2),
+    Move(Vector2<f32>),
 
     /// Indicated that move has ended. You should never send this message by hand.
     MoveEnd,
@@ -469,7 +469,7 @@ impl<M: MessageData, C: Control<M, C>> WindowMessage<M, C> {
     define_constructor!(Window(WindowMessage:CanClose) => fn can_close(bool), layout: false);
     define_constructor!(Window(WindowMessage:CanResize) => fn can_resize(bool), layout: false);
     define_constructor!(Window(WindowMessage:MoveStart) => fn move_start(), layout: false);
-    define_constructor!(Window(WindowMessage:Move) => fn move_to(Vec2), layout: false);
+    define_constructor!(Window(WindowMessage:Move) => fn move_to(Vector2<f32>), layout: false);
     define_constructor!(Window(WindowMessage:MoveEnd) => fn move_end(), layout: false);
     define_constructor!(Window(WindowMessage:Title) => fn title(WindowTitle<M, C>), layout: false);
 }
@@ -686,11 +686,11 @@ impl NumericUpDownMessage {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Vec3EditorMessage {
-    Value(Vec3),
+    Value(Vector3<f32>),
 }
 
 impl Vec3EditorMessage {
-    define_constructor_unbound!(Vec3Editor(Vec3EditorMessage:Value) => fn value(Vec3), layout: false);
+    define_constructor_unbound!(Vec3Editor(Vec3EditorMessage:Value) => fn value(Vector3<f32>), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1027,7 +1027,7 @@ pub enum OsEvent {
         state: ButtonState,
     },
     CursorMoved {
-        position: Vec2,
+        position: Vector2<f32>,
     },
     KeyboardInput {
         button: KeyCode,

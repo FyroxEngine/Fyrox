@@ -1,8 +1,6 @@
+use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4};
 use crate::{
-    core::{
-        color::Color,
-        math::{mat3::Mat3, mat4::Mat4, vec2::Vec2, vec3::Vec3, vec4::Vec4},
-    },
+    core::color::Color,
     renderer::{
         error::RendererError,
         framework::{
@@ -42,19 +40,19 @@ pub enum UniformValue<'a> {
     Bool(bool),
     Integer(i32),
     Float(f32),
-    Vec2(Vec2),
-    Vec3(Vec3),
-    Vec4(Vec4),
+    Vector2(Vector2<f32>),
+    Vector3(Vector3<f32>),
+    Vector4(Vector4<f32>),
     Color(Color),
-    Mat4(Mat4),
-    Mat3(Mat3),
+    Matrix4(Matrix4<f32>),
+    Matrix3(Matrix3<f32>),
 
     IntegerArray(&'a [i32]),
     FloatArray(&'a [f32]),
-    Vec2Array(&'a [Vec2]),
-    Vec3Array(&'a [Vec3]),
-    Vec4Array(&'a [Vec4]),
-    Mat4Array(&'a [Mat4]),
+    Vec2Array(&'a [Vector2<f32>]),
+    Vec3Array(&'a [Vector3<f32>]),
+    Vec4Array(&'a [Vector4<f32>]),
+    Mat4Array(&'a [Matrix4<f32>]),
 }
 
 fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLuint, RendererError> {
@@ -206,13 +204,13 @@ impl GpuProgram {
                 UniformValue::Float(value) => {
                     gl::Uniform1f(location, *value);
                 }
-                UniformValue::Vec2(value) => {
+                UniformValue::Vector2(value) => {
                     gl::Uniform2f(location, value.x, value.y);
                 }
-                UniformValue::Vec3(value) => {
+                UniformValue::Vector3(value) => {
                     gl::Uniform3f(location, value.x, value.y, value.z);
                 }
-                UniformValue::Vec4(value) => {
+                UniformValue::Vector4(value) => {
                     gl::Uniform4f(location, value.x, value.y, value.z, value.w);
                 }
                 UniformValue::IntegerArray(value) => {
@@ -230,11 +228,11 @@ impl GpuProgram {
                 UniformValue::Vec4Array(value) => {
                     gl::Uniform4fv(location, value.len() as i32, value.as_ptr() as *const _);
                 }
-                UniformValue::Mat4(value) => {
-                    gl::UniformMatrix4fv(location, 1, gl::FALSE, &value.f as *const _);
+                UniformValue::Matrix4(value) => {
+                    gl::UniformMatrix4fv(location, 1, gl::FALSE, value.as_ptr() as *const _);
                 }
-                UniformValue::Mat3(value) => {
-                    gl::UniformMatrix3fv(location, 1, gl::FALSE, &value.f as *const _);
+                UniformValue::Matrix3(value) => {
+                    gl::UniformMatrix3fv(location, 1, gl::FALSE, value.as_ptr() as *const _);
                 }
                 UniformValue::Mat4Array(value) => {
                     gl::UniformMatrix4fv(

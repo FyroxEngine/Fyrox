@@ -1,8 +1,9 @@
+use rg3d_core::algebra::Point3;
 use rg3d_sound::{
+    algebra::{Matrix4, UnitQuaternion, Vector3},
     buffer::DataSource,
     buffer::SoundBuffer,
     context::Context,
-    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, Status},
 };
 use std::{
@@ -44,18 +45,21 @@ fn main() {
             let listener = context.listener_mut();
 
             // Define up-axis of listener.
-            let up = Vec3::new(0.0, 1.0, 0.0);
+            let up = Vector3::y_axis();
 
             // And rotate look axis.
-            let rotation_matrix = Mat4::from_quat(Quat::from_axis_angle(up, angle.to_radians()));
-            let look = rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 1.0));
+            let rotation_matrix =
+                UnitQuaternion::from_axis_angle(&up, angle.to_radians()).to_homogeneous();
+            let look = rotation_matrix
+                .transform_point(&Point3::new(0.0, 0.0, 1.0))
+                .coords;
 
             // Finally combine axes. _lh suffix here means that we using left-handed coordinate system.
             // there is also _rh (right handed) version. Also basis can be set directly by using `set_basis`
-            listener.set_orientation_lh(look, up);
+            listener.set_orientation_lh(look, *up);
 
             // Move listener a bit back from sound source.
-            listener.set_position(Vec3::new(0.0, 0.0, -2.0));
+            listener.set_position(Vector3::new(0.0, 0.0, -2.0));
 
             // Continue rotation.
             angle += 2.0;

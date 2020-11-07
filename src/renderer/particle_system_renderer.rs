@@ -1,8 +1,7 @@
+use crate::core::algebra::Vector2;
+use crate::core::math::Matrix4Ext;
 use crate::{
-    core::{
-        math::{vec2::Vec2, Rect},
-        scope_profile,
-    },
+    core::{math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
@@ -178,24 +177,27 @@ impl ParticleSystemRenderer {
                 ),
                 (
                     self.shader.camera_side_vector,
-                    UniformValue::Vec3(camera_side),
+                    UniformValue::Vector3(camera_side),
                 ),
-                (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
+                (
+                    self.shader.camera_up_vector,
+                    UniformValue::Vector3(camera_up),
+                ),
                 (
                     self.shader.view_projection_matrix,
-                    UniformValue::Mat4(camera.view_projection_matrix()),
+                    UniformValue::Matrix4(camera.view_projection_matrix()),
                 ),
                 (
                     self.shader.world_matrix,
-                    UniformValue::Mat4(node.global_transform()),
+                    UniformValue::Matrix4(node.global_transform()),
                 ),
                 (
                     self.shader.inv_screen_size,
-                    UniformValue::Vec2(Vec2::new(1.0 / frame_width, 1.0 / frame_height)),
+                    UniformValue::Vector2(Vector2::new(1.0 / frame_width, 1.0 / frame_height)),
                 ),
                 (
                     self.shader.proj_params,
-                    UniformValue::Vec2(Vec2::new(camera.z_far(), camera.z_near())),
+                    UniformValue::Vector2(Vector2::new(camera.z_far(), camera.z_near())),
                 ),
             ];
 

@@ -10,12 +10,9 @@ pub mod shared;
 
 use crate::shared::create_camera;
 
+use rg3d::core::algebra::{UnitQuaternion, Vector3};
 use rg3d::{
-    core::{
-        color::Color,
-        math::{quat::Quat, vec3::Vec3},
-        pool::Handle,
-    },
+    core::{color::Color, pool::Handle},
     engine::resource_manager::ResourceManager,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -56,7 +53,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let mut camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 1.5, -5.0)).await;
+    let mut camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 1.5, -5.0)).await;
     // Set small z far for the sake of example.
     camera.set_z_far(32.0);
     let camera = scene.graph.add_node(Node::Camera(camera));
@@ -209,11 +206,11 @@ fn main() {
 
                     scene.graph[model_handle]
                         .local_transform_mut()
-                        .set_rotation(Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), model_angle));
+                        .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle));
 
                     scene.graph[camera]
                         .local_transform_mut()
-                        .set_position(Vec3::new(0.0, 1.5, -distance));
+                        .set_position(Vector3::new(0.0, 1.5, -distance));
 
                     let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(

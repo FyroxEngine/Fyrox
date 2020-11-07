@@ -9,48 +9,16 @@ pub mod navmesh;
 pub mod raw_mesh;
 pub mod uvgen;
 
+use crate::core::algebra::Vector2;
 use crate::{
-    core::math::vec2::Vec2,
     event::{ElementState, ModifiersState, MouseScrollDelta, VirtualKeyCode, WindowEvent},
     gui::{
         draw,
         message::{ButtonState, KeyCode, KeyboardModifiers, OsEvent},
     },
-    physics::static_geometry::{StaticGeometry, StaticTriangle},
     resource::texture::Texture,
-    scene::mesh::Mesh,
 };
 use std::{any::Any, sync::Arc};
-
-/// Small helper that creates static physics geometry from given mesh.
-///
-/// # Notes
-///
-/// This method *bakes* global transform of given mesh into static geometry
-/// data. So if given mesh was at some position with any rotation and scale
-/// resulting static geometry will have vertices that exactly matches given
-/// mesh.
-pub fn mesh_to_static_geometry(mesh: &Mesh, save_triangles: bool) -> StaticGeometry {
-    let mut triangles = Vec::new();
-    let global_transform = mesh.global_transform();
-    for surface in mesh.surfaces() {
-        let shared_data = surface.data();
-        let shared_data = shared_data.lock().unwrap();
-
-        let vertices = shared_data.get_vertices();
-        for triangle in shared_data.triangles() {
-            let a = global_transform.transform_vector(vertices[triangle[0] as usize].position);
-            let b = global_transform.transform_vector(vertices[triangle[1] as usize].position);
-            let c = global_transform.transform_vector(vertices[triangle[2] as usize].position);
-
-            // Silently ignore degenerated triangles.
-            if let Some(triangle) = StaticTriangle::from_points(&a, &b, &c) {
-                triangles.push(triangle);
-            }
-        }
-    }
-    StaticGeometry::new(triangles, save_triangles)
-}
 
 /// Translated key code to rg3d-ui key code.
 pub fn translate_key(key: VirtualKeyCode) -> KeyCode {
@@ -293,7 +261,7 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
             }
         }
         WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
-            position: Vec2::new(position.x as f32, position.y as f32),
+            position: Vector2::new(position.x as f32, position.y as f32),
         }),
         WindowEvent::MouseWheel { delta, .. } => match delta {
             MouseScrollDelta::LineDelta(x, y) => Some(OsEvent::MouseWheel(*x, *y)),

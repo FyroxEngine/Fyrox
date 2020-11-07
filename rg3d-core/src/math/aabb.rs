@@ -1,33 +1,31 @@
-use crate::math::mat4::Mat4;
-use crate::{
-    math::vec3::Vec3,
-    visitor::{Visit, VisitResult, Visitor},
-};
+use crate::algebra::{Matrix4, Point3, Vector3};
+use crate::visitor::{Visit, VisitResult, Visitor};
 
 #[derive(Copy, Clone, Debug)]
 pub struct AxisAlignedBoundingBox {
-    pub min: Vec3,
-    pub max: Vec3,
+    pub min: Vector3<f32>,
+    pub max: Vector3<f32>,
 }
 
 impl Default for AxisAlignedBoundingBox {
     fn default() -> Self {
         Self {
-            min: Vec3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
-            max: Vec3::new(-std::f32::MAX, -std::f32::MAX, -std::f32::MAX),
+            min: Vector3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX),
+            max: Vector3::new(-std::f32::MAX, -std::f32::MAX, -std::f32::MAX),
         }
     }
 }
 
 impl AxisAlignedBoundingBox {
-    pub const UNIT: AxisAlignedBoundingBox =
-        AxisAlignedBoundingBox::from_min_max(Vec3::new(-0.5, -0.5, -0.5), Vec3::new(0.5, 0.5, 0.5));
+    pub fn unit() -> Self {
+        Self::from_min_max(Vector3::new(-0.5, -0.5, -0.5), Vector3::new(0.5, 0.5, 0.5))
+    }
 
-    pub const fn from_min_max(min: Vec3, max: Vec3) -> Self {
+    pub const fn from_min_max(min: Vector3<f32>, max: Vector3<f32>) -> Self {
         Self { min, max }
     }
 
-    pub fn from_points(points: &[Vec3]) -> Self {
+    pub fn from_points(points: &[Vector3<f32>]) -> Self {
         let mut aabb = AxisAlignedBoundingBox::default();
         for pt in points {
             aabb.add_point(*pt);
@@ -35,7 +33,7 @@ impl AxisAlignedBoundingBox {
         aabb
     }
 
-    pub fn add_point(&mut self, a: Vec3) {
+    pub fn add_point(&mut self, a: Vector3<f32>) {
         if a.x < self.min.x {
             self.min.x = a.x;
         }
@@ -62,29 +60,29 @@ impl AxisAlignedBoundingBox {
         self.add_point(other.max);
     }
 
-    pub fn corners(&self) -> [Vec3; 8] {
+    pub fn corners(&self) -> [Vector3<f32>; 8] {
         [
-            Vec3::new(self.min.x, self.min.y, self.min.z),
-            Vec3::new(self.min.x, self.min.y, self.max.z),
-            Vec3::new(self.max.x, self.min.y, self.max.z),
-            Vec3::new(self.max.x, self.min.y, self.min.z),
-            Vec3::new(self.min.x, self.max.y, self.min.z),
-            Vec3::new(self.min.x, self.max.y, self.max.z),
-            Vec3::new(self.max.x, self.max.y, self.max.z),
-            Vec3::new(self.max.x, self.max.y, self.min.z),
+            Vector3::new(self.min.x, self.min.y, self.min.z),
+            Vector3::new(self.min.x, self.min.y, self.max.z),
+            Vector3::new(self.max.x, self.min.y, self.max.z),
+            Vector3::new(self.max.x, self.min.y, self.min.z),
+            Vector3::new(self.min.x, self.max.y, self.min.z),
+            Vector3::new(self.min.x, self.max.y, self.max.z),
+            Vector3::new(self.max.x, self.max.y, self.max.z),
+            Vector3::new(self.max.x, self.max.y, self.min.z),
         ]
     }
 
-    pub fn offset(&mut self, v: Vec3) {
+    pub fn offset(&mut self, v: Vector3<f32>) {
         self.min += v;
         self.max += v;
     }
 
-    pub fn center(&self) -> Vec3 {
+    pub fn center(&self) -> Vector3<f32> {
         (self.max + self.min).scale(0.5)
     }
 
-    pub fn half_extents(&self) -> Vec3 {
+    pub fn half_extents(&self) -> Vector3<f32> {
         (self.max - self.min).scale(0.5)
     }
 
@@ -92,7 +90,7 @@ impl AxisAlignedBoundingBox {
         *self = Default::default();
     }
 
-    pub fn is_contains_point(&self, point: Vec3) -> bool {
+    pub fn is_contains_point(&self, point: Vector3<f32>) -> bool {
         point.x >= self.min.x
             && point.x <= self.max.x
             && point.y >= self.min.y
@@ -101,7 +99,7 @@ impl AxisAlignedBoundingBox {
             && point.z <= self.max.z
     }
 
-    pub fn is_intersects_sphere(&self, position: Vec3, radius: f32) -> bool {
+    pub fn is_intersects_sphere(&self, position: Vector3<f32>, radius: f32) -> bool {
         let r2 = radius.powi(2);
         let mut dmin = 0.0;
 
@@ -154,9 +152,9 @@ impl AxisAlignedBoundingBox {
         true
     }
 
-    pub fn transform(&mut self, m: Mat4) {
-        self.max = m.transform_vector(self.max);
-        self.min = m.transform_vector(self.min);
+    pub fn transform(&mut self, m: Matrix4<f32>) {
+        self.max = m.transform_point(&Point3::from(self.max)).coords;
+        self.min = m.transform_point(&Point3::from(self.min)).coords;
     }
 }
 

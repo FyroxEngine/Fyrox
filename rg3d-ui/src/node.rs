@@ -1,14 +1,11 @@
+use crate::core::algebra::Vector2;
 use crate::{
     border::Border,
     button::Button,
     canvas::Canvas,
     check_box::CheckBox,
     color::{AlphaBar, ColorField, ColorPicker, HueBar, SaturationBrightnessField},
-    core::{
-        define_is_as,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{define_is_as, math::Rect, pool::Handle},
     decorator::Decorator,
     dock::{DockingManager, Tile},
     draw::DrawingContext,
@@ -184,11 +181,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, resolve, node_map);
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         static_dispatch!(self, measure_override, ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         static_dispatch!(self, arrange_override, ui, final_size)
     }
 
@@ -196,7 +197,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for UINode<M, C> {
         static_dispatch!(self, arrange, ui, final_rect)
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         static_dispatch!(self, measure, ui, available_size)
     }
 

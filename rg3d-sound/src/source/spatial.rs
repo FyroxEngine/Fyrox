@@ -29,9 +29,9 @@
 use crate::{
     context::DistanceModel,
     listener::Listener,
-    math::vec3::Vec3,
     source::{generic::GenericSource, SoundSource},
 };
+use rg3d_core::algebra::Vector3;
 use rg3d_core::visitor::{Visit, VisitResult, Visitor};
 use std::ops::{Deref, DerefMut};
 
@@ -39,25 +39,25 @@ use std::ops::{Deref, DerefMut};
 pub struct SpatialSource {
     pub(in crate) generic: GenericSource,
     radius: f32,
-    position: Vec3,
+    position: Vector3<f32>,
     max_distance: f32,
     rolloff_factor: f32,
     // Some data that needed for iterative overlap-save convolution.
     pub(in crate) prev_left_samples: Vec<f32>,
     pub(in crate) prev_right_samples: Vec<f32>,
-    pub(in crate) prev_sampling_vector: Vec3,
+    pub(in crate) prev_sampling_vector: Vector3<f32>,
     pub(in crate) prev_distance_gain: Option<f32>,
 }
 
 impl SpatialSource {
     /// Sets position of source in world space.
-    pub fn set_position(&mut self, position: &Vec3) -> &mut Self {
+    pub fn set_position(&mut self, position: &Vector3<f32>) -> &mut Self {
         self.position = *position;
         self
     }
 
     /// Returns positions of source.
-    pub fn position(&self) -> Vec3 {
+    pub fn position(&self) -> Vector3<f32> {
         self.position
     }
 
@@ -119,7 +119,7 @@ impl SpatialSource {
     ) -> f32 {
         let distance = self
             .position
-            .distance(&listener.position())
+            .metric_distance(&listener.position())
             .max(self.radius)
             .min(self.max_distance);
         match distance_model {
@@ -136,21 +136,21 @@ impl SpatialSource {
 
     pub(in crate) fn get_panning(&self, listener: &Listener) -> f32 {
         (self.position - listener.position())
-            .normalized()
+            .try_normalize(std::f32::EPSILON)
             // Fallback to look axis will give zero panning which will result in even
             // gain in each channels (as if there was no panning at all).
             .unwrap_or_else(|| listener.look_axis())
             .dot(&listener.ear_axis())
     }
 
-    pub(in crate) fn get_sampling_vector(&self, listener: &Listener) -> Vec3 {
-        listener
-            .basis()
-            .transform_vector(self.position - listener.position())
-            .normalized()
+    pub(in crate) fn get_sampling_vector(&self, listener: &Listener) -> Vector3<f32> {
+        let to_self = self.position - listener.position();
+
+        (listener.basis() * to_self)
+            .try_normalize(std::f32::EPSILON)
             // This is ok to fallback to (0, 0, 1) vector because it's given
             // in listener coordinate system.
-            .unwrap_or_else(|| Vec3::new(0.0, 0.0, 1.0))
+            .unwrap_or_else(|| Vector3::new(0.0, 0.0, 1.0))
     }
 }
 
@@ -184,12 +184,12 @@ impl Default for SpatialSource {
         Self {
             generic: Default::default(),
             radius: 1.0,
-            position: Vec3::ZERO,
+            position: Vector3::new(0.0, 0.0, 0.0),
             max_distance: std::f32::MAX,
             rolloff_factor: 1.0,
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
-            prev_sampling_vector: Vec3::new(0.0, 0.0, 1.0),
+            prev_sampling_vector: Vector3::new(0.0, 0.0, 1.0),
             prev_distance_gain: None,
         }
     }
@@ -199,7 +199,7 @@ impl Default for SpatialSource {
 pub struct SpatialSourceBuilder {
     generic: GenericSource,
     radius: f32,
-    position: Vec3,
+    position: Vector3<f32>,
     max_distance: f32,
     rolloff_factor: f32,
 }
@@ -211,14 +211,14 @@ impl SpatialSourceBuilder {
         Self {
             generic,
             radius: 1.0,
-            position: Default::default(),
+            position: Vector3::new(0.0, 0.0, 0.0),
             max_distance: std::f32::MAX,
             rolloff_factor: 1.0,
         }
     }
 
     /// See `set_position` of SpatialSource.
-    pub fn with_position(mut self, position: Vec3) -> Self {
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
         self.position = position;
         self
     }

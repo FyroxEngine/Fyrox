@@ -1,12 +1,8 @@
+use crate::core::algebra::Vector2;
 use crate::message::MessageData;
 use crate::{
     brush::Brush,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-        scope_profile,
-    },
+    core::{color::Color, math::Rect, pool::Handle, scope_profile},
     draw::{CommandKind, CommandTexture, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -23,14 +19,18 @@ pub struct Border<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(Border<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         scope_profile!();
 
         let margin_x = self.stroke_thickness.left + self.stroke_thickness.right;
         let margin_y = self.stroke_thickness.top + self.stroke_thickness.bottom;
 
-        let size_for_child = Vec2::new(available_size.x - margin_x, available_size.y - margin_y);
-        let mut desired_size = Vec2::ZERO;
+        let size_for_child = Vector2::new(available_size.x - margin_x, available_size.y - margin_y);
+        let mut desired_size = Vector2::default();
 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
@@ -50,7 +50,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Border<M, C> {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let rect_for_child = Rect::new(

@@ -1,7 +1,8 @@
+use crate::core::algebra::Vector2;
 use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
-    core::{math::vec2::Vec2, pool::Handle},
+    core::pool::Handle,
     message::{ButtonState, OsEvent, PopupMessage, UiMessage, UiMessageData, WidgetMessage},
     node::UINode,
     widget::{Widget, WidgetBuilder},
@@ -17,7 +18,7 @@ pub enum Placement {
     LeftBottom,
     RightBottom,
     Cursor,
-    Position(Vec2),
+    Position(Vector2<f32>),
 }
 
 #[derive(Clone)]
@@ -64,11 +65,11 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
                             MessageDirection::ToWidget,
                         ));
                         let position = match self.placement {
-                            Placement::LeftTop => Vec2::ZERO,
+                            Placement::LeftTop => Vector2::default(),
                             Placement::RightTop => {
                                 let width = self.widget.actual_size().x;
                                 let screen_width = ui.screen_size().x;
-                                Vec2::new(screen_width - width, 0.0)
+                                Vector2::new(screen_width - width, 0.0)
                             }
                             Placement::Center => {
                                 let size = self.widget.actual_size();
@@ -78,7 +79,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
                             Placement::LeftBottom => {
                                 let height = self.widget.actual_size().y;
                                 let screen_height = ui.screen_size().y;
-                                Vec2::new(0.0, screen_height - height)
+                                Vector2::new(0.0, screen_height - height)
                             }
                             Placement::RightBottom => {
                                 let size = self.widget.actual_size();
@@ -146,7 +147,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Popup<M, C> {
                     && self.is_open
                 {
                     let pos = ui.cursor_position();
-                    if !self.widget.screen_bounds().contains(pos.x, pos.y) && !self.stays_open {
+                    if !self.widget.screen_bounds().contains(pos) && !self.stays_open {
                         ui.send_message(PopupMessage::close(
                             self.handle(),
                             MessageDirection::ToWidget,

@@ -1,3 +1,4 @@
+use crate::core::math::Matrix4Ext;
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -138,16 +139,19 @@ impl SpriteRenderer {
                     ),
                     (
                         self.shader.view_projection_matrix,
-                        UniformValue::Mat4(camera.view_projection_matrix()),
+                        UniformValue::Matrix4(camera.view_projection_matrix()),
                     ),
                     (
                         self.shader.world_matrix,
-                        UniformValue::Mat4(node.global_transform()),
+                        UniformValue::Matrix4(node.global_transform()),
                     ),
-                    (self.shader.camera_up_vector, UniformValue::Vec3(camera_up)),
+                    (
+                        self.shader.camera_up_vector,
+                        UniformValue::Vector3(camera_up),
+                    ),
                     (
                         self.shader.camera_side_vector,
-                        UniformValue::Vec3(camera_side),
+                        UniformValue::Vector3(camera_side),
                     ),
                     (self.shader.size, UniformValue::Float(sprite.size())),
                     (self.shader.color, UniformValue::Color(sprite.color())),

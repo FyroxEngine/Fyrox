@@ -1,7 +1,5 @@
-use crate::{
-    core::{math::vec2::Vec2, rectpack::RectPacker},
-    draw::SharedTexture,
-};
+use crate::core::algebra::Vector2;
+use crate::{core::rectpack::RectPacker, draw::SharedTexture};
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
@@ -29,7 +27,7 @@ pub struct FontGlyph {
     pub top: f32,
     pub left: f32,
     pub advance: f32,
-    pub tex_coords: [Vec2; 4],
+    pub tex_coords: [Vector2<f32>; 4],
     pub bitmap_width: usize,
     pub bitmap_height: usize,
     pub pixels: Vec<u8>,
@@ -191,23 +189,20 @@ impl Font {
             if let Some(bounds) =
                 rect_packer.find_free(glyph.bitmap_width + border, glyph.bitmap_height + border)
             {
-                let bw = (bounds.w - border) as usize;
-                let bh = (bounds.h - border) as usize;
-                let bx = (bounds.x + border / 2) as usize;
-                let by = (bounds.y + border / 2) as usize;
+                let bw = (bounds.w() - border) as usize;
+                let bh = (bounds.h() - border) as usize;
+                let bx = (bounds.x() + border / 2) as usize;
+                let by = (bounds.y() + border / 2) as usize;
 
                 let tw = bw as f32 * k;
                 let th = bh as f32 * k;
                 let tx = bx as f32 * k;
                 let ty = by as f32 * k;
 
-                glyph.tex_coords[0] = Vec2 { x: tx, y: ty };
-                glyph.tex_coords[1] = Vec2 { x: tx + tw, y: ty };
-                glyph.tex_coords[2] = Vec2 {
-                    x: tx + tw,
-                    y: ty + th,
-                };
-                glyph.tex_coords[3] = Vec2 { x: tx, y: ty + th };
+                glyph.tex_coords[0] = Vector2::new(tx, ty);
+                glyph.tex_coords[1] = Vector2::new(tx + tw, ty);
+                glyph.tex_coords[2] = Vector2::new(tx + tw, ty + th);
+                glyph.tex_coords[3] = Vector2::new(tx, ty + th);
 
                 let row_end = by + bh;
                 let col_end = bx + bw;

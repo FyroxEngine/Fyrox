@@ -1,5 +1,6 @@
+use crate::core::algebra::Vector2;
 use crate::{
-    core::{math::vec2::Vec2, pool::Handle},
+    core::pool::Handle,
     grid::{Column, GridBuilder, Row},
     message::{
         MessageData, MessageDirection, ScrollBarMessage, ScrollPanelMessage, ScrollViewerMessage,
@@ -61,7 +62,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollViewer<M, C> {
         node_map.resolve(&mut self.h_scroll_bar);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         if self.content.is_some() {

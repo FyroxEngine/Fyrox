@@ -29,12 +29,13 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::core::algebra::{Matrix4, Vector2, Vector3};
 use crate::resource::texture::TextureKind;
 use crate::scene::Scene;
 use crate::{
     core::{
         color::Color,
-        math::{mat4::Mat4, vec2::Vec2, vec3::Vec3, Rect, TriangleDefinition},
+        math::{Rect, TriangleDefinition},
         pool::Handle,
         scope_profile,
     },
@@ -615,8 +616,8 @@ impl Renderer {
     }
 
     /// Returns current bounds of back buffer.
-    pub fn get_frame_bounds(&self) -> Vec2 {
-        Vec2::new(self.frame_size.0 as f32, self.frame_size.1 as f32)
+    pub fn get_frame_bounds(&self) -> Vector2<f32> {
+        Vector2::new(self.frame_size.0 as f32, self.frame_size.1 as f32)
     }
 
     /// Sets new quality settings for renderer. Never call this method in a loop, otherwise
@@ -681,11 +682,11 @@ impl Renderer {
 
             let frame_size = scene.render_target.as_ref().map_or_else(
                 // Use either backbuffer size
-                || Vec2::new(backbuffer_width, backbuffer_height),
+                || Vector2::new(backbuffer_width, backbuffer_height),
                 // Or framebuffer size
                 |rt| {
                     if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
-                        Vec2::new(width as f32, height as f32)
+                        Vector2::new(width as f32, height as f32)
                     } else {
                         panic!("only rectangle textures can be used as render target!")
                     }
@@ -816,17 +817,17 @@ impl Renderer {
                         &[
                             (
                                 self.flat_shader.wvp_matrix,
-                                UniformValue::Mat4({
-                                    Mat4::ortho(
+                                UniformValue::Matrix4({
+                                    Matrix4::new_orthographic(
                                         0.0,
-                                        viewport.w as f32,
-                                        viewport.h as f32,
+                                        viewport.w() as f32,
+                                        viewport.h() as f32,
                                         0.0,
                                         -1.0,
                                         1.0,
-                                    ) * Mat4::scale(Vec3::new(
-                                        viewport.w as f32,
-                                        viewport.h as f32,
+                                    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                                        viewport.w() as f32,
+                                        viewport.h() as f32,
                                         0.0,
                                     ))
                                 }),

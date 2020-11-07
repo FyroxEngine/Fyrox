@@ -3,135 +3,130 @@
 
 pub mod aabb;
 pub mod frustum;
-pub mod mat3;
-pub mod mat4;
 pub mod plane;
-pub mod quat;
 pub mod ray;
 pub mod triangulator;
-pub mod vec2;
-pub mod vec3;
-pub mod vec4;
 
+use crate::algebra::{Matrix3, Scalar, UnitQuaternion, Vector2, Vector3, U3};
 use crate::visitor::{Visit, VisitResult, Visitor};
+use nalgebra::Matrix4;
 use std::ops::{Add, Index, IndexMut, Mul, Sub};
-use vec2::*;
-use vec3::*;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct Rect<T> {
-    pub x: T,
-    pub y: T,
-    pub w: T,
-    pub h: T,
+pub struct Rect<T: Scalar> {
+    pub position: Vector2<T>,
+    pub size: Vector2<T>,
 }
 
-impl<T: Default + Copy + Clone + PartialEq> Default for Rect<T> {
+impl<T: Scalar + Default> Default for Rect<T> {
     fn default() -> Self {
         Self {
-            x: Default::default(),
-            y: Default::default(),
-            w: Default::default(),
-            h: Default::default(),
+            position: Vector2::new(Default::default(), Default::default()),
+            size: Default::default(),
         }
     }
 }
 
 impl<T> Rect<T>
 where
-    T: PartialOrd + Default + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + Copy,
+    T: Scalar + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + PartialOrd + Copy,
 {
     pub fn new(x: T, y: T, w: T, h: T) -> Self {
-        Self { x, y, w, h }
-    }
-
-    pub fn default() -> Self {
         Self {
-            x: T::default(),
-            y: T::default(),
-            w: T::default(),
-            h: T::default(),
+            position: Vector2::new(x, y),
+            size: Vector2::new(w, h),
         }
     }
 
     #[must_use = "this method creates new instance of rect"]
     pub fn inflate(&self, dw: T, dh: T) -> Self {
         Self {
-            x: self.x - dw,
-            y: self.y - dh,
-            w: self.w + dw + dw,
-            h: self.h + dh + dh,
+            position: Vector2::new(self.position.x - dw, self.position.y - dh),
+            size: Vector2::new(self.size.x + dw + dw, self.size.y + dh + dh),
         }
     }
 
     #[must_use = "this method creates new instance of rect"]
     pub fn deflate(&self, dw: T, dh: T) -> Self {
         Self {
-            x: self.x + dw,
-            y: self.y + dh,
-            w: self.w - (dw + dw),
-            h: self.h - (dh + dh),
+            position: Vector2::new(self.position.x + dw, self.position.y + dh),
+            size: Vector2::new(self.size.x - (dw + dw), self.size.y - (dh + dh)),
         }
     }
 
-    pub fn contains(&self, x: T, y: T) -> bool {
-        x >= self.x && x <= self.x + self.w && y >= self.y && y <= self.y + self.h
+    pub fn contains(&self, pt: Vector2<T>) -> bool {
+        pt.x >= self.position.x
+            && pt.x <= self.position.x + self.size.x
+            && pt.y >= self.position.y
+            && pt.y <= self.position.y + self.size.y
     }
 
     pub fn intersects(&self, other: Rect<T>) -> bool {
-        if other.x < self.x + self.w && self.x < other.x + other.w && other.y < self.y + self.h {
-            self.y < other.y + other.h
+        if other.position.x < self.position.x + self.size.x
+            && self.position.x < other.position.x + other.size.x
+            && other.position.y < self.position.y + self.size.y
+        {
+            self.position.y < other.position.y + other.size.y
         } else {
             false
         }
     }
 
     #[must_use = "this method creates new instance of rect"]
-    pub fn translate(&self, dx: T, dy: T) -> Self {
+    pub fn translate(&self, translation: Vector2<T>) -> Self {
         Self {
-            x: self.x + dx,
-            y: self.y + dy,
-            w: self.w,
-            h: self.h,
+            position: Vector2::new(
+                self.position.x + translation.x,
+                self.position.y + translation.y,
+            ),
+            size: self.size,
         }
     }
 
-    pub fn size(&self) -> (T, T) {
-        (self.w, self.h)
+    pub fn left_top_corner(&self) -> Vector2<T> {
+        self.position
     }
 
-    pub fn position(&self) -> (T, T) {
-        (self.x, self.y)
+    pub fn right_top_corner(&self) -> Vector2<T> {
+        Vector2::new(self.position.x + self.size.x, self.position.y)
     }
 
-    pub fn left_top_corner(&self) -> (T, T) {
-        (self.x, self.y)
+    pub fn right_bottom_corner(&self) -> Vector2<T> {
+        Vector2::new(self.position.x + self.size.x, self.position.y + self.size.y)
     }
 
-    pub fn right_top_corner(&self) -> (T, T) {
-        (self.x + self.w, self.y)
+    pub fn left_bottom_corner(&self) -> Vector2<T> {
+        Vector2::new(self.position.x, self.position.y + self.size.y)
     }
 
-    pub fn right_bottom_corner(&self) -> (T, T) {
-        (self.x + self.w, self.y + self.h)
+    pub fn w(&self) -> T {
+        self.size.x
     }
 
-    pub fn left_bottom_corner(&self) -> (T, T) {
-        (self.x, self.y + self.h)
+    pub fn h(&self) -> T {
+        self.size.y
+    }
+
+    pub fn x(&self) -> T {
+        self.position.x
+    }
+
+    pub fn y(&self) -> T {
+        self.position.y
     }
 }
 
 impl<T> Visit for Rect<T>
 where
-    T: PartialEq + Copy + Clone + Default + Visit + 'static,
+    T: Scalar + Visit + 'static,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.x.visit("X", visitor)?;
-        self.y.visit("Y", visitor)?;
-        self.w.visit("W", visitor)?;
-        self.h.visit("H", visitor)?;
+        self.position.x.visit("X", visitor)?;
+        self.position.y.visit("Y", visitor)?;
+        self.size.x.visit("W", visitor)?;
+        self.size.y.visit("H", visitor)?;
 
         visitor.leave_region()
     }
@@ -145,7 +140,7 @@ pub enum PlaneClass {
 }
 
 #[allow(clippy::useless_let_if_seq)]
-pub fn classify_plane(normal: Vec3) -> PlaneClass {
+pub fn classify_plane(normal: Vector3<f32>) -> PlaneClass {
     let mut longest = 0.0f32;
     let mut class = PlaneClass::XY;
 
@@ -166,8 +161,8 @@ pub fn classify_plane(normal: Vec3) -> PlaneClass {
     class
 }
 
-pub fn get_polygon_normal(polygon: &[Vec3]) -> Result<Vec3, &'static str> {
-    let mut normal = Vec3::ZERO;
+pub fn get_polygon_normal(polygon: &[Vector3<f32>]) -> Result<Vector3<f32>, &'static str> {
+    let mut normal = Vector3::default();
 
     for (i, current) in polygon.iter().enumerate() {
         let next = polygon[(i + 1) % polygon.len()];
@@ -176,55 +171,62 @@ pub fn get_polygon_normal(polygon: &[Vec3]) -> Result<Vec3, &'static str> {
         normal.z += (current.x - next.x) * (current.y + next.y);
     }
 
-    if normal.sqr_len() > std::f32::EPSILON {
-        return Ok(normal.normalized_unchecked());
-    }
-
-    Err("Unable to get normal of degenerated polygon!")
+    normal
+        .try_normalize(std::f32::EPSILON)
+        .ok_or("Unable to get normal of degenerated polygon!")
 }
 
-pub fn get_signed_triangle_area(v1: Vec2, v2: Vec2, v3: Vec2) -> f32 {
+pub fn get_signed_triangle_area(v1: Vector2<f32>, v2: Vector2<f32>, v3: Vector2<f32>) -> f32 {
     0.5 * (v1.x * (v3.y - v2.y) + v2.x * (v1.y - v3.y) + v3.x * (v2.y - v1.y))
 }
 
-pub fn vec3_to_vec2_by_plane(plane_class: PlaneClass, normal: Vec3, point: Vec3) -> Vec2 {
+pub fn vec3_to_vec2_by_plane(
+    plane_class: PlaneClass,
+    normal: Vector3<f32>,
+    point: Vector3<f32>,
+) -> Vector2<f32> {
     match plane_class {
         PlaneClass::XY => {
             if normal.z < 0.0 {
-                Vec2::new(point.y, point.x)
+                Vector2::new(point.y, point.x)
             } else {
-                Vec2::new(point.x, point.y)
+                Vector2::new(point.x, point.y)
             }
         }
         PlaneClass::XZ => {
             if normal.y < 0.0 {
-                Vec2::new(point.x, point.z)
+                Vector2::new(point.x, point.z)
             } else {
-                Vec2::new(point.z, point.x)
+                Vector2::new(point.z, point.x)
             }
         }
         PlaneClass::YZ => {
             if normal.x < 0.0 {
-                Vec2::new(point.z, point.y)
+                Vector2::new(point.z, point.y)
             } else {
-                Vec2::new(point.y, point.z)
+                Vector2::new(point.y, point.z)
             }
         }
     }
 }
 
-pub fn is_point_inside_2d_triangle(point: Vec2, pt_a: Vec2, pt_b: Vec2, pt_c: Vec2) -> bool {
+pub fn is_point_inside_2d_triangle(
+    point: Vector2<f32>,
+    pt_a: Vector2<f32>,
+    pt_b: Vector2<f32>,
+    pt_c: Vector2<f32>,
+) -> bool {
     let ba = pt_b - pt_a;
     let ca = pt_c - pt_a;
 
     let vp = point - pt_a;
 
-    let ba_dot_ba = ba.dot(ba);
-    let ca_dot_ba = ca.dot(ba);
-    let ca_dot_ca = ca.dot(ca);
+    let ba_dot_ba = ba.dot(&ba);
+    let ca_dot_ba = ca.dot(&ba);
+    let ca_dot_ca = ca.dot(&ca);
 
-    let dot_02 = ca.dot(vp);
-    let dot_12 = ba.dot(vp);
+    let dot_02 = ca.dot(&vp);
+    let dot_12 = ba.dot(&vp);
 
     let inv_denom = 1.0 / (ca_dot_ca * ba_dot_ba - ca_dot_ba * ca_dot_ba);
 
@@ -285,7 +287,7 @@ pub fn lerpf(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
-pub fn get_farthest_point(points: &[Vec3], dir: Vec3) -> Vec3 {
+pub fn get_farthest_point(points: &[Vector3<f32>], dir: Vector3<f32>) -> Vector3<f32> {
     let mut n_farthest = 0;
     let mut max_dot = -std::f32::MAX;
     for (i, point) in points.iter().enumerate() {
@@ -298,7 +300,12 @@ pub fn get_farthest_point(points: &[Vec3], dir: Vec3) -> Vec3 {
     points[n_farthest]
 }
 
-pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f32, f32) {
+pub fn get_barycentric_coords(
+    p: &Vector3<f32>,
+    a: &Vector3<f32>,
+    b: &Vector3<f32>,
+    c: &Vector3<f32>,
+) -> (f32, f32, f32) {
     let v0 = *b - *a;
     let v1 = *c - *a;
     let v2 = *p - *a;
@@ -317,16 +324,21 @@ pub fn get_barycentric_coords(p: &Vec3, a: &Vec3, b: &Vec3, c: &Vec3) -> (f32, f
     (u, v, w)
 }
 
-pub fn get_barycentric_coords_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> (f32, f32, f32) {
+pub fn get_barycentric_coords_2d(
+    p: Vector2<f32>,
+    a: Vector2<f32>,
+    b: Vector2<f32>,
+    c: Vector2<f32>,
+) -> (f32, f32, f32) {
     let v0 = b - a;
     let v1 = c - a;
     let v2 = p - a;
 
-    let d00 = v0.dot(v0);
-    let d01 = v0.dot(v1);
-    let d11 = v1.dot(v1);
-    let d20 = v2.dot(v0);
-    let d21 = v2.dot(v1);
+    let d00 = v0.dot(&v0);
+    let d01 = v0.dot(&v1);
+    let d11 = v1.dot(&v1);
+    let d20 = v2.dot(&v0);
+    let d21 = v2.dot(&v1);
     let denom = d00 * d11 - d01 * d01;
 
     let v = (d11 * d20 - d01 * d21) / denom;
@@ -336,7 +348,12 @@ pub fn get_barycentric_coords_2d(p: Vec2, a: Vec2, b: Vec2, c: Vec2) -> (f32, f3
     (u, v, w)
 }
 
-pub fn barycentric_to_world(bary: (f32, f32, f32), pa: Vec3, pb: Vec3, pc: Vec3) -> Vec3 {
+pub fn barycentric_to_world(
+    bary: (f32, f32, f32),
+    pa: Vector3<f32>,
+    pb: Vector3<f32>,
+    pc: Vector3<f32>,
+) -> Vector3<f32> {
     pa.scale(bary.0) + pb.scale(bary.1) + pc.scale(bary.2)
 }
 
@@ -344,7 +361,7 @@ pub fn barycentric_is_inside(bary: (f32, f32, f32)) -> bool {
     (bary.0 >= 0.0) && (bary.1 >= 0.0) && (bary.0 + bary.1 < 1.0)
 }
 
-pub fn is_point_inside_triangle(p: &Vec3, vertices: &[Vec3; 3]) -> bool {
+pub fn is_point_inside_triangle(p: &Vector3<f32>, vertices: &[Vector3<f32>; 3]) -> bool {
     let ba = vertices[1] - vertices[0];
     let ca = vertices[2] - vertices[0];
     let vp = *p - vertices[0];
@@ -365,8 +382,8 @@ pub fn is_point_inside_triangle(p: &Vec3, vertices: &[Vec3; 3]) -> bool {
     (u >= 0.0) && (v >= 0.0) && (u + v < 1.0)
 }
 
-pub fn triangle_area(a: Vec3, b: Vec3, c: Vec3) -> f32 {
-    (b - a).cross(&(c - a)).len() * 0.5
+pub fn triangle_area(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> f32 {
+    (b - a).cross(&(c - a)).norm() * 0.5
 }
 
 pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
@@ -385,11 +402,11 @@ pub fn solve_quadratic(a: f32, b: f32, c: f32) -> Option<[f32; 2]> {
     }
 }
 
-pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vec3 {
+pub fn spherical_to_cartesian(azimuth: f32, elevation: f32, radius: f32) -> Vector3<f32> {
     let x = radius * elevation.sin() * azimuth.sin();
     let y = radius * elevation.cos();
     let z = -radius * elevation.sin() * azimuth.cos();
-    Vec3::new(x, y, z)
+    Vector3::new(x, y, z)
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Default)]
@@ -433,11 +450,11 @@ impl IndexMut<usize> for TriangleDefinition {
 }
 
 pub trait PositionProvider: Sized {
-    fn position(&self) -> Vec3;
+    fn position(&self) -> Vector3<f32>;
 }
 
-impl PositionProvider for Vec3 {
-    fn position(&self) -> Vec3 {
+impl PositionProvider for Vector3<f32> {
+    fn position(&self) -> Vector3<f32> {
         *self
     }
 }
@@ -459,11 +476,11 @@ impl AsMut<[u32]> for TriangleDefinition {
 /// # Notes
 ///
 /// O(n) complexity.
-pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vec3) -> Option<usize> {
+pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>) -> Option<usize> {
     let mut closest_sqr_distance = std::f32::MAX;
     let mut closest_index = None;
     for (i, vertex) in points.iter().enumerate() {
-        let sqr_distance = (vertex.position() - point).sqr_len();
+        let sqr_distance = (vertex.position() - point).norm_squared();
         if sqr_distance < closest_sqr_distance {
             closest_sqr_distance = sqr_distance;
             closest_index = Some(i);
@@ -476,7 +493,7 @@ pub fn get_closest_point_triangles<P: PositionProvider>(
     points: &[P],
     triangles: &[TriangleDefinition],
     triangle_indices: &[u32],
-    point: Vec3,
+    point: Vector3<f32>,
 ) -> Option<usize> {
     let mut closest_sqr_distance = std::f32::MAX;
     let mut closest_index = None;
@@ -484,7 +501,7 @@ pub fn get_closest_point_triangles<P: PositionProvider>(
         let triangle = triangles.get(*triangle_index as usize).unwrap();
         for point_index in triangle.0.iter() {
             let vertex = points.get(*point_index as usize).unwrap();
-            let sqr_distance = (vertex.position() - point).sqr_len();
+            let sqr_distance = (vertex.position() - point).norm_squared();
             if sqr_distance < closest_sqr_distance {
                 closest_sqr_distance = sqr_distance;
                 closest_index = Some(*point_index as usize);
@@ -601,5 +618,156 @@ mod test {
         while !angle.at_target() {
             println!("{}", angle.update(1.0).angle().to_degrees());
         }
+    }
+}
+
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Ord, Eq)]
+pub enum RotationOrder {
+    XYZ,
+    XZY,
+    YZX,
+    YXZ,
+    ZXY,
+    ZYX,
+}
+
+pub fn quat_from_euler(euler_radians: Vector3<f32>, order: RotationOrder) -> UnitQuaternion<f32> {
+    let qx = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), euler_radians.x);
+    let qy = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), euler_radians.y);
+    let qz = UnitQuaternion::from_axis_angle(&Vector3::z_axis(), euler_radians.z);
+    match order {
+        RotationOrder::XYZ => qz * qy * qx,
+        RotationOrder::XZY => qy * qz * qx,
+        RotationOrder::YZX => qx * qz * qy,
+        RotationOrder::YXZ => qz * qx * qy,
+        RotationOrder::ZXY => qy * qx * qz,
+        RotationOrder::ZYX => qx * qy * qz,
+    }
+}
+
+pub trait UnitQuaternionExt {
+    fn to_euler(&self) -> Vector3<f32>;
+
+    fn approx_eq(&self, other: &Self, tolerance: f32) -> bool;
+}
+
+impl UnitQuaternionExt for UnitQuaternion<f32> {
+    fn to_euler(&self) -> Vector3<f32> {
+        // roll (x-axis rotation)
+        let sinr_cosp = 2.0 * (self.w * self.i + self.j * self.k);
+        let cosr_cosp = 1.0 - 2.0 * (self.i * self.i + self.j * self.j);
+        let roll = sinr_cosp.atan2(cosr_cosp);
+
+        // pitch (y-axis rotation)
+        let sinp = 2.0 * (self.w * self.j - self.k * self.i);
+        let pitch = if sinp.abs() >= 1.0 {
+            std::f32::consts::FRAC_PI_2.copysign(sinp)
+        } else {
+            sinp.asin()
+        };
+
+        // yaw (z-axis rotation)
+        let siny_cosp = 2.0 * (self.w * self.k + self.i * self.j);
+        let cosy_cosp = 1.0 - 2.0 * (self.j * self.j + self.k * self.k);
+        let yaw = siny_cosp.atan2(cosy_cosp);
+
+        Vector3::new(roll, pitch, yaw)
+    }
+
+    fn approx_eq(&self, other: &Self, tolerance: f32) -> bool {
+        (self.w - other.w).abs() <= tolerance
+            && (self.i - other.i).abs() <= tolerance
+            && (self.j - other.j).abs() <= tolerance
+            && (self.k - other.k).abs() <= tolerance
+    }
+}
+
+pub trait Matrix4Ext<T: Scalar> {
+    fn side(&self) -> Vector3<T>;
+    fn up(&self) -> Vector3<T>;
+    fn look(&self) -> Vector3<T>;
+    fn position(&self) -> Vector3<T>;
+    fn basis(&self) -> Matrix3<T>;
+}
+
+impl<T: Scalar + Default + Copy + Clone> Matrix4Ext<T> for Matrix4<T> {
+    fn side(&self) -> Vector3<T> {
+        Vector3::new(self.data[0], self.data[1], self.data[2])
+    }
+
+    fn up(&self) -> Vector3<T> {
+        Vector3::new(self.data[4], self.data[5], self.data[6])
+    }
+
+    fn look(&self) -> Vector3<T> {
+        Vector3::new(self.data[8], self.data[9], self.data[10])
+    }
+
+    fn position(&self) -> Vector3<T> {
+        Vector3::new(self.data[12], self.data[13], self.data[14])
+    }
+
+    fn basis(&self) -> Matrix3<T> {
+        self.fixed_resize::<U3, U3>(T::default())
+    }
+}
+
+pub trait Matrix3Ext<T: Scalar> {
+    fn side(&self) -> Vector3<T>;
+    fn up(&self) -> Vector3<T>;
+    fn look(&self) -> Vector3<T>;
+}
+
+impl<T: Scalar + Copy + Clone> Matrix3Ext<T> for Matrix3<T> {
+    fn side(&self) -> Vector3<T> {
+        Vector3::new(self.data[0], self.data[1], self.data[2])
+    }
+
+    fn up(&self) -> Vector3<T> {
+        Vector3::new(self.data[3], self.data[4], self.data[5])
+    }
+
+    fn look(&self) -> Vector3<T> {
+        Vector3::new(self.data[6], self.data[7], self.data[8])
+    }
+}
+
+pub trait Vector3Ext {
+    fn follow(&mut self, other: &Self, fraction: f32);
+
+    fn sqr_distance(&self, other: &Self) -> f32;
+}
+
+impl Vector3Ext for Vector3<f32> {
+    fn follow(&mut self, other: &Self, fraction: f32) {
+        self.x += (other.x - self.x) * fraction;
+        self.y += (other.y - self.y) * fraction;
+        self.z += (other.z - self.z) * fraction;
+    }
+
+    fn sqr_distance(&self, other: &Self) -> f32 {
+        (self - other).norm_squared()
+    }
+}
+
+pub trait Vector2Ext {
+    fn follow(&mut self, other: &Self, fraction: f32);
+
+    fn per_component_min(&self, other: &Self) -> Self;
+    fn per_component_max(&self, other: &Self) -> Self;
+}
+
+impl Vector2Ext for Vector2<f32> {
+    fn follow(&mut self, other: &Self, fraction: f32) {
+        self.x += (other.x - self.x) * fraction;
+        self.y += (other.y - self.y) * fraction;
+    }
+
+    fn per_component_min(&self, other: &Self) -> Self {
+        Self::new(self.x.min(other.x), self.y.min(other.y))
+    }
+
+    fn per_component_max(&self, other: &Self) -> Self {
+        Self::new(self.x.max(other.x), self.y.max(other.y))
     }
 }

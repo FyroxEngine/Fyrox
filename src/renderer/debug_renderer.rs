@@ -3,11 +3,9 @@
 //! shapes, contact information (normals, positions, etc.), paths build by navmesh and so
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
+use crate::core::algebra::Vector3;
 use crate::{
-    core::{
-        math::{vec3::Vec3, Rect},
-        scope_profile,
-    },
+    core::{math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
@@ -25,7 +23,7 @@ use crate::{
 
 #[repr(C)]
 struct Vertex {
-    position: Vec3,
+    position: Vector3<f32>,
     color: u32,
 }
 
@@ -127,7 +125,7 @@ impl DebugRenderer {
             },
             &[(
                 self.shader.wvp_matrix,
-                UniformValue::Mat4(camera.view_projection_matrix()),
+                UniformValue::Matrix4(camera.view_projection_matrix()),
             )],
         );
 

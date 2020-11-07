@@ -8,10 +8,11 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::core::algebra::{Matrix4, Point3, Vector3};
 use crate::{
     core::{
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, mat4::Mat4, vec3::Vec3},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::surface::Surface,
@@ -135,7 +136,11 @@ impl Mesh {
             let data = surface.data();
             let data = data.lock().unwrap();
             for vertex in data.get_vertices() {
-                bounding_box.add_point(self.global_transform().transform_vector(vertex.position));
+                bounding_box.add_point(
+                    self.global_transform()
+                        .transform_point(&Point3::from(vertex.position))
+                        .coords,
+                );
             }
         }
         bounding_box
@@ -150,8 +155,11 @@ impl Mesh {
             let data = data.lock().unwrap();
             if surface.bones().is_empty() {
                 for vertex in data.get_vertices() {
-                    bounding_box
-                        .add_point(self.global_transform().transform_vector(vertex.position));
+                    bounding_box.add_point(
+                        self.global_transform()
+                            .transform_point(&Point3::from(vertex.position))
+                            .coords,
+                    );
                 }
             } else {
                 // Special case for skinned surface. Its actual bounds defined only by bones
@@ -165,15 +173,16 @@ impl Mesh {
                         let bone_node = &graph[b];
                         bone_node.global_transform() * bone_node.inv_bind_pose_transform()
                     })
-                    .collect::<Vec<Mat4>>();
+                    .collect::<Vec<Matrix4<f32>>>();
 
                 for vertex in data.get_vertices() {
-                    let mut position = Vec3::ZERO;
+                    let mut position = Vector3::default();
                     for (&bone_index, &weight) in
                         vertex.bone_indices.iter().zip(vertex.bone_weights.iter())
                     {
                         position += bone_matrices[bone_index as usize]
-                            .transform_vector(vertex.position)
+                            .transform_point(&Point3::from(vertex.position))
+                            .coords
                             .scale(weight);
                     }
 

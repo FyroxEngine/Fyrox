@@ -1,10 +1,7 @@
+use crate::core::algebra::{Matrix4, Vector2, Vector4};
 use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
-    core::{
-        color::Color,
-        math::{mat4::Mat4, vec2::Vec2, vec4::Vec4, Rect},
-        scope_profile,
-    },
+    core::{color::Color, math::Rect, scope_profile},
     gui::{
         self,
         brush::Brush,
@@ -144,7 +141,7 @@ impl UiRenderer {
             .set_triangles(drawing_context.get_triangles())
             .set_vertices(drawing_context.get_vertices());
 
-        let ortho = Mat4::ortho(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
+        let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
 
         for cmd in drawing_context.get_commands() {
             let mut diffuse_texture = white_dummy.clone();
@@ -227,7 +224,7 @@ impl UiRenderer {
             }
 
             let mut raw_stops = [0.0; 16];
-            let mut raw_colors = [Vec4::default(); 16];
+            let mut raw_colors = [Vector4::default(); 16];
 
             let uniforms = [
                 (
@@ -237,13 +234,19 @@ impl UiRenderer {
                         texture: diffuse_texture,
                     },
                 ),
-                (self.shader.wvp_matrix, UniformValue::Mat4(ortho)),
+                (self.shader.wvp_matrix, UniformValue::Matrix4(ortho)),
                 (
                     self.shader.resolution,
-                    UniformValue::Vec2(Vec2::new(frame_width, frame_height)),
+                    UniformValue::Vector2(Vector2::new(frame_width, frame_height)),
                 ),
-                (self.shader.bounds_min, UniformValue::Vec2(cmd.bounds.min)),
-                (self.shader.bounds_max, UniformValue::Vec2(cmd.bounds.max)),
+                (
+                    self.shader.bounds_min,
+                    UniformValue::Vector2(cmd.bounds.min),
+                ),
+                (
+                    self.shader.bounds_max,
+                    UniformValue::Vector2(cmd.bounds.max),
+                ),
                 (self.shader.is_font, UniformValue::Bool(is_font_texture)),
                 (
                     self.shader.brush_type,
@@ -266,9 +269,9 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.gradient_origin,
-                    UniformValue::Vec2({
+                    UniformValue::Vector2({
                         match cmd.brush {
-                            Brush::Solid(_) => Vec2::ZERO,
+                            Brush::Solid(_) => Vector2::default(),
                             Brush::LinearGradient { from, .. } => from,
                             Brush::RadialGradient { center, .. } => center,
                         }
@@ -276,11 +279,11 @@ impl UiRenderer {
                 ),
                 (
                     self.shader.gradient_end,
-                    UniformValue::Vec2({
+                    UniformValue::Vector2({
                         match cmd.brush {
-                            Brush::Solid(_) => Vec2::ZERO,
+                            Brush::Solid(_) => Vector2::default(),
                             Brush::LinearGradient { to, .. } => to,
-                            Brush::RadialGradient { .. } => Vec2::ZERO,
+                            Brush::RadialGradient { .. } => Vector2::default(),
                         }
                     }),
                 ),

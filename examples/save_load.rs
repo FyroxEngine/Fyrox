@@ -20,9 +20,9 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
+use rg3d::core::algebra::Vector2;
 use rg3d::{
     core::{
-        math::vec2::Vec2,
         visitor::VisitResult,
         visitor::{Visit, Visitor},
     },
@@ -139,7 +139,7 @@ fn main() {
     let screen_size = window.inner_size().to_logical(window.scale_factor());
     let interface = create_ui(
         &mut game.engine.user_interface.build_ctx(),
-        Vec2::new(screen_size.width, screen_size.height),
+        Vector2::new(screen_size.width, screen_size.height),
     );
 
     let clock = std::time::Instant::now();

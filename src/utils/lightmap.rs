@@ -7,10 +7,12 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
+use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3};
+use crate::core::math::{Matrix4Ext, Vector2Ext};
 use crate::{
     core::{
         color::Color,
-        math::{self, mat3::Mat3, mat4::Mat4, vec2::Vec2, vec3::Vec3, Rect, TriangleDefinition},
+        math::{self, Rect, TriangleDefinition},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -20,6 +22,7 @@ use crate::{
     },
     scene::{light::Light, node::Node, Scene},
 };
+use rapier3d::na::Point3;
 use std::{collections::HashMap, path::Path, time};
 
 ///
@@ -81,7 +84,10 @@ impl Lightmap {
                         handle,
                         LightDefinition::Directional(DirectionalLightDefinition {
                             intensity: 1.0,
-                            direction: light.up_vector().normalized().unwrap_or(Vec3::UP),
+                            direction: light
+                                .up_vector()
+                                .try_normalize(std::f32::EPSILON)
+                                .unwrap_or(Vector3::y()),
                             color: light.color(),
                         }),
                     )),
@@ -92,7 +98,10 @@ impl Lightmap {
                             hotspot_cone_angle: spot.hotspot_cone_angle(),
                             falloff_angle_delta: spot.falloff_angle_delta(),
                             color: light.color(),
-                            direction: light.up_vector().normalized().unwrap_or(Vec3::UP),
+                            direction: light
+                                .up_vector()
+                                .try_normalize(std::f32::EPSILON)
+                                .unwrap_or(Vector3::y()),
                             position: light.global_position(),
                             distance: spot.distance(),
                         }),
@@ -163,7 +172,7 @@ pub struct DirectionalLightDefinition {
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Direction of light rays.
-    pub direction: Vec3,
+    pub direction: Vector3<f32>,
     /// Color of light.
     pub color: Color,
 }
@@ -180,9 +189,9 @@ pub struct SpotLightDefinition {
     /// Color of light.
     pub color: Color,
     /// Direction vector of light.
-    pub direction: Vec3,
+    pub direction: Vector3<f32>,
     /// Position of light in world coordinates.
-    pub position: Vec3,
+    pub position: Vector3<f32>,
     /// Distance at which light intensity decays to zero.
     pub distance: f32,
 }
@@ -192,7 +201,7 @@ pub struct PointLightDefinition {
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Position of light in world coordinates.
-    pub position: Vec3,
+    pub position: Vector3<f32>,
     /// Color of light.
     pub color: Color,
     /// Radius of sphere at which light intensity decays to zero.
@@ -211,7 +220,11 @@ pub enum LightDefinition {
 
 /// Computes total area of triangles in surface data and returns size of square
 /// in which triangles can fit.
-fn estimate_size(vertices: &[Vec3], triangles: &[TriangleDefinition], texels_per_unit: u32) -> u32 {
+fn estimate_size(
+    vertices: &[Vector3<f32>],
+    triangles: &[TriangleDefinition],
+    texels_per_unit: u32,
+) -> u32 {
     let mut area = 0.0;
     for triangle in triangles.iter() {
         let a = vertices[triangle[0] as usize];
@@ -232,10 +245,10 @@ fn distance_attenuation(distance: f32, radius: f32) -> f32 {
 }
 
 /// Transforms vertices of surface data into set of world space positions.
-fn transform_vertices(data: &SurfaceSharedData, transform: &Mat4) -> Vec<Vec3> {
+fn transform_vertices(data: &SurfaceSharedData, transform: &Matrix4<f32>) -> Vec<Vector3<f32>> {
     data.vertices
         .iter()
-        .map(|v| transform.transform_vector(v.position))
+        .map(|v| transform.transform_point(&Point3::from(v.position)).coords)
         .collect()
 }
 
@@ -243,21 +256,21 @@ enum Pixel {
     Transparent,
     Color {
         color: Color,
-        position: Vec3,
-        normal: Vec3,
+        position: Vector3<f32>,
+        normal: Vector3<f32>,
     },
 }
 
 /// Calculates properties of pixel (world position, normal) at given position.
 fn pick(
-    uv: Vec2,
+    uv: Vector2<f32>,
     grid: &Grid,
     triangles: &[TriangleDefinition],
     vertices: &[Vertex],
-    world_positions: &[Vec3],
-    normal_matrix: &Mat3,
+    world_positions: &[Vector3<f32>],
+    normal_matrix: &Matrix3<f32>,
     scale: f32,
-) -> Option<(Vec3, Vec3)> {
+) -> Option<(Vector3<f32>, Vector3<f32>)> {
     if let Some(cell) = grid.pick(uv) {
         for triangle in cell.triangles.iter().map(|&ti| &triangles[ti]) {
             let uv_a = vertices[triangle[0] as usize].second_tex_coord;
@@ -265,7 +278,10 @@ fn pick(
             let uv_c = vertices[triangle[2] as usize].second_tex_coord;
 
             let center = (uv_a + uv_b + uv_c).scale(1.0 / 3.0);
-            let to_center = (center - uv).normalized().unwrap_or_default().scale(scale);
+            let to_center = (center - uv)
+                .try_normalize(std::f32::EPSILON)
+                .unwrap_or_default()
+                .scale(scale);
 
             let mut current_uv = uv;
             for _ in 0..2 {
@@ -277,15 +293,15 @@ fn pick(
                     let c = world_positions[triangle[2] as usize];
                     return Some((
                         math::barycentric_to_world(barycentric, a, b, c),
-                        normal_matrix
-                            .transform_vector(math::barycentric_to_world(
+                        (normal_matrix
+                            * math::barycentric_to_world(
                                 barycentric,
                                 vertices[triangle[0] as usize].normal,
                                 vertices[triangle[1] as usize].normal,
                                 vertices[triangle[2] as usize].normal,
                             ))
-                            .normalized()
-                            .unwrap_or(Vec3::UP),
+                        .try_normalize(std::f32::EPSILON)
+                        .unwrap_or(Vector3::y()),
                     ));
                 }
 
@@ -315,12 +331,8 @@ impl Grid {
         let fsize = size as f32;
         for y in 0..size {
             for x in 0..size {
-                let bounds = Rect {
-                    x: x as f32 / fsize,
-                    y: y as f32 / fsize,
-                    w: 1.0 / fsize,
-                    h: 1.0 / fsize,
-                };
+                let bounds =
+                    Rect::new(x as f32 / fsize, y as f32 / fsize, 1.0 / fsize, 1.0 / fsize);
 
                 let mut triangles = Vec::new();
 
@@ -328,14 +340,10 @@ impl Grid {
                     let uv_a = data.vertices[triangle[0] as usize].second_tex_coord;
                     let uv_b = data.vertices[triangle[1] as usize].second_tex_coord;
                     let uv_c = data.vertices[triangle[2] as usize].second_tex_coord;
-                    let uv_min = uv_a.min(uv_b).min(uv_c);
-                    let uv_max = uv_a.max(uv_b).max(uv_c);
-                    let triangle_bounds = Rect {
-                        x: uv_min.x,
-                        y: uv_min.y,
-                        w: uv_max.x - uv_min.x,
-                        h: uv_max.y - uv_min.y,
-                    };
+                    let uv_min = uv_a.per_component_min(&uv_b).per_component_min(&uv_c);
+                    let uv_max = uv_a.per_component_max(&uv_b).per_component_max(&uv_c);
+                    let triangle_bounds =
+                        Rect::new(uv_min.x, uv_min.y, uv_max.x - uv_min.x, uv_max.y - uv_min.y);
                     if triangle_bounds.intersects(bounds) {
                         triangles.push(triangle_index);
                     }
@@ -348,7 +356,7 @@ impl Grid {
         Self { cells, size }
     }
 
-    fn pick(&self, v: Vec2) -> Option<&GridCell> {
+    fn pick(&self, v: Vector2<f32>) -> Option<&GridCell> {
         let ix = (v.x as f32 * self.size as f32) as usize;
         let iy = (v.y as f32 * self.size as f32) as usize;
         self.cells.get(iy * self.size + ix)
@@ -356,7 +364,7 @@ impl Grid {
 }
 
 /// https://en.wikipedia.org/wiki/Lambert%27s_cosine_law
-fn lambertian(light_vec: Vec3, normal: Vec3) -> f32 {
+fn lambertian(light_vec: Vector3<f32>, normal: Vector3<f32>) -> f32 {
     normal.dot(&light_vec).max(0.0)
 }
 
@@ -375,7 +383,7 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 /// global illumination (TODO), because in this case your data will be raytraced.
 fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     data: &SurfaceSharedData,
-    transform: &Mat4,
+    transform: &Matrix4<f32>,
     lights: I,
     texels_per_unit: u32,
 ) -> TextureData {
@@ -400,7 +408,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     for y in 0..(size as usize) {
         for x in 0..(size as usize) {
             // Get uv in center of pixel.
-            let uv = Vec2::new(x as f32 * scale + half_pixel, y as f32 * scale + half_pixel);
+            let uv = Vector2::new(x as f32 * scale + half_pixel, y as f32 * scale + half_pixel);
 
             if let Some((world_position, normal)) = pick(
                 uv,
@@ -444,7 +452,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                     }
                     LightDefinition::Spot(spot) => {
                         let d = spot.position - *position;
-                        let distance = d.len();
+                        let distance = d.norm();
                         let light_vec = d.scale(1.0 / distance);
                         let spot_angle_cos = light_vec.dot(&spot.direction);
                         let cone_factor = smoothstep(
@@ -460,7 +468,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                     }
                     LightDefinition::Point(point) => {
                         let d = point.position - *position;
-                        let distance = d.len();
+                        let distance = d.norm();
                         let light_vec = d.scale(1.0 / distance);
                         let attenuation = point.intensity
                             * lambertian(light_vec, *normal)
@@ -505,7 +513,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
 #[cfg(test)]
 mod test {
     use crate::{
-        core::{color::Color, math::vec3::Vec3},
+        core::{color::Color, math::vec3::Vector3},
         renderer::surface::SurfaceSharedData,
         utils::{
             lightmap::{generate_lightmap, LightDefinition, PointLightDefinition},
@@ -522,7 +530,7 @@ mod test {
 
         let lights = [LightDefinition::Point(PointLightDefinition {
             intensity: 3.0,
-            position: Vec3::new(0.0, 2.0, 0.0),
+            position: Vector3::new(0.0, 2.0, 0.0),
             color: Color::WHITE,
             radius: 4.0,
         })];

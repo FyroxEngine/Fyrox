@@ -1,11 +1,6 @@
 use crate::{
     brush::Brush,
-    core::color::Color,
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-        scope_profile,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
     draw::{CommandKind, CommandTexture, DrawingContext},
     message::{MessageData, MessageDirection, ScrollPanelMessage, UiMessage, UiMessageData},
     widget::{Widget, WidgetBuilder},
@@ -17,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 #[derive(Clone)]
 pub struct ScrollPanel<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    scroll: Vec2,
+    scroll: Vector2<f32>,
     vertical_scroll_allowed: bool,
     horizontal_scroll_allowed: bool,
 }
@@ -25,10 +20,14 @@ pub struct ScrollPanel<M: MessageData, C: Control<M, C>> {
 crate::define_widget_deref!(ScrollPanel<M, C>);
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         scope_profile!();
 
-        let size_for_child = Vec2::new(
+        let size_for_child = Vector2::new(
             if self.horizontal_scroll_allowed {
                 std::f32::INFINITY
             } else {
@@ -41,7 +40,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
             },
         );
 
-        let mut desired_size = Vec2::ZERO;
+        let mut desired_size = Vector2::default();
 
         for child_handle in self.widget.children() {
             ui.node(*child_handle).measure(ui, size_for_child);
@@ -59,7 +58,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
         desired_size
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         let child_rect = Rect::new(
@@ -106,7 +105,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ScrollPanel<M, C> {
                     }
                     ScrollPanelMessage::BringIntoView(handle) => {
                         let mut parent = handle;
-                        let mut relative_position = Vec2::ZERO;
+                        let mut relative_position = Vector2::default();
                         while parent.is_some() && parent != self.handle {
                             let node = ui.node(parent);
                             relative_position += node.actual_local_position();
@@ -199,7 +198,7 @@ impl<M: MessageData, C: Control<M, C>> ScrollPanelBuilder<M, C> {
     pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         ui.add_node(UINode::ScrollPanel(ScrollPanel {
             widget: self.widget_builder.build(),
-            scroll: Vec2::ZERO,
+            scroll: Vector2::default(),
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),
         }))

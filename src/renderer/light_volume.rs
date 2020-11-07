@@ -1,8 +1,6 @@
+use crate::core::algebra::{Matrix4, Vector3};
 use crate::{
-    core::{
-        math::{mat4::Mat4, vec3::Vec3, Rect},
-        scope_profile,
-    },
+    core::{math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         flat_shader::FlatShader,
@@ -18,6 +16,7 @@ use crate::{
     },
     scene::light::Light,
 };
+use rapier3d::na::Point3;
 
 struct SpotLightShader {
     program: GpuProgram,
@@ -99,7 +98,7 @@ impl LightVolumeRenderer {
                 16,
                 1.0,
                 1.0,
-                Mat4::translate(Vec3::new(0.0, -1.0, 0.0)),
+                Matrix4::new_translation(&Vector3::new(0.0, -1.0, 0.0)),
             ),
             sphere: SurfaceSharedData::make_sphere(8, 8, 1.0),
         })
@@ -113,9 +112,9 @@ impl LightVolumeRenderer {
         gbuffer: &mut GBuffer,
         quad: &SurfaceSharedData,
         geom_cache: &mut GeometryCache,
-        view: Mat4,
-        inv_proj: Mat4,
-        view_proj: Mat4,
+        view: Matrix4<f32>,
+        inv_proj: Matrix4<f32>,
+        view_proj: Matrix4<f32>,
         viewport: Rect<i32>,
     ) -> RenderPassStatistics {
         scope_profile!();
@@ -126,16 +125,33 @@ impl LightVolumeRenderer {
             return stats;
         }
 
-        let frame_matrix = Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0)
-            * Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0));
+        let frame_matrix = Matrix4::new_orthographic(
+            0.0,
+            viewport.w() as f32,
+            viewport.h() as f32,
+            0.0,
+            -1.0,
+            1.0,
+        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+            viewport.w() as f32,
+            viewport.h() as f32,
+            0.0,
+        ));
 
-        let position = view.transform_vector(light.global_position());
+        let position = view
+            .transform_point(&Point3::from(light.global_position()))
+            .coords;
 
         match light {
             Light::Spot(spot) => {
                 let direction = view
-                    .basis()
-                    .transform_vector(-light.up_vector().normalized().unwrap_or(Vec3::LOOK));
+                    .transform_point(&Point3::from(
+                        -light
+                            .up_vector()
+                            .try_normalize(std::f32::EPSILON)
+                            .unwrap_or(Vector3::z()),
+                    ))
+                    .coords;
 
                 // Draw cone into stencil buffer - it will mark pixels for further volumetric light
                 // calculations, it will significantly reduce amount of pixels for far lights thus
@@ -145,8 +161,8 @@ impl LightVolumeRenderer {
                 // for fadeout effect.
                 let bias = 0.05;
                 let k = ((0.5 + bias) * spot.full_cone_angle()).sin() * spot.distance();
-                let light_shape_matrix =
-                    light.global_transform * Mat4::scale(Vec3::new(k, spot.distance(), k));
+                let light_shape_matrix = light.global_transform
+                    * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
                 gbuffer
@@ -179,7 +195,7 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(self.flat_shader.wvp_matrix, UniformValue::Mat4(mvp))],
+                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(mvp))],
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -208,11 +224,11 @@ impl LightVolumeRenderer {
                     &[
                         (
                             self.spot_light_shader.world_view_proj_matrix,
-                            UniformValue::Mat4(frame_matrix),
+                            UniformValue::Matrix4(frame_matrix),
                         ),
                         (
                             self.spot_light_shader.inv_proj,
-                            UniformValue::Mat4(inv_proj),
+                            UniformValue::Matrix4(inv_proj),
                         ),
                         (
                             self.spot_light_shader.cone_angle_cos,
@@ -220,11 +236,11 @@ impl LightVolumeRenderer {
                         ),
                         (
                             self.spot_light_shader.light_position,
-                            UniformValue::Vec3(position),
+                            UniformValue::Vector3(position),
                         ),
                         (
                             self.spot_light_shader.light_direction,
-                            UniformValue::Vec3(direction),
+                            UniformValue::Vector3(direction),
                         ),
                         (
                             self.spot_light_shader.depth_sampler,
@@ -235,11 +251,11 @@ impl LightVolumeRenderer {
                         ),
                         (
                             self.spot_light_shader.light_color,
-                            UniformValue::Vec3(light.color().as_frgba().xyz()),
+                            UniformValue::Vector3(light.color().as_frgba().xyz()),
                         ),
                         (
                             self.spot_light_shader.scatter_factor,
-                            UniformValue::Vec3(light.scatter()),
+                            UniformValue::Vector3(light.scatter()),
                         ),
                     ],
                 )
@@ -265,7 +281,8 @@ impl LightVolumeRenderer {
                 // for fadeout effect. It is set to 5%.
                 let bias = 1.05;
                 let k = bias * point.radius();
-                let light_shape_matrix = light.global_transform * Mat4::scale(Vec3::new(k, k, k));
+                let light_shape_matrix = light.global_transform
+                    * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
                 let mvp = view_proj * light_shape_matrix;
 
                 stats += gbuffer.final_frame.draw(
@@ -282,7 +299,7 @@ impl LightVolumeRenderer {
                         depth_test: true,
                         blend: false,
                     },
-                    &[(self.flat_shader.wvp_matrix, UniformValue::Mat4(mvp))],
+                    &[(self.flat_shader.wvp_matrix, UniformValue::Matrix4(mvp))],
                 );
 
                 // Make sure to clean stencil buffer after drawing full screen quad.
@@ -311,15 +328,15 @@ impl LightVolumeRenderer {
                     &[
                         (
                             self.point_light_shader.world_view_proj_matrix,
-                            UniformValue::Mat4(frame_matrix),
+                            UniformValue::Matrix4(frame_matrix),
                         ),
                         (
                             self.point_light_shader.inv_proj,
-                            UniformValue::Mat4(inv_proj),
+                            UniformValue::Matrix4(inv_proj),
                         ),
                         (
                             self.point_light_shader.light_position,
-                            UniformValue::Vec3(position),
+                            UniformValue::Vector3(position),
                         ),
                         (
                             self.point_light_shader.depth_sampler,
@@ -334,11 +351,11 @@ impl LightVolumeRenderer {
                         ),
                         (
                             self.point_light_shader.light_color,
-                            UniformValue::Vec3(light.color().as_frgba().xyz()),
+                            UniformValue::Vector3(light.color().as_frgba().xyz()),
                         ),
                         (
                             self.point_light_shader.scatter_factor,
-                            UniformValue::Vec3(light.scatter()),
+                            UniformValue::Vector3(light.scatter()),
                         ),
                     ],
                 )

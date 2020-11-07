@@ -4,15 +4,17 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use rapier3d::dynamics::RigidBodyBuilder;
+use rapier3d::geometry::ColliderBuilder;
+use rapier3d::na::{Isometry3, UnitQuaternion, Vector3};
+use rg3d::core::algebra::Vector2;
+use rg3d::scene::RigidBodyHandle;
 use rg3d::{
     animation::{
         machine::{Machine, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal,
     },
-    core::{
-        color::Color, math::quat::Quat, math::vec2::Vec2, math::vec3::Vec3, math::SmoothAngle,
-        pool::Handle,
-    },
+    core::{color::Color, math::SmoothAngle, pool::Handle},
     engine::resource_manager::ResourceManager,
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
@@ -24,10 +26,6 @@ use rg3d::{
         widget::WidgetBuilder,
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
-    physics::{
-        convex_shape::{Axis, CapsuleShape, ConvexShape},
-        rigid_body::RigidBody,
-    },
     renderer::QualitySettings,
     resource::texture::TextureWrapMode,
     scene::{
@@ -37,7 +35,6 @@ use rg3d::{
         transform::TransformBuilder,
         Scene,
     },
-    utils::mesh_to_static_geometry,
 };
 use std::{
     path::Path,
@@ -51,7 +48,7 @@ pub type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
 /// Creates a camera at given position with a skybox.
-pub async fn create_camera(resource_manager: ResourceManager, position: Vec3) -> Camera {
+pub async fn create_camera(resource_manager: ResourceManager, position: Vector3<f32>) -> Camera {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::futures::join!(
         resource_manager
@@ -149,7 +146,7 @@ pub struct Interface {
     pub progress_text: Handle<UiNode>,
 }
 
-pub fn create_ui(ui: &mut BuildContext, screen_size: Vec2) -> Interface {
+pub fn create_ui(ui: &mut BuildContext, screen_size: Vector2<f32>) -> Interface {
     let debug_text;
     let progress_bar;
     let progress_text;
@@ -403,7 +400,7 @@ impl LocomotionMachine {
 
 #[derive(Default)]
 pub struct Player {
-    pub body: Handle<RigidBody>,
+    pub body: RigidBodyHandle,
     pub pivot: Handle<Node>,
     pub camera_pivot: Handle<Node>,
     pub camera_hinge: Handle<Node>,
@@ -428,7 +425,7 @@ impl Player {
             .report_progress(0.0, "Creating camera...");
 
         // Camera is our eyes in the world - you won't see anything without it.
-        let camera = create_camera(resource_manager.clone(), Vec3::new(0.0, 0.0, -3.0)).await;
+        let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 0.0, -3.0)).await;
         let camera = scene.graph.add_node(Node::Camera(camera));
 
         let camera_pivot = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
@@ -436,7 +433,7 @@ impl Player {
             BaseBuilder::new()
                 .with_local_transform(
                     TransformBuilder::new()
-                        .with_local_position(Vec3::new(0.0, 1.0, 0.0))
+                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
                         .build(),
                 )
                 .build(),
@@ -475,20 +472,29 @@ impl Player {
         // Now we have whole sub-graph instantiated, we can start modifying model instance.
         scene.graph[model_handle]
             .local_transform_mut()
-            .set_position(Vec3::new(0.0, -body_height, 0.0))
+            .set_position(Vector3::new(0.0, -body_height, 0.0))
             // Our model is too big, fix it by scale.
-            .set_scale(Vec3::new(0.0125, 0.0125, 0.0125));
+            .set_scale(Vector3::new(0.0125, 0.0125, 0.0125));
 
         let pivot = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
 
         scene.graph.link_nodes(model_handle, pivot);
 
-        let capsule = CapsuleShape::new(0.6, body_height, Axis::Y);
-        let mut body = RigidBody::new(ConvexShape::Capsule(capsule));
-        body.set_friction(Vec3::new(0.2, 0.0, 0.2));
-        let body = scene.physics.add_body(body);
+        let capsule = ColliderBuilder::capsule_y(body_height, 0.6).build();
+        let body = scene.physics.bodies.insert(
+            RigidBodyBuilder::new_dynamic()
+                .position(Isometry3::new(
+                    Vector3::new(0.0, 2.0, 0.0),
+                    Default::default(),
+                ))
+                .build(),
+        );
+        scene
+            .physics
+            .colliders
+            .insert(capsule, body, &mut scene.physics.bodies);
 
-        scene.physics_binder.bind(pivot, body);
+        scene.physics_binder.bind(pivot, body.into());
 
         context
             .lock()
@@ -499,7 +505,7 @@ impl Player {
             LocomotionMachine::new(scene, model_handle, resource_manager).await;
 
         Self {
-            body,
+            body: body.into(),
             pivot,
             model: model_handle,
             camera_pivot,
@@ -518,13 +524,19 @@ impl Player {
     pub fn update(&mut self, scene: &mut Scene, dt: f32) {
         let pivot = &scene.graph[self.pivot];
 
-        let look_vector = pivot.look_vector().normalized().unwrap_or(Vec3::LOOK);
+        let look_vector = pivot
+            .look_vector()
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or(Vector3::z());
 
-        let side_vector = pivot.side_vector().normalized().unwrap_or(Vec3::RIGHT);
+        let side_vector = pivot
+            .side_vector()
+            .try_normalize(std::f32::EPSILON)
+            .unwrap_or(Vector3::x());
 
         let position = pivot.local_transform().position();
 
-        let mut velocity = Vec3::ZERO;
+        let mut velocity = Vector3::default();
 
         if self.controller.walk_right {
             velocity -= side_vector;
@@ -541,41 +553,57 @@ impl Player {
 
         let speed = 2.0 * dt;
         let velocity = velocity
-            .normalized()
+            .try_normalize(std::f32::EPSILON)
             .and_then(|v| Some(v.scale(speed)))
-            .unwrap_or(Vec3::ZERO);
-        let is_moving = velocity.sqr_len() > 0.0;
+            .unwrap_or(Vector3::default());
+        let is_moving = velocity.norm_squared() > 0.0;
 
-        let body = scene.physics.borrow_body_mut(self.body);
+        //scene.physics.bodies.ind
+        //scene.physics.narrow_phase.contact_graph().
 
-        body.set_x_velocity(velocity.x).set_z_velocity(velocity.z);
-
-        let mut has_ground_contact = false;
+        let mut has_ground_contact = true;
+        //let mut has_ground_contact = false;
+        /*
         for contact in body.get_contacts() {
             if contact.position.y < position.y {
                 has_ground_contact = true;
                 break;
             }
-        }
-
+        }*/
+        let mut new_y_vel = None;
         while let Some(event) = scene
             .animations
             .get_mut(self.locomotion_machine.jump_animation)
             .pop_event()
         {
             if event.signal_id == LocomotionMachine::JUMP_SIGNAL {
-                body.set_y_velocity(6.0 * dt);
+                new_y_vel = Some(6.0 * dt);
             }
         }
 
-        let quat_yaw = Quat::from_axis_angle(Vec3::new(0.0, 1.0, 0.0), self.controller.yaw);
+        let quat_yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.controller.yaw);
+
+        {
+            let mut body = scene.physics.bodies.get_mut(self.body.into()).unwrap();
+            body.wake_up(true);
+            body.angvel = Default::default();
+            body.linvel.x = velocity.x / dt;
+            body.linvel.z = velocity.z / dt;
+            if let Some(new_y_vel) = new_y_vel {
+                body.linvel.y = new_y_vel / dt;
+            }
+        }
 
         if is_moving {
             // Since we have free camera while not moving, we have to sync rotation of pivot
             // with rotation of camera so character will start moving in look direction.
-            scene.graph[self.pivot]
-                .local_transform_mut()
-                .set_rotation(quat_yaw);
+            scene
+                .physics
+                .bodies
+                .get_mut(self.body.into())
+                .unwrap()
+                .position
+                .rotation = quat_yaw;
 
             // Apply additional rotation to model - it will turn in front of walking direction.
             let angle: f32 = if self.controller.walk_left {
@@ -604,12 +632,9 @@ impl Player {
 
             self.model_yaw.set_target(angle.to_radians()).update(dt);
 
-            scene.graph[self.model]
-                .local_transform_mut()
-                .set_rotation(Quat::from_axis_angle(
-                    Vec3::new(0.0, 1.0, 0.0),
-                    self.model_yaw.angle,
-                ));
+            scene.graph[self.model].local_transform_mut().set_rotation(
+                UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.model_yaw.angle),
+            );
         }
 
         let camera_pivot_transform = scene.graph[self.camera_pivot].local_transform_mut();
@@ -622,8 +647,8 @@ impl Player {
         // (well not exactly on character - on characters head)
         scene.graph[self.camera_hinge]
             .local_transform_mut()
-            .set_rotation(Quat::from_axis_angle(
-                Vec3::new(1.0, 0.0, 0.0),
+            .set_rotation(UnitQuaternion::from_axis_angle(
+                &Vector3::x_axis(),
                 self.controller.pitch,
             ));
 
@@ -715,16 +740,9 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
             let collision_mesh_handle = scene.graph.find_by_name_from_root("CollisionShape");
             let collision_mesh = scene.graph[collision_mesh_handle].as_mesh_mut();
             collision_mesh.set_visibility(false);
-            // Create collision geometry from special mesh on the level. Make sure its triangles won't be
-            // serialized by passing false as last argument.
-            let static_geometry = mesh_to_static_geometry(collision_mesh, false);
-            let static_geometry_handle = scene.physics.add_static_geometry(static_geometry);
-            // Link static geometry with collision mesh so geometry of static geometry will be taken from
-            // specified mesh on deserialization. This is very important to not save redundant info to save
-            // files and keep them as small as possible.
-            scene
-                .static_geometry_binder
-                .bind(static_geometry_handle, collision_mesh_handle);
+            // Create collision geometry from special mesh on the level.
+            let body = scene.physics.mesh_to_trimesh(collision_mesh);
+            scene.physics_binder.bind(collision_mesh_handle, body);
 
             // Finally create player.
             let player = Player::new(&mut scene, resource_manager, context.clone()).await;

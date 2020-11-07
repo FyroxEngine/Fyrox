@@ -140,12 +140,7 @@ impl State {
             clear_stencil: 0,
             clear_depth: 1.0,
             framebuffer: 0,
-            viewport: Rect {
-                x: 0,
-                y: 0,
-                w: 1,
-                h: 1,
-            },
+            viewport: Rect::new(0, 0, 1, 1),
             blend_src_factor: gl::ONE,
             blend_dst_factor: gl::ZERO,
             program: 0,
@@ -171,10 +166,10 @@ impl State {
 
             unsafe {
                 gl::Viewport(
-                    self.viewport.x,
-                    self.viewport.y,
-                    self.viewport.w,
-                    self.viewport.h,
+                    self.viewport.x(),
+                    self.viewport.y(),
+                    self.viewport.w(),
+                    self.viewport.h(),
                 );
             }
         }

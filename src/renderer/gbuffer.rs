@@ -1,10 +1,7 @@
+use crate::core::algebra::Matrix4;
 use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
-    core::{
-        color::Color,
-        math::{mat4::Mat4, Rect},
-        scope_profile,
-    },
+    core::{color::Color, math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
@@ -56,7 +53,7 @@ pub struct GBuffer {
     framebuffer: FrameBuffer,
     pub final_frame: FrameBuffer,
     shader: GBufferShader,
-    bone_matrices: Vec<Mat4>,
+    bone_matrices: Vec<Matrix4<f32>>,
     pub width: i32,
     pub height: i32,
 }
@@ -243,7 +240,7 @@ impl GBuffer {
         }) {
             let view_projection = if mesh.depth_offset_factor() != 0.0 {
                 let mut projection = camera.projection_matrix();
-                projection.f[14] -= mesh.depth_offset_factor();
+                projection[14] -= mesh.depth_offset_factor();
                 projection * camera.view_matrix()
             } else {
                 initial_view_projection
@@ -253,7 +250,7 @@ impl GBuffer {
                 let is_skinned = !surface.bones.is_empty();
 
                 let world = if is_skinned {
-                    Mat4::IDENTITY
+                    Matrix4::identity()
                 } else {
                     mesh.global_transform()
                 };
@@ -310,8 +307,8 @@ impl GBuffer {
                                 texture: lightmap_texture,
                             },
                         ),
-                        (self.shader.wvp_matrix, UniformValue::Mat4(mvp)),
-                        (self.shader.world_matrix, UniformValue::Mat4(world)),
+                        (self.shader.wvp_matrix, UniformValue::Matrix4(mvp)),
+                        (self.shader.world_matrix, UniformValue::Matrix4(world)),
                         (
                             self.shader.use_skeletal_animation,
                             UniformValue::Bool(is_skinned),

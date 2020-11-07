@@ -1,8 +1,6 @@
+use crate::core::algebra::{UnitQuaternion, Vector3};
 use crate::{
-    core::{
-        math::{quat::Quat, vec3::Vec3},
-        pool::Handle,
-    },
+    core::pool::Handle,
     resource::fbx::{
         document::{FbxNode, FbxNodeContainer},
         quat_from_euler,
@@ -112,7 +110,7 @@ impl FbxAnimationCurveNode {
         })
     }
 
-    pub fn eval_vec3(&self, scene: &FbxScene, time: f32) -> Vec3 {
+    pub fn eval_vec3(&self, scene: &FbxScene, time: f32) -> Vector3<f32> {
         let x = if let FbxComponent::AnimationCurve(curve) = scene.get(self.curves[0]) {
             curve.eval(time)
         } else {
@@ -131,10 +129,10 @@ impl FbxAnimationCurveNode {
             0.0
         };
 
-        Vec3::new(x, y, z)
+        Vector3::new(x, y, z)
     }
 
-    pub fn eval_quat(&self, scene: &FbxScene, time: f32) -> Quat {
+    pub fn eval_quat(&self, scene: &FbxScene, time: f32) -> UnitQuaternion<f32> {
         quat_from_euler(self.eval_vec3(scene, time))
     }
 }

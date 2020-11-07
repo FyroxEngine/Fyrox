@@ -11,9 +11,11 @@
 
 #![warn(missing_docs)]
 
+use crate::core::algebra::Vector3;
+use crate::utils::raw_mesh::RawVertex;
 use crate::{
     core::{
-        math::{self, vec3::Vec3, TriangleDefinition},
+        math::{self, TriangleDefinition},
         octree::Octree,
     },
     scene::mesh::Mesh,
@@ -22,6 +24,7 @@ use crate::{
         raw_mesh::RawMeshBuilder,
     },
 };
+use rapier3d::na::Point3;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
@@ -72,7 +75,7 @@ impl Navmesh {
     /// Creates new navigation mesh from given set of triangles and vertices. This is
     /// low level method that allows to specify triangles and vertices directly. In
     /// most cases you should use `from_mesh` method.
-    pub fn new(triangles: &[TriangleDefinition], vertices: &[Vec3]) -> Self {
+    pub fn new(triangles: &[TriangleDefinition], vertices: &[Vector3<f32>]) -> Self {
         // Build triangles for octree.
         let raw_triangles = triangles
             .iter()
@@ -83,7 +86,7 @@ impl Navmesh {
                     vertices[t[2] as usize],
                 ]
             })
-            .collect::<Vec<[Vec3; 3]>>();
+            .collect::<Vec<[Vector3<f32>; 3]>>();
 
         // Fill in pathfinder.
         let mut pathfinder = PathFinder::new();
@@ -136,7 +139,7 @@ impl Navmesh {
     /// ```
     pub fn from_mesh(mesh: &Mesh) -> Self {
         // Join surfaces into one simple mesh.
-        let mut builder = RawMeshBuilder::<Vec3>::default();
+        let mut builder = RawMeshBuilder::<RawVertex>::default();
         let global_transform = mesh.global_transform();
         for surface in mesh.surfaces() {
             let shared_data = surface.data();
@@ -144,25 +147,38 @@ impl Navmesh {
 
             let vertices = shared_data.get_vertices();
             for triangle in shared_data.triangles() {
-                builder.insert(
-                    global_transform.transform_vector(vertices[triangle[0] as usize].position),
-                );
-                builder.insert(
-                    global_transform.transform_vector(vertices[triangle[1] as usize].position),
-                );
-                builder.insert(
-                    global_transform.transform_vector(vertices[triangle[2] as usize].position),
-                );
+                builder.insert(RawVertex::from(
+                    global_transform
+                        .transform_point(&Point3::from(vertices[triangle[0] as usize].position))
+                        .coords,
+                ));
+                builder.insert(RawVertex::from(
+                    global_transform
+                        .transform_point(&Point3::from(vertices[triangle[1] as usize].position))
+                        .coords,
+                ));
+                builder.insert(RawVertex::from(
+                    global_transform
+                        .transform_point(&Point3::from(vertices[triangle[2] as usize].position))
+                        .coords,
+                ));
             }
         }
 
         let mesh = builder.build();
-        Navmesh::new(&mesh.triangles, &mesh.vertices)
+        Navmesh::new(
+            &mesh.triangles,
+            &mesh
+                .vertices
+                .into_iter()
+                .map(|v| Vector3::new(v.x, v.y, v.z))
+                .collect::<Vec<_>>(),
+        )
     }
 
     /// Searches closest graph vertex to given point. Returns Some(index), or None
     /// if navmesh was empty.
-    pub fn query_closest(&mut self, point: Vec3) -> Option<usize> {
+    pub fn query_closest(&mut self, point: Vector3<f32>) -> Option<usize> {
         self.octree.point_query(point, &mut self.query_buffer);
         if self.query_buffer.is_empty() {
             // TODO: This is not optimal. It is better to trace ray down from given point
@@ -194,10 +210,10 @@ impl Navmesh {
     ///
     /// ```
     /// use rg3d::utils::navmesh::Navmesh;
-    /// use rg3d::core::math::vec3::Vec3;
+    /// use rg3d::core::math::vec3::Vector3;
     /// use rg3d::utils::astar::{PathKind, PathError};
     ///
-    /// fn find_path(navmesh: &mut Navmesh, begin: Vec3, end: Vec3, path: &mut Vec<Vec3>) -> Result<PathKind, PathError> {
+    /// fn find_path(navmesh: &mut Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {
     ///     if let Some(begin_index) = navmesh.query_closest(begin) {
     ///         if let Some(end_index) = navmesh.query_closest(end) {
     ///             return navmesh.build_path(begin_index, end_index, path);
@@ -210,7 +226,7 @@ impl Navmesh {
         &mut self,
         from: usize,
         to: usize,
-        path: &mut Vec<Vec3>,
+        path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
         self.pathfinder.build(from, to, path)
     }

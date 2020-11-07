@@ -23,7 +23,7 @@ pub use glutin::*;
 pub use rand;
 
 pub use futures;
+pub use rapier3d as physics;
 pub use rg3d_core as core;
-pub use rg3d_physics as physics;
 pub use rg3d_sound as sound;
 pub use rg3d_ui as gui;

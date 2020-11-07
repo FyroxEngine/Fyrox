@@ -1,10 +1,7 @@
+use crate::core::algebra::Vector2;
 use crate::{
     brush::Brush,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{color::Color, math::Rect, pool::Handle},
     draw::{CommandKind, CommandTexture, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder},
     message::{
@@ -316,7 +313,7 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
         }
     }
 
-    pub fn screen_pos_to_text_pos(&self, screen_pos: Vec2) -> Option<Position> {
+    pub fn screen_pos_to_text_pos(&self, screen_pos: Vector2<f32>) -> Option<Position> {
         let caret_pos = self.widget.screen_position;
         if let Some(font) = self.formatted_text.borrow().get_font() {
             let font = font.0.lock().unwrap();
@@ -327,8 +324,8 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                     line.width,
                     font.ascender(),
                 );
-                if line_bounds.contains(screen_pos.x, screen_pos.y) {
-                    let mut x = line_bounds.x;
+                if line_bounds.contains(screen_pos) {
+                    let mut x = line_bounds.x();
                     // Check each character in line.
                     for (offset, index) in (line.begin..line.end).enumerate() {
                         let symbol = self.formatted_text.borrow().get_raw_text()[index];
@@ -343,8 +340,8 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
                             let h = font.height();
                             (h, h, h)
                         };
-                        let char_bounds = Rect::new(x, line_bounds.y, width, height);
-                        if char_bounds.contains(screen_pos.x, screen_pos.y) {
+                        let char_bounds = Rect::new(x, line_bounds.y(), width, height);
+                        if char_bounds.contains(screen_pos) {
                             return Some(Position {
                                 line: line_index,
                                 offset,
@@ -425,7 +422,11 @@ impl<M: MessageData, C: Control<M, C>> TextBox<M, C> {
 }
 
 impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
-    fn measure_override(&self, _: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        _: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
@@ -443,7 +444,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
 
         self.formatted_text
             .borrow_mut()
-            .set_constraint(Vec2::new(bounds.w, bounds.h))
+            .set_constraint(Vector2::new(bounds.w(), bounds.h()))
             .set_brush(self.widget.foreground())
             .build();
 
@@ -460,8 +461,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                         ..(line.begin + selection_range.end.offset),
                 );
                 let bounds = Rect::new(
-                    bounds.x + line.x_offset + offset,
-                    bounds.y + line.y_offset,
+                    bounds.x() + line.x_offset + offset,
+                    bounds.y() + line.y_offset,
                     width,
                     line.height,
                 );
@@ -478,8 +479,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 (line.begin + selection_range.begin.offset)..line.end,
                             );
                             Rect::new(
-                                bounds.x + line.x_offset + offset,
-                                bounds.y + line.y_offset,
+                                bounds.x() + line.x_offset + offset,
+                                bounds.y() + line.y_offset,
                                 width,
                                 line.height,
                             )
@@ -489,16 +490,16 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                                 line.begin..(line.begin + selection_range.end.offset),
                             );
                             Rect::new(
-                                bounds.x + line.x_offset,
-                                bounds.y + line.y_offset,
+                                bounds.x() + line.x_offset,
+                                bounds.y() + line.y_offset,
                                 width,
                                 line.height,
                             )
                         } else {
                             // Everything between
                             Rect::new(
-                                bounds.x + line.x_offset,
-                                bounds.y + line.y_offset,
+                                bounds.x() + line.x_offset,
+                                bounds.y() + line.y_offset,
                                 line.width,
                                 line.height,
                             )
@@ -514,7 +515,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
             CommandTexture::None,
         );
 
-        let screen_position = Vec2::new(bounds.x, bounds.y);
+        let screen_position = bounds.position;
         drawing_context.draw_text(screen_position, &self.formatted_text.borrow());
 
         if self.caret_visible {
@@ -526,7 +527,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for TextBox<M, C> {
                 let font = font.0.lock().unwrap();
                 if let Some(line) = text.get_lines().get(self.caret_position.line) {
                     let text = text.get_raw_text();
-                    caret_pos += Vec2::new(line.x_offset, line.y_offset);
+                    caret_pos += Vector2::new(line.x_offset, line.y_offset);
                     for (offset, char_index) in (line.begin..line.end).enumerate() {
                         if offset >= self.caret_position.offset {
                             break;

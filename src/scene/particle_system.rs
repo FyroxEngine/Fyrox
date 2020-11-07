@@ -27,7 +27,7 @@
 //! ```
 //! use rg3d::scene::particle_system::{SphereEmitter, ParticleSystemBuilder, Emitter, BaseEmitterBuilder, SphereEmitterBuilder};
 //! use rg3d::engine::resource_manager::ResourceManager;
-//! use rg3d::core::math::vec3::Vec3;
+//! use rg3d::core::math::vec3::Vector3;
 //! use rg3d::scene::graph::Graph;
 //! use rg3d::scene::node::Node;
 //! use rg3d::scene::transform::TransformBuilder;
@@ -38,13 +38,13 @@
 //! use std::path::Path;
 //! use rg3d::resource::texture::TexturePixelKind;
 //!
-//! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vec3) {
+//! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 //!     graph.add_node(Node::ParticleSystem(ParticleSystemBuilder::new(BaseBuilder::new()
 //!         .with_lifetime(5.0)
 //!         .with_local_transform(TransformBuilder::new()
 //!             .with_local_position(pos)
 //!             .build()))
-//!         .with_acceleration(Vec3::new(0.0, 0.0, 0.0))
+//!         .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
 //!         .with_color_over_lifetime_gradient({
 //!             let mut gradient = ColorGradient::new();
 //!             gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));
@@ -68,12 +68,13 @@
 //! }
 //! ```
 
+use crate::core::algebra::{Vector2, Vector3};
 use crate::scene::node::Node;
 use crate::{
     core::{
         color::Color,
         color_gradient::ColorGradient,
-        math::{vec2::Vec2, vec3::Vec3, TriangleDefinition},
+        math::TriangleDefinition,
         numeric_range::NumericRange,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -94,8 +95,8 @@ use std::{
 #[repr(C)]
 #[derive(Debug)]
 pub struct Vertex {
-    position: Vec3,
-    tex_coord: Vec2,
+    position: Vector3<f32>,
+    tex_coord: Vector2<f32>,
     size: f32,
     rotation: f32,
     color: Color,
@@ -138,9 +139,9 @@ impl DrawData {
 #[derive(Clone, Debug)]
 pub struct Particle {
     /// Position of particle in local coordinates.
-    pub position: Vec3,
+    pub position: Vector3<f32>,
     /// Velocity of particle in local coordinates.
-    pub velocity: Vec3,
+    pub velocity: Vector3<f32>,
     /// Size of particle.
     pub size: f32,
     alive: bool,
@@ -256,7 +257,7 @@ impl Emit for BoxEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
         let mut rng = rand::thread_rng();
-        particle.position = Vec3::new(
+        particle.position = Vector3::new(
             self.position.x + rng.gen_range(-self.half_width, self.half_width),
             self.position.y + rng.gen_range(-self.half_height, self.half_height),
             self.position.z + rng.gen_range(-self.half_depth, self.half_depth),
@@ -384,7 +385,7 @@ impl Emit for SphereEmitter {
         let sin_theta = theta.sin();
         let cos_phi = phi.cos();
         let sin_phi = phi.sin();
-        particle.position = Vec3::new(
+        particle.position = Vector3::new(
             radius * sin_theta * cos_phi,
             radius * sin_theta * sin_phi,
             radius * cos_theta,
@@ -620,7 +621,7 @@ impl Visit for ParticleLimit {
 #[derive(Debug)]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
-    position: Vec3,
+    position: Vector3<f32>,
     /// Particle spawn rate in unit-per-second. If < 0, spawns `max_particles`,
     /// spawns nothing if `max_particles` < 0
     particle_spawn_rate: u32,
@@ -652,7 +653,7 @@ pub struct BaseEmitter {
 /// Emitter builder allows you to construct emitter in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct BaseEmitterBuilder {
-    position: Option<Vec3>,
+    position: Option<Vector3<f32>>,
     particle_spawn_rate: Option<u32>,
     max_particles: Option<u32>,
     lifetime: Option<NumericRange<f32>>,
@@ -692,7 +693,7 @@ impl BaseEmitterBuilder {
     }
 
     /// Sets desired position of emitter in local coordinates.
-    pub fn with_position(mut self, position: Vec3) -> Self {
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
         self.position = Some(position);
         self
     }
@@ -766,7 +767,7 @@ impl BaseEmitterBuilder {
     /// Creates new instance of emitter.
     pub fn build(self) -> BaseEmitter {
         BaseEmitter {
-            position: self.position.unwrap_or(Vec3::ZERO),
+            position: self.position.unwrap_or(Vector3::default()),
             particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
             max_particles: self
                 .max_particles
@@ -832,7 +833,7 @@ impl BaseEmitter {
         particle.color = Color::WHITE;
         particle.size = self.size.random();
         particle.size_modifier = self.size_modifier.random();
-        particle.velocity = Vec3::new(
+        particle.velocity = Vector3::new(
             self.x_velocity.random(),
             self.y_velocity.random(),
             self.z_velocity.random(),
@@ -842,13 +843,13 @@ impl BaseEmitter {
     }
 
     /// Sets new position of emitter in local coordinates.
-    pub fn set_position(&mut self, position: Vec3) -> &mut Self {
+    pub fn set_position(&mut self, position: Vector3<f32>) -> &mut Self {
         self.position = position;
         self
     }
 
     /// Returns position of emitter in local coordinates.
-    pub fn position(&self) -> Vec3 {
+    pub fn position(&self) -> Vector3<f32> {
         self.position
     }
 
@@ -1044,7 +1045,7 @@ impl Clone for BaseEmitter {
 impl Default for BaseEmitter {
     fn default() -> Self {
         Self {
-            position: Vec3::ZERO,
+            position: Vector3::default(),
             particle_spawn_rate: 0,
             max_particles: ParticleLimit::Unlimited,
             lifetime: NumericRange::new(5.0, 10.0),
@@ -1072,7 +1073,7 @@ pub struct ParticleSystem {
     free_particles: Vec<u32>,
     emitters: Vec<Emitter>,
     texture: Option<Texture>,
-    acceleration: Vec3,
+    acceleration: Vector3<f32>,
     color_over_lifetime: Option<ColorGradient>,
 }
 
@@ -1110,13 +1111,13 @@ impl ParticleSystem {
     }
 
     /// Returns current acceleration for particles in particle system.
-    pub fn acceleration(&self) -> Vec3 {
+    pub fn acceleration(&self) -> Vector3<f32> {
         self.acceleration
     }
 
     /// Set new acceleration that will be applied to all particles,
     /// can be used to change "gravity" vector of particles.
-    pub fn set_acceleration(&mut self, accel: Vec3) {
+    pub fn set_acceleration(&mut self, accel: Vector3<f32>) {
         self.acceleration = accel;
     }
 
@@ -1188,7 +1189,7 @@ impl ParticleSystem {
         &self,
         sorted_particles: &mut Vec<u32>,
         draw_data: &mut DrawData,
-        camera_pos: &Vec3,
+        camera_pos: &Vector3<f32>,
     ) {
         sorted_particles.clear();
         for (i, particle) in self.particles.iter().enumerate() {
@@ -1196,7 +1197,7 @@ impl ParticleSystem {
                 let actual_position = particle.position + self.base.global_position();
                 particle
                     .sqr_distance_to_camera
-                    .set(camera_pos.sqr_distance(&actual_position));
+                    .set((camera_pos - actual_position).norm_squared());
                 sorted_particles.push(i as u32);
             }
         }
@@ -1224,7 +1225,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::ZERO,
+                tex_coord: Vector2::default(),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1232,7 +1233,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::new(1.0, 0.0),
+                tex_coord: Vector2::new(1.0, 0.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1240,7 +1241,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::new(1.0, 1.0),
+                tex_coord: Vector2::new(1.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1248,7 +1249,7 @@ impl ParticleSystem {
 
             draw_data.vertices.push(Vertex {
                 position: particle.position,
-                tex_coord: Vec2::new(0.0, 1.0),
+                tex_coord: Vector2::new(0.0, 1.0),
                 size: particle.size,
                 rotation: particle.rotation,
                 color: particle.color,
@@ -1308,7 +1309,7 @@ pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
     emitters: Vec<Emitter>,
     texture: Option<Texture>,
-    acceleration: Vec3,
+    acceleration: Vector3<f32>,
     color_over_lifetime: Option<ColorGradient>,
 }
 
@@ -1319,7 +1320,7 @@ impl ParticleSystemBuilder {
             base_builder,
             emitters: Default::default(),
             texture: None,
-            acceleration: Vec3::new(0.0, -9.81, 0.0),
+            acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: None,
         }
     }
@@ -1343,7 +1344,7 @@ impl ParticleSystemBuilder {
     }
 
     /// Sets desired acceleration for particle system.
-    pub fn with_acceleration(mut self, acceleration: Vec3) -> Self {
+    pub fn with_acceleration(mut self, acceleration: Vector3<f32>) -> Self {
         self.acceleration = acceleration;
         self
     }

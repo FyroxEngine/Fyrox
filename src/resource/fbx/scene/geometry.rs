@@ -1,8 +1,6 @@
+use crate::core::algebra::{Vector2, Vector3};
 use crate::{
-    core::{
-        math::{vec2::Vec2, vec3::Vec3},
-        pool::Handle,
-    },
+    core::pool::Handle,
     renderer::surface::{VertexWeight, VertexWeightSet},
     resource::{
         fbx::scene,
@@ -16,15 +14,15 @@ use crate::{
 
 pub struct FbxGeometry {
     // Only vertices and indices are required.
-    pub vertices: Vec<Vec3>,
+    pub vertices: Vec<Vector3<f32>>,
     pub indices: Vec<i32>,
 
     // Normals, UVs, etc. are optional.
-    pub normals: Option<FbxContainer<Vec3>>,
-    pub uvs: Option<FbxContainer<Vec2>>,
+    pub normals: Option<FbxContainer<Vector3<f32>>>,
+    pub uvs: Option<FbxContainer<Vector2<f32>>>,
     pub materials: Option<FbxContainer<i32>>,
-    pub tangents: Option<FbxContainer<Vec3>>,
-    pub binormals: Option<FbxContainer<Vec3>>,
+    pub tangents: Option<FbxContainer<Vector3<f32>>>,
+    pub binormals: Option<FbxContainer<Vector3<f32>>>,
 
     pub deformers: Vec<Handle<FbxComponent>>,
 }
@@ -32,16 +30,16 @@ pub struct FbxGeometry {
 fn read_vertices(
     geom_node_handle: Handle<FbxNode>,
     nodes: &FbxNodeContainer,
-) -> Result<Vec<Vec3>, FbxError> {
+) -> Result<Vec<Vector3<f32>>, FbxError> {
     let vertices_node_handle = nodes.find(geom_node_handle, "Vertices")?;
     let vertices_array_node = nodes.get_by_name(vertices_node_handle, "a")?;
     let mut vertices = Vec::with_capacity(vertices_array_node.attrib_count() / 3);
     for vertex in vertices_array_node.attributes().chunks_exact(3) {
-        vertices.push(Vec3 {
-            x: vertex[0].as_f32()?,
-            y: vertex[1].as_f32()?,
-            z: vertex[2].as_f32()?,
-        });
+        vertices.push(Vector3::new(
+            vertex[0].as_f32()?,
+            vertex[1].as_f32()?,
+            vertex[2].as_f32()?,
+        ));
     }
 
     Ok(vertices)
@@ -63,7 +61,7 @@ fn read_indices(
 fn read_normals(
     geom_node_handle: Handle<FbxNode>,
     nodes: &FbxNodeContainer,
-) -> Result<Option<FbxContainer<Vec3>>, FbxError> {
+) -> Result<Option<FbxContainer<Vector3<f32>>>, FbxError> {
     if let Ok(layer_element_normal) = nodes.find(geom_node_handle, "LayerElementNormal") {
         Ok(Some(scene::make_vec3_container(
             nodes,
@@ -78,7 +76,7 @@ fn read_normals(
 fn read_tangents(
     geom_node_handle: Handle<FbxNode>,
     nodes: &FbxNodeContainer,
-) -> Result<Option<FbxContainer<Vec3>>, FbxError> {
+) -> Result<Option<FbxContainer<Vector3<f32>>>, FbxError> {
     if let Ok(layer_element_tangent) = nodes.find(geom_node_handle, "LayerElementTangent") {
         Ok(Some(scene::make_vec3_container(
             nodes,
@@ -93,7 +91,7 @@ fn read_tangents(
 fn read_binormals(
     geom_node_handle: Handle<FbxNode>,
     nodes: &FbxNodeContainer,
-) -> Result<Option<FbxContainer<Vec3>>, FbxError> {
+) -> Result<Option<FbxContainer<Vector3<f32>>>, FbxError> {
     if let Ok(layer_element_tangent) = nodes.find(geom_node_handle, "LayerElementBinormal") {
         Ok(Some(scene::make_vec3_container(
             nodes,
@@ -108,7 +106,7 @@ fn read_binormals(
 fn read_uvs(
     geom_node_handle: Handle<FbxNode>,
     nodes: &FbxNodeContainer,
-) -> Result<Option<FbxContainer<Vec2>>, FbxError> {
+) -> Result<Option<FbxContainer<Vector2<f32>>>, FbxError> {
     if let Ok(layer_element_uv) = nodes.find(geom_node_handle, "LayerElementUV") {
         Ok(Some(FbxContainer::new(
             nodes,
@@ -117,10 +115,7 @@ fn read_uvs(
             |attributes| {
                 let mut uvs = Vec::with_capacity(attributes.len() / 2);
                 for uv in attributes.chunks_exact(2) {
-                    uvs.push(Vec2 {
-                        x: uv[0].as_f32()?,
-                        y: uv[1].as_f32()?,
-                    });
+                    uvs.push(Vector2::new(uv[0].as_f32()?, uv[1].as_f32()?));
                 }
                 Ok(uvs)
             },

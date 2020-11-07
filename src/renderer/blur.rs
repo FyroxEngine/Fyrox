@@ -1,9 +1,7 @@
+use crate::core::algebra::{Matrix4, Vector3};
 use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
-    core::{
-        math::{mat4::Mat4, vec3::Vec3, Rect},
-        scope_profile,
-    },
+    core::{math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
@@ -115,9 +113,19 @@ impl Blur {
             &[
                 (
                     self.shader.world_view_projection_matrix,
-                    UniformValue::Mat4(
-                        Mat4::ortho(0.0, viewport.w as f32, viewport.h as f32, 0.0, -1.0, 1.0)
-                            * Mat4::scale(Vec3::new(viewport.w as f32, viewport.h as f32, 0.0)),
+                    UniformValue::Matrix4(
+                        Matrix4::new_orthographic(
+                            0.0,
+                            viewport.w() as f32,
+                            viewport.h() as f32,
+                            0.0,
+                            -1.0,
+                            1.0,
+                        ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                            viewport.w() as f32,
+                            viewport.h() as f32,
+                            0.0,
+                        )),
                     ),
                 ),
                 (

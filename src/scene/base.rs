@@ -6,9 +6,10 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
+use crate::core::algebra::{Matrix4, Vector3};
+use crate::core::math::Matrix4Ext;
 use crate::{
     core::{
-        math::{mat4::Mat4, vec3::Vec3},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -122,9 +123,9 @@ pub struct Base {
     pub(in crate) global_visibility: bool,
     pub(in crate) parent: Handle<Node>,
     pub(in crate) children: Vec<Handle<Node>>,
-    pub(in crate) global_transform: Mat4,
+    pub(in crate) global_transform: Matrix4<f32>,
     /// Bone-specific matrix. Non-serializable.
-    pub(in crate) inv_bind_pose_transform: Mat4,
+    pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
     /// A resource from which this node was instantiated from, can work in pair
     /// with `original` handle to get corresponding node from resource.
     pub(in crate) resource: Option<Model>,
@@ -206,14 +207,14 @@ impl Base {
     /// Returns global transform matrix, such matrix contains combined transformation
     /// of transforms of parent nodes. This is the final matrix that describes real
     /// location of object in the world.
-    pub fn global_transform(&self) -> Mat4 {
+    pub fn global_transform(&self) -> Matrix4<f32> {
         self.global_transform
     }
 
     /// Returns inverse of bind pose matrix. Bind pose matrix - is special matrix
     /// for bone nodes, it stores initial transform of bone node at the moment
     /// of "binding" vertices to bones.
-    pub fn inv_bind_pose_transform(&self) -> Mat4 {
+    pub fn inv_bind_pose_transform(&self) -> Matrix4<f32> {
         self.inv_bind_pose_transform
     }
 
@@ -256,25 +257,25 @@ impl Base {
     }
 
     /// Returns position of the node in absolute coordinates.
-    pub fn global_position(&self) -> Vec3 {
+    pub fn global_position(&self) -> Vector3<f32> {
         self.global_transform.position()
     }
 
     /// Returns "look" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn look_vector(&self) -> Vec3 {
+    pub fn look_vector(&self) -> Vector3<f32> {
         self.global_transform.look()
     }
 
     /// Returns "side" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn side_vector(&self) -> Vec3 {
+    pub fn side_vector(&self) -> Vector3<f32> {
         self.global_transform.side()
     }
 
     /// Returns "up" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
-    pub fn up_vector(&self) -> Vec3 {
+    pub fn up_vector(&self) -> Vector3<f32> {
         self.global_transform.up()
     }
 
@@ -440,8 +441,8 @@ impl BaseBuilder {
             visibility: self.visibility.unwrap_or(true),
             global_visibility: true,
             parent: Handle::NONE,
-            global_transform: Mat4::IDENTITY,
-            inv_bind_pose_transform: Mat4::IDENTITY,
+            global_transform: Matrix4::identity(),
+            inv_bind_pose_transform: Matrix4::identity(),
             resource: None,
             original: Handle::NONE,
             is_resource_instance: false,

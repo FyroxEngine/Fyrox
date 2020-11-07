@@ -17,19 +17,12 @@ use std::{
     time::Instant,
 };
 
+use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3, Vector4};
+use crate::core::math;
+use crate::core::math::RotationOrder;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
-    core::{
-        math::{
-            mat4::Mat4,
-            quat::{Quat, RotationOrder},
-            triangulator::triangulate,
-            vec2::Vec2,
-            vec3::Vec3,
-            vec4::Vec4,
-        },
-        pool::Handle,
-    },
+    core::{math::triangulator::triangulate, pool::Handle},
     engine::resource_manager::ResourceManager,
     renderer::surface::{Surface, SurfaceSharedData, Vertex, VertexWeightSet},
     resource::fbx::{
@@ -43,12 +36,13 @@ use crate::{
     scene::{base::Base, graph::Graph, mesh::Mesh, node::Node, Scene},
     utils::{log::Log, raw_mesh::RawMeshBuilder},
 };
+use rapier3d::na::Point3;
 use std::cmp::Ordering;
 
 /// Input angles in degrees
-fn quat_from_euler(euler: Vec3) -> Quat {
-    Quat::from_euler(
-        Vec3::new(
+fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
+    math::quat_from_euler(
+        Vector3::new(
             euler.x.to_radians(),
             euler.y.to_radians(),
             euler.z.to_radians(),
@@ -71,9 +65,9 @@ fn fix_index(index: i32) -> usize {
 /// Triangulates polygon face if needed.
 /// Returns number of processed indices.
 fn prepare_next_face(
-    vertices: &[Vec3],
+    vertices: &[Vector3<f32>],
     indices: &[i32],
-    temp_vertices: &mut Vec<Vec3>,
+    temp_vertices: &mut Vec<Vector3<f32>>,
     out_triangles: &mut Vec<[usize; 3]>,
     out_face_triangles: &mut Vec<[usize; 3]>,
 ) -> usize {
@@ -129,10 +123,10 @@ fn prepare_next_face(
 struct UnpackedVertex {
     // Index of surface this vertex belongs to.
     surface: usize,
-    position: Vec3,
-    normal: Vec3,
-    tangent: Vec3,
-    uv: Vec2,
+    position: Vector3<f32>,
+    normal: Vector3<f32>,
+    tangent: Vector3<f32>,
+    uv: Vector2<f32>,
     // Set of weights for skinning.
     weights: Option<VertexWeightSet>,
 }
@@ -146,7 +140,7 @@ impl Into<Vertex> for UnpackedVertex {
             //  extracted when available
             second_tex_coord: Default::default(),
             normal: self.normal,
-            tangent: Vec4::from_vec3(self.tangent, 1.0),
+            tangent: Vector4::new(self.tangent.x, self.tangent.y, self.tangent.z, 1.0),
             // Correct values will be assigned in second pass of conversion
             // when all nodes will be converted.
             bone_weights: Default::default(),
@@ -157,7 +151,7 @@ impl Into<Vertex> for UnpackedVertex {
 
 fn convert_vertex(
     geom: &FbxGeometry,
-    geometric_transform: &Mat4,
+    geometric_transform: &Matrix4<f32>,
     material_index: usize,
     index: usize,
     index_in_polygon: usize,
@@ -167,17 +161,17 @@ fn convert_vertex(
 
     let normal = match geom.normals.as_ref() {
         Some(normals) => *normals.get(index, index_in_polygon)?,
-        None => Vec3::UP,
+        None => Vector3::y(),
     };
 
     let tangent = match geom.tangents.as_ref() {
         Some(tangents) => *tangents.get(index, index_in_polygon)?,
-        None => Vec3::UP,
+        None => Vector3::y(),
     };
 
     let uv = match geom.uvs.as_ref() {
         Some(uvs) => *uvs.get(index, index_in_polygon)?,
-        None => Vec2::ZERO,
+        None => Vector2::default(),
     };
 
     let material = match geom.materials.as_ref() {
@@ -186,10 +180,12 @@ fn convert_vertex(
     };
 
     Ok(UnpackedVertex {
-        position: geometric_transform.transform_vector(position),
-        normal: geometric_transform.transform_vector_normal(normal),
-        tangent: geometric_transform.transform_vector_normal(tangent),
-        uv: Vec2 { x: uv.x, y: -uv.y }, // Invert Y because OpenGL has origin at left *bottom* corner.
+        position: geometric_transform
+            .transform_point(&Point3::from(position))
+            .coords,
+        normal: geometric_transform.transform_vector(&normal),
+        tangent: geometric_transform.transform_vector(&tangent),
+        uv: Vector2::new(uv.x, -uv.y), // Invert Y because OpenGL has origin at left *bottom* corner.
         surface: material as usize,
         weights: if skin_data.is_empty() {
             None
@@ -260,9 +256,9 @@ fn convert_mesh(
 ) -> Result<Mesh, FbxError> {
     let mut mesh = Mesh::default();
 
-    let geometric_transform = Mat4::translate(model.geometric_translation)
-        * Mat4::from_quat(quat_from_euler(model.geometric_rotation))
-        * Mat4::scale(model.geometric_scale);
+    let geometric_transform = Matrix4::new_translation(&model.geometric_translation)
+        * quat_from_euler(model.geometric_rotation).to_homogeneous()
+        * Matrix4::new_nonuniform_scaling(&model.geometric_scale);
 
     let mut temp_vertices = Vec::new();
     let mut triangles = Vec::new();

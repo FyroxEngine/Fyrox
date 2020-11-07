@@ -8,12 +8,13 @@
 //! types and some of basic structures of the crate. Main criteria of what could be the field and what
 //! not is the ability to be represented as set of bytes without any aliasing issues.
 
+use crate::algebra::{Matrix3, Matrix4, UnitQuaternion, Vector2, Vector3, Vector4};
 use crate::{
-    math::{mat3::Mat3, mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3, vec4::Vec4},
     pool::{Handle, Pool},
     replace_slashes,
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use nalgebra::Quaternion;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -40,13 +41,13 @@ pub enum FieldKind {
     I64(i64),
     F32(f32),
     F64(f64),
-    Vec3(Vec3),
-    Quat(Quat),
-    Mat4(Mat4),
+    Vector3(Vector3<f32>),
+    UnitQuaternion(UnitQuaternion<f32>),
+    Matrix4(Matrix4<f32>),
     Data(Vec<u8>),
-    Mat3(Mat3),
-    Vec2(Vec2),
-    Vec4(Vec4),
+    Matrix3(Matrix3<f32>),
+    Vector2(Vector2<f32>),
+    Vector4(Vector4<f32>),
 }
 
 impl FieldKind {
@@ -63,13 +64,13 @@ impl FieldKind {
             Self::I64(data) => format!("<i64 = {}>, ", data),
             Self::F32(data) => format!("<f32 = {}>, ", data),
             Self::F64(data) => format!("<f64 = {}>, ", data),
-            Self::Vec3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
-            Self::Quat(data) => {
-                format!("<quat = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
+            Self::Vector3(data) => format!("<vec3 = {}; {}; {}>, ", data.x, data.y, data.z),
+            Self::UnitQuaternion(data) => {
+                format!("<quat = {}; {}; {}; {}>, ", data.i, data.j, data.k, data.w)
             }
-            Self::Mat4(data) => {
+            Self::Matrix4(data) => {
                 let mut out = String::from("<mat4 = ");
-                for f in &data.f {
+                for f in data.iter() {
                     out += format!("{}; ", f).as_str();
                 }
                 out
@@ -81,15 +82,15 @@ impl FieldKind {
                 };
                 format!("<data = {}>, ", out)
             }
-            Self::Mat3(data) => {
+            Self::Matrix3(data) => {
                 let mut out = String::from("<mat3 = ");
-                for f in &data.f {
+                for f in data.iter() {
                     out += format!("{}; ", f).as_str();
                 }
                 out
             }
-            Self::Vec2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
-            Self::Vec4(data) => {
+            Self::Vector2(data) => format!("<vec2 = {}; {}>, ", data.x, data.y),
+            Self::Vector4(data) => {
                 format!("<vec4 = {}; {}; {}; {}>, ", data.x, data.y, data.z, data.w)
             }
         }
@@ -135,13 +136,13 @@ impl_field_data!(u8, FieldKind::U8);
 impl_field_data!(i8, FieldKind::I8);
 impl_field_data!(f32, FieldKind::F32);
 impl_field_data!(f64, FieldKind::F64);
-impl_field_data!(Vec3, FieldKind::Vec3);
-impl_field_data!(Quat, FieldKind::Quat);
-impl_field_data!(Mat4, FieldKind::Mat4);
+impl_field_data!(Vector3<f32>, FieldKind::Vector3);
+impl_field_data!(UnitQuaternion<f32>, FieldKind::UnitQuaternion);
+impl_field_data!(Matrix4<f32>, FieldKind::Matrix4);
 impl_field_data!(bool, FieldKind::Bool);
-impl_field_data!(Mat3, FieldKind::Mat3);
-impl_field_data!(Vec2, FieldKind::Vec2);
-impl_field_data!(Vec4, FieldKind::Vec4);
+impl_field_data!(Matrix3<f32>, FieldKind::Matrix3);
+impl_field_data!(Vector2<f32>, FieldKind::Vector2);
+impl_field_data!(Vector4<f32>, FieldKind::Vector4);
 
 impl<T> Visit for T
 where
@@ -316,22 +317,22 @@ impl Field {
                 file.write_u8(10)?;
                 file.write_f64::<LittleEndian>(*data)?;
             }
-            FieldKind::Vec3(data) => {
+            FieldKind::Vector3(data) => {
                 file.write_u8(11)?;
                 file.write_f32::<LittleEndian>(data.x)?;
                 file.write_f32::<LittleEndian>(data.y)?;
                 file.write_f32::<LittleEndian>(data.z)?;
             }
-            FieldKind::Quat(data) => {
+            FieldKind::UnitQuaternion(data) => {
                 file.write_u8(12)?;
-                file.write_f32::<LittleEndian>(data.x)?;
-                file.write_f32::<LittleEndian>(data.y)?;
-                file.write_f32::<LittleEndian>(data.z)?;
+                file.write_f32::<LittleEndian>(data.i)?;
+                file.write_f32::<LittleEndian>(data.j)?;
+                file.write_f32::<LittleEndian>(data.k)?;
                 file.write_f32::<LittleEndian>(data.w)?;
             }
-            FieldKind::Mat4(data) => {
+            FieldKind::Matrix4(data) => {
                 file.write_u8(13)?;
-                for f in &data.f {
+                for f in data.iter() {
                     file.write_f32::<LittleEndian>(*f)?;
                 }
             }
@@ -344,18 +345,18 @@ impl Field {
                 file.write_u8(15)?;
                 file.write_u8(if *data { 1 } else { 0 })?;
             }
-            FieldKind::Mat3(data) => {
+            FieldKind::Matrix3(data) => {
                 file.write_u8(16)?;
-                for f in &data.f {
+                for f in data.iter() {
                     file.write_f32::<LittleEndian>(*f)?;
                 }
             }
-            FieldKind::Vec2(data) => {
+            FieldKind::Vector2(data) => {
                 file.write_u8(17)?;
                 file.write_f32::<LittleEndian>(data.x)?;
                 file.write_f32::<LittleEndian>(data.y)?;
             }
-            FieldKind::Vec4(data) => {
+            FieldKind::Vector4(data) => {
                 file.write_u8(18)?;
                 file.write_f32::<LittleEndian>(data.x)?;
                 file.write_f32::<LittleEndian>(data.y)?;
@@ -385,25 +386,25 @@ impl Field {
                 8 => FieldKind::I64(file.read_i64::<LittleEndian>()?),
                 9 => FieldKind::F32(file.read_f32::<LittleEndian>()?),
                 10 => FieldKind::F64(file.read_f64::<LittleEndian>()?),
-                11 => FieldKind::Vec3({
+                11 => FieldKind::Vector3({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
                     let z = file.read_f32::<LittleEndian>()?;
-                    Vec3 { x, y, z }
+                    Vector3::new(x, y, z)
                 }),
-                12 => FieldKind::Quat({
+                12 => FieldKind::UnitQuaternion({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
                     let z = file.read_f32::<LittleEndian>()?;
                     let w = file.read_f32::<LittleEndian>()?;
-                    Quat { x, y, z, w }
+                    UnitQuaternion::new_normalize(Quaternion::new(w, x, y, z))
                 }),
-                13 => FieldKind::Mat4({
+                13 => FieldKind::Matrix4({
                     let mut f = [0.0f32; 16];
                     for n in &mut f {
                         *n = file.read_f32::<LittleEndian>()?;
                     }
-                    Mat4 { f }
+                    Matrix4::from_row_slice(&f)
                 }),
                 14 => FieldKind::Data({
                     let len = file.read_u32::<LittleEndian>()? as usize;
@@ -413,24 +414,24 @@ impl Field {
                     vec
                 }),
                 15 => FieldKind::Bool(file.read_u8()? != 0),
-                16 => FieldKind::Mat3({
+                16 => FieldKind::Matrix3({
                     let mut f = [0.0f32; 9];
                     for n in &mut f {
                         *n = file.read_f32::<LittleEndian>()?;
                     }
-                    Mat3 { f }
+                    Matrix3::from_row_slice(&f)
                 }),
-                17 => FieldKind::Vec2({
+                17 => FieldKind::Vector2({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
-                    Vec2 { x, y }
+                    Vector2::new(x, y)
                 }),
-                18 => FieldKind::Vec4({
+                18 => FieldKind::Vector4({
                     let x = file.read_f32::<LittleEndian>()?;
                     let y = file.read_f32::<LittleEndian>()?;
                     let z = file.read_f32::<LittleEndian>()?;
                     let w = file.read_f32::<LittleEndian>()?;
-                    Vec4 { x, y, z, w }
+                    Vector4::new(x, y, z, w)
                 }),
                 _ => return Err(VisitError::UnknownFieldType(id)),
             },

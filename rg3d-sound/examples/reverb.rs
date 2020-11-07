@@ -1,9 +1,9 @@
 use rg3d_sound::{
+    algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBuffer},
     context::{self, Context},
     effects::{reverb::Reverb, BaseEffect, Effect, EffectInput},
     hrtf::HrirSphere,
-    math::{mat4::Mat4, quat::Quat, vec3::Vec3},
     renderer::{hrtf::HrtfRenderer, Renderer},
     source::{generic::GenericSourceBuilder, spatial::SpatialSourceBuilder, SoundSource, Status},
 };
@@ -81,10 +81,14 @@ fn main() {
             let mut context = context.lock().unwrap();
 
             if let SoundSource::Spatial(sound) = context.source_mut(drop_sound_handle) {
-                let axis = Vec3::new(0.0, 1.0, 0.0);
+                let axis = Vector3::y_axis();
                 let rotation_matrix =
-                    Mat4::from_quat(Quat::from_axis_angle(axis, angle.to_radians()));
-                sound.set_position(&rotation_matrix.transform_vector(Vec3::new(0.0, 0.0, 1.0)));
+                    UnitQuaternion::from_axis_angle(&axis, angle.to_radians()).to_homogeneous();
+                sound.set_position(
+                    &rotation_matrix
+                        .transform_point(&Point3::new(0.0, 0.0, 1.0))
+                        .coords,
+                );
             }
 
             angle += 1.6;

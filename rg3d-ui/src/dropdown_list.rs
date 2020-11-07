@@ -1,10 +1,11 @@
 //! Drop-down list. This is control which shows currently selected item and provides drop-down
 //! list to select its current item. It is build using composition with standard list view.
 
+use crate::core::algebra::Vector2;
 use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
-    core::{math::vec2::Vec2, pool::Handle},
+    core::pool::Handle,
     list_view::ListViewBuilder,
     message::PopupMessage,
     message::{DropdownListMessage, ListViewMessage, UiMessage, UiMessageData, WidgetMessage},
@@ -55,7 +56,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for DropdownList<M, C> {
                             self.actual_size().x,
                         ));
                         let placement_position = self.widget.screen_position
-                            + Vec2::new(0.0, self.widget.actual_size().y);
+                            + Vector2::new(0.0, self.widget.actual_size().y);
                         ui.send_message(PopupMessage::placement(
                             self.popup,
                             MessageDirection::ToWidget,
@@ -173,7 +174,7 @@ impl<M: MessageData, C: Control<M, C>> DropdownListBuilder<M, C> {
         Self: Sized,
     {
         let items_control = ListViewBuilder::new(
-            WidgetBuilder::new().with_max_size(Vec2::new(std::f32::INFINITY, 300.0)),
+            WidgetBuilder::new().with_max_size(Vector2::new(std::f32::INFINITY, 300.0)),
         )
         .with_items(self.items.clone())
         .build(ctx);

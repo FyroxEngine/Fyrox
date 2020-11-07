@@ -1,9 +1,11 @@
 //! UV Map generator. Used to generate second texture coordinates for lightmaps.
 //!
 //! Current implementation uses simple planar mapping.
+use crate::core::algebra::Vector2;
+use crate::core::math::Vector2Ext;
 use crate::{
     core::{
-        math::{self, vec2::Vec2, PlaneClass},
+        math::{self, PlaneClass},
         rectpack::RectPacker,
     },
     renderer::surface::SurfaceSharedData,
@@ -14,16 +16,16 @@ use crate::{
 struct UvMesh {
     // Array of indices of triangles.
     triangles: Vec<usize>,
-    uv_max: Vec2,
-    uv_min: Vec2,
+    uv_max: Vector2<f32>,
+    uv_min: Vector2<f32>,
 }
 
 impl UvMesh {
     fn new(first_triangle: usize) -> Self {
         Self {
             triangles: vec![first_triangle],
-            uv_max: Vec2::new(-std::f32::MAX, -std::f32::MAX),
-            uv_min: Vec2::new(std::f32::MAX, std::f32::MAX),
+            uv_max: Vector2::new(-std::f32::MAX, -std::f32::MAX),
+            uv_min: Vector2::new(std::f32::MAX, std::f32::MAX),
         }
     }
 
@@ -172,12 +174,18 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
             // Calculate bounds.
             for &triangle_index in mesh.triangles.iter() {
                 let [a, b, c] = projections[triangle_index];
-                mesh.uv_min = a.min(b).min(c).min(mesh.uv_min);
-                mesh.uv_max = a.max(b).max(c).max(mesh.uv_max);
+                mesh.uv_min = a
+                    .per_component_min(&b)
+                    .per_component_min(&c)
+                    .per_component_min(&mesh.uv_min);
+                mesh.uv_max = a
+                    .per_component_max(&b)
+                    .per_component_max(&c)
+                    .per_component_max(&mesh.uv_max);
             }
             // Apply spacing to bounds.
-            mesh.uv_min -= Vec2::new(spacing, spacing);
-            mesh.uv_max += Vec2::new(spacing * 2.0, spacing * 2.0);
+            mesh.uv_min -= Vector2::new(spacing, spacing);
+            mesh.uv_max += Vector2::new(spacing * 2.0, spacing * 2.0);
             meshes.push(mesh);
         }
     }
@@ -205,7 +213,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
                     .zip(&projections[triangle_index])
                 {
                     data.vertices[vertex_index as usize].second_tex_coord =
-                        (projection - mesh.uv_min).scale(scale) + Vec2::from(rect.position());
+                        (projection - mesh.uv_min).scale(scale) + Vector2::from(rect.position);
                 }
             }
         }

@@ -46,11 +46,9 @@
 //! initial components, thats why engine does not provide any methods to get those
 //! properties back.
 
+use crate::core::algebra::{Matrix4, UnitQuaternion, Vector3};
 use crate::{
-    core::{
-        math::{mat4::Mat4, quat::Quat, vec3::Vec3},
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::visitor::{Visit, VisitResult, Visitor},
     utils::log::Log,
 };
 use std::cell::Cell;
@@ -61,17 +59,17 @@ pub struct Transform {
     /// Indicates that some property has changed and matrix must be
     /// recalculated before use. This is some sort of lazy evaluation.
     dirty: Cell<bool>,
-    local_scale: Vec3,
-    local_position: Vec3,
-    local_rotation: Quat,
-    pre_rotation: Quat,
-    post_rotation: Quat,
-    rotation_offset: Vec3,
-    rotation_pivot: Vec3,
-    scaling_offset: Vec3,
-    scaling_pivot: Vec3,
+    local_scale: Vector3<f32>,
+    local_position: Vector3<f32>,
+    local_rotation: UnitQuaternion<f32>,
+    pre_rotation: UnitQuaternion<f32>,
+    post_rotation: UnitQuaternion<f32>,
+    rotation_offset: Vector3<f32>,
+    rotation_pivot: Vector3<f32>,
+    scaling_offset: Vector3<f32>,
+    scaling_pivot: Vector3<f32>,
     /// Combined transform. Final result of combination of other properties.
-    matrix: Cell<Mat4>,
+    matrix: Cell<Matrix4<f32>>,
 }
 
 impl Visit for Transform {
@@ -104,28 +102,28 @@ impl Transform {
     pub fn identity() -> Self {
         Self {
             dirty: Cell::new(true),
-            local_position: Vec3::ZERO,
-            local_scale: Vec3::UNIT,
-            local_rotation: Quat::IDENTITY,
-            pre_rotation: Quat::IDENTITY,
-            post_rotation: Quat::IDENTITY,
-            rotation_offset: Vec3::ZERO,
-            rotation_pivot: Vec3::ZERO,
-            scaling_offset: Vec3::ZERO,
-            scaling_pivot: Vec3::ZERO,
-            matrix: Cell::new(Mat4::IDENTITY),
+            local_position: Vector3::default(),
+            local_scale: Vector3::new(1.0, 1.0, 1.0),
+            local_rotation: UnitQuaternion::identity(),
+            pre_rotation: UnitQuaternion::identity(),
+            post_rotation: UnitQuaternion::identity(),
+            rotation_offset: Vector3::default(),
+            rotation_pivot: Vector3::default(),
+            scaling_offset: Vector3::default(),
+            scaling_pivot: Vector3::default(),
+            matrix: Cell::new(Matrix4::identity()),
         }
     }
 
     /// Returns current position of transform.
     #[inline]
-    pub fn position(&self) -> Vec3 {
+    pub fn position(&self) -> Vector3<f32> {
         self.local_position
     }
 
     /// Sets position of transform.
     #[inline]
-    pub fn set_position(&mut self, local_position: Vec3) -> &mut Self {
+    pub fn set_position(&mut self, local_position: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.local_position != local_position {
             self.local_position = local_position;
             self.dirty.set(true);
@@ -135,13 +133,13 @@ impl Transform {
 
     /// Returns current rotation quaternion of transform.
     #[inline]
-    pub fn rotation(&self) -> Quat {
+    pub fn rotation(&self) -> UnitQuaternion<f32> {
         self.local_rotation
     }
 
     /// Sets rotation of transform.
     #[inline]
-    pub fn set_rotation(&mut self, local_rotation: Quat) -> &mut Self {
+    pub fn set_rotation(&mut self, local_rotation: UnitQuaternion<f32>) -> &mut Self {
         if self.dirty.get() || self.local_rotation != local_rotation {
             self.local_rotation = local_rotation;
             self.dirty.set(true);
@@ -151,7 +149,7 @@ impl Transform {
 
     /// Returns current scale factor of transform.
     #[inline]
-    pub fn scale(&self) -> Vec3 {
+    pub fn scale(&self) -> Vector3<f32> {
         self.local_scale
     }
 
@@ -160,7 +158,7 @@ impl Transform {
     /// non-uniform scaling possible will be removed in future, especially if engine
     /// migrate to some full-featured physics engine.
     #[inline]
-    pub fn set_scale(&mut self, local_scale: Vec3) -> &mut Self {
+    pub fn set_scale(&mut self, local_scale: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.local_scale != local_scale {
             self.local_scale = local_scale;
             self.dirty.set(true);
@@ -172,7 +170,7 @@ impl Transform {
     /// "coordinate" system of transform. It is mostly for FBX compatibility, and
     /// never used in other places of engine.
     #[inline]
-    pub fn set_pre_rotation(&mut self, pre_rotation: Quat) -> &mut Self {
+    pub fn set_pre_rotation(&mut self, pre_rotation: UnitQuaternion<f32>) -> &mut Self {
         if self.dirty.get() || self.pre_rotation != pre_rotation {
             self.pre_rotation = pre_rotation;
             self.dirty.set(true);
@@ -182,7 +180,7 @@ impl Transform {
 
     /// Returns current pre-rotation of transform.
     #[inline]
-    pub fn pre_rotation(&self) -> Quat {
+    pub fn pre_rotation(&self) -> UnitQuaternion<f32> {
         self.pre_rotation
     }
 
@@ -190,7 +188,7 @@ impl Transform {
     /// "coordinate" system of transform. It is mostly for FBX compatibility, and
     /// never used in other places of engine.
     #[inline]
-    pub fn set_post_rotation(&mut self, post_rotation: Quat) -> &mut Self {
+    pub fn set_post_rotation(&mut self, post_rotation: UnitQuaternion<f32>) -> &mut Self {
         if self.dirty.get() || self.post_rotation != post_rotation {
             self.post_rotation = post_rotation;
             self.dirty.set(true);
@@ -200,14 +198,14 @@ impl Transform {
 
     /// Returns current post-rotation of transform.
     #[inline]
-    pub fn post_rotation(&self) -> Quat {
+    pub fn post_rotation(&self) -> UnitQuaternion<f32> {
         self.post_rotation
     }
 
     /// Sets rotation offset of transform. Moves rotation pivot using given vector,
     /// it results in rotation being performed around rotation pivot with some offset.
     #[inline]
-    pub fn set_rotation_offset(&mut self, rotation_offset: Vec3) -> &mut Self {
+    pub fn set_rotation_offset(&mut self, rotation_offset: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.rotation_offset != rotation_offset {
             self.rotation_offset = rotation_offset;
             self.dirty.set(true);
@@ -217,7 +215,7 @@ impl Transform {
 
     /// Returns current rotation offset of transform.
     #[inline]
-    pub fn rotation_offset(&self) -> Vec3 {
+    pub fn rotation_offset(&self) -> Vector3<f32> {
         self.rotation_offset
     }
 
@@ -225,7 +223,7 @@ impl Transform {
     /// rotations will be performed. For example it can be used to rotate a cube around
     /// its vertex.
     #[inline]
-    pub fn set_rotation_pivot(&mut self, rotation_pivot: Vec3) -> &mut Self {
+    pub fn set_rotation_pivot(&mut self, rotation_pivot: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.rotation_pivot != rotation_pivot {
             self.rotation_pivot = rotation_pivot;
             self.dirty.set(true);
@@ -235,14 +233,14 @@ impl Transform {
 
     /// Returns current rotation pivot of transform.
     #[inline]
-    pub fn rotation_pivot(&self) -> Vec3 {
+    pub fn rotation_pivot(&self) -> Vector3<f32> {
         self.rotation_pivot
     }
 
     /// Sets scaling offset. Scaling offset defines offset from position of scaling
     /// pivot.
     #[inline]
-    pub fn set_scaling_offset(&mut self, scaling_offset: Vec3) -> &mut Self {
+    pub fn set_scaling_offset(&mut self, scaling_offset: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.scaling_offset != scaling_offset {
             self.scaling_offset = scaling_offset;
             self.dirty.set(true);
@@ -252,14 +250,14 @@ impl Transform {
 
     /// Returns current scaling offset of transform.
     #[inline]
-    pub fn scaling_offset(&self) -> Vec3 {
+    pub fn scaling_offset(&self) -> Vector3<f32> {
         self.scaling_offset
     }
 
     /// Sets scaling pivot. Scaling pivot sets a point around which scale will be
     /// performed.
     #[inline]
-    pub fn set_scaling_pivot(&mut self, scaling_pivot: Vec3) -> &mut Self {
+    pub fn set_scaling_pivot(&mut self, scaling_pivot: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.scaling_pivot != scaling_pivot {
             self.scaling_pivot = scaling_pivot;
             self.dirty.set(true);
@@ -269,48 +267,50 @@ impl Transform {
 
     /// Returns current scaling pivot of transform.
     #[inline]
-    pub fn scaling_pivot(&self) -> Vec3 {
+    pub fn scaling_pivot(&self) -> Vector3<f32> {
         self.scaling_pivot
     }
 
     /// Shifts local position using given vector. It is a shortcut for:
     /// set_position(position() + offset)
     #[inline]
-    pub fn offset(&mut self, vec: Vec3) -> &mut Self {
+    pub fn offset(&mut self, vec: Vector3<f32>) -> &mut Self {
         self.local_position += vec;
         self.dirty.set(true);
         self
     }
 
-    fn calculate_local_transform(&self) -> Mat4 {
-        let pre_rotation = Mat4::from_quat(self.pre_rotation);
-        let post_rotation = Mat4::from_quat(self.post_rotation)
-            .inverse()
-            .unwrap_or_else(|_| {
+    fn calculate_local_transform(&self) -> Matrix4<f32> {
+        let pre_rotation = self.pre_rotation.to_homogeneous();
+        let post_rotation = self
+            .post_rotation
+            .to_homogeneous()
+            .try_inverse()
+            .unwrap_or_else(|| {
                 Log::writeln(
                     "Unable to inverse post rotation matrix! Fallback to identity matrix."
                         .to_owned(),
                 );
-                Mat4::IDENTITY
+                Matrix4::identity()
             });
-        let rotation = Mat4::from_quat(self.local_rotation);
-        let scale = Mat4::scale(self.local_scale);
-        let translation = Mat4::translate(self.local_position);
-        let rotation_offset = Mat4::translate(self.rotation_offset);
-        let rotation_pivot = Mat4::translate(self.rotation_pivot);
-        let rotation_pivot_inv = rotation_pivot.inverse().unwrap_or_else(|_| {
+        let rotation = self.local_rotation.to_homogeneous();
+        let scale = Matrix4::new_nonuniform_scaling(&self.local_scale);
+        let translation = Matrix4::new_translation(&self.local_position);
+        let rotation_offset = Matrix4::new_translation(&self.rotation_offset);
+        let rotation_pivot = Matrix4::new_translation(&self.rotation_pivot);
+        let rotation_pivot_inv = rotation_pivot.try_inverse().unwrap_or_else(|| {
             Log::writeln(
                 "Unable to inverse rotation pivot matrix! Fallback to identity matrix.".to_owned(),
             );
-            Mat4::IDENTITY
+            Matrix4::identity()
         });
-        let scale_offset = Mat4::translate(self.scaling_offset);
-        let scale_pivot = Mat4::translate(self.scaling_pivot);
-        let scale_pivot_inv = scale_pivot.inverse().unwrap_or_else(|_| {
+        let scale_offset = Matrix4::new_translation(&self.scaling_offset);
+        let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
+        let scale_pivot_inv = scale_pivot.try_inverse().unwrap_or_else(|| {
             Log::writeln(
                 "Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned(),
             );
-            Mat4::IDENTITY
+            Matrix4::identity()
         });
 
         translation
@@ -328,7 +328,7 @@ impl Transform {
 
     /// Returns matrix which is final result of transform. Matrix then can be used to transform
     /// a vector, or combine with other matrix, to make transform hierarchy for example.
-    pub fn matrix(&self) -> Mat4 {
+    pub fn matrix(&self) -> Matrix4<f32> {
         if self.dirty.get() {
             self.matrix.set(self.calculate_local_transform());
             self.dirty.set(false)
@@ -340,15 +340,15 @@ impl Transform {
 /// Transform builder allows you to construct transform in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct TransformBuilder {
-    local_scale: Option<Vec3>,
-    local_position: Option<Vec3>,
-    local_rotation: Option<Quat>,
-    pre_rotation: Option<Quat>,
-    post_rotation: Option<Quat>,
-    rotation_offset: Option<Vec3>,
-    rotation_pivot: Option<Vec3>,
-    scaling_offset: Option<Vec3>,
-    scaling_pivot: Option<Vec3>,
+    local_scale: Option<Vector3<f32>>,
+    local_position: Option<Vector3<f32>>,
+    local_rotation: Option<UnitQuaternion<f32>>,
+    pre_rotation: Option<UnitQuaternion<f32>>,
+    post_rotation: Option<UnitQuaternion<f32>>,
+    rotation_offset: Option<Vector3<f32>>,
+    rotation_pivot: Option<Vector3<f32>>,
+    scaling_offset: Option<Vector3<f32>>,
+    scaling_pivot: Option<Vector3<f32>>,
 }
 
 impl Default for TransformBuilder {
@@ -375,55 +375,55 @@ impl TransformBuilder {
     }
 
     /// Sets desired local scale.
-    pub fn with_local_scale(mut self, scale: Vec3) -> Self {
+    pub fn with_local_scale(mut self, scale: Vector3<f32>) -> Self {
         self.local_scale = Some(scale);
         self
     }
 
     /// Sets desired local position.
-    pub fn with_local_position(mut self, position: Vec3) -> Self {
+    pub fn with_local_position(mut self, position: Vector3<f32>) -> Self {
         self.local_position = Some(position);
         self
     }
 
     /// Sets desired local rotation.
-    pub fn with_local_rotation(mut self, rotation: Quat) -> Self {
+    pub fn with_local_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
         self.local_rotation = Some(rotation);
         self
     }
 
     /// Sets desired pre-rotation.
-    pub fn with_pre_rotation(mut self, rotation: Quat) -> Self {
+    pub fn with_pre_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
         self.pre_rotation = Some(rotation);
         self
     }
 
     /// Sets desired post-rotation.
-    pub fn with_post_rotation(mut self, rotation: Quat) -> Self {
+    pub fn with_post_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
         self.post_rotation = Some(rotation);
         self
     }
 
     /// Sets desired rotation offset.
-    pub fn with_rotation_offset(mut self, offset: Vec3) -> Self {
+    pub fn with_rotation_offset(mut self, offset: Vector3<f32>) -> Self {
         self.rotation_offset = Some(offset);
         self
     }
 
     /// Sets desired rotation pivot.
-    pub fn with_rotation_pivot(mut self, pivot: Vec3) -> Self {
+    pub fn with_rotation_pivot(mut self, pivot: Vector3<f32>) -> Self {
         self.rotation_pivot = Some(pivot);
         self
     }
 
     /// Sets desired scaling offset.
-    pub fn with_scaling_offset(mut self, offset: Vec3) -> Self {
+    pub fn with_scaling_offset(mut self, offset: Vector3<f32>) -> Self {
         self.scaling_offset = Some(offset);
         self
     }
 
     /// Sets desired scaling pivot.
-    pub fn with_scaling_pivot(mut self, pivot: Vec3) -> Self {
+    pub fn with_scaling_pivot(mut self, pivot: Vector3<f32>) -> Self {
         self.scaling_pivot = Some(pivot);
         self
     }
@@ -432,16 +432,16 @@ impl TransformBuilder {
     pub fn build(self) -> Transform {
         Transform {
             dirty: Cell::new(true),
-            local_scale: self.local_scale.unwrap_or(Vec3::UNIT),
-            local_position: self.local_position.unwrap_or(Vec3::ZERO),
-            local_rotation: self.local_rotation.unwrap_or(Quat::IDENTITY),
-            pre_rotation: self.pre_rotation.unwrap_or(Quat::IDENTITY),
-            post_rotation: self.post_rotation.unwrap_or(Quat::IDENTITY),
-            rotation_offset: self.rotation_offset.unwrap_or(Vec3::ZERO),
-            rotation_pivot: self.rotation_pivot.unwrap_or(Vec3::ZERO),
-            scaling_offset: self.scaling_offset.unwrap_or(Vec3::ZERO),
-            scaling_pivot: self.scaling_pivot.unwrap_or(Vec3::ZERO),
-            matrix: Cell::new(Mat4::IDENTITY),
+            local_scale: self.local_scale.unwrap_or(Vector3::new(1.0, 1.0, 1.0)),
+            local_position: self.local_position.unwrap_or(Vector3::default()),
+            local_rotation: self.local_rotation.unwrap_or(UnitQuaternion::identity()),
+            pre_rotation: self.pre_rotation.unwrap_or(UnitQuaternion::identity()),
+            post_rotation: self.post_rotation.unwrap_or(UnitQuaternion::identity()),
+            rotation_offset: self.rotation_offset.unwrap_or(Vector3::default()),
+            rotation_pivot: self.rotation_pivot.unwrap_or(Vector3::default()),
+            scaling_offset: self.scaling_offset.unwrap_or(Vector3::default()),
+            scaling_pivot: self.scaling_pivot.unwrap_or(Vector3::default()),
+            matrix: Cell::new(Matrix4::identity()),
         }
     }
 }

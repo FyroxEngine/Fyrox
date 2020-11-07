@@ -4,6 +4,8 @@ extern crate memoffset;
 #[macro_use]
 extern crate lazy_static;
 
+pub use nalgebra as algebra;
+
 use std::{
     ffi::OsString,
     path::{Path, PathBuf},
@@ -15,10 +17,9 @@ pub mod math;
 pub mod numeric_range;
 pub mod octree;
 pub mod pool;
+pub mod profiler;
 pub mod rectpack;
 pub mod visitor;
-
-pub mod profiler;
 
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 #[macro_export]

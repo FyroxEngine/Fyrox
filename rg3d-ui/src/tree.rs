@@ -1,8 +1,9 @@
+use crate::core::algebra::Vector2;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::ButtonBuilder,
-    core::{color::Color, math::vec2::Vec2, pool::Handle},
+    core::{color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     grid::{Column, GridBuilder, Row},
     message::{
@@ -39,7 +40,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Tree<M, C> {
         node_map.resolve(&mut self.background);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         if !self.always_show_expander {

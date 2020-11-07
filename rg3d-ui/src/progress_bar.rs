@@ -1,10 +1,11 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     canvas::CanvasBuilder,
-    core::{color::Color, math::vec2::Vec2, pool::Handle},
-    message::{ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage},
+    core::{algebra::Vector2, color::Color, pool::Handle},
+    message::{
+        MessageData, MessageDirection, ProgressBarMessage, UiMessage, UiMessageData, WidgetMessage,
+    },
     node::UINode,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, NodeHandleMapping, UserInterface,
@@ -27,7 +28,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for ProgressBar<M, C> {
         node_map.resolve(&mut self.body);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         ui.send_message(WidgetMessage::width(

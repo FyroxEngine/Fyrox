@@ -1,13 +1,10 @@
+use crate::core::algebra::Vector2;
 use crate::decorator::DecoratorBuilder;
 use crate::{
     border::BorderBuilder,
     brush::{Brush, GradientPoint},
     button::ButtonBuilder,
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{color::Color, math::Rect, pool::Handle},
     grid::{Column, GridBuilder, Row},
     message::{
         ButtonMessage, CursorIcon, MessageData, MessageDirection, TextMessage, UiMessage,
@@ -29,9 +26,9 @@ use std::{
 #[derive(Clone)]
 pub struct Window<M: MessageData, C: Control<M, C>> {
     widget: Widget<M, C>,
-    mouse_click_pos: Vec2,
-    initial_position: Vec2,
-    initial_size: Vec2,
+    mouse_click_pos: Vector2<f32>,
+    initial_position: Vector2<f32>,
+    initial_size: Vector2<f32>,
     is_dragging: bool,
     minimized: bool,
     can_minimize: bool,
@@ -40,7 +37,7 @@ pub struct Window<M: MessageData, C: Control<M, C>> {
     header: Handle<UINode<M, C>>,
     minimize_button: Handle<UINode<M, C>>,
     close_button: Handle<UINode<M, C>>,
-    drag_delta: Vec2,
+    drag_delta: Vector2<f32>,
     content: Handle<UINode<M, C>>,
     grips: RefCell<[Grip; 8]>,
     title: Handle<UINode<M, C>>,
@@ -93,62 +90,50 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
         node_map.resolve(&mut self.content);
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
         let mut grips = self.grips.borrow_mut();
 
         // Adjust grips.
-        grips[GripKind::Left as usize].bounds = Rect {
-            x: 0.0,
-            y: GRIP_SIZE,
-            w: GRIP_SIZE,
-            h: final_size.y - GRIP_SIZE * 2.0,
-        };
-        grips[GripKind::Top as usize].bounds = Rect {
-            x: GRIP_SIZE,
-            y: 0.0,
-            w: final_size.x - GRIP_SIZE * 2.0,
-            h: GRIP_SIZE,
-        };
-        grips[GripKind::Right as usize].bounds = Rect {
-            x: final_size.x - GRIP_SIZE,
-            y: GRIP_SIZE,
-            w: GRIP_SIZE,
-            h: final_size.y - GRIP_SIZE * 2.0,
-        };
-        grips[GripKind::Bottom as usize].bounds = Rect {
-            x: GRIP_SIZE,
-            y: final_size.y - GRIP_SIZE,
-            w: final_size.x - GRIP_SIZE * 2.0,
-            h: GRIP_SIZE,
-        };
+        grips[GripKind::Left as usize].bounds =
+            Rect::new(0.0, GRIP_SIZE, GRIP_SIZE, final_size.y - GRIP_SIZE * 2.0);
+        grips[GripKind::Top as usize].bounds =
+            Rect::new(GRIP_SIZE, 0.0, final_size.x - GRIP_SIZE * 2.0, GRIP_SIZE);
+        grips[GripKind::Right as usize].bounds = Rect::new(
+            final_size.x - GRIP_SIZE,
+            GRIP_SIZE,
+            GRIP_SIZE,
+            final_size.y - GRIP_SIZE * 2.0,
+        );
+        grips[GripKind::Bottom as usize].bounds = Rect::new(
+            GRIP_SIZE,
+            final_size.y - GRIP_SIZE,
+            final_size.x - GRIP_SIZE * 2.0,
+            GRIP_SIZE,
+        );
 
         // Corners have different size to improve usability.
-        grips[GripKind::LeftTopCorner as usize].bounds = Rect {
-            x: 0.0,
-            y: 0.0,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
-        grips[GripKind::RightTopCorner as usize].bounds = Rect {
-            x: final_size.x - GRIP_SIZE,
-            y: 0.0,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
-        grips[GripKind::RightBottomCorner as usize].bounds = Rect {
-            x: final_size.x - CORNER_GRIP_SIZE,
-            y: final_size.y - CORNER_GRIP_SIZE,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
-        grips[GripKind::LeftBottomCorner as usize].bounds = Rect {
-            x: 0.0,
-            y: final_size.y - CORNER_GRIP_SIZE,
-            w: CORNER_GRIP_SIZE,
-            h: CORNER_GRIP_SIZE,
-        };
+        grips[GripKind::LeftTopCorner as usize].bounds =
+            Rect::new(0.0, 0.0, CORNER_GRIP_SIZE, CORNER_GRIP_SIZE);
+        grips[GripKind::RightTopCorner as usize].bounds = Rect::new(
+            final_size.x - GRIP_SIZE,
+            0.0,
+            CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+        );
+        grips[GripKind::RightBottomCorner as usize].bounds = Rect::new(
+            final_size.x - CORNER_GRIP_SIZE,
+            final_size.y - CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+        );
+        grips[GripKind::LeftBottomCorner as usize].bounds = Rect::new(
+            0.0,
+            final_size.y - CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+            CORNER_GRIP_SIZE,
+        );
 
         size
     }
@@ -174,8 +159,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                             // Check grips.
                             for grip in self.grips.borrow_mut().iter_mut() {
                                 let offset = self.screen_position;
-                                let screen_bounds = grip.bounds.translate(offset.x, offset.y);
-                                if screen_bounds.contains(pos.x, pos.y) {
+                                let screen_bounds = grip.bounds.translate(offset);
+                                if screen_bounds.contains(pos) {
                                     grip.is_dragging = true;
                                     self.initial_position = self.actual_local_position();
                                     self.initial_size = self.actual_size();
@@ -199,8 +184,8 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
 
                             for grip in self.grips.borrow().iter() {
                                 let offset = self.screen_position;
-                                let screen_bounds = grip.bounds.translate(offset.x, offset.y);
-                                if screen_bounds.contains(pos.x, pos.y) {
+                                let screen_bounds = grip.bounds.translate(offset);
+                                if screen_bounds.contains(pos) {
                                     new_cursor = Some(grip.cursor);
                                 }
 
@@ -218,9 +203,9 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Window<M, C> {
                                     };
 
                                     let new_pos = self.initial_position
-                                        + Vec2::new(delta.x * dx, delta.y * dy);
-                                    let new_size =
-                                        self.initial_size + Vec2::new(delta.x * dw, delta.y * dh);
+                                        + Vector2::new(delta.x * dx, delta.y * dy);
+                                    let new_size = self.initial_size
+                                        + Vector2::new(delta.x * dw, delta.y * dh);
 
                                     if new_size.x > self.min_width()
                                         && new_size.x < self.max_width()
@@ -520,7 +505,7 @@ impl<M: MessageData, C: Control<M, C>> Window<M, C> {
         self.is_dragging
     }
 
-    pub fn drag_delta(&self) -> Vec2 {
+    pub fn drag_delta(&self) -> Vector2<f32> {
         self.drag_delta
     }
 
@@ -684,8 +669,8 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
                 .with_height(30.0)
                 .with_background(Brush::LinearGradient {
-                    from: Vec2::new(0.5, 0.0),
-                    to: Vec2::new(0.5, 1.0),
+                    from: Vector2::new(0.5, 0.0),
+                    to: Vector2::new(0.5, 1.0),
                     stops: vec![
                         GradientPoint {
                             stop: 0.0,
@@ -772,8 +757,8 @@ impl<'a, M: MessageData, C: Control<M, C>> WindowBuilder<M, C> {
                     .build(ctx),
                 )
                 .build(),
-            mouse_click_pos: Vec2::ZERO,
-            initial_position: Vec2::ZERO,
+            mouse_click_pos: Vector2::default(),
+            initial_position: Vector2::default(),
             initial_size: Default::default(),
             is_dragging: false,
             minimized: false,

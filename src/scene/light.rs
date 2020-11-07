@@ -16,11 +16,11 @@
 //! these are common effects for modern games but still can significantly impact
 //! performance.
 
+use crate::core::algebra::Vector3;
 use crate::{
     core::{
         color::Color,
         define_is_as,
-        math::vec3::Vec3,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::{
@@ -32,7 +32,15 @@ use std::ops::{Deref, DerefMut};
 
 /// Default amount of light scattering, it is set to 3% which is fairly
 /// significant value and you'll clearly see light volume with such settings.
-pub const DEFAULT_SCATTER: Vec3 = Vec3::new(0.03, 0.03, 0.03);
+pub const DEFAULT_SCATTER_R: f32 = 0.03;
+
+/// Default amount of light scattering, it is set to 3% which is fairly
+/// significant value and you'll clearly see light volume with such settings.
+pub const DEFAULT_SCATTER_G: f32 = 0.03;
+
+/// Default amount of light scattering, it is set to 3% which is fairly
+/// significant value and you'll clearly see light volume with such settings.
+pub const DEFAULT_SCATTER_B: f32 = 0.03;
 
 /// Spot light is can be imagined as flash light - it has direction and cone
 /// shape of light volume. It defined by two angles:
@@ -556,7 +564,7 @@ pub struct BaseLight {
     base: Base,
     color: Color,
     cast_shadows: bool,
-    scatter: Vec3,
+    scatter: Vector3<f32>,
     scatter_enabled: bool,
 }
 
@@ -580,7 +588,7 @@ impl Default for BaseLight {
             base: Default::default(),
             color: Color::WHITE,
             cast_shadows: true,
-            scatter: DEFAULT_SCATTER,
+            scatter: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
         }
     }
@@ -634,13 +642,13 @@ impl BaseLight {
     /// per color channel, higher values will cause too "heavy" light scattering
     /// as if you light source would be in fog.
     #[inline]
-    pub fn set_scatter(&mut self, f: Vec3) {
+    pub fn set_scatter(&mut self, f: Vector3<f32>) {
         self.scatter = f;
     }
 
     /// Returns current scatter factor.
     #[inline]
-    pub fn scatter(&self) -> Vec3 {
+    pub fn scatter(&self) -> Vector3<f32> {
         self.scatter
     }
 
@@ -674,7 +682,7 @@ pub struct BaseLightBuilder {
     base_builder: BaseBuilder,
     color: Color,
     cast_shadows: bool,
-    scatter_factor: Vec3,
+    scatter_factor: Vector3<f32>,
     scatter_enabled: bool,
 }
 
@@ -688,7 +696,7 @@ impl BaseLightBuilder {
             base_builder,
             color: Color::WHITE,
             cast_shadows: true,
-            scatter_factor: DEFAULT_SCATTER,
+            scatter_factor: Vector3::new(DEFAULT_SCATTER_R, DEFAULT_SCATTER_G, DEFAULT_SCATTER_B),
             scatter_enabled: true,
         }
     }
@@ -706,7 +714,7 @@ impl BaseLightBuilder {
     }
 
     /// Sets light scatter factor per color channel.
-    pub fn with_scatter_factor(mut self, f: Vec3) -> Self {
+    pub fn with_scatter_factor(mut self, f: Vector3<f32>) -> Self {
         self.scatter_factor = f;
         self
     }

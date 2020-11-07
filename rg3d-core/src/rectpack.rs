@@ -5,9 +5,10 @@ use crate::{
     math::Rect,
     pool::{Handle, Pool},
 };
+use nalgebra::Scalar;
 use std::ops::{Add, Mul, Sub};
 
-struct RectPackNode<T> {
+struct RectPackNode<T: Scalar> {
     filled: bool,
     split: bool,
     bounds: Rect<T>,
@@ -15,7 +16,7 @@ struct RectPackNode<T> {
     right: Handle<RectPackNode<T>>,
 }
 
-impl<T> RectPackNode<T> {
+impl<T: Scalar> RectPackNode<T> {
     fn new(bounds: Rect<T>) -> Self {
         Self {
             bounds,
@@ -28,14 +29,14 @@ impl<T> RectPackNode<T> {
 }
 
 /// See module docs.
-pub struct RectPacker<T> {
+pub struct RectPacker<T: Scalar> {
     nodes: Pool<RectPackNode<T>>,
     root: Handle<RectPackNode<T>>,
 }
 
 impl<T> RectPacker<T>
 where
-    T: Add<Output = T> + Sub<Output = T> + Copy + Clone + Default + PartialOrd + Mul<Output = T>,
+    T: Add<Output = T> + Sub<Output = T> + Scalar + Mul<Output = T> + PartialOrd + Default + Copy,
 {
     /// Creates new instance of rectangle packer with given bounds.
     ///
@@ -70,32 +71,32 @@ where
                 unvisited.push(node.left);
                 continue;
             } else {
-                if node.filled || node.bounds.w < w || node.bounds.h < h {
+                if node.filled || node.bounds.w() < w || node.bounds.h() < h {
                     continue;
                 }
 
-                if node.bounds.w == w && node.bounds.h == h {
+                if node.bounds.w() == w && node.bounds.h() == h {
                     node.filled = true;
                     return Some(node.bounds);
                 }
 
                 // Split and continue
                 node.split = true;
-                if node.bounds.w - w > node.bounds.h - h {
-                    left_bounds = Rect::new(node.bounds.x, node.bounds.y, w, node.bounds.h);
+                if node.bounds.w() - w > node.bounds.h() - h {
+                    left_bounds = Rect::new(node.bounds.x(), node.bounds.y(), w, node.bounds.h());
                     right_bounds = Rect::new(
-                        node.bounds.x + w,
-                        node.bounds.y,
-                        node.bounds.w - w,
-                        node.bounds.h,
+                        node.bounds.x() + w,
+                        node.bounds.y(),
+                        node.bounds.w() - w,
+                        node.bounds.h(),
                     );
                 } else {
-                    left_bounds = Rect::new(node.bounds.x, node.bounds.y, node.bounds.w, h);
+                    left_bounds = Rect::new(node.bounds.x(), node.bounds.y(), node.bounds.w(), h);
                     right_bounds = Rect::new(
-                        node.bounds.x,
-                        node.bounds.y + h,
-                        node.bounds.w,
-                        node.bounds.h - h,
+                        node.bounds.x(),
+                        node.bounds.y() + h,
+                        node.bounds.w(),
+                        node.bounds.h() - h,
                     );
                 }
             }

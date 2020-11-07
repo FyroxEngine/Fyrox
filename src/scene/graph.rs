@@ -22,9 +22,11 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3};
+use crate::core::math::Matrix4Ext;
 use crate::{
     core::{
-        math::{frustum::Frustum, mat4::Mat4, quat::Quat, vec2::Vec2, vec3::Vec3},
+        math::frustum::Frustum,
         pool::{
             Handle, Pool, PoolIterator, PoolIteratorMut, PoolPairIterator, PoolPairIteratorMut,
             Ticket,
@@ -35,6 +37,7 @@ use crate::{
     scene::{node::Node, VisibilityCache},
     utils::log::Log,
 };
+use rapier3d::na::Rotation3;
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
@@ -171,7 +174,7 @@ impl Graph {
         self.link_nodes(node_handle, self.root);
         self.pool[node_handle]
             .local_transform_mut()
-            .set_position(Vec3::ZERO);
+            .set_position(Vector3::default());
     }
 
     /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
@@ -439,7 +442,7 @@ impl Graph {
                 if let Some(parent) = self.pool.try_borrow(parent_handle) {
                     (parent.global_transform(), parent.global_visibility())
                 } else {
-                    (Mat4::IDENTITY, true)
+                    (Matrix4::identity(), true)
                 };
 
             let node = &mut self.pool[node_handle];
@@ -457,7 +460,7 @@ impl Graph {
     }
 
     /// Updates nodes in graph using given delta time. There is no need to call it manually.
-    pub fn update_nodes(&mut self, frame_size: Vec2, dt: f32) {
+    pub fn update_nodes(&mut self, frame_size: Vector2<f32>, dt: f32) {
         self.update_hierarchical_data();
 
         for i in 0..self.pool.get_capacity() {
@@ -667,14 +670,14 @@ impl Graph {
     }
 
     /// Returns local transformation matrix of a node without scale.
-    pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Mat4 {
+    pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
         let mut transform = self[node].local_transform().clone();
-        transform.set_scale(Vec3::new(1.0, 1.0, 1.0));
+        transform.set_scale(Vector3::new(1.0, 1.0, 1.0));
         transform.matrix()
     }
 
     /// Returns world transformation matrix of a node without scale.
-    pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Mat4 {
+    pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
         let parent = self[node].parent();
         if parent.is_some() {
             self.global_transform_no_scale(parent) * self.local_transform_no_scale(node)
@@ -684,9 +687,9 @@ impl Graph {
     }
 
     /// Returns global scale matrix of a node.
-    pub fn global_scale_matrix(&self, node: Handle<Node>) -> Mat4 {
+    pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
         let node = &self[node];
-        let local_scale_matrix = Mat4::scale(node.local_transform().scale());
+        let local_scale_matrix = Matrix4::new_nonuniform_scaling(&node.local_transform().scale());
         if node.parent().is_some() {
             self.global_scale_matrix(node.parent()) * local_scale_matrix
         } else {
@@ -695,19 +698,24 @@ impl Graph {
     }
 
     /// Returns rotation quaternion of a node in world coordinates.
-    pub fn global_rotation(&self, node: Handle<Node>) -> Quat {
-        Quat::from(self.global_transform_no_scale(node).basis())
+    pub fn global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
+        UnitQuaternion::from(Rotation3::from_matrix(
+            &self.global_transform_no_scale(node).basis(),
+        ))
     }
 
     /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
-    pub fn global_rotation_position_no_scale(&self, node: Handle<Node>) -> (Quat, Vec3) {
+    pub fn global_rotation_position_no_scale(
+        &self,
+        node: Handle<Node>,
+    ) -> (UnitQuaternion<f32>, Vector3<f32>) {
         (self.global_rotation(node), self[node].global_position())
     }
 
     /// Returns global scale of a node.
-    pub fn global_scale(&self, node: Handle<Node>) -> Vec3 {
+    pub fn global_scale(&self, node: Handle<Node>) -> Vector3<f32> {
         let m = self.global_scale_matrix(node);
-        Vec3::new(m.f[0], m.f[5], m.f[10])
+        Vector3::new(m[0], m[5], m[10])
     }
 }
 

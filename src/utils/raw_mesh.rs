@@ -5,6 +5,7 @@
 //! of RawMeshBuilder.
 
 use crate::core::math::TriangleDefinition;
+use rapier3d::na::Vector3;
 use std::{
     collections::HashSet,
     hash::{Hash, Hasher},
@@ -14,6 +15,52 @@ use std::{
 struct IndexedStorage<T> {
     index: u32,
     vertex: T,
+}
+
+/// Raw vertex is just a point in 3d space that supports hashing.
+pub struct RawVertex {
+    /// An X component.
+    pub x: f32,
+    /// An Y component.
+    pub y: f32,
+    /// An Z component.
+    pub z: f32,
+}
+
+impl PartialEq for RawVertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y && self.z == other.z
+    }
+}
+
+impl From<Vector3<f32>> for RawVertex {
+    fn from(v: Vector3<f32>) -> Self {
+        Self {
+            x: v.x,
+            y: v.y,
+            z: v.z,
+        }
+    }
+}
+
+impl RawVertex {
+    fn validate(&self) {
+        debug_assert!(!self.x.is_nan());
+        debug_assert!(!self.y.is_nan());
+        debug_assert!(!self.z.is_nan());
+    }
+}
+
+impl Hash for RawVertex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.validate();
+        unsafe {
+            state.write(std::slice::from_raw_parts(
+                self as *const Self as *const _,
+                std::mem::size_of::<Self>(),
+            ))
+        }
+    }
 }
 
 impl<T> PartialEq for IndexedStorage<T>

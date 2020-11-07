@@ -1,7 +1,5 @@
-use crate::{
-    math::{vec3::Vec3, vec4::Vec4},
-    visitor::{Visit, VisitResult, Visitor},
-};
+use crate::algebra::{Vector3, Vector4};
+use crate::visitor::{Visit, VisitResult, Visitor};
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq)]
 #[repr(C)]
@@ -25,8 +23,8 @@ impl Into<u32> for Color {
     }
 }
 
-impl From<Vec3> for Color {
-    fn from(v: Vec3) -> Self {
+impl From<Vector3<f32>> for Color {
+    fn from(v: Vector3<f32>) -> Self {
         Self {
             r: (v.x.max(0.0).min(1.0) * 255.0) as u8,
             g: (v.y.max(0.0).min(1.0) * 255.0) as u8,
@@ -36,8 +34,8 @@ impl From<Vec3> for Color {
     }
 }
 
-impl From<Vec4> for Color {
-    fn from(v: Vec4) -> Self {
+impl From<Vector4<f32>> for Color {
+    fn from(v: Vector4<f32>) -> Self {
         Self {
             r: (v.x.max(0.0).min(1.0) * 255.0) as u8,
             g: (v.y.max(0.0).min(1.0) * 255.0) as u8,
@@ -135,12 +133,12 @@ impl From<Hsv> for Color {
         let vdec = hsv.brightness - a;
         Self::from(
             match hi {
-                0 => Vec3::new(hsv.brightness, vinc, vmin),
-                1 => Vec3::new(vdec, hsv.brightness, vmin),
-                2 => Vec3::new(vmin, hsv.brightness, vinc),
-                3 => Vec3::new(vmin, vdec, hsv.brightness),
-                4 => Vec3::new(vinc, vmin, hsv.brightness),
-                5 => Vec3::new(hsv.brightness, vmin, vdec),
+                0 => Vector3::new(hsv.brightness, vinc, vmin),
+                1 => Vector3::new(vdec, hsv.brightness, vmin),
+                2 => Vector3::new(vmin, hsv.brightness, vinc),
+                3 => Vector3::new(vmin, vdec, hsv.brightness),
+                4 => Vector3::new(vinc, vmin, hsv.brightness),
+                5 => Vector3::new(hsv.brightness, vmin, vdec),
                 _ => unreachable!(),
             }
             .scale(1.0 / 100.0),
@@ -194,13 +192,13 @@ impl Color {
         Self { r, g, b, a }
     }
 
-    pub fn as_frgba(self) -> Vec4 {
-        Vec4 {
-            x: f32::from(self.r) / 255.0,
-            y: f32::from(self.g) / 255.0,
-            z: f32::from(self.b) / 255.0,
-            w: f32::from(self.a) / 255.0,
-        }
+    pub fn as_frgba(self) -> Vector4<f32> {
+        Vector4::new(
+            f32::from(self.r) / 255.0,
+            f32::from(self.g) / 255.0,
+            f32::from(self.b) / 255.0,
+            f32::from(self.a) / 255.0,
+        )
     }
 
     pub fn to_opaque(self) -> Self {

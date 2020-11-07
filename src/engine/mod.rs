@@ -6,12 +6,10 @@
 pub mod error;
 pub mod resource_manager;
 
+use crate::core::algebra::Vector2;
 use crate::resource::texture::TextureKind;
 use crate::{
-    core::{
-        math::vec2::Vec2,
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::visitor::{Visit, VisitResult, Visitor},
     engine::{error::EngineError, resource_manager::ResourceManager},
     event_loop::EventLoop,
     gui::{Control, UserInterface},
@@ -95,7 +93,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
             resource_manager: ResourceManager::new(),
             sound_context: Context::new()?,
             scenes: SceneContainer::new(),
-            user_interface: UserInterface::new(Vec2::new(
+            user_interface: UserInterface::new(Vector2::new(
                 client_size.width as f32,
                 client_size.height as f32,
             )),
@@ -116,14 +114,14 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// functioning.
     pub fn update(&mut self, dt: f32) {
         let inner_size = self.context.window().inner_size();
-        let window_size = Vec2::new(inner_size.width as f32, inner_size.height as f32);
+        let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
         self.resource_manager.state().update(dt);
 
         for scene in self.scenes.iter_mut() {
             let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
                 if let TextureKind::Rectangle { width, height } = rt.data_ref().kind {
-                    Vec2::new(width as f32, height as f32)
+                    Vector2::new(width as f32, height as f32)
                 } else {
                     panic!("only rectangle textures can be used as render target!");
                 }
@@ -167,8 +165,6 @@ impl<M: MessageData, C: Control<M, C>> Visit for Engine<M, C> {
 
         if visitor.is_reading() {
             futures::executor::block_on(self.resource_manager.reload_resources());
-
-            dbg!();
 
             for scene in self.scenes.iter_mut() {
                 scene.resolve();

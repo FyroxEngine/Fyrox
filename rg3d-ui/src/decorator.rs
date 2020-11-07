@@ -1,16 +1,11 @@
-use crate::message::{MessageData, MessageDirection};
 use crate::{
-    border::Border,
-    border::BorderBuilder,
+    border::{Border, BorderBuilder},
     brush::{Brush, GradientPoint},
-    core::{
-        color::Color,
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     draw::DrawingContext,
-    message::DecoratorMessage,
-    message::{UiMessage, UiMessageData, WidgetMessage},
+    message::{
+        DecoratorMessage, MessageData, MessageDirection, UiMessage, UiMessageData, WidgetMessage,
+    },
     node::UINode,
     widget::Widget,
     BuildContext, Control, NodeHandleMapping, UserInterface,
@@ -58,11 +53,15 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.resolve(node_map)
     }
 
-    fn measure_override(&self, ui: &UserInterface<M, C>, available_size: Vec2) -> Vec2 {
+    fn measure_override(
+        &self,
+        ui: &UserInterface<M, C>,
+        available_size: Vector2<f32>,
+    ) -> Vector2<f32> {
         self.border.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &UserInterface<M, C>, final_size: Vector2<f32>) -> Vector2<f32> {
         self.border.arrange_override(ui, final_size)
     }
 
@@ -78,7 +77,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for Decorator<M, C> {
         self.border.is_arrange_valid(ui)
     }
 
-    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vec2) {
+    fn measure(&self, ui: &UserInterface<M, C>, available_size: Vector2<f32>) {
         self.border.measure(ui, available_size);
     }
 
@@ -268,8 +267,8 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
 
     pub fn build(self, ui: &mut BuildContext<M, C>) -> Handle<UINode<M, C>> {
         let normal_brush = self.normal_brush.unwrap_or_else(|| Brush::LinearGradient {
-            from: Vec2::new(0.5, 0.0),
-            to: Vec2::new(0.5, 1.0),
+            from: Vector2::new(0.5, 0.0),
+            to: Vector2::new(0.5, 1.0),
             stops: vec![
                 GradientPoint {
                     stop: 0.0,
@@ -302,8 +301,8 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
             border,
             normal_brush,
             hover_brush: self.hover_brush.unwrap_or_else(|| Brush::LinearGradient {
-                from: Vec2::new(0.5, 0.0),
-                to: Vec2::new(0.5, 1.0),
+                from: Vector2::new(0.5, 0.0),
+                to: Vector2::new(0.5, 1.0),
                 stops: vec![
                     GradientPoint {
                         stop: 0.0,
@@ -328,8 +327,8 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
                 ],
             }),
             pressed_brush: self.pressed_brush.unwrap_or_else(|| Brush::LinearGradient {
-                from: Vec2::new(0.5, 0.0),
-                to: Vec2::new(0.5, 1.0),
+                from: Vector2::new(0.5, 0.0),
+                to: Vector2::new(0.5, 1.0),
                 stops: vec![
                     GradientPoint {
                         stop: 0.0,
@@ -356,8 +355,8 @@ impl<M: MessageData, C: Control<M, C>> DecoratorBuilder<M, C> {
             selected_brush: self
                 .selected_brush
                 .unwrap_or_else(|| Brush::LinearGradient {
-                    from: Vec2::new(0.5, 0.0),
-                    to: Vec2::new(0.5, 1.0),
+                    from: Vector2::new(0.5, 0.0),
+                    to: Vector2::new(0.5, 1.0),
                     stops: vec![
                         GradientPoint {
                             stop: 0.0,

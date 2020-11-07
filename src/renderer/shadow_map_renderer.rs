@@ -1,9 +1,10 @@
 #![warn(clippy::too_many_arguments)]
 
+use crate::core::algebra::{Matrix4, Vector3};
 use crate::{
     core::{
         color::Color,
-        math::{frustum::Frustum, mat4::Mat4, vec3::Vec3, Rect},
+        math::{frustum::Frustum, Rect},
         scope_profile,
     },
     renderer::{
@@ -23,6 +24,7 @@ use crate::{
     },
     scene::{graph::Graph, node::Node},
 };
+use rapier3d::na::Point3;
 use std::{cell::RefCell, rc::Rc};
 
 struct SpotShadowMapShader {
@@ -57,7 +59,7 @@ pub struct SpotShadowMapRenderer {
     //  1 - medium, for lights with medium distance to camera.
     //  2 - small, for farthest lights.
     cascades: [FrameBuffer; 3],
-    bone_matrices: Vec<Mat4>,
+    bone_matrices: Vec<Matrix4<f32>>,
     size: usize,
 }
 
@@ -140,7 +142,7 @@ impl SpotShadowMapRenderer {
         &mut self,
         state: &mut State,
         graph: &Graph,
-        light_view_projection: &Mat4,
+        light_view_projection: &Matrix4<f32>,
         white_dummy: Rc<RefCell<GpuTexture>>,
         textures: &mut TextureCache,
         geom_map: &mut GeometryCache,
@@ -174,7 +176,7 @@ impl SpotShadowMapRenderer {
                     let is_skinned = !surface.bones.is_empty();
 
                     let world = if is_skinned {
-                        Mat4::IDENTITY
+                        Matrix4::identity()
                     } else {
                         global_transform
                     };
@@ -207,7 +209,7 @@ impl SpotShadowMapRenderer {
                         &[
                             (
                                 self.shader.world_view_projection_matrix,
-                                UniformValue::Mat4(mvp),
+                                UniformValue::Matrix4(mvp),
                             ),
                             (
                                 self.shader.use_skeletal_animation,
@@ -275,23 +277,24 @@ impl PointShadowMapShader {
 }
 
 pub struct PointShadowMapRenderer {
-    bone_matrices: Vec<Mat4>,
+    bone_matrices: Vec<Matrix4<f32>>,
     shader: PointShadowMapShader,
     cascades: [FrameBuffer; 3],
     size: usize,
+    faces: [PointShadowCubeMapFace; 6],
 }
 
 struct PointShadowCubeMapFace {
     face: CubeMapFace,
-    look: Vec3,
-    up: Vec3,
+    look: Vector3<f32>,
+    up: Vector3<f32>,
 }
 
 pub(in crate) struct PointShadowMapRenderContext<'a, 'c> {
     pub state: &'a mut State,
     pub graph: &'c Graph,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub light_pos: Vec3,
+    pub light_pos: Vector3<f32>,
     pub light_radius: f32,
     pub texture_cache: &'a mut TextureCache,
     pub geom_cache: &'a mut GeometryCache,
@@ -299,87 +302,6 @@ pub(in crate) struct PointShadowMapRenderContext<'a, 'c> {
 }
 
 impl PointShadowMapRenderer {
-    const FACES: [PointShadowCubeMapFace; 6] = [
-        PointShadowCubeMapFace {
-            face: CubeMapFace::PositiveX,
-            look: Vec3 {
-                x: 1.0,
-                y: 0.0,
-                z: 0.0,
-            },
-            up: Vec3 {
-                x: 0.0,
-                y: -1.0,
-                z: 0.0,
-            },
-        },
-        PointShadowCubeMapFace {
-            face: CubeMapFace::NegativeX,
-            look: Vec3 {
-                x: -1.0,
-                y: 0.0,
-                z: 0.0,
-            },
-            up: Vec3 {
-                x: 0.0,
-                y: -1.0,
-                z: 0.0,
-            },
-        },
-        PointShadowCubeMapFace {
-            face: CubeMapFace::PositiveY,
-            look: Vec3 {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            },
-            up: Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: 1.0,
-            },
-        },
-        PointShadowCubeMapFace {
-            face: CubeMapFace::NegativeY,
-            look: Vec3 {
-                x: 0.0,
-                y: -1.0,
-                z: 0.0,
-            },
-            up: Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: -1.0,
-            },
-        },
-        PointShadowCubeMapFace {
-            face: CubeMapFace::PositiveZ,
-            look: Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: 1.0,
-            },
-            up: Vec3 {
-                x: 0.0,
-                y: -1.0,
-                z: 0.0,
-            },
-        },
-        PointShadowCubeMapFace {
-            face: CubeMapFace::NegativeZ,
-            look: Vec3 {
-                x: 0.0,
-                y: 0.0,
-                z: -1.0,
-            },
-            up: Vec3 {
-                x: 0.0,
-                y: -1.0,
-                z: 0.0,
-            },
-        },
-    ];
-
     pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
         fn make_cascade(state: &mut State, size: usize) -> Result<FrameBuffer, RendererError> {
             let depth = {
@@ -451,6 +373,38 @@ impl PointShadowMapRenderer {
             size,
             bone_matrices: Vec::new(),
             shader: PointShadowMapShader::new()?,
+            faces: [
+                PointShadowCubeMapFace {
+                    face: CubeMapFace::PositiveX,
+                    look: Vector3::new(1.0, 0.0, 0.0),
+                    up: Vector3::new(0.0, -1.0, 0.0),
+                },
+                PointShadowCubeMapFace {
+                    face: CubeMapFace::NegativeX,
+                    look: Vector3::new(-1.0, 0.0, 0.0),
+                    up: Vector3::new(0.0, -1.0, 0.0),
+                },
+                PointShadowCubeMapFace {
+                    face: CubeMapFace::PositiveY,
+                    look: Vector3::new(0.0, 1.0, 0.0),
+                    up: Vector3::new(0.0, 0.0, 1.0),
+                },
+                PointShadowCubeMapFace {
+                    face: CubeMapFace::NegativeY,
+                    look: Vector3::new(0.0, -1.0, 0.0),
+                    up: Vector3::new(0.0, 0.0, -1.0),
+                },
+                PointShadowCubeMapFace {
+                    face: CubeMapFace::PositiveZ,
+                    look: Vector3::new(0.0, 0.0, 1.0),
+                    up: Vector3::new(0.0, -1.0, 0.0),
+                },
+                PointShadowCubeMapFace {
+                    face: CubeMapFace::NegativeZ,
+                    look: Vector3::new(0.0, 0.0, -1.0),
+                    up: Vector3::new(0.0, -1.0, 0.0),
+                },
+            ],
         })
     }
 
@@ -486,9 +440,9 @@ impl PointShadowMapRenderer {
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
         let light_projection_matrix =
-            Mat4::perspective(std::f32::consts::FRAC_PI_2, 1.0, 0.01, light_radius);
+            Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, 0.01, light_radius);
 
-        for face in Self::FACES.iter() {
+        for face in self.faces.iter() {
             framebuffer.set_cubemap_face(state, 0, face.face).clear(
                 state,
                 viewport,
@@ -498,8 +452,11 @@ impl PointShadowMapRenderer {
             );
 
             let light_look_at = light_pos + face.look;
-            let light_view_matrix =
-                Mat4::look_at(light_pos, light_look_at, face.up).unwrap_or_default();
+            let light_view_matrix = Matrix4::look_at_rh(
+                &Point3::from(light_pos),
+                &Point3::from(light_look_at),
+                &face.up,
+            );
             let light_view_projection_matrix = light_projection_matrix * light_view_matrix;
 
             let frustum = Frustum::from(light_view_projection_matrix).unwrap();
@@ -520,7 +477,7 @@ impl PointShadowMapRenderer {
                         let is_skinned = !surface.bones.is_empty();
 
                         let world = if is_skinned {
-                            Mat4::IDENTITY
+                            Matrix4::identity()
                         } else {
                             global_transform
                         };
@@ -546,11 +503,11 @@ impl PointShadowMapRenderer {
                                 blend: false,
                             },
                             &[
-                                (self.shader.light_position, UniformValue::Vec3(light_pos)),
-                                (self.shader.world_matrix, UniformValue::Mat4(world)),
+                                (self.shader.light_position, UniformValue::Vector3(light_pos)),
+                                (self.shader.world_matrix, UniformValue::Matrix4(world)),
                                 (
                                     self.shader.world_view_projection_matrix,
-                                    UniformValue::Mat4(mvp),
+                                    UniformValue::Matrix4(mvp),
                                 ),
                                 (
                                     self.shader.use_skeletal_animation,

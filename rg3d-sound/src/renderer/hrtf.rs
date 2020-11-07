@@ -93,8 +93,16 @@ impl HrtfRenderer {
                 self.processor.process_samples(hrtf::HrtfContext {
                     source: &spatial.generic.frame_samples,
                     output: out_buf,
-                    new_sample_vector: new_sampling_vector.into(),
-                    prev_sample_vector: spatial.prev_sampling_vector.into(),
+                    new_sample_vector: (
+                        new_sampling_vector.x,
+                        new_sampling_vector.y,
+                        new_sampling_vector.z,
+                    ),
+                    prev_sample_vector: (
+                        spatial.prev_sampling_vector.x,
+                        spatial.prev_sampling_vector.y,
+                        spatial.prev_sampling_vector.z,
+                    ),
                     prev_left_samples: &mut spatial.prev_left_samples,
                     prev_right_samples: &mut spatial.prev_right_samples,
                     prev_distance_gain: spatial.prev_distance_gain.unwrap_or(new_distance_gain),
