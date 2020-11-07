@@ -1,11 +1,14 @@
 use crate::{asset::AssetItem, world_outliner::SceneItem};
-use std::ops::{Deref, DerefMut};
-
-use rg3d::gui::message::{MessageData, MessageDirection};
 use rg3d::{
-    core::{math::vec2::Vec2, math::Rect, pool::Handle},
-    gui::{draw::DrawingContext, message::OsEvent, Control, NodeHandleMapping},
+    core::{algebra::Vector2, math::Rect, pool::Handle},
+    gui::{
+        draw::DrawingContext,
+        message::OsEvent,
+        message::{MessageData, MessageDirection},
+        Control, NodeHandleMapping,
+    },
 };
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AssetItemMessage {
@@ -88,11 +91,11 @@ impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
         static_dispatch!(self, resolve, node_map);
     }
 
-    fn measure_override(&self, ui: &Ui, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &Ui, available_size: Vector2<f32>) -> Vector2<f32> {
         static_dispatch!(self, measure_override, ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &Ui, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &Ui, final_size: Vector2<f32>) -> Vector2<f32> {
         static_dispatch!(self, arrange_override, ui, final_size)
     }
 
@@ -100,7 +103,7 @@ impl Control<EditorUiMessage, EditorUiNode> for EditorUiNode {
         static_dispatch!(self, arrange, ui, final_rect)
     }
 
-    fn measure(&self, ui: &Ui, available_size: Vec2) {
+    fn measure(&self, ui: &Ui, available_size: Vector2<f32>) {
         static_dispatch!(self, measure, ui, available_size)
     }
 

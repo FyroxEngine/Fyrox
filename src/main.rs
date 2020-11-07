@@ -13,12 +13,14 @@ pub mod interaction;
 pub mod light;
 pub mod log;
 pub mod menu;
+pub mod physics;
 pub mod preview;
 pub mod scene;
 pub mod settings;
 pub mod sidebar;
 pub mod world_outliner;
 
+use crate::physics::Physics;
 use crate::{
     asset::{AssetBrowser, AssetKind},
     camera::CameraController,
@@ -39,16 +41,12 @@ use crate::{
     sidebar::SideBar,
     world_outliner::WorldOutliner,
 };
+use rg3d::core::algebra::Vector2;
 use rg3d::core::math::aabb::AxisAlignedBoundingBox;
+use rg3d::core::visitor::Visit;
 use rg3d::resource::texture::{Texture, TextureKind, TextureState};
 use rg3d::{
-    core::{
-        color::Color,
-        math::vec2::Vec2,
-        pool::Handle,
-        scope_profile,
-        visitor::{Visit, Visitor},
-    },
+    core::{color::Color, pool::Handle, scope_profile, visitor::Visitor},
     engine::resource_manager::ResourceManager,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -120,8 +118,8 @@ pub fn load_image<P: AsRef<Path>>(
 pub struct ScenePreview {
     frame: Handle<UiNode>,
     window: Handle<UiNode>,
-    last_mouse_pos: Option<Vec2>,
-    click_mouse_pos: Option<Vec2>,
+    last_mouse_pos: Option<Vector2<f32>>,
+    click_mouse_pos: Option<Vector2<f32>>,
     selection_frame: Handle<UiNode>,
     // Side bar stuff
     select_mode: Handle<UiNode>,
@@ -820,9 +818,6 @@ impl Editor {
             engine.scenes.remove(previous_editor_scene.scene);
         }
 
-        // We must explicitly turn off physics, otherwise all objects with physics will fly away.
-        scene.physics.set_enabled(false);
-
         scene.render_target = Some(Texture::new_render_target(0, 0));
         engine.user_interface.send_message(ImageMessage::texture(
             self.preview.frame,
@@ -839,6 +834,7 @@ impl Editor {
             path,
             root,
             camera_controller,
+            physics: Physics::new(&scene),
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
@@ -919,12 +915,11 @@ impl Editor {
 
             self.preview.handle_ui_message(message);
 
-            let frame_size: Vec2 = engine
+            let frame_size = engine
                 .user_interface
                 .node(self.preview.frame)
                 .screen_bounds()
-                .size()
-                .into();
+                .size;
 
             if message.destination() == self.preview.frame {
                 if let UiMessageData::Widget(msg) = &message.data() {
@@ -937,8 +932,7 @@ impl Editor {
                                         .user_interface
                                         .node(self.preview.frame)
                                         .screen_bounds();
-                                    let rel_pos =
-                                        Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+                                    let rel_pos = pos - screen_bounds.position;
 
                                     self.preview.click_mouse_pos = Some(rel_pos);
 
@@ -963,8 +957,7 @@ impl Editor {
                                         .user_interface
                                         .node(self.preview.frame)
                                         .screen_bounds();
-                                    let rel_pos =
-                                        Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+                                    let rel_pos = pos - screen_bounds.position;
                                     self.interaction_modes[current_im as usize]
                                         .on_left_mouse_button_up(
                                             editor_scene,
@@ -988,8 +981,7 @@ impl Editor {
                                 .user_interface
                                 .node(self.preview.frame)
                                 .screen_bounds();
-                            let rel_pos =
-                                Vec2::new(pos.x - screen_bounds.x, pos.y - screen_bounds.y);
+                            let rel_pos = pos - screen_bounds.position;
 
                             if let Some(current_im) = self.current_interaction_mode {
                                 self.interaction_modes[current_im as usize].on_mouse_move(
@@ -1127,10 +1119,7 @@ impl Editor {
                                                     .user_interface
                                                     .node(self.preview.frame)
                                                     .screen_bounds();
-                                                let rel_pos = Vec2::new(
-                                                    cursor_pos.x - screen_bounds.x,
-                                                    cursor_pos.y - screen_bounds.y,
-                                                );
+                                                let rel_pos = cursor_pos - screen_bounds.position;
                                                 let graph =
                                                     &engine.scenes[editor_scene.scene].graph;
                                                 let handle = editor_scene.camera_controller.pick(
@@ -1263,7 +1252,7 @@ impl Editor {
 
             match message {
                 Message::DoSceneCommand(command) => {
-                    if let Some(editor_scene) = self.scene.as_ref() {
+                    if let Some(editor_scene) = self.scene.as_mut() {
                         self.command_stack.do_command(
                             command,
                             SceneContext {
@@ -1271,29 +1260,32 @@ impl Editor {
                                 message_sender: self.message_sender.clone(),
                                 current_selection: editor_scene.selection.clone(),
                                 resource_manager: engine.resource_manager.clone(),
+                                physics: &mut editor_scene.physics,
                             },
                         );
                         needs_sync = true;
                     }
                 }
                 Message::UndoSceneCommand => {
-                    if let Some(editor_scene) = self.scene.as_ref() {
+                    if let Some(editor_scene) = self.scene.as_mut() {
                         self.command_stack.undo(SceneContext {
                             scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
                             current_selection: editor_scene.selection.clone(),
                             resource_manager: engine.resource_manager.clone(),
+                            physics: &mut editor_scene.physics,
                         });
                         needs_sync = true;
                     }
                 }
                 Message::RedoSceneCommand => {
-                    if let Some(editor_scene) = self.scene.as_ref() {
+                    if let Some(editor_scene) = self.scene.as_mut() {
                         self.command_stack.redo(SceneContext {
                             scene: &mut engine.scenes[editor_scene.scene],
                             message_sender: self.message_sender.clone(),
                             current_selection: editor_scene.selection.clone(),
                             resource_manager: engine.resource_manager.clone(),
+                            physics: &mut editor_scene.physics,
                         });
                         needs_sync = true;
                     }
@@ -1309,10 +1301,16 @@ impl Editor {
                         editor_scene.path = Some(path.clone());
                         let scene = &mut engine.scenes[editor_scene.scene];
                         let editor_root = editor_scene.root;
-                        let mut pure_scene = scene.clone(&mut |node, _| node != editor_root);
-                        // Physics must be enabled before saving, otherwise physics will be frozen when scene will be
-                        // loaded in engine.
-                        pure_scene.physics.set_enabled(true);
+                        let (mut pure_scene, old_to_new) =
+                            scene.clone(&mut |node, _| node != editor_root);
+                        let (desc, binder) = editor_scene.physics.generate_engine_desc();
+                        pure_scene.physics.desc = Some(desc);
+                        pure_scene.physics_binder.node_rigid_body_map.clear();
+                        for (node, body) in binder {
+                            pure_scene
+                                .physics_binder
+                                .bind(*old_to_new.get(&node).unwrap(), body);
+                        }
                         let mut visitor = Visitor::new();
                         pure_scene.visit("Scene", &mut visitor).unwrap();
                         if let Err(e) = visitor.save_binary(&path) {
@@ -1442,12 +1440,12 @@ impl Editor {
             for &node in editor_scene.selection.nodes() {
                 let node = &scene.graph[node];
                 let mut aabb = match node {
-                    Node::Base(_) => AxisAlignedBoundingBox::UNIT,
-                    Node::Light(_) => AxisAlignedBoundingBox::UNIT,
-                    Node::Camera(_) => AxisAlignedBoundingBox::UNIT,
+                    Node::Base(_) => AxisAlignedBoundingBox::unit(),
+                    Node::Light(_) => AxisAlignedBoundingBox::unit(),
+                    Node::Camera(_) => AxisAlignedBoundingBox::unit(),
                     Node::Mesh(ref mesh) => mesh.bounding_box(),
-                    Node::Sprite(_) => AxisAlignedBoundingBox::UNIT,
-                    Node::ParticleSystem(_) => AxisAlignedBoundingBox::UNIT,
+                    Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
+                    Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
                 };
                 aabb.transform(node.global_transform());
                 scene.drawing_context.draw_aabb(&aabb, Color::GREEN);

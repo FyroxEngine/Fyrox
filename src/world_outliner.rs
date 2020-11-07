@@ -10,25 +10,21 @@ use crate::{
     },
     GameEngine, Message,
 };
-use rg3d::gui::brush::Brush;
-use rg3d::gui::core::color::Color;
-use rg3d::gui::draw::SharedTexture;
-use rg3d::gui::message::{DecoratorMessage, MessageDirection};
-use rg3d::gui::node::UINode;
 use rg3d::{
-    core::{
-        math::{vec2::Vec2, Rect},
-        pool::Handle,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::resource_manager::ResourceManager,
     gui::{
+        brush::Brush,
         button::ButtonBuilder,
-        draw::DrawingContext,
+        core::color::Color,
+        draw::{DrawingContext, SharedTexture},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{
             ButtonMessage, OsEvent, TreeMessage, TreeRootMessage, UiMessageData, WidgetMessage,
         },
+        message::{DecoratorMessage, MessageDirection},
+        node::UINode,
         scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
         tree::{Tree, TreeBuilder, TreeRootBuilder},
@@ -86,11 +82,11 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
         self.tree.resolve(node_map);
     }
 
-    fn measure_override(&self, ui: &Ui, available_size: Vec2) -> Vec2 {
+    fn measure_override(&self, ui: &Ui, available_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.measure_override(ui, available_size)
     }
 
-    fn arrange_override(&self, ui: &Ui, final_size: Vec2) -> Vec2 {
+    fn arrange_override(&self, ui: &Ui, final_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.arrange_override(ui, final_size)
     }
 
@@ -98,7 +94,7 @@ impl Control<EditorUiMessage, EditorUiNode> for SceneItem {
         self.tree.arrange(ui, final_rect);
     }
 
-    fn measure(&self, ui: &Ui, available_size: Vec2) {
+    fn measure(&self, ui: &Ui, available_size: Vector2<f32>) {
         self.tree.measure(ui, available_size)
     }
 

@@ -2,10 +2,10 @@ use crate::{
     gui::{UiMessage, UiNode},
     GameEngine,
 };
-use rg3d::utils::into_gui_texture;
 use rg3d::{
     core::{
-        math::{aabb::AxisAlignedBoundingBox, quat::Quat, vec2::Vec2, vec3::Vec3},
+        algebra::{UnitQuaternion, Vector2, Vector3},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
     },
     gui::{
@@ -22,6 +22,7 @@ use rg3d::{
     scene::{
         base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder, Scene,
     },
+    utils::into_gui_texture,
 };
 use std::path::Path;
 
@@ -40,12 +41,12 @@ pub struct PreviewPanel {
     fit: Handle<UiNode>,
     hinge: Handle<Node>,
     camera: Handle<Node>,
-    prev_mouse_pos: Vec2,
+    prev_mouse_pos: Vector2<f32>,
     yaw: f32,
     pitch: f32,
     distance: f32,
     mode: Mode,
-    xz_position: Vec2,
+    xz_position: Vector2<f32>,
     model: Handle<Node>,
 }
 
@@ -59,8 +60,11 @@ impl PreviewPanel {
             CameraBuilder::new(
                 BaseBuilder::new().with_local_transform(
                     TransformBuilder::new()
-                        .with_local_rotation(Quat::from_axis_angle(Vec3::UP, 180.0f32.to_radians()))
-                        .with_local_position(Vec3::new(0.0, 0.0, 3.0))
+                        .with_local_rotation(UnitQuaternion::from_axis_angle(
+                            &Vector3::y_axis(),
+                            180.0f32.to_radians(),
+                        ))
+                        .with_local_position(Vector3::new(0.0, 0.0, 3.0))
                         .build(),
                 ),
             )
@@ -132,7 +136,7 @@ impl PreviewPanel {
 
         let fov = scene.graph[self.camera].as_camera().fov();
         self.xz_position = bounding_box.center().xz();
-        self.distance = (bounding_box.max - bounding_box.min).len() * (fov * 0.5).tan();
+        self.distance = (bounding_box.max - bounding_box.min).norm() * (fov * 0.5).tan();
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
@@ -193,14 +197,17 @@ impl PreviewPanel {
 
         scene.graph[self.camera_pivot]
             .local_transform_mut()
-            .set_position(Vec3::new(self.xz_position.x, 0.0, self.xz_position.y))
-            .set_rotation(Quat::from_axis_angle(Vec3::UP, self.yaw.to_radians()));
-        scene.graph[self.hinge]
-            .local_transform_mut()
-            .set_rotation(Quat::from_axis_angle(Vec3::RIGHT, self.pitch.to_radians()));
+            .set_position(Vector3::new(self.xz_position.x, 0.0, self.xz_position.y))
+            .set_rotation(UnitQuaternion::from_axis_angle(
+                &Vector3::y_axis(),
+                self.yaw.to_radians(),
+            ));
+        scene.graph[self.hinge].local_transform_mut().set_rotation(
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.pitch.to_radians()),
+        );
         scene.graph[self.camera]
             .local_transform_mut()
-            .set_position(Vec3::new(0.0, 0.0, self.distance));
+            .set_position(Vector3::new(0.0, 0.0, self.distance));
     }
 
     pub fn clear(&mut self, engine: &mut GameEngine) {

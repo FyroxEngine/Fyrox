@@ -1,5 +1,6 @@
 use crate::{
     gui::UiNode,
+    rg3d::core::math::Matrix4Ext,
     scene::{
         ChangeSelectionCommand, CommandGroup, EditorScene, MoveNodeCommand, RotateNodeCommand,
         ScaleNodeCommand, SceneCommand, Selection,
@@ -8,11 +9,9 @@ use crate::{
 };
 use rg3d::{
     core::{
+        algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
         color::Color,
-        math::{
-            aabb::AxisAlignedBoundingBox, mat4::Mat4, plane::Plane, quat::Quat, vec2::Vec2,
-            vec3::Vec3,
-        },
+        math::{aabb::AxisAlignedBoundingBox, plane::Plane},
         pool::Handle,
     },
     gui::message::{MessageDirection, WidgetMessage},
@@ -28,20 +27,20 @@ pub trait InteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     );
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     );
     fn on_mouse_move(
         &mut self,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
@@ -77,7 +76,7 @@ pub struct MoveGizmo {
 
 fn make_move_axis(
     graph: &mut Graph,
-    rotation: Quat,
+    rotation: UnitQuaternion<f32>,
     color: Color,
     name_prefix: &str,
 ) -> (Handle<Node>, Handle<Node>) {
@@ -93,7 +92,7 @@ fn make_move_axis(
                 ),
         )
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-            SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Default::default()),
+            SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
         )))
         .with_color(color)
         .build()])
@@ -106,12 +105,12 @@ fn make_move_axis(
                 .with_depth_offset(0.5)
                 .with_local_transform(
                     TransformBuilder::new()
-                        .with_local_position(Vec3::new(0.0, 1.0, 0.0))
+                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
                         .build(),
                 ),
         )
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-            SurfaceSharedData::make_cone(10, 0.05, 0.1, Default::default()),
+            SurfaceSharedData::make_cone(10, 0.05, 0.1, Matrix4::identity()),
         )))
         .with_color(color)
         .build()])
@@ -121,7 +120,12 @@ fn make_move_axis(
     (axis, arrow)
 }
 
-fn create_quad_plane(graph: &mut Graph, transform: Mat4, color: Color, name: &str) -> Handle<Node> {
+fn create_quad_plane(
+    graph: &mut Graph,
+    transform: Matrix4<f32>,
+    color: Color,
+    name: &str,
+) -> Handle<Node> {
     graph.add_node(Node::Mesh(
         MeshBuilder::new(
             BaseBuilder::new()
@@ -129,7 +133,7 @@ fn create_quad_plane(graph: &mut Graph, transform: Mat4, color: Color, name: &st
                 .with_depth_offset(0.5)
                 .with_local_transform(
                     TransformBuilder::new()
-                        .with_local_scale(Vec3::new(0.15, 0.15, 0.15))
+                        .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
                         .build(),
                 ),
         )
@@ -160,45 +164,41 @@ impl MoveGizmo {
 
         let (x_axis, x_arrow) = make_move_axis(
             graph,
-            Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
             Color::RED,
             "X",
         );
         graph.link_nodes(x_axis, origin);
         let (y_axis, y_arrow) = make_move_axis(
             graph,
-            Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), 0.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 0.0f32.to_radians()),
             Color::GREEN,
             "Y",
         );
         graph.link_nodes(y_axis, origin);
         let (z_axis, z_arrow) = make_move_axis(
             graph,
-            Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians()),
             Color::BLUE,
             "Z",
         );
         graph.link_nodes(z_axis, origin);
 
-        let xy_transform = Mat4::translate(Vec3::new(-0.5, 0.5, 0.0))
-            * Mat4::from_quat(Quat::from_axis_angle(
-                Vec3::new(1.0, 0.0, 0.0),
-                90.0f32.to_radians(),
-            ));
+        let xy_transform = Matrix4::new_translation(&Vector3::new(-0.5, 0.5, 0.0))
+            * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                .to_homogeneous();
         let xy_plane = create_quad_plane(graph, xy_transform, Color::BLUE, "XYPlane");
         graph.link_nodes(xy_plane, origin);
 
-        let yz_transform = Mat4::translate(Vec3::new(0.0, 0.5, 0.5))
-            * Mat4::from_quat(Quat::from_axis_angle(
-                Vec3::new(0.0, 0.0, 1.0),
-                90.0f32.to_radians(),
-            ));
+        let yz_transform = Matrix4::new_translation(&Vector3::new(0.0, 0.5, 0.5))
+            * UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians())
+                .to_homogeneous();
         let yz_plane = create_quad_plane(graph, yz_transform, Color::RED, "YZPlane");
         graph.link_nodes(yz_plane, origin);
 
         let zx_plane = create_quad_plane(
             graph,
-            Mat4::translate(Vec3::new(-0.5, 0.0, 0.5)),
+            Matrix4::new_translation(&Vector3::new(-0.5, 0.0, 0.5)),
             Color::GREEN,
             "ZXPlane",
         );
@@ -296,20 +296,20 @@ impl MoveGizmo {
         &self,
         editor_scene: &EditorScene,
         camera: Handle<Node>,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         engine: &GameEngine,
-    ) -> Vec3 {
+    ) -> Vector3<f32> {
         let scene = &engine.scenes[editor_scene.scene];
         let graph = &scene.graph;
         let screen_size = engine.renderer.get_frame_size();
-        let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
+        let screen_size = Vector2::new(screen_size.0 as f32, screen_size.1 as f32);
         let node_global_transform = graph[self.origin].global_transform();
         let node_local_transform = graph[self.origin].local_transform().matrix();
 
         if let Node::Camera(camera) = &graph[camera] {
             let dlook = node_global_transform.position() - camera.global_position();
-            let inv_node_transform = node_global_transform.inverse().unwrap_or_default();
+            let inv_node_transform = node_global_transform.try_inverse().unwrap_or_default();
 
             // Create two rays in object space.
             let initial_ray = camera
@@ -321,19 +321,28 @@ impl MoveGizmo {
 
             // Select plane by current active mode.
             let plane = match self.mode {
-                MoveGizmoMode::None => return Vec3::ZERO,
-                MoveGizmoMode::X => {
-                    Plane::from_normal_and_point(&Vec3::new(0.0, dlook.y, dlook.z), &Vec3::ZERO)
+                MoveGizmoMode::None => return Vector3::default(),
+                MoveGizmoMode::X => Plane::from_normal_and_point(
+                    &Vector3::new(0.0, dlook.y, dlook.z),
+                    &Vector3::default(),
+                ),
+                MoveGizmoMode::Y => Plane::from_normal_and_point(
+                    &Vector3::new(dlook.x, 0.0, dlook.z),
+                    &Vector3::default(),
+                ),
+                MoveGizmoMode::Z => Plane::from_normal_and_point(
+                    &Vector3::new(dlook.x, dlook.y, 0.0),
+                    &Vector3::default(),
+                ),
+                MoveGizmoMode::YZ => {
+                    Plane::from_normal_and_point(&Vector3::x(), &Vector3::default())
                 }
-                MoveGizmoMode::Y => {
-                    Plane::from_normal_and_point(&Vec3::new(dlook.x, 0.0, dlook.z), &Vec3::ZERO)
+                MoveGizmoMode::ZX => {
+                    Plane::from_normal_and_point(&Vector3::y(), &Vector3::default())
                 }
-                MoveGizmoMode::Z => {
-                    Plane::from_normal_and_point(&Vec3::new(dlook.x, dlook.y, 0.0), &Vec3::ZERO)
+                MoveGizmoMode::XY => {
+                    Plane::from_normal_and_point(&Vector3::z(), &Vector3::default())
                 }
-                MoveGizmoMode::YZ => Plane::from_normal_and_point(&Vec3::RIGHT, &Vec3::ZERO),
-                MoveGizmoMode::ZX => Plane::from_normal_and_point(&Vec3::UP, &Vec3::ZERO),
-                MoveGizmoMode::XY => Plane::from_normal_and_point(&Vec3::LOOK, &Vec3::ZERO),
             }
             .unwrap_or_default();
 
@@ -343,23 +352,23 @@ impl MoveGizmo {
                     let delta = next_point - initial_point;
                     let offset = match self.mode {
                         MoveGizmoMode::None => unreachable!(),
-                        MoveGizmoMode::X => Vec3::new(delta.x, 0.0, 0.0),
-                        MoveGizmoMode::Y => Vec3::new(0.0, delta.y, 0.0),
-                        MoveGizmoMode::Z => Vec3::new(0.0, 0.0, delta.z),
-                        MoveGizmoMode::XY => Vec3::new(delta.x, delta.y, 0.0),
-                        MoveGizmoMode::YZ => Vec3::new(0.0, delta.y, delta.z),
-                        MoveGizmoMode::ZX => Vec3::new(delta.x, 0.0, delta.z),
+                        MoveGizmoMode::X => Vector3::new(delta.x, 0.0, 0.0),
+                        MoveGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
+                        MoveGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
+                        MoveGizmoMode::XY => Vector3::new(delta.x, delta.y, 0.0),
+                        MoveGizmoMode::YZ => Vector3::new(0.0, delta.y, delta.z),
+                        MoveGizmoMode::ZX => Vector3::new(delta.x, 0.0, delta.z),
                     };
                     // Make sure offset will be in local coordinates.
-                    return node_local_transform.transform_vector_normal(offset);
+                    return node_local_transform.transform_vector(&offset);
                 }
             }
         }
 
-        Vec3::ZERO
+        Vector3::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vec3) {
+    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vector3<f32>) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
             graph[self.origin]
                 .set_visibility(true)
@@ -380,7 +389,7 @@ fn distance_scale_factor(fov: f32) -> f32 {
 }
 
 pub struct MoveInteractionMode {
-    initial_positions: Vec<Vec3>,
+    initial_positions: Vec<Vector3<f32>>,
     move_gizmo: MoveGizmo,
     interacting: bool,
     message_sender: Sender<Message>,
@@ -406,8 +415,8 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -437,8 +446,8 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -495,8 +504,8 @@ impl InteractionMode for MoveInteractionMode {
 
     fn on_mouse_move(
         &mut self,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
@@ -526,8 +535,8 @@ impl InteractionMode for MoveInteractionMode {
             let distance = distance_scale_factor(graph[camera].as_camera().fov())
                 * graph[self.move_gizmo.origin]
                     .global_position()
-                    .distance(&graph[camera].global_position());
-            let scale = Vec3::new(distance, distance, distance);
+                    .metric_distance(&graph[camera].global_position());
+            let scale = Vector3::new(distance, distance, distance);
             self.move_gizmo
                 .sync_transform(graph, &editor_scene.selection, scale);
             self.move_gizmo.set_visible(graph, true);
@@ -564,7 +573,7 @@ pub struct ScaleGizmo {
 
 fn make_scale_axis(
     graph: &mut Graph,
-    rotation: Quat,
+    rotation: UnitQuaternion<f32>,
     color: Color,
     name_prefix: &str,
 ) -> (Handle<Node>, Handle<Node>) {
@@ -580,7 +589,7 @@ fn make_scale_axis(
                 ),
         )
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-            SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Default::default()),
+            SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
         )))
         .with_color(color)
         .build()])
@@ -593,12 +602,14 @@ fn make_scale_axis(
                 .with_depth_offset(0.5)
                 .with_local_transform(
                     TransformBuilder::new()
-                        .with_local_position(Vec3::new(0.0, 1.0, 0.0))
+                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
                         .build(),
                 ),
         )
         .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-            SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(0.1, 0.1, 0.1))),
+            SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+                0.1, 0.1, 0.1,
+            ))),
         )))
         .with_color(color)
         .build()])
@@ -621,7 +632,9 @@ impl ScaleGizmo {
                     .with_visibility(false),
             )
             .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
-                SurfaceSharedData::make_cube(Mat4::scale(Vec3::new(0.1, 0.1, 0.1))),
+                SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+                    0.1, 0.1, 0.1,
+                ))),
             )))
             .with_color(Color::opaque(0, 255, 255))
             .build()])
@@ -632,21 +645,21 @@ impl ScaleGizmo {
 
         let (x_axis, x_arrow) = make_scale_axis(
             graph,
-            Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
             Color::RED,
             "X",
         );
         graph.link_nodes(x_axis, origin);
         let (y_axis, y_arrow) = make_scale_axis(
             graph,
-            Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), 0.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 0.0f32.to_radians()),
             Color::GREEN,
             "Y",
         );
         graph.link_nodes(y_axis, origin);
         let (z_axis, z_arrow) = make_scale_axis(
             graph,
-            Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians()),
             Color::BLUE,
             "Z",
         );
@@ -729,18 +742,18 @@ impl ScaleGizmo {
         &self,
         editor_scene: &EditorScene,
         camera: Handle<Node>,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         engine: &GameEngine,
-    ) -> Vec3 {
+    ) -> Vector3<f32> {
         let graph = &engine.scenes[editor_scene.scene].graph;
         let screen_size = engine.renderer.get_frame_size();
-        let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
+        let screen_size = Vector2::new(screen_size.0 as f32, screen_size.1 as f32);
         let node_global_transform = graph[self.origin].global_transform();
 
         if let Node::Camera(camera) = &graph[camera] {
             let dlook = node_global_transform.position() - camera.global_position();
-            let inv_node_transform = node_global_transform.inverse().unwrap_or_default();
+            let inv_node_transform = node_global_transform.try_inverse().unwrap_or_default();
 
             // Create two rays in object space.
             let initial_ray = camera
@@ -752,17 +765,22 @@ impl ScaleGizmo {
 
             // Select plane by current active mode.
             let plane = match self.mode {
-                ScaleGizmoMode::None => return Vec3::ZERO,
-                ScaleGizmoMode::X => {
-                    Plane::from_normal_and_point(&Vec3::new(0.0, dlook.y, dlook.z), &Vec3::ZERO)
+                ScaleGizmoMode::None => return Vector3::default(),
+                ScaleGizmoMode::X => Plane::from_normal_and_point(
+                    &Vector3::new(0.0, dlook.y, dlook.z),
+                    &Vector3::default(),
+                ),
+                ScaleGizmoMode::Y => Plane::from_normal_and_point(
+                    &Vector3::new(dlook.x, 0.0, dlook.z),
+                    &Vector3::default(),
+                ),
+                ScaleGizmoMode::Z => Plane::from_normal_and_point(
+                    &Vector3::new(dlook.x, dlook.y, 0.0),
+                    &Vector3::default(),
+                ),
+                ScaleGizmoMode::Uniform => {
+                    Plane::from_normal_and_point(&dlook, &Vector3::default())
                 }
-                ScaleGizmoMode::Y => {
-                    Plane::from_normal_and_point(&Vec3::new(dlook.x, 0.0, dlook.z), &Vec3::ZERO)
-                }
-                ScaleGizmoMode::Z => {
-                    Plane::from_normal_and_point(&Vec3::new(dlook.x, dlook.y, 0.0), &Vec3::ZERO)
-                }
-                ScaleGizmoMode::Uniform => Plane::from_normal_and_point(&dlook, &Vec3::ZERO),
             }
             .unwrap_or_default();
 
@@ -772,23 +790,23 @@ impl ScaleGizmo {
                     let delta = next_point - initial_point;
                     return match self.mode {
                         ScaleGizmoMode::None => unreachable!(),
-                        ScaleGizmoMode::X => Vec3::new(-delta.x, 0.0, 0.0),
-                        ScaleGizmoMode::Y => Vec3::new(0.0, delta.y, 0.0),
-                        ScaleGizmoMode::Z => Vec3::new(0.0, 0.0, delta.z),
+                        ScaleGizmoMode::X => Vector3::new(-delta.x, 0.0, 0.0),
+                        ScaleGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
+                        ScaleGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
                         ScaleGizmoMode::Uniform => {
                             // TODO: Still may behave weird.
-                            let amount = delta.len() * (delta.y + delta.x + delta.z).signum();
-                            Vec3::new(amount, amount, amount)
+                            let amount = delta.norm() * (delta.y + delta.x + delta.z).signum();
+                            Vector3::new(amount, amount, amount)
                         }
                     };
                 }
             }
         }
 
-        Vec3::ZERO
+        Vector3::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vec3) {
+    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vector3<f32>) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
             graph[self.origin]
                 .set_visibility(true)
@@ -805,7 +823,7 @@ impl ScaleGizmo {
 }
 
 pub struct ScaleInteractionMode {
-    initial_scales: Vec<Vec3>,
+    initial_scales: Vec<Vector3<f32>>,
     scale_gizmo: ScaleGizmo,
     interacting: bool,
     message_sender: Sender<Message>,
@@ -831,8 +849,8 @@ impl InteractionMode for ScaleInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -862,8 +880,8 @@ impl InteractionMode for ScaleInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -922,8 +940,8 @@ impl InteractionMode for ScaleInteractionMode {
 
     fn on_mouse_move(
         &mut self,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
@@ -942,7 +960,7 @@ impl InteractionMode for ScaleInteractionMode {
                 let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
                 let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
                 let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
-                transform.set_scale(Vec3::new(sx, sy, sz));
+                transform.set_scale(Vector3::new(sx, sy, sz));
             }
         }
     }
@@ -958,8 +976,8 @@ impl InteractionMode for ScaleInteractionMode {
             let distance = distance_scale_factor(graph[camera].as_camera().fov())
                 * graph[self.scale_gizmo.origin]
                     .global_position()
-                    .distance(&graph[camera].global_position());
-            let scale = Vec3::new(distance, distance, distance);
+                    .metric_distance(&graph[camera].global_position());
+            let scale = Vector3::new(distance, distance, distance);
             self.scale_gizmo
                 .sync_transform(graph, &editor_scene.selection, scale);
             self.scale_gizmo.set_visible(graph, true);
@@ -991,7 +1009,7 @@ pub struct RotationGizmo {
 
 fn make_rotation_ribbon(
     graph: &mut Graph,
-    rotation: Quat,
+    rotation: UnitQuaternion<f32>,
     color: Color,
     name: &str,
 ) -> Handle<Node> {
@@ -1012,7 +1030,7 @@ fn make_rotation_ribbon(
                 0.5,
                 0.05,
                 false,
-                Mat4::translate(Vec3::new(0.0, -0.05, 0.0)),
+                Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
             ),
         )))
         .with_color(color)
@@ -1045,21 +1063,21 @@ impl RotationGizmo {
 
         let x_axis = make_rotation_ribbon(
             graph,
-            Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
             Color::RED,
             "X",
         );
         graph.link_nodes(x_axis, origin);
         let y_axis = make_rotation_ribbon(
             graph,
-            Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), 0.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 0.0f32.to_radians()),
             Color::GREEN,
             "Y",
         );
         graph.link_nodes(y_axis, origin);
         let z_axis = make_rotation_ribbon(
             graph,
-            Quat::from_axis_angle(Vec3::new(1.0, 0.0, 0.0), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians()),
             Color::BLUE,
             "Z",
         );
@@ -1123,13 +1141,13 @@ impl RotationGizmo {
         &self,
         editor_scene: &EditorScene,
         camera: Handle<Node>,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         engine: &GameEngine,
-    ) -> Quat {
+    ) -> UnitQuaternion<f32> {
         let graph = &engine.scenes[editor_scene.scene].graph;
         let screen_size = engine.renderer.get_frame_size();
-        let screen_size = Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
+        let screen_size = Vector2::new(screen_size.0 as f32, screen_size.1 as f32);
 
         if let Node::Camera(camera) = &graph[camera] {
             let transform = graph[self.origin].global_transform();
@@ -1149,26 +1167,30 @@ impl RotationGizmo {
             if let Some(old_pos) = initial_ray.plane_intersection_point(&plane) {
                 if let Some(new_pos) = offset_ray.plane_intersection_point(&plane) {
                     let center = transform.position();
-                    let old = (old_pos - center).normalized().unwrap_or_default();
-                    let new = (new_pos - center).normalized().unwrap_or_default();
+                    let old = (old_pos - center)
+                        .try_normalize(std::f32::EPSILON)
+                        .unwrap_or_default();
+                    let new = (new_pos - center)
+                        .try_normalize(std::f32::EPSILON)
+                        .unwrap_or_default();
 
                     let angle_delta = old.dot(&new).max(-1.0).min(1.0).acos();
                     let sign = old.cross(&new).dot(&oriented_axis).signum();
 
                     let static_axis = match self.mode {
-                        RotateGizmoMode::Pitch => Vec3::RIGHT,
-                        RotateGizmoMode::Yaw => Vec3::UP,
-                        RotateGizmoMode::Roll => Vec3::LOOK,
+                        RotateGizmoMode::Pitch => Vector3::x_axis(),
+                        RotateGizmoMode::Yaw => Vector3::y_axis(),
+                        RotateGizmoMode::Roll => Vector3::z_axis(),
                     };
-                    return Quat::from_axis_angle(static_axis, sign * angle_delta);
+                    return UnitQuaternion::from_axis_angle(&static_axis, sign * angle_delta);
                 }
             }
         }
 
-        Quat::default()
+        UnitQuaternion::default()
     }
 
-    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vec3) {
+    pub fn sync_transform(&self, graph: &mut Graph, selection: &Selection, scale: Vector3<f32>) {
         if let Some((rotation, position)) = selection.global_rotation_position(graph) {
             graph[self.origin]
                 .set_visibility(true)
@@ -1185,7 +1207,7 @@ impl RotationGizmo {
 }
 
 pub struct RotateInteractionMode {
-    initial_rotations: Vec<Quat>,
+    initial_rotations: Vec<UnitQuaternion<f32>>,
     rotation_gizmo: RotationGizmo,
     interacting: bool,
     message_sender: Sender<Message>,
@@ -1211,8 +1233,8 @@ impl InteractionMode for RotateInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -1242,8 +1264,8 @@ impl InteractionMode for RotateInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -1304,8 +1326,8 @@ impl InteractionMode for RotateInteractionMode {
 
     fn on_mouse_move(
         &mut self,
-        mouse_offset: Vec2,
-        mouse_position: Vec2,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &EditorScene,
         engine: &mut GameEngine,
@@ -1337,8 +1359,8 @@ impl InteractionMode for RotateInteractionMode {
             let distance = distance_scale_factor(graph[camera].as_camera().fov())
                 * graph[self.rotation_gizmo.origin]
                     .global_position()
-                    .distance(&graph[camera].global_position());
-            let scale = Vec3::new(distance, distance, distance);
+                    .metric_distance(&graph[camera].global_position());
+            let scale = Vector3::new(distance, distance, distance);
             self.rotation_gizmo
                 .sync_transform(graph, &editor_scene.selection, scale);
             self.rotation_gizmo.set_visible(graph, true);
@@ -1359,7 +1381,7 @@ pub struct SelectInteractionMode {
     selection_frame: Handle<UiNode>,
     message_sender: Sender<Message>,
     stack: Vec<Handle<Node>>,
-    click_pos: Vec2,
+    click_pos: Vector2<f32>,
 }
 
 impl SelectInteractionMode {
@@ -1373,7 +1395,7 @@ impl SelectInteractionMode {
             selection_frame,
             message_sender,
             stack: Vec::new(),
-            click_pos: Vec2::ZERO,
+            click_pos: Vector2::default(),
         }
     }
 }
@@ -1383,8 +1405,8 @@ impl InteractionMode for SelectInteractionMode {
         &mut self,
         _editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        mouse_pos: Vec2,
-        _frame_size: Vec2,
+        mouse_pos: Vector2<f32>,
+        _frame_size: Vector2<f32>,
     ) {
         self.click_pos = mouse_pos;
         let ui = &mut engine.user_interface;
@@ -1414,8 +1436,8 @@ impl InteractionMode for SelectInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut GameEngine,
-        _mouse_pos: Vec2,
-        frame_size: Vec2,
+        _mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
     ) {
         let scene = &engine.scenes[editor_scene.scene];
         let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
@@ -1424,8 +1446,7 @@ impl InteractionMode for SelectInteractionMode {
             .user_interface
             .node(self.selection_frame)
             .screen_bounds();
-        let relative_bounds =
-            frame_screen_bounds.translate(-preview_screen_bounds.x, -preview_screen_bounds.y);
+        let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
         self.stack.clear();
         self.stack.push(scene.graph.get_root());
         let mut selection = Selection::default();
@@ -1439,12 +1460,12 @@ impl InteractionMode for SelectInteractionMode {
                 continue;
             }
             let aabb = match node {
-                Node::Base(_) => AxisAlignedBoundingBox::UNIT,
-                Node::Light(_) => AxisAlignedBoundingBox::UNIT,
-                Node::Camera(_) => AxisAlignedBoundingBox::UNIT,
+                Node::Base(_) => AxisAlignedBoundingBox::unit(),
+                Node::Light(_) => AxisAlignedBoundingBox::unit(),
+                Node::Camera(_) => AxisAlignedBoundingBox::unit(),
                 Node::Mesh(mesh) => mesh.bounding_box(),
-                Node::Sprite(_) => AxisAlignedBoundingBox::UNIT,
-                Node::ParticleSystem(_) => AxisAlignedBoundingBox::UNIT,
+                Node::Sprite(_) => AxisAlignedBoundingBox::unit(),
+                Node::ParticleSystem(_) => AxisAlignedBoundingBox::unit(),
             };
 
             for screen_corner in aabb
@@ -1452,7 +1473,7 @@ impl InteractionMode for SelectInteractionMode {
                 .iter()
                 .filter_map(|&p| camera.project(p + node.global_position(), frame_size))
             {
-                if relative_bounds.contains(screen_corner.x, screen_corner.y) {
+                if relative_bounds.contains(screen_corner) {
                     selection.insert_or_exclude(handle);
                     break;
                 }
@@ -1478,8 +1499,8 @@ impl InteractionMode for SelectInteractionMode {
 
     fn on_mouse_move(
         &mut self,
-        _mouse_offset: Vec2,
-        mouse_position: Vec2,
+        _mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
         _camera: Handle<Node>,
         _editor_scene: &EditorScene,
         engine: &mut GameEngine,
@@ -1488,18 +1509,18 @@ impl InteractionMode for SelectInteractionMode {
         let width = mouse_position.x - self.click_pos.x;
         let height = mouse_position.y - self.click_pos.y;
 
-        let position = Vec2 {
-            x: if width < 0.0 {
+        let position = Vector2::new(
+            if width < 0.0 {
                 mouse_position.x
             } else {
                 self.click_pos.x
             },
-            y: if height < 0.0 {
+            if height < 0.0 {
                 mouse_position.y
             } else {
                 self.click_pos.y
             },
-        };
+        );
         ui.send_message(WidgetMessage::desired_position(
             self.selection_frame,
             MessageDirection::ToWidget,

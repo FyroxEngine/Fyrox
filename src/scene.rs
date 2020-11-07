@@ -1,15 +1,21 @@
-use crate::camera::CameraController;
-use crate::{command::Command, Message};
+use crate::physics::Collider;
+use crate::{
+    camera::CameraController,
+    command::Command,
+    physics::{Physics, RigidBody},
+    Message,
+};
+use rg3d::sound::pool::ErasedHandle;
 use rg3d::{
     core::{
+        algebra::{UnitQuaternion, Vector3},
         color::Color,
-        math::{quat::Quat, vec3::Vec3},
+        math::Matrix4Ext,
         pool::{Handle, Ticket},
     },
     engine::resource_manager::ResourceManager,
-    physics::{rigid_body::RigidBody, static_geometry::StaticGeometry, Physics},
     resource::texture::Texture,
-    scene::{graph::Graph, graph::SubGraph, mesh::Mesh, node::Node, PhysicsBinder, Scene},
+    scene::{graph::Graph, graph::SubGraph, mesh::Mesh, node::Node, Scene},
 };
 use std::{path::PathBuf, sync::mpsc::Sender};
 
@@ -44,6 +50,7 @@ pub struct EditorScene {
     pub selection: Selection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
+    pub physics: Physics,
 }
 
 #[derive(Debug)]
@@ -59,9 +66,9 @@ pub enum SceneCommand {
     SetVisible(SetVisibleCommand),
     SetName(SetNameCommand),
     SetBody(SetBodyCommand),
-    SetStaticGeometry(SetStaticGeometryCommand),
+    SetCollider(SetColliderCommand),
     DeleteBody(DeleteBodyCommand),
-    DeleteStaticGeometry(DeleteStaticGeometryCommand),
+    DeleteCollider(DeleteColliderCommand),
     LoadModel(LoadModelCommand),
     SetLightColor(SetLightColorCommand),
     SetLightScatter(SetLightScatterCommand),
@@ -84,6 +91,7 @@ pub enum SceneCommand {
 
 pub struct SceneContext<'a> {
     pub scene: &'a mut Scene,
+    pub physics: &'a mut Physics,
     pub message_sender: Sender<Message>,
     pub current_selection: Selection,
     pub resource_manager: ResourceManager,
@@ -103,9 +111,9 @@ macro_rules! static_dispatch {
             SceneCommand::SetVisible(v) => v.$func($($args),*),
             SceneCommand::SetName(v) => v.$func($($args),*),
             SceneCommand::SetBody(v) => v.$func($($args),*),
-            SceneCommand::SetStaticGeometry(v) => v.$func($($args),*),
+            SceneCommand::SetCollider(v) => v.$func($($args),*),
             SceneCommand::DeleteBody(v) => v.$func($($args),*),
-            SceneCommand::DeleteStaticGeometry(v) => v.$func($($args),*),
+            SceneCommand::DeleteCollider(v) => v.$func($($args),*),
             SceneCommand::LoadModel(v) => v.$func($($args),*),
             SceneCommand::SetLightColor(v) => v.$func($($args),*),
             SceneCommand::SetLightScatter(v) => v.$func($($args),*),
@@ -304,12 +312,12 @@ impl<'a> Command<'a> for ChangeSelectionCommand {
 #[derive(Debug)]
 pub struct MoveNodeCommand {
     node: Handle<Node>,
-    old_position: Vec3,
-    new_position: Vec3,
+    old_position: Vector3<f32>,
+    new_position: Vector3<f32>,
 }
 
 impl MoveNodeCommand {
-    pub fn new(node: Handle<Node>, old_position: Vec3, new_position: Vec3) -> Self {
+    pub fn new(node: Handle<Node>, old_position: Vector3<f32>, new_position: Vector3<f32>) -> Self {
         Self {
             node,
             old_position,
@@ -317,25 +325,18 @@ impl MoveNodeCommand {
         }
     }
 
-    fn swap(&mut self) -> Vec3 {
+    fn swap(&mut self) -> Vector3<f32> {
         let position = self.new_position;
         std::mem::swap(&mut self.new_position, &mut self.old_position);
         position
     }
 
-    fn set_position(
-        &self,
-        graph: &mut Graph,
-        physics: &mut Physics,
-        binder: &PhysicsBinder,
-        position: Vec3,
-    ) {
+    fn set_position(&self, graph: &mut Graph, physics: &mut Physics, position: Vector3<f32>) {
         graph[self.node]
             .local_transform_mut()
             .set_position(position);
-        let body = binder.body_of(self.node);
-        if body.is_some() {
-            physics.borrow_body_mut(body).set_position(position);
+        if let Some(&body) = physics.binder.get(&self.node) {
+            physics.bodies[body].position = position;
         }
     }
 }
@@ -349,34 +350,24 @@ impl<'a> Command<'a> for MoveNodeCommand {
 
     fn execute(&mut self, context: &mut Self::Context) {
         let position = self.swap();
-        self.set_position(
-            &mut context.scene.graph,
-            &mut context.scene.physics,
-            &context.scene.physics_binder,
-            position,
-        );
+        self.set_position(&mut context.scene.graph, &mut context.physics, position);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         let position = self.swap();
-        self.set_position(
-            &mut context.scene.graph,
-            &mut context.scene.physics,
-            &context.scene.physics_binder,
-            position,
-        );
+        self.set_position(&mut context.scene.graph, &mut context.physics, position);
     }
 }
 
 #[derive(Debug)]
 pub struct ScaleNodeCommand {
     node: Handle<Node>,
-    old_scale: Vec3,
-    new_scale: Vec3,
+    old_scale: Vector3<f32>,
+    new_scale: Vector3<f32>,
 }
 
 impl ScaleNodeCommand {
-    pub fn new(node: Handle<Node>, old_scale: Vec3, new_scale: Vec3) -> Self {
+    pub fn new(node: Handle<Node>, old_scale: Vector3<f32>, new_scale: Vector3<f32>) -> Self {
         Self {
             node,
             old_scale,
@@ -384,13 +375,13 @@ impl ScaleNodeCommand {
         }
     }
 
-    fn swap(&mut self) -> Vec3 {
+    fn swap(&mut self) -> Vector3<f32> {
         let position = self.new_scale;
         std::mem::swap(&mut self.new_scale, &mut self.old_scale);
         position
     }
 
-    fn set_scale(&self, graph: &mut Graph, scale: Vec3) {
+    fn set_scale(&self, graph: &mut Graph, scale: Vector3<f32>) {
         graph[self.node].local_transform_mut().set_scale(scale);
     }
 }
@@ -416,12 +407,16 @@ impl<'a> Command<'a> for ScaleNodeCommand {
 #[derive(Debug)]
 pub struct RotateNodeCommand {
     node: Handle<Node>,
-    old_rotation: Quat,
-    new_rotation: Quat,
+    old_rotation: UnitQuaternion<f32>,
+    new_rotation: UnitQuaternion<f32>,
 }
 
 impl RotateNodeCommand {
-    pub fn new(node: Handle<Node>, old_rotation: Quat, new_rotation: Quat) -> Self {
+    pub fn new(
+        node: Handle<Node>,
+        old_rotation: UnitQuaternion<f32>,
+        new_rotation: UnitQuaternion<f32>,
+    ) -> Self {
         Self {
             node,
             old_rotation,
@@ -429,13 +424,13 @@ impl RotateNodeCommand {
         }
     }
 
-    fn swap(&mut self) -> Quat {
+    fn swap(&mut self) -> UnitQuaternion<f32> {
         let position = self.new_rotation;
         std::mem::swap(&mut self.new_rotation, &mut self.old_rotation);
         position
     }
 
-    fn set_scale(&self, graph: &mut Graph, rotation: Quat) {
+    fn set_scale(&self, graph: &mut Graph, rotation: UnitQuaternion<f32>) {
         graph[self.node]
             .local_transform_mut()
             .set_rotation(rotation);
@@ -571,94 +566,106 @@ impl<'a> Command<'a> for SetBodyCommand {
     fn execute(&mut self, context: &mut Self::Context) {
         match self.ticket.take() {
             None => {
-                self.handle = context.scene.physics.add_body(self.body.take().unwrap());
+                self.handle = context.physics.bodies.spawn(self.body.take().unwrap());
             }
             Some(ticket) => {
                 context
-                    .scene
                     .physics
-                    .put_body_back(ticket, self.body.take().unwrap());
+                    .bodies
+                    .put_back(ticket, self.body.take().unwrap());
             }
         }
-        context.scene.physics_binder.bind(self.node, self.handle);
+        context.physics.binder.insert(self.node, self.handle);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.scene.physics.take_reserve_body(self.handle);
+        let (ticket, node) = context.physics.bodies.take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.body = Some(node);
-        context.scene.physics_binder.unbind(self.node);
+        context.physics.binder.remove(&self.node);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.physics.forget_body_ticket(ticket);
-            context.scene.physics_binder.unbind(self.node);
+            context.physics.bodies.forget_ticket(ticket);
+            context.physics.binder.remove(&self.node);
         }
     }
 }
 
 #[derive(Debug)]
-pub struct SetStaticGeometryCommand {
-    node: Handle<Node>,
-    ticket: Option<Ticket<StaticGeometry>>,
-    handle: Handle<StaticGeometry>,
-    static_geometry: Option<StaticGeometry>,
+pub struct SetColliderCommand {
+    body: Handle<RigidBody>,
+    ticket: Option<Ticket<Collider>>,
+    handle: Handle<Collider>,
+    collider: Option<Collider>,
 }
 
-impl SetStaticGeometryCommand {
-    pub fn new(node: Handle<Node>, static_geometry: StaticGeometry) -> Self {
+impl SetColliderCommand {
+    pub fn new(body: Handle<RigidBody>, collider: Collider) -> Self {
         Self {
-            node,
+            body,
             ticket: None,
             handle: Default::default(),
-            static_geometry: Some(static_geometry),
+            collider: Some(collider),
         }
     }
 }
 
-impl<'a> Command<'a> for SetStaticGeometryCommand {
+impl<'a> Command<'a> for SetColliderCommand {
     type Context = SceneContext<'a>;
 
     fn name(&self, _context: &Self::Context) -> String {
-        "Set Node Static Geometry".to_owned()
+        "Set Collider".to_owned()
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
         match self.ticket.take() {
             None => {
                 self.handle = context
-                    .scene
                     .physics
-                    .add_static_geometry(self.static_geometry.take().unwrap());
+                    .colliders
+                    .spawn(self.collider.take().unwrap());
             }
             Some(ticket) => {
                 context
-                    .scene
                     .physics
-                    .put_static_geometry_back(ticket, self.static_geometry.take().unwrap());
+                    .colliders
+                    .put_back(ticket, self.collider.take().unwrap());
             }
         }
-        context
-            .scene
-            .static_geometry_binder
-            .bind(self.handle, self.node);
+        context.physics.colliders[self.handle].parent = self.body.into();
+        context.physics.bodies[self.body]
+            .colliders
+            .push(self.handle.into());
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context
-            .scene
-            .physics
-            .take_reserve_static_geometry(self.handle);
+        let (ticket, mut collider) = context.physics.colliders.take_reserve(self.handle);
+        collider.parent = Default::default();
         self.ticket = Some(ticket);
-        self.static_geometry = Some(node);
-        context.scene.physics_binder.unbind(self.node);
+        self.collider = Some(collider);
+
+        let body = &mut context.physics.bodies[self.body];
+        body.colliders.remove(
+            body.colliders
+                .iter()
+                .position(|&c| c == ErasedHandle::from(self.handle))
+                .unwrap(),
+        );
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.physics.forget_static_geometry_ticket(ticket);
-            context.scene.physics_binder.unbind(self.node);
+            context.physics.colliders.forget_ticket(ticket);
+
+            let body = &mut context.physics.bodies[self.body];
+            body.colliders.remove(
+                body.colliders
+                    .iter()
+                    .position(|&c| c == ErasedHandle::from(self.handle))
+                    .unwrap(),
+            );
         }
     }
 }
@@ -743,81 +750,81 @@ impl<'a> Command<'a> for DeleteBodyCommand {
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
-        let (ticket, node) = context.scene.physics.take_reserve_body(self.handle);
+        let (ticket, node) = context.physics.bodies.take_reserve(self.handle);
         self.body = Some(node);
         self.ticket = Some(ticket);
-        self.node = context.scene.physics_binder.unbind_by_body(self.handle);
+        self.node = context.physics.unbind_by_body(self.handle);
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
         self.handle = context
-            .scene
             .physics
-            .put_body_back(self.ticket.take().unwrap(), self.body.take().unwrap());
-        context.scene.physics_binder.bind(self.node, self.handle);
+            .bodies
+            .put_back(self.ticket.take().unwrap(), self.body.take().unwrap());
+        context.physics.binder.insert(self.node, self.handle);
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.physics.forget_body_ticket(ticket)
+            context.physics.bodies.forget_ticket(ticket)
         }
     }
 }
 
 #[derive(Debug)]
-pub struct DeleteStaticGeometryCommand {
-    handle: Handle<StaticGeometry>,
-    ticket: Option<Ticket<StaticGeometry>>,
-    static_geometry: Option<StaticGeometry>,
-    node: Handle<Node>,
+pub struct DeleteColliderCommand {
+    handle: Handle<Collider>,
+    ticket: Option<Ticket<Collider>>,
+    collider: Option<Collider>,
+    body: Handle<RigidBody>,
 }
 
-impl DeleteStaticGeometryCommand {
-    pub fn new(handle: Handle<StaticGeometry>) -> Self {
+impl DeleteColliderCommand {
+    pub fn new(handle: Handle<Collider>) -> Self {
         Self {
             handle,
             ticket: None,
-            static_geometry: None,
-            node: Handle::NONE,
+            collider: None,
+            body: Handle::NONE,
         }
     }
 }
 
-impl<'a> Command<'a> for DeleteStaticGeometryCommand {
+impl<'a> Command<'a> for DeleteColliderCommand {
     type Context = SceneContext<'a>;
 
     fn name(&self, _context: &Self::Context) -> String {
-        "Delete Static Geometry".to_owned()
+        "Delete Collider".to_owned()
     }
 
     fn execute(&mut self, context: &mut Self::Context) {
-        let (ticket, static_geometry) = context
-            .scene
-            .physics
-            .take_reserve_static_geometry(self.handle);
-        self.static_geometry = Some(static_geometry);
+        let (ticket, collider) = context.physics.colliders.take_reserve(self.handle);
+        self.body = collider.parent.into();
+        self.collider = Some(collider);
         self.ticket = Some(ticket);
-        self.node = context
-            .scene
-            .static_geometry_binder
-            .unbind(self.handle)
-            .unwrap();
+
+        let body = &mut context.physics.bodies[self.body];
+        body.colliders.remove(
+            body.colliders
+                .iter()
+                .position(|&c| c == ErasedHandle::from(self.handle))
+                .unwrap(),
+        );
     }
 
     fn revert(&mut self, context: &mut Self::Context) {
-        self.handle = context.scene.physics.put_static_geometry_back(
-            self.ticket.take().unwrap(),
-            self.static_geometry.take().unwrap(),
-        );
-        context
-            .scene
-            .static_geometry_binder
-            .bind(self.handle, self.node);
+        self.handle = context
+            .physics
+            .colliders
+            .put_back(self.ticket.take().unwrap(), self.collider.take().unwrap());
+
+        let body = &mut context.physics.bodies[self.body];
+        body.colliders.push(self.handle.into());
     }
 
     fn finalize(&mut self, context: &mut Self::Context) {
         if let Some(ticket) = self.ticket.take() {
-            context.scene.physics.forget_static_geometry_ticket(ticket)
+            context.physics.colliders.forget_ticket(ticket)
         }
     }
 }
@@ -918,7 +925,7 @@ impl<'a> Command<'a> for SetMeshTextureCommand {
     }
 }
 
-define_simple_command!(SetLightScatterCommand, "Set Light Scatter", Vec3 => |this: &mut SetLightScatterCommand, graph: &mut Graph| {
+define_simple_command!(SetLightScatterCommand, "Set Light Scatter", Vector3<f32> => |this: &mut SetLightScatterCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_light_mut();
     let old = node.scatter();
     node.set_scatter(this.value);
@@ -1009,7 +1016,7 @@ define_simple_command!(SetZFarCommand, "Set Camera Z Far", f32 => |this: &mut Se
     this.value = old;
 });
 
-define_simple_command!(SetParticleSystemAccelerationCommand, "Set Particle System Acceleration", Vec3 => |this: &mut SetParticleSystemAccelerationCommand, graph: &mut Graph| {
+define_simple_command!(SetParticleSystemAccelerationCommand, "Set Particle System Acceleration", Vector3<f32> => |this: &mut SetParticleSystemAccelerationCommand, graph: &mut Graph| {
     let node = graph[this.handle].as_particle_system_mut();
     let old = node.acceleration();
     node.set_acceleration(this.value);
@@ -1100,13 +1107,16 @@ impl Selection {
         self.nodes.extend_from_slice(&other.nodes)
     }
 
-    pub fn global_rotation_position(&self, graph: &Graph) -> Option<(Quat, Vec3)> {
+    pub fn global_rotation_position(
+        &self,
+        graph: &Graph,
+    ) -> Option<(UnitQuaternion<f32>, Vector3<f32>)> {
         if self.is_single_selection() {
             Some(graph.global_rotation_position_no_scale(self.nodes[0]))
         } else if self.is_empty() {
             None
         } else {
-            let mut position = Vec3::ZERO;
+            let mut position = Vector3::default();
             let mut rotation = graph.global_rotation(self.nodes[0]);
             let t = 1.0 / self.nodes.len() as f32;
             for &handle in self.nodes.iter() {
@@ -1119,10 +1129,10 @@ impl Selection {
         }
     }
 
-    pub fn offset(&self, graph: &mut Graph, offset: Vec3) {
+    pub fn offset(&self, graph: &mut Graph, offset: Vector3<f32>) {
         for &handle in self.nodes.iter() {
             let global_scale = graph.global_scale(handle);
-            let offset = Vec3::new(
+            let offset = Vector3::new(
                 if global_scale.x.abs() > 0.0 {
                     offset.x / global_scale.x
                 } else {
@@ -1143,19 +1153,19 @@ impl Selection {
         }
     }
 
-    pub fn rotate(&self, graph: &mut Graph, rotation: Quat) {
+    pub fn rotate(&self, graph: &mut Graph, rotation: UnitQuaternion<f32>) {
         for &handle in self.nodes.iter() {
             graph[handle].local_transform_mut().set_rotation(rotation);
         }
     }
 
-    pub fn scale(&self, graph: &mut Graph, scale: Vec3) {
+    pub fn scale(&self, graph: &mut Graph, scale: Vector3<f32>) {
         for &handle in self.nodes.iter() {
             graph[handle].local_transform_mut().set_scale(scale);
         }
     }
 
-    pub fn local_positions(&self, graph: &Graph) -> Vec<Vec3> {
+    pub fn local_positions(&self, graph: &Graph) -> Vec<Vector3<f32>> {
         let mut positions = Vec::new();
         for &handle in self.nodes.iter() {
             positions.push(graph[handle].local_transform().position());
@@ -1163,7 +1173,7 @@ impl Selection {
         positions
     }
 
-    pub fn local_rotations(&self, graph: &Graph) -> Vec<Quat> {
+    pub fn local_rotations(&self, graph: &Graph) -> Vec<UnitQuaternion<f32>> {
         let mut rotations = Vec::new();
         for &handle in self.nodes.iter() {
             rotations.push(graph[handle].local_transform().rotation());
@@ -1171,7 +1181,7 @@ impl Selection {
         rotations
     }
 
-    pub fn local_scales(&self, graph: &Graph) -> Vec<Vec3> {
+    pub fn local_scales(&self, graph: &Graph) -> Vec<Vector3<f32>> {
         let mut scales = Vec::new();
         for &handle in self.nodes.iter() {
             scales.push(graph[handle].local_transform().scale());

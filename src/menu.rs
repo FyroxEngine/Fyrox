@@ -6,7 +6,10 @@ use crate::{
     GameEngine, Message,
 };
 use rg3d::{
-    core::{math::vec2::Vec2, pool::Handle},
+    core::{
+        algebra::{Matrix4, Vector2},
+        pool::Handle,
+    },
     gui::{
         file_browser::FileSelectorBuilder,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
@@ -89,7 +92,7 @@ fn switch_window_state(window: Handle<UiNode>, ui: &mut Ui, center: bool) {
 
 impl Menu {
     pub fn new(engine: &mut GameEngine, message_sender: Sender<Message>) -> Self {
-        let min_size = Vec2::new(120.0, 22.0);
+        let min_size = Vector2::new(120.0, 22.0);
         let new_scene;
         let save;
         let save_as;
@@ -442,7 +445,7 @@ impl Menu {
                         let mut mesh = Mesh::default();
                         mesh.set_name("Cube");
                         mesh.add_surface(Surface::new(Arc::new(Mutex::new(
-                            SurfaceSharedData::make_cube(Default::default()),
+                            SurfaceSharedData::make_cube(Matrix4::identity()),
                         ))));
                         let node = Node::Mesh(mesh);
                         self.message_sender
@@ -479,7 +482,7 @@ impl Menu {
                     } else if message.destination() == self.create_cone {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
                             .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
-                                SurfaceSharedData::make_cone(16, 1.0, 1.0, Default::default()),
+                                SurfaceSharedData::make_cone(16, 1.0, 1.0, Matrix4::identity()),
                             )))])
                             .build_node();
                         self.message_sender
@@ -495,7 +498,7 @@ impl Menu {
                                     1.0,
                                     1.0,
                                     true,
-                                    Default::default(),
+                                    Matrix4::identity(),
                                 ),
                             )))])
                             .build_node();

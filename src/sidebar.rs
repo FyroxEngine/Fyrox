@@ -1,23 +1,23 @@
+use crate::scene::{DeleteColliderCommand, SetColliderCommand};
 use crate::{
     gui::{BuildContext, Ui, UiMessage, UiNode},
+    physics::{Collider, RigidBody},
     scene::{
-        CommandGroup, DeleteBodyCommand, DeleteStaticGeometryCommand, EditorScene, MoveNodeCommand,
-        RotateNodeCommand, ScaleNodeCommand, SceneCommand, SetBodyCommand, SetFovCommand,
-        SetLightCastShadowsCommand, SetLightColorCommand, SetLightScatterCommand,
-        SetLightScatterEnabledCommand, SetNameCommand, SetParticleSystemAccelerationCommand,
-        SetPointLightRadiusCommand, SetSpotLightDistanceCommand,
-        SetSpotLightFalloffAngleDeltaCommand, SetSpotLightHotspotCommand, SetSpriteColorCommand,
-        SetSpriteRotationCommand, SetSpriteSizeCommand, SetStaticGeometryCommand, SetZFarCommand,
-        SetZNearCommand,
+        CommandGroup, DeleteBodyCommand, EditorScene, MoveNodeCommand, RotateNodeCommand,
+        ScaleNodeCommand, SceneCommand, SetBodyCommand, SetFovCommand, SetLightCastShadowsCommand,
+        SetLightColorCommand, SetLightScatterCommand, SetLightScatterEnabledCommand,
+        SetNameCommand, SetParticleSystemAccelerationCommand, SetPointLightRadiusCommand,
+        SetSpotLightDistanceCommand, SetSpotLightFalloffAngleDeltaCommand,
+        SetSpotLightHotspotCommand, SetSpriteColorCommand, SetSpriteRotationCommand,
+        SetSpriteSizeCommand, SetZFarCommand, SetZNearCommand,
     },
     GameEngine, Message,
 };
+use rg3d::scene::physics::{BodyStatusDesc, CapsuleDesc};
 use rg3d::{
     core::{
-        math::{
-            quat::{Quat, RotationOrder},
-            vec3::Vec3,
-        },
+        algebra::Vector3,
+        math::{quat_from_euler, Matrix4Ext, RotationOrder, UnitQuaternionExt},
         pool::Handle,
     },
     gui::{
@@ -41,12 +41,12 @@ use rg3d::{
         window::{WindowBuilder, WindowTitle},
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
-    physics::{
-        convex_shape::{BoxShape, CapsuleShape, ConvexShape, SphereShape},
-        rigid_body::RigidBody,
+    physics::na::UnitQuaternion,
+    scene::physics::{
+        BallDesc, ColliderShapeDesc, ConeDesc, CuboidDesc, CylinderDesc, HeightfieldDesc,
+        RoundCylinderDesc, SegmentDesc, TriangleDesc, TrimeshDesc,
     },
     scene::{light::Light, node::Node},
-    utils,
 };
 use std::sync::mpsc::Sender;
 
@@ -62,6 +62,7 @@ pub struct SideBar {
     scale: Handle<UiNode>,
     sender: Sender<Message>,
     body: Handle<UiNode>,
+    collider: Handle<UiNode>,
     light_section: LightSection,
     camera_section: CameraSection,
     particle_system_section: ParticleSystemSection,
@@ -773,6 +774,7 @@ impl SideBar {
         let rotation;
         let scale;
         let body;
+        let collider;
 
         let light_section = LightSection::new(ctx, sender.clone());
         let camera_section = CameraSection::new(ctx, sender.clone());
@@ -825,17 +827,43 @@ impl SideBar {
                                                 )
                                                 .with_items(vec![
                                                     make_dropdown_list_option(ctx, "None"),
-                                                    make_dropdown_list_option(ctx, "Sphere"),
-                                                    make_dropdown_list_option(ctx, "Cube"),
-                                                    make_dropdown_list_option(ctx, "Capsule"),
-                                                    make_dropdown_list_option(ctx, "Static Mesh"),
+                                                    make_dropdown_list_option(ctx, "Dynamic"),
+                                                    make_dropdown_list_option(ctx, "Static"),
+                                                    make_dropdown_list_option(ctx, "Kinematic"),
                                                 ])
                                                 .build(ctx);
                                                 body
+                                            })
+                                            .with_child(make_text_mark(ctx, "Collider", 5))
+                                            .with_child({
+                                                collider = DropdownListBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .on_row(5)
+                                                        .on_column(1)
+                                                        .with_margin(Thickness::uniform(1.0)),
+                                                )
+                                                .with_items(vec![
+                                                    make_dropdown_list_option(ctx, "Ball"),
+                                                    make_dropdown_list_option(ctx, "Cylinder"),
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        "Round Cylinder",
+                                                    ),
+                                                    make_dropdown_list_option(ctx, "Cone"),
+                                                    make_dropdown_list_option(ctx, "Cuboid"),
+                                                    make_dropdown_list_option(ctx, "Capsule"),
+                                                    make_dropdown_list_option(ctx, "Segment"),
+                                                    make_dropdown_list_option(ctx, "Triangle"),
+                                                    make_dropdown_list_option(ctx, "Trimesh"),
+                                                    make_dropdown_list_option(ctx, "Heightfield"),
+                                                ])
+                                                .build(ctx);
+                                                collider
                                             }),
                                     )
                                     .add_column(Column::strict(COLUMN_WIDTH))
                                     .add_column(Column::stretch())
+                                    .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
                                     .add_row(Row::strict(ROW_HEIGHT))
@@ -868,6 +896,7 @@ impl SideBar {
             sender,
             scale,
             body,
+            collider,
             light_section,
             camera_section,
             particle_system_section,
@@ -904,7 +933,7 @@ impl SideBar {
                 ));
 
                 let euler = node.local_transform().rotation().to_euler();
-                let euler_degrees = Vec3::new(
+                let euler_degrees = Vector3::new(
                     euler.x.to_degrees(),
                     euler.y.to_degrees(),
                     euler.z.to_degrees(),
@@ -922,30 +951,50 @@ impl SideBar {
                 ));
 
                 // Sync physical body info.
-                let body_handle = scene.physics_binder.body_of(node_handle);
-                let index = if body_handle.is_some() {
-                    let body = scene.physics.borrow_body(body_handle);
-                    match body.get_shape() {
-                        ConvexShape::Sphere(_) => 1,
-                        ConvexShape::Box(_) => 2,
-                        ConvexShape::Capsule(_) => 3,
-                        _ => 0,
-                    }
-                } else if scene
-                    .static_geometry_binder
-                    .static_geometry_of_node(node_handle)
-                    .is_some()
-                {
-                    4
-                } else {
-                    0
-                };
+                let body_index =
+                    if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                        let body = &editor_scene.physics.bodies[body_handle];
+                        match body.status {
+                            BodyStatusDesc::Dynamic => 1,
+                            BodyStatusDesc::Static => 2,
+                            BodyStatusDesc::Kinematic => 3,
+                        }
+                    } else {
+                        0
+                    };
 
                 ui.send_message(DropdownListMessage::selection(
                     self.body,
                     MessageDirection::ToWidget,
-                    Some(index),
+                    Some(body_index),
                 ));
+
+                if let Some(&body_handle) = editor_scene.physics.binder.get(&node_handle) {
+                    let body = &editor_scene.physics.bodies[body_handle];
+
+                    if let Some(&collider) = body.colliders.get(0) {
+                        let collider_index =
+                            match editor_scene.physics.colliders[collider.into()].shape {
+                                ColliderShapeDesc::Ball(_) => 0,
+                                ColliderShapeDesc::Cylinder(_) => 1,
+                                ColliderShapeDesc::RoundCylinder(_) => 2,
+                                ColliderShapeDesc::Cone(_) => 3,
+                                ColliderShapeDesc::Cuboid(_) => 4,
+                                ColliderShapeDesc::Capsule(_) => 5,
+                                ColliderShapeDesc::Segment(_) => 6,
+                                ColliderShapeDesc::Triangle(_) => 7,
+                                ColliderShapeDesc::Trimesh(_) => 8,
+                                ColliderShapeDesc::Heightfield(_) => 9,
+                            };
+                        dbg!(collider_index);
+                        ui.send_message(DropdownListMessage::selection(
+                            self.collider,
+                            MessageDirection::ToWidget,
+                            Some(collider_index),
+                        ));
+                    }
+                }
+
                 self.light_section.sync_to_model(node, ui);
                 self.camera_section.sync_to_model(node, ui);
                 self.particle_system_section.sync_to_model(node, ui);
@@ -984,13 +1033,13 @@ impl SideBar {
                         let transform = graph[node_handle].local_transform();
                         if message.destination() == self.rotation {
                             let old_rotation = transform.rotation();
-                            let euler = Vec3::new(
+                            let euler = Vector3::new(
                                 value.x.to_radians(),
                                 value.y.to_radians(),
                                 value.z.to_radians(),
                             );
-                            let new_rotation = Quat::from_euler(euler, RotationOrder::XYZ);
-                            if !old_rotation.approx_eq(new_rotation, 0.001) {
+                            let new_rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                            if !old_rotation.approx_eq(&new_rotation, 0.001) {
                                 self.sender
                                     .send(Message::DoSceneCommand(SceneCommand::RotateNode(
                                         RotateNodeCommand::new(
@@ -1023,75 +1072,77 @@ impl SideBar {
                     }
                 }
                 UiMessageData::DropdownList(msg) => {
-                    if message.destination() == self.body {
-                        if let DropdownListMessage::SelectionChanged(index) = msg {
-                            if let Some(index) = index {
-                                dbg!(index);
-
+                    if let DropdownListMessage::SelectionChanged(index) = msg {
+                        if let Some(index) = index {
+                            if message.destination() == self.body {
                                 match index {
                                     0 => {
-                                        let body_handle = scene.physics_binder.body_of(node_handle);
-                                        if body_handle.is_some() {
+                                        // Remove body.
+                                        if let Some(&body_handle) =
+                                            editor_scene.physics.binder.get(&node_handle)
+                                        {
                                             self.sender
                                                 .send(Message::DoSceneCommand(
-                                                    SceneCommand::CommandGroup(CommandGroup::from(
-                                                        vec![SceneCommand::DeleteBody(
-                                                            DeleteBodyCommand::new(body_handle),
-                                                        )],
-                                                    )),
+                                                    SceneCommand::DeleteBody(
+                                                        DeleteBodyCommand::new(body_handle),
+                                                    ),
                                                 ))
                                                 .unwrap();
                                         }
                                     }
                                     1 | 2 | 3 => {
-                                        let mut body = match index {
-                                            1 => RigidBody::new(ConvexShape::Sphere(
-                                                SphereShape::default(),
-                                            )),
-                                            2 => RigidBody::new(ConvexShape::Box(
-                                                BoxShape::default(),
-                                            )),
-                                            3 => RigidBody::new(ConvexShape::Capsule(
-                                                CapsuleShape::default(),
-                                            )),
-                                            _ => unreachable!(),
-                                        };
-                                        body.set_position(graph[node_handle].global_position());
-                                        let mut commands = Vec::new();
-                                        if let Some(node_geom) = scene
-                                            .static_geometry_binder
-                                            .static_geometry_of_node(node_handle)
+                                        let mut current_status = 0;
+                                        if let Some(&body) =
+                                            editor_scene.physics.binder.get(&node_handle)
                                         {
-                                            // Make sure to remove static geometry (if any).
-                                            commands.push(SceneCommand::DeleteStaticGeometry(
-                                                DeleteStaticGeometryCommand::new(node_geom),
-                                            ));
+                                            current_status =
+                                                match editor_scene.physics.bodies[body].status {
+                                                    BodyStatusDesc::Dynamic => 1,
+                                                    BodyStatusDesc::Static => 2,
+                                                    BodyStatusDesc::Kinematic => 3,
+                                                };
                                         }
-                                        commands.push(SceneCommand::SetBody(SetBodyCommand::new(
-                                            node_handle,
-                                            body,
-                                        )));
-                                        self.sender
-                                            .send(Message::DoSceneCommand(
-                                                SceneCommand::CommandGroup(CommandGroup::from(
-                                                    commands,
-                                                )),
-                                            ))
-                                            .unwrap();
-                                    }
-                                    4 => {
-                                        if let Node::Mesh(mesh) = node {
-                                            let geom = utils::mesh_to_static_geometry(mesh, false);
+
+                                        if *index != current_status {
+                                            // Create body.
+                                            let node = &graph[node_handle];
+                                            let body = RigidBody {
+                                                position: node.global_position(),
+                                                rotation: UnitQuaternion::from_matrix(
+                                                    &node.global_transform().basis(),
+                                                ),
+                                                status: match index {
+                                                    1 => BodyStatusDesc::Dynamic,
+                                                    2 => BodyStatusDesc::Static,
+                                                    3 => BodyStatusDesc::Kinematic,
+                                                    _ => unreachable!(),
+                                                },
+                                                ..Default::default()
+                                            };
+
                                             let mut commands = Vec::new();
-                                            let body = scene.physics_binder.body_of(node_handle);
-                                            if body.is_some() {
+
+                                            if let Some(&body) =
+                                                editor_scene.physics.binder.get(&node_handle)
+                                            {
+                                                for &collider in editor_scene.physics.bodies[body]
+                                                    .colliders
+                                                    .iter()
+                                                {
+                                                    commands.push(SceneCommand::DeleteCollider(
+                                                        DeleteColliderCommand::new(collider.into()),
+                                                    ))
+                                                }
+
                                                 commands.push(SceneCommand::DeleteBody(
                                                     DeleteBodyCommand::new(body),
                                                 ));
                                             }
-                                            commands.push(SceneCommand::SetStaticGeometry(
-                                                SetStaticGeometryCommand::new(node_handle, geom),
+
+                                            commands.push(SceneCommand::SetBody(
+                                                SetBodyCommand::new(node_handle, body),
                                             ));
+
                                             self.sender
                                                 .send(Message::DoSceneCommand(
                                                     SceneCommand::CommandGroup(CommandGroup::from(
@@ -1103,6 +1154,113 @@ impl SideBar {
                                     }
                                     _ => unreachable!(),
                                 };
+                            } else if message.destination() == self.collider {
+                                if let Some(&body) = editor_scene.physics.binder.get(&node_handle) {
+                                    let mut current_index = 0;
+                                    if let Some(&first_collider) =
+                                        editor_scene.physics.bodies[body].colliders.first()
+                                    {
+                                        current_index = editor_scene.physics.colliders
+                                            [first_collider.into()]
+                                        .shape
+                                        .id();
+                                    }
+
+                                    if current_index != *index as u32 {
+                                        let collider = match index {
+                                            0 => Collider {
+                                                shape: ColliderShapeDesc::Ball(BallDesc {
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            1 => Collider {
+                                                shape: ColliderShapeDesc::Cylinder(CylinderDesc {
+                                                    half_height: 0.5,
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            2 => Collider {
+                                                shape: ColliderShapeDesc::RoundCylinder(
+                                                    RoundCylinderDesc {
+                                                        half_height: 0.5,
+                                                        radius: 0.5,
+                                                        border_radius: 0.1,
+                                                    },
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            3 => Collider {
+                                                shape: ColliderShapeDesc::Cone(ConeDesc {
+                                                    half_height: 0.5,
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            4 => Collider {
+                                                shape: ColliderShapeDesc::Cuboid(CuboidDesc {
+                                                    half_extents: Vector3::new(0.5, 0.5, 0.5),
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            5 => Collider {
+                                                shape: ColliderShapeDesc::Capsule(CapsuleDesc {
+                                                    begin: Vector3::new(0.0, 0.0, 0.0),
+                                                    end: Vector3::new(0.0, 1.0, 0.0),
+                                                    radius: 0.5,
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            6 => Collider {
+                                                shape: ColliderShapeDesc::Segment(SegmentDesc {
+                                                    begin: Vector3::new(0.0, 0.0, 0.0),
+                                                    end: Vector3::new(1.0, 0.0, 0.0),
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            7 => Collider {
+                                                shape: ColliderShapeDesc::Triangle(TriangleDesc {
+                                                    a: Vector3::new(0.0, 0.0, 0.0),
+                                                    b: Vector3::new(1.0, 0.0, 0.0),
+                                                    c: Vector3::new(1.0, 0.0, 1.0),
+                                                }),
+                                                ..Default::default()
+                                            },
+                                            8 => Collider {
+                                                shape: ColliderShapeDesc::Trimesh(TrimeshDesc),
+                                                ..Default::default()
+                                            },
+                                            9 => Collider {
+                                                shape: ColliderShapeDesc::Heightfield(
+                                                    HeightfieldDesc,
+                                                ),
+                                                ..Default::default()
+                                            },
+                                            _ => unreachable!(),
+                                        };
+                                        let mut commands = Vec::new();
+                                        // For now only one collider per body is supported.
+                                        // It is easy to add more.
+                                        if let Some(&first_collider) =
+                                            editor_scene.physics.bodies[body].colliders.first()
+                                        {
+                                            commands.push(SceneCommand::DeleteCollider(
+                                                DeleteColliderCommand::new(first_collider.into()),
+                                            ))
+                                        }
+                                        commands.push(SceneCommand::SetCollider(
+                                            SetColliderCommand::new(body, collider),
+                                        ));
+                                        self.sender
+                                            .send(Message::DoSceneCommand(
+                                                SceneCommand::CommandGroup(CommandGroup::from(
+                                                    commands,
+                                                )),
+                                            ))
+                                            .unwrap();
+                                    }
+                                }
                             }
                         }
                     }

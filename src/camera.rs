@@ -1,11 +1,15 @@
-use rg3d::scene::graph::Graph;
+use crate::rg3d::core::math::Matrix4Ext;
 use rg3d::{
     core::{
-        math::{aabb::AxisAlignedBoundingBox, quat::Quat, vec2::Vec2, vec3::Vec3},
+        algebra::{UnitQuaternion, Vector2, Vector3},
+        math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
-    scene::{base::BaseBuilder, camera::CameraBuilder, node::Node, transform::TransformBuilder},
+    scene::{
+        base::BaseBuilder, camera::CameraBuilder, graph::Graph, node::Node,
+        transform::TransformBuilder,
+    },
 };
 use std::{
     collections::hash_map::DefaultHasher,
@@ -32,7 +36,7 @@ struct PickContext {
     pick_list: Vec<(Handle<Node>, f32)>,
     pick_index: usize,
     old_selection_hash: u64,
-    old_cursor_pos: Vec2,
+    old_cursor_pos: Vector2<f32>,
 }
 
 impl CameraController {
@@ -43,7 +47,7 @@ impl CameraController {
             .with_name("EditorCameraPivot")
             .with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(Vec3::new(0.0, 1.0, -3.0))
+                    .with_local_position(Vector3::new(0.0, 1.0, -3.0))
                     .build(),
             )
             .build();
@@ -70,7 +74,7 @@ impl CameraController {
         }
     }
 
-    pub fn on_mouse_move(&mut self, delta: Vec2) {
+    pub fn on_mouse_move(&mut self, delta: Vector2<f32>) {
         if self.rotate {
             self.yaw -= delta.x as f32 * 0.01;
             self.pitch += delta.y as f32 * 0.01;
@@ -126,7 +130,7 @@ impl CameraController {
         let look = global_transform.look();
         let side = global_transform.side();
 
-        let mut move_vec = Vec3::ZERO;
+        let mut move_vec = Vector3::default();
         if self.move_forward {
             move_vec += look;
         }
@@ -139,16 +143,16 @@ impl CameraController {
         if self.move_right {
             move_vec -= side;
         }
-        if let Some(v) = move_vec.normalized() {
+        if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
             move_vec = v.scale(10.0 * dt);
         }
 
         if let Node::Camera(camera) = camera {
-            let pitch = Quat::from_axis_angle(Vec3::RIGHT, self.pitch);
+            let pitch = UnitQuaternion::from_axis_angle(&Vector3::x_axis(), self.pitch);
             camera.local_transform_mut().set_rotation(pitch);
         }
         if let Node::Base(pivot) = &mut graph[self.pivot] {
-            let yaw = Quat::from_axis_angle(Vec3::UP, self.yaw);
+            let yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.yaw);
             pivot
                 .local_transform_mut()
                 .set_rotation(yaw)
@@ -158,10 +162,10 @@ impl CameraController {
 
     pub fn pick<F>(
         &mut self,
-        cursor_pos: Vec2,
+        cursor_pos: Vector2<f32>,
         graph: &Graph,
         root: Handle<Node>,
-        screen_size: Vec2,
+        screen_size: Vector2<f32>,
         editor_only: bool,
         mut filter: F,
     ) -> Handle<Node>
@@ -199,16 +203,16 @@ impl CameraController {
 
                 let (aabb, surfaces) = match node {
                     Node::Base(_) => (AxisAlignedBoundingBox::default(), None), // Non-pickable. TODO: Maybe better filter out such nodes?
-                    Node::Light(_) => (AxisAlignedBoundingBox::UNIT, None),
-                    Node::Camera(_) => (AxisAlignedBoundingBox::UNIT, None),
+                    Node::Light(_) => (AxisAlignedBoundingBox::unit(), None),
+                    Node::Camera(_) => (AxisAlignedBoundingBox::unit(), None),
                     Node::Mesh(mesh) => (mesh.bounding_box(), Some(mesh.surfaces())),
-                    Node::Sprite(_) => (AxisAlignedBoundingBox::UNIT, None),
-                    Node::ParticleSystem(_) => (AxisAlignedBoundingBox::UNIT, None),
+                    Node::Sprite(_) => (AxisAlignedBoundingBox::unit(), None),
+                    Node::ParticleSystem(_) => (AxisAlignedBoundingBox::unit(), None),
                 };
 
                 if handle != graph.get_root() {
                     let object_space_ray =
-                        ray.transform(node.global_transform().inverse().unwrap_or_default());
+                        ray.transform(node.global_transform().try_inverse().unwrap_or_default());
                     // Do coarse intersection test with bounding box.
                     if let Some(points) = object_space_ray.aabb_intersection_points(&aabb) {
                         // Do fine intersection test with surfaces if any
@@ -216,8 +220,8 @@ impl CameraController {
                             // TODO
                         }
 
-                        let da = points[0].distance(&object_space_ray.origin);
-                        let db = points[1].distance(&object_space_ray.origin);
+                        let da = points[0].metric_distance(&object_space_ray.origin);
+                        let db = points[1].metric_distance(&object_space_ray.origin);
                         let closest_distance = da.min(db);
                         context.pick_list.push((handle, closest_distance));
                     }
