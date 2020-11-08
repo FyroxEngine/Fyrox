@@ -63,7 +63,12 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Animation blending state machine - similar to Mecanim in Unity Engine.
 - Animation retargetting - allows you to remap animation from one model to another.
 - Async asset management (textures, models, sound buffers).
-- [Simple physics](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-physics).
+- Advanced physics (thanks to [rapier](https://github.com/dimforge/rapier) physics engine)
+    - Rigid bodies.    
+    - Rich set of various colliders.
+    - Joints.
+    - Ray cast.
+    - Many other useful features.
 - [Core library](https://github.com/mrDIMAS/rg3d/tree/master/rg3d-core).
 - Fast iterative compilation 
 	- Debug: ~3 seconds
@@ -76,7 +81,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Linux - **full support**
 - macOS - **partial support**: currently there is no sound backend for macOS so there will be no sound on macOS. 
 Check [this issue](https://github.com/mrDIMAS/rg3d/issues/45) for more info.
-- WebAssembly - **not supported**
+- WebAssembly - **not supported yet**: any help is appreciated.
 
 ## Compiler version
 
