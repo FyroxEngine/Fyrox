@@ -12,6 +12,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rapier3d::na::Translation3;
 use rapier3d::{
     data::arena::Index,
     dynamics::{
@@ -154,6 +155,8 @@ impl Physics {
     #[doc(hidden)]
     pub fn generate_desc(&self) -> PhysicsDesc {
         PhysicsDesc {
+            integration_parameters: self.integration_parameters.clone().into(),
+
             bodies: self
                 .bodies
                 .iter()
@@ -779,7 +782,6 @@ impl Visit for ColliderShapeDesc {
         if visitor.is_reading() {
             *self = Self::from_id(id)?;
         }
-        dbg!(&self);
         match self {
             ColliderShapeDesc::Ball(v) => v.visit(name, visitor)?,
             ColliderShapeDesc::Cylinder(v) => v.visit(name, visitor)?,
@@ -802,6 +804,14 @@ impl Visit for ColliderShapeDesc {
 pub struct ColliderDesc<R> {
     pub shape: ColliderShapeDesc,
     pub parent: R,
+    pub friction: f32,
+    pub density: f32,
+    pub restitution: f32,
+    pub is_sensor: bool,
+    pub translation: Vector3<f32>,
+    pub rotation: UnitQuaternion<f32>,
+    pub collision_groups: u32,
+    pub solver_groups: u32,
 }
 
 impl<R: From<Index>> ColliderDesc<R> {
@@ -809,12 +819,33 @@ impl<R: From<Index>> ColliderDesc<R> {
         Self {
             shape: ColliderShapeDesc::from_collider_shape(collider.shape()),
             parent: R::from(collider.parent()),
+            friction: collider.friction,
+            density: collider.density(),
+            restitution: collider.restitution,
+            is_sensor: collider.is_sensor(),
+            translation: collider.position().translation.vector,
+            rotation: collider.position().rotation,
+            collision_groups: collider.collision_groups().0,
+            solver_groups: collider.solver_groups().0,
         }
     }
 
     fn convert_to_collider(self) -> (Collider, R) {
         (
-            ColliderBuilder::new(self.shape.into_collider_shape()).build(),
+            ColliderBuilder::new(self.shape.into_collider_shape())
+                .friction(self.friction)
+                .restitution(self.restitution)
+                .density(self.density)
+                .position(Isometry3 {
+                    translation: Translation3 {
+                        vector: self.translation,
+                    },
+                    rotation: self.rotation,
+                })
+                .solver_groups(InteractionGroups(self.solver_groups))
+                .collision_groups(InteractionGroups(self.collision_groups))
+                .sensor(self.is_sensor)
+                .build(),
             self.parent,
         )
     }
@@ -826,6 +857,14 @@ impl<R: 'static + Visit + Default> Visit for ColliderDesc<R> {
 
         self.shape.visit("Shape", visitor)?;
         self.parent.visit("Parent", visitor)?;
+        self.friction.visit("Friction", visitor)?;
+        self.density.visit("Density", visitor)?;
+        self.restitution.visit("Restitution", visitor)?;
+        self.is_sensor.visit("IsSensor", visitor)?;
+        self.translation.visit("Translation", visitor)?;
+        self.rotation.visit("Rotation", visitor)?;
+        self.collision_groups.visit("CollisionGroups", visitor)?;
+        self.solver_groups.visit("SolverGroups", visitor)?;
 
         visitor.leave_region()
     }
@@ -853,9 +892,124 @@ impl Visit for Physics {
     }
 }
 
+// Almost full copy of rapier's IntegrationParameters
+#[derive(Default, Clone, Debug)]
+#[doc(hidden)]
+pub struct IntegrationParametersDesc {
+    pub dt: f32,
+    pub return_after_ccd_substep: bool,
+    pub erp: f32,
+    pub joint_erp: f32,
+    pub warmstart_coeff: f32,
+    pub restitution_velocity_threshold: f32,
+    pub allowed_linear_error: f32,
+    pub prediction_distance: f32,
+    pub allowed_angular_error: f32,
+    pub max_linear_correction: f32,
+    pub max_angular_correction: f32,
+    pub max_stabilization_multiplier: f32,
+    pub max_velocity_iterations: u32,
+    pub max_position_iterations: u32,
+    pub min_island_size: u32,
+    pub max_ccd_position_iterations: u32,
+    pub max_ccd_substeps: u32,
+    pub multiple_ccd_substep_sensor_events_enabled: bool,
+    pub ccd_on_penetration_enabled: bool,
+}
+
+impl From<IntegrationParameters> for IntegrationParametersDesc {
+    fn from(params: IntegrationParameters) -> Self {
+        Self {
+            dt: params.dt(),
+            return_after_ccd_substep: params.return_after_ccd_substep,
+            erp: params.erp,
+            joint_erp: params.joint_erp,
+            warmstart_coeff: params.warmstart_coeff,
+            restitution_velocity_threshold: params.restitution_velocity_threshold,
+            allowed_linear_error: params.allowed_linear_error,
+            prediction_distance: params.prediction_distance,
+            allowed_angular_error: params.allowed_angular_error,
+            max_linear_correction: params.max_linear_correction,
+            max_angular_correction: params.max_angular_correction,
+            max_stabilization_multiplier: params.max_stabilization_multiplier,
+            max_velocity_iterations: params.max_velocity_iterations as u32,
+            max_position_iterations: params.max_position_iterations as u32,
+            min_island_size: params.min_island_size as u32,
+            max_ccd_position_iterations: params.max_ccd_position_iterations as u32,
+            max_ccd_substeps: params.max_ccd_substeps as u32,
+            multiple_ccd_substep_sensor_events_enabled: params
+                .multiple_ccd_substep_sensor_events_enabled,
+            ccd_on_penetration_enabled: params.ccd_on_penetration_enabled,
+        }
+    }
+}
+
+impl Into<IntegrationParameters> for IntegrationParametersDesc {
+    fn into(self) -> IntegrationParameters {
+        IntegrationParameters::new(
+            self.dt,
+            self.erp,
+            self.joint_erp,
+            self.warmstart_coeff,
+            self.restitution_velocity_threshold,
+            self.allowed_linear_error,
+            self.allowed_angular_error,
+            self.max_linear_correction,
+            self.max_angular_correction,
+            self.prediction_distance,
+            self.max_stabilization_multiplier,
+            self.max_velocity_iterations as usize,
+            self.max_position_iterations as usize,
+            self.max_ccd_position_iterations as usize,
+            self.max_ccd_substeps as usize,
+            self.return_after_ccd_substep,
+            self.multiple_ccd_substep_sensor_events_enabled,
+            self.ccd_on_penetration_enabled,
+        )
+    }
+}
+
+impl Visit for IntegrationParametersDesc {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.dt.visit("DeltaTime", visitor)?;
+        self.return_after_ccd_substep
+            .visit("ReturnAfterCcdSubstep", visitor)?;
+        self.erp.visit("Erp", visitor)?;
+        self.joint_erp.visit("JointErp", visitor)?;
+        self.warmstart_coeff.visit("WarmstartCoeff", visitor)?;
+        self.restitution_velocity_threshold
+            .visit("RestitutionVelocityThreshold", visitor)?;
+        self.allowed_linear_error
+            .visit("AllowedLinearError", visitor)?;
+        self.max_linear_correction
+            .visit("MaxLinearCorrection", visitor)?;
+        self.max_angular_correction
+            .visit("MaxAngularCorrection", visitor)?;
+        self.max_stabilization_multiplier
+            .visit("MaxStabilizationMultiplier", visitor)?;
+        self.max_velocity_iterations
+            .visit("MaxVelocityIterations", visitor)?;
+        self.max_position_iterations
+            .visit("MaxPositionIterations", visitor)?;
+        self.min_island_size.visit("MinIslandSize", visitor)?;
+        self.max_ccd_position_iterations
+            .visit("MaxCcdPositionIterations", visitor)?;
+        self.max_ccd_substeps.visit("MaxCcdSubsteps", visitor)?;
+        self.multiple_ccd_substep_sensor_events_enabled
+            .visit("MultipleCcdSubstepSensorEventsEnabled", visitor)?;
+        self.ccd_on_penetration_enabled
+            .visit("CcdOnPenetrationEnabled", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
 #[derive(Default, Clone, Debug)]
 #[doc(hidden)]
 pub struct PhysicsDesc {
+    pub integration_parameters: IntegrationParametersDesc,
     pub colliders: Vec<ColliderDesc<RigidBodyHandle>>,
     pub bodies: Vec<RigidBodyDesc<ColliderHandle>>,
     pub gravity: Vector3<f32>,
@@ -865,6 +1019,8 @@ impl Visit for PhysicsDesc {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
+        self.integration_parameters
+            .visit("IntegrationParameters", visitor)?;
         self.gravity.visit("Gravity", visitor)?;
         self.colliders.visit("Colliders", visitor)?;
         self.bodies.visit("Bodies", visitor)?;
