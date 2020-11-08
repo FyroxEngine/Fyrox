@@ -12,19 +12,18 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::data::arena::Index;
-use rapier3d::geometry::Shape;
 use rapier3d::{
+    data::arena::Index,
     dynamics::{
         BodyStatus, IntegrationParameters, JointSet, RigidBody, RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderSet, ColliderShape, InteractionGroups,
-        NarrowPhase, Segment,
+        NarrowPhase, Segment, Shape,
     },
     na::{DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage, Vector3},
     ncollide::{query, shape::FeatureId},
-    pipeline::{PhysicsPipeline, QueryPipeline},
+    pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
 use std::{
     cmp::Ordering,
@@ -83,6 +82,9 @@ pub struct Physics {
     pub colliders: ColliderSet,
     /// Set of joints in the physics world.
     pub joints: JointSet,
+    /// Event handler collects info about contacts and proximity events.
+    pub event_handler: Box<dyn EventHandler>,
+
     query: QueryPipeline,
 
     /// Descriptors have two purposes:
@@ -118,6 +120,7 @@ impl Physics {
             bodies: RigidBodySet::new(),
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
+            event_handler: Box::new(()),
             query: Default::default(),
             desc: Default::default(),
         }
@@ -132,8 +135,6 @@ impl Physics {
     }
 
     pub(in crate) fn step(&mut self) {
-        let event_handler = ();
-
         self.query.update(&self.bodies, &self.colliders);
 
         self.pipeline.step(
@@ -146,7 +147,7 @@ impl Physics {
             &mut self.joints,
             None,
             None,
-            &event_handler,
+            &*self.event_handler,
         );
     }
 
@@ -640,6 +641,7 @@ impl Default for ColliderShapeDesc {
 }
 
 impl ColliderShapeDesc {
+    #[doc(hidden)]
     pub fn id(&self) -> u32 {
         match self {
             ColliderShapeDesc::Ball(_) => 0,
@@ -714,9 +716,9 @@ impl ColliderShapeDesc {
                 b: triangle.b.coords,
                 c: triangle.c.coords,
             })
-        } else if let Some(_) = shape.as_trimesh() {
+        } else if shape.as_trimesh().is_some() {
             ColliderShapeDesc::Trimesh(TrimeshDesc)
-        } else if let Some(_) = shape.as_heightfield() {
+        } else if shape.as_heightfield().is_some() {
             ColliderShapeDesc::Heightfield(HeightfieldDesc)
         } else {
             unreachable!()

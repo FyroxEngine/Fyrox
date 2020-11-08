@@ -213,7 +213,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
                     .zip(&projections[triangle_index])
                 {
                     data.vertices[vertex_index as usize].second_tex_coord =
-                        (projection - mesh.uv_min).scale(scale) + Vector2::from(rect.position);
+                        (projection - mesh.uv_min).scale(scale) + rect.position;
                 }
             }
         }

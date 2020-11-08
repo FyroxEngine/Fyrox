@@ -816,7 +816,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             desired_size: Cell::new(Vector2::default()),
             actual_local_position: Cell::new(Vector2::default()),
             actual_size: Cell::new(Vector2::default()),
-            min_size: self.min_size.unwrap_or(Vector2::default()),
+            min_size: self.min_size.unwrap_or_default(),
             max_size: self
                 .max_size
                 .unwrap_or_else(|| Vector2::new(std::f32::INFINITY, std::f32::INFINITY)),

@@ -767,7 +767,7 @@ impl BaseEmitterBuilder {
     /// Creates new instance of emitter.
     pub fn build(self) -> BaseEmitter {
         BaseEmitter {
-            position: self.position.unwrap_or(Vector3::default()),
+            position: self.position.unwrap_or_default(),
             particle_spawn_rate: self.particle_spawn_rate.unwrap_or(25),
             max_particles: self
                 .max_particles

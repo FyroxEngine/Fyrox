@@ -165,7 +165,7 @@ impl<M: MessageData, C: Control<M, C>> Control<M, C> for WrapPanel<M, C> {
         // Second pass - arrange children of lines.
         let mut full_size = Vector2::default();
         for line in lines.iter() {
-            let mut cursor = Vector2::from(line.bounds.position);
+            let mut cursor = line.bounds.position;
             for child_index in line.children.clone() {
                 let child_handle = self.children()[child_index];
                 let child = ui.node(child_handle);

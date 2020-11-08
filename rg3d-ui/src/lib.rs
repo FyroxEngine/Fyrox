@@ -375,7 +375,7 @@ where
             desired_size.x = desired_size.x.min(self.max_size().x).max(self.min_size().x);
             desired_size.y = desired_size.y.min(self.max_size().y).max(self.min_size().y);
 
-            desired_size = desired_size + axes_margin;
+            desired_size += axes_margin;
             desired_size.x = desired_size.x.min(available_size.x);
             desired_size.y = desired_size.y.min(available_size.y);
 
@@ -1221,7 +1221,7 @@ impl<M: MessageData, C: Control<M, C>> UserInterface<M, C> {
                                 self.send_message(WidgetMessage::desired_position(
                                     message.destination(),
                                     MessageDirection::ToWidget,
-                                    Vector2::from((parent_size - size).scale(0.5)),
+                                    (parent_size - size).scale(0.5),
                                 ));
                             }
                         }

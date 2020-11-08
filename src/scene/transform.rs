@@ -432,15 +432,17 @@ impl TransformBuilder {
     pub fn build(self) -> Transform {
         Transform {
             dirty: Cell::new(true),
-            local_scale: self.local_scale.unwrap_or(Vector3::new(1.0, 1.0, 1.0)),
-            local_position: self.local_position.unwrap_or(Vector3::default()),
-            local_rotation: self.local_rotation.unwrap_or(UnitQuaternion::identity()),
-            pre_rotation: self.pre_rotation.unwrap_or(UnitQuaternion::identity()),
-            post_rotation: self.post_rotation.unwrap_or(UnitQuaternion::identity()),
-            rotation_offset: self.rotation_offset.unwrap_or(Vector3::default()),
-            rotation_pivot: self.rotation_pivot.unwrap_or(Vector3::default()),
-            scaling_offset: self.scaling_offset.unwrap_or(Vector3::default()),
-            scaling_pivot: self.scaling_pivot.unwrap_or(Vector3::default()),
+            local_scale: self
+                .local_scale
+                .unwrap_or_else(|| Vector3::new(1.0, 1.0, 1.0)),
+            local_position: self.local_position.unwrap_or_default(),
+            local_rotation: self.local_rotation.unwrap_or_else(UnitQuaternion::identity),
+            pre_rotation: self.pre_rotation.unwrap_or_else(UnitQuaternion::identity),
+            post_rotation: self.post_rotation.unwrap_or_else(UnitQuaternion::identity),
+            rotation_offset: self.rotation_offset.unwrap_or_default(),
+            rotation_pivot: self.rotation_pivot.unwrap_or_default(),
+            scaling_offset: self.scaling_offset.unwrap_or_default(),
+            scaling_pivot: self.scaling_pivot.unwrap_or_default(),
             matrix: Cell::new(Matrix4::identity()),
         }
     }

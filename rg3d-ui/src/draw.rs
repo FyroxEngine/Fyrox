@@ -216,10 +216,10 @@ impl DrawingContext {
     pub fn push_line(&mut self, a: Vector2<f32>, b: Vector2<f32>, thickness: f32) {
         let index = self.last_vertex_index();
         let perp = get_line_thickness_vector(a, b, thickness);
-        self.push_vertex(Vector2::from(a - perp), Vector2::new(0.0, 0.0));
-        self.push_vertex(Vector2::from(b - perp), Vector2::new(1.0, 0.0));
-        self.push_vertex(Vector2::from(a + perp), Vector2::new(1.0, 1.0));
-        self.push_vertex(Vector2::from(b + perp), Vector2::new(0.0, 1.0));
+        self.push_vertex(a - perp, Vector2::new(0.0, 0.0));
+        self.push_vertex(b - perp, Vector2::new(1.0, 0.0));
+        self.push_vertex(a + perp, Vector2::new(1.0, 1.0));
+        self.push_vertex(b + perp, Vector2::new(0.0, 1.0));
 
         self.push_triangle(index, index + 1, index + 2);
         self.push_triangle(index + 2, index + 1, index + 3);
@@ -306,22 +306,22 @@ impl DrawingContext {
     pub fn push_rect_multicolor(&mut self, rect: &Rect<f32>, colors: [Color; 4]) {
         let index = self.last_vertex_index();
         self.vertex_buffer.push(Vertex {
-            pos: rect.left_top_corner().into(),
+            pos: rect.left_top_corner(),
             tex_coord: Vector2::new(0.0, 0.0),
             color: colors[0],
         });
         self.vertex_buffer.push(Vertex {
-            pos: rect.right_top_corner().into(),
+            pos: rect.right_top_corner(),
             tex_coord: Vector2::new(1.0, 0.0),
             color: colors[1],
         });
         self.vertex_buffer.push(Vertex {
-            pos: rect.right_bottom_corner().into(),
+            pos: rect.right_bottom_corner(),
             tex_coord: Vector2::new(1.0, 1.0),
             color: colors[2],
         });
         self.vertex_buffer.push(Vertex {
-            pos: rect.left_bottom_corner().into(),
+            pos: rect.left_bottom_corner(),
             tex_coord: Vector2::new(0.0, 1.0),
             color: colors[3],
         });

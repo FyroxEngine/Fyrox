@@ -87,7 +87,7 @@ impl Lightmap {
                             direction: light
                                 .up_vector()
                                 .try_normalize(std::f32::EPSILON)
-                                .unwrap_or(Vector3::y()),
+                                .unwrap_or_else(Vector3::y),
                             color: light.color(),
                         }),
                     )),
@@ -101,7 +101,7 @@ impl Lightmap {
                             direction: light
                                 .up_vector()
                                 .try_normalize(std::f32::EPSILON)
-                                .unwrap_or(Vector3::y()),
+                                .unwrap_or_else(Vector3::y),
                             position: light.global_position(),
                             distance: spot.distance(),
                         }),
@@ -301,7 +301,7 @@ fn pick(
                                 vertices[triangle[2] as usize].normal,
                             ))
                         .try_normalize(std::f32::EPSILON)
-                        .unwrap_or(Vector3::y()),
+                        .unwrap_or_else(Vector3::y),
                     ));
                 }
 

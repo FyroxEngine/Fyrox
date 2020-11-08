@@ -307,7 +307,7 @@ impl Ray {
                         let t = self.plane_intersection(&cap_plane);
                         if t > 0.0 {
                             let intersection = self.get_point(t);
-                            if (*cap_center - &intersection).norm_squared() <= r * r {
+                            if (*cap_center - intersection).norm_squared() <= r * r {
                                 // Point inside cap bounds
                                 result.merge(t);
                             }

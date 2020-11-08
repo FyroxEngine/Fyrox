@@ -149,7 +149,7 @@ impl LightVolumeRenderer {
                         -light
                             .up_vector()
                             .try_normalize(std::f32::EPSILON)
-                            .unwrap_or(Vector3::z()),
+                            .unwrap_or_else(Vector3::z),
                     ))
                     .coords;
 
