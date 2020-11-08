@@ -1,5 +1,7 @@
 //! Contains all structures and methods to operate with physics world.
 
+use crate::core::color::Color;
+use crate::scene::SceneDrawingContext;
 use crate::{
     core::{
         math::ray::Ray,
@@ -12,6 +14,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use rapier3d::geometry::Trimesh;
 use rapier3d::na::Translation3;
 use rapier3d::{
     data::arena::Index,
@@ -133,6 +136,33 @@ impl Physics {
         phys.desc = Some(self.generate_desc());
         phys.resolve(binder, graph);
         phys
+    }
+
+    /// Draws physics world. Very useful for debugging, it allows you to see where are
+    /// rigid bodies, which colliders they have and so on.
+    pub fn draw(&self, context: &mut SceneDrawingContext) {
+        for (_, body) in self.bodies.iter() {
+            context.draw_transform(body.position.to_homogeneous());
+        }
+
+        for (_, collider) in self.colliders.iter() {
+            let body = self.bodies.get(collider.parent()).unwrap();
+            let transform = body.position.to_homogeneous();
+            if let Some(trimesh) = collider.shape().as_trimesh() {
+                let trimesh: &Trimesh = trimesh;
+                for triangle in trimesh.triangles() {
+                    let a = transform.transform_point(&triangle.a);
+                    let b = transform.transform_point(&triangle.b);
+                    let c = transform.transform_point(&triangle.c);
+                    context.draw_triangle(
+                        a.coords,
+                        b.coords,
+                        c.coords,
+                        Color::opaque(200, 200, 200),
+                    );
+                }
+            }
+        }
     }
 
     pub(in crate) fn step(&mut self) {
@@ -823,8 +853,8 @@ impl<R: From<Index>> ColliderDesc<R> {
             density: collider.density(),
             restitution: collider.restitution,
             is_sensor: collider.is_sensor(),
-            translation: collider.position().translation.vector,
-            rotation: collider.position().rotation,
+            translation: collider.position_wrt_parent().translation.vector,
+            rotation: collider.position_wrt_parent().rotation,
             collision_groups: collider.collision_groups().0,
             solver_groups: collider.solver_groups().0,
         }

@@ -472,6 +472,52 @@ impl SceneDrawingContext {
         });
     }
 
+    pub fn draw_transform(&mut self, matrix: Matrix4<f32>) {
+        let x = matrix.transform_vector(&Vector3::x());
+        let y = matrix.transform_vector(&Vector3::y());
+        let z = matrix.transform_vector(&Vector3::z());
+        let origin = matrix.position();
+        self.add_line(Line {
+            begin: origin,
+            end: origin + x,
+            color: Color::RED,
+        });
+        self.add_line(Line {
+            begin: origin,
+            end: origin + y,
+            color: Color::GREEN,
+        });
+        self.add_line(Line {
+            begin: origin,
+            end: origin + z,
+            color: Color::BLUE,
+        });
+    }
+
+    pub fn draw_triangle(
+        &mut self,
+        a: Vector3<f32>,
+        b: Vector3<f32>,
+        c: Vector3<f32>,
+        color: Color,
+    ) {
+        self.add_line(Line {
+            begin: a,
+            end: b,
+            color,
+        });
+        self.add_line(Line {
+            begin: b,
+            end: c,
+            color,
+        });
+        self.add_line(Line {
+            begin: c,
+            end: a,
+            color,
+        });
+    }
+
     /// Adds single line into internal buffer.
     pub fn add_line(&mut self, line: Line) {
         self.lines.push(line);
