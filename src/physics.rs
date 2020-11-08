@@ -62,8 +62,8 @@ impl Physics {
                 density: c.density(),
                 restitution: c.restitution,
                 is_sensor: c.is_sensor(),
-                translation: c.position().translation.vector,
-                rotation: c.position().rotation,
+                translation: c.position_wrt_parent().translation.vector,
+                rotation: c.position_wrt_parent().rotation,
                 collision_groups: c.collision_groups().0,
                 solver_groups: c.solver_groups().0,
             });
