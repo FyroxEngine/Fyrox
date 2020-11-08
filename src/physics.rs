@@ -58,6 +58,14 @@ impl Physics {
             let pool_handle = colliders.spawn(ColliderDesc {
                 shape: ColliderShapeDesc::from_collider_shape(c.shape()),
                 parent: ErasedHandle::from(*body_map.get(&c.parent()).unwrap()),
+                friction: c.friction,
+                density: c.density(),
+                restitution: c.restitution,
+                is_sensor: c.is_sensor(),
+                translation: c.position().translation.vector,
+                rotation: c.position().rotation,
+                collision_groups: c.collision_groups().0,
+                solver_groups: c.solver_groups().0,
             });
 
             collider_map.insert(h, pool_handle);
@@ -148,6 +156,14 @@ impl Physics {
                     shape: c.shape.clone(),
                     // Remap from sparse handle to dense.
                     parent: *body_map.get(&c.parent.into()).unwrap(),
+                    friction: c.friction,
+                    density: c.density,
+                    restitution: c.restitution,
+                    is_sensor: c.is_sensor,
+                    translation: c.translation,
+                    rotation: c.rotation,
+                    collision_groups: c.collision_groups,
+                    solver_groups: c.solver_groups,
                 }
             })
             .collect();
