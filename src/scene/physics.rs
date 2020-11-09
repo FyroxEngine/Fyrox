@@ -1,21 +1,21 @@
 //! Contains all structures and methods to operate with physics world.
 
-use crate::core::color::Color;
-use crate::scene::SceneDrawingContext;
 use crate::{
     core::{
+        color::Color,
         math::ray::Ray,
         visitor::{Visit, VisitResult, Visitor},
     },
     physics::math::AngVector,
-    scene::{graph::Graph, mesh::Mesh, node::Node, ColliderHandle, PhysicsBinder, RigidBodyHandle},
+    scene::{
+        graph::Graph, mesh::Mesh, node::Node, ColliderHandle, PhysicsBinder, RigidBodyHandle,
+        SceneDrawingContext,
+    },
     utils::{
         log::Log,
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use rapier3d::geometry::Trimesh;
-use rapier3d::na::Translation3;
 use rapier3d::{
     data::arena::Index,
     dynamics::{
@@ -23,9 +23,12 @@ use rapier3d::{
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderSet, ColliderShape, InteractionGroups,
-        NarrowPhase, Segment, Shape,
+        NarrowPhase, Segment, Shape, Trimesh,
     },
-    na::{DMatrix, Dynamic, Isometry3, Point3, Translation, UnitQuaternion, VecStorage, Vector3},
+    na::{
+        DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, UnitQuaternion, VecStorage,
+        Vector3,
+    },
     ncollide::{query, shape::FeatureId},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
@@ -35,6 +38,7 @@ use std::{
 };
 
 /// A ray intersection result.
+#[derive(Debug, Clone)]
 pub struct Intersection {
     /// A handle of the collider with which intersection was detected.
     pub collider: ColliderHandle,

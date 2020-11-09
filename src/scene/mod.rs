@@ -472,6 +472,7 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws transform as basis vectors.
     pub fn draw_transform(&mut self, matrix: Matrix4<f32>) {
         let x = matrix.transform_vector(&Vector3::x());
         let y = matrix.transform_vector(&Vector3::y());
@@ -494,6 +495,7 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a triangle by given points.
     pub fn draw_triangle(
         &mut self,
         a: Vector3<f32>,
