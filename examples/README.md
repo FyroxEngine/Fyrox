@@ -21,7 +21,7 @@ This example shows how to load scene in separate thread and how create standard 
 ![Example 02_0](screenshots/async_0.png?raw=true "Example 02_0")
 ![Example 02_1](screenshots/async_1.png?raw=true "Example 02_1")
 
-## Example 03 - 3rd Person Walking Sumilator
+## Example 03 - 3rd Person Walking Simulator
 
 *Difficulty*: Advanced.
 
