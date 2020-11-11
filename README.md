@@ -75,6 +75,12 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Release: ~8 seconds
 - Lots of examples.
 
+## Frequently asked questions
+
+**Q:** Is rg3d using ECS?
+**A:** No. It is using more classic OOP approach. However, it uses lots of optimizations for efficient
+memory management such as generational pools.
+
 ## Supported Operating Systems
 
 - Windows - **full support**
