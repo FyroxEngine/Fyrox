@@ -19,16 +19,16 @@ use crate::{
 use rapier3d::{
     data::arena::Index,
     dynamics::{
-        BodyStatus, IntegrationParameters, Joint, JointParams, JointSet, RigidBody,
-        RigidBodyBuilder, RigidBodySet,
+        BallJoint, BodyStatus, FixedJoint, IntegrationParameters, Joint, JointParams, JointSet,
+        PrismaticJoint, RevoluteJoint, RigidBody, RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderSet, ColliderShape, InteractionGroups,
         NarrowPhase, Segment, Shape, Trimesh,
     },
     na::{
-        DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, UnitQuaternion, VecStorage,
-        Vector3,
+        DMatrix, Dynamic, Isometry3, Point3, Translation, Translation3, Unit, UnitQuaternion,
+        VecStorage, Vector3,
     },
     ncollide::{query, shape::FeatureId},
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
@@ -234,6 +234,12 @@ impl Physics {
                 .collect::<Vec<_>>(),
 
             gravity: self.gravity,
+
+            joints: self
+                .joints
+                .iter()
+                .map(|(_, j)| JointDesc::from_joint(j))
+                .collect::<Vec<_>>(),
         }
     }
 
@@ -397,6 +403,15 @@ impl Physics {
                 self.colliders
                     .insert(collider, parent.into(), &mut self.bodies);
             }
+        }
+
+        for desc in phys_desc.joints.drain(..) {
+            self.joints.insert(
+                &mut self.bodies,
+                desc.body1.into(),
+                desc.body2.into(),
+                desc.params,
+            );
         }
     }
 
@@ -1146,11 +1161,267 @@ impl Visit for IntegrationParametersDesc {
 
 #[derive(Default, Clone, Debug)]
 #[doc(hidden)]
+pub struct BallJointDesc {
+    pub local_anchor1: Vector3<f32>,
+    pub local_anchor2: Vector3<f32>,
+}
+
+impl Visit for BallJointDesc {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.local_anchor1.visit("LocalAnchor1", visitor)?;
+        self.local_anchor2.visit("LocalAnchor2", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+#[doc(hidden)]
+pub struct FixedJointDesc {
+    pub local_anchor1_translation: Vector3<f32>,
+    pub local_anchor1_rotation: UnitQuaternion<f32>,
+    pub local_anchor2_translation: Vector3<f32>,
+    pub local_anchor2_rotation: UnitQuaternion<f32>,
+}
+
+impl Visit for FixedJointDesc {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.local_anchor1_translation
+            .visit("LocalAnchor1Translation", visitor)?;
+        self.local_anchor1_rotation
+            .visit("LocalAnchor1Rotation", visitor)?;
+        self.local_anchor2_translation
+            .visit("LocalAnchor2Translation", visitor)?;
+        self.local_anchor2_rotation
+            .visit("LocalAnchor2Rotation", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+#[doc(hidden)]
+pub struct PrismaticJointDesc {
+    pub local_anchor1: Vector3<f32>,
+    pub local_axis1: Vector3<f32>,
+    pub local_anchor2: Vector3<f32>,
+    pub local_axis2: Vector3<f32>,
+    // TODO: Rapier does not provide a way to extract tangents, so we can't
+    // serialize them yet.
+    // pub local_tangent1: Vector3<f32>,
+    // pub local_tangent2: Vector3<f32>,
+}
+
+impl Visit for PrismaticJointDesc {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.local_anchor1.visit("LocalAnchor1", visitor)?;
+        self.local_axis1.visit("LocalAxis1", visitor)?;
+        self.local_anchor2.visit("LocalAnchor2", visitor)?;
+        self.local_axis2.visit("LocalAxis2", visitor)?;
+
+        // TODO: Rapier does not provide a way to extract tangents, so we can't
+        // serialize them yet.
+        // self.local_tangent1.visit("LocalTangent1", visitor)?;
+        // self.local_tangent2.visit("LocalTangent2", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+#[doc(hidden)]
+pub struct RevoluteJointDesc {
+    pub local_anchor1: Vector3<f32>,
+    pub local_axis1: Vector3<f32>,
+    pub local_anchor2: Vector3<f32>,
+    pub local_axis2: Vector3<f32>,
+}
+
+impl Visit for RevoluteJointDesc {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.local_anchor1.visit("LocalAnchor1", visitor)?;
+        self.local_axis1.visit("LocalAxis1", visitor)?;
+        self.local_anchor2.visit("LocalAnchor2", visitor)?;
+        self.local_axis2.visit("LocalAxis2", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[doc(hidden)]
+pub enum JointParamsDesc {
+    BallJoint(BallJointDesc),
+    FixedJoint(FixedJointDesc),
+    PrismaticJoint(PrismaticJointDesc),
+    RevoluteJoint(RevoluteJointDesc),
+}
+
+impl Default for JointParamsDesc {
+    fn default() -> Self {
+        Self::BallJoint(Default::default())
+    }
+}
+
+impl Into<JointParams> for JointParamsDesc {
+    fn into(self) -> JointParams {
+        match self {
+            JointParamsDesc::BallJoint(v) => JointParams::from(BallJoint::new(
+                Point3::from(v.local_anchor1),
+                Point3::from(v.local_anchor2),
+            )),
+            JointParamsDesc::FixedJoint(v) => JointParams::from(FixedJoint::new(
+                Isometry3 {
+                    translation: Translation3 {
+                        vector: v.local_anchor1_translation,
+                    },
+                    rotation: v.local_anchor1_rotation,
+                },
+                Isometry3 {
+                    translation: Translation3 {
+                        vector: v.local_anchor2_translation,
+                    },
+                    rotation: v.local_anchor2_rotation,
+                },
+            )),
+            JointParamsDesc::PrismaticJoint(v) => JointParams::from(PrismaticJoint::new(
+                Point3::from(v.local_anchor1),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
+                Default::default(), // TODO
+                Point3::from(v.local_anchor2),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+                Default::default(), // TODO
+            )),
+            JointParamsDesc::RevoluteJoint(v) => JointParams::from(RevoluteJoint::new(
+                Point3::from(v.local_anchor1),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis1),
+                Point3::from(v.local_anchor2),
+                Unit::<Vector3<f32>>::new_normalize(v.local_axis2),
+            )),
+        }
+    }
+}
+
+impl JointParamsDesc {
+    #[doc(hidden)]
+    pub fn id(&self) -> u32 {
+        match self {
+            JointParamsDesc::BallJoint(_) => 0,
+            JointParamsDesc::FixedJoint(_) => 1,
+            JointParamsDesc::PrismaticJoint(_) => 2,
+            JointParamsDesc::RevoluteJoint(_) => 3,
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn from_id(id: u32) -> Result<Self, String> {
+        match id {
+            0 => Ok(Self::BallJoint(Default::default())),
+            1 => Ok(Self::FixedJoint(Default::default())),
+            2 => Ok(Self::PrismaticJoint(Default::default())),
+            3 => Ok(Self::RevoluteJoint(Default::default())),
+            _ => Err(format!("Invalid joint param desc id {}!", id)),
+        }
+    }
+}
+
+impl Visit for JointParamsDesc {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        let mut id = self.id();
+        id.visit("Id", visitor)?;
+        if visitor.is_reading() {
+            *self = Self::from_id(id)?;
+        }
+        match self {
+            JointParamsDesc::BallJoint(v) => v.visit("Data", visitor)?,
+            JointParamsDesc::FixedJoint(v) => v.visit("Data", visitor)?,
+            JointParamsDesc::PrismaticJoint(v) => v.visit("Data", visitor)?,
+            JointParamsDesc::RevoluteJoint(v) => v.visit("Data", visitor)?,
+        }
+
+        visitor.leave_region()
+    }
+}
+
+impl JointParamsDesc {
+    #[doc(hidden)]
+    pub fn from_params(params: &JointParams) -> Self {
+        match params {
+            JointParams::BallJoint(v) => Self::BallJoint(BallJointDesc {
+                local_anchor1: v.local_anchor1.coords,
+                local_anchor2: v.local_anchor2.coords,
+            }),
+            JointParams::FixedJoint(v) => Self::FixedJoint(FixedJointDesc {
+                local_anchor1_translation: v.local_anchor1.translation.vector,
+                local_anchor1_rotation: v.local_anchor1.rotation,
+                local_anchor2_translation: v.local_anchor2.translation.vector,
+                local_anchor2_rotation: v.local_anchor2.rotation,
+            }),
+            JointParams::PrismaticJoint(v) => Self::PrismaticJoint(PrismaticJointDesc {
+                local_anchor1: v.local_anchor1.coords,
+                local_axis1: v.local_axis1().into_inner(),
+                local_anchor2: v.local_anchor2.coords,
+                local_axis2: v.local_axis2().into_inner(),
+            }),
+            JointParams::RevoluteJoint(v) => Self::RevoluteJoint(RevoluteJointDesc {
+                local_anchor1: v.local_anchor1.coords,
+                local_axis1: v.local_axis1.into_inner(),
+                local_anchor2: v.local_anchor2.coords,
+                local_axis2: v.local_axis2.into_inner(),
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+#[doc(hidden)]
+pub struct JointDesc<R> {
+    pub body1: R,
+    pub body2: R,
+    pub params: JointParamsDesc,
+}
+
+impl<R: From<Index>> JointDesc<R> {
+    #[doc(hidden)]
+    pub fn from_joint(joint: &Joint) -> Self {
+        Self {
+            body1: R::from(joint.body1),
+            body2: R::from(joint.body2),
+            params: JointParamsDesc::from_params(&joint.params),
+        }
+    }
+}
+
+impl<R: 'static + Visit + Default> Visit for JointDesc<R> {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.body1.visit("Body1", visitor)?;
+        self.body2.visit("Body2", visitor)?;
+        self.params.visit("Params", visitor)?;
+
+        visitor.leave_region()
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+#[doc(hidden)]
 pub struct PhysicsDesc {
     pub integration_parameters: IntegrationParametersDesc,
     pub colliders: Vec<ColliderDesc<RigidBodyHandle>>,
     pub bodies: Vec<RigidBodyDesc<ColliderHandle>>,
     pub gravity: Vector3<f32>,
+    pub joints: Vec<JointDesc<RigidBodyHandle>>,
 }
 
 impl Visit for PhysicsDesc {
@@ -1162,6 +1433,7 @@ impl Visit for PhysicsDesc {
         self.gravity.visit("Gravity", visitor)?;
         self.colliders.visit("Colliders", visitor)?;
         self.bodies.visit("Bodies", visitor)?;
+        let _ = self.joints.visit("Joints", visitor);
 
         visitor.leave_region()
     }
