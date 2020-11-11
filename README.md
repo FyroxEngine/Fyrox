@@ -79,8 +79,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 
 - Windows - **full support**
 - Linux - **full support**
-- macOS - **partial support**: currently there is no sound backend for macOS so there will be no sound on macOS. 
-Check [this issue](https://github.com/mrDIMAS/rg3d/issues/45) for more info.
+- macOS - **full support**
 - WebAssembly - **not supported yet**: any help is appreciated.
 
 ## Compiler version
