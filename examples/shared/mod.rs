@@ -481,7 +481,7 @@ impl Player {
         scene.graph.link_nodes(model_handle, pivot);
 
         let capsule = ColliderBuilder::capsule_y(body_height, 0.6).build();
-        let body = scene.physics.bodies.insert(
+        let body = scene.physics.add_body(
             RigidBodyBuilder::new_dynamic()
                 .position(Isometry3::new(
                     Vector3::new(0.0, 2.0, 0.0),
@@ -489,10 +489,7 @@ impl Player {
                 ))
                 .build(),
         );
-        scene
-            .physics
-            .colliders
-            .insert(capsule, body, &mut scene.physics.bodies);
+        scene.physics.add_collider(capsule, body);
 
         scene.physics_binder.bind(pivot, body.into());
 

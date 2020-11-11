@@ -8,8 +8,8 @@ use crate::{
     },
     physics::math::AngVector,
     scene::{
-        graph::Graph, mesh::Mesh, node::Node, ColliderHandle, PhysicsBinder, RigidBodyHandle,
-        SceneDrawingContext,
+        graph::Graph, mesh::Mesh, node::Node, ColliderHandle, JointHandle, PhysicsBinder,
+        RigidBodyHandle, SceneDrawingContext,
     },
     utils::{
         log::Log,
@@ -19,7 +19,8 @@ use crate::{
 use rapier3d::{
     data::arena::Index,
     dynamics::{
-        BodyStatus, IntegrationParameters, JointSet, RigidBody, RigidBodyBuilder, RigidBodySet,
+        BodyStatus, IntegrationParameters, Joint, JointParams, JointSet, RigidBody,
+        RigidBodyBuilder, RigidBodySet,
     },
     geometry::{
         BroadPhase, Collider, ColliderBuilder, ColliderSet, ColliderShape, InteractionGroups,
@@ -33,6 +34,7 @@ use rapier3d::{
     pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
 };
 use std::{
+    cell::{Cell, RefCell},
     cmp::Ordering,
     fmt::{Debug, Formatter},
 };
@@ -84,16 +86,42 @@ pub struct Physics {
     pub broad_phase: BroadPhase,
     /// Narrow phase is responsible for precise contact generation.
     pub narrow_phase: NarrowPhase,
-    /// Set of bodies in the physics world.
+
+    /// A set of rigid bodies.
+    ///
+    /// Do not add/remove anything from this set manually, use dedicated methods
+    /// (add/remove)_x. This is because of potential panic during the ray cast.
+    /// The problem is very simple: QueryPipeline require some sort of optimizing
+    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
+    /// it is possible to nuke collider and QueryPipeline won't be notified about
+    /// this, and on attempt to do a ray cast it will panic at attempt to use
+    /// invalid handle. It is in public only to solve borrowing issues!
     pub bodies: RigidBodySet,
-    /// Set of colliders in the physics world.
+
+    /// A set of colliders.
+    ///
+    /// Do not add/remove anything from this set manually, use dedicated methods
+    /// (add/remove)_x. This is because of potential panic during the ray cast.
+    /// The problem is very simple: QueryPipeline require some sort of optimizing
+    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
+    /// it is possible to nuke collider and QueryPipeline won't be notified about
+    /// this, and on attempt to do a ray cast it will panic at attempt to use
+    /// invalid handle. It is in public only to solve borrowing issues!
     pub colliders: ColliderSet,
-    /// Set of joints in the physics world.
+
+    /// A set of joints.
+    ///
+    /// Do not add/remove anything from this set manually, use dedicated methods
+    /// (add/remove)_x. This is because of potential panic during the ray cast.
+    /// The problem is very simple: QueryPipeline require some sort of optimizing
+    /// data structure (BVH, octree, etc.) which holds handles to colliders, but
+    /// it is possible to nuke collider and QueryPipeline won't be notified about
+    /// this, and on attempt to do a ray cast it will panic at attempt to use
+    /// invalid handle. It is in public only to solve borrowing issues!
     pub joints: JointSet,
+
     /// Event handler collects info about contacts and proximity events.
     pub event_handler: Box<dyn EventHandler>,
-
-    query: QueryPipeline,
 
     /// Descriptors have two purposes:
     /// 1) Defer deserialization to resolve stage - the stage where all meshes
@@ -103,6 +131,9 @@ pub struct Physics {
     ///    written to output. This is a HACK, but I don't know better solution
     ///    yet.
     pub desc: Option<PhysicsDesc>,
+
+    query_updated: Cell<bool>,
+    query: RefCell<QueryPipeline>,
 }
 
 impl Debug for Physics {
@@ -129,6 +160,7 @@ impl Physics {
             colliders: ColliderSet::new(),
             joints: JointSet::new(),
             event_handler: Box::new(()),
+            query_updated: Cell::new(false),
             query: Default::default(),
             desc: Default::default(),
         }
@@ -170,8 +202,6 @@ impl Physics {
     }
 
     pub(in crate) fn step(&mut self) {
-        self.query.update(&self.bodies, &self.colliders);
-
         self.pipeline.step(
             &self.gravity,
             &self.integration_parameters,
@@ -273,7 +303,7 @@ impl Physics {
     /// mesh.
     pub fn mesh_to_trimesh(&mut self, mesh: &Mesh) -> RigidBodyHandle {
         let shape = Self::make_trimesh(mesh);
-        let tri_mesh = ColliderBuilder::new(shape).build();
+        let tri_mesh = ColliderBuilder::new(shape).friction(0.0).build();
         let position = mesh.global_position();
         let body = RigidBodyBuilder::new(BodyStatus::Static)
             .translation(position.x, position.y, position.z)
@@ -285,6 +315,13 @@ impl Physics {
 
     /// Casts a ray with given options.
     pub fn cast_ray(&self, opts: RayCastOptions, query_buffer: &mut Vec<Intersection>) {
+        let mut query = self.query.borrow_mut();
+
+        if !self.query_updated.get() {
+            query.update(&self.bodies, &self.colliders);
+            self.query_updated.set(true);
+        }
+
         query_buffer.clear();
         let ray = query::Ray::new(
             Point3::from(opts.ray.origin),
@@ -293,7 +330,7 @@ impl Physics {
                 .try_normalize(std::f32::EPSILON)
                 .unwrap_or_default(),
         );
-        self.query.interferences_with_ray(
+        query.interferences_with_ray(
             &self.colliders,
             &ray,
             opts.max_len,
@@ -361,6 +398,73 @@ impl Physics {
                     .insert(collider, parent.into(), &mut self.bodies);
             }
         }
+    }
+
+    /// Adds new rigid body. This method must be used instead of bodies.insert(...) because
+    /// it raises internal flag that ensures that accelerating structure for ray casting in
+    /// actual state!
+    pub fn add_body(&mut self, rigid_body: RigidBody) -> RigidBodyHandle {
+        self.query_updated.set(false);
+        self.bodies.insert(rigid_body).into()
+    }
+
+    /// Removes a rigid body. This method must be used instead of bodies.remove(...) because
+    /// it raises internal flag that ensures that accelerating structure for ray casting in
+    /// actual state!
+    pub fn remove_body(&mut self, rigid_body: RigidBodyHandle) -> Option<RigidBody> {
+        self.query_updated.set(false);
+        self.bodies
+            .remove(rigid_body.into(), &mut self.colliders, &mut self.joints)
+    }
+
+    /// Adds new collider. This method must be used instead of colliders.insert(...) because
+    /// it raises internal flag that ensures that accelerating structure for ray casting in
+    /// actual state!
+    pub fn add_collider(
+        &mut self,
+        collider: Collider,
+        rigid_body: RigidBodyHandle,
+    ) -> ColliderHandle {
+        self.query_updated.set(false);
+        self.colliders
+            .insert(collider, rigid_body.into(), &mut self.bodies)
+            .into()
+    }
+
+    /// Removes a collider. This method must be used instead of colliders.remove(...) because
+    /// it raises internal flag that ensures that accelerating structure for ray casting in
+    /// actual state!
+    pub fn remove_collider(&mut self, collider_handle: ColliderHandle) -> Option<Collider> {
+        self.query_updated.set(false);
+        self.colliders
+            .remove(collider_handle.into(), &mut self.bodies)
+    }
+
+    /// Adds new joint. This method must be used instead of joints.insert(...) because
+    /// it raises internal flag that ensures that accelerating structure for ray casting in
+    /// actual state!
+    pub fn add_joint<J>(
+        &mut self,
+        body1: RigidBodyHandle,
+        body2: RigidBodyHandle,
+        joint_params: J,
+    ) -> JointHandle
+    where
+        J: Into<JointParams>,
+    {
+        self.query_updated.set(false);
+        self.joints
+            .insert(&mut self.bodies, body1.into(), body2.into(), joint_params)
+            .into()
+    }
+
+    /// Removes a joint. This method must be used instead of joints.remove(...) because
+    /// it raises internal flag that ensures that accelerating structure for ray casting in
+    /// actual state!
+    pub fn remove_joint(&mut self, joint_handle: JointHandle, wake_up: bool) -> Option<Joint> {
+        self.query_updated.set(false);
+        self.joints
+            .remove(joint_handle.into(), &mut self.bodies, wake_up)
     }
 }
 

@@ -691,9 +691,9 @@ impl Scene {
             });
 
         // Sync node positions with assigned physics bodies
-        for (node, body) in self.physics_binder.node_rigid_body_map.iter() {
-            let body = physics.bodies.get(body.clone().into()).unwrap();
-            self.graph[*node]
+        for (&node, &body) in self.physics_binder.node_rigid_body_map.iter() {
+            let body = physics.bodies.get(body.into()).unwrap();
+            self.graph[node]
                 .local_transform_mut()
                 .set_position(body.position.translation.vector)
                 .set_rotation(body.position.rotation);
