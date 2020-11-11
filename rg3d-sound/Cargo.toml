@@ -23,5 +23,9 @@ winapi = {version = "0.3.8", features = ["minwindef", "winnt", "windef", "winuse
 [target.'cfg(target_os = "linux")'.dependencies]
 alsa-sys = { version = "0.2.0" }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+coreaudio-sys = { version = "0.2.5" }
+core-foundation-sys = { version = "0.8.2" }
+
 [features]
 enable_profiler = ["hrtf/enable_profiler"]

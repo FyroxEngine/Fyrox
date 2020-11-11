@@ -13,6 +13,9 @@ mod dsound;
 #[cfg(target_os = "linux")]
 mod alsa;
 
+#[cfg(target_os = "macos")]
+mod coreaudio;
+
 // The dummy target works on all platforms
 #[cfg(not(any(target_os = "windows", target_os = "linux")))]
 mod dummy;
@@ -86,7 +89,9 @@ pub(in crate) fn run_device(
     let mut device = dsound::DirectSoundDevice::new(buffer_len_bytes, callback)?;
     #[cfg(target_os = "linux")]
     let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
-    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    #[cfg(target_os = "macos")]
+    let mut device = coreaudio::CoreaudioSoundDevice::new(buffer_len_bytes, callback)?;
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
     let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback)?;
     std::thread::spawn(move || device.run());
     Ok(())
