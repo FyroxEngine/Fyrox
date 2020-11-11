@@ -30,7 +30,9 @@ impl Device for DummySoundDevice {
         }
     }
 
-    fn feed(&mut self) {
-        self.mix();
+    fn run(&mut self) {
+        loop {
+            self.mix();
+        }
     }
 }

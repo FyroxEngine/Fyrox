@@ -53,7 +53,7 @@ fn sample_to_i16(sample: f32) -> i16 {
 trait Device {
     fn get_mix_context(&mut self) -> MixContext;
 
-    fn feed(&mut self);
+    fn run(&mut self);
 
     fn mix(&mut self) {
         let context = self.get_mix_context();
@@ -88,8 +88,6 @@ pub(in crate) fn run_device(
     let mut device = alsa::AlsaSoundDevice::new(buffer_len_bytes, callback)?;
     #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     let mut device = dummy::DummySoundDevice::new(buffer_len_bytes, callback)?;
-    std::thread::spawn(move || loop {
-        device.feed()
-    });
+    std::thread::spawn(move || device.run());
     Ok(())
 }
