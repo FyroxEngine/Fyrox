@@ -362,19 +362,6 @@ impl DeferredLightRenderer {
         let view_projection = camera.view_projection_matrix();
         let inv_view_projection = view_projection.try_inverse().unwrap_or_default();
 
-        /*
-        let vm = Matrix3::new(
-            camera.view_matrix().m11,
-            camera.view_matrix().m12,
-            camera.view_matrix().m13,
-            camera.view_matrix().m21,
-            camera.view_matrix().m22,
-            camera.view_matrix().m23,
-            camera.view_matrix().m31,
-            camera.view_matrix().m32,
-            camera.view_matrix().m33,
-        );*/
-
         // Fill SSAO map.
         if settings.use_ssao {
             statistics += self.ssao_renderer.render(

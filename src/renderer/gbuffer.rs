@@ -26,6 +26,7 @@ struct GBufferShader {
     bone_matrices: UniformLocation,
     diffuse_texture: UniformLocation,
     normal_texture: UniformLocation,
+    specular_texture: UniformLocation,
     lightmap_texture: UniformLocation,
     diffuse_color: UniformLocation,
 }
@@ -42,6 +43,7 @@ impl GBufferShader {
             bone_matrices: program.uniform_location("boneMatrices")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             normal_texture: program.uniform_location("normalTexture")?,
+            specular_texture: program.uniform_location("specularTexture")?,
             lightmap_texture: program.uniform_location("lightmapTexture")?,
             diffuse_color: program.uniform_location("diffuseColor")?,
             program,
@@ -64,6 +66,7 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub camera: &'b Camera,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
+    pub specular_dummy: Rc<RefCell<GpuTexture>>,
     pub texture_cache: &'a mut TextureCache,
     pub geom_cache: &'a mut GeometryCache,
 }
@@ -216,6 +219,7 @@ impl GBuffer {
             camera,
             white_dummy,
             normal_dummy,
+            specular_dummy,
             texture_cache,
             geom_cache,
         } = args;
@@ -266,6 +270,11 @@ impl GBuffer {
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| normal_dummy.clone());
 
+                let specular_texture = surface
+                    .specular_texture()
+                    .and_then(|texture| texture_cache.get(state, texture))
+                    .unwrap_or_else(|| specular_dummy.clone());
+
                 let lightmap_texture = surface
                     .lightmap_texture()
                     .and_then(|texture| texture_cache.get(state, texture))
@@ -301,9 +310,16 @@ impl GBuffer {
                             },
                         ),
                         (
-                            self.shader.lightmap_texture,
+                            self.shader.specular_texture,
                             UniformValue::Sampler {
                                 index: 2,
+                                texture: specular_texture,
+                            },
+                        ),
+                        (
+                            self.shader.lightmap_texture,
+                            UniformValue::Sampler {
+                                index: 3,
                                 texture: lightmap_texture,
                             },
                         ),

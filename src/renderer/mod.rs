@@ -329,6 +329,9 @@ pub struct Renderer {
     /// Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
     /// something without normal map.
     normal_dummy: Rc<RefCell<GpuTexture>>,
+    /// Dummy one pixel texture used as stub when rendering something without a
+    /// specular texture
+    specular_dummy: Rc<RefCell<GpuTexture>>,
     ui_renderer: UiRenderer,
     statistics: Statistics,
     quad: SurfaceSharedData,
@@ -560,6 +563,18 @@ impl Renderer {
                 1,
                 Some(&[128, 128, 255, 255]),
             )?)),
+            specular_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Rectangle {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[32, 32, 32, 32]),
+            )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
             particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
@@ -744,6 +759,7 @@ impl Renderer {
                     camera,
                     white_dummy: self.white_dummy.clone(),
                     normal_dummy: self.normal_dummy.clone(),
+                    specular_dummy: self.specular_dummy.clone(),
                     texture_cache: &mut self.texture_cache,
                     geom_cache: &mut self.geometry_cache,
                 });
