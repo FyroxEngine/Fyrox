@@ -231,11 +231,12 @@ fn create_surfaces(
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
                 if let Some(filename) = path.file_name() {
-                    let diffuse_path = resource_manager.state().textures_path().join(&filename);
-                    let texture = resource_manager.request_texture(diffuse_path.as_path());
+                    let texture_path = resource_manager.state().textures_path().join(&filename);
+                    let texture = resource_manager.request_texture(texture_path.as_path());
                     match name.as_str() {
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
                         "DiffuseColor" => surface.set_diffuse_texture(Some(texture)),
+                        "SpecularFactor" => surface.set_specular_texture(Some(texture)),
                         // No idea why it can be different for normal maps.
                         "Bump" | "NormalMap" => surface.set_normal_texture(Some(texture)),
                         _ => (),

@@ -1,8 +1,8 @@
-//! For efficient rendering each mesh is split into sets of triangles that uses same texture,
+//! For efficient rendering each mesh is split into sets of triangles that use the same texture,
 //! such sets are called surfaces.
 //!
-//! Surfaces can use same data source across many instances, this is memory optimization for
-//! to be able to re-use data when you need to draw same mesh in many places.
+//! Surfaces can use the same data source across many instances, this is a memory optimization for
+//! being able to re-use data when you need to draw the same mesh in many places.
 
 use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
 use crate::{
@@ -994,6 +994,7 @@ pub struct Surface {
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
+    specular_texture: Option<Texture>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -1018,6 +1019,7 @@ impl Clone for Surface {
             data: self.data.clone(),
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
+            specular_texture: self.specular_texture.clone(),
             bones: self.bones.clone(),
             vertex_weights: Vec::new(), // Intentionally not copied.
             color: self.color,
@@ -1034,6 +1036,7 @@ impl Surface {
             data: Some(data),
             diffuse_texture: None,
             normal_texture: None,
+            specular_texture: None,
             bones: Vec::new(),
             vertex_weights: Vec::new(),
             color: Color::WHITE,
@@ -1069,6 +1072,18 @@ impl Surface {
     #[inline]
     pub fn normal_texture(&self) -> Option<Texture> {
         self.normal_texture.clone()
+    }
+
+    /// Sets new specular texture.
+    #[inline]
+    pub fn set_specular_texture(&mut self, tex: Option<Texture>) {
+        self.specular_texture = tex;
+    }
+
+    /// Returns current specular texture.
+    #[inline]
+    pub fn specular_texture(&self) -> Option<Texture> {
+        self.specular_texture.clone()
     }
 
     /// Sets new lightmap texture.
@@ -1127,6 +1142,7 @@ pub struct SurfaceBuilder {
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
+    specular_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1139,6 +1155,7 @@ impl SurfaceBuilder {
             diffuse_texture: None,
             normal_texture: None,
             lightmap_texture: None,
+            specular_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
         }
@@ -1162,6 +1179,12 @@ impl SurfaceBuilder {
         self
     }
 
+    /// Sets desired specular texture.
+    pub fn with_specular_texture(mut self, tex: Texture) -> Self {
+        self.specular_texture = Some(tex);
+        self
+    }
+
     /// Sets desired color of surface.
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
@@ -1181,6 +1204,7 @@ impl SurfaceBuilder {
             diffuse_texture: self.diffuse_texture,
             normal_texture: self.normal_texture,
             lightmap_texture: self.lightmap_texture,
+            specular_texture: self.specular_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,

@@ -406,7 +406,7 @@ impl Ray {
 #[cfg(test)]
 mod test {
     use crate::math::ray::Ray;
-    use crate::math::vec3::Vector3;
+    use crate::math::Vector3;
 
     #[test]
     fn intersection() {
