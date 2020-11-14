@@ -1,9 +1,9 @@
 use crate::core::algebra::{Matrix4, Vector2, Vector4};
+use crate::renderer::framework::geometry_buffer::{BufferBuilder, GeometryBufferBuilder};
 use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
     core::{color::Color, math::Rect, scope_profile},
     gui::{
-        self,
         brush::Brush,
         draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
     },
@@ -74,7 +74,7 @@ impl UiShader {
 
 pub struct UiRenderer {
     shader: UiShader,
-    geometry_buffer: GeometryBuffer<gui::draw::Vertex>,
+    geometry_buffer: GeometryBuffer,
 }
 
 pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
@@ -90,23 +90,32 @@ pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
 
 impl UiRenderer {
     pub(in crate::renderer) fn new(state: &mut State) -> Result<Self, RendererError> {
-        let geometry_buffer =
-            GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
-
-        geometry_buffer.bind(state).describe_attributes(vec![
-            AttributeDefinition {
-                kind: AttributeKind::Float2,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::Float2,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::UnsignedByte4,
-                normalized: true, // Make sure [0; 255] -> [0; 1]
-            },
-        ])?;
+        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(
+                BufferBuilder::new::<crate::gui::draw::Vertex>(
+                    GeometryBufferKind::DynamicDraw,
+                    None,
+                )
+                .with_attribute(AttributeDefinition {
+                    location: 0,
+                    kind: AttributeKind::Float2,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 1,
+                    kind: AttributeKind::Float2,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 2,
+                    kind: AttributeKind::UnsignedByte4,
+                    normalized: true, // Make sure [0; 255] -> [0; 1]
+                    divisor: 0,
+                }),
+            )
+            .build(state)?;
 
         Ok(Self {
             geometry_buffer,
@@ -135,11 +144,11 @@ impl UiRenderer {
 
         state.set_blend_func(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
-        let geometry_buffer = self.geometry_buffer.bind(state);
+        self.geometry_buffer
+            .set_buffer_data(state, 0, drawing_context.get_vertices());
 
-        geometry_buffer
-            .set_triangles(drawing_context.get_triangles())
-            .set_vertices(drawing_context.get_vertices());
+        let geometry_buffer = self.geometry_buffer.bind(state);
+        geometry_buffer.set_triangles(drawing_context.get_triangles());
 
         let ortho = Matrix4::new_orthographic(0.0, frame_width, frame_height, 0.0, -1.0, 1.0);
 

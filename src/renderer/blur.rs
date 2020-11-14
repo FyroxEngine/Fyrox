@@ -101,7 +101,7 @@ impl Blur {
             state,
             viewport,
             &self.shader.program,
-            DrawParameters {
+            &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
                 color_write: Default::default(),

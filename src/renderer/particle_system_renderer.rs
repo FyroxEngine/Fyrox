@@ -1,5 +1,6 @@
 use crate::core::algebra::Vector2;
 use crate::core::math::Matrix4Ext;
+use crate::renderer::framework::geometry_buffer::{BufferBuilder, GeometryBufferBuilder};
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -55,7 +56,7 @@ impl ParticleSystemShader {
 pub struct ParticleSystemRenderer {
     shader: ParticleSystemShader,
     draw_data: particle_system::DrawData,
-    geometry_buffer: GeometryBuffer<particle_system::Vertex>,
+    geometry_buffer: GeometryBuffer,
     sorted_particles: Vec<u32>,
 }
 
@@ -74,31 +75,44 @@ pub(in crate) struct ParticleSystemRenderContext<'a, 'b, 'c> {
 
 impl ParticleSystemRenderer {
     pub fn new(state: &mut State) -> Result<Self, RendererError> {
-        let geometry_buffer =
-            GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Triangle);
-
-        geometry_buffer.bind(state).describe_attributes(vec![
-            AttributeDefinition {
-                kind: AttributeKind::Float3,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::Float2,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::Float,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::Float,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::UnsignedByte4,
-                normalized: true,
-            },
-        ])?;
+        let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+            .with_buffer_builder(
+                BufferBuilder::new::<crate::scene::particle_system::Vertex>(
+                    GeometryBufferKind::DynamicDraw,
+                    None,
+                )
+                .with_attribute(AttributeDefinition {
+                    location: 0,
+                    kind: AttributeKind::Float3,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 1,
+                    kind: AttributeKind::Float2,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 2,
+                    kind: AttributeKind::Float,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 3,
+                    kind: AttributeKind::Float,
+                    normalized: false,
+                    divisor: 0,
+                })
+                .with_attribute(AttributeDefinition {
+                    location: 4,
+                    kind: AttributeKind::UnsignedByte4,
+                    normalized: true,
+                    divisor: 0,
+                }),
+            )
+            .build(state)?;
 
         Ok(Self {
             shader: ParticleSystemShader::new()?,
@@ -148,9 +162,10 @@ impl ParticleSystemRenderer {
             );
 
             self.geometry_buffer
+                .set_buffer_data(state, 0, self.draw_data.vertices());
+            self.geometry_buffer
                 .bind(state)
-                .set_triangles(self.draw_data.triangles())
-                .set_vertices(self.draw_data.vertices());
+                .set_triangles(self.draw_data.triangles());
 
             let uniforms = [
                 (
@@ -216,7 +231,7 @@ impl ParticleSystemRenderer {
                 state,
                 viewport,
                 &self.shader.program,
-                draw_params,
+                &draw_params,
                 &uniforms,
             );
         }

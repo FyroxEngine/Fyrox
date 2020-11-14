@@ -200,12 +200,12 @@ fn pre_draw(
     state: &mut State,
     viewport: Rect<i32>,
     program: &GpuProgram,
-    params: DrawParameters,
+    params: &DrawParameters,
     uniforms: &[(UniformLocation, UniformValue<'_>)],
 ) {
     state.set_framebuffer(fbo);
     state.set_viewport(viewport);
-    state.apply_draw_parameters(&params);
+    state.apply_draw_parameters(params);
 
     program.bind(state);
     for (location, value) in uniforms {
@@ -213,10 +213,10 @@ fn pre_draw(
     }
 }
 
-pub struct DrawPartContext<'a, 'b, 'c, 'd, T> {
+pub struct DrawPartContext<'a, 'b, 'c, 'd> {
     pub state: &'a mut State,
     pub viewport: Rect<i32>,
-    pub geometry: &'a mut GeometryBuffer<T>,
+    pub geometry: &'a mut GeometryBuffer,
     pub program: &'b mut GpuProgram,
     pub params: DrawParameters,
     pub uniforms: &'c [(UniformLocation, UniformValue<'d>)],
@@ -263,13 +263,13 @@ pub trait FrameBufferTrait {
         }
     }
 
-    fn draw<T>(
+    fn draw(
         &mut self,
-        geometry: &GeometryBuffer<T>,
+        geometry: &GeometryBuffer,
         state: &mut State,
         viewport: Rect<i32>,
         program: &GpuProgram,
-        params: DrawParameters,
+        params: &DrawParameters,
         uniforms: &[(UniformLocation, UniformValue<'_>)],
     ) -> DrawCallStatistics {
         scope_profile!();
@@ -278,10 +278,23 @@ pub trait FrameBufferTrait {
         geometry.bind(state).draw()
     }
 
-    fn draw_part<T>(
+    fn draw_instances(
         &mut self,
-        args: DrawPartContext<T>,
-    ) -> Result<DrawCallStatistics, RendererError> {
+        count: usize,
+        geometry: &GeometryBuffer,
+        state: &mut State,
+        viewport: Rect<i32>,
+        program: &GpuProgram,
+        params: &DrawParameters,
+        uniforms: &[(UniformLocation, UniformValue<'_>)],
+    ) -> DrawCallStatistics {
+        scope_profile!();
+
+        pre_draw(self.id(), state, viewport, program, params, uniforms);
+        geometry.bind(state).draw_instances(count)
+    }
+
+    fn draw_part(&mut self, args: DrawPartContext) -> Result<DrawCallStatistics, RendererError> {
         scope_profile!();
 
         pre_draw(
@@ -289,7 +302,7 @@ pub trait FrameBufferTrait {
             args.state,
             args.viewport,
             args.program,
-            args.params,
+            &args.params,
             args.uniforms,
         );
         args.geometry

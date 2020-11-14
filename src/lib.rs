@@ -7,6 +7,7 @@ extern crate inflate;
 extern crate lexical;
 #[macro_use]
 extern crate lazy_static;
+extern crate arrayvec;
 extern crate ddsfile;
 
 #[cfg(test)]

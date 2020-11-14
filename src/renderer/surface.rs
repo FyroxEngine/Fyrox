@@ -4,9 +4,9 @@
 //! Surfaces can use the same data source across many instances, this is a memory optimization for
 //! being able to re-use data when you need to draw the same mesh in many places.
 
-use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
         math::TriangleDefinition,
         pool::{ErasedHandle, Handle},
@@ -16,7 +16,6 @@ use crate::{
     scene::node::Node,
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use rapier3d::na::Point3;
 use std::{
     hash::{Hash, Hasher},
     sync::{Arc, Mutex},

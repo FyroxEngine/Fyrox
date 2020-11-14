@@ -442,7 +442,7 @@ impl DeferredLightRenderer {
             state,
             viewport,
             &self.ambient_light_shader.program,
-            DrawParameters {
+            &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
                 color_write: Default::default(),
@@ -624,7 +624,7 @@ impl DeferredLightRenderer {
                 state,
                 viewport,
                 &self.flat_shader.program,
-                DrawParameters {
+                &DrawParameters {
                     cull_face: CullFace::Front,
                     culling: true,
                     color_write: ColorMask::all(false),
@@ -657,7 +657,7 @@ impl DeferredLightRenderer {
                 state,
                 viewport,
                 &self.flat_shader.program,
-                DrawParameters {
+                &DrawParameters {
                     cull_face: CullFace::Back,
                     culling: true,
                     color_write: ColorMask::all(false),
@@ -783,7 +783,7 @@ impl DeferredLightRenderer {
                         state,
                         viewport,
                         &shader.program,
-                        draw_params,
+                        &draw_params,
                         &uniforms,
                     )
                 }
@@ -849,7 +849,7 @@ impl DeferredLightRenderer {
                         state,
                         viewport,
                         &shader.program,
-                        draw_params,
+                        &draw_params,
                         &uniforms,
                     )
                 }
@@ -899,7 +899,7 @@ impl DeferredLightRenderer {
                         state,
                         viewport,
                         &shader.program,
-                        DrawParameters {
+                        &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
                             color_write: Default::default(),

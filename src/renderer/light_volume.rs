@@ -186,7 +186,7 @@ impl LightVolumeRenderer {
                     state,
                     viewport,
                     &self.flat_shader.program,
-                    DrawParameters {
+                    &DrawParameters {
                         cull_face: CullFace::Back,
                         culling: false,
                         color_write: ColorMask::all(false),
@@ -212,7 +212,7 @@ impl LightVolumeRenderer {
                     state,
                     viewport,
                     &self.spot_light_shader.program,
-                    DrawParameters {
+                    &DrawParameters {
                         cull_face: CullFace::Back,
                         culling: false,
                         color_write: Default::default(),
@@ -290,7 +290,7 @@ impl LightVolumeRenderer {
                     state,
                     viewport,
                     &self.flat_shader.program,
-                    DrawParameters {
+                    &DrawParameters {
                         cull_face: CullFace::Back,
                         culling: false,
                         color_write: ColorMask::all(false),
@@ -316,7 +316,7 @@ impl LightVolumeRenderer {
                     state,
                     viewport,
                     &self.point_light_shader.program,
-                    DrawParameters {
+                    &DrawParameters {
                         cull_face: CullFace::Back,
                         culling: false,
                         color_write: Default::default(),

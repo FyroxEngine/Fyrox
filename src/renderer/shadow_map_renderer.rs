@@ -197,7 +197,7 @@ impl SpotShadowMapRenderer {
                         state,
                         viewport,
                         &self.shader.program,
-                        DrawParameters {
+                        &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: true,
                             color_write: ColorMask::all(false),
@@ -493,7 +493,7 @@ impl PointShadowMapRenderer {
                             state,
                             viewport,
                             &self.shader.program,
-                            DrawParameters {
+                            &DrawParameters {
                                 cull_face: CullFace::Back,
                                 culling: true,
                                 color_write: Default::default(),

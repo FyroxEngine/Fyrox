@@ -4,6 +4,7 @@
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
 use crate::core::algebra::Vector3;
+use crate::renderer::framework::geometry_buffer::{BufferBuilder, GeometryBufferBuilder};
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -29,7 +30,7 @@ struct Vertex {
 
 /// See module docs.
 pub struct DebugRenderer {
-    geometry: GeometryBuffer<Vertex>,
+    geometry: GeometryBuffer,
     vertices: Vec<Vertex>,
     line_indices: Vec<[u32; 2]>,
     shader: DebugShader,
@@ -54,18 +55,23 @@ impl DebugShader {
 
 impl DebugRenderer {
     pub(in crate) fn new(state: &mut State) -> Result<Self, RendererError> {
-        let geometry = GeometryBuffer::new(GeometryBufferKind::DynamicDraw, ElementKind::Line);
-
-        geometry.bind(state).describe_attributes(vec![
-            AttributeDefinition {
-                kind: AttributeKind::Float3,
-                normalized: false,
-            },
-            AttributeDefinition {
-                kind: AttributeKind::UnsignedByte4,
-                normalized: true,
-            },
-        ])?;
+        let geometry = GeometryBufferBuilder::new(ElementKind::Line)
+            .with_buffer_builder(
+                BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)
+                    .with_attribute(AttributeDefinition {
+                        location: 0,
+                        divisor: 0,
+                        kind: AttributeKind::Float3,
+                        normalized: false,
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 1,
+                        kind: AttributeKind::UnsignedByte4,
+                        normalized: true,
+                        divisor: 0,
+                    }),
+            )
+            .build(state)?;
 
         Ok(Self {
             geometry,
@@ -104,17 +110,15 @@ impl DebugRenderer {
             self.line_indices.push([i, i + 1]);
             i += 2;
         }
-        self.geometry
-            .bind(state)
-            .set_vertices(&self.vertices)
-            .set_lines(&self.line_indices);
+        self.geometry.set_buffer_data(state, 0, &self.vertices);
+        self.geometry.bind(state).set_lines(&self.line_indices);
 
         statistics += framebuffer.draw(
             &self.geometry,
             state,
             viewport,
             &self.shader.program,
-            DrawParameters {
+            &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
                 color_write: Default::default(),

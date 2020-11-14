@@ -145,11 +145,11 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             },
             noise: Rc::new(RefCell::new({
                 const RGB_PIXEL_SIZE: usize = 3;
-                let mut pixels = [0; RGB_PIXEL_SIZE * NOISE_SIZE * NOISE_SIZE];
+                let mut pixels = [0u8; RGB_PIXEL_SIZE * NOISE_SIZE * NOISE_SIZE];
                 for pixel in pixels.chunks_exact_mut(RGB_PIXEL_SIZE) {
-                    pixel[0] = rng.gen_range(0, 255); // R
-                    pixel[1] = rng.gen_range(0, 255); // G
-                    pixel[2] = 0; // B
+                    pixel[0] = rng.gen_range(0u8, 255u8); // R
+                    pixel[1] = rng.gen_range(0u8, 255u8); // G
+                    pixel[2] = 0u8; // B
                 }
                 let kind = GpuTextureKind::Rectangle {
                     width: NOISE_SIZE,
@@ -226,7 +226,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             state,
             viewport,
             &self.shader.program,
-            DrawParameters {
+            &DrawParameters {
                 cull_face: CullFace::Back,
                 culling: false,
                 color_write: Default::default(),

@@ -94,6 +94,7 @@ pub enum PixelKind {
     DXT1RGBA,
     DXT3RGBA,
     DXT5RGBA,
+    RGBA32F,
 }
 
 impl From<TexturePixelKind> for PixelKind {
@@ -120,7 +121,7 @@ impl From<TexturePixelKind> for PixelKind {
 impl PixelKind {
     fn unpack_alignment(self) -> i32 {
         match self {
-            Self::RGBA16 | Self::RGB16 => 8,
+            Self::RGBA16 | Self::RGB16 | Self::RGBA32F => 8,
             Self::RGBA8
             | Self::RGB8
             | Self::BGRA8
@@ -155,7 +156,8 @@ impl PixelKind {
             | Self::RG8
             | Self::D16
             | Self::F16
-            | Self::R8 => false,
+            | Self::R8
+            | Self::RGBA32F => false,
         }
     }
 }
@@ -169,6 +171,7 @@ pub struct GpuTexture {
     t_wrap_mode: WrapMode,
     r_wrap_mode: WrapMode,
     anisotropy: f32,
+    pixel_kind: PixelKind,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -180,6 +183,7 @@ fn ceil_div_4(x: usize) -> usize {
 fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth: usize) -> usize {
     let pixel_count = width * height * depth;
     match pixel_kind {
+        PixelKind::RGBA32F => 16 * pixel_count,
         PixelKind::RGBA16 => 8 * pixel_count,
         PixelKind::RGB16 => 6 * pixel_count,
         PixelKind::RGBA8
@@ -205,6 +209,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
 fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> usize {
     let pixel_count = width * height;
     match pixel_kind {
+        PixelKind::RGBA32F => 16 * pixel_count,
         PixelKind::RGBA16 => 8 * pixel_count,
         PixelKind::RGB16 => 6 * pixel_count,
         PixelKind::RGBA8
@@ -229,6 +234,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
 
 fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
     match pixel_kind {
+        PixelKind::RGBA32F => 16 * length,
         PixelKind::RGBA16 => 8 * length,
         PixelKind::RGB16 => 6 * length,
         PixelKind::RGBA8
@@ -458,35 +464,12 @@ impl<'a> TextureBinding<'a> {
         }
         self
     }
-}
 
-const GL_COMPRESSED_RGB_S3TC_DXT1_EXT: u32 = 0x83F0;
-const GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: u32 = 0x83F1;
-const GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: u32 = 0x83F2;
-const GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: u32 = 0x83F3;
-
-impl GpuTexture {
-    /// Creates new GPU texture of specified kind. Mip count must be at least 1, it means
-    /// that there is only main level of detail.
-    ///
-    /// # Data layout
-    ///
-    /// In case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
-    /// +X, -X, +Y, -Y, +Z, -Z. Cube mips must follow one after another.
-    ///
-    /// Produced texture can be used as render target for framebuffer, in this case `data`
-    /// parameter can be None.
-    ///
-    /// # Compressed textures
-    ///
-    /// For compressed textures data must contain all mips, where each mip must be 2 times
-    /// smaller than previous.
-    pub fn new(
+    pub fn set_data(
+        self,
         state: &mut State,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
-        min_filter: MinificationFilter,
-        mag_filter: MagnificationFilter,
         mip_count: usize,
         data: Option<&[u8]>,
     ) -> Result<Self, RendererError> {
@@ -542,21 +525,22 @@ impl GpuTexture {
         }
 
         if let Some(data) = data {
-            if data.len() != desired_byte_count {
+            let actual_data_size = data.len();
+            if actual_data_size != desired_byte_count {
                 return Err(RendererError::InvalidTextureData {
                     expected_data_size: desired_byte_count,
-                    actual_data_size: data.len(),
+                    actual_data_size,
                 });
             }
         }
 
+        self.texture.kind = kind;
+        self.texture.pixel_kind = pixel_kind;
+
         let target = kind.to_texture_target();
 
         unsafe {
-            let mut texture = 0;
-            gl::GenTextures(1, &mut texture);
-
-            state.set_texture(0, target, texture);
+            state.set_texture(0, target, self.texture.texture);
 
             let (type_, format, internal_format) = match pixel_kind {
                 PixelKind::F32 => (gl::FLOAT, gl::RED, gl::R32F),
@@ -582,6 +566,7 @@ impl GpuTexture {
                 PixelKind::DXT1RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT),
                 PixelKind::DXT3RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT3_EXT),
                 PixelKind::DXT5RGBA => (0, 0, GL_COMPRESSED_RGBA_S3TC_DXT5_EXT),
+                PixelKind::RGBA32F => (gl::FLOAT, gl::RGBA, gl::RGBA32F),
             };
 
             let is_compressed = pixel_kind.is_compressed();
@@ -776,6 +761,68 @@ impl GpuTexture {
                     }
                 }
             }
+        }
+
+        Ok(self)
+    }
+}
+
+const GL_COMPRESSED_RGB_S3TC_DXT1_EXT: u32 = 0x83F0;
+const GL_COMPRESSED_RGBA_S3TC_DXT1_EXT: u32 = 0x83F1;
+const GL_COMPRESSED_RGBA_S3TC_DXT3_EXT: u32 = 0x83F2;
+const GL_COMPRESSED_RGBA_S3TC_DXT5_EXT: u32 = 0x83F3;
+
+impl GpuTexture {
+    /// Creates new GPU texture of specified kind. Mip count must be at least 1, it means
+    /// that there is only main level of detail.
+    ///
+    /// # Data layout
+    ///
+    /// In case of Cube texture, `bytes` should contain all 6 cube faces ordered like so,
+    /// +X, -X, +Y, -Y, +Z, -Z. Cube mips must follow one after another.
+    ///
+    /// Produced texture can be used as render target for framebuffer, in this case `data`
+    /// parameter can be None.
+    ///
+    /// # Compressed textures
+    ///
+    /// For compressed textures data must contain all mips, where each mip must be 2 times
+    /// smaller than previous.
+    pub fn new(
+        state: &mut State,
+        kind: GpuTextureKind,
+        pixel_kind: PixelKind,
+        min_filter: MinificationFilter,
+        mag_filter: MagnificationFilter,
+        mip_count: usize,
+        data: Option<&[u8]>,
+    ) -> Result<Self, RendererError> {
+        let mip_count = mip_count.max(1);
+
+        let target = kind.to_texture_target();
+
+        unsafe {
+            let mut texture = 0;
+            gl::GenTextures(1, &mut texture);
+
+            let mut result = Self {
+                texture,
+                kind,
+                min_filter,
+                mag_filter,
+                s_wrap_mode: WrapMode::Repeat,
+                t_wrap_mode: WrapMode::Repeat,
+                r_wrap_mode: WrapMode::Repeat,
+                anisotropy: 1.0,
+                pixel_kind,
+                thread_mark: PhantomData,
+            };
+
+            TextureBinding {
+                texture: &mut result,
+            }
+            .set_data(state, kind, pixel_kind, mip_count, data)
+            .unwrap();
 
             gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
             gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());
@@ -791,17 +838,7 @@ impl GpuTexture {
 
             Log::writeln(format!("GL texture {} was created!", texture));
 
-            Ok(Self {
-                texture,
-                kind,
-                min_filter,
-                mag_filter,
-                s_wrap_mode: WrapMode::Repeat,
-                t_wrap_mode: WrapMode::Repeat,
-                r_wrap_mode: WrapMode::Repeat,
-                anisotropy: 1.0,
-                thread_mark: PhantomData,
-            })
+            Ok(result)
         }
     }
 

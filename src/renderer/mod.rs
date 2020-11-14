@@ -6,7 +6,7 @@
 //! Renderer based on OpenGL 3.3+ Core.
 
 #![warn(missing_docs)]
-#![deny(unsafe_code)]
+//#![deny(unsafe_code)]
 
 pub mod debug_renderer;
 pub mod error;
@@ -29,11 +29,9 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
-use crate::core::algebra::{Matrix4, Vector2, Vector3};
-use crate::resource::texture::TextureKind;
-use crate::scene::Scene;
 use crate::{
     core::{
+        algebra::{Matrix4, Vector2, Vector3},
         color::Color,
         math::{Rect, TriangleDefinition},
         pool::Handle,
@@ -52,6 +50,7 @@ use crate::{
                 AttributeDefinition, AttributeKind, DrawCallStatistics, ElementKind,
                 GeometryBuffer, GeometryBufferKind,
             },
+            geometry_buffer::{BufferBuilder, GeometryBufferBuilder},
             gl,
             gpu_program::UniformValue,
             gpu_texture::{
@@ -66,8 +65,8 @@ use crate::{
         surface::SurfaceSharedData,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{Texture, TextureState},
-    scene::{node::Node, SceneContainer},
+    resource::texture::{Texture, TextureKind, TextureState},
+    scene::{node::Node, Scene, SceneContainer},
 };
 use glutin::PossiblyCurrent;
 use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc, time};
@@ -349,58 +348,69 @@ pub struct Renderer {
 
 #[derive(Default)]
 pub(in crate) struct GeometryCache {
-    map: HashMap<usize, TimedEntry<GeometryBuffer<surface::Vertex>>>,
+    map: HashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
 impl GeometryCache {
-    fn get(
-        &mut self,
-        state: &mut State,
-        data: &SurfaceSharedData,
-    ) -> &mut GeometryBuffer<surface::Vertex> {
+    fn get(&mut self, state: &mut State, data: &SurfaceSharedData) -> &mut GeometryBuffer {
         scope_profile!();
 
         let key = (data as *const _) as usize;
 
         let geometry_buffer = self.map.entry(key).or_insert_with(|| {
-            let geometry_buffer =
-                GeometryBuffer::new(GeometryBufferKind::StaticDraw, ElementKind::Triangle);
-
-            geometry_buffer
-                .bind(state)
-                .describe_attributes(vec![
-                    AttributeDefinition {
+            let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
+                .with_buffer_builder(
+                    BufferBuilder::new(
+                        GeometryBufferKind::StaticDraw,
+                        Some(data.vertices.as_slice()),
+                    )
+                    .with_attribute(AttributeDefinition {
+                        location: 0,
+                        divisor: 0,
                         kind: AttributeKind::Float3,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 1,
+                        divisor: 0,
                         kind: AttributeKind::Float2,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 2,
+                        divisor: 0,
                         kind: AttributeKind::Float2,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 3,
+                        divisor: 0,
                         kind: AttributeKind::Float3,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 4,
+                        divisor: 0,
                         kind: AttributeKind::Float4,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 5,
+                        divisor: 0,
                         kind: AttributeKind::Float4,
                         normalized: false,
-                    },
-                    AttributeDefinition {
+                    })
+                    .with_attribute(AttributeDefinition {
+                        location: 6,
+                        divisor: 0,
                         kind: AttributeKind::UnsignedByte4,
                         normalized: false,
-                    },
-                ])
-                .unwrap()
-                .set_vertices(data.vertices.as_slice())
-                .set_triangles(data.triangles());
+                    }),
+                )
+                .build(state)
+                .unwrap();
+
+            geometry_buffer.bind(state).set_triangles(data.triangles());
 
             TimedEntry {
                 value: geometry_buffer,
@@ -549,7 +559,7 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[255, 255, 255, 255]),
+                Some(&[255u8, 255u8, 255u8, 255u8]),
             )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
@@ -561,7 +571,7 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[128, 128, 255, 255]),
+                Some(&[128u8, 128u8, 255u8, 255u8]),
             )?)),
             specular_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
@@ -573,7 +583,7 @@ impl Renderer {
                 MinificationFilter::Linear,
                 MagnificationFilter::Linear,
                 1,
-                Some(&[32, 32, 32, 32]),
+                Some(&[32u8, 32u8, 32u8, 32u8]),
             )?)),
             quad: SurfaceSharedData::make_unit_xy_quad(),
             ui_renderer: UiRenderer::new(&mut state)?,
@@ -821,7 +831,7 @@ impl Renderer {
                         state,
                         viewport,
                         &self.flat_shader.program,
-                        DrawParameters {
+                        &DrawParameters {
                             cull_face: CullFace::Back,
                             culling: false,
                             color_write: Default::default(),

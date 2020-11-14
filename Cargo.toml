@@ -33,6 +33,7 @@ lazy_static = "1.4.0"
 futures = {version = "0.3.6", features = ["thread-pool"] }
 ddsfile = "0.4.0"
 rapier3d = "0.3.0"
+arrayvec = "0.5.2"
  
 [dev-dependencies]
 imageproc = "0.21.0"
