@@ -44,6 +44,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 	- Screen-Space Ambient Occlusion (SSAO).
 	- Soft shadows.
 	- Volumetric light (spot, point).
+	- Instancing - render lots of objects without any overhead.
 - Render in texture.
 - Sky box.
 - Multi-camera rendering.
@@ -78,6 +79,7 @@ There are many examples covering various aspects of the engine. Also don't hesit
 ## Frequently asked questions
 
 **Q:** Is rg3d using ECS?
+
 **A:** No. It is using more classic OOP approach. However, it uses lots of optimizations for efficient
 memory management such as generational pools.
 
