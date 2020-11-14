@@ -331,10 +331,10 @@ impl GBuffer {
                 let batch = self.batches.entry(key).or_insert(Batch {
                     data,
                     instances: Default::default(),
-                    diffuse_texture,
-                    normal_texture,
-                    specular_texture,
-                    lightmap_texture,
+                    diffuse_texture: diffuse_texture.clone(),
+                    normal_texture: normal_texture.clone(),
+                    specular_texture: specular_texture.clone(),
+                    lightmap_texture: lightmap_texture.clone(),
                     matrix_buffer_stride: if surface.bones.is_empty() {
                         // Non-skinned mesh will hold only GENERIC_MATRICES_COUNT per instance.
                         GENERIC_MATRICES_COUNT
@@ -344,6 +344,13 @@ impl GBuffer {
                     },
                     skinned: !surface.bones.is_empty(),
                 });
+
+                // Update textures.
+                batch.diffuse_texture = diffuse_texture;
+                batch.normal_texture = normal_texture;
+                batch.specular_texture = specular_texture;
+                batch.lightmap_texture = lightmap_texture;
+
                 let mut instance = Instance {
                     world_transform: world,
                     wvp_transform: mvp,
