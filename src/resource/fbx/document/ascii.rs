@@ -1,3 +1,4 @@
+use crate::core::byteorder::ReadBytesExt;
 use crate::{
     core::pool::{Handle, Pool},
     resource::fbx::{
@@ -5,7 +6,6 @@ use crate::{
         error::FbxError,
     },
 };
-use byteorder::ReadBytesExt;
 use std::io::{Read, Seek, SeekFrom};
 
 pub fn read_ascii<R>(reader: &mut R) -> Result<FbxDocument, FbxError>

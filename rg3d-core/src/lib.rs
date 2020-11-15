@@ -1,10 +1,11 @@
-extern crate rand;
 #[macro_use]
 extern crate memoffset;
 #[macro_use]
 extern crate lazy_static;
 
+pub use byteorder;
 pub use nalgebra as algebra;
+pub use rand;
 
 use std::{
     ffi::OsString,

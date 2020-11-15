@@ -69,6 +69,7 @@
 //! ```
 
 use crate::core::algebra::{Vector2, Vector3};
+use crate::rand::Rng;
 use crate::scene::node::Node;
 use crate::{
     core::{
@@ -81,7 +82,6 @@ use crate::{
     resource::texture::Texture,
     scene::base::{Base, BaseBuilder},
 };
-use rand::Rng;
 use std::{
     any::Any,
     cell::Cell,
@@ -256,7 +256,7 @@ impl Default for BoxEmitter {
 impl Emit for BoxEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
         particle.position = Vector3::new(
             self.position.x + rng.gen_range(-self.half_width, self.half_width),
             self.position.y + rng.gen_range(-self.half_height, self.half_height),
@@ -377,7 +377,7 @@ impl Visit for SphereEmitter {
 impl Emit for SphereEmitter {
     fn emit(&self, _particle_system: &ParticleSystem, particle: &mut Particle) {
         self.emitter.emit(particle);
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
         let phi = rng.gen_range(0.0, std::f32::consts::PI);
         let theta = rng.gen_range(0.0, 2.0 * std::f32::consts::PI);
         let radius = rng.gen_range(0.0, self.radius);

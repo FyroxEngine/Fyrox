@@ -1,4 +1,5 @@
 use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3};
+use crate::rand::Rng;
 use crate::{
     core::{
         color::Color,
@@ -24,7 +25,6 @@ use crate::{
         GeometryCache, RenderPassStatistics,
     },
 };
-use rand::Rng;
 use std::{cell::RefCell, rc::Rc};
 
 // Keep in sync with shader define.
@@ -109,7 +109,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             texture
         };
 
-        let mut rng = rand::thread_rng();
+        let mut rng = crate::rand::thread_rng();
 
         Ok(Self {
             blur: Blur::new(state, width, height)?,

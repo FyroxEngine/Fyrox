@@ -1,6 +1,5 @@
 //! 3D Game Engine.
 
-extern crate byteorder;
 extern crate glutin;
 extern crate image;
 extern crate inflate;
@@ -20,8 +19,8 @@ pub mod resource;
 pub mod scene;
 pub mod utils;
 
+pub use crate::core::rand;
 pub use glutin::*;
-pub use rand;
 
 pub use futures;
 pub use rapier3d as physics;
