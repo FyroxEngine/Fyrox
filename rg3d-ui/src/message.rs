@@ -1168,7 +1168,7 @@ pub enum KeyCode {
 
     AbntC1,
     AbntC2,
-    Add,
+    NumpadAdd,
     Apostrophe,
     Apps,
     At,
@@ -1179,8 +1179,8 @@ pub enum KeyCode {
     Colon,
     Comma,
     Convert,
-    Decimal,
-    Divide,
+    NumpadDecimal,
+    NumpadDivide,
     Equals,
     Grave,
     Kana,
@@ -1194,7 +1194,7 @@ pub enum KeyCode {
     MediaSelect,
     MediaStop,
     Minus,
-    Multiply,
+    NumpadMultiply,
     Mute,
     MyComputer,
     NavigateForward,
@@ -1218,7 +1218,7 @@ pub enum KeyCode {
     Slash,
     Sleep,
     Stop,
-    Subtract,
+    NumpadSubtract,
     Sysrq,
     Tab,
     Underline,
@@ -1237,6 +1237,8 @@ pub enum KeyCode {
     Copy,
     Paste,
     Cut,
+    Asterisk,
+    Plus,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
