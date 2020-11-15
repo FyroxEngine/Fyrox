@@ -1501,7 +1501,7 @@ fn update(
 fn main() {
     let event_loop = EventLoop::new();
 
-    let primary_monitor = event_loop.primary_monitor();
+    let primary_monitor = event_loop.primary_monitor().unwrap();
     let mut monitor_dimensions = primary_monitor.size();
     monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
     monitor_dimensions.width = (monitor_dimensions.width as f32 * 0.7) as u32;
