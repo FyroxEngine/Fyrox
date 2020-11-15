@@ -382,8 +382,9 @@ impl BufferBuilder {
             gl::GenBuffers(1, &mut vbo);
         }
 
+        state.set_vertex_buffer_object(vbo);
+
         if self.data_size > 0 {
-            state.set_vertex_buffer_object(vbo);
             unsafe {
                 gl::BufferData(
                     gl::ARRAY_BUFFER,
@@ -414,7 +415,6 @@ impl BufferBuilder {
             let pointer = offset as *const c_void;
 
             unsafe {
-                state.set_vertex_buffer_object(vbo);
                 gl::VertexAttribPointer(
                     definition.location,
                     size,

@@ -1,3 +1,4 @@
+use crate::renderer::InstanceData;
 use crate::{
     core::{
         algebra::{Matrix4, Vector4},
@@ -41,9 +42,7 @@ struct GBufferShader {
     lightmap_texture: UniformLocation,
     matrix_buffer_stride: UniformLocation,
     matrix_storage_size: UniformLocation,
-    color_storage_size: UniformLocation,
     matrix_storage: UniformLocation,
-    color_storage: UniformLocation,
 }
 
 impl GBufferShader {
@@ -59,8 +58,6 @@ impl GBufferShader {
             lightmap_texture: program.uniform_location("lightmapTexture")?,
             matrix_buffer_stride: program.uniform_location("matrixBufferStride")?,
             matrix_storage_size: program.uniform_location("matrixStorageSize")?,
-            color_storage_size: program.uniform_location("colorStorageSize")?,
-            color_storage: program.uniform_location("colorStorage")?,
             matrix_storage: program.uniform_location("matrixStorage")?,
             program,
         })
@@ -77,8 +74,6 @@ struct Storage {
     // was added only in OpenGL 4.3, but macOS support up to OpenGL 4.1.
     matrices_storage: Rc<RefCell<GpuTexture>>,
     matrices: Vec<Matrix4<f32>>,
-    colors_storage: Rc<RefCell<GpuTexture>>,
-    colors: Vec<Color>,
 }
 
 impl Storage {
@@ -97,111 +92,58 @@ impl Storage {
                 None,
             )?)),
             matrices: Default::default(),
-            colors_storage: Rc::new(RefCell::new(GpuTexture::new(
-                state,
-                GpuTextureKind::Rectangle {
-                    width: 1,
-                    height: 1,
-                },
-                PixelKind::RGBA8,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )?)),
-            colors: Default::default(),
         })
     }
 
     fn update(&mut self, state: &mut State, batch: &Batch) {
-        self.matrices.clear();
-        self.colors.clear();
-        for instance in batch.instances.iter() {
-            // Push generic matrices first.
-            self.matrices.push(instance.world_transform);
-            self.matrices.push(instance.wvp_transform);
+        if batch.skinned {
+            self.matrices.clear();
 
-            // Push bone matrices if any.
-            if !instance.bone_matrices.is_empty() {
+            for instance in batch.instances.iter() {
+                // Push bone matrices if any.
                 for m in instance.bone_matrices.iter() {
                     self.matrices.push(m.clone());
                 }
 
                 // Pad rest with zeros because we can't use tight packing in this case.
-                for _ in 0..(batch.matrix_buffer_stride
-                    - GENERIC_MATRICES_COUNT
-                    - instance.bone_matrices.len())
-                {
+                for _ in 0..(BONE_MATRICES_COUNT - instance.bone_matrices.len()) {
                     self.matrices.push(Default::default());
                 }
             }
 
-            self.colors.push(instance.color);
-        }
+            // Select width for the texture by restricting width at 1024 pixels.
+            let matrices_tex_size = 1024;
+            let actual_matrices_pixel_count = self.matrices.len() * 4;
+            let matrices_w = actual_matrices_pixel_count.min(matrices_tex_size);
+            let matrices_h = (actual_matrices_pixel_count as f32 / matrices_w as f32)
+                .ceil()
+                .max(1.0) as usize;
+            // Pad data to actual size.
+            for _ in 0..(((matrices_w * matrices_h) - actual_matrices_pixel_count) / 4) {
+                self.matrices.push(Default::default());
+            }
 
-        // Select width for the texture by restricting width at 1024 pixels.
-        let matrices_tex_size = 1024;
-        let actual_matrices_pixel_count = self.matrices.len() * 4;
-        let matrices_w = actual_matrices_pixel_count.min(matrices_tex_size);
-        let matrices_h = (actual_matrices_pixel_count as f32 / matrices_w as f32)
-            .ceil()
-            .max(1.0) as usize;
-        // Pad data to actual size.
-        for _ in 0..(((matrices_w * matrices_h) - actual_matrices_pixel_count) / 4) {
-            self.matrices.push(Default::default());
+            // Upload to GPU.
+            self.matrices_storage
+                .borrow_mut()
+                .bind_mut(state, 0)
+                .set_data(
+                    state,
+                    GpuTextureKind::Rectangle {
+                        width: matrices_w,
+                        height: matrices_h,
+                    },
+                    PixelKind::RGBA32F,
+                    1,
+                    Some(unsafe {
+                        std::slice::from_raw_parts(
+                            self.matrices.as_slice() as *const _ as *const u8,
+                            self.matrices.len() * std::mem::size_of::<Matrix4<f32>>(),
+                        )
+                    }),
+                )
+                .unwrap();
         }
-
-        // Upload to GPU.
-        self.matrices_storage
-            .borrow_mut()
-            .bind_mut(state, 0)
-            .set_data(
-                state,
-                GpuTextureKind::Rectangle {
-                    width: matrices_w,
-                    height: matrices_h,
-                },
-                PixelKind::RGBA32F,
-                1,
-                Some(unsafe {
-                    std::slice::from_raw_parts(
-                        self.matrices.as_slice() as *const _ as *const u8,
-                        self.matrices.len() * std::mem::size_of::<Matrix4<f32>>(),
-                    )
-                }),
-            )
-            .unwrap();
-
-        // Select width for the texture by restricting width at 1024 pixels.
-        let colors_tex_size = 256;
-        let actual_colors_pixel_count = self.colors.len();
-        let colors_w = actual_colors_pixel_count.min(colors_tex_size);
-        let colors_h = (actual_colors_pixel_count as f32 / colors_w as f32)
-            .ceil()
-            .max(1.0) as usize;
-        // Pad data to actual size.
-        for _ in 0..((colors_w * colors_h) - actual_colors_pixel_count) {
-            self.colors.push(Default::default());
-        }
-        self.colors_storage
-            .borrow_mut()
-            .bind_mut(state, 0)
-            .set_data(
-                state,
-                GpuTextureKind::Rectangle {
-                    width: colors_w,
-                    height: colors_h,
-                },
-                PixelKind::RGBA8,
-                1,
-                Some(unsafe {
-                    std::slice::from_raw_parts(
-                        self.colors.as_slice() as *const _ as *const u8,
-                        self.colors.len() * std::mem::size_of::<Color>(),
-                    )
-                }),
-            )
-            .unwrap();
     }
 }
 
@@ -213,6 +155,7 @@ pub struct GBuffer {
     pub height: i32,
     batches: HashMap<u64, Batch>,
     storage: Storage,
+    instance_data_set: Vec<InstanceData>,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
@@ -226,8 +169,7 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub geom_cache: &'a mut GeometryCache,
 }
 
-const GENERIC_MATRICES_COUNT: usize = 2;
-const BONE_MATRICES_COUNT: usize = 62;
+const BONE_MATRICES_COUNT: usize = 64;
 
 struct Instance {
     world_transform: Matrix4<f32>,
@@ -243,7 +185,6 @@ struct Batch {
     normal_texture: Rc<RefCell<GpuTexture>>,
     specular_texture: Rc<RefCell<GpuTexture>>,
     lightmap_texture: Rc<RefCell<GpuTexture>>,
-    matrix_buffer_stride: usize,
     skinned: bool,
 }
 
@@ -335,13 +276,6 @@ impl GBuffer {
                     normal_texture: normal_texture.clone(),
                     specular_texture: specular_texture.clone(),
                     lightmap_texture: lightmap_texture.clone(),
-                    matrix_buffer_stride: if surface.bones.is_empty() {
-                        // Non-skinned mesh will hold only GENERIC_MATRICES_COUNT per instance.
-                        GENERIC_MATRICES_COUNT
-                    } else {
-                        // Skinned mesh requires additional matrices per instances for bones.
-                        GENERIC_MATRICES_COUNT + BONE_MATRICES_COUNT
-                    },
                     skinned: !surface.bones.is_empty(),
                 });
 
@@ -481,6 +415,7 @@ impl GBuffer {
             final_frame: opt_framebuffer,
             batches: Default::default(),
             storage: Storage::new(state)?,
+            instance_data_set: Default::default(),
         })
     }
 
@@ -544,6 +479,17 @@ impl GBuffer {
             self.storage.update(state, batch);
 
             let geometry = geom_cache.get(state, &batch.data.lock().unwrap());
+
+            self.instance_data_set.clear();
+            for instance in batch.instances.iter() {
+                self.instance_data_set.push(InstanceData {
+                    color: instance.color,
+                    world: instance.world_transform,
+                    wvp: instance.wvp_transform,
+                });
+            }
+            geometry.set_buffer_data(state, 1, self.instance_data_set.as_slice());
+
             let params = DrawParameters {
                 cull_face: CullFace::Back,
                 culling: true,
@@ -591,13 +537,6 @@ impl GBuffer {
                         },
                     ),
                     (
-                        self.shader.color_storage,
-                        UniformValue::Sampler {
-                            index: 4,
-                            texture: self.storage.colors_storage.clone(),
-                        },
-                    ),
-                    (
                         self.shader.matrix_storage,
                         UniformValue::Sampler {
                             index: 5,
@@ -610,24 +549,12 @@ impl GBuffer {
                     ),
                     (
                         self.shader.matrix_buffer_stride,
-                        UniformValue::Integer(batch.matrix_buffer_stride as i32),
+                        UniformValue::Integer(BONE_MATRICES_COUNT as i32),
                     ),
                     (
                         self.shader.matrix_storage_size,
                         UniformValue::Vector4({
                             let kind = self.storage.matrices_storage.borrow().kind();
-                            let (w, h) = if let GpuTextureKind::Rectangle { width, height } = kind {
-                                (width, height)
-                            } else {
-                                unreachable!()
-                            };
-                            Vector4::new(1.0 / (w as f32), 1.0 / (h as f32), w as f32, h as f32)
-                        }),
-                    ),
-                    (
-                        self.shader.color_storage_size,
-                        UniformValue::Vector4({
-                            let kind = self.storage.colors_storage.borrow().kind();
                             let (w, h) = if let GpuTextureKind::Rectangle { width, height } = kind {
                                 (width, height)
                             } else {

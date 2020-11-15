@@ -351,6 +351,15 @@ pub(in crate) struct GeometryCache {
     map: HashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
+#[repr(C)]
+pub struct InstanceData {
+    color: Color,
+    world: Matrix4<f32>,
+    wvp: Matrix4<f32>,
+    // Does NOT include bone matrices, they simply won't fit into vertex attributes
+    // limit and they'll be passed using texture.
+}
+
 impl GeometryCache {
     fn get(&mut self, state: &mut State, data: &SurfaceSharedData) -> &mut GeometryBuffer {
         scope_profile!();
@@ -406,6 +415,66 @@ impl GeometryCache {
                         kind: AttributeKind::UnsignedByte4,
                         normalized: false,
                     }),
+                )
+                // Buffer for world and world-view-projection matrices per instance.
+                .with_buffer_builder(
+                    BufferBuilder::new::<InstanceData>(GeometryBufferKind::DynamicDraw, None)
+                        .with_attribute(AttributeDefinition {
+                            location: 7,
+                            kind: AttributeKind::UnsignedByte4,
+                            normalized: true,
+                            divisor: 1,
+                        })
+                        // World Matrix
+                        .with_attribute(AttributeDefinition {
+                            location: 8,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 9,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 10,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 11,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        // World View Projection Matrix
+                        .with_attribute(AttributeDefinition {
+                            location: 12,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 13,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 14,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        })
+                        .with_attribute(AttributeDefinition {
+                            location: 15,
+                            kind: AttributeKind::Float4,
+                            normalized: false,
+                            divisor: 1,
+                        }),
                 )
                 .build(state)
                 .unwrap();

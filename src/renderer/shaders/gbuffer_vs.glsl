@@ -7,12 +7,13 @@ layout(location = 3) in vec3 vertexNormal;
 layout(location = 4) in vec4 vertexTangent;
 layout(location = 5) in vec4 boneWeights;
 layout(location = 6) in vec4 boneIndices;
+layout(location = 7) in vec4 instanceColor;
+layout(location = 8) in mat4 worldMatrix;
+layout(location = 12) in mat4 worldViewProjection;
 
 uniform sampler2D matrixStorage;
-uniform sampler2D colorStorage;
 
 uniform vec4 matrixStorageSize; // vec4(1/w, 1/h, w, h)
-uniform vec4 colorStorageSize; // vec4(1/w, 1/h, w, h)
 uniform bool useSkeletalAnimation;
 uniform int matrixBufferStride;
 
@@ -47,27 +48,11 @@ mat4 ReadMatrix(int id)
     return mat4(col1, col2, col3, col4);
 }
 
-vec4 ReadColor(int id)
-{
-    float w = colorStorageSize.z;
-    float inv_w = colorStorageSize.x;
-    float inv_h = colorStorageSize.y;
-
-    vec2 coords = IdToCoords(float(id), w, inv_w);
-
-    return texture(colorStorage, vec2((coords.x + 0.5) * inv_w, (coords.y + 0.5) * inv_h));
-}
-
 void main()
 {
     vec4 localPosition = vec4(0);
     vec3 localNormal = vec3(0);
     vec3 localTangent = vec3(0);
-
-    int matrixIndexOrigin = gl_InstanceID * matrixBufferStride;
-
-    mat4 worldMatrix = ReadMatrix(matrixIndexOrigin);
-    mat4 worldViewProjection = ReadMatrix(matrixIndexOrigin+1);
 
     if (useSkeletalAnimation)
     {
@@ -78,7 +63,8 @@ void main()
         int i2 = int(boneIndices.z);
         int i3 = int(boneIndices.w);
 
-        int boneIndexOrigin = matrixIndexOrigin + 2;
+        int boneIndexOrigin = gl_InstanceID * matrixBufferStride;
+
         mat4 m0 = ReadMatrix(boneIndexOrigin + i0);
         mat4 m1 = ReadMatrix(boneIndexOrigin + i1);
         mat4 m2 = ReadMatrix(boneIndexOrigin + i2);
@@ -111,5 +97,5 @@ void main()
     binormal = normalize(vertexTangent.w * cross(tangent, normal));
     texCoord = vertexTexCoord;
     secondTexCoord = vertexSecondTexCoord;
-    diffuseColor = ReadColor(gl_InstanceID);
+    diffuseColor = instanceColor;
 }
