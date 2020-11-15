@@ -167,13 +167,6 @@ impl Transform {
     pub fn set_scale(&mut self, local_scale: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.local_scale != local_scale {
             self.local_scale = local_scale;
-            let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
-            self.scale_pivot_inv_matrix = scale_pivot.try_inverse().unwrap_or_else(|| {
-                Log::writeln(
-                    "Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned(),
-                );
-                Matrix4::identity()
-            });
             self.dirty.set(true);
         }
         self
@@ -292,6 +285,13 @@ impl Transform {
     pub fn set_scaling_pivot(&mut self, scaling_pivot: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.scaling_pivot != scaling_pivot {
             self.scaling_pivot = scaling_pivot;
+            let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
+            self.scale_pivot_inv_matrix = scale_pivot.try_inverse().unwrap_or_else(|| {
+                Log::writeln(
+                    "Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned(),
+                );
+                Matrix4::identity()
+            });
             self.dirty.set(true);
         }
         self
