@@ -23,33 +23,39 @@ out vec3 binormal;
 out vec2 secondTexCoord;
 out vec4 diffuseColor;
 
+vec2 IdToCoords(float k, float w, float inv_w) {
+    float y = floor(k * inv_w); // floor(k / w)
+    float x = k - w * y; // k % w
+    return vec2(x, y);
+}
+
 mat4 ReadMatrix(int id)
 {
-    float k = 4.0 * float(id);
+    float w = matrixStorageSize.z;
+    float inv_w = matrixStorageSize.x;
+    float inv_h = matrixStorageSize.y;
 
-    float x = k - matrixStorageSize.z * floor(k * matrixStorageSize.x); // k % matrixStorageWidth
-    float y = k * matrixStorageSize.x; // k / matrixStorageWidth
+    vec2 coords = IdToCoords(4.0 * float(id), w, inv_w);
 
-    float ty = (y + 0.5) * matrixStorageSize.y;
+    float ty = (coords.y + 0.5) * inv_h;
 
-    vec4 col1 = texture(matrixStorage, vec2((x + 0.5) * matrixStorageSize.x, ty));
-    vec4 col2 = texture(matrixStorage, vec2((x + 1.5) * matrixStorageSize.x, ty));
-    vec4 col3 = texture(matrixStorage, vec2((x + 2.5) * matrixStorageSize.x, ty));
-    vec4 col4 = texture(matrixStorage, vec2((x + 3.5) * matrixStorageSize.x, ty));
+    vec4 col1 = texture(matrixStorage, vec2((coords.x + 0.5) * inv_w, ty));
+    vec4 col2 = texture(matrixStorage, vec2((coords.x + 1.5) * inv_w, ty));
+    vec4 col3 = texture(matrixStorage, vec2((coords.x + 2.5) * inv_w, ty));
+    vec4 col4 = texture(matrixStorage, vec2((coords.x + 3.5) * inv_w, ty));
 
     return mat4(col1, col2, col3, col4);
 }
 
 vec4 ReadColor(int id)
 {
-    float k = float(id);
+    float w = colorStorageSize.z;
+    float inv_w = colorStorageSize.x;
+    float inv_h = colorStorageSize.y;
 
-    float x = k - colorStorageSize.z * floor(k * colorStorageSize.x); // k % colorStorageWidth
-    float y = k * colorStorageSize.x; // k / colorStorageWidth
+    vec2 coords = IdToCoords(float(id), w, inv_w);
 
-    float ty = (y + 0.5) * colorStorageSize.y;
-
-    return texture(colorStorage, vec2((x + 0.5) * colorStorageSize.x, ty));
+    return texture(colorStorage, vec2((coords.x + 0.5) * inv_w, (coords.y + 0.5) * inv_h));
 }
 
 void main()
