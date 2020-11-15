@@ -70,6 +70,9 @@ pub struct Transform {
     scaling_pivot: Vector3<f32>,
     /// Combined transform. Final result of combination of other properties.
     matrix: Cell<Matrix4<f32>>,
+    rotation_pivot_inv_matrix: Matrix4<f32>,
+    scale_pivot_inv_matrix: Matrix4<f32>,
+    post_rotation_matrix: Matrix4<f32>,
 }
 
 impl Visit for Transform {
@@ -112,6 +115,9 @@ impl Transform {
             scaling_offset: Vector3::default(),
             scaling_pivot: Vector3::default(),
             matrix: Cell::new(Matrix4::identity()),
+            rotation_pivot_inv_matrix: Matrix4::identity(),
+            scale_pivot_inv_matrix: Matrix4::identity(),
+            post_rotation_matrix: Matrix4::identity(),
         }
     }
 
@@ -161,6 +167,13 @@ impl Transform {
     pub fn set_scale(&mut self, local_scale: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.local_scale != local_scale {
             self.local_scale = local_scale;
+            let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
+            self.scale_pivot_inv_matrix = scale_pivot.try_inverse().unwrap_or_else(|| {
+                Log::writeln(
+                    "Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned(),
+                );
+                Matrix4::identity()
+            });
             self.dirty.set(true);
         }
         self
@@ -191,6 +204,17 @@ impl Transform {
     pub fn set_post_rotation(&mut self, post_rotation: UnitQuaternion<f32>) -> &mut Self {
         if self.dirty.get() || self.post_rotation != post_rotation {
             self.post_rotation = post_rotation;
+            self.post_rotation_matrix = self
+                .post_rotation
+                .to_homogeneous()
+                .try_inverse()
+                .unwrap_or_else(|| {
+                    Log::writeln(
+                        "Unable to inverse post rotation matrix! Fallback to identity matrix."
+                            .to_owned(),
+                    );
+                    Matrix4::identity()
+                });
             self.dirty.set(true);
         }
         self
@@ -226,6 +250,14 @@ impl Transform {
     pub fn set_rotation_pivot(&mut self, rotation_pivot: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.rotation_pivot != rotation_pivot {
             self.rotation_pivot = rotation_pivot;
+            let rotation_pivot = Matrix4::new_translation(&self.rotation_pivot);
+            self.rotation_pivot_inv_matrix = rotation_pivot.try_inverse().unwrap_or_else(|| {
+                Log::writeln(
+                    "Unable to inverse rotation pivot matrix! Fallback to identity matrix."
+                        .to_owned(),
+                );
+                Matrix4::identity()
+            });
             self.dirty.set(true);
         }
         self
@@ -282,48 +314,25 @@ impl Transform {
 
     fn calculate_local_transform(&self) -> Matrix4<f32> {
         let pre_rotation = self.pre_rotation.to_homogeneous();
-        let post_rotation = self
-            .post_rotation
-            .to_homogeneous()
-            .try_inverse()
-            .unwrap_or_else(|| {
-                Log::writeln(
-                    "Unable to inverse post rotation matrix! Fallback to identity matrix."
-                        .to_owned(),
-                );
-                Matrix4::identity()
-            });
         let rotation = self.local_rotation.to_homogeneous();
         let scale = Matrix4::new_nonuniform_scaling(&self.local_scale);
         let translation = Matrix4::new_translation(&self.local_position);
         let rotation_offset = Matrix4::new_translation(&self.rotation_offset);
-        let rotation_pivot = Matrix4::new_translation(&self.rotation_pivot);
-        let rotation_pivot_inv = rotation_pivot.try_inverse().unwrap_or_else(|| {
-            Log::writeln(
-                "Unable to inverse rotation pivot matrix! Fallback to identity matrix.".to_owned(),
-            );
-            Matrix4::identity()
-        });
         let scale_offset = Matrix4::new_translation(&self.scaling_offset);
+        let rotation_pivot = Matrix4::new_translation(&self.rotation_pivot);
         let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
-        let scale_pivot_inv = scale_pivot.try_inverse().unwrap_or_else(|| {
-            Log::writeln(
-                "Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned(),
-            );
-            Matrix4::identity()
-        });
 
         translation
             * rotation_offset
             * rotation_pivot
             * pre_rotation
             * rotation
-            * post_rotation
-            * rotation_pivot_inv
+            * self.post_rotation_matrix
+            * self.rotation_pivot_inv_matrix
             * scale_offset
             * scale_pivot
             * scale
-            * scale_pivot_inv
+            * self.scale_pivot_inv_matrix
     }
 
     /// Returns matrix which is final result of transform. Matrix then can be used to transform
@@ -444,6 +453,9 @@ impl TransformBuilder {
             scaling_offset: self.scaling_offset.unwrap_or_default(),
             scaling_pivot: self.scaling_pivot.unwrap_or_default(),
             matrix: Cell::new(Matrix4::identity()),
+            rotation_pivot_inv_matrix: Matrix4::identity(),
+            scale_pivot_inv_matrix: Matrix4::identity(),
+            post_rotation_matrix: Matrix4::identity(),
         }
     }
 }
