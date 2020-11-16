@@ -1,3 +1,5 @@
+![Discord](https://img.shields.io/discord/756573453561102427)
+
 # RG3D
 
 3D game engine written in Rust. 
