@@ -1512,7 +1512,7 @@ fn main() {
         .with_title("rusty editor")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
 
     engine.resource_manager.state().set_textures_path("data");
 
