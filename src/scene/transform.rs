@@ -46,9 +46,11 @@
 //! initial components, thats why engine does not provide any methods to get those
 //! properties back.
 
-use crate::core::algebra::{Matrix4, UnitQuaternion, Vector3};
 use crate::{
-    core::visitor::{Visit, VisitResult, Visitor},
+    core::{
+        algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
+        visitor::{Visit, VisitResult, Visitor},
+    },
     utils::log::Log,
 };
 use std::cell::Cell;
@@ -70,9 +72,7 @@ pub struct Transform {
     scaling_pivot: Vector3<f32>,
     /// Combined transform. Final result of combination of other properties.
     matrix: Cell<Matrix4<f32>>,
-    rotation_pivot_inv_matrix: Matrix4<f32>,
-    scale_pivot_inv_matrix: Matrix4<f32>,
-    post_rotation_matrix: Matrix4<f32>,
+    post_rotation_matrix: Matrix3<f32>,
 }
 
 impl Visit for Transform {
@@ -115,9 +115,7 @@ impl Transform {
             scaling_offset: Vector3::default(),
             scaling_pivot: Vector3::default(),
             matrix: Cell::new(Matrix4::identity()),
-            rotation_pivot_inv_matrix: Matrix4::identity(),
-            scale_pivot_inv_matrix: Matrix4::identity(),
-            post_rotation_matrix: Matrix4::identity(),
+            post_rotation_matrix: Matrix3::identity(),
         }
     }
 
@@ -199,14 +197,15 @@ impl Transform {
             self.post_rotation = post_rotation;
             self.post_rotation_matrix = self
                 .post_rotation
-                .to_homogeneous()
+                .to_rotation_matrix()
+                .matrix()
                 .try_inverse()
                 .unwrap_or_else(|| {
                     Log::writeln(
                         "Unable to inverse post rotation matrix! Fallback to identity matrix."
                             .to_owned(),
                     );
-                    Matrix4::identity()
+                    Matrix3::identity()
                 });
             self.dirty.set(true);
         }
@@ -243,14 +242,6 @@ impl Transform {
     pub fn set_rotation_pivot(&mut self, rotation_pivot: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.rotation_pivot != rotation_pivot {
             self.rotation_pivot = rotation_pivot;
-            let rotation_pivot = Matrix4::new_translation(&self.rotation_pivot);
-            self.rotation_pivot_inv_matrix = rotation_pivot.try_inverse().unwrap_or_else(|| {
-                Log::writeln(
-                    "Unable to inverse rotation pivot matrix! Fallback to identity matrix."
-                        .to_owned(),
-                );
-                Matrix4::identity()
-            });
             self.dirty.set(true);
         }
         self
@@ -285,13 +276,6 @@ impl Transform {
     pub fn set_scaling_pivot(&mut self, scaling_pivot: Vector3<f32>) -> &mut Self {
         if self.dirty.get() || self.scaling_pivot != scaling_pivot {
             self.scaling_pivot = scaling_pivot;
-            let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
-            self.scale_pivot_inv_matrix = scale_pivot.try_inverse().unwrap_or_else(|| {
-                Log::writeln(
-                    "Unable to inverse scale pivot matrix! Fallback to identity matrix.".to_owned(),
-                );
-                Matrix4::identity()
-            });
             self.dirty.set(true);
         }
         self
@@ -313,26 +297,124 @@ impl Transform {
     }
 
     fn calculate_local_transform(&self) -> Matrix4<f32> {
-        let pre_rotation = self.pre_rotation.to_homogeneous();
-        let rotation = self.local_rotation.to_homogeneous();
-        let scale = Matrix4::new_nonuniform_scaling(&self.local_scale);
-        let translation = Matrix4::new_translation(&self.local_position);
-        let rotation_offset = Matrix4::new_translation(&self.rotation_offset);
-        let scale_offset = Matrix4::new_translation(&self.scaling_offset);
-        let rotation_pivot = Matrix4::new_translation(&self.rotation_pivot);
-        let scale_pivot = Matrix4::new_translation(&self.scaling_pivot);
+        // Make shortcuts to remove visual clutter.
+        let por = &self.post_rotation_matrix;
+        let pr = *self.pre_rotation.to_rotation_matrix().matrix();
+        let r = *self.local_rotation.to_rotation_matrix().matrix();
 
-        translation
-            * rotation_offset
-            * rotation_pivot
-            * pre_rotation
-            * rotation
-            * self.post_rotation_matrix
-            * self.rotation_pivot_inv_matrix
-            * scale_offset
-            * scale_pivot
-            * scale
-            * self.scale_pivot_inv_matrix
+        let sx = self.local_scale.x;
+        let sy = self.local_scale.y;
+        let sz = self.local_scale.z;
+
+        let tx = self.local_position.x;
+        let ty = self.local_position.y;
+        let tz = self.local_position.z;
+
+        let rpx = self.rotation_pivot.x;
+        let rpy = self.rotation_pivot.y;
+        let rpz = self.rotation_pivot.z;
+
+        let rox = self.rotation_offset.x;
+        let roy = self.rotation_offset.y;
+        let roz = self.rotation_offset.z;
+
+        let spx = self.scaling_pivot.x;
+        let spy = self.scaling_pivot.y;
+        let spz = self.scaling_pivot.z;
+
+        let sox = self.scaling_offset.x;
+        let soy = self.scaling_offset.y;
+        let soz = self.scaling_offset.z;
+
+        // Optimized multiplication of these matrices:
+        //
+        // Transform = T * Roff * Rp * Rpre * R * Rpost * Rp⁻¹ * Soff * Sp * S * Sp⁻¹
+        //
+        // where
+        // T     - Translation
+        // Roff  - Rotation offset
+        // Rp    - Rotation pivot
+        // Rpre  - Pre-rotation
+        // R     - Rotation
+        // Rpost - Post-rotation
+        // Rp⁻¹  - Inverse of the rotation pivot
+        // Soff  - Scaling offset
+        // Sp    - Scaling pivot
+        // S     - Scaling
+        // Sp⁻¹  - Inverse of the scaling pivot
+        let a0 = pr[0] * r[0] + pr[3] * r[1] + pr[6] * r[2];
+        let a1 = pr[1] * r[0] + pr[4] * r[1] + pr[7] * r[2];
+        let a2 = pr[2] * r[0] + pr[5] * r[1] + pr[8] * r[2];
+        let a3 = pr[0] * r[3] + pr[3] * r[4] + pr[6] * r[5];
+        let a4 = pr[1] * r[3] + pr[4] * r[4] + pr[7] * r[5];
+        let a5 = pr[2] * r[3] + pr[5] * r[4] + pr[8] * r[5];
+        let a6 = pr[0] * r[6] + pr[3] * r[7] + pr[6] * r[8];
+        let a7 = pr[1] * r[6] + pr[4] * r[7] + pr[7] * r[8];
+        let a8 = pr[2] * r[6] + pr[5] * r[7] + pr[8] * r[8];
+        let f0 = por[0] * a0 + por[1] * a3 + por[2] * a6;
+        let f1 = por[0] * a1 + por[1] * a4 + por[2] * a7;
+        let f2 = por[0] * a2 + por[1] * a5 + por[2] * a8;
+        let f3 = por[3] * a0 + por[4] * a3 + por[5] * a6;
+        let f4 = por[3] * a1 + por[4] * a4 + por[5] * a7;
+        let f5 = por[3] * a2 + por[4] * a5 + por[5] * a8;
+        let f6 = por[6] * a0 + por[7] * a3 + por[8] * a6;
+        let f7 = por[6] * a1 + por[7] * a4 + por[8] * a7;
+        let f8 = por[6] * a2 + por[7] * a5 + por[8] * a8;
+        let m0 = sx * f0;
+        let m1 = sx * f1;
+        let m2 = sx * f2;
+        let m3 = 0.0;
+        let m4 = sy * f3;
+        let m5 = sy * f4;
+        let m6 = sy * f5;
+        let m7 = 0.0;
+        let m8 = sz * f6;
+        let m9 = sz * f7;
+        let m10 = sz * f8;
+        let m11 = 0.0;
+        let k0 = spx * f0;
+        let k1 = spy * f3;
+        let k2 = spz * f6;
+        let m12 = rox + rpx + tx - rpx * f0 - rpy * f3 - rpz * f6
+            + sox * f0
+            + k0
+            + soy * f3
+            + k1
+            + soz * f6
+            + k2
+            - sx * k0
+            - sy * k1
+            - sz * k2;
+        let k3 = spx * f1;
+        let k4 = spy * f4;
+        let k5 = spz * f7;
+        let m13 = roy + rpy + ty - rpx * f1 - rpy * f4 - rpz * f7
+            + sox * f1
+            + k3
+            + soy * f4
+            + k4
+            + soz * f7
+            + k5
+            - sx * k3
+            - sy * k4
+            - sz * k5;
+        let k6 = spx * f2;
+        let k7 = spy * f5;
+        let k8 = spz * f8;
+        let m14 = roz + rpz + tz - rpx * f2 - rpy * f5 - rpz * f8
+            + sox * f2
+            + k6
+            + soy * f5
+            + k7
+            + soz * f8
+            + k8
+            - sx * k6
+            - sy * k7
+            - sz * k8;
+        let m15 = 1.0;
+        Matrix4::new(
+            m0, m4, m8, m12, m1, m5, m9, m13, m2, m6, m10, m14, m3, m7, m11, m15,
+        )
     }
 
     /// Returns matrix which is final result of transform. Matrix then can be used to transform
@@ -453,9 +535,7 @@ impl TransformBuilder {
             scaling_offset: self.scaling_offset.unwrap_or_default(),
             scaling_pivot: self.scaling_pivot.unwrap_or_default(),
             matrix: Cell::new(Matrix4::identity()),
-            rotation_pivot_inv_matrix: Matrix4::identity(),
-            scale_pivot_inv_matrix: Matrix4::identity(),
-            post_rotation_matrix: Matrix4::identity(),
+            post_rotation_matrix: Matrix3::identity(),
         }
     }
 }

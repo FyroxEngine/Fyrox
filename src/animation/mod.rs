@@ -189,26 +189,24 @@ impl Track {
         }
 
         if right_index == 0 {
-            return self.frames.first().map(|k| LocalPose {
+            self.frames.first().map(|k| LocalPose {
                 node: self.node,
                 position: k.position,
                 scale: k.scale,
                 rotation: k.rotation,
-            });
-        } else if let Some(left) = self.frames.get(right_index - 1) {
-            if let Some(right) = self.frames.get(right_index) {
-                let interpolator = (time - left.time) / (right.time - left.time);
+            })
+        } else {
+            let left = &self.frames[right_index - 1];
+            let right = &self.frames[right_index];
+            let interpolator = (time - left.time) / (right.time - left.time);
 
-                return Some(LocalPose {
-                    node: self.node,
-                    position: left.position.lerp(&right.position, interpolator),
-                    scale: left.scale.lerp(&right.scale, interpolator),
-                    rotation: left.rotation.slerp(&right.rotation, interpolator),
-                });
-            }
+            Some(LocalPose {
+                node: self.node,
+                position: left.position.lerp(&right.position, interpolator),
+                scale: left.scale.lerp(&right.scale, interpolator),
+                rotation: left.rotation.nlerp(&right.rotation, interpolator),
+            })
         }
-
-        None
     }
 }
 

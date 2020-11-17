@@ -167,6 +167,14 @@ impl Frustum {
         aabb: &AxisAlignedBoundingBox,
         transform: &Matrix4<f32>,
     ) -> bool {
+        if self.is_contains_point(
+            transform
+                .transform_point(&Point3::from(aabb.center()))
+                .coords,
+        ) {
+            return true;
+        }
+
         let corners = [
             transform
                 .transform_point(&Point3::new(aabb.min.x, aabb.min.y, aabb.min.z))

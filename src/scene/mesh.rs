@@ -197,7 +197,8 @@ impl Mesh {
     /// Mesh is considered visible if its bounding box visible by frustum, or if any bones
     /// position is inside frustum.
     pub fn is_intersect_frustum(&self, graph: &Graph, frustum: &Frustum) -> bool {
-        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform) {
+        if frustum.is_intersects_aabb_transform(&self.bounding_box(), &self.global_transform.get())
+        {
             return true;
         }
 

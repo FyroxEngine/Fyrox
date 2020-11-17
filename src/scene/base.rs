@@ -16,6 +16,7 @@ use crate::{
     resource::model::Model,
     scene::{node::Node, transform::Transform},
 };
+use std::cell::Cell;
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -120,10 +121,10 @@ pub struct Base {
     name: String,
     local_transform: Transform,
     visibility: bool,
-    pub(in crate) global_visibility: bool,
+    pub(in crate) global_visibility: Cell<bool>,
     pub(in crate) parent: Handle<Node>,
     pub(in crate) children: Vec<Handle<Node>>,
-    pub(in crate) global_transform: Matrix4<f32>,
+    pub(in crate) global_transform: Cell<Matrix4<f32>>,
     /// Bone-specific matrix. Non-serializable.
     pub(in crate) inv_bind_pose_transform: Matrix4<f32>,
     /// A resource from which this node was instantiated from, can work in pair
@@ -208,7 +209,7 @@ impl Base {
     /// of transforms of parent nodes. This is the final matrix that describes real
     /// location of object in the world.
     pub fn global_transform(&self) -> Matrix4<f32> {
-        self.global_transform
+        self.global_transform.get()
     }
 
     /// Returns inverse of bind pose matrix. Bind pose matrix - is special matrix
@@ -247,7 +248,7 @@ impl Base {
     /// camera, use frustum visibility check. However this still can't tell you if object
     /// is behind obstacle or not.
     pub fn global_visibility(&self) -> bool {
-        self.global_visibility
+        self.global_visibility.get()
     }
 
     /// Handle to node in scene of model resource from which this node
@@ -258,25 +259,25 @@ impl Base {
 
     /// Returns position of the node in absolute coordinates.
     pub fn global_position(&self) -> Vector3<f32> {
-        self.global_transform.position()
+        self.global_transform.get().position()
     }
 
     /// Returns "look" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
     pub fn look_vector(&self) -> Vector3<f32> {
-        self.global_transform.look()
+        self.global_transform.get().look()
     }
 
     /// Returns "side" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
     pub fn side_vector(&self) -> Vector3<f32> {
-        self.global_transform.side()
+        self.global_transform.get().side()
     }
 
     /// Returns "up" vector of global transform basis, in most cases return vector
     /// will be non-normalized.
     pub fn up_vector(&self) -> Vector3<f32> {
-        self.global_transform.up()
+        self.global_transform.get().up()
     }
 
     /// Sets depth range offset factor. It allows you to move depth range by given
@@ -318,9 +319,9 @@ impl Base {
         Self {
             name: self.name.clone(),
             local_transform: self.local_transform.clone(),
-            global_transform: self.global_transform,
+            global_transform: self.global_transform.clone(),
             visibility: self.visibility,
-            global_visibility: self.global_visibility,
+            global_visibility: self.global_visibility.clone(),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: self.resource.clone(),
             is_resource_instance: self.is_resource_instance,
@@ -439,9 +440,9 @@ impl BaseBuilder {
             local_transform: self.local_transform.unwrap_or_else(Transform::identity),
             lifetime: self.lifetime,
             visibility: self.visibility.unwrap_or(true),
-            global_visibility: true,
+            global_visibility: Cell::new(true),
             parent: Handle::NONE,
-            global_transform: Matrix4::identity(),
+            global_transform: Cell::new(Matrix4::identity()),
             inv_bind_pose_transform: Matrix4::identity(),
             resource: None,
             original: Handle::NONE,

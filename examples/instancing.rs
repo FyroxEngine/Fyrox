@@ -56,7 +56,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 32.0, -164.0)).await;
+    let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 32.0, -140.0)).await;
 
     let camera = scene.graph.add_node(Node::Camera(camera));
 
@@ -135,7 +135,7 @@ fn main() {
         .with_title("Example - Instancing")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, false).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -193,15 +193,11 @@ fn main() {
                     dt -= fixed_timestep;
                     elapsed_time += fixed_timestep;
 
-                    // ************************
-                    // Put your game logic here.
-                    // ************************
-
                     // Use stored scene handle to borrow a mutable reference of scene in
                     // engine.
                     let scene = &mut engine.scenes[scene_handle];
 
-                    // Our animation must be applied to scene explicitly, otherwise
+                    // Our animations must be applied to scene explicitly, otherwise
                     // it will have no effect.
                     for &animation in animations.iter() {
                         scene
@@ -222,22 +218,23 @@ fn main() {
                         UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_angle),
                     );
 
-                    let statistics = engine.renderer.get_statistics();
-                    let text = format!(
-                        "Example - Instancing\nUse [A][D] keys to rotate camera.\nFPS: {}\nFrame time: {} ms\nDraw Calls: {}\nTriangles Rendered: {}",
-                        statistics.frames_per_second,
-                        statistics.pure_frame_time,
-                        statistics.geometry.draw_calls,
-                        statistics.geometry.triangles_rendered
-                    );
-                    engine.user_interface.send_message(TextMessage::text(
-                        debug_text,
-                        MessageDirection::ToWidget,
-                        text,
-                    ));
-
                     engine.update(fixed_timestep);
                 }
+
+                let statistics = engine.renderer.get_statistics();
+                let text = format!(
+                    "Example - Instancing\nModels count: {}\nUse [A][D] keys to rotate camera.\nFPS: {}\nFrame time: {} ms\nDraw Calls: {}\nTriangles Rendered: {}",
+                    animations.len(),
+                    statistics.frames_per_second,
+                    statistics.capped_frame_time,
+                    statistics.geometry.draw_calls,
+                    statistics.geometry.triangles_rendered
+                );
+                engine.user_interface.send_message(TextMessage::text(
+                    debug_text,
+                    MessageDirection::ToWidget,
+                    text,
+                ));
 
                 // It is very important to "pump" messages from UI. Even if don't need to
                 // respond to such message, you should call this method, otherwise UI

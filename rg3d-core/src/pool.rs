@@ -754,9 +754,12 @@ impl<T> Pool<T> {
     /// ```
     #[must_use]
     pub fn iter(&self) -> PoolIterator<T> {
-        PoolIterator {
-            pool: self,
-            current: 0,
+        unsafe {
+            PoolIterator {
+                ptr: self.records.as_ptr(),
+                end: self.records.as_ptr().add(self.records.len()),
+                marker: PhantomData,
+            }
         }
     }
 
@@ -871,27 +874,26 @@ impl<T> IndexMut<Handle<T>> for Pool<T> {
 }
 
 pub struct PoolIterator<'a, T> {
-    pool: &'a Pool<T>,
-    current: usize,
+    ptr: *const PoolRecord<T>,
+    end: *const PoolRecord<T>,
+    marker: PhantomData<&'a T>,
 }
 
 impl<'a, T> Iterator for PoolIterator<'a, T> {
     type Item = &'a T;
 
-    fn next(&mut self) -> Option<&'a T> {
-        loop {
-            match self.pool.records.get(self.current) {
-                Some(record) => {
-                    if let Some(payload) = &record.payload {
-                        self.current += 1;
-                        return Some(payload);
-                    }
-                    self.current += 1;
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            while self.ptr != self.end {
+                let current = &*self.ptr;
+                if let Some(ref payload) = current.payload {
+                    self.ptr = self.ptr.offset(1);
+                    return Some(payload);
                 }
-                None => {
-                    return None;
-                }
+                self.ptr = self.ptr.offset(1);
             }
+
+            None
         }
     }
 }

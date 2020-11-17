@@ -946,19 +946,20 @@ impl VisibilityCache {
 
         // Fill rest of data from global visibility flag of nodes.
         for (handle, node) in graph.pair_iter() {
-            // We need to fill only unfilled entries, none of visibility flags of a node can
-            // make it visible again if lod group hid it.
-            self.map.entry(handle).or_insert_with(|| {
-                let mut visibility = node.global_visibility();
-                if visibility {
-                    if let Some(frustum) = frustum {
-                        if let Node::Mesh(mesh) = node {
+            // We care only about meshes.
+            if let Node::Mesh(mesh) = node {
+                // We need to fill only unfilled entries, none of visibility flags of a node can
+                // make it visible again if lod group hid it.
+                self.map.entry(handle).or_insert_with(|| {
+                    let mut visibility = node.global_visibility();
+                    if visibility {
+                        if let Some(frustum) = frustum {
                             visibility = mesh.is_intersect_frustum(graph, frustum);
                         }
                     }
-                }
-                visibility
-            });
+                    visibility
+                });
+            }
         }
     }
 

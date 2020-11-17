@@ -433,25 +433,27 @@ impl Graph {
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
     pub fn update_hierarchical_data(&mut self) {
-        self.stack.clear();
-        self.stack.push(self.root);
-        while let Some(node_handle) = self.stack.pop() {
-            let parent_handle = self.pool[node_handle].parent();
+        fn update_recursively(graph: &Graph, node_handle: Handle<Node>) {
+            let node = &graph.pool[node_handle];
 
             let (parent_global_transform, parent_visibility) =
-                if let Some(parent) = self.pool.try_borrow(parent_handle) {
+                if let Some(parent) = graph.pool.try_borrow(node.parent()) {
                     (parent.global_transform(), parent.global_visibility())
                 } else {
                     (Matrix4::identity(), true)
                 };
 
-            let node = &mut self.pool[node_handle];
-            node.global_transform = parent_global_transform * node.local_transform().matrix();
-            node.global_visibility = parent_visibility && node.visibility();
+            node.global_transform
+                .set(parent_global_transform * node.local_transform().matrix());
+            node.global_visibility
+                .set(parent_visibility && node.visibility());
 
-            // Queue children and continue traversal on them
-            self.stack.extend_from_slice(node.children());
+            for &child in node.children() {
+                update_recursively(graph, child);
+            }
         }
+
+        update_recursively(self, self.root);
     }
 
     /// Checks whether given node handle is valid or not.
@@ -465,11 +467,14 @@ impl Graph {
 
         for i in 0..self.pool.get_capacity() {
             if let Some(node) = self.pool.at_mut(i) {
-                if let Some(lifetime) = node.lifetime.as_mut() {
+                let remove = if let Some(lifetime) = node.lifetime.as_mut() {
                     *lifetime -= dt;
-                }
+                    *lifetime <= 0.0
+                } else {
+                    false
+                };
 
-                if node.lifetime.map_or(false, |l| l <= 0.0) {
+                if remove {
                     self.remove_node(self.pool.handle_from_index(i));
                 } else {
                     match node {

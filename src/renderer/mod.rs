@@ -352,6 +352,7 @@ pub(in crate) struct GeometryCache {
 }
 
 #[repr(C)]
+#[doc(hidden)]
 pub struct InstanceData {
     color: Color,
     world: Matrix4<f32>,

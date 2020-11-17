@@ -74,9 +74,10 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     pub fn new(
         window_builder: WindowBuilder,
         events_loop: &EventLoop<()>,
+        vsync: bool,
     ) -> Result<Self, EngineError> {
         let context_wrapper: WindowedContext<NotCurrent> = glutin::ContextBuilder::new()
-            .with_vsync(true)
+            .with_vsync(vsync)
             .with_gl_profile(GlProfile::Core)
             .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
             .build_windowed(window_builder, events_loop)?;

@@ -124,7 +124,7 @@ impl Lightmap {
                 if !mesh.global_visibility() {
                     continue;
                 }
-                let global_transform = mesh.global_transform;
+                let global_transform = mesh.global_transform.get();
                 let mut surface_lightmaps = Vec::new();
                 for surface in mesh.surfaces() {
                     let data = surface.data();

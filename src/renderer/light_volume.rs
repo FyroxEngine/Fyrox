@@ -161,7 +161,7 @@ impl LightVolumeRenderer {
                 // for fadeout effect.
                 let bias = 0.05;
                 let k = ((0.5 + bias) * spot.full_cone_angle()).sin() * spot.distance();
-                let light_shape_matrix = light.global_transform
+                let light_shape_matrix = light.global_transform()
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, spot.distance(), k));
                 let mvp = view_proj * light_shape_matrix;
 
@@ -281,7 +281,7 @@ impl LightVolumeRenderer {
                 // for fadeout effect. It is set to 5%.
                 let bias = 1.05;
                 let k = bias * point.radius();
-                let light_shape_matrix = light.global_transform
+                let light_shape_matrix = light.global_transform()
                     * Matrix4::new_nonuniform_scaling(&Vector3::new(k, k, k));
                 let mvp = view_proj * light_shape_matrix;
 
