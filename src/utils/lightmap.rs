@@ -71,7 +71,7 @@ impl Visit for Lightmap {
 
 impl Lightmap {
     /// Generates lightmap for given scene.
-    /// Each mesh *must* have generated UVs for lightmap, otherwise result will be incorrect!    
+    /// Each mesh *must* have generated UVs for lightmap, otherwise result will be incorrect!
     pub fn new(scene: &Scene, texels_per_unit: u32) -> Self {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
@@ -181,7 +181,7 @@ pub struct DirectionalLightDefinition {
 pub struct SpotLightDefinition {
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
-    /// Angle (in radians) at cone top which defines area with uniform light.  
+    /// Angle (in radians) at cone top which defines area with uniform light.
     pub hotspot_cone_angle: f32,
     /// Angle delta (in radians) outside of cone top which sets area of smooth
     /// transition of intensity from max to min.
