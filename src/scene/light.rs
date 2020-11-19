@@ -29,6 +29,7 @@ use crate::{
     },
 };
 use std::ops::{Deref, DerefMut};
+use crate::resource::texture::Texture;
 
 /// Default amount of light scattering, it is set to 3% which is fairly
 /// significant value and you'll clearly see light volume with such settings.
@@ -72,6 +73,7 @@ pub struct SpotLight {
     falloff_angle_delta: f32,
     shadow_bias: f32,
     distance: f32,
+    cookie_texture: Option<Texture>,
 }
 
 impl Deref for SpotLight {
@@ -96,6 +98,7 @@ impl Default for SpotLight {
             falloff_angle_delta: 5.0f32.to_radians(),
             shadow_bias: 0.00005,
             distance: 10.0,
+            cookie_texture: None,
         }
     }
 }
@@ -158,6 +161,21 @@ impl SpotLight {
         self.distance
     }
 
+    /// Set cookie texture. Also called gobo this texture gets projected
+    /// by the spot light.
+    #[inline]
+    pub fn set_cookie_texture(&mut self, texture: Texture) -> &mut Self{
+        self.cookie_texture = Some(texture);
+        self
+    }
+
+    /// Get cookie texture. Also called gobo this texture gets projected
+    /// by the spot light.
+    #[inline]
+    pub fn cookie_texture(&self) -> Option<&Texture> {
+        self.cookie_texture.as_ref()
+    }
+
     /// Creates a raw copy of a light node.
     pub fn raw_copy(&self) -> Self {
         Self {
@@ -166,6 +184,7 @@ impl SpotLight {
             falloff_angle_delta: self.falloff_angle_delta,
             shadow_bias: self.shadow_bias,
             distance: self.distance,
+            cookie_texture: self.cookie_texture.clone(),
         }
     }
 }
@@ -180,6 +199,7 @@ impl Visit for SpotLight {
             .visit("FalloffAngleDelta", visitor)?;
         self.distance.visit("Distance", visitor)?;
         let _ = self.shadow_bias.visit("ShadowBias", visitor);
+        let _ = self.cookie_texture.visit("CookieTexture", visitor);
 
         visitor.leave_region()
     }
@@ -192,6 +212,7 @@ pub struct SpotLightBuilder {
     falloff_angle_delta: f32,
     shadow_bias: f32,
     distance: f32,
+    cookie_texture: Option<Texture>,
 }
 
 impl SpotLightBuilder {
@@ -203,6 +224,7 @@ impl SpotLightBuilder {
             falloff_angle_delta: 5.0f32.to_radians(),
             shadow_bias: 0.00005,
             distance: 10.0,
+            cookie_texture: None,
         }
     }
 
@@ -230,6 +252,12 @@ impl SpotLightBuilder {
         self
     }
 
+    /// Sets the desired cookie/gobo texture.
+    pub fn with_cookie_texture(mut self, texture: Texture) -> Self {
+        self.cookie_texture = Some(texture);
+        self
+    }
+
     /// Builds new spot light instance.
     pub fn build(self) -> SpotLight {
         SpotLight {
@@ -238,6 +266,7 @@ impl SpotLightBuilder {
             falloff_angle_delta: self.falloff_angle_delta,
             shadow_bias: self.shadow_bias,
             distance: self.distance,
+            cookie_texture: self.cookie_texture,
         }
     }
 

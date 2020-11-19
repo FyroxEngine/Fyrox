@@ -66,6 +66,8 @@ struct SpotLightShader {
     color_sampler: UniformLocation,
     normal_sampler: UniformLocation,
     spot_shadow_texture: UniformLocation,
+    cookie_enabled: UniformLocation,
+    cookie_texture: UniformLocation,
     light_view_proj_matrix: UniformLocation,
     shadows_enabled: UniformLocation,
     soft_shadows: UniformLocation,
@@ -93,6 +95,8 @@ impl SpotLightShader {
             color_sampler: program.uniform_location("colorTexture")?,
             normal_sampler: program.uniform_location("normalTexture")?,
             spot_shadow_texture: program.uniform_location("spotShadowTexture")?,
+            cookie_enabled: program.uniform_location("cookieEnabled")?,
+            cookie_texture: program.uniform_location("cookieTexture")?,
             light_view_proj_matrix: program.uniform_location("lightViewProjMatrix")?,
             shadows_enabled: program.uniform_location("shadowsEnabled")?,
             soft_shadows: program.uniform_location("softShadows")?,
@@ -701,6 +705,13 @@ impl DeferredLightRenderer {
                 Light::Spot(spot_light) => {
                     let shader = &self.spot_light_shader;
 
+                    let (cookie_enabled, cookie_texture) =
+                        if let Some(texture) = spot_light.cookie_texture() {
+                            (true, textures.get(state, texture.clone()).unwrap())
+                        } else {
+                            (false, white_dummy.clone())
+                        };
+
                     let uniforms = [
                         (shader.shadows_enabled, UniformValue::Bool(shadows_enabled)),
                         (
@@ -770,6 +781,14 @@ impl DeferredLightRenderer {
                                 texture: self
                                     .spot_shadow_map_renderer
                                     .cascade_texture(cascade_index),
+                            },
+                        ),
+                        (shader.cookie_enabled, UniformValue::Bool(cookie_enabled)),
+                        (
+                            shader.cookie_texture,
+                            UniformValue::Sampler {
+                                index: 4,
+                                texture: cookie_texture,
                             },
                         ),
                         (
