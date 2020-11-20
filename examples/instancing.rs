@@ -33,7 +33,6 @@ use rg3d::{
     },
     scene::{
         base::BaseBuilder,
-        graph::Graph,
         light::{BaseLightBuilder, PointLightBuilder},
         mesh::MeshBuilder,
         node::Node,
@@ -127,21 +126,17 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         }
     }
 
-    fn make_point_light(graph: &mut Graph, pos: Vector3<f32>) {
-        graph.add_node(
-            PointLightBuilder::new(BaseLightBuilder::new(
-                BaseBuilder::new()
-                    .with_local_transform(TransformBuilder::new().with_local_position(pos).build()),
-            ))
-            .with_radius(100.0)
-            .build_node(),
-        );
-    }
-
-    make_point_light(&mut scene.graph, Vector3::new(-50.0, 30.0, -50.0));
-    make_point_light(&mut scene.graph, Vector3::new(50.0, 30.0, -50.0));
-    make_point_light(&mut scene.graph, Vector3::new(50.0, 30.0, 50.0));
-    make_point_light(&mut scene.graph, Vector3::new(-50.0, 30.0, 50.0));
+    scene.graph.add_node(
+        PointLightBuilder::new(BaseLightBuilder::new(
+            BaseBuilder::new().with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vector3::new(0.0, 30.0, -50.0))
+                    .build(),
+            ),
+        ))
+        .with_radius(100.0)
+        .build_node(),
+    );
 
     scene.graph.add_node(
         MeshBuilder::new(
