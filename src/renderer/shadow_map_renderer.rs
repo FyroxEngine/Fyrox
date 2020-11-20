@@ -1,13 +1,15 @@
 #![warn(clippy::too_many_arguments)]
 
-use crate::core::algebra::{Matrix4, Vector3};
+use crate::renderer::ShadowMapPrecision;
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector3},
         color::Color,
         math::{frustum::Frustum, Rect},
         scope_profile,
     },
     renderer::{
+        batch::BatchStorage,
         error::RendererError,
         framework::{
             framebuffer::{
@@ -18,13 +20,12 @@ use crate::{
                 Coordinate, CubeMapFace, GpuTexture, GpuTextureKind, MagnificationFilter,
                 MinificationFilter, PixelKind, WrapMode,
             },
-            state::{ColorMask, State},
+            state::{ColorMask, PipelineState},
         },
-        GeometryCache, RenderPassStatistics, TextureCache,
+        GeometryCache, RenderPassStatistics,
     },
     scene::{graph::Graph, node::Node},
 };
-use rapier3d::na::Point3;
 use std::{cell::RefCell, rc::Rc};
 
 struct SpotShadowMapShader {
@@ -53,6 +54,7 @@ impl SpotShadowMapShader {
 }
 
 pub struct SpotShadowMapRenderer {
+    precision: ShadowMapPrecision,
     shader: SpotShadowMapShader,
     // Three "cascades" for various use cases:
     //  0 - largest, for lights close to camera.
@@ -73,8 +75,16 @@ fn cascade_size(base_size: usize, cascade: usize) -> usize {
 }
 
 impl SpotShadowMapRenderer {
-    pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
-        fn make_cascade(state: &mut State, size: usize) -> Result<FrameBuffer, RendererError> {
+    pub fn new(
+        state: &mut PipelineState,
+        size: usize,
+        precision: ShadowMapPrecision,
+    ) -> Result<Self, RendererError> {
+        fn make_cascade(
+            state: &mut PipelineState,
+            size: usize,
+            precision: ShadowMapPrecision,
+        ) -> Result<FrameBuffer, RendererError> {
             let depth = {
                 let kind = GpuTextureKind::Rectangle {
                     width: size,
@@ -83,7 +93,10 @@ impl SpotShadowMapRenderer {
                 let mut texture = GpuTexture::new(
                     state,
                     kind,
-                    PixelKind::D16,
+                    match precision {
+                        ShadowMapPrecision::Full => PixelKind::D32,
+                        ShadowMapPrecision::Half => PixelKind::D16,
+                    },
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,
                     1,
@@ -110,11 +123,12 @@ impl SpotShadowMapRenderer {
         }
 
         Ok(Self {
+            precision,
             size,
             cascades: [
-                make_cascade(state, cascade_size(size, 0))?,
-                make_cascade(state, cascade_size(size, 1))?,
-                make_cascade(state, cascade_size(size, 2))?,
+                make_cascade(state, cascade_size(size, 0), precision)?,
+                make_cascade(state, cascade_size(size, 1), precision)?,
+                make_cascade(state, cascade_size(size, 2), precision)?,
             ],
             shader: SpotShadowMapShader::new()?,
             bone_matrices: Vec::new(),
@@ -123,6 +137,10 @@ impl SpotShadowMapRenderer {
 
     pub fn base_size(&self) -> usize {
         self.size
+    }
+
+    pub fn precision(&self) -> ShadowMapPrecision {
+        self.precision
     }
 
     pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<GpuTexture>> {
@@ -140,12 +158,11 @@ impl SpotShadowMapRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(in crate) fn render(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         graph: &Graph,
         light_view_projection: &Matrix4<f32>,
-        white_dummy: Rc<RefCell<GpuTexture>>,
-        textures: &mut TextureCache,
-        geom_map: &mut GeometryCache,
+        batches: &BatchStorage,
+        geom_cache: &mut GeometryCache,
         cascade: usize,
     ) -> RenderPassStatistics {
         scope_profile!();
@@ -160,40 +177,23 @@ impl SpotShadowMapRenderer {
         framebuffer.clear(state, viewport, None, Some(1.0), None);
         let frustum = Frustum::from(*light_view_projection).unwrap();
 
-        for node in graph.linear_iter() {
-            if let Node::Mesh(mesh) = node {
-                if !node.global_visibility() {
-                    continue;
-                }
+        for batch in batches.batches.iter() {
+            let geometry = geom_cache.get(state, &batch.data.lock().unwrap());
 
-                let global_transform = node.global_transform();
+            for instance in batch.instances.iter() {
+                let node = &graph[instance.owner];
 
-                if !mesh.is_intersect_frustum(graph, &frustum) {
-                    continue;
-                }
-
-                for surface in mesh.surfaces().iter() {
-                    let is_skinned = !surface.bones.is_empty();
-
-                    let world = if is_skinned {
-                        Matrix4::identity()
+                let visible = node.global_visibility() && {
+                    if let Node::Mesh(mesh) = node {
+                        mesh.is_intersect_frustum(graph, &frustum)
                     } else {
-                        global_transform
-                    };
-                    let mvp = *light_view_projection * world;
+                        false
+                    }
+                };
 
-                    let diffuse_texture = if let Some(texture) = surface.diffuse_texture() {
-                        if let Some(texture) = textures.get(state, texture) {
-                            texture
-                        } else {
-                            white_dummy.clone()
-                        }
-                    } else {
-                        white_dummy.clone()
-                    };
-
+                if visible {
                     statistics += framebuffer.draw(
-                        geom_map.get(state, &surface.data().lock().unwrap()),
+                        geometry,
                         state,
                         viewport,
                         &self.shader.program,
@@ -209,25 +209,20 @@ impl SpotShadowMapRenderer {
                         &[
                             (
                                 self.shader.world_view_projection_matrix,
-                                UniformValue::Matrix4(mvp),
+                                UniformValue::Matrix4(
+                                    light_view_projection * instance.world_transform,
+                                ),
                             ),
                             (
                                 self.shader.use_skeletal_animation,
-                                UniformValue::Bool(is_skinned),
+                                UniformValue::Bool(batch.is_skinned),
                             ),
                             (
                                 self.shader.bone_matrices,
                                 UniformValue::Mat4Array({
                                     self.bone_matrices.clear();
-
-                                    for &bone_handle in surface.bones.iter() {
-                                        let bone = &graph[bone_handle];
-                                        self.bone_matrices.push(
-                                            bone.global_transform()
-                                                * bone.inv_bind_pose_transform(),
-                                        );
-                                    }
-
+                                    self.bone_matrices
+                                        .extend_from_slice(instance.bone_matrices.as_slice());
                                     &self.bone_matrices
                                 }),
                             ),
@@ -235,7 +230,7 @@ impl SpotShadowMapRenderer {
                                 self.shader.diffuse_texture,
                                 UniformValue::Sampler {
                                     index: 0,
-                                    texture: diffuse_texture,
+                                    texture: batch.diffuse_texture.clone(),
                                 },
                             ),
                         ],
@@ -277,6 +272,7 @@ impl PointShadowMapShader {
 }
 
 pub struct PointShadowMapRenderer {
+    precision: ShadowMapPrecision,
     bone_matrices: Vec<Matrix4<f32>>,
     shader: PointShadowMapShader,
     cascades: [FrameBuffer; 3],
@@ -291,19 +287,26 @@ struct PointShadowCubeMapFace {
 }
 
 pub(in crate) struct PointShadowMapRenderContext<'a, 'c> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub graph: &'c Graph,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
-    pub texture_cache: &'a mut TextureCache,
     pub geom_cache: &'a mut GeometryCache,
     pub cascade: usize,
+    pub batch_storage: &'a BatchStorage,
 }
 
 impl PointShadowMapRenderer {
-    pub fn new(state: &mut State, size: usize) -> Result<Self, RendererError> {
-        fn make_cascade(state: &mut State, size: usize) -> Result<FrameBuffer, RendererError> {
+    pub fn new(
+        state: &mut PipelineState,
+        size: usize,
+        precision: ShadowMapPrecision,
+    ) -> Result<Self, RendererError> {
+        fn make_cascade(
+            state: &mut PipelineState,
+            size: usize,
+            precision: ShadowMapPrecision,
+        ) -> Result<FrameBuffer, RendererError> {
             let depth = {
                 let kind = GpuTextureKind::Rectangle {
                     width: size,
@@ -312,7 +315,10 @@ impl PointShadowMapRenderer {
                 let mut texture = GpuTexture::new(
                     state,
                     kind,
-                    PixelKind::D16,
+                    match precision {
+                        ShadowMapPrecision::Half => PixelKind::D16,
+                        ShadowMapPrecision::Full => PixelKind::D32,
+                    },
                     MinificationFilter::Nearest,
                     MagnificationFilter::Nearest,
                     1,
@@ -365,13 +371,14 @@ impl PointShadowMapRenderer {
         };
 
         Ok(Self {
+            precision,
+            bone_matrices: Default::default(),
             cascades: [
-                make_cascade(state, cascade_size(size, 0))?,
-                make_cascade(state, cascade_size(size, 1))?,
-                make_cascade(state, cascade_size(size, 2))?,
+                make_cascade(state, cascade_size(size, 0), precision)?,
+                make_cascade(state, cascade_size(size, 1), precision)?,
+                make_cascade(state, cascade_size(size, 2), precision)?,
             ],
             size,
-            bone_matrices: Vec::new(),
             shader: PointShadowMapShader::new()?,
             faces: [
                 PointShadowCubeMapFace {
@@ -412,6 +419,10 @@ impl PointShadowMapRenderer {
         self.size
     }
 
+    pub fn precision(&self) -> ShadowMapPrecision {
+        self.precision
+    }
+
     pub fn cascade_texture(&self, cascade: usize) -> Rc<RefCell<GpuTexture>> {
         self.cascades[cascade].color_attachments()[0]
             .texture
@@ -426,12 +437,11 @@ impl PointShadowMapRenderer {
         let PointShadowMapRenderContext {
             state,
             graph,
-            white_dummy,
             light_pos,
             light_radius,
-            texture_cache,
             geom_cache,
             cascade,
+            batch_storage,
         } = args;
 
         let framebuffer = &mut self.cascades[cascade];
@@ -461,35 +471,23 @@ impl PointShadowMapRenderer {
 
             let frustum = Frustum::from(light_view_projection_matrix).unwrap();
 
-            for node in graph.linear_iter() {
-                if let Node::Mesh(mesh) = node {
-                    if !node.global_visibility() {
-                        continue;
-                    }
+            for batch in batch_storage.batches.iter() {
+                let geometry = geom_cache.get(state, &batch.data.lock().unwrap());
 
-                    let global_transform = node.global_transform();
+                for instance in batch.instances.iter() {
+                    let node = &graph[instance.owner];
 
-                    if !mesh.is_intersect_frustum(graph, &frustum) {
-                        continue;
-                    }
-
-                    for surface in mesh.surfaces().iter() {
-                        let is_skinned = !surface.bones.is_empty();
-
-                        let world = if is_skinned {
-                            Matrix4::identity()
+                    let visible = node.global_visibility() && {
+                        if let Node::Mesh(mesh) = node {
+                            mesh.is_intersect_frustum(graph, &frustum)
                         } else {
-                            global_transform
-                        };
-                        let mvp = light_view_projection_matrix * world;
+                            false
+                        }
+                    };
 
-                        let diffuse_texture = surface
-                            .diffuse_texture()
-                            .and_then(|texture| texture_cache.get(state, texture))
-                            .unwrap_or_else(|| white_dummy.clone());
-
+                    if visible {
                         statistics += framebuffer.draw(
-                            geom_cache.get(state, &surface.data().lock().unwrap()),
+                            geometry,
                             state,
                             viewport,
                             &self.shader.program,
@@ -504,28 +502,26 @@ impl PointShadowMapRenderer {
                             },
                             &[
                                 (self.shader.light_position, UniformValue::Vector3(light_pos)),
-                                (self.shader.world_matrix, UniformValue::Matrix4(world)),
+                                (
+                                    self.shader.world_matrix,
+                                    UniformValue::Matrix4(instance.world_transform),
+                                ),
                                 (
                                     self.shader.world_view_projection_matrix,
-                                    UniformValue::Matrix4(mvp),
+                                    UniformValue::Matrix4(
+                                        light_view_projection_matrix * instance.world_transform,
+                                    ),
                                 ),
                                 (
                                     self.shader.use_skeletal_animation,
-                                    UniformValue::Bool(is_skinned),
+                                    UniformValue::Bool(batch.is_skinned),
                                 ),
                                 (
                                     self.shader.bone_matrices,
                                     UniformValue::Mat4Array({
                                         self.bone_matrices.clear();
-
-                                        for &bone_handle in surface.bones.iter() {
-                                            let bone = &graph[bone_handle];
-                                            self.bone_matrices.push(
-                                                bone.global_transform()
-                                                    * bone.inv_bind_pose_transform(),
-                                            );
-                                        }
-
+                                        self.bone_matrices
+                                            .extend_from_slice(instance.bone_matrices.as_slice());
                                         &self.bone_matrices
                                     }),
                                 ),
@@ -533,7 +529,7 @@ impl PointShadowMapRenderer {
                                     self.shader.diffuse_texture,
                                     UniformValue::Sampler {
                                         index: 0,
-                                        texture: diffuse_texture,
+                                        texture: batch.diffuse_texture.clone(),
                                     },
                                 ),
                             ],

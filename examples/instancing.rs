@@ -10,7 +10,6 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
-use rg3d::rand::Rng;
 use rg3d::{
     animation::Animation,
     core::{
@@ -27,8 +26,20 @@ use rg3d::{
         text::TextBuilder,
         widget::WidgetBuilder,
     },
-    renderer::surface::{SurfaceBuilder, SurfaceSharedData},
-    scene::{base::BaseBuilder, mesh::MeshBuilder, node::Node, transform::TransformBuilder, Scene},
+    rand::Rng,
+    renderer::{
+        surface::{SurfaceBuilder, SurfaceSharedData},
+        QualitySettings,
+    },
+    scene::{
+        base::BaseBuilder,
+        graph::Graph,
+        light::{BaseLightBuilder, PointLightBuilder},
+        mesh::MeshBuilder,
+        node::Node,
+        transform::TransformBuilder,
+        Scene,
+    },
     utils::translate_event,
 };
 use std::{
@@ -116,6 +127,40 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         }
     }
 
+    fn make_point_light(graph: &mut Graph, pos: Vector3<f32>) {
+        graph.add_node(
+            PointLightBuilder::new(BaseLightBuilder::new(
+                BaseBuilder::new()
+                    .with_local_transform(TransformBuilder::new().with_local_position(pos).build()),
+            ))
+            .with_radius(100.0)
+            .build_node(),
+        );
+    }
+
+    make_point_light(&mut scene.graph, Vector3::new(-50.0, 30.0, -50.0));
+    make_point_light(&mut scene.graph, Vector3::new(50.0, 30.0, -50.0));
+    make_point_light(&mut scene.graph, Vector3::new(50.0, 30.0, 50.0));
+    make_point_light(&mut scene.graph, Vector3::new(-50.0, 30.0, 50.0));
+
+    scene.graph.add_node(
+        MeshBuilder::new(
+            BaseBuilder::new().with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(Vector3::new(0.0, -0.25, 0.0))
+                    .build(),
+            ),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+            SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+                300.0, 0.25, 300.0,
+            ))),
+        )))
+        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+        .build()])
+        .build_node(),
+    );
+
     GameScene {
         scene,
         camera,
@@ -136,6 +181,10 @@ fn main() {
         .with_resizable(true);
 
     let mut engine = GameEngine::new(window_builder, &event_loop, false).unwrap();
+
+    let mut settings = QualitySettings::ultra();
+    settings.point_shadows_distance = 1000.0;
+    engine.renderer.set_quality_settings(&settings).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -164,7 +213,7 @@ fn main() {
     // Set ambient light.
     engine
         .renderer
-        .set_ambient_color(Color::opaque(200, 200, 200));
+        .set_ambient_color(Color::opaque(100, 100, 100));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;
@@ -189,46 +238,45 @@ fn main() {
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
                 let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                while dt >= fixed_timestep {
-                    dt -= fixed_timestep;
-                    elapsed_time += fixed_timestep;
+                // while dt >= fixed_timestep {
+                dt -= fixed_timestep;
+                elapsed_time += fixed_timestep;
 
-                    // Use stored scene handle to borrow a mutable reference of scene in
-                    // engine.
-                    let scene = &mut engine.scenes[scene_handle];
+                // Use stored scene handle to borrow a mutable reference of scene in
+                // engine.
+                let scene = &mut engine.scenes[scene_handle];
 
-                    // Our animations must be applied to scene explicitly, otherwise
-                    // it will have no effect.
-                    for &animation in animations.iter() {
-                        scene
-                            .animations
-                            .get_mut(animation)
-                            .get_pose()
-                            .apply(&mut scene.graph);
-                    }
-
-                    // Rotate model according to input controller state.
-                    if input_controller.rotate_left {
-                        camera_angle -= 5.0f32.to_radians();
-                    } else if input_controller.rotate_right {
-                        camera_angle += 5.0f32.to_radians();
-                    }
-
-                    scene.graph[camera].local_transform_mut().set_rotation(
-                        UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_angle),
-                    );
-
-                    engine.update(fixed_timestep);
+                // Our animations must be applied to scene explicitly, otherwise
+                // it will have no effect.
+                for &animation in animations.iter() {
+                    scene
+                        .animations
+                        .get_mut(animation)
+                        .get_pose()
+                        .apply(&mut scene.graph);
                 }
 
-                let statistics = engine.renderer.get_statistics();
+                // Rotate model according to input controller state.
+                if input_controller.rotate_left {
+                    camera_angle -= 5.0f32.to_radians();
+                } else if input_controller.rotate_right {
+                    camera_angle += 5.0f32.to_radians();
+                }
+
+                scene.graph[camera].local_transform_mut().set_rotation(
+                    UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_angle),
+                );
+
+                engine.update(fixed_timestep);
+                //}
+
                 let text = format!(
-                    "Example - Instancing\nModels count: {}\nUse [A][D] keys to rotate camera.\nFPS: {}\nFrame time: {} ms\nDraw Calls: {}\nTriangles Rendered: {}",
+                    "Example - Instancing\n\
+                    Models count: {}\n\
+                    Use [A][D] keys to rotate camera.\n\
+                    {}",
                     animations.len(),
-                    statistics.frames_per_second,
-                    statistics.capped_frame_time,
-                    statistics.geometry.draw_calls,
-                    statistics.geometry.triangles_rendered
+                    engine.renderer.get_statistics()
                 );
                 engine.user_interface.send_message(TextMessage::text(
                     debug_text,

@@ -9,7 +9,7 @@ use crate::{
                 types::{GLint, GLuint},
             },
             gpu_texture::GpuTexture,
-            state::State,
+            state::PipelineState,
         },
     },
     utils::log::Log,
@@ -176,13 +176,13 @@ impl GpuProgram {
         }
     }
 
-    pub fn bind(&self, state: &mut State) {
+    pub fn bind(&self, state: &mut PipelineState) {
         state.set_program(self.id);
     }
 
     pub fn set_uniform(
         &self,
-        state: &mut State,
+        state: &mut PipelineState,
         location: UniformLocation,
         value: &UniformValue<'_>,
     ) {

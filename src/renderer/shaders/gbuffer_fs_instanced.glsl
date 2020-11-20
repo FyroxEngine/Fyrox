@@ -8,13 +8,13 @@ uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D lightmapTexture;
-uniform vec4 diffuseColor;
 
 in vec3 normal;
 in vec2 texCoord;
 in vec3 tangent;
 in vec3 binormal;
 in vec2 secondTexCoord;
+in vec4 diffuseColor;
 
 void main()
 {

@@ -1,6 +1,5 @@
-use crate::core::math::Matrix4Ext;
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{math::Matrix4Ext, math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
@@ -8,7 +7,7 @@ use crate::{
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::State,
+            state::PipelineState,
         },
         surface::SurfaceSharedData,
         GeometryCache, RenderPassStatistics, TextureCache,
@@ -54,7 +53,7 @@ pub struct SpriteRenderer {
 }
 
 pub(in crate) struct SpriteRenderContext<'a, 'b, 'c> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub framebuffer: &'b mut FrameBuffer,
     pub graph: &'c Graph,
     pub camera: &'c Camera,

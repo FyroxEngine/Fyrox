@@ -18,6 +18,7 @@ pub mod surface;
 #[allow(unsafe_code)]
 mod framework;
 
+mod batch;
 mod blur;
 mod deferred_light_renderer;
 mod flat_shader;
@@ -40,24 +41,26 @@ use crate::{
     engine::resource_manager::TimedEntry,
     gui::draw::DrawingContext,
     renderer::{
+        batch::{BatchStorage, InstanceData},
         debug_renderer::DebugRenderer,
-        deferred_light_renderer::{DeferredLightRenderer, DeferredRendererContext},
+        deferred_light_renderer::{
+            DeferredLightRenderer, DeferredRendererContext, LightingStatistics,
+        },
         error::RendererError,
         flat_shader::FlatShader,
         framework::{
             framebuffer::{BackBuffer, CullFace, DrawParameters, FrameBufferTrait},
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, DrawCallStatistics, ElementKind,
-                GeometryBuffer, GeometryBufferKind,
+                AttributeDefinition, AttributeKind, BufferBuilder, DrawCallStatistics, ElementKind,
+                GeometryBuffer, GeometryBufferBuilder, GeometryBufferKind,
             },
-            geometry_buffer::{BufferBuilder, GeometryBufferBuilder},
             gl,
             gpu_program::UniformValue,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind,
             },
-            state::State,
+            state::{PipelineState, PipelineStatistics},
         },
         gbuffer::{GBuffer, GBufferRenderContext},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
@@ -69,24 +72,56 @@ use crate::{
     scene::{node::Node, Scene, SceneContainer},
 };
 use glutin::PossiblyCurrent;
-use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc, time};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt::{Display, Formatter},
+    ops::Deref,
+    rc::Rc,
+    time,
+};
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
 #[derive(Copy, Clone)]
 pub struct Statistics {
-    /// Geometry statistics.
+    /// Shows how many pipeline state changes was made per frame.
+    pub pipeline: PipelineStatistics,
+    /// Shows how many lights and shadow maps were rendered.
+    pub lighting: LightingStatistics,
+    /// Shows how many draw calls was made and how many triangles were rendered.
     pub geometry: RenderPassStatistics,
-    /// Real time consumed to render frame.
+    /// Real time consumed to render frame. Time given in **seconds**.
     pub pure_frame_time: f32,
     /// Total time renderer took to process single frame, usually includes
-    /// time renderer spend to wait to buffers swap (can include vsync)
+    /// time renderer spend to wait to buffers swap (can include vsync).
+    /// Time given in **seconds**.
     pub capped_frame_time: f32,
     /// Total amount of frames been rendered in one second.
     pub frames_per_second: usize,
     frame_counter: usize,
     frame_start_time: time::Instant,
     last_fps_commit_time: time::Instant,
+}
+
+impl Display for Statistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "FPS: {}\n\
+            Pure Frame Time: {} ms\n\
+            Capped Frame Time: {} ms\n\
+            {}\n\
+            {}\n\
+            {}\n",
+            self.frames_per_second,
+            self.pure_frame_time * 1000.0,
+            self.capped_frame_time * 1000.0,
+            self.geometry,
+            self.lighting,
+            self.pipeline
+        )
+    }
 }
 
 /// GPU statistics for single frame.
@@ -96,6 +131,17 @@ pub struct RenderPassStatistics {
     pub draw_calls: usize,
     /// Amount of triangles per frame.
     pub triangles_rendered: usize,
+}
+
+impl Display for RenderPassStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Draw Calls: {}\n\
+            Triangles Rendered: {}",
+            self.draw_calls, self.triangles_rendered
+        )
+    }
 }
 
 impl Default for RenderPassStatistics {
@@ -127,6 +173,17 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
     }
 }
 
+/// Shadow map precision allows you to select compromise between quality and performance.
+#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord)]
+pub enum ShadowMapPrecision {
+    /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
+    /// but "shadow acne" may occur.  
+    Half,
+    /// Shadow map will use 32bit pixel format. This option gives highest quality,
+    /// but could be less performant than `Half`.
+    Full,
+}
+
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
 #[derive(Copy, Clone, PartialEq)]
@@ -140,6 +197,9 @@ pub struct QualitySettings {
     pub point_shadows_enabled: bool,
     /// Maximum distance from camera to draw shadows.
     pub point_shadows_distance: f32,
+    /// Point shadow map precision. Allows you to select compromise between
+    /// quality and performance.
+    pub point_shadow_map_precision: ShadowMapPrecision,
 
     /// Spot shadows
     /// Size of square shadow map texture in pixels
@@ -150,6 +210,9 @@ pub struct QualitySettings {
     pub spot_shadows_enabled: bool,
     /// Maximum distance from camera to draw shadows.
     pub spot_shadows_distance: f32,
+    /// Spot shadow map precision. Allows you to select compromise between
+    /// quality and performance.
+    pub spot_shadow_map_precision: ShadowMapPrecision,
 
     /// Whether to use screen space ambient occlusion or not.
     pub use_ssao: bool,
@@ -164,22 +227,7 @@ pub struct QualitySettings {
 
 impl Default for QualitySettings {
     fn default() -> Self {
-        Self {
-            point_shadow_map_size: 1024,
-            point_shadows_distance: 15.0,
-            point_shadows_enabled: true,
-            point_soft_shadows: true,
-
-            spot_shadow_map_size: 1024,
-            spot_shadows_distance: 15.0,
-            spot_shadows_enabled: true,
-            spot_soft_shadows: true,
-
-            use_ssao: true,
-            ssao_radius: 0.5,
-
-            light_scatter_enabled: true,
-        }
+        Self::high()
     }
 }
 
@@ -201,6 +249,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: true,
+
+            point_shadow_map_precision: ShadowMapPrecision::Full,
+            spot_shadow_map_precision: ShadowMapPrecision::Full,
         }
     }
 
@@ -221,6 +272,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: true,
+
+            point_shadow_map_precision: ShadowMapPrecision::Half,
+            spot_shadow_map_precision: ShadowMapPrecision::Half,
         }
     }
 
@@ -241,6 +295,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: false,
+
+            point_shadow_map_precision: ShadowMapPrecision::Half,
+            spot_shadow_map_precision: ShadowMapPrecision::Half,
         }
     }
 
@@ -261,6 +318,9 @@ impl QualitySettings {
             ssao_radius: 0.5,
 
             light_scatter_enabled: false,
+
+            point_shadow_map_precision: ShadowMapPrecision::Half,
+            spot_shadow_map_precision: ShadowMapPrecision::Half,
         }
     }
 }
@@ -270,6 +330,7 @@ impl Statistics {
     fn begin_frame(&mut self) {
         self.frame_start_time = time::Instant::now();
         self.geometry = Default::default();
+        self.lighting = Default::default();
     }
 
     /// Must be called before SwapBuffers but after all rendering is done.
@@ -303,7 +364,9 @@ impl Statistics {
 impl Default for Statistics {
     fn default() -> Self {
         Self {
-            geometry: RenderPassStatistics::default(),
+            pipeline: Default::default(),
+            lighting: Default::default(),
+            geometry: Default::default(),
             pure_frame_time: 0.0,
             capped_frame_time: 0.0,
             frames_per_second: 0,
@@ -316,7 +379,7 @@ impl Default for Statistics {
 
 /// See module docs.
 pub struct Renderer {
-    state: State,
+    state: PipelineState,
     backbuffer: BackBuffer,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
@@ -344,6 +407,7 @@ pub struct Renderer {
     backbuffer_clear_color: Color,
     texture_cache: TextureCache,
     geometry_cache: GeometryCache,
+    batch_storage: BatchStorage,
 }
 
 #[derive(Default)]
@@ -351,18 +415,8 @@ pub(in crate) struct GeometryCache {
     map: HashMap<usize, TimedEntry<GeometryBuffer>>,
 }
 
-#[repr(C)]
-#[doc(hidden)]
-pub struct InstanceData {
-    color: Color,
-    world: Matrix4<f32>,
-    wvp: Matrix4<f32>,
-    // Does NOT include bone matrices, they simply won't fit into vertex attributes
-    // limit and they'll be passed using texture.
-}
-
 impl GeometryCache {
-    fn get(&mut self, state: &mut State, data: &SurfaceSharedData) -> &mut GeometryBuffer {
+    fn get(&mut self, state: &mut PipelineState, data: &SurfaceSharedData) -> &mut GeometryBuffer {
         scope_profile!();
 
         let key = (data as *const _) as usize;
@@ -512,7 +566,11 @@ pub(in crate) struct TextureCache {
 }
 
 impl TextureCache {
-    fn get(&mut self, state: &mut State, texture: Texture) -> Option<Rc<RefCell<GpuTexture>>> {
+    fn get(
+        &mut self,
+        state: &mut PipelineState,
+        texture: Texture,
+    ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
         let key = texture.key();
@@ -610,7 +668,7 @@ impl Renderer {
         gl::load_with(|symbol| context.get_proc_address(symbol) as *const _);
 
         let settings = QualitySettings::default();
-        let mut state = State::new();
+        let mut state = PipelineState::new();
 
         Ok(Self {
             backbuffer: BackBuffer,
@@ -666,6 +724,7 @@ impl Renderer {
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             state,
+            batch_storage: Default::default(),
         })
     }
 
@@ -789,6 +848,16 @@ impl Renderer {
             );
 
             let state = &mut self.state;
+
+            self.batch_storage.generate_batches(
+                state,
+                graph,
+                self.white_dummy.clone(),
+                self.normal_dummy.clone(),
+                self.specular_dummy.clone(),
+                &mut self.texture_cache,
+            );
+
             let gbuffer = self
                 .gbuffers
                 .entry(scene_handle)
@@ -835,28 +904,28 @@ impl Renderer {
 
                 self.statistics += gbuffer.fill(GBufferRenderContext {
                     state,
-                    graph,
                     camera,
-                    white_dummy: self.white_dummy.clone(),
-                    normal_dummy: self.normal_dummy.clone(),
-                    specular_dummy: self.specular_dummy.clone(),
-                    texture_cache: &mut self.texture_cache,
                     geom_cache: &mut self.geometry_cache,
+                    batch_storage: &self.batch_storage,
                 });
 
-                self.statistics += self
-                    .deferred_light_renderer
-                    .render(DeferredRendererContext {
-                        state,
-                        scene,
-                        camera,
-                        gbuffer,
-                        white_dummy: self.white_dummy.clone(),
-                        ambient_color: self.ambient_color,
-                        settings: &self.quality_settings,
-                        textures: &mut self.texture_cache,
-                        geometry_cache: &mut self.geometry_cache,
-                    });
+                let (pass_stats, light_stats) =
+                    self.deferred_light_renderer
+                        .render(DeferredRendererContext {
+                            state,
+                            scene,
+                            camera,
+                            gbuffer,
+                            white_dummy: self.white_dummy.clone(),
+                            ambient_color: self.ambient_color,
+                            settings: &self.quality_settings,
+                            textures: &mut self.texture_cache,
+                            geometry_cache: &mut self.geometry_cache,
+                            batch_storage: &self.batch_storage,
+                        });
+
+                self.statistics.lighting += light_stats;
+                self.statistics.geometry += pass_stats;
 
                 let depth = gbuffer.depth();
 
@@ -963,14 +1032,12 @@ impl Renderer {
         context: &glutin::WindowedContext<PossiblyCurrent>,
         dt: f32,
     ) -> Result<(), RendererError> {
-        scope_profile!();
-
         self.render_frame(scenes, drawing_context, dt)?;
-
         self.statistics.end_frame();
         context.swap_buffers()?;
         check_gl_error!();
         self.statistics.finalize();
+        self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())
     }
 }

@@ -1,4 +1,3 @@
-use crate::renderer::InstanceData;
 use crate::{
     core::{
         algebra::{Matrix4, Vector4},
@@ -7,6 +6,7 @@ use crate::{
         scope_profile,
     },
     renderer::{
+        batch::{BatchStorage, InstanceData, MatrixStorage, BONE_MATRICES_COUNT},
         error::RendererError,
         framework::{
             framebuffer::{
@@ -17,23 +17,15 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::State,
+            state::PipelineState,
         },
-        surface::SurfaceSharedData,
-        GeometryCache, RenderPassStatistics, TextureCache,
+        GeometryCache, RenderPassStatistics,
     },
-    scene::{camera::Camera, graph::Graph, node::Node},
+    scene::camera::Camera,
 };
-use arrayvec::ArrayVec;
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    fmt::{Debug, Formatter},
-    rc::Rc,
-    sync::{Arc, Mutex},
-};
+use std::{cell::RefCell, rc::Rc};
 
-struct GBufferShader {
+struct InstancedShader {
     program: GpuProgram,
     use_skeletal_animation: UniformLocation,
     diffuse_texture: UniformLocation,
@@ -45,11 +37,12 @@ struct GBufferShader {
     matrix_storage: UniformLocation,
 }
 
-impl GBufferShader {
+impl InstancedShader {
     fn new() -> Result<Self, RendererError> {
-        let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
-        let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
-        let program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
+        let fragment_source = include_str!("shaders/gbuffer_fs_instanced.glsl");
+        let vertex_source = include_str!("shaders/gbuffer_vs_instanced.glsl");
+        let program =
+            GpuProgram::from_source("GBufferInstancedShader", vertex_source, fragment_source)?;
         Ok(Self {
             use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
             diffuse_texture: program.uniform_location("diffuseTexture")?,
@@ -64,245 +57,64 @@ impl GBufferShader {
     }
 }
 
-struct Storage {
-    // Generic storage for instancing, contains all matrices needed for instanced
-    // rendering. It has variable size, but it is always multiple of 4. Each pixel
-    // has RGBA components as f32 so to store 4x4 matrix we need 4 pixels.
-    //
-    // Q: Why it uses textures instead of SSBO?
-    // A: This could be done with SSBO, but it is not available on macOS because SSBO
-    // was added only in OpenGL 4.3, but macOS support up to OpenGL 4.1.
-    matrices_storage: Rc<RefCell<GpuTexture>>,
-    matrices: Vec<Matrix4<f32>>,
+struct Shader {
+    program: GpuProgram,
+    world_matrix: UniformLocation,
+    wvp_matrix: UniformLocation,
+    use_skeletal_animation: UniformLocation,
+    bone_matrices: UniformLocation,
+    diffuse_texture: UniformLocation,
+    normal_texture: UniformLocation,
+    specular_texture: UniformLocation,
+    lightmap_texture: UniformLocation,
+    diffuse_color: UniformLocation,
 }
 
-impl Storage {
-    fn new(state: &mut State) -> Result<Self, RendererError> {
+impl Shader {
+    fn new() -> Result<Self, RendererError> {
+        let fragment_source = include_str!("shaders/gbuffer_fs.glsl");
+        let vertex_source = include_str!("shaders/gbuffer_vs.glsl");
+        let program = GpuProgram::from_source("GBufferShader", vertex_source, fragment_source)?;
         Ok(Self {
-            matrices_storage: Rc::new(RefCell::new(GpuTexture::new(
-                state,
-                GpuTextureKind::Rectangle {
-                    width: 4,
-                    height: 1,
-                },
-                PixelKind::RGBA32F,
-                MinificationFilter::Nearest,
-                MagnificationFilter::Nearest,
-                1,
-                None,
-            )?)),
-            matrices: Default::default(),
+            world_matrix: program.uniform_location("worldMatrix")?,
+            wvp_matrix: program.uniform_location("worldViewProjection")?,
+            use_skeletal_animation: program.uniform_location("useSkeletalAnimation")?,
+            bone_matrices: program.uniform_location("boneMatrices")?,
+            diffuse_texture: program.uniform_location("diffuseTexture")?,
+            normal_texture: program.uniform_location("normalTexture")?,
+            specular_texture: program.uniform_location("specularTexture")?,
+            lightmap_texture: program.uniform_location("lightmapTexture")?,
+            diffuse_color: program.uniform_location("diffuseColor")?,
+            program,
         })
-    }
-
-    fn update(&mut self, state: &mut State, batch: &Batch) {
-        if batch.skinned {
-            self.matrices.clear();
-
-            for instance in batch.instances.iter() {
-                // Push bone matrices if any.
-                for m in instance.bone_matrices.iter() {
-                    self.matrices.push(m.clone());
-                }
-
-                // Pad rest with zeros because we can't use tight packing in this case.
-                for _ in 0..(BONE_MATRICES_COUNT - instance.bone_matrices.len()) {
-                    self.matrices.push(Default::default());
-                }
-            }
-
-            // Select width for the texture by restricting width at 1024 pixels.
-            let matrices_tex_size = 1024;
-            let actual_matrices_pixel_count = self.matrices.len() * 4;
-            let matrices_w = actual_matrices_pixel_count.min(matrices_tex_size);
-            let matrices_h = (actual_matrices_pixel_count as f32 / matrices_w as f32)
-                .ceil()
-                .max(1.0) as usize;
-            // Pad data to actual size.
-            for _ in 0..(((matrices_w * matrices_h) - actual_matrices_pixel_count) / 4) {
-                self.matrices.push(Default::default());
-            }
-
-            // Upload to GPU.
-            self.matrices_storage
-                .borrow_mut()
-                .bind_mut(state, 0)
-                .set_data(
-                    state,
-                    GpuTextureKind::Rectangle {
-                        width: matrices_w,
-                        height: matrices_h,
-                    },
-                    PixelKind::RGBA32F,
-                    1,
-                    Some(unsafe {
-                        std::slice::from_raw_parts(
-                            self.matrices.as_slice() as *const _ as *const u8,
-                            self.matrices.len() * std::mem::size_of::<Matrix4<f32>>(),
-                        )
-                    }),
-                )
-                .unwrap();
-        }
     }
 }
 
 pub struct GBuffer {
     framebuffer: FrameBuffer,
     pub final_frame: FrameBuffer,
-    shader: GBufferShader,
+    instanced_shader: InstancedShader,
+    shader: Shader,
     pub width: i32,
     pub height: i32,
-    batches: HashMap<u64, Batch>,
-    storage: Storage,
+    matrix_storage: MatrixStorage,
     instance_data_set: Vec<InstanceData>,
+    bone_matrices: Vec<Matrix4<f32>>,
 }
 
 pub(in crate) struct GBufferRenderContext<'a, 'b> {
-    pub state: &'a mut State,
-    pub graph: &'b Graph,
+    pub state: &'a mut PipelineState,
     pub camera: &'b Camera,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
-    pub specular_dummy: Rc<RefCell<GpuTexture>>,
-    pub texture_cache: &'a mut TextureCache,
     pub geom_cache: &'a mut GeometryCache,
-}
-
-const BONE_MATRICES_COUNT: usize = 64;
-
-struct Instance {
-    world_transform: Matrix4<f32>,
-    wvp_transform: Matrix4<f32>,
-    bone_matrices: ArrayVec<[Matrix4<f32>; BONE_MATRICES_COUNT]>,
-    color: Color,
-}
-
-struct Batch {
-    data: Arc<Mutex<SurfaceSharedData>>,
-    instances: Vec<Instance>,
-    diffuse_texture: Rc<RefCell<GpuTexture>>,
-    normal_texture: Rc<RefCell<GpuTexture>>,
-    specular_texture: Rc<RefCell<GpuTexture>>,
-    lightmap_texture: Rc<RefCell<GpuTexture>>,
-    skinned: bool,
-}
-
-impl Debug for Batch {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Batch {}: {} instances",
-            &*self.data as *const _ as u64,
-            self.instances.len()
-        )
-    }
-}
-
-impl Batch {
-    fn clear(&mut self) {
-        self.instances.clear();
-    }
+    pub batch_storage: &'a BatchStorage,
 }
 
 impl GBuffer {
-    fn generate_batches(
-        &mut self,
-        state: &mut State,
-        graph: &Graph,
-        camera: &Camera,
-        white_dummy: Rc<RefCell<GpuTexture>>,
-        normal_dummy: Rc<RefCell<GpuTexture>>,
-        specular_dummy: Rc<RefCell<GpuTexture>>,
-        texture_cache: &mut TextureCache,
-    ) {
-        for batch in self.batches.values_mut() {
-            batch.clear();
-        }
-
-        let initial_view_projection = camera.view_projection_matrix();
-
-        for mesh in graph.pair_iter().filter_map(|(handle, node)| {
-            if let (Node::Mesh(mesh), true) = (node, camera.visibility_cache.is_visible(handle)) {
-                Some(mesh)
-            } else {
-                None
-            }
-        }) {
-            let view_projection = if mesh.depth_offset_factor() != 0.0 {
-                let mut projection = camera.projection_matrix();
-                projection[14] -= mesh.depth_offset_factor();
-                projection * camera.view_matrix()
-            } else {
-                initial_view_projection
-            };
-
-            for surface in mesh.surfaces().iter() {
-                let is_skinned = !surface.bones.is_empty();
-
-                let world = if is_skinned {
-                    Matrix4::identity()
-                } else {
-                    mesh.global_transform()
-                };
-                let mvp = view_projection * world;
-
-                let diffuse_texture = surface
-                    .diffuse_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| white_dummy.clone());
-
-                let normal_texture = surface
-                    .normal_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| normal_dummy.clone());
-
-                let specular_texture = surface
-                    .specular_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| specular_dummy.clone());
-
-                let lightmap_texture = surface
-                    .lightmap_texture()
-                    .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| white_dummy.clone());
-
-                let data = surface.data();
-                let key = &*data as *const _ as u64;
-                let batch = self.batches.entry(key).or_insert(Batch {
-                    data,
-                    instances: Default::default(),
-                    diffuse_texture: diffuse_texture.clone(),
-                    normal_texture: normal_texture.clone(),
-                    specular_texture: specular_texture.clone(),
-                    lightmap_texture: lightmap_texture.clone(),
-                    skinned: !surface.bones.is_empty(),
-                });
-
-                // Update textures.
-                batch.diffuse_texture = diffuse_texture;
-                batch.normal_texture = normal_texture;
-                batch.specular_texture = specular_texture;
-                batch.lightmap_texture = lightmap_texture;
-
-                let mut instance = Instance {
-                    world_transform: world,
-                    wvp_transform: mvp,
-                    bone_matrices: Default::default(),
-                    color: surface.color(),
-                };
-                for &bone_handle in surface.bones.iter() {
-                    let bone_node = &graph[bone_handle];
-                    instance
-                        .bone_matrices
-                        .push(bone_node.global_transform() * bone_node.inv_bind_pose_transform());
-                }
-                batch.instances.push(instance);
-            }
-        }
-    }
-
-    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut PipelineState,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, RendererError> {
         scope_profile!();
 
         let mut depth_stencil_texture = GpuTexture::new(
@@ -409,13 +221,14 @@ impl GBuffer {
 
         Ok(Self {
             framebuffer,
-            shader: GBufferShader::new()?,
+            instanced_shader: InstancedShader::new()?,
+            shader: Shader::new()?,
             width: width as i32,
             height: height as i32,
             final_frame: opt_framebuffer,
-            batches: Default::default(),
-            storage: Storage::new(state)?,
+            matrix_storage: MatrixStorage::new(state)?,
             instance_data_set: Default::default(),
+            bone_matrices: Default::default(),
         })
     }
 
@@ -447,13 +260,9 @@ impl GBuffer {
 
         let GBufferRenderContext {
             state,
-            graph,
             camera,
-            white_dummy,
-            normal_dummy,
-            specular_dummy,
-            texture_cache,
             geom_cache,
+            batch_storage,
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -465,106 +274,185 @@ impl GBuffer {
             Some(0),
         );
 
-        self.generate_batches(
-            state,
-            graph,
-            camera,
-            white_dummy,
-            normal_dummy,
-            specular_dummy,
-            texture_cache,
-        );
+        let params = DrawParameters {
+            cull_face: CullFace::Back,
+            culling: true,
+            color_write: Default::default(),
+            depth_write: true,
+            stencil_test: false,
+            depth_test: true,
+            blend: false,
+        };
 
-        for batch in self.batches.values() {
-            self.storage.update(state, batch);
+        for batch in batch_storage.batches.iter() {
+            let data = batch.data.lock().unwrap();
+            let geometry = geom_cache.get(state, &data);
 
-            let geometry = geom_cache.get(state, &batch.data.lock().unwrap());
+            if batch.instances.len() == 1 {
+                // Draw single instances the usual way, there is no need to spend time to
+                // pass additional data via textures on GPU just to draw single instance.
 
-            self.instance_data_set.clear();
-            for instance in batch.instances.iter() {
-                self.instance_data_set.push(InstanceData {
-                    color: instance.color,
-                    world: instance.world_transform,
-                    wvp: instance.wvp_transform,
-                });
+                let instance = batch.instances.first().unwrap();
+                if camera.visibility_cache.is_visible(instance.owner) {
+                    statistics += self.framebuffer.draw(
+                        geometry,
+                        state,
+                        viewport,
+                        &self.shader.program,
+                        &params,
+                        &[
+                            (
+                                self.shader.diffuse_texture,
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: batch.diffuse_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.normal_texture,
+                                UniformValue::Sampler {
+                                    index: 1,
+                                    texture: batch.normal_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.specular_texture,
+                                UniformValue::Sampler {
+                                    index: 2,
+                                    texture: batch.specular_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.lightmap_texture,
+                                UniformValue::Sampler {
+                                    index: 3,
+                                    texture: batch.lightmap_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.wvp_matrix,
+                                UniformValue::Matrix4(
+                                    camera.view_projection_matrix() * instance.world_transform,
+                                ),
+                            ),
+                            (
+                                self.shader.world_matrix,
+                                UniformValue::Matrix4(instance.world_transform),
+                            ),
+                            (
+                                self.shader.use_skeletal_animation,
+                                UniformValue::Bool(batch.is_skinned),
+                            ),
+                            (
+                                self.shader.diffuse_color,
+                                UniformValue::Color(instance.color),
+                            ),
+                            (
+                                self.shader.bone_matrices,
+                                UniformValue::Mat4Array({
+                                    self.bone_matrices.clear();
+                                    self.bone_matrices
+                                        .extend_from_slice(instance.bone_matrices.as_slice());
+                                    &self.bone_matrices
+                                }),
+                            ),
+                        ],
+                    );
+                }
+            } else {
+                // Draw multiple instances at the same time.
+
+                self.matrix_storage.clear();
+                self.instance_data_set.clear();
+                for instance in batch.instances.iter() {
+                    if camera.visibility_cache.is_visible(instance.owner) {
+                        self.instance_data_set.push(InstanceData {
+                            color: instance.color,
+                            world: instance.world_transform,
+                            wvp: camera.view_projection_matrix() * instance.world_transform,
+                        });
+                        self.matrix_storage
+                            .push_slice(instance.bone_matrices.as_slice());
+                    }
+                }
+
+                if !self.instance_data_set.is_empty() {
+                    self.matrix_storage.update(state);
+                    geometry.set_buffer_data(state, 1, self.instance_data_set.as_slice());
+
+                    statistics += self.framebuffer.draw_instances(
+                        self.instance_data_set.len(),
+                        geometry,
+                        state,
+                        viewport,
+                        &self.instanced_shader.program,
+                        &params,
+                        &[
+                            (
+                                self.instanced_shader.diffuse_texture,
+                                UniformValue::Sampler {
+                                    index: 0,
+                                    texture: batch.diffuse_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.normal_texture,
+                                UniformValue::Sampler {
+                                    index: 1,
+                                    texture: batch.normal_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.specular_texture,
+                                UniformValue::Sampler {
+                                    index: 2,
+                                    texture: batch.specular_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.lightmap_texture,
+                                UniformValue::Sampler {
+                                    index: 3,
+                                    texture: batch.lightmap_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.matrix_storage,
+                                UniformValue::Sampler {
+                                    index: 5,
+                                    texture: self.matrix_storage.matrices_storage.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.use_skeletal_animation,
+                                UniformValue::Bool(batch.is_skinned),
+                            ),
+                            (
+                                self.instanced_shader.matrix_buffer_stride,
+                                UniformValue::Integer(BONE_MATRICES_COUNT as i32),
+                            ),
+                            (
+                                self.instanced_shader.matrix_storage_size,
+                                UniformValue::Vector4({
+                                    let kind = self.matrix_storage.matrices_storage.borrow().kind();
+                                    let (w, h) =
+                                        if let GpuTextureKind::Rectangle { width, height } = kind {
+                                            (width, height)
+                                        } else {
+                                            unreachable!()
+                                        };
+                                    Vector4::new(
+                                        1.0 / (w as f32),
+                                        1.0 / (h as f32),
+                                        w as f32,
+                                        h as f32,
+                                    )
+                                }),
+                            ),
+                        ],
+                    );
+                }
             }
-            geometry.set_buffer_data(state, 1, self.instance_data_set.as_slice());
-
-            let params = DrawParameters {
-                cull_face: CullFace::Back,
-                culling: true,
-                color_write: Default::default(),
-                depth_write: true,
-                stencil_test: false,
-                depth_test: true,
-                blend: false,
-            };
-
-            statistics += self.framebuffer.draw_instances(
-                batch.instances.len(),
-                geometry,
-                state,
-                viewport,
-                &self.shader.program,
-                &params,
-                &[
-                    (
-                        self.shader.diffuse_texture,
-                        UniformValue::Sampler {
-                            index: 0,
-                            texture: batch.diffuse_texture.clone(),
-                        },
-                    ),
-                    (
-                        self.shader.normal_texture,
-                        UniformValue::Sampler {
-                            index: 1,
-                            texture: batch.normal_texture.clone(),
-                        },
-                    ),
-                    (
-                        self.shader.specular_texture,
-                        UniformValue::Sampler {
-                            index: 2,
-                            texture: batch.specular_texture.clone(),
-                        },
-                    ),
-                    (
-                        self.shader.lightmap_texture,
-                        UniformValue::Sampler {
-                            index: 3,
-                            texture: batch.lightmap_texture.clone(),
-                        },
-                    ),
-                    (
-                        self.shader.matrix_storage,
-                        UniformValue::Sampler {
-                            index: 5,
-                            texture: self.storage.matrices_storage.clone(),
-                        },
-                    ),
-                    (
-                        self.shader.use_skeletal_animation,
-                        UniformValue::Bool(batch.skinned),
-                    ),
-                    (
-                        self.shader.matrix_buffer_stride,
-                        UniformValue::Integer(BONE_MATRICES_COUNT as i32),
-                    ),
-                    (
-                        self.shader.matrix_storage_size,
-                        UniformValue::Vector4({
-                            let kind = self.storage.matrices_storage.borrow().kind();
-                            let (w, h) = if let GpuTextureKind::Rectangle { width, height } = kind {
-                                (width, height)
-                            } else {
-                                unreachable!()
-                            };
-                            Vector4::new(1.0 / (w as f32), 1.0 / (h as f32), w as f32, h as f32)
-                        }),
-                    ),
-                ],
-            );
         }
 
         statistics

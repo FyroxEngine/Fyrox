@@ -1,6 +1,9 @@
-use crate::core::algebra::{Matrix4, Vector3};
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{
+        algebra::{Matrix4, Vector3},
+        math::Rect,
+        scope_profile,
+    },
     renderer::{
         error::RendererError,
         flat_shader::FlatShader,
@@ -8,7 +11,7 @@ use crate::{
             framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            state::{ColorMask, State, StencilFunc, StencilOp},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
         gbuffer::GBuffer,
         surface::SurfaceSharedData,
@@ -107,7 +110,7 @@ impl LightVolumeRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(in crate) fn render_volume(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         light: &Light,
         gbuffer: &mut GBuffer,
         quad: &SurfaceSharedData,

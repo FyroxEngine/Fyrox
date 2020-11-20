@@ -1,22 +1,20 @@
-use crate::core::algebra::{Matrix4, Vector2, Vector3};
-use crate::core::math::Matrix4Ext;
-use crate::renderer::framework::framebuffer::DrawPartContext;
-use crate::renderer::surface::Vertex;
 use crate::{
     core::{
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
-        math::{frustum::Frustum, Rect},
+        math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
     },
     renderer::{
+        batch::BatchStorage,
         error::RendererError,
         flat_shader::FlatShader,
         framework::{
-            framebuffer::{CullFace, DrawParameters, FrameBufferTrait},
+            framebuffer::{CullFace, DrawParameters, DrawPartContext, FrameBufferTrait},
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::{ColorMask, State, StencilFunc, StencilOp},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
@@ -24,14 +22,17 @@ use crate::{
             PointShadowMapRenderContext, PointShadowMapRenderer, SpotShadowMapRenderer,
         },
         ssao::ScreenSpaceAmbientOcclusionRenderer,
-        surface::SurfaceSharedData,
+        surface::{SurfaceSharedData, Vertex},
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{camera::Camera, light::Light, node::Node, Scene},
 };
-use rapier3d::na::Point3;
-use rg3d_core::math::TriangleDefinition;
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::{Display, Formatter},
+    ops::AddAssign,
+    rc::Rc,
+};
 
 struct AmbientLightShader {
     program: GpuProgram,
@@ -40,6 +41,44 @@ struct AmbientLightShader {
     ambient_color: UniformLocation,
     ao_sampler: UniformLocation,
     ambient_texture: UniformLocation,
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct LightingStatistics {
+    pub point_lights_rendered: usize,
+    pub point_shadow_maps_rendered: usize,
+    pub spot_lights_rendered: usize,
+    pub spot_shadow_maps_rendered: usize,
+    pub directional_lights_rendered: usize,
+}
+
+impl AddAssign for LightingStatistics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.point_lights_rendered += rhs.point_lights_rendered;
+        self.point_shadow_maps_rendered += rhs.point_shadow_maps_rendered;
+        self.spot_lights_rendered += rhs.spot_lights_rendered;
+        self.spot_shadow_maps_rendered += rhs.spot_shadow_maps_rendered;
+        self.directional_lights_rendered += rhs.directional_lights_rendered;
+    }
+}
+
+impl Display for LightingStatistics {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Lighting Statistics:\n\
+            \tPoint Lights: {}\n\
+            \tSpot Lights: {}\n\
+            \tDirectional Lights: {}\n\
+            \tPoint Shadow Maps: {}\n\
+            \tSpot Shadow Maps: {}",
+            self.point_lights_rendered,
+            self.spot_lights_rendered,
+            self.directional_lights_rendered,
+            self.point_shadow_maps_rendered,
+            self.spot_shadow_maps_rendered,
+        )
+    }
 }
 
 impl AmbientLightShader {
@@ -207,7 +246,7 @@ pub struct DeferredLightRenderer {
 }
 
 pub(in crate) struct DeferredRendererContext<'a> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
@@ -216,11 +255,12 @@ pub(in crate) struct DeferredRendererContext<'a> {
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
+    pub batch_storage: &'a BatchStorage,
 }
 
 impl DeferredLightRenderer {
     pub fn new(
-        state: &mut State,
+        state: &mut PipelineState,
         frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, RendererError> {
@@ -289,10 +329,12 @@ impl DeferredLightRenderer {
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(
                 state,
                 settings.spot_shadow_map_size,
+                QualitySettings::default().spot_shadow_map_precision,
             )?,
             point_shadow_map_renderer: PointShadowMapRenderer::new(
                 state,
                 settings.point_shadow_map_size,
+                QualitySettings::default().point_shadow_map_precision,
             )?,
             light_volume: LightVolumeRenderer::new()?,
         })
@@ -300,16 +342,26 @@ impl DeferredLightRenderer {
 
     pub fn set_quality_settings(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         settings: &QualitySettings,
     ) -> Result<(), RendererError> {
-        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size() {
-            self.spot_shadow_map_renderer =
-                SpotShadowMapRenderer::new(state, settings.spot_shadow_map_size)?;
+        if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size()
+            || settings.spot_shadow_map_precision != self.spot_shadow_map_renderer.precision()
+        {
+            self.spot_shadow_map_renderer = SpotShadowMapRenderer::new(
+                state,
+                settings.spot_shadow_map_size,
+                settings.spot_shadow_map_precision,
+            )?;
         }
-        if settings.point_shadow_map_size != self.point_shadow_map_renderer.base_size() {
-            self.point_shadow_map_renderer =
-                PointShadowMapRenderer::new(state, settings.point_shadow_map_size)?;
+        if settings.point_shadow_map_size != self.point_shadow_map_renderer.base_size()
+            || settings.point_shadow_map_precision != self.point_shadow_map_renderer.precision()
+        {
+            self.point_shadow_map_renderer = PointShadowMapRenderer::new(
+                state,
+                settings.point_shadow_map_size,
+                settings.point_shadow_map_precision,
+            )?;
         }
         self.ssao_renderer.set_radius(settings.ssao_radius);
         Ok(())
@@ -317,7 +369,7 @@ impl DeferredLightRenderer {
 
     pub fn set_frame_size(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         frame_size: (u32, u32),
     ) -> Result<(), RendererError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(
@@ -329,10 +381,14 @@ impl DeferredLightRenderer {
     }
 
     #[must_use]
-    pub(in crate) fn render(&mut self, args: DeferredRendererContext) -> RenderPassStatistics {
+    pub(in crate) fn render(
+        &mut self,
+        args: DeferredRendererContext,
+    ) -> (RenderPassStatistics, LightingStatistics) {
         scope_profile!();
 
-        let mut statistics = RenderPassStatistics::default();
+        let mut pass_stats = RenderPassStatistics::default();
+        let mut light_stats = LightingStatistics::default();
 
         let DeferredRendererContext {
             state,
@@ -344,6 +400,7 @@ impl DeferredLightRenderer {
             settings,
             textures,
             geometry_cache,
+            batch_storage,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -368,7 +425,7 @@ impl DeferredLightRenderer {
 
         // Fill SSAO map.
         if settings.use_ssao {
-            statistics += self.ssao_renderer.render(
+            pass_stats += self.ssao_renderer.render(
                 state,
                 gbuffer,
                 geometry_cache,
@@ -400,7 +457,7 @@ impl DeferredLightRenderer {
                 .filter_map(|(face, tex)| tex.clone().map(|tex| (face, tex)))
             {
                 if let Some(gpu_texture) = textures.get(state, texture) {
-                    statistics += gbuffer
+                    pass_stats += gbuffer
                         .final_frame
                         .draw_part(DrawPartContext {
                             geometry: geometry_cache.get(state, &self.skybox),
@@ -572,15 +629,16 @@ impl DeferredLightRenderer {
 
                         light_view_projection = light_projection_matrix * light_view_matrix;
 
-                        statistics += self.spot_shadow_map_renderer.render(
+                        pass_stats += self.spot_shadow_map_renderer.render(
                             state,
                             &scene.graph,
                             &light_view_projection,
-                            white_dummy.clone(),
-                            textures,
+                            batch_storage,
                             geometry_cache,
                             cascade_index,
                         );
+
+                        light_stats.spot_shadow_maps_rendered += 1;
 
                         true
                     }
@@ -588,18 +646,19 @@ impl DeferredLightRenderer {
                         if distance_to_camera <= settings.point_shadows_distance
                             && settings.point_shadows_enabled =>
                     {
-                        statistics +=
+                        pass_stats +=
                             self.point_shadow_map_renderer
                                 .render(PointShadowMapRenderContext {
                                     state,
                                     graph: &scene.graph,
-                                    white_dummy: white_dummy.clone(),
                                     light_pos: light_position,
                                     light_radius,
-                                    texture_cache: textures,
                                     geom_cache: geometry_cache,
                                     cascade: cascade_index,
+                                    batch_storage,
                                 });
+
+                        light_stats.point_shadow_maps_rendered += 1;
 
                         true
                     }
@@ -623,7 +682,7 @@ impl DeferredLightRenderer {
 
             let sphere = geometry_cache.get(state, &self.sphere);
 
-            statistics += gbuffer.final_frame.draw(
+            pass_stats += gbuffer.final_frame.draw(
                 sphere,
                 state,
                 viewport,
@@ -656,7 +715,7 @@ impl DeferredLightRenderer {
                 ..Default::default()
             });
 
-            statistics += gbuffer.final_frame.draw(
+            pass_stats += gbuffer.final_frame.draw(
                 sphere,
                 state,
                 viewport,
@@ -701,7 +760,7 @@ impl DeferredLightRenderer {
 
             let quad = geometry_cache.get(state, &self.quad);
 
-            statistics += match light {
+            pass_stats += match light {
                 Light::Spot(spot_light) => {
                     let shader = &self.spot_light_shader;
 
@@ -797,6 +856,8 @@ impl DeferredLightRenderer {
                         ),
                     ];
 
+                    light_stats.spot_lights_rendered += 1;
+
                     gbuffer.final_frame.draw(
                         quad,
                         state,
@@ -863,6 +924,8 @@ impl DeferredLightRenderer {
                         ),
                     ];
 
+                    light_stats.point_lights_rendered += 1;
+
                     gbuffer.final_frame.draw(
                         quad,
                         state,
@@ -913,6 +976,8 @@ impl DeferredLightRenderer {
                         ),
                     ];
 
+                    light_stats.directional_lights_rendered += 1;
+
                     gbuffer.final_frame.draw(
                         quad,
                         state,
@@ -933,7 +998,7 @@ impl DeferredLightRenderer {
             };
 
             if settings.light_scatter_enabled {
-                statistics += self.light_volume.render_volume(
+                pass_stats += self.light_volume.render_volume(
                     state,
                     light,
                     gbuffer,
@@ -947,6 +1012,6 @@ impl DeferredLightRenderer {
             }
         }
 
-        statistics
+        (pass_stats, light_stats)
     }
 }

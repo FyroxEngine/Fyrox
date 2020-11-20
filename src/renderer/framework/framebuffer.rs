@@ -7,7 +7,7 @@ use crate::{
             gl::{self, types::GLuint},
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
-            state::{ColorMask, State},
+            state::{ColorMask, PipelineState},
         },
     },
 };
@@ -114,7 +114,7 @@ unsafe fn set_attachment(gl_attachment_kind: u32, texture: &GpuTexture) {
 
 impl FrameBuffer {
     pub fn new(
-        state: &mut State,
+        state: &mut PipelineState,
         depth_attachment: Option<Attachment>,
         color_attachments: Vec<Attachment>,
     ) -> Result<Self, RendererError> {
@@ -174,7 +174,7 @@ impl FrameBuffer {
 
     pub fn set_cubemap_face(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         attachment_index: usize,
         face: CubeMapFace,
     ) -> &mut Self {
@@ -197,7 +197,7 @@ impl FrameBuffer {
 
 fn pre_draw(
     fbo: GLuint,
-    state: &mut State,
+    state: &mut PipelineState,
     viewport: Rect<i32>,
     program: &GpuProgram,
     params: &DrawParameters,
@@ -214,7 +214,7 @@ fn pre_draw(
 }
 
 pub struct DrawPartContext<'a, 'b, 'c, 'd> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub viewport: Rect<i32>,
     pub geometry: &'a mut GeometryBuffer,
     pub program: &'b mut GpuProgram,
@@ -229,7 +229,7 @@ pub trait FrameBufferTrait {
 
     fn clear(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         viewport: Rect<i32>,
         color: Option<Color>,
         depth: Option<f32>,
@@ -266,7 +266,7 @@ pub trait FrameBufferTrait {
     fn draw(
         &mut self,
         geometry: &GeometryBuffer,
-        state: &mut State,
+        state: &mut PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
@@ -282,7 +282,7 @@ pub trait FrameBufferTrait {
         &mut self,
         count: usize,
         geometry: &GeometryBuffer,
-        state: &mut State,
+        state: &mut PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,

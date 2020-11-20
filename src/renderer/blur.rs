@@ -1,7 +1,9 @@
-use crate::core::algebra::{Matrix4, Vector3};
-use crate::renderer::framework::gpu_texture::{MagnificationFilter, MinificationFilter};
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{
+        algebra::{Matrix4, Vector3},
+        math::Rect,
+        scope_profile,
+    },
     renderer::{
         error::RendererError,
         framework::{
@@ -9,8 +11,11 @@ use crate::{
                 Attachment, AttachmentKind, CullFace, DrawParameters, FrameBuffer, FrameBufferTrait,
             },
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            gpu_texture::{Coordinate, GpuTexture, GpuTextureKind, PixelKind, WrapMode},
-            state::State,
+            gpu_texture::{
+                Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
+                PixelKind, WrapMode,
+            },
+            state::PipelineState,
         },
         surface::SurfaceSharedData,
         GeometryCache,
@@ -47,7 +52,11 @@ pub struct Blur {
 }
 
 impl Blur {
-    pub fn new(state: &mut State, width: usize, height: usize) -> Result<Self, RendererError> {
+    pub fn new(
+        state: &mut PipelineState,
+        width: usize,
+        height: usize,
+    ) -> Result<Self, RendererError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
@@ -88,7 +97,7 @@ impl Blur {
 
     pub(in crate) fn render(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         geom_cache: &mut GeometryCache,
         input: Rc<RefCell<GpuTexture>>,
     ) {

@@ -1,19 +1,17 @@
-use crate::core::algebra::Vector2;
-use crate::core::math::Matrix4Ext;
-use crate::renderer::framework::geometry_buffer::{BufferBuilder, GeometryBufferBuilder};
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{algebra::Vector2, math::Matrix4Ext, math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
             framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementKind, GeometryBuffer, GeometryBufferKind,
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+                GeometryBufferBuilder, GeometryBufferKind,
             },
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::State,
+            state::PipelineState,
         },
         RenderPassStatistics, TextureCache,
     },
@@ -61,7 +59,7 @@ pub struct ParticleSystemRenderer {
 }
 
 pub(in crate) struct ParticleSystemRenderContext<'a, 'b, 'c> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub framebuffer: &'b mut FrameBuffer,
     pub graph: &'c Graph,
     pub camera: &'c Camera,
@@ -74,7 +72,7 @@ pub(in crate) struct ParticleSystemRenderContext<'a, 'b, 'c> {
 }
 
 impl ParticleSystemRenderer {
-    pub fn new(state: &mut State) -> Result<Self, RendererError> {
+    pub fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
                 BufferBuilder::new::<crate::scene::particle_system::Vertex>(

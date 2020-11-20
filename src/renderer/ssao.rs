@@ -1,11 +1,11 @@
-use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3};
-use crate::rand::Rng;
 use crate::{
     core::{
+        algebra::{Matrix3, Matrix4, Vector2, Vector3},
         color::Color,
         math::{lerpf, Rect},
         scope_profile,
     },
+    rand::Rng,
     renderer::{
         blur::Blur,
         error::RendererError,
@@ -18,7 +18,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::State,
+            state::PipelineState,
         },
         gbuffer::GBuffer,
         surface::SurfaceSharedData,
@@ -82,7 +82,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
 
 impl ScreenSpaceAmbientOcclusionRenderer {
     pub fn new(
-        state: &mut State,
+        state: &mut PipelineState,
         frame_width: usize,
         frame_height: usize,
     ) -> Result<Self, RendererError> {
@@ -188,7 +188,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(in crate) fn render(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         gbuffer: &GBuffer,
         geom_cache: &mut GeometryCache,
         projection_matrix: Matrix4<f32>,

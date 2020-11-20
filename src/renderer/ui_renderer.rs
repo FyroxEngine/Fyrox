@@ -1,8 +1,10 @@
-use crate::core::algebra::{Matrix4, Vector2, Vector4};
-use crate::renderer::framework::geometry_buffer::{BufferBuilder, GeometryBufferBuilder};
-use crate::resource::texture::{TextureData, TextureKind, TextureState};
 use crate::{
-    core::{color::Color, math::Rect, scope_profile},
+    core::{
+        algebra::{Matrix4, Vector2, Vector4},
+        color::Color,
+        math::Rect,
+        scope_profile,
+    },
     gui::{
         brush::Brush,
         draw::{CommandKind, CommandTexture, DrawingContext, SharedTexture},
@@ -14,16 +16,17 @@ use crate::{
                 BackBuffer, CullFace, DrawParameters, DrawPartContext, FrameBufferTrait,
             },
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementKind, GeometryBuffer, GeometryBufferKind,
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+                GeometryBufferBuilder, GeometryBufferKind,
             },
             gl,
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
             gpu_texture::GpuTexture,
-            state::{ColorMask, State, StencilFunc, StencilOp},
+            state::{ColorMask, PipelineState, StencilFunc, StencilOp},
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::texture::{Texture, TexturePixelKind},
+    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
 };
 use std::{
     cell::RefCell,
@@ -78,7 +81,7 @@ pub struct UiRenderer {
 }
 
 pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
-    pub state: &'a mut State,
+    pub state: &'a mut PipelineState,
     pub viewport: Rect<i32>,
     pub backbuffer: &'b mut BackBuffer,
     pub frame_width: f32,
@@ -89,7 +92,7 @@ pub(in crate) struct UiRenderContext<'a, 'b, 'c> {
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new(state: &mut State) -> Result<Self, RendererError> {
+    pub(in crate::renderer) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
                 BufferBuilder::new::<crate::gui::draw::Vertex>(

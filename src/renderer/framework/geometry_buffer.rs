@@ -7,7 +7,7 @@ use crate::{
                 self,
                 types::{GLint, GLuint},
             },
-            state::State,
+            state::PipelineState,
         },
         TriangleDefinition,
     },
@@ -19,6 +19,7 @@ struct NativeBuffer {
     id: GLuint,
     kind: GeometryBufferKind,
     element_size: usize,
+    size_bytes: usize,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
 }
@@ -295,7 +296,7 @@ impl<'a> GeometryBufferBinding<'a> {
 }
 
 impl GeometryBuffer {
-    pub fn set_buffer_data<T>(&mut self, state: &mut State, buffer: usize, data: &[T]) {
+    pub fn set_buffer_data<T>(&mut self, state: &mut PipelineState, buffer: usize, data: &[T]) {
         scope_profile!();
 
         let buffer = &mut self.buffers[buffer];
@@ -304,16 +305,22 @@ impl GeometryBuffer {
 
         state.set_vertex_buffer_object(buffer.id);
 
-        let size = (data.len() * size_of::<T>()) as isize;
+        let size = data.len() * size_of::<T>();
         let ptr = data.as_ptr() as *const c_void;
         let usage = buffer.kind as u32;
 
         unsafe {
-            gl::BufferData(gl::ARRAY_BUFFER, size, ptr, usage);
+            if buffer.size_bytes < size {
+                gl::BufferData(gl::ARRAY_BUFFER, size as isize, ptr, usage);
+            } else {
+                gl::BufferSubData(gl::ARRAY_BUFFER, 0, size as isize, ptr);
+            }
         }
+
+        buffer.size_bytes = size;
     }
 
-    pub fn bind(&self, state: &mut State) -> GeometryBufferBinding<'_> {
+    pub fn bind(&self, state: &mut PipelineState) -> GeometryBufferBinding<'_> {
         scope_profile!();
 
         state.set_vertex_array_object(self.vertex_array_object);
@@ -376,7 +383,7 @@ impl BufferBuilder {
         self
     }
 
-    fn build(self, state: &mut State) -> Result<NativeBuffer, RendererError> {
+    fn build(self, state: &mut PipelineState) -> Result<NativeBuffer, RendererError> {
         let mut vbo = 0;
         unsafe {
             gl::GenBuffers(1, &mut vbo);
@@ -399,6 +406,7 @@ impl BufferBuilder {
             id: vbo,
             kind: self.kind,
             element_size: self.element_size,
+            size_bytes: self.data_size,
             thread_mark: Default::default(),
         };
 
@@ -457,7 +465,7 @@ impl GeometryBufferBuilder {
         self
     }
 
-    pub fn build(self, state: &mut State) -> Result<GeometryBuffer, RendererError> {
+    pub fn build(self, state: &mut PipelineState) -> Result<GeometryBuffer, RendererError> {
         scope_profile!();
 
         let mut vao = 0;

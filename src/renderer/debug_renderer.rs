@@ -3,19 +3,18 @@
 //! shapes, contact information (normals, positions, etc.), paths build by navmesh and so
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
-use crate::core::algebra::Vector3;
-use crate::renderer::framework::geometry_buffer::{BufferBuilder, GeometryBufferBuilder};
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{algebra::Vector3, math::Rect, scope_profile},
     renderer::{
         error::RendererError,
         framework::{
             framebuffer::{CullFace, DrawParameters, FrameBuffer, FrameBufferTrait},
             geometry_buffer::{
-                AttributeDefinition, AttributeKind, ElementKind, GeometryBuffer, GeometryBufferKind,
+                AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,
+                GeometryBufferBuilder, GeometryBufferKind,
             },
             gpu_program::{GpuProgram, UniformLocation, UniformValue},
-            state::State,
+            state::PipelineState,
         },
         RenderPassStatistics,
     },
@@ -54,7 +53,7 @@ impl DebugShader {
 }
 
 impl DebugRenderer {
-    pub(in crate) fn new(state: &mut State) -> Result<Self, RendererError> {
+    pub(in crate) fn new(state: &mut PipelineState) -> Result<Self, RendererError> {
         let geometry = GeometryBufferBuilder::new(ElementKind::Line)
             .with_buffer_builder(
                 BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)
@@ -83,7 +82,7 @@ impl DebugRenderer {
 
     pub(in crate) fn render(
         &mut self,
-        state: &mut State,
+        state: &mut PipelineState,
         viewport: Rect<i32>,
         framebuffer: &mut FrameBuffer,
         drawing_context: &SceneDrawingContext,

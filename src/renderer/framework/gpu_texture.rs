@@ -5,7 +5,7 @@ use crate::{
     core::color::Color,
     renderer::{
         error::RendererError,
-        framework::{gl, gl::types::GLuint, state::State},
+        framework::{gl, gl::types::GLuint, state::PipelineState},
     },
     resource::texture::{
         TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
@@ -467,7 +467,7 @@ impl<'a> TextureBinding<'a> {
 
     pub fn set_data(
         self,
-        state: &mut State,
+        state: &mut PipelineState,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         mip_count: usize,
@@ -789,7 +789,7 @@ impl GpuTexture {
     /// For compressed textures data must contain all mips, where each mip must be 2 times
     /// smaller than previous.
     pub fn new(
-        state: &mut State,
+        state: &mut PipelineState,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         min_filter: MinificationFilter,
@@ -842,12 +842,16 @@ impl GpuTexture {
         }
     }
 
-    pub fn bind_mut(&mut self, state: &mut State, sampler_index: usize) -> TextureBinding<'_> {
+    pub fn bind_mut(
+        &mut self,
+        state: &mut PipelineState,
+        sampler_index: usize,
+    ) -> TextureBinding<'_> {
         state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
         TextureBinding { texture: self }
     }
 
-    pub fn bind(&self, state: &mut State, sampler_index: usize) {
+    pub fn bind(&self, state: &mut PipelineState, sampler_index: usize) {
         state.set_texture(sampler_index, self.kind.to_texture_target(), self.texture);
     }
 
