@@ -16,6 +16,7 @@ uniform sampler2D matrixStorage;
 uniform vec4 matrixStorageSize; // vec4(1/w, 1/h, w, h)
 uniform bool useSkeletalAnimation;
 uniform int matrixBufferStride;
+uniform vec3 cameraPosition;
 
 out vec3 normal;
 out vec2 texCoord;
@@ -23,6 +24,7 @@ out vec3 tangent;
 out vec3 binormal;
 out vec2 secondTexCoord;
 out vec4 diffuseColor;
+out vec3 reflectionTexCoord;
 
 vec2 IdToCoords(float k, float w, float inv_w) {
     float y = floor(k * inv_w); // floor(k / w)
@@ -98,4 +100,6 @@ void main()
     texCoord = vertexTexCoord;
     secondTexCoord = vertexSecondTexCoord;
     diffuseColor = instanceColor;
+    vec3 position = vec3(worldMatrix * localPosition);
+    reflectionTexCoord = reflect(normalize(position-cameraPosition), normal);
 }

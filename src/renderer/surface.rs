@@ -994,6 +994,7 @@ pub struct Surface {
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
     specular_texture: Option<Texture>,
+    roughness_texture: Option<Texture>,
     /// Temporal array for FBX conversion needs, it holds skinning data (weight + bone handle)
     /// and will be used to fill actual bone indices and weight in vertices that will be
     /// sent to GPU. The idea is very simple: GPU needs to know only indices of matrices of
@@ -1019,6 +1020,7 @@ impl Clone for Surface {
             diffuse_texture: self.diffuse_texture.clone(),
             normal_texture: self.normal_texture.clone(),
             specular_texture: self.specular_texture.clone(),
+            roughness_texture: self.roughness_texture.clone(),
             bones: self.bones.clone(),
             vertex_weights: Vec::new(), // Intentionally not copied.
             color: self.color,
@@ -1036,6 +1038,7 @@ impl Surface {
             diffuse_texture: None,
             normal_texture: None,
             specular_texture: None,
+            roughness_texture: None,
             bones: Vec::new(),
             vertex_weights: Vec::new(),
             color: Color::WHITE,
@@ -1085,6 +1088,18 @@ impl Surface {
         self.specular_texture.clone()
     }
 
+    /// Sets new roughness texture.
+    #[inline]
+    pub fn set_roughness_texture(&mut self, tex: Option<Texture>) {
+        self.roughness_texture = tex;
+    }
+
+    /// Returns current roughness texture.
+    #[inline]
+    pub fn roughness_texture(&self) -> Option<Texture> {
+        self.roughness_texture.clone()
+    }
+
     /// Sets new lightmap texture.
     #[inline]
     pub fn set_lightmap_texture(&mut self, tex: Option<Texture>) {
@@ -1123,6 +1138,8 @@ impl Visit for Surface {
         self.data.visit("Data", visitor)?;
         self.normal_texture.visit("NormalTexture", visitor)?;
         self.diffuse_texture.visit("DiffuseTexture", visitor)?;
+        let _ = self.specular_texture.visit("SpecularTexture", visitor);
+        let _ = self.roughness_texture.visit("RoughnessTexture", visitor);
         self.color.visit("Color", visitor)?;
         self.bones.visit("Bones", visitor)?;
         // self.vertex_weights intentionally not serialized!
@@ -1142,6 +1159,7 @@ pub struct SurfaceBuilder {
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
     specular_texture: Option<Texture>,
+    roughness_texture: Option<Texture>,
     bones: Vec<Handle<Node>>,
     color: Color,
 }
@@ -1155,6 +1173,7 @@ impl SurfaceBuilder {
             normal_texture: None,
             lightmap_texture: None,
             specular_texture: None,
+            roughness_texture: None,
             bones: Default::default(),
             color: Color::WHITE,
         }
@@ -1183,6 +1202,12 @@ impl SurfaceBuilder {
         self.specular_texture = Some(tex);
         self
     }
+    
+    /// Sets desired roughness texture.
+    pub fn with_roughness_texture(mut self, tex: Texture) -> Self {
+        self.roughness_texture = Some(tex);
+        self
+    }
 
     /// Sets desired color of surface.
     pub fn with_color(mut self, color: Color) -> Self {
@@ -1204,6 +1229,7 @@ impl SurfaceBuilder {
             normal_texture: self.normal_texture,
             lightmap_texture: self.lightmap_texture,
             specular_texture: self.specular_texture,
+            roughness_texture: self.roughness_texture,
             vertex_weights: Default::default(),
             bones: self.bones,
             color: self.color,

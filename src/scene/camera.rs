@@ -42,6 +42,7 @@ pub struct Camera {
     projection_matrix: Matrix4<f32>,
     enabled: bool,
     skybox: Option<SkyBox>,
+    environment: Option<Texture>,
     /// Visibility cache allows you to quickly check if object is visible from the camera or not.
     pub visibility_cache: VisibilityCache,
 }
@@ -76,6 +77,7 @@ impl Visit for Camera {
         self.base.visit("Base", visitor)?;
         self.enabled.visit("Enabled", visitor)?;
         let _ = self.skybox.visit("SkyBox", visitor);
+        let _ = self.environment.visit("Environment", visitor);
         // self.visibility_cache intentionally not serialized. It is valid only for one frame.
         visitor.leave_region()
     }
@@ -211,9 +213,25 @@ impl Camera {
         self.skybox.as_mut()
     }
 
-    /// Return optional shared reference to current skybox.  
+    /// Return optional shared reference to current skybox.
     pub fn skybox_ref(&self) -> Option<&SkyBox> {
         self.skybox.as_ref()
+    }
+
+    /// Sets new environment.
+    pub fn set_environment(&mut self, environment: Option<Texture>) -> &mut Self {
+        self.environment = environment;
+        self
+    }
+
+    /// Return optional mutable reference to current environment.
+    pub fn environment_mut(&mut self) -> Option<&mut Texture> {
+        self.environment.as_mut()
+    }
+
+    /// Return optional shared reference to current environment.
+    pub fn environment_ref(&self) -> Option<&Texture> {
+        self.environment.as_ref()
     }
 
     /// Creates picking ray from given screen coordinates.
@@ -264,6 +282,7 @@ impl Camera {
             projection_matrix: self.projection_matrix,
             enabled: self.enabled,
             skybox: self.skybox.clone(),
+            environment: self.environment.clone(),
             // No need to copy cache. It is valid only for one frame.
             visibility_cache: Default::default(),
         }
@@ -280,6 +299,7 @@ pub struct CameraBuilder {
     viewport: Rect<f32>,
     enabled: bool,
     skybox: Option<SkyBox>,
+    environment: Option<Texture>,
 }
 
 impl CameraBuilder {
@@ -293,6 +313,7 @@ impl CameraBuilder {
             z_far: 2048.0,
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
             skybox: None,
+            environment: None,
         }
     }
 
@@ -332,6 +353,12 @@ impl CameraBuilder {
         self
     }
 
+    /// Sets desired environment map.
+    pub fn with_environment(mut self, environment: Texture) -> Self {
+        self.environment = Some(environment);
+        self
+    }
+
     /// Creates new instance of camera node. Do not forget to add node to scene,
     /// otherwise it is useless.
     pub fn build(self) -> Camera {
@@ -348,6 +375,7 @@ impl CameraBuilder {
             projection_matrix: Matrix4::identity(),
             visibility_cache: Default::default(),
             skybox: self.skybox,
+            environment: self.environment,
         }
     }
 

@@ -46,6 +46,7 @@ pub struct Batch {
     pub diffuse_texture: Rc<RefCell<GpuTexture>>,
     pub normal_texture: Rc<RefCell<GpuTexture>>,
     pub specular_texture: Rc<RefCell<GpuTexture>>,
+    pub roughness_texture: Rc<RefCell<GpuTexture>>,
     pub lightmap_texture: Rc<RefCell<GpuTexture>>,
     pub is_skinned: bool,
 }
@@ -74,6 +75,7 @@ impl BatchStorage {
         &mut self,
         state: &mut PipelineState,
         graph: &Graph,
+        black_dummy: Rc<RefCell<GpuTexture>>,
         white_dummy: Rc<RefCell<GpuTexture>>,
         normal_dummy: Rc<RefCell<GpuTexture>>,
         specular_dummy: Rc<RefCell<GpuTexture>>,
@@ -118,6 +120,11 @@ impl BatchStorage {
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| specular_dummy.clone());
 
+                let roughness_texture = surface
+                    .roughness_texture()
+                    .and_then(|texture| texture_cache.get(state, texture))
+                    .unwrap_or_else(|| black_dummy.clone());
+
                 let lightmap_texture = surface
                     .lightmap_texture()
                     .and_then(|texture| texture_cache.get(state, texture))
@@ -135,6 +142,7 @@ impl BatchStorage {
                         diffuse_texture: diffuse_texture.clone(),
                         normal_texture: normal_texture.clone(),
                         specular_texture: specular_texture.clone(),
+                        roughness_texture: roughness_texture.clone(),
                         lightmap_texture: lightmap_texture.clone(),
                         is_skinned: !surface.bones.is_empty(),
                     });
@@ -145,6 +153,7 @@ impl BatchStorage {
                 batch.diffuse_texture = diffuse_texture;
                 batch.normal_texture = normal_texture;
                 batch.specular_texture = specular_texture;
+                batch.roughness_texture = roughness_texture;
                 batch.lightmap_texture = lightmap_texture;
 
                 batch.instances.push(SurfaceInstance {
