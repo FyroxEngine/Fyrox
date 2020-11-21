@@ -128,6 +128,7 @@ impl BatchStorage {
                 let batch = if let Some(&batch_index) = self.inner.get(&key) {
                     self.batches.get_mut(batch_index).unwrap()
                 } else {
+                    self.inner.insert(key, self.batches.len());
                     self.batches.push(Batch {
                         data,
                         instances: self.buffers.pop().unwrap_or_default(),
