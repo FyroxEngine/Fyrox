@@ -666,9 +666,9 @@ impl<'a> TextureBinding<'a> {
                             width.checked_shr(mip as u32),
                             height.checked_shr(mip as u32),
                         ) {
-                            for face in 0..6 {
-                                let bytes_per_face = image_2d_size_bytes(pixel_kind, width, height);
+                            let bytes_per_face = image_2d_size_bytes(pixel_kind, width, height);
 
+                            for face in 0..6 {
                                 let begin = mip_byte_offset + face * bytes_per_face;
                                 let end = mip_byte_offset + (face + 1) * bytes_per_face;
 
@@ -701,9 +701,9 @@ impl<'a> TextureBinding<'a> {
                                         face_pixels,
                                     );
                                 }
-
-                                mip_byte_offset += bytes_per_face as usize;
                             }
+
+                            mip_byte_offset += 6 * bytes_per_face as usize;
                         } else {
                             // No need to add degenerated mips (0x1, 0x2, 4x0, etc).
                             break 'mip_loop2;
