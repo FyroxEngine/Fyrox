@@ -58,7 +58,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// use rg3d::engine::Engine;
     /// use rg3d::window::WindowBuilder;
     /// use rg3d::event_loop::EventLoop;
@@ -68,7 +68,7 @@ impl<M: MessageData, C: Control<M, C>> Engine<M, C> {
     /// let window_builder = WindowBuilder::new()
     ///     .with_title("Test")
     ///     .with_fullscreen(None);
-    /// let mut engine: Engine<(), StubNode> = Engine::new(window_builder, &evt).unwrap();
+    /// let mut engine: Engine<(), StubNode> = Engine::new(window_builder, &evt, true).unwrap();
     /// ```
     #[inline]
     pub fn new(

@@ -23,6 +23,7 @@ use crate::{
     scene::{light::Light, node::Node, Scene},
 };
 use rapier3d::na::Point3;
+use rayon::prelude::*;
 use std::{collections::HashMap, path::Path, time};
 
 ///
@@ -252,13 +253,9 @@ fn transform_vertices(data: &SurfaceSharedData, transform: &Matrix4<f32>) -> Vec
         .collect()
 }
 
-enum Pixel {
-    Transparent,
-    Color {
-        color: Color,
-        position: Vector3<f32>,
-        normal: Vector3<f32>,
-    },
+struct Pixel {
+    coords: Vector2<u16>,
+    color: Color,
 }
 
 /// Calculates properties of pixel (world position, normal) at given position.
@@ -389,7 +386,6 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
 ) -> TextureData {
     let world_positions = transform_vertices(data, transform);
     let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
-    let mut pixels = Vec::<Pixel>::with_capacity((size * size) as usize);
 
     let scale = 1.0 / size as f32;
 
@@ -404,54 +400,44 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
 
     let last_time = time::Instant::now();
 
-    let half_pixel = scale * 0.5;
+    let mut pixels = Vec::with_capacity((size * size) as usize);
     for y in 0..(size as usize) {
         for x in 0..(size as usize) {
-            // Get uv in center of pixel.
-            let uv = Vector2::new(x as f32 * scale + half_pixel, y as f32 * scale + half_pixel);
-
-            if let Some((world_position, normal)) = pick(
-                uv,
-                &grid,
-                &data.triangles,
-                &data.vertices,
-                &world_positions,
-                &normal_matrix,
-                scale,
-            ) {
-                pixels.push(Pixel::Color {
-                    color: Color::opaque(0, 0, 0),
-                    position: world_position,
-                    normal,
-                })
-            } else {
-                pixels.push(Pixel::Transparent)
-            }
+            pixels.push(Pixel {
+                coords: Vector2::new(x as u16, y as u16),
+                color: Color::TRANSPARENT,
+            });
         }
     }
 
-    println!("Step 1: {:?}", time::Instant::now() - last_time);
-
-    let last_time = time::Instant::now();
-
     let lights: Vec<&LightDefinition> = lights.into_iter().collect();
 
-    for pixel in pixels.iter_mut() {
-        if let Pixel::Color {
-            color,
-            position,
-            normal,
-        } = pixel
-        {
+    let half_pixel = scale * 0.5;
+    pixels.par_iter_mut().for_each(|pixel: &mut Pixel| {
+        // Get uv in center of pixel.
+        let uv = Vector2::new(
+            pixel.coords.x as f32 * scale + half_pixel,
+            pixel.coords.y as f32 * scale + half_pixel,
+        );
+
+        if let Some((world_position, normal)) = pick(
+            uv,
+            &grid,
+            &data.triangles,
+            &data.vertices,
+            &world_positions,
+            &normal_matrix,
+            scale,
+        ) {
             for light in &lights {
                 let (light_color, attenuation) = match light {
                     LightDefinition::Directional(directional) => {
                         let attenuation =
-                            directional.intensity * lambertian(directional.direction, *normal);
+                            directional.intensity * lambertian(directional.direction, normal);
                         (directional.color, attenuation)
                     }
                     LightDefinition::Spot(spot) => {
-                        let d = spot.position - *position;
+                        let d = spot.position - world_position;
                         let distance = d.norm();
                         let light_vec = d.scale(1.0 / distance);
                         let spot_angle_cos = light_vec.dot(&spot.direction);
@@ -462,42 +448,38 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         );
                         let attenuation = cone_factor
                             * spot.intensity
-                            * lambertian(light_vec, *normal)
+                            * lambertian(light_vec, normal)
                             * distance_attenuation(distance, spot.distance);
                         (spot.color, attenuation)
                     }
                     LightDefinition::Point(point) => {
-                        let d = point.position - *position;
+                        let d = point.position - world_position;
                         let distance = d.norm();
                         let light_vec = d.scale(1.0 / distance);
                         let attenuation = point.intensity
-                            * lambertian(light_vec, *normal)
+                            * lambertian(light_vec, normal)
                             * distance_attenuation(distance, point.radius);
                         (point.color, attenuation)
                     }
                 };
-                color.r =
-                    (color.r as f32 + ((light_color.r as f32) * attenuation)).min(255.0) as u8;
-                color.g =
-                    (color.g as f32 + ((light_color.g as f32) * attenuation)).min(255.0) as u8;
-                color.b =
-                    (color.b as f32 + ((light_color.b as f32) * attenuation)).min(255.0) as u8;
+                pixel.color.r = (pixel.color.r as f32 + ((light_color.r as f32) * attenuation))
+                    .min(255.0) as u8;
+                pixel.color.g = (pixel.color.g as f32 + ((light_color.g as f32) * attenuation))
+                    .min(255.0) as u8;
+                pixel.color.b = (pixel.color.b as f32 + ((light_color.b as f32) * attenuation))
+                    .min(255.0) as u8;
             }
         }
-    }
+    });
 
-    println!("Step 2: {:?}", time::Instant::now() - last_time);
+    println!("Step 1: {:?}", time::Instant::now() - last_time);
 
     let mut bytes = Vec::with_capacity((size * size * 4) as usize);
     for pixel in pixels {
-        let color = match pixel {
-            Pixel::Transparent => Color::TRANSPARENT,
-            Pixel::Color { color, .. } => color,
-        };
-        bytes.push(color.r);
-        bytes.push(color.g);
-        bytes.push(color.b);
-        bytes.push(color.a);
+        bytes.push(pixel.color.r);
+        bytes.push(pixel.color.g);
+        bytes.push(pixel.color.b);
+        bytes.push(pixel.color.a);
     }
     TextureData::from_bytes(
         TextureKind::Rectangle {
@@ -513,8 +495,12 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
 #[cfg(test)]
 mod test {
     use crate::{
-        core::{color::Color, math::vec3::Vector3},
+        core::{
+            algebra::{Matrix4, Vector3},
+            color::Color,
+        },
         renderer::surface::SurfaceSharedData,
+        resource::texture::TextureKind,
         utils::{
             lightmap::{generate_lightmap, LightDefinition, PointLightDefinition},
             uvgen::generate_uvs,
@@ -534,9 +520,15 @@ mod test {
             color: Color::WHITE,
             radius: 4.0,
         })];
-        let lightmap = generate_lightmap(&data, &Default::default(), &lights, 128);
+        let lightmap = generate_lightmap(&data, &Matrix4::identity(), &lights, 128);
 
-        let image = RgbaImage::from_raw(lightmap.width, lightmap.height, lightmap.bytes).unwrap();
+        let (w, h) = if let TextureKind::Rectangle { width, height } = lightmap.kind {
+            (width, height)
+        } else {
+            unreachable!();
+        };
+
+        let image = RgbaImage::from_raw(w, h, lightmap.bytes).unwrap();
         image.save("lightmap.png").unwrap();
     }
 }

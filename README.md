@@ -1,4 +1,6 @@
 [![Discord](https://img.shields.io/discord/756573453561102427)](https://discord.gg/xENF5Uh)
+![Lines of code](https://tokei.rs/b1/github/mrDIMAS/rg3d)
+
 
 # RG3D
 

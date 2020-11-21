@@ -23,10 +23,8 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     scene::{
-        base::{BaseBuilder, LevelOfDetail, LodGroup},
-        camera::CameraBuilder,
+        base::{LevelOfDetail, LodGroup},
         node::Node,
-        transform::TransformBuilder,
         Scene,
     },
     utils::translate_event,

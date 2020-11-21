@@ -285,8 +285,10 @@ impl PathFinder {
 
 #[cfg(test)]
 mod test {
-    use crate::core::math::vec3::Vector3;
-    use crate::utils::astar::{PathFinder, PathVertex};
+    use crate::{
+        core::{algebra::Vector3, rand},
+        utils::astar::{PathFinder, PathVertex},
+    };
     use rand::Rng;
 
     #[test]
@@ -355,7 +357,7 @@ mod test {
                     let a = pair[0];
                     let b = pair[1];
 
-                    assert!(a.distance(&b) <= 2.0f32.sqrt());
+                    assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
                 }
             }
         }

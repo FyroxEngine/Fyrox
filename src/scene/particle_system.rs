@@ -27,7 +27,7 @@
 //! ```
 //! use rg3d::scene::particle_system::{SphereEmitter, ParticleSystemBuilder, Emitter, BaseEmitterBuilder, SphereEmitterBuilder};
 //! use rg3d::engine::resource_manager::ResourceManager;
-//! use rg3d::core::math::vec3::Vector3;
+//! use rg3d::core::algebra::Vector3;
 //! use rg3d::scene::graph::Graph;
 //! use rg3d::scene::node::Node;
 //! use rg3d::scene::transform::TransformBuilder;
@@ -63,7 +63,7 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_opt_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga"), TexturePixelKind::R8))
+//!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga")))
 //!         .build()));
 //! }
 //! ```

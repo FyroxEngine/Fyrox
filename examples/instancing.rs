@@ -233,37 +233,37 @@ fn main() {
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
                 let mut dt = clock.elapsed().as_secs_f32() - elapsed_time;
-                // while dt >= fixed_timestep {
-                dt -= fixed_timestep;
-                elapsed_time += fixed_timestep;
+                while dt >= fixed_timestep {
+                    dt -= fixed_timestep;
+                    elapsed_time += fixed_timestep;
 
-                // Use stored scene handle to borrow a mutable reference of scene in
-                // engine.
-                let scene = &mut engine.scenes[scene_handle];
+                    // Use stored scene handle to borrow a mutable reference of scene in
+                    // engine.
+                    let scene = &mut engine.scenes[scene_handle];
 
-                // Our animations must be applied to scene explicitly, otherwise
-                // it will have no effect.
-                for &animation in animations.iter() {
-                    scene
-                        .animations
-                        .get_mut(animation)
-                        .get_pose()
-                        .apply(&mut scene.graph);
+                    // Our animations must be applied to scene explicitly, otherwise
+                    // it will have no effect.
+                    for &animation in animations.iter() {
+                        scene
+                            .animations
+                            .get_mut(animation)
+                            .get_pose()
+                            .apply(&mut scene.graph);
+                    }
+
+                    // Rotate model according to input controller state.
+                    if input_controller.rotate_left {
+                        camera_angle -= 5.0f32.to_radians();
+                    } else if input_controller.rotate_right {
+                        camera_angle += 5.0f32.to_radians();
+                    }
+
+                    scene.graph[camera].local_transform_mut().set_rotation(
+                        UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_angle),
+                    );
+
+                    engine.update(fixed_timestep);
                 }
-
-                // Rotate model according to input controller state.
-                if input_controller.rotate_left {
-                    camera_angle -= 5.0f32.to_radians();
-                } else if input_controller.rotate_right {
-                    camera_angle += 5.0f32.to_radians();
-                }
-
-                scene.graph[camera].local_transform_mut().set_rotation(
-                    UnitQuaternion::from_axis_angle(&Vector3::y_axis(), camera_angle),
-                );
-
-                engine.update(fixed_timestep);
-                //}
 
                 let text = format!(
                     "Example - Instancing\n\

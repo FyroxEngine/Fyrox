@@ -38,7 +38,7 @@
 //! Some libraries (like assimp) decomposes this complex formula into set of smaller transforms
 //! which are contains only T R S components and then combine them to get final result, I find
 //! this approach very bug prone, and it is still heavy from computation side. It is much
-//! easier to uses it as is.
+//! easier to use it as is.
 //!
 //! # Decomposition
 //!
@@ -54,6 +54,54 @@ use crate::{
     utils::log::Log,
 };
 use std::cell::Cell;
+
+/// Mobility defines a group for scene node which has direct impact on performance
+/// and capabilities of nodes.
+///
+/// TODO: Use it.
+pub enum Mobility {
+    /// Transform cannot be changed.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// Nodes with Static mobility should be used all the time you need unchangeable
+    /// node. Such nodes will have maximum optimization during the rendering.
+    ///
+    /// ### Meshes
+    ///
+    /// Static meshes will be baked into larger blocks to reduce draw call count per frame.
+    /// Also static meshes will participate in lightmap generation.
+    ///
+    /// ### Lights
+    ///
+    /// Static lights will be baked in lightmap. They lit only static geometry!
+    /// Specular lighting is not supported.
+    Static,
+
+    /// Transform cannot be changed, but other node-dependent properties are changeable.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// ### Meshes
+    ///
+    /// Same as Static.
+    ///
+    /// ### Lights
+    ///
+    /// Stationary lights have complex route for shadows:
+    ///   - Shadows from Static/Stationary meshes will be baked into lightmap.
+    ///   - Shadows from Dynamic lights will be re-rendered each frame into shadow map.
+    /// Stationary lights support specular lighting.
+    Stationary,
+
+    /// Transform can be freely changed.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// Dynamic mobility should be used only for the objects that are designed to be
+    /// moving in the scene, for example - objects with physics, or dynamic lights, etc.
+    Dynamic,
+}
 
 /// See module docs.
 #[derive(Clone, Debug)]

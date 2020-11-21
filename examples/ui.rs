@@ -80,6 +80,7 @@ fn create_ui(engine: &mut GameEngine) -> Interface {
     let video_modes = engine
         .get_window()
         .primary_monitor()
+        .unwrap()
         .video_modes()
         .filter(|vm| {
             // Leave only modern video modes, we are not in 1998.

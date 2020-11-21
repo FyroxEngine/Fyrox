@@ -555,11 +555,8 @@ impl Player {
             .unwrap_or(Vector3::default());
         let is_moving = velocity.norm_squared() > 0.0;
 
-        //scene.physics.bodies.ind
-        //scene.physics.narrow_phase.contact_graph().
-
-        let mut has_ground_contact = true;
-        //let mut has_ground_contact = false;
+        // TODO: Rapier does not provide access to contacts yet.
+        let has_ground_contact = true;
         /*
         for contact in body.get_contacts() {
             if contact.position.y < position.y {

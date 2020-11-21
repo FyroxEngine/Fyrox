@@ -8,6 +8,7 @@ extern crate lexical;
 extern crate lazy_static;
 extern crate arrayvec;
 extern crate ddsfile;
+extern crate rayon;
 
 #[cfg(test)]
 extern crate imageproc;

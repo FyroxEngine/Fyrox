@@ -210,7 +210,7 @@ impl Navmesh {
     ///
     /// ```
     /// use rg3d::utils::navmesh::Navmesh;
-    /// use rg3d::core::math::vec3::Vector3;
+    /// use rg3d::core::algebra::Vector3;
     /// use rg3d::utils::astar::{PathKind, PathError};
     ///
     /// fn find_path(navmesh: &mut Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {

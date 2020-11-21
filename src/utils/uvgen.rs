@@ -194,7 +194,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
 
     // Some empiric coefficient that large enough to make size big enough for all meshes.
     // This should be large enough to fit all meshes, but small to prevent losing of space.
-    let empiric_scale = 1.25;
+    let empiric_scale = 1.5;
 
     // Calculate size of atlas for packer, we'll scale it later on.
     let area = meshes
@@ -216,19 +216,26 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
                         (projection - mesh.uv_min).scale(scale) + rect.position;
                 }
             }
+        } else {
+            panic!();
         }
     }
 }
 
 /// Generates UVs for a specified mesh.
 pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
+    let last = std::time::Instant::now();
+
     for surface in mesh.surfaces() {
         generate_uvs(&mut surface.data().lock().unwrap(), spacing);
     }
+
+    println!("Generate UVs: {:?}", std::time::Instant::now() - last);
 }
 
 #[cfg(test)]
 mod test {
+    use crate::core::algebra::Matrix4;
     use crate::{renderer::surface::SurfaceSharedData, utils::uvgen::generate_uvs};
     use image::{Rgb, RgbImage};
     use imageproc::drawing::draw_line_segment_mut;
@@ -238,7 +245,7 @@ mod test {
         //let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
         //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Default::default());
         //let mut data = SurfaceSharedData::make_cube(Default::default());
-        let mut data = SurfaceSharedData::make_cone(10, 1.0, 1.0, Default::default());
+        let mut data = SurfaceSharedData::make_cone(10, 1.0, 1.0, Matrix4::identity());
         generate_uvs(&mut data, 0.01);
 
         let white = Rgb([255u8, 255u8, 255u8]);
@@ -254,9 +261,9 @@ mod test {
                 .second_tex_coord
                 .scale(1024.0);
 
-            draw_line_segment_mut(&mut image, a.into(), b.into(), white);
-            draw_line_segment_mut(&mut image, b.into(), c.into(), white);
-            draw_line_segment_mut(&mut image, c.into(), a.into(), white);
+            draw_line_segment_mut(&mut image, (a.x, a.y), (b.x, b.y), white);
+            draw_line_segment_mut(&mut image, (b.x, b.y), (c.x, c.y), white);
+            draw_line_segment_mut(&mut image, (c.x, c.y), (a.x, a.y), white);
         }
         image.save("uvgen.png").unwrap();
     }
