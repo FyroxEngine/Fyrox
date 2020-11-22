@@ -8,6 +8,8 @@ uniform sampler2D diffuseTexture;
 uniform sampler2D normalTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D lightmapTexture;
+uniform sampler2D roughnessTexture;
+uniform samplerCube environmentMap;
 uniform vec4 diffuseColor;
 
 in vec3 normal;
@@ -15,6 +17,7 @@ in vec2 texCoord;
 in vec3 tangent;
 in vec3 binormal;
 in vec2 secondTexCoord;
+in vec3 reflectionTexCoord;
 
 void main()
 {
@@ -26,4 +29,8 @@ void main()
     outNormal.xyz = normalize(tangentSpace * n.xyz) * 0.5 + 0.5;
     outNormal.w = texture(specularTexture, texCoord).r;
     outAmbient = vec4(texture(lightmapTexture, secondTexCoord).rgb, 1.0);
+
+    // reflection mapping
+    float roughness = texture(roughnessTexture, texCoord).r;
+    outColor = (1-roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
 }

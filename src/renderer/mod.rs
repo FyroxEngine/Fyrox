@@ -177,7 +177,7 @@ impl std::ops::AddAssign<RenderPassStatistics> for Statistics {
 #[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord)]
 pub enum ShadowMapPrecision {
     /// Shadow map will use 2 times less memory by switching to 16bit pixel format,
-    /// but "shadow acne" may occur.  
+    /// but "shadow acne" may occur.
     Half,
     /// Shadow map will use 32bit pixel format. This option gives highest quality,
     /// but could be less performant than `Half`.
@@ -388,6 +388,8 @@ pub struct Renderer {
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     white_dummy: Rc<RefCell<GpuTexture>>,
+    black_dummy: Rc<RefCell<GpuTexture>>,
+    environment_dummy: Rc<RefCell<GpuTexture>>,
     /// Dummy one pixel texture with (0, 1, 0) vector is used as stub when rendering
     /// something without normal map.
     normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -689,6 +691,37 @@ impl Renderer {
                 1,
                 Some(&[255u8, 255u8, 255u8, 255u8]),
             )?)),
+            black_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Rectangle {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[0u8, 0u8, 0u8, 255u8]),
+            )?)),
+            environment_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Cube {
+                    width: 1,
+                    height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[
+                    0u8, 0u8, 0u8, 255u8, // pos-x
+                    0u8, 0u8, 0u8, 255u8, // neg-x
+                    0u8, 0u8, 0u8, 255u8, // pos-y
+                    0u8, 0u8, 0u8, 255u8, // neg-y
+                    0u8, 0u8, 0u8, 255u8, // pos-z
+                    0u8, 0u8, 0u8, 255u8, // neg-z
+                ]),
+            )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
                 GpuTextureKind::Rectangle {
@@ -852,6 +885,7 @@ impl Renderer {
             self.batch_storage.generate_batches(
                 state,
                 graph,
+                self.black_dummy.clone(),
                 self.white_dummy.clone(),
                 self.normal_dummy.clone(),
                 self.specular_dummy.clone(),
@@ -907,6 +941,8 @@ impl Renderer {
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     batch_storage: &self.batch_storage,
+                    texture_cache: &mut self.texture_cache,
+                    environment_dummy: self.environment_dummy.clone(),
                 });
 
                 let (pass_stats, light_stats) =

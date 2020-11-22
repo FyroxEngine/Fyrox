@@ -12,12 +12,14 @@ uniform mat4 worldMatrix;
 uniform mat4 worldViewProjection;
 uniform bool useSkeletalAnimation;
 uniform mat4 boneMatrices[60];
+uniform vec3 cameraPosition;
 
 out vec3 normal;
 out vec2 texCoord;
 out vec3 tangent;
 out vec3 binormal;
 out vec2 secondTexCoord;
+out vec3 reflectionTexCoord;
 
 void main()
 {
@@ -60,4 +62,6 @@ void main()
     binormal = normalize(vertexTangent.w * cross(tangent, normal));
     texCoord = vertexTexCoord;
     secondTexCoord = vertexSecondTexCoord;
+    vec3 position = vec3(worldMatrix * localPosition);
+    reflectionTexCoord = reflect(normalize(position-cameraPosition), normal);
 }

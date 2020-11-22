@@ -237,6 +237,7 @@ fn create_surfaces(
                         "AmbientColor" => (), // TODO: Add ambient occlusion (AO) map support.
                         "DiffuseColor" => surface.set_diffuse_texture(Some(texture)),
                         "SpecularFactor" => surface.set_specular_texture(Some(texture)),
+                        "ShininessExponent" => surface.set_roughness_texture(Some(texture)),
                         // No idea why it can be different for normal maps.
                         "Bump" | "NormalMap" => surface.set_normal_texture(Some(texture)),
                         _ => (),

@@ -1,3 +1,4 @@
+use crate::renderer::TextureCache;
 use crate::{
     core::{
         algebra::{Matrix4, Vector4},
@@ -31,10 +32,13 @@ struct InstancedShader {
     diffuse_texture: UniformLocation,
     normal_texture: UniformLocation,
     specular_texture: UniformLocation,
+    roughness_texture: UniformLocation,
     lightmap_texture: UniformLocation,
     matrix_buffer_stride: UniformLocation,
     matrix_storage_size: UniformLocation,
     matrix_storage: UniformLocation,
+    environment_map: UniformLocation,
+    camera_position: UniformLocation,
 }
 
 impl InstancedShader {
@@ -48,10 +52,13 @@ impl InstancedShader {
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             normal_texture: program.uniform_location("normalTexture")?,
             specular_texture: program.uniform_location("specularTexture")?,
+            roughness_texture: program.uniform_location("roughnessTexture")?,
             lightmap_texture: program.uniform_location("lightmapTexture")?,
             matrix_buffer_stride: program.uniform_location("matrixBufferStride")?,
             matrix_storage_size: program.uniform_location("matrixStorageSize")?,
             matrix_storage: program.uniform_location("matrixStorage")?,
+            environment_map: program.uniform_location("environmentMap")?,
+            camera_position: program.uniform_location("cameraPosition")?,
             program,
         })
     }
@@ -66,8 +73,11 @@ struct Shader {
     diffuse_texture: UniformLocation,
     normal_texture: UniformLocation,
     specular_texture: UniformLocation,
+    roughness_texture: UniformLocation,
     lightmap_texture: UniformLocation,
     diffuse_color: UniformLocation,
+    environment_map: UniformLocation,
+    camera_position: UniformLocation,
 }
 
 impl Shader {
@@ -83,8 +93,11 @@ impl Shader {
             diffuse_texture: program.uniform_location("diffuseTexture")?,
             normal_texture: program.uniform_location("normalTexture")?,
             specular_texture: program.uniform_location("specularTexture")?,
+            roughness_texture: program.uniform_location("roughnessTexture")?,
             lightmap_texture: program.uniform_location("lightmapTexture")?,
             diffuse_color: program.uniform_location("diffuseColor")?,
+            environment_map: program.uniform_location("environmentMap")?,
+            camera_position: program.uniform_location("cameraPosition")?,
             program,
         })
     }
@@ -107,6 +120,8 @@ pub(in crate) struct GBufferRenderContext<'a, 'b> {
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub batch_storage: &'a BatchStorage,
+    pub texture_cache: &'a mut TextureCache,
+    pub environment_dummy: Rc<RefCell<GpuTexture>>,
 }
 
 impl GBuffer {
@@ -263,6 +278,8 @@ impl GBuffer {
             camera,
             geom_cache,
             batch_storage,
+            texture_cache,
+            environment_dummy,
         } = args;
 
         let viewport = Rect::new(0, 0, self.width, self.height);
@@ -287,6 +304,11 @@ impl GBuffer {
         for batch in batch_storage.batches.iter() {
             let data = batch.data.lock().unwrap();
             let geometry = geom_cache.get(state, &data);
+
+            let environment = match camera.environment_ref() {
+                Some(texture) => texture_cache.get(state, texture.clone()).unwrap(),
+                None => environment_dummy.clone(),
+            };
 
             if batch.instances.len() == 1 {
                 // Draw single instances the usual way, there is no need to spend time to
@@ -327,6 +349,24 @@ impl GBuffer {
                                 UniformValue::Sampler {
                                     index: 3,
                                     texture: batch.lightmap_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.camera_position,
+                                UniformValue::Vector3(camera.global_position()),
+                            ),
+                            (
+                                self.shader.environment_map,
+                                UniformValue::Sampler {
+                                    index: 4,
+                                    texture: environment.clone(),
+                                },
+                            ),
+                            (
+                                self.shader.roughness_texture,
+                                UniformValue::Sampler {
+                                    index: 5,
+                                    texture: batch.roughness_texture.clone(),
                                 },
                             ),
                             (
@@ -417,9 +457,27 @@ impl GBuffer {
                                 },
                             ),
                             (
-                                self.instanced_shader.matrix_storage,
+                                self.instanced_shader.camera_position,
+                                UniformValue::Vector3(camera.global_position()),
+                            ),
+                            (
+                                self.instanced_shader.environment_map,
+                                UniformValue::Sampler {
+                                    index: 4,
+                                    texture: environment.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.roughness_texture,
                                 UniformValue::Sampler {
                                     index: 5,
+                                    texture: batch.roughness_texture.clone(),
+                                },
+                            ),
+                            (
+                                self.instanced_shader.matrix_storage,
+                                UniformValue::Sampler {
+                                    index: 6,
                                     texture: self.matrix_storage.matrices_storage.clone(),
                                 },
                             ),
