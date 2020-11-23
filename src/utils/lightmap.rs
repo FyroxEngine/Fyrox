@@ -7,12 +7,11 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::core::algebra::{Matrix3, Matrix4, Vector2, Vector3};
-use crate::core::math::{Matrix4Ext, Vector2Ext};
 use crate::{
     core::{
+        algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
         color::Color,
-        math::{self, Rect, TriangleDefinition},
+        math::{self, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -22,7 +21,6 @@ use crate::{
     },
     scene::{light::Light, node::Node, Scene},
 };
-use rapier3d::na::Point3;
 use rayon::prelude::*;
 use std::{collections::HashMap, path::Path, time};
 
@@ -73,7 +71,7 @@ impl Visit for Lightmap {
 impl Lightmap {
     /// Generates lightmap for given scene.
     /// Each mesh *must* have generated UVs for lightmap, otherwise result will be incorrect!
-    pub fn new(scene: &Scene, texels_per_unit: u32) -> Self {
+    pub fn new(scene: &Scene, texels_per_unit: u32, ambient_color: Color) -> Self {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes.
@@ -89,16 +87,17 @@ impl Lightmap {
                                 .up_vector()
                                 .try_normalize(std::f32::EPSILON)
                                 .unwrap_or_else(Vector3::y),
-                            color: light.color(),
+                            color: light.color().as_frgb(),
                         }),
                     )),
                     Light::Spot(spot) => lights.push((
                         handle,
                         LightDefinition::Spot(SpotLightDefinition {
                             intensity: 1.0,
-                            hotspot_cone_angle: spot.hotspot_cone_angle(),
-                            falloff_angle_delta: spot.falloff_angle_delta(),
-                            color: light.color(),
+                            edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5)
+                                .cos(),
+                            edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
+                            color: light.color().as_frgb(),
                             direction: light
                                 .up_vector()
                                 .try_normalize(std::f32::EPSILON)
@@ -112,7 +111,7 @@ impl Lightmap {
                         LightDefinition::Point(PointLightDefinition {
                             intensity: 1.0,
                             position: light.global_position(),
-                            color: light.color(),
+                            color: light.color().as_frgb(),
                             radius: point.radius(),
                         }),
                     )),
@@ -125,7 +124,7 @@ impl Lightmap {
                 if !mesh.global_visibility() {
                     continue;
                 }
-                let global_transform = mesh.global_transform.get();
+                let global_transform = mesh.global_transform();
                 let mut surface_lightmaps = Vec::new();
                 for surface in mesh.surfaces() {
                     let data = surface.data();
@@ -135,6 +134,7 @@ impl Lightmap {
                         &global_transform,
                         lights.iter().map(|(_, definition)| definition),
                         texels_per_unit,
+                        ambient_color,
                     );
                     surface_lightmaps.push(LightmapEntry {
                         texture: Some(Texture::new(TextureState::Ok(lightmap))),
@@ -175,26 +175,25 @@ pub struct DirectionalLightDefinition {
     /// Direction of light rays.
     pub direction: Vector3<f32>,
     /// Color of light.
-    pub color: Color,
+    pub color: Vector3<f32>,
 }
 
 /// Spot light is a cone light source. Example: flashlight.
 pub struct SpotLightDefinition {
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
-    /// Angle (in radians) at cone top which defines area with uniform light.
-    pub hotspot_cone_angle: f32,
-    /// Angle delta (in radians) outside of cone top which sets area of smooth
-    /// transition of intensity from max to min.
-    pub falloff_angle_delta: f32,
     /// Color of light.
-    pub color: Color,
+    pub color: Vector3<f32>,
     /// Direction vector of light.
     pub direction: Vector3<f32>,
     /// Position of light in world coordinates.
     pub position: Vector3<f32>,
     /// Distance at which light intensity decays to zero.
     pub distance: f32,
+    /// Smoothstep left bound. It is ((hotspot_cone_angle + falloff_angle_delta) * 0.5).cos()
+    pub edge0: f32,
+    /// Smoothstep right bound. It is (hotspot_cone_angle * 0.5).cos()
+    pub edge1: f32,
 }
 
 /// Point light is a spherical light source. Example: light bulb.
@@ -204,7 +203,7 @@ pub struct PointLightDefinition {
     /// Position of light in world coordinates.
     pub position: Vector3<f32>,
     /// Color of light.
-    pub color: Color,
+    pub color: Vector3<f32>,
     /// Radius of sphere at which light intensity decays to zero.
     pub radius: f32,
 }
@@ -383,22 +382,22 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     transform: &Matrix4<f32>,
     lights: I,
     texels_per_unit: u32,
+    ambient_color: Color,
 ) -> TextureData {
+    let last_time = time::Instant::now();
+
     let world_positions = transform_vertices(data, transform);
     let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
 
     let scale = 1.0 / size as f32;
 
-    let last_time = time::Instant::now();
-
     let grid = Grid::new(data, (size / 16).max(4) as usize);
 
-    println!("Step 0: {:?}", time::Instant::now() - last_time);
-
-    // TODO: Must be inverse transposed to eliminate scale/shear.
-    let normal_matrix = transform.basis();
-
-    let last_time = time::Instant::now();
+    let normal_matrix = transform
+        .basis()
+        .try_inverse()
+        .map(|m| m.transpose())
+        .unwrap_or_else(Matrix3::identity);
 
     let mut pixels = Vec::with_capacity((size * size) as usize);
     for y in 0..(size as usize) {
@@ -420,7 +419,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
             pixel.coords.y as f32 * scale + half_pixel,
         );
 
-        if let Some((world_position, normal)) = pick(
+        if let Some((world_position, world_normal)) = pick(
             uv,
             &grid,
             &data.triangles,
@@ -429,11 +428,12 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
             &normal_matrix,
             scale,
         ) {
+            let mut pixel_color = ambient_color.as_frgb();
             for light in &lights {
                 let (light_color, attenuation) = match light {
                     LightDefinition::Directional(directional) => {
                         let attenuation =
-                            directional.intensity * lambertian(directional.direction, normal);
+                            directional.intensity * lambertian(directional.direction, world_normal);
                         (directional.color, attenuation)
                     }
                     LightDefinition::Spot(spot) => {
@@ -441,14 +441,10 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         let distance = d.norm();
                         let light_vec = d.scale(1.0 / distance);
                         let spot_angle_cos = light_vec.dot(&spot.direction);
-                        let cone_factor = smoothstep(
-                            ((spot.hotspot_cone_angle + spot.falloff_angle_delta) * 0.5).cos(),
-                            (spot.hotspot_cone_angle * 0.5).cos(),
-                            spot_angle_cos,
-                        );
+                        let cone_factor = smoothstep(spot.edge0, spot.edge1, spot_angle_cos);
                         let attenuation = cone_factor
                             * spot.intensity
-                            * lambertian(light_vec, normal)
+                            * lambertian(light_vec, world_normal)
                             * distance_attenuation(distance, spot.distance);
                         (spot.color, attenuation)
                     }
@@ -457,22 +453,17 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         let distance = d.norm();
                         let light_vec = d.scale(1.0 / distance);
                         let attenuation = point.intensity
-                            * lambertian(light_vec, normal)
+                            * lambertian(light_vec, world_normal)
                             * distance_attenuation(distance, point.radius);
                         (point.color, attenuation)
                     }
                 };
-                pixel.color.r = (pixel.color.r as f32 + ((light_color.r as f32) * attenuation))
-                    .min(255.0) as u8;
-                pixel.color.g = (pixel.color.g as f32 + ((light_color.g as f32) * attenuation))
-                    .min(255.0) as u8;
-                pixel.color.b = (pixel.color.b as f32 + ((light_color.b as f32) * attenuation))
-                    .min(255.0) as u8;
+                pixel_color += light_color.scale(attenuation);
             }
+
+            pixel.color = Color::from(pixel_color);
         }
     });
-
-    println!("Step 1: {:?}", time::Instant::now() - last_time);
 
     let mut bytes = Vec::with_capacity((size * size * 4) as usize);
     for pixel in pixels {
@@ -481,7 +472,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes.push(pixel.color.b);
         bytes.push(pixel.color.a);
     }
-    TextureData::from_bytes(
+    let data = TextureData::from_bytes(
         TextureKind::Rectangle {
             width: size,
             height: size,
@@ -489,7 +480,14 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         TexturePixelKind::RGBA8,
         bytes,
     )
-    .unwrap()
+    .unwrap();
+
+    println!(
+        "Lightmap generated in: {:?}",
+        time::Instant::now() - last_time
+    );
+
+    data
 }
 
 #[cfg(test)]
@@ -520,7 +518,7 @@ mod test {
             color: Color::WHITE,
             radius: 4.0,
         })];
-        let lightmap = generate_lightmap(&data, &Matrix4::identity(), &lights, 128);
+        let lightmap = generate_lightmap(&data, &Matrix4::identity(), &lights, 128, Color::BLACK);
 
         let (w, h) = if let TextureKind::Rectangle { width, height } = lightmap.kind {
             (width, height)

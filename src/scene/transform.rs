@@ -137,6 +137,10 @@ impl Visit for Transform {
         self.scaling_offset.visit("ScalingOffset", visitor)?;
         self.scaling_pivot.visit("ScalingPivot", visitor)?;
 
+        if visitor.is_reading() {
+            self.post_rotation_matrix = build_post_rotation_matrix(self.post_rotation);
+        }
+
         visitor.leave_region()
     }
 }
@@ -145,6 +149,19 @@ impl Default for Transform {
     fn default() -> Self {
         Self::identity()
     }
+}
+
+fn build_post_rotation_matrix(post_rotation: UnitQuaternion<f32>) -> Matrix3<f32> {
+    post_rotation
+        .to_rotation_matrix()
+        .matrix()
+        .try_inverse()
+        .unwrap_or_else(|| {
+            Log::writeln(
+                "Unable to inverse post rotation matrix! Fallback to identity matrix.".to_owned(),
+            );
+            Matrix3::identity()
+        })
 }
 
 impl Transform {
@@ -243,18 +260,7 @@ impl Transform {
     pub fn set_post_rotation(&mut self, post_rotation: UnitQuaternion<f32>) -> &mut Self {
         if self.dirty.get() || self.post_rotation != post_rotation {
             self.post_rotation = post_rotation;
-            self.post_rotation_matrix = self
-                .post_rotation
-                .to_rotation_matrix()
-                .matrix()
-                .try_inverse()
-                .unwrap_or_else(|| {
-                    Log::writeln(
-                        "Unable to inverse post rotation matrix! Fallback to identity matrix."
-                            .to_owned(),
-                    );
-                    Matrix3::identity()
-                });
+            self.post_rotation_matrix = build_post_rotation_matrix(self.post_rotation);
             self.dirty.set(true);
         }
         self

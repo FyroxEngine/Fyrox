@@ -201,6 +201,14 @@ impl Color {
         )
     }
 
+    pub fn as_frgb(self) -> Vector3<f32> {
+        Vector3::new(
+            f32::from(self.r) / 255.0,
+            f32::from(self.g) / 255.0,
+            f32::from(self.b) / 255.0,
+        )
+    }
+
     pub fn to_opaque(self) -> Self {
         Self {
             r: self.r,

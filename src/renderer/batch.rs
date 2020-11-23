@@ -38,6 +38,7 @@ pub struct SurfaceInstance {
     pub world_transform: Matrix4<f32>,
     pub bone_matrices: ArrayVec<[Matrix4<f32>; BONE_MATRICES_COUNT]>,
     pub color: Color,
+    pub depth_offset: f32,
 }
 
 pub struct Batch {
@@ -164,6 +165,7 @@ impl BatchStorage {
                     })),
                     color: surface.color(),
                     owner: handle,
+                    depth_offset: mesh.depth_offset_factor(),
                 });
             }
         }

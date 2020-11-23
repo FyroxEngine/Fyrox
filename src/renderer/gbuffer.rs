@@ -301,6 +301,8 @@ impl GBuffer {
             blend: false,
         };
 
+        let initial_view_projection = camera.view_projection_matrix();
+
         for batch in batch_storage.batches.iter() {
             let data = batch.data.lock().unwrap();
             let geometry = geom_cache.get(state, &data);
@@ -316,6 +318,14 @@ impl GBuffer {
 
                 let instance = batch.instances.first().unwrap();
                 if camera.visibility_cache.is_visible(instance.owner) {
+                    let view_projection = if instance.depth_offset != 0.0 {
+                        let mut projection = camera.projection_matrix();
+                        projection[14] -= instance.depth_offset;
+                        projection * camera.view_matrix()
+                    } else {
+                        initial_view_projection
+                    };
+
                     statistics += self.framebuffer.draw(
                         geometry,
                         state,
@@ -371,9 +381,7 @@ impl GBuffer {
                             ),
                             (
                                 self.shader.wvp_matrix,
-                                UniformValue::Matrix4(
-                                    camera.view_projection_matrix() * instance.world_transform,
-                                ),
+                                UniformValue::Matrix4(view_projection * instance.world_transform),
                             ),
                             (
                                 self.shader.world_matrix,
@@ -405,11 +413,19 @@ impl GBuffer {
                 self.matrix_storage.clear();
                 self.instance_data_set.clear();
                 for instance in batch.instances.iter() {
+                    let view_projection = if instance.depth_offset != 0.0 {
+                        let mut projection = camera.projection_matrix();
+                        projection[14] -= instance.depth_offset;
+                        projection * camera.view_matrix()
+                    } else {
+                        initial_view_projection
+                    };
+
                     if camera.visibility_cache.is_visible(instance.owner) {
                         self.instance_data_set.push(InstanceData {
                             color: instance.color,
                             world: instance.world_transform,
-                            wvp: camera.view_projection_matrix() * instance.world_transform,
+                            wvp: view_projection * instance.world_transform,
                         });
                         self.matrix_storage
                             .push_slice(instance.bone_matrices.as_slice());

@@ -46,18 +46,19 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 4.0, -8.0)).await;
+    let camera = create_camera(resource_manager.clone(), Vector3::new(5.0, 4.0, -8.0)).await;
 
     scene.graph.add_node(Node::Camera(camera));
 
     // There is no difference between scene created in rusty-editor and any other
     // model file, so any scene can be used directly as resource.
     let root = resource_manager
-        .request_model("examples/data/test_scene.rgs")
+        .request_model("examples/data/Sponza.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene)
         .root;
+
     scene.graph.update_hierarchical_data();
 
     for node in scene.graph.linear_iter() {
@@ -66,7 +67,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         }
     }
 
-    let lightmap = Lightmap::new(&scene, 128);
+    let lightmap = Lightmap::new(&scene, 44, Color::opaque(20, 20, 20));
     let lightmaps_path = Path::new("examples/data/lightmaps/");
     if !lightmaps_path.exists() {
         std::fs::create_dir(lightmaps_path).unwrap();
@@ -121,7 +122,7 @@ fn main() {
     // Set ambient light.
     engine
         .renderer
-        .set_ambient_color(Color::opaque(200, 200, 200));
+        .set_ambient_color(Color::opaque(100, 100, 100));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

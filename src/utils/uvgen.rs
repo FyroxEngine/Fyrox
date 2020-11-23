@@ -1,16 +1,16 @@
 //! UV Map generator. Used to generate second texture coordinates for lightmaps.
 //!
 //! Current implementation uses simple planar mapping.
-use crate::core::algebra::Vector2;
-use crate::core::math::Vector2Ext;
 use crate::{
     core::{
-        math::{self, PlaneClass},
+        algebra::Vector2,
+        math::{self, PlaneClass, Vector2Ext},
         rectpack::RectPacker,
     },
     renderer::surface::SurfaceSharedData,
     scene::mesh::Mesh,
 };
+use rayon::prelude::*;
 
 #[derive(Debug)]
 struct UvMesh {
@@ -36,9 +36,13 @@ impl UvMesh {
     pub fn height(&self) -> f32 {
         self.uv_max.y - self.uv_min.y
     }
+
+    pub fn area(&self) -> f32 {
+        self.width() * self.height()
+    }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct UvBox {
     px: Vec<usize>,
     nx: Vec<usize>,
@@ -124,15 +128,35 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
     make_seam(
         data,
         &uv_box.px,
-        &[&uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+        &[&uv_box.nx, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
     );
     make_seam(
         data,
         &uv_box.nx,
-        &[&uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+        &[&uv_box.px, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
     );
-    make_seam(data, &uv_box.py, &[&uv_box.pz, &uv_box.nz]);
-    make_seam(data, &uv_box.ny, &[&uv_box.pz, &uv_box.nz]);
+
+    make_seam(
+        data,
+        &uv_box.py,
+        &[&uv_box.px, &uv_box.nx, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+    );
+    make_seam(
+        data,
+        &uv_box.ny,
+        &[&uv_box.py, &uv_box.nx, &uv_box.px, &uv_box.pz, &uv_box.nz],
+    );
+
+    make_seam(
+        data,
+        &uv_box.pz,
+        &[&uv_box.nz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
+    );
+    make_seam(
+        data,
+        &uv_box.nz,
+        &[&uv_box.pz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
+    );
 
     // Step 3. Find separate "meshes" on uv map. After box mapping we will most likely
     // end up with set of faces, some of them may form meshes and each such mesh must
@@ -191,33 +215,50 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
     }
 
     // Step 4. Arrange and scale all meshes on uv map so it fits into [0;1] range.
+    let area = meshes.iter().fold(0.0, |area, mesh| area + mesh.area());
+    let square_side = area.sqrt();
+
+    meshes.sort_unstable_by(|a, b| b.area().partial_cmp(&a.area()).unwrap());
+
+    let mut rects = Vec::new();
 
     // Some empiric coefficient that large enough to make size big enough for all meshes.
     // This should be large enough to fit all meshes, but small to prevent losing of space.
-    let empiric_scale = 1.5;
+    // We'll use iterative approach to pack everything as tight as possible: at each iteration
+    // scale will be increased until packer is able to pack everything.
+    let mut empiric_scale = 1.1;
+    let mut scale = 1.0;
+    'try_loop: for _ in 0..100 {
+        rects.clear();
 
-    // Calculate size of atlas for packer, we'll scale it later on.
-    let area = meshes
-        .iter()
-        .fold(0.0, |area, mesh| area + mesh.width() * mesh.height());
-    let scale = 1.0 / (area.sqrt() * empiric_scale);
+        // Calculate size of atlas for packer, we'll scale it later on.
+        scale = 1.0 / (square_side * empiric_scale);
 
-    // We'll pack into 1.0 square, our UVs must be in [0;1] range, no wrapping is allowed.
-    let mut packer = RectPacker::new(1.0, 1.0);
-    for mesh in meshes {
-        if let Some(rect) = packer.find_free(mesh.width() * scale, mesh.height() * scale) {
-            for &triangle_index in mesh.triangles.iter() {
-                for (&vertex_index, &projection) in data.triangles[triangle_index]
-                    .indices()
-                    .iter()
-                    .zip(&projections[triangle_index])
-                {
-                    data.vertices[vertex_index as usize].second_tex_coord =
-                        (projection - mesh.uv_min).scale(scale) + rect.position;
-                }
+        // We'll pack into 1.0 square, our UVs must be in [0;1] range, no wrapping is allowed.
+        let mut packer = RectPacker::new(1.0, 1.0);
+        for mesh in meshes.iter() {
+            if let Some(rect) = packer.find_free(mesh.width() * scale, mesh.height() * scale) {
+                rects.push(rect);
+            } else {
+                // I don't know how to pass this by without iterative approach :(
+                empiric_scale *= 1.33;
+                continue 'try_loop;
             }
-        } else {
-            panic!();
+        }
+    }
+
+    for (i, rect) in rects.into_iter().enumerate() {
+        let mesh = &meshes[i];
+
+        for &triangle_index in mesh.triangles.iter() {
+            for (&vertex_index, &projection) in data.triangles[triangle_index]
+                .indices()
+                .iter()
+                .zip(&projections[triangle_index])
+            {
+                data.vertices[vertex_index as usize].second_tex_coord =
+                    (projection - mesh.uv_min).scale(scale) + rect.position;
+            }
         }
     }
 }
@@ -226,9 +267,15 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
 pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
     let last = std::time::Instant::now();
 
-    for surface in mesh.surfaces() {
-        generate_uvs(&mut surface.data().lock().unwrap(), spacing);
-    }
+    let data_set = mesh
+        .surfaces()
+        .iter()
+        .map(|s| s.data().clone())
+        .collect::<Vec<_>>();
+
+    data_set.par_iter().for_each(|data| {
+        generate_uvs(&mut data.lock().unwrap(), spacing);
+    });
 
     println!("Generate UVs: {:?}", std::time::Instant::now() - last);
 }
@@ -242,10 +289,10 @@ mod test {
 
     #[test]
     fn test_generate_uvs() {
-        //let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
-        //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Default::default());
-        //let mut data = SurfaceSharedData::make_cube(Default::default());
-        let mut data = SurfaceSharedData::make_cone(10, 1.0, 1.0, Matrix4::identity());
+        let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
+        //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Matrix4::identity());
+        //let mut data = SurfaceSharedData::make_cube(Matrix4::identity());
+        //let mut data = SurfaceSharedData::make_cone(10, 1.0, 1.0, Matrix4::identity());
         generate_uvs(&mut data, 0.01);
 
         let white = Rgb([255u8, 255u8, 255u8]);
