@@ -11,13 +11,14 @@ uniform sampler2D lightmapTexture;
 uniform sampler2D roughnessTexture;
 uniform samplerCube environmentMap;
 uniform vec4 diffuseColor;
+uniform vec3 cameraPosition;
 
+in vec3 position;
 in vec3 normal;
 in vec2 texCoord;
 in vec3 tangent;
 in vec3 binormal;
 in vec2 secondTexCoord;
-in vec3 reflectionTexCoord;
 
 void main()
 {
@@ -32,5 +33,6 @@ void main()
 
     // reflection mapping
     float roughness = texture(roughnessTexture, texCoord).r;
+    vec3 reflectionTexCoord = reflect(normalize(position-cameraPosition), normalize(n.xyz));
     outColor = (1-roughness) * outColor + roughness * vec4(texture(environmentMap, reflectionTexCoord).rgb, outColor.a);
 }
