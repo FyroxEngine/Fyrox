@@ -10,8 +10,7 @@ in vec2 texCoord;
 
 void main()
 {
-    float ambientOcclusion =  texture(aoSampler, texCoord).r;
-    FragColor = ambientColor * texture(diffuseTexture, texCoord) ;
-    FragColor.rgb *= texture(ambientTexture, texCoord).rgb;
+    float ambientOcclusion = texture(aoSampler, texCoord).r;
+    FragColor = (ambientColor + texture(ambientTexture, texCoord)) * texture(diffuseTexture, texCoord);
     FragColor.rgb *= ambientOcclusion;
 }

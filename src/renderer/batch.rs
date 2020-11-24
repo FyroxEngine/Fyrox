@@ -129,7 +129,7 @@ impl BatchStorage {
                 let lightmap_texture = surface
                     .lightmap_texture()
                     .and_then(|texture| texture_cache.get(state, texture))
-                    .unwrap_or_else(|| white_dummy.clone());
+                    .unwrap_or_else(|| black_dummy.clone());
 
                 let data = surface.data();
                 let key = &*data as *const _ as u64;

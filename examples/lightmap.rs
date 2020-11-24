@@ -67,7 +67,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         }
     }
 
-    let lightmap = Lightmap::new(&scene, 44, Color::opaque(20, 20, 20));
+    let lightmap = Lightmap::new(&scene, 44);
     let lightmaps_path = Path::new("examples/data/lightmaps/");
     if !lightmaps_path.exists() {
         std::fs::create_dir(lightmaps_path).unwrap();
@@ -120,9 +120,7 @@ fn main() {
     let scene_handle = engine.scenes.add(scene);
 
     // Set ambient light.
-    engine
-        .renderer
-        .set_ambient_color(Color::opaque(100, 100, 100));
+    engine.renderer.set_ambient_color(Color::opaque(80, 80, 80));
 
     let clock = Instant::now();
     let fixed_timestep = 1.0 / 60.0;

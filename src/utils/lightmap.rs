@@ -71,7 +71,7 @@ impl Visit for Lightmap {
 impl Lightmap {
     /// Generates lightmap for given scene.
     /// Each mesh *must* have generated UVs for lightmap, otherwise result will be incorrect!
-    pub fn new(scene: &Scene, texels_per_unit: u32, ambient_color: Color) -> Self {
+    pub fn new(scene: &Scene, texels_per_unit: u32) -> Self {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes.
@@ -134,7 +134,6 @@ impl Lightmap {
                         &global_transform,
                         lights.iter().map(|(_, definition)| definition),
                         texels_per_unit,
-                        ambient_color,
                     );
                     surface_lightmaps.push(LightmapEntry {
                         texture: Some(Texture::new(TextureState::Ok(lightmap))),
@@ -382,7 +381,6 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     transform: &Matrix4<f32>,
     lights: I,
     texels_per_unit: u32,
-    ambient_color: Color,
 ) -> TextureData {
     let last_time = time::Instant::now();
 
@@ -428,7 +426,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
             &normal_matrix,
             scale,
         ) {
-            let mut pixel_color = ambient_color.as_frgb();
+            let mut pixel_color = Vector3::default();
             for light in &lights {
                 let (light_color, attenuation) = match light {
                     LightDefinition::Directional(directional) => {
@@ -508,17 +506,23 @@ mod test {
 
     #[test]
     fn test_generate_lightmap() {
-        let mut data = SurfaceSharedData::make_sphere(20, 20, 1.0);
+        //let mut data = SurfaceSharedData::make_sphere(20, 20, 1.0);
+        let mut data = SurfaceSharedData::make_cone(
+            16,
+            1.0,
+            1.0,
+            Matrix4::new_nonuniform_scaling(&Vector3::new(1.0, 1.1, 1.0)),
+        );
 
         generate_uvs(&mut data, 0.01);
 
         let lights = [LightDefinition::Point(PointLightDefinition {
             intensity: 3.0,
             position: Vector3::new(0.0, 2.0, 0.0),
-            color: Color::WHITE,
+            color: Color::WHITE.as_frgb(),
             radius: 4.0,
         })];
-        let lightmap = generate_lightmap(&data, &Matrix4::identity(), &lights, 128, Color::BLACK);
+        let lightmap = generate_lightmap(&data, &Matrix4::identity(), &lights, 128);
 
         let (w, h) = if let TextureKind::Rectangle { width, height } = lightmap.kind {
             (width, height)

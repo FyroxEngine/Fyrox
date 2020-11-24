@@ -52,26 +52,31 @@ struct UvBox {
     nz: Vec<usize>,
 }
 
-fn make_seam(data: &mut SurfaceSharedData, face_triangles: &[usize], other_faces: &[&[usize]]) {
-    for &other_face_triangles in other_faces.iter() {
+fn face_vs_face(
+    data: &mut SurfaceSharedData,
+    face_triangles: &[usize],
+    other_face_triangles: &[usize],
+) {
+    for other_triangle_index in other_face_triangles.iter() {
+        let other_triangle = data.triangles[*other_triangle_index].clone();
         for triangle_index in face_triangles.iter() {
-            // Check if other part has adjacent triangle to current one. And if so
-            // add new vertices at boundary to form seam.
-            for other_triangle_index in other_face_triangles.iter() {
-                let other_triangle = data.triangles[*other_triangle_index].clone();
-                let triangle = &mut data.triangles[*triangle_index];
-                for vertex_index in triangle.indices_mut() {
-                    for &other_vertex_index in other_triangle.indices() {
-                        if *vertex_index == other_vertex_index {
-                            // We have adjacency, add new vertex and fix current index.
-                            let vertex = data.vertices[other_vertex_index as usize];
-                            *vertex_index = data.vertices.len() as u32;
-                            data.vertices.push(vertex);
-                        }
+            for vertex_index in data.triangles[*triangle_index].indices_mut() {
+                for &other_vertex_index in other_triangle.indices() {
+                    if *vertex_index == other_vertex_index {
+                        // We have adjacency, add new vertex and fix current index.
+                        let vertex = data.vertices[other_vertex_index as usize];
+                        *vertex_index = data.vertices.len() as u32;
+                        data.vertices.push(vertex);
                     }
                 }
             }
         }
+    }
+}
+
+fn make_seam(data: &mut SurfaceSharedData, face_triangles: &[usize], other_faces: &[&[usize]]) {
+    for &other_face_triangles in other_faces.iter() {
+        face_vs_face(data, face_triangles, other_face_triangles);
     }
 }
 
@@ -282,17 +287,22 @@ pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
 
 #[cfg(test)]
 mod test {
-    use crate::core::algebra::Matrix4;
+    use crate::core::algebra::{Matrix4, Vector3};
     use crate::{renderer::surface::SurfaceSharedData, utils::uvgen::generate_uvs};
     use image::{Rgb, RgbImage};
     use imageproc::drawing::draw_line_segment_mut;
 
     #[test]
     fn test_generate_uvs() {
-        let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
+        //let mut data = SurfaceSharedData::make_sphere(100, 100, 1.0);
         //let mut data = SurfaceSharedData::make_cylinder(80, 1.0, 1.0, true, Matrix4::identity());
         //let mut data = SurfaceSharedData::make_cube(Matrix4::identity());
-        //let mut data = SurfaceSharedData::make_cone(10, 1.0, 1.0, Matrix4::identity());
+        let mut data = SurfaceSharedData::make_cone(
+            16,
+            1.0,
+            1.0,
+            Matrix4::new_nonuniform_scaling(&Vector3::new(1.0, 1.1, 1.0)),
+        );
         generate_uvs(&mut data, 0.01);
 
         let white = Rgb([255u8, 255u8, 255u8]);

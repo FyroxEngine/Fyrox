@@ -1202,7 +1202,7 @@ impl SurfaceBuilder {
         self.specular_texture = Some(tex);
         self
     }
-    
+
     /// Sets desired roughness texture.
     pub fn with_roughness_texture(mut self, tex: Texture) -> Self {
         self.roughness_texture = Some(tex);
