@@ -7,6 +7,7 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
+use crate::utils::uvgen;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
@@ -69,9 +70,10 @@ impl Visit for Lightmap {
 }
 
 impl Lightmap {
-    /// Generates lightmap for given scene.
-    /// Each mesh *must* have generated UVs for lightmap, otherwise result will be incorrect!
-    pub fn new(scene: &Scene, texels_per_unit: u32) -> Self {
+    /// Generates lightmap for given scene. If scene has no second texture coordinates for
+    /// lightmap (which is true for 99.9% cases), `generate_uv` must be true, otherwise result
+    /// will be incorrect!
+    pub fn new(scene: &mut Scene, texels_per_unit: u32, generate_uv: bool) -> Self {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes.
@@ -128,12 +130,13 @@ impl Lightmap {
                 let mut surface_lightmaps = Vec::new();
                 for surface in mesh.surfaces() {
                     let data = surface.data();
-                    let data = data.lock().unwrap();
+                    let mut data = data.lock().unwrap();
                     let lightmap = generate_lightmap(
-                        &data,
+                        &mut data,
                         &global_transform,
                         lights.iter().map(|(_, definition)| definition),
                         texels_per_unit,
+                        generate_uv,
                     );
                     surface_lightmaps.push(LightmapEntry {
                         texture: Some(Texture::new(TextureState::Ok(lightmap))),
@@ -279,7 +282,7 @@ fn pick(
                 .scale(scale);
 
             let mut current_uv = uv;
-            for _ in 0..2 {
+            for _ in 0..3 {
                 let barycentric = math::get_barycentric_coords_2d(current_uv, uv_a, uv_b, uv_c);
 
                 if math::barycentric_is_inside(barycentric) {
@@ -377,18 +380,27 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 /// time it will take. Required time increases drastically if you enable shadows (TODO) and
 /// global illumination (TODO), because in this case your data will be raytraced.
 fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
-    data: &SurfaceSharedData,
+    data: &mut SurfaceSharedData,
     transform: &Matrix4<f32>,
     lights: I,
     texels_per_unit: u32,
+    generate_uv: bool,
 ) -> TextureData {
     let last_time = time::Instant::now();
 
+    // Estimate size of texture and adjust spacing between charts on lightmap.
     let world_positions = transform_vertices(data, transform);
     let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
 
     let scale = 1.0 / size as f32;
 
+    if generate_uv {
+        uvgen::generate_uvs(data, 2.0 * scale);
+    }
+
+    // We have to re-generate new set of world-space vertices because UV generator
+    // may add new vertices on seams.
+    let world_positions = transform_vertices(data, transform);
     let grid = Grid::new(data, (size / 16).max(4) as usize);
 
     let normal_matrix = transform
@@ -513,16 +525,13 @@ mod test {
             1.0,
             Matrix4::new_nonuniform_scaling(&Vector3::new(1.0, 1.1, 1.0)),
         );
-
-        generate_uvs(&mut data, 0.01);
-
         let lights = [LightDefinition::Point(PointLightDefinition {
             intensity: 3.0,
             position: Vector3::new(0.0, 2.0, 0.0),
             color: Color::WHITE.as_frgb(),
             radius: 4.0,
         })];
-        let lightmap = generate_lightmap(&data, &Matrix4::identity(), &lights, 128);
+        let lightmap = generate_lightmap(&mut data, &Matrix4::identity(), &lights, 128, true);
 
         let (w, h) = if let TextureKind::Rectangle { width, height } = lightmap.kind {
             (width, height)

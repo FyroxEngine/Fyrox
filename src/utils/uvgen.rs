@@ -12,8 +12,9 @@ use crate::{
 };
 use rayon::prelude::*;
 
+/// A part of uv map.
 #[derive(Debug)]
-struct UvMesh {
+pub struct UvMesh {
     // Array of indices of triangles.
     triangles: Vec<usize>,
     uv_max: Vector2<f32>,
@@ -29,27 +30,32 @@ impl UvMesh {
         }
     }
 
+    /// Returns total width of the mesh.
     pub fn width(&self) -> f32 {
         self.uv_max.x - self.uv_min.x
     }
 
+    /// Returns total height of the mesh.
     pub fn height(&self) -> f32 {
         self.uv_max.y - self.uv_min.y
     }
 
+    /// Returns total area of the mesh.
     pub fn area(&self) -> f32 {
         self.width() * self.height()
     }
 }
 
+/// A set of faces with triangles belonging to faces.
 #[derive(Default, Debug)]
-struct UvBox {
+pub struct UvBox {
     px: Vec<usize>,
     nx: Vec<usize>,
     py: Vec<usize>,
     ny: Vec<usize>,
     pz: Vec<usize>,
     nz: Vec<usize>,
+    projections: Vec<[Vector2<f32>; 3]>,
 }
 
 fn face_vs_face(
@@ -80,16 +86,10 @@ fn make_seam(data: &mut SurfaceSharedData, face_triangles: &[usize], other_faces
     }
 }
 
-/// Generates UV map for given surface data.
-///
-/// # Performance
-///
-/// This method utilizes lots of "brute force" algorithms, so it is not fast as it
-/// could be in ideal case. It also allocates some memory for internal needs.
-pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
-    // Step 1. Map each triangle from surface to appropriate side of box.
+/// Maps each triangle from surface to appropriate side of box. This is so called
+/// box mapping.
+fn generate_uv_box(data: &SurfaceSharedData) -> UvBox {
     let mut uv_box = UvBox::default();
-    let mut projections = Vec::new();
     for (i, triangle) in data.triangles.iter().enumerate() {
         let a = data.vertices[triangle[0] as usize].position;
         let b = data.vertices[triangle[1] as usize].position;
@@ -100,34 +100,42 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
             PlaneClass::XY => {
                 if normal.z < 0.0 {
                     uv_box.nz.push(i);
-                    projections.push([a.yx(), b.yx(), c.yx()])
+                    uv_box.projections.push([a.yx(), b.yx(), c.yx()])
                 } else {
                     uv_box.pz.push(i);
-                    projections.push([a.xy(), b.xy(), c.xy()]);
+                    uv_box.projections.push([a.xy(), b.xy(), c.xy()]);
                 }
             }
             PlaneClass::XZ => {
                 if normal.y < 0.0 {
                     uv_box.ny.push(i);
-                    projections.push([a.xz(), b.xz(), c.xz()])
+                    uv_box.projections.push([a.xz(), b.xz(), c.xz()])
                 } else {
                     uv_box.py.push(i);
-                    projections.push([a.zx(), b.zx(), c.zx()])
+                    uv_box.projections.push([a.zx(), b.zx(), c.zx()])
                 }
             }
             PlaneClass::YZ => {
                 if normal.x < 0.0 {
                     uv_box.nx.push(i);
-                    projections.push([a.zy(), b.zy(), c.zy()])
+                    uv_box.projections.push([a.zy(), b.zy(), c.zy()])
                 } else {
                     uv_box.px.push(i);
-                    projections.push([a.yz(), b.yz(), c.yz()])
+                    uv_box.projections.push([a.yz(), b.yz(), c.yz()])
                 }
             }
         }
     }
+    uv_box
+}
 
-    // Step 2. Split vertices at boundary between each face. This step multiplies the
+/// Generates a set of UV meshes.
+pub fn generate_uv_meshes(
+    uv_box: &UvBox,
+    data: &mut SurfaceSharedData,
+    // spacing: f32,
+) -> Vec<UvMesh> {
+    // Step 1. Split vertices at boundary between each face. This step multiplies the
     // number of vertices at boundary so we'll get separate texture coordinates at
     // seams.
     make_seam(
@@ -163,7 +171,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
         &[&uv_box.pz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
     );
 
-    // Step 3. Find separate "meshes" on uv map. After box mapping we will most likely
+    // Step 2. Find separate "meshes" on uv map. After box mapping we will most likely
     // end up with set of faces, some of them may form meshes and each such mesh must
     // be moved with all faces it has.
     let mut meshes = Vec::new();
@@ -202,7 +210,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
 
             // Calculate bounds.
             for &triangle_index in mesh.triangles.iter() {
-                let [a, b, c] = projections[triangle_index];
+                let [a, b, c] = uv_box.projections[triangle_index];
                 mesh.uv_min = a
                     .per_component_min(&b)
                     .per_component_min(&c)
@@ -213,19 +221,35 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
                     .per_component_max(&mesh.uv_max);
             }
             // Apply spacing to bounds.
-            mesh.uv_min -= Vector2::new(spacing, spacing);
-            mesh.uv_max += Vector2::new(spacing * 2.0, spacing * 2.0);
+            //mesh.uv_min -= Vector2::new(spacing, spacing);
+            //mesh.uv_max += Vector2::new(spacing * 2.0, spacing * 2.0);
             meshes.push(mesh);
         }
     }
 
+    meshes
+}
+
+/// Generates UV map for given surface data.
+///
+/// # Performance
+///
+/// This method utilizes lots of "brute force" algorithms, so it is not fast as it
+/// could be in ideal case. It also allocates some memory for internal needs.
+pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
+    let uv_box = generate_uv_box(data);
+
+    let mut meshes = generate_uv_meshes(&uv_box, data);
+
     // Step 4. Arrange and scale all meshes on uv map so it fits into [0;1] range.
     let area = meshes.iter().fold(0.0, |area, mesh| area + mesh.area());
-    let square_side = area.sqrt();
+    let square_side = area.sqrt() + spacing * meshes.len() as f32;
 
     meshes.sort_unstable_by(|a, b| b.area().partial_cmp(&a.area()).unwrap());
 
     let mut rects = Vec::new();
+
+    let twice_spacing = spacing * 2.0;
 
     // Some empiric coefficient that large enough to make size big enough for all meshes.
     // This should be large enough to fit all meshes, but small to prevent losing of space.
@@ -242,7 +266,10 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
         // We'll pack into 1.0 square, our UVs must be in [0;1] range, no wrapping is allowed.
         let mut packer = RectPacker::new(1.0, 1.0);
         for mesh in meshes.iter() {
-            if let Some(rect) = packer.find_free(mesh.width() * scale, mesh.height() * scale) {
+            if let Some(rect) = packer.find_free(
+                mesh.width() * scale + twice_spacing,
+                mesh.height() * scale + twice_spacing,
+            ) {
                 rects.push(rect);
             } else {
                 // I don't know how to pass this by without iterative approach :(
@@ -259,10 +286,12 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
             for (&vertex_index, &projection) in data.triangles[triangle_index]
                 .indices()
                 .iter()
-                .zip(&projections[triangle_index])
+                .zip(&uv_box.projections[triangle_index])
             {
-                data.vertices[vertex_index as usize].second_tex_coord =
-                    (projection - mesh.uv_min).scale(scale) + rect.position;
+                data.vertices[vertex_index as usize].second_tex_coord = (projection - mesh.uv_min)
+                    .scale(scale)
+                    + Vector2::new(spacing, spacing)
+                    + rect.position;
             }
         }
     }

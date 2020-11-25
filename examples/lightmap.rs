@@ -23,7 +23,7 @@ use rg3d::{
         widget::WidgetBuilder,
     },
     scene::{node::Node, Scene},
-    utils::{lightmap::Lightmap, translate_event, uvgen},
+    utils::{lightmap::Lightmap, translate_event},
 };
 use std::{path::Path, time::Instant};
 
@@ -61,13 +61,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     scene.graph.update_hierarchical_data();
 
-    for node in scene.graph.linear_iter() {
-        if let Node::Mesh(mesh) = node {
-            uvgen::generate_uvs_mesh(mesh, 0.02);
-        }
-    }
-
-    let lightmap = Lightmap::new(&scene, 44);
+    let lightmap = Lightmap::new(&mut scene, 64, true);
     let lightmaps_path = Path::new("examples/data/lightmaps/");
     if !lightmaps_path.exists() {
         std::fs::create_dir(lightmaps_path).unwrap();
