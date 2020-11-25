@@ -16,6 +16,7 @@ rand = "0.7.3"
 memoffset = "0.5.3"
 lazy_static = "1.4.0"
 nalgebra = "0.23.0"
+arrayvec = "0.5.2"
 
 [features]
 enable_profiler = []

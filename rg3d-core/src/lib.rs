@@ -3,6 +3,7 @@ extern crate memoffset;
 #[macro_use]
 extern crate lazy_static;
 
+pub use arrayvec;
 pub use byteorder;
 pub use nalgebra as algebra;
 pub use rand;

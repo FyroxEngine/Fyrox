@@ -178,7 +178,7 @@ impl SpotShadowMapRenderer {
         let frustum = Frustum::from(*light_view_projection).unwrap();
 
         for batch in batches.batches.iter() {
-            let geometry = geom_cache.get(state, &batch.data.lock().unwrap());
+            let geometry = geom_cache.get(state, &batch.data.read().unwrap());
 
             for instance in batch.instances.iter() {
                 let node = &graph[instance.owner];
@@ -472,7 +472,7 @@ impl PointShadowMapRenderer {
             let frustum = Frustum::from(light_view_projection_matrix).unwrap();
 
             for batch in batch_storage.batches.iter() {
-                let geometry = geom_cache.get(state, &batch.data.lock().unwrap());
+                let geometry = geom_cache.get(state, &batch.data.read().unwrap());
 
                 for instance in batch.instances.iter() {
                     let node = &graph[instance.owner];

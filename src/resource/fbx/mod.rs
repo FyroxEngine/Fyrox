@@ -13,7 +13,7 @@ mod scene;
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Instant,
 };
 
@@ -38,6 +38,7 @@ use crate::{
 };
 use rapier3d::na::Point3;
 use std::cmp::Ordering;
+use std::sync::RwLock;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
@@ -212,7 +213,7 @@ fn create_surfaces(
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from_raw_mesh(
+        let mut surface = Surface::new(Arc::new(RwLock::new(SurfaceSharedData::from_raw_mesh(
             data.builder.build(),
             false,
         ))));
@@ -221,10 +222,9 @@ fn create_surfaces(
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(Arc::new(Mutex::new(SurfaceSharedData::from_raw_mesh(
-                data.builder.build(),
-                false,
-            ))));
+            let mut surface = Surface::new(Arc::new(RwLock::new(
+                SurfaceSharedData::from_raw_mesh(data.builder.build(), false),
+            )));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             for (name, texture_handle) in material.textures.iter() {
@@ -330,7 +330,7 @@ fn convert_mesh(
 
         if geom.tangents.is_none() {
             for surface in mesh.surfaces_mut() {
-                surface.data().lock().unwrap().calculate_tangents();
+                surface.data().write().unwrap().calculate_tangents();
             }
         }
     }
@@ -499,7 +499,7 @@ fn convert(
                 surface.bones = surface_bones.iter().copied().collect();
 
                 let data_rc = surface.data();
-                let mut data = data_rc.lock().unwrap();
+                let mut data = data_rc.write().unwrap();
                 if data.get_vertices().len() == surface.vertex_weights.len() {
                     for (vertex, weight_set) in data
                         .get_vertices_mut()

@@ -16,9 +16,10 @@ use crate::{
     scene::node::Node,
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
+use std::sync::RwLock;
 use std::{
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 /// Vertex for each mesh in engine.
@@ -989,7 +990,7 @@ impl VertexWeightSet {
 pub struct Surface {
     // Wrapped into option to be able to implement Default for serialization.
     // In normal conditions it must never be None!
-    data: Option<Arc<Mutex<SurfaceSharedData>>>,
+    data: Option<Arc<RwLock<SurfaceSharedData>>>,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
@@ -1032,7 +1033,7 @@ impl Clone for Surface {
 impl Surface {
     /// Creates new surface instance with given data and without any texture.
     #[inline]
-    pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<RwLock<SurfaceSharedData>>) -> Self {
         Self {
             data: Some(data),
             diffuse_texture: None,
@@ -1048,7 +1049,7 @@ impl Surface {
 
     /// Returns current data used by surface.
     #[inline]
-    pub fn data(&self) -> Arc<Mutex<SurfaceSharedData>> {
+    pub fn data(&self) -> Arc<RwLock<SurfaceSharedData>> {
         self.data.as_ref().unwrap().clone()
     }
 
@@ -1154,7 +1155,7 @@ impl Visit for Surface {
 
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
-    data: Arc<Mutex<SurfaceSharedData>>,
+    data: Arc<RwLock<SurfaceSharedData>>,
     diffuse_texture: Option<Texture>,
     normal_texture: Option<Texture>,
     lightmap_texture: Option<Texture>,
@@ -1166,7 +1167,7 @@ pub struct SurfaceBuilder {
 
 impl SurfaceBuilder {
     /// Creates new builder instance with given data and no textures or bones.
-    pub fn new(data: Arc<Mutex<SurfaceSharedData>>) -> Self {
+    pub fn new(data: Arc<RwLock<SurfaceSharedData>>) -> Self {
         Self {
             data,
             diffuse_texture: None,

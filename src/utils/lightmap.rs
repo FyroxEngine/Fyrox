@@ -7,6 +7,7 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
+use crate::core::pool::ErasedHandle;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
@@ -22,6 +23,10 @@ use crate::{
     utils::uvgen,
 };
 use rayon::prelude::*;
+use rg3d_core::arrayvec::ArrayVec;
+use rg3d_core::math::ray::Ray;
+use rg3d_core::octree::{Octree, OctreeNode};
+use std::sync::{Arc, RwLock};
 use std::{collections::HashMap, path::Path, time};
 
 ///
@@ -68,14 +73,22 @@ impl Visit for Lightmap {
     }
 }
 
+struct Instance {
+    owner: ErasedHandle,
+    data: Arc<RwLock<SurfaceSharedData>>,
+    transform: Matrix4<f32>,
+    octree: Octree,
+    world_vertices: Vec<Vector3<f32>>,
+    atlas_size: u32,
+}
+
 impl Lightmap {
-    /// Generates lightmap for given scene. If scene has no second texture coordinates for
-    /// lightmap (which is true for 99.9% cases), `generate_uv` must be true, otherwise result
-    /// will be incorrect!
+    /// Generates lightmap for given scene. This method **automatically** generates secondary
+    /// texture coordinates!
     ///
     /// `texels_per_unit` defines resolution of lightmap, the higher value is, the more quality
     /// lightmap will be generated, but also it will be slow to generate.
-    pub fn new(scene: &mut Scene, texels_per_unit: u32, generate_uv: bool) -> Self {
+    pub fn new(scene: &mut Scene, texels_per_unit: u32) -> Self {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
@@ -122,35 +135,73 @@ impl Lightmap {
                 }
             }
         }
-        let mut map = HashMap::new();
+
+        let mut instances = Vec::new();
+
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Mesh(mesh) = node {
                 if !mesh.global_visibility() {
                     continue;
                 }
                 let global_transform = mesh.global_transform();
-                let mut surface_lightmaps = Vec::new();
                 for surface in mesh.surfaces() {
-                    let data = surface.data();
-                    let mut data = data.lock().unwrap();
-                    let lightmap = generate_lightmap(
-                        &mut data,
-                        &global_transform,
-                        lights.iter().map(|(_, definition)| definition),
-                        texels_per_unit,
-                        generate_uv,
-                    );
-                    surface_lightmaps.push(LightmapEntry {
-                        texture: Some(Texture::new(TextureState::Ok(lightmap))),
-                        lights: lights
-                            .iter()
-                            .map(|(light_handle, _)| *light_handle)
-                            .collect(),
-                    })
+                    instances.push(Instance {
+                        owner: handle.into(),
+                        data: surface.data(),
+                        transform: global_transform,
+                        // Rest will be calculated below in parallel.
+                        world_vertices: Default::default(),
+                        octree: Default::default(),
+                        atlas_size: 0,
+                    });
                 }
-                map.insert(handle, surface_lightmaps);
             }
         }
+
+        // Generate secondary texture coordinates and other stuff for each lightmap
+        // in parallel to utilize all available CPU power.
+        instances
+            .par_iter_mut()
+            .for_each(|instance: &mut Instance| {
+                let mut data = instance.data.write().unwrap();
+
+                instance.atlas_size =
+                    generate_surface_uvs(&mut data, &instance.transform, texels_per_unit);
+
+                let world_vertices = transform_vertices(&data, &instance.transform);
+                let world_triangles = data
+                    .triangles()
+                    .iter()
+                    .map(|tri| {
+                        [
+                            world_vertices[tri[0] as usize],
+                            world_vertices[tri[1] as usize],
+                            world_vertices[tri[2] as usize],
+                        ]
+                    })
+                    .collect::<Vec<_>>();
+                instance.octree = Octree::new(&world_triangles, 64);
+                instance.world_vertices = world_vertices;
+            });
+
+        let mut map: HashMap<Handle<Node>, Vec<LightmapEntry>> = HashMap::new();
+        for instance in instances.iter() {
+            let lightmap = generate_lightmap(
+                &instance,
+                &instances,
+                lights.iter().map(|(_, definition)| definition),
+            );
+            map.entry(instance.owner.into())
+                .or_default()
+                .push(LightmapEntry {
+                    texture: Some(Texture::new(TextureState::Ok(lightmap))),
+                    lights: lights
+                        .iter()
+                        .map(|(light_handle, _)| *light_handle)
+                        .collect(),
+                });
+        }
+
         Self { map }
     }
 
@@ -374,6 +425,18 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
     k * k * (3.0 - 2.0 * k)
 }
 
+fn generate_surface_uvs(
+    data: &mut SurfaceSharedData,
+    transform: &Matrix4<f32>,
+    texels_per_unit: u32,
+) -> u32 {
+    // Estimate size of texture and adjust spacing between charts on lightmap.
+    let world_positions = transform_vertices(data, transform);
+    let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
+    uvgen::generate_uvs(data, 2.0 / size as f32);
+    size
+}
+
 /// Generates lightmap for given surface data with specified transform.
 ///
 /// # Performance
@@ -382,38 +445,30 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
 /// time it will take. Required time increases drastically if you enable shadows (TODO) and
 /// global illumination (TODO), because in this case your data will be raytraced.
 fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
-    data: &mut SurfaceSharedData,
-    transform: &Matrix4<f32>,
+    instance: &Instance,
+    other_instances: &[Instance],
     lights: I,
-    texels_per_unit: u32,
-    generate_uv: bool,
 ) -> TextureData {
     let last_time = time::Instant::now();
 
-    // Estimate size of texture and adjust spacing between charts on lightmap.
-    let world_positions = transform_vertices(data, transform);
-    let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
-
-    let scale = 1.0 / size as f32;
-
-    if generate_uv {
-        uvgen::generate_uvs(data, 2.0 * scale);
-    }
+    let scale = 1.0 / instance.atlas_size as f32;
+    let data = instance.data.read().unwrap();
 
     // We have to re-generate new set of world-space vertices because UV generator
     // may add new vertices on seams.
-    let world_positions = transform_vertices(data, transform);
-    let grid = Grid::new(data, (size / 16).max(4) as usize);
+    let world_positions = transform_vertices(&data, &instance.transform);
+    let grid = Grid::new(&data, (instance.atlas_size / 16).max(4) as usize);
 
-    let normal_matrix = transform
+    let normal_matrix = instance
+        .transform
         .basis()
         .try_inverse()
         .map(|m| m.transpose())
         .unwrap_or_else(Matrix3::identity);
 
-    let mut pixels = Vec::with_capacity((size * size) as usize);
-    for y in 0..(size as usize) {
-        for x in 0..(size as usize) {
+    let mut pixels = Vec::with_capacity((instance.atlas_size * instance.atlas_size) as usize);
+    for y in 0..(instance.atlas_size as usize) {
+        for x in 0..(instance.atlas_size as usize) {
             pixels.push(Pixel {
                 coords: Vector2::new(x as u16, y as u16),
                 color: Vector3::new(0, 0, 0),
@@ -440,13 +495,14 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
             &normal_matrix,
             scale,
         ) {
+            let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
             let mut pixel_color = Vector3::default();
             for light in &lights {
-                let (light_color, attenuation) = match light {
+                let (light_color, mut attenuation, light_position) = match light {
                     LightDefinition::Directional(directional) => {
                         let attenuation =
                             directional.intensity * lambertian(directional.direction, world_normal);
-                        (directional.color, attenuation)
+                        (directional.color, attenuation, Vector3::default())
                     }
                     LightDefinition::Spot(spot) => {
                         let d = spot.position - world_position;
@@ -458,7 +514,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                             * spot.intensity
                             * lambertian(light_vec, world_normal)
                             * distance_attenuation(distance, spot.distance);
-                        (spot.color, attenuation)
+                        (spot.color, attenuation, spot.position)
                     }
                     LightDefinition::Point(point) => {
                         let d = point.position - world_position;
@@ -467,9 +523,47 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                         let attenuation = point.intensity
                             * lambertian(light_vec, world_normal)
                             * distance_attenuation(distance, point.radius);
-                        (point.color, attenuation)
+                        (point.color, attenuation, point.position)
                     }
                 };
+                // Shadows
+                if attenuation >= 0.01 {
+                    let shadow_bias = 0.01;
+                    'outer_loop: for other_instance in other_instances {
+                        if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
+                            other_instance
+                                .octree
+                                .ray_query_static(&ray, &mut query_buffer);
+                            for &node in query_buffer.iter() {
+                                match other_instance.octree.node(node) {
+                                    OctreeNode::Leaf { indices, .. } => {
+                                        let other_data = other_instance.data.read().unwrap();
+                                        for &triangle_index in indices {
+                                            let triangle =
+                                                &other_data.triangles[triangle_index as usize];
+                                            let a =
+                                                other_instance.world_vertices[triangle[0] as usize];
+                                            let b =
+                                                other_instance.world_vertices[triangle[1] as usize];
+                                            let c =
+                                                other_instance.world_vertices[triangle[2] as usize];
+                                            if let Some(pt) = ray.triangle_intersection(&[a, b, c])
+                                            {
+                                                if ray.origin.metric_distance(&pt) + shadow_bias
+                                                    < ray.dir.norm()
+                                                {
+                                                    attenuation = 0.0;
+                                                    break 'outer_loop;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    OctreeNode::Branch { .. } => unreachable!(),
+                                }
+                            }
+                        }
+                    }
+                }
                 pixel_color += light_color.scale(attenuation);
             }
 
@@ -481,7 +575,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         }
     });
 
-    let mut bytes = Vec::with_capacity((size * size * 3) as usize);
+    let mut bytes = Vec::with_capacity((instance.atlas_size * instance.atlas_size * 3) as usize);
     for pixel in pixels {
         bytes.push(pixel.color.x);
         bytes.push(pixel.color.y);
@@ -489,8 +583,8 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     }
     let data = TextureData::from_bytes(
         TextureKind::Rectangle {
-            width: size,
-            height: size,
+            width: instance.atlas_size,
+            height: instance.atlas_size,
         },
         TexturePixelKind::RGB8,
         bytes,

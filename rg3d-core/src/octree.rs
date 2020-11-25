@@ -3,6 +3,7 @@ use crate::{
     math::{aabb::AxisAlignedBoundingBox, ray::Ray},
     pool::{Handle, Pool},
 };
+use arrayvec::{Array, ArrayVec};
 
 #[derive(Clone, Debug)]
 pub enum OctreeNode {
@@ -115,6 +116,42 @@ impl Octree {
                 if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
                     for leaf in leaves {
                         self.ray_recursive_query(*leaf, ray, buffer)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn node(&self, handle: Handle<OctreeNode>) -> &OctreeNode {
+        &self.nodes[handle]
+    }
+
+    pub fn ray_query_static<T>(&self, ray: &Ray, buffer: &mut ArrayVec<T>)
+    where
+        T: Array<Item = Handle<OctreeNode>>,
+    {
+        buffer.clear();
+        self.ray_recursive_query_static(self.root, ray, buffer);
+    }
+
+    fn ray_recursive_query_static<T>(
+        &self,
+        node: Handle<OctreeNode>,
+        ray: &Ray,
+        buffer: &mut ArrayVec<T>,
+    ) where
+        T: Array<Item = Handle<OctreeNode>>,
+    {
+        match self.nodes.borrow(node) {
+            OctreeNode::Leaf { bounds, .. } => {
+                if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
+                    buffer.push(node);
+                }
+            }
+            OctreeNode::Branch { bounds, leaves } => {
+                if ray.box_intersection(&bounds.min, &bounds.max).is_some() {
+                    for leaf in leaves {
+                        self.ray_recursive_query_static(*leaf, ray, buffer)
                     }
                 }
             }

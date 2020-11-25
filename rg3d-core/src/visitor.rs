@@ -15,6 +15,7 @@ use crate::{
 };
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use nalgebra::Quaternion;
+use std::sync::RwLock;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -240,6 +241,12 @@ impl Display for VisitError {
 
 impl<'a, T> From<std::sync::PoisonError<std::sync::MutexGuard<'a, T>>> for VisitError {
     fn from(_: std::sync::PoisonError<std::sync::MutexGuard<'a, T>>) -> Self {
+        Self::PoisonedMutex
+    }
+}
+
+impl<'a, T> From<std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>> for VisitError {
+    fn from(_: std::sync::PoisonError<std::sync::RwLockWriteGuard<'_, T>>) -> Self {
         Self::PoisonedMutex
     }
 }
@@ -868,6 +875,15 @@ where
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.lock()?.visit(name, visitor)
+    }
+}
+
+impl<T> Visit for RwLock<T>
+where
+    T: Default + Visit + Send,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.write()?.visit(name, visitor)
     }
 }
 

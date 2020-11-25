@@ -304,7 +304,7 @@ impl GBuffer {
         let initial_view_projection = camera.view_projection_matrix();
 
         for batch in batch_storage.batches.iter() {
-            let data = batch.data.lock().unwrap();
+            let data = batch.data.read().unwrap();
             let geometry = geom_cache.get(state, &data);
 
             let environment = match camera.environment_ref() {

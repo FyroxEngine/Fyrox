@@ -61,7 +61,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     scene.graph.update_hierarchical_data();
 
-    let lightmap = Lightmap::new(&mut scene, 64, true);
+    let lightmap = Lightmap::new(&mut scene, 64);
     let lightmaps_path = Path::new("examples/data/lightmaps/");
     if !lightmaps_path.exists() {
         std::fs::create_dir(lightmaps_path).unwrap();

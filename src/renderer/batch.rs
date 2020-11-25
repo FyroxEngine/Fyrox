@@ -1,3 +1,4 @@
+use crate::core::arrayvec::ArrayVec;
 use crate::{
     core::{algebra::Matrix4, color::Color, pool::Handle},
     renderer::{
@@ -11,14 +12,14 @@ use crate::{
     },
     scene::{graph::Graph, node::Node},
 };
-use arrayvec::ArrayVec;
+use std::sync::RwLock;
 use std::{
     cell::RefCell,
     collections::HashMap,
     fmt::{Debug, Formatter},
     iter::FromIterator,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 pub const BONE_MATRICES_COUNT: usize = 64;
@@ -42,7 +43,7 @@ pub struct SurfaceInstance {
 }
 
 pub struct Batch {
-    pub data: Arc<Mutex<SurfaceSharedData>>,
+    pub data: Arc<RwLock<SurfaceSharedData>>,
     pub instances: Vec<SurfaceInstance>,
     pub diffuse_texture: Rc<RefCell<GpuTexture>>,
     pub normal_texture: Rc<RefCell<GpuTexture>>,

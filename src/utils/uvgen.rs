@@ -303,7 +303,7 @@ pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
         .collect::<Vec<_>>();
 
     data_set.par_iter().for_each(|data| {
-        generate_uvs(&mut data.lock().unwrap(), spacing);
+        generate_uvs(&mut data.write().unwrap(), spacing);
     });
 
     println!("Generate UVs: {:?}", std::time::Instant::now() - last);
