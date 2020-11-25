@@ -66,13 +66,14 @@ fn face_vs_face(
     for other_triangle_index in other_face_triangles.iter() {
         let other_triangle = data.triangles[*other_triangle_index].clone();
         for triangle_index in face_triangles.iter() {
-            for vertex_index in data.triangles[*triangle_index].indices_mut() {
+            'outer_loop: for vertex_index in data.triangles[*triangle_index].indices_mut() {
                 for &other_vertex_index in other_triangle.indices() {
                     if *vertex_index == other_vertex_index {
                         // We have adjacency, add new vertex and fix current index.
                         let vertex = data.vertices[other_vertex_index as usize];
                         *vertex_index = data.vertices.len() as u32;
                         data.vertices.push(vertex);
+                        continue 'outer_loop;
                     }
                 }
             }
@@ -130,11 +131,7 @@ fn generate_uv_box(data: &SurfaceSharedData) -> UvBox {
 }
 
 /// Generates a set of UV meshes.
-pub fn generate_uv_meshes(
-    uv_box: &UvBox,
-    data: &mut SurfaceSharedData,
-    // spacing: f32,
-) -> Vec<UvMesh> {
+pub fn generate_uv_meshes(uv_box: &UvBox, data: &mut SurfaceSharedData) -> Vec<UvMesh> {
     // Step 1. Split vertices at boundary between each face. This step multiplies the
     // number of vertices at boundary so we'll get separate texture coordinates at
     // seams.
@@ -220,9 +217,6 @@ pub fn generate_uv_meshes(
                     .per_component_max(&c)
                     .per_component_max(&mesh.uv_max);
             }
-            // Apply spacing to bounds.
-            //mesh.uv_min -= Vector2::new(spacing, spacing);
-            //mesh.uv_max += Vector2::new(spacing * 2.0, spacing * 2.0);
             meshes.push(mesh);
         }
     }
@@ -257,6 +251,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
     // scale will be increased until packer is able to pack everything.
     let mut empiric_scale = 1.1;
     let mut scale = 1.0;
+    let mut packer = RectPacker::new(1.0, 1.0);
     'try_loop: for _ in 0..100 {
         rects.clear();
 
@@ -264,7 +259,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
         scale = 1.0 / (square_side * empiric_scale);
 
         // We'll pack into 1.0 square, our UVs must be in [0;1] range, no wrapping is allowed.
-        let mut packer = RectPacker::new(1.0, 1.0);
+        packer.clear();
         for mesh in meshes.iter() {
             if let Some(rect) = packer.find_free(
                 mesh.width() * scale + twice_spacing,

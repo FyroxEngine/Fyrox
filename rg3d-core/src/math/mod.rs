@@ -339,10 +339,10 @@ pub fn get_barycentric_coords_2d(
     let d11 = v1.dot(&v1);
     let d20 = v2.dot(&v0);
     let d21 = v2.dot(&v1);
-    let denom = d00 * d11 - d01 * d01;
+    let inv_denom = 1.0 / (d00 * d11 - d01 * d01);
 
-    let v = (d11 * d20 - d01 * d21) / denom;
-    let w = (d00 * d21 - d01 * d20) / denom;
+    let v = (d11 * d20 - d01 * d21) * inv_denom;
+    let w = (d00 * d21 - d01 * d20) * inv_denom;
     let u = 1.0 - v - w;
 
     (u, v, w)

@@ -32,6 +32,8 @@ impl<T: Scalar> RectPackNode<T> {
 pub struct RectPacker<T: Scalar> {
     nodes: Pool<RectPackNode<T>>,
     root: Handle<RectPackNode<T>>,
+    width: T,
+    height: T,
 }
 
 impl<T> RectPacker<T>
@@ -54,7 +56,24 @@ where
             w,
             h,
         )));
-        Self { nodes, root }
+        Self {
+            nodes,
+            root,
+            width: w,
+            height: h,
+        }
+    }
+
+    /// Clears packer and prepares it for another run. It is much cheaper than create new packer,
+    /// because it reuses previously allocated memory.
+    pub fn clear(&mut self) {
+        self.nodes.clear();
+        self.root = self.nodes.spawn(RectPackNode::new(Rect::new(
+            Default::default(),
+            Default::default(),
+            self.width,
+            self.height,
+        )));
     }
 
     /// Tries to find free place to put rectangle with given size. Returns None if there insufficient

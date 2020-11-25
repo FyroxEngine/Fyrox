@@ -1,9 +1,9 @@
-//! Example 06. Lightmap.
+//! Example 09. Lightmap.
 //!
 //! Difficulty: Easy.
 //!
 //! This example shows how to load simple scene made in [rusty-editor](https://github.com/mrDIMAS/rusty-editor)
-//! and generate lightmap for it. Lightmaps are still in active development and not meant to use.
+//! and generate lightmap for it. Lightmaps are still in active development and not meant to be used.
 
 extern crate rg3d;
 
@@ -87,10 +87,10 @@ fn main() {
     let event_loop = EventLoop::new();
 
     let window_builder = rg3d::window::WindowBuilder::new()
-        .with_title("Example - Lightmap")
+        .with_title("Example 09 - Lightmap")
         .with_resizable(true);
 
-    let mut engine = GameEngine::new(window_builder, &event_loop, true).unwrap();
+    let mut engine = GameEngine::new(window_builder, &event_loop, false).unwrap();
 
     // Prepare resource manager - it must be notified where to search textures. When engine
     // loads model resource it automatically tries to load textures it uses. But since most
@@ -162,10 +162,9 @@ fn main() {
                         UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle),
                     );
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
                     let text = format!(
-                        "Example 06 - Lightmap\nUse [A][D] keys to rotate scene.\nFPS: {}",
-                        fps
+                        "Example 09 - Lightmap\nUse [A][D] keys to rotate scene.\n{}",
+                        engine.renderer.get_statistics()
                     );
                     engine.user_interface.send_message(TextMessage::text(
                         debug_text,

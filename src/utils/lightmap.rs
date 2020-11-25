@@ -7,11 +7,9 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::utils::uvgen;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
-        color::Color,
         math::{self, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
@@ -21,6 +19,7 @@ use crate::{
         Texture, TextureData, TextureError, TextureKind, TexturePixelKind, TextureState,
     },
     scene::{light::Light, node::Node, Scene},
+    utils::uvgen,
 };
 use rayon::prelude::*;
 use std::{collections::HashMap, path::Path, time};
@@ -73,10 +72,13 @@ impl Lightmap {
     /// Generates lightmap for given scene. If scene has no second texture coordinates for
     /// lightmap (which is true for 99.9% cases), `generate_uv` must be true, otherwise result
     /// will be incorrect!
+    ///
+    /// `texels_per_unit` defines resolution of lightmap, the higher value is, the more quality
+    /// lightmap will be generated, but also it will be slow to generate.
     pub fn new(scene: &mut Scene, texels_per_unit: u32, generate_uv: bool) -> Self {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
-        // same time modify meshes.
+        // same time modify meshes. Also it precomputes a lot of things for faster calculations.
         let mut lights = Vec::new();
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Light(light) = node {
@@ -256,7 +258,7 @@ fn transform_vertices(data: &SurfaceSharedData, transform: &Matrix4<f32>) -> Vec
 
 struct Pixel {
     coords: Vector2<u16>,
-    color: Color,
+    color: Vector3<u8>,
 }
 
 /// Calculates properties of pixel (world position, normal) at given position.
@@ -414,7 +416,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         for x in 0..(size as usize) {
             pixels.push(Pixel {
                 coords: Vector2::new(x as u16, y as u16),
-                color: Color::TRANSPARENT,
+                color: Vector3::new(0, 0, 0),
             });
         }
     }
@@ -471,23 +473,26 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                 pixel_color += light_color.scale(attenuation);
             }
 
-            pixel.color = Color::from(pixel_color);
+            pixel.color = Vector3::new(
+                (pixel_color.x.max(0.0).min(1.0) * 255.0) as u8,
+                (pixel_color.y.max(0.0).min(1.0) * 255.0) as u8,
+                (pixel_color.z.max(0.0).min(1.0) * 255.0) as u8,
+            );
         }
     });
 
-    let mut bytes = Vec::with_capacity((size * size * 4) as usize);
+    let mut bytes = Vec::with_capacity((size * size * 3) as usize);
     for pixel in pixels {
-        bytes.push(pixel.color.r);
-        bytes.push(pixel.color.g);
-        bytes.push(pixel.color.b);
-        bytes.push(pixel.color.a);
+        bytes.push(pixel.color.x);
+        bytes.push(pixel.color.y);
+        bytes.push(pixel.color.z);
     }
     let data = TextureData::from_bytes(
         TextureKind::Rectangle {
             width: size,
             height: size,
         },
-        TexturePixelKind::RGBA8,
+        TexturePixelKind::RGB8,
         bytes,
     )
     .unwrap();

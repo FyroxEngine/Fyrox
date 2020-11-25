@@ -62,6 +62,14 @@ TODO: It still should be improved, it needs to use more high poly model to show 
 
 ![Example 08](screenshots/lod.png?raw=true "Example 08")
 
-## Example 09 - Simple game
+## Example 09 - Lightmap
+
+Lightmap is a texture with precomputed light. This example shows how to load simple scene made in 
+[rusty-editor](https://github.com/mrDIMAS/rusty-editor) and generate lightmap for it. Lightmaps are still in
+active development and not meant to be used.
+
+![Example 09](screenshots/lightmap.png?raw=true "Example 09")
+
+## Example 10 - Simple game
 
 - TODO
