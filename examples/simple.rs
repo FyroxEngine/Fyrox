@@ -30,7 +30,7 @@ use rg3d::{
     utils::translate_event,
 };
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     time::Instant,
 };
 
@@ -100,7 +100,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                     .build(),
             ),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(Mutex::new(
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
             SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
                 25.0, 0.25, 25.0,
             ))),

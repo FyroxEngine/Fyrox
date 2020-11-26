@@ -61,6 +61,8 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
     scene.graph.update_hierarchical_data();
 
+    let last_time = std::time::Instant::now();
+
     let lightmap = Lightmap::new(&mut scene, 64);
     let lightmaps_path = Path::new("examples/data/lightmaps/");
     if !lightmaps_path.exists() {
@@ -74,6 +76,11 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
             node.set_visibility(false);
         }
     }
+
+    println!(
+        "Lightmap generated in: {:?}",
+        std::time::Instant::now() - last_time
+    );
 
     GameScene { scene, root }
 }

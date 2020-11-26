@@ -7,12 +7,13 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::core::pool::ErasedHandle;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
-        math::{self, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
-        pool::Handle,
+        arrayvec::ArrayVec,
+        math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
+        octree::{Octree, OctreeNode},
+        pool::{ErasedHandle, Handle},
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
@@ -23,11 +24,11 @@ use crate::{
     utils::uvgen,
 };
 use rayon::prelude::*;
-use rg3d_core::arrayvec::ArrayVec;
-use rg3d_core::math::ray::Ray;
-use rg3d_core::octree::{Octree, OctreeNode};
-use std::sync::{Arc, RwLock};
-use std::{collections::HashMap, path::Path, time};
+use std::{
+    collections::HashMap,
+    path::Path,
+    sync::{Arc, RwLock},
+};
 
 ///
 #[derive(Default, Clone, Debug)]
@@ -55,12 +56,31 @@ impl Visit for LightmapEntry {
     }
 }
 
+#[derive(Clone, Debug)]
+struct VertexLink {
+    index: u32,
+}
+
+#[derive(Clone, Debug)]
+struct MeshPatch {
+    /// New topology for surface data. Old topology must be replaced with new,
+    /// because UV generator splits vertices at uv map.
+    triangles: Vec<TriangleDefinition>,
+    /// List of second texture coordinates used for light maps.
+    second_tex_coords: Vec<Vector2<f32>>,
+    /// List of indices of vertices that must be cloned and pushed into vertices
+    /// array of surface data.
+    additional_vertices: Vec<VertexLink>,
+}
+
 /// Lightmap is a texture with precomputed lighting.
 #[derive(Default, Clone, Debug)]
 pub struct Lightmap {
     /// Node handle to lightmap mapping. It is used to quickly get information about
     /// lightmaps for any node in scene.
     pub map: HashMap<Handle<Node>, Vec<LightmapEntry>>,
+
+    patches: HashMap<Handle<Node>, MeshPatch>,
 }
 
 impl Visit for Lightmap {
@@ -202,7 +222,10 @@ impl Lightmap {
                 });
         }
 
-        Self { map }
+        Self {
+            map,
+            patches: Default::default(),
+        }
     }
 
     /// Saves lightmap textures into specified folder.
@@ -442,15 +465,13 @@ fn generate_surface_uvs(
 /// # Performance
 ///
 /// This method is has linear complexity - the more complex mesh you pass, the more
-/// time it will take. Required time increases drastically if you enable shadows (TODO) and
+/// time it will take. Required time increases drastically if you enable shadows and
 /// global illumination (TODO), because in this case your data will be raytraced.
 fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     instance: &Instance,
     other_instances: &[Instance],
     lights: I,
 ) -> TextureData {
-    let last_time = time::Instant::now();
-
     let scale = 1.0 / instance.atlas_size as f32;
     let data = instance.data.read().unwrap();
 
@@ -495,7 +516,6 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
             &normal_matrix,
             scale,
         ) {
-            let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
             let mut pixel_color = Vector3::default();
             for light in &lights {
                 let (light_color, mut attenuation, light_position) = match light {
@@ -528,9 +548,10 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
                 };
                 // Shadows
                 if attenuation >= 0.01 {
+                    let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
                     let shadow_bias = 0.01;
-                    'outer_loop: for other_instance in other_instances {
-                        if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
+                    if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
+                        'outer_loop: for other_instance in other_instances {
                             other_instance
                                 .octree
                                 .ray_query_static(&ray, &mut query_buffer);
@@ -590,11 +611,6 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         bytes,
     )
     .unwrap();
-
-    println!(
-        "Lightmap generated in: {:?}",
-        time::Instant::now() - last_time
-    );
 
     data
 }
