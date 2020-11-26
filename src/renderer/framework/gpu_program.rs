@@ -65,18 +65,20 @@ fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLui
 
         let mut status = 1;
         gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut status);
+
+        let mut log_len = 0;
+        gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
+        let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
+        buffer.set_len(log_len as usize);
+        gl::GetShaderInfoLog(
+            shader,
+            log_len,
+            std::ptr::null_mut(),
+            buffer.as_mut_ptr() as *mut i8,
+        );
+        let compilation_message = String::from_utf8_unchecked(buffer);
+
         if status == 0 {
-            let mut log_len = 0;
-            gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut log_len);
-            let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-            buffer.set_len(log_len as usize);
-            gl::GetShaderInfoLog(
-                shader,
-                log_len,
-                std::ptr::null_mut(),
-                buffer.as_mut_ptr() as *mut i8,
-            );
-            let compilation_message = String::from_utf8_unchecked(buffer);
             Log::writeln(format!(
                 "Failed to compile {} shader: {}",
                 name, compilation_message
@@ -86,7 +88,10 @@ fn create_shader(name: String, actual_type: GLuint, source: &str) -> Result<GLui
                 error_message: compilation_message,
             })
         } else {
-            Log::writeln(format!("Shader {} compiled!", name));
+            Log::writeln(format!(
+                "Shader {} compiled!\n{}",
+                name, compilation_message
+            ));
             Ok(shader)
         }
     }
@@ -133,21 +138,25 @@ impl GpuProgram {
             gl::LinkProgram(program);
             let mut status = 1;
             gl::GetProgramiv(program, gl::LINK_STATUS, &mut status);
+
+            let mut log_len = 0;
+            gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
+            let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
+            gl::GetProgramInfoLog(
+                program,
+                log_len,
+                std::ptr::null_mut(),
+                buffer.as_mut_ptr() as *mut i8,
+            );
+            let link_message = String::from_utf8_lossy(&buffer).to_string();
             if status == 0 {
-                let mut log_len = 0;
-                gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_len);
-                let mut buffer: Vec<u8> = Vec::with_capacity(log_len as usize);
-                gl::GetProgramInfoLog(
-                    program,
-                    log_len,
-                    std::ptr::null_mut(),
-                    buffer.as_mut_ptr() as *mut i8,
-                );
+                Log::writeln(format!("Failed to link {} shader: {}", name, link_message));
                 Err(RendererError::ShaderLinkingFailed {
                     shader_name: name.to_owned(),
-                    error_message: String::from_utf8_unchecked(buffer),
+                    error_message: link_message,
                 })
             } else {
+                Log::writeln(format!("Shader {} linked!\n{}", name, link_message));
                 Ok(Self {
                     id: program,
                     name_buf: Default::default(),
