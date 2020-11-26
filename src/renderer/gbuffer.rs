@@ -39,6 +39,7 @@ struct InstancedShader {
     matrix_storage: UniformLocation,
     environment_map: UniformLocation,
     camera_position: UniformLocation,
+    view_projection_matrix: UniformLocation,
 }
 
 impl InstancedShader {
@@ -59,6 +60,7 @@ impl InstancedShader {
             matrix_storage: program.uniform_location("matrixStorage")?,
             environment_map: program.uniform_location("environmentMap")?,
             camera_position: program.uniform_location("cameraPosition")?,
+            view_projection_matrix: program.uniform_location("viewProjectionMatrix")?,
             program,
         })
     }
@@ -408,24 +410,14 @@ impl GBuffer {
                     );
                 }
             } else {
-                // Draw multiple instances at the same time.
-
                 self.matrix_storage.clear();
                 self.instance_data_set.clear();
                 for instance in batch.instances.iter() {
-                    let view_projection = if instance.depth_offset != 0.0 {
-                        let mut projection = camera.projection_matrix();
-                        projection[14] -= instance.depth_offset;
-                        projection * camera.view_matrix()
-                    } else {
-                        initial_view_projection
-                    };
-
                     if camera.visibility_cache.is_visible(instance.owner) {
                         self.instance_data_set.push(InstanceData {
                             color: instance.color,
                             world: instance.world_transform,
-                            wvp: view_projection * instance.world_transform,
+                            depth_offset: instance.depth_offset,
                         });
                         self.matrix_storage
                             .push_slice(instance.bone_matrices.as_slice());
@@ -522,6 +514,10 @@ impl GBuffer {
                                         h as f32,
                                     )
                                 }),
+                            ),
+                            (
+                                self.instanced_shader.view_projection_matrix,
+                                UniformValue::Matrix4(camera.view_projection_matrix()),
                             ),
                         ],
                     );

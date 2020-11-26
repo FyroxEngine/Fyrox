@@ -9,13 +9,14 @@ layout(location = 5) in vec4 boneWeights;
 layout(location = 6) in vec4 boneIndices;
 layout(location = 7) in vec4 instanceColor;
 layout(location = 8) in mat4 worldMatrix;
-layout(location = 12) in mat4 worldViewProjection;
+layout(location = 12) in float depthOffset;
 
 uniform sampler2D matrixStorage;
 
 uniform vec4 matrixStorageSize; // vec4(1/w, 1/h, w, h)
 uniform bool useSkeletalAnimation;
 uniform int matrixBufferStride;
+uniform mat4 viewProjectionMatrix;
 
 out vec3 position;
 out vec3 normal;
@@ -92,7 +93,9 @@ void main()
         localNormal = vertexNormal;
         localTangent = vertexTangent.xyz;
     }
-    gl_Position = worldViewProjection * localPosition;
+    mat4 viewProj = viewProjectionMatrix;
+    viewProj[3].z -= depthOffset;
+    gl_Position = (worldMatrix * viewProj) * localPosition;
     normal = normalize(mat3(worldMatrix) * localNormal);
     tangent = normalize(mat3(worldMatrix) * localTangent);
     binormal = normalize(vertexTangent.w * cross(tangent, normal));

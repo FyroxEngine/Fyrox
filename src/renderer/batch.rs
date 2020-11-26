@@ -29,9 +29,8 @@ pub const BONE_MATRICES_COUNT: usize = 64;
 pub struct InstanceData {
     pub color: Color,
     pub world: Matrix4<f32>,
-    pub wvp: Matrix4<f32>,
-    // Does NOT include bone matrices, they simply won't fit into vertex attributes
-    // limit and they'll be passed using texture.
+    pub depth_offset: f32, // Does NOT include bone matrices, they simply won't fit into vertex attributes
+                           // limit and they'll be passed using texture.
 }
 
 pub struct SurfaceInstance {

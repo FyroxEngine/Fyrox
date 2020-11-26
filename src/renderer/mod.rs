@@ -507,28 +507,10 @@ impl GeometryCache {
                             normalized: false,
                             divisor: 1,
                         })
-                        // World View Projection Matrix
+                        // Depth offset.
                         .with_attribute(AttributeDefinition {
                             location: 12,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        .with_attribute(AttributeDefinition {
-                            location: 13,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        .with_attribute(AttributeDefinition {
-                            location: 14,
-                            kind: AttributeKind::Float4,
-                            normalized: false,
-                            divisor: 1,
-                        })
-                        .with_attribute(AttributeDefinition {
-                            location: 15,
-                            kind: AttributeKind::Float4,
+                            kind: AttributeKind::Float,
                             normalized: false,
                             divisor: 1,
                         }),
