@@ -87,6 +87,12 @@ There are many examples covering various aspects of the engine. Also don't hesit
 **A:** No. It is using more classic OOP approach. However, it uses lots of optimizations for efficient
 memory management such as generational pools.
 
+**Q:** Examples running too slow on my PC, FPS is too low, help!
+
+**A:** At first, make sure you run examples on discrete GPU, not on a built-in of your CPU. Built-in GPUs
+are very slow and not suitable for rg3d. Secondly, make sure your discrete GPU is powerful enough to run 
+modern games at decent frame rate. 
+
 ## Supported Operating Systems
 
 - Windows - **full support**
