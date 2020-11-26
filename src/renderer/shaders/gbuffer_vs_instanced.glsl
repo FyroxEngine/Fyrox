@@ -95,7 +95,7 @@ void main()
     }
     mat4 viewProj = viewProjectionMatrix;
     viewProj[3].z -= depthOffset;
-    gl_Position = (worldMatrix * viewProj) * localPosition;
+    gl_Position = (viewProj * worldMatrix) * localPosition;
     normal = normalize(mat3(worldMatrix) * localNormal);
     tangent = normalize(mat3(worldMatrix) * localTangent);
     binormal = normalize(vertexTangent.w * cross(tangent, normal));
