@@ -10,6 +10,7 @@ extern crate rg3d;
 pub mod shared;
 
 use crate::shared::create_camera;
+use rg3d::utils::log::Log;
 use rg3d::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -68,6 +69,8 @@ async fn create_scene(resource_manager: ResourceManager, generate_lightmap: bool
 
         let last_time = std::time::Instant::now();
 
+        Log::writeln("Starting lightmap generation...".to_owned());
+
         let lightmap = Lightmap::new(&mut scene, 64);
         lightmap
             .save("examples/data/lightmaps/", resource_manager)
@@ -80,10 +83,10 @@ async fn create_scene(resource_manager: ResourceManager, generate_lightmap: bool
             }
         }
 
-        println!(
+        Log::writeln(format!(
             "Lightmap generated in: {:?}",
             std::time::Instant::now() - last_time
-        );
+        ));
 
         let mut visitor = Visitor::new();
         scene.visit("Scene", &mut visitor).unwrap();
