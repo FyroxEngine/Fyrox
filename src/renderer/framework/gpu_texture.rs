@@ -821,8 +821,7 @@ impl GpuTexture {
             TextureBinding {
                 texture: &mut result,
             }
-            .set_data(state, kind, pixel_kind, mip_count, data)
-            .unwrap();
+            .set_data(state, kind, pixel_kind, mip_count, data)?;
 
             gl::TexParameteri(target, gl::TEXTURE_MAG_FILTER, mag_filter.into_gl_value());
             gl::TexParameteri(target, gl::TEXTURE_MIN_FILTER, min_filter.into_gl_value());

@@ -234,6 +234,11 @@ impl Camera {
         self.environment.as_ref()
     }
 
+    /// Return current environment map.
+    pub fn environment_map(&self) -> Option<Texture> {
+        self.environment.clone()
+    }
+
     /// Creates picking ray from given screen coordinates.
     pub fn make_ray(&self, screen_coord: Vector2<f32>, screen_size: Vector2<f32>) -> Ray {
         let viewport = self.viewport_pixels(screen_size);

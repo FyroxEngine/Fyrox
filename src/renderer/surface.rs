@@ -16,6 +16,7 @@ use crate::{
     scene::node::Node,
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
+use std::collections::hash_map::DefaultHasher;
 use std::sync::RwLock;
 use std::{
     hash::{Hash, Hasher},
@@ -875,6 +876,25 @@ impl SurfaceSharedData {
         let mut data = Self::new(vertices, indices, true);
         data.calculate_tangents();
         data
+    }
+
+    /// Calculates unique id based on contents of surface shared data.
+    pub fn id(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        unsafe {
+            let triangles_bytes = std::slice::from_raw_parts(
+                self.triangles.as_ptr() as *const u8,
+                self.triangles.len() * std::mem::size_of::<TriangleDefinition>(),
+            );
+            triangles_bytes.hash(&mut hasher);
+
+            let vertices_bytes = std::slice::from_raw_parts(
+                self.vertices.as_ptr() as *const u8,
+                self.vertices.len() * std::mem::size_of::<Vertex>(),
+            );
+            vertices_bytes.hash(&mut hasher);
+        }
+        hasher.finish()
     }
 }
 

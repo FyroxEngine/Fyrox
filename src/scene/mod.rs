@@ -581,6 +581,15 @@ impl Default for Scene {
     }
 }
 
+fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
+    if let Some(shallow_texture) = tex {
+        let shallow_texture = shallow_texture.state();
+        Some(rm.request_texture(shallow_texture.path()))
+    } else {
+        None
+    }
+}
+
 impl Scene {
     /// Creates new scene with single root node.
     ///
@@ -630,16 +639,8 @@ impl Scene {
 
         // Restore pointers to resources. Scene saves only paths to resources, here we must
         // find real resources instead.
-        for node in scene.graph.linear_iter_mut() {
-            fn map_texture(tex: Option<Texture>, rm: ResourceManager) -> Option<Texture> {
-                if let Some(shallow_texture) = tex {
-                    let shallow_texture = shallow_texture.state();
-                    Some(rm.request_texture(shallow_texture.path()))
-                } else {
-                    None
-                }
-            };
 
+        for node in scene.graph.linear_iter_mut() {
             match node {
                 Node::Mesh(mesh) => {
                     for surface in mesh.surfaces_mut() {
@@ -653,10 +654,18 @@ impl Scene {
                             resource_manager.clone(),
                         ));
 
-                        surface.set_lightmap_texture(map_texture(
-                            surface.lightmap_texture(),
+                        surface.set_specular_texture(map_texture(
+                            surface.specular_texture(),
                             resource_manager.clone(),
                         ));
+
+                        surface.set_roughness_texture(map_texture(
+                            surface.roughness_texture(),
+                            resource_manager.clone(),
+                        ));
+
+                        // Do not resolve lightmap texture here, it makes no sense anyway,
+                        // it will be resolved below.
                     }
                 }
                 Node::Sprite(sprite) => {
@@ -668,7 +677,31 @@ impl Scene {
                         resource_manager.clone(),
                     ));
                 }
+                Node::Camera(camera) => {
+                    camera.set_environment(map_texture(
+                        camera.environment_map(),
+                        resource_manager.clone(),
+                    ));
+
+                    if let Some(skybox) = camera.skybox_mut() {
+                        skybox.bottom =
+                            map_texture(skybox.bottom.clone(), resource_manager.clone());
+                        skybox.top = map_texture(skybox.top.clone(), resource_manager.clone());
+                        skybox.left = map_texture(skybox.left.clone(), resource_manager.clone());
+                        skybox.right = map_texture(skybox.right.clone(), resource_manager.clone());
+                        skybox.front = map_texture(skybox.front.clone(), resource_manager.clone());
+                        skybox.back = map_texture(skybox.back.clone(), resource_manager.clone());
+                    }
+                }
                 _ => (),
+            }
+        }
+
+        if let Some(lightmap) = scene.lightmap.as_mut() {
+            for entries in lightmap.map.values_mut() {
+                for entry in entries.iter_mut() {
+                    entry.texture = map_texture(entry.texture.clone(), resource_manager.clone());
+                }
             }
         }
 
@@ -729,6 +762,59 @@ impl Scene {
 
         self.graph.update_hierarchical_data();
         self.physics.resolve(&self.physics_binder, &self.graph);
+
+        // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
+        // data at this stage, but if we'd do this before we wouldn't be able to do this because
+        // meshes contains invalid surface data.
+        if let Some(lightmap) = self.lightmap.as_mut() {
+            dbg!();
+            // Patch surface data first. To do this we gather all surface data instances and
+            // look in patch data if we have patch for data.
+            let mut unique_data_set = HashMap::new();
+            for &handle in lightmap.map.keys() {
+                if let Node::Mesh(mesh) = &mut self.graph[handle] {
+                    for surface in mesh.surfaces() {
+                        let data = surface.data();
+                        let key = &*data as *const _ as u64;
+                        if !unique_data_set.contains_key(&key) {
+                            unique_data_set.insert(key, data);
+                        }
+                    }
+                }
+            }
+
+            for (_, data) in unique_data_set.into_iter() {
+                let mut data = data.write().unwrap();
+                if let Some(patch) = lightmap.patches.get(&data.id()) {
+                    data.triangles = patch.triangles.clone();
+                    for &v in patch.additional_vertices.iter() {
+                        let vertex = data.vertices[v as usize].clone();
+                        data.vertices.push(vertex);
+                    }
+                    assert_eq!(data.vertices.len(), patch.second_tex_coords.len());
+                    for (v, &tex_coord) in
+                        data.vertices.iter_mut().zip(patch.second_tex_coords.iter())
+                    {
+                        v.second_tex_coord = tex_coord;
+                    }
+                    dbg!();
+                } else {
+                    Log::writeln(format!(
+                        "Failed to get surface data patch while resolving lightmap!\
+                    This means that surface has changed and lightmap must be regenerated!"
+                    ));
+                }
+            }
+
+            // Apply textures.
+            for (&handle, entries) in lightmap.map.iter_mut() {
+                if let Node::Mesh(mesh) = &mut self.graph[handle] {
+                    for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
+                        surface.set_lightmap_texture(entry.texture.clone());
+                    }
+                }
+            }
+        }
 
         Log::writeln("Resolve succeeded!".to_owned());
     }

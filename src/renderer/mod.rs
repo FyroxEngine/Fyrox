@@ -30,6 +30,7 @@ mod sprite_renderer;
 mod ssao;
 mod ui_renderer;
 
+use crate::utils::log::Log;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -72,6 +73,7 @@ use crate::{
     scene::{node::Node, Scene, SceneContainer},
 };
 use glutin::PossiblyCurrent;
+use std::collections::hash_map::Entry;
 use std::{
     cell::RefCell,
     collections::HashMap,
@@ -561,23 +563,31 @@ impl TextureCache {
         let texture = texture.state();
 
         if let TextureState::Ok(texture) = texture.deref() {
-            let gpu_texture = self.map.entry(key).or_insert_with(|| {
-                let gpu_texture = GpuTexture::new(
-                    state,
-                    texture.kind.into(),
-                    PixelKind::from(texture.pixel_kind),
-                    texture.minification_filter().into(),
-                    texture.magnification_filter().into(),
-                    texture.mip_count() as usize,
-                    Some(texture.bytes.as_slice()),
-                )
-                .unwrap();
+            let gpu_texture = match self.map.entry(key) {
+                Entry::Occupied(e) => e.into_mut(),
+                Entry::Vacant(e) => {
+                    let gpu_texture = match GpuTexture::new(
+                        state,
+                        texture.kind.into(),
+                        PixelKind::from(texture.pixel_kind),
+                        texture.minification_filter().into(),
+                        texture.magnification_filter().into(),
+                        texture.mip_count() as usize,
+                        Some(texture.bytes.as_slice()),
+                    ) {
+                        Ok(texture) => texture,
+                        Err(e) => {
+                            Log::writeln(format!("Failed to create GPU texture. Reason: {:?}", e));
+                            return None;
+                        }
+                    };
 
-                TimedEntry {
-                    value: Rc::new(RefCell::new(gpu_texture)),
-                    time_to_live: 20.0,
+                    e.insert(TimedEntry {
+                        value: Rc::new(RefCell::new(gpu_texture)),
+                        time_to_live: 20.0,
+                    })
                 }
-            });
+            };
 
             let new_mag_filter = texture.magnification_filter().into();
             if gpu_texture.borrow().magnification_filter() != new_mag_filter {

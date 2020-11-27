@@ -4,8 +4,9 @@
 use crate::{
     core::{
         algebra::Vector2,
-        math::{self, PlaneClass, Vector2Ext},
+        math::{self, PlaneClass, TriangleDefinition, Vector2Ext},
         rectpack::RectPacker,
+        visitor::{Visit, VisitResult, Visitor},
     },
     renderer::surface::SurfaceSharedData,
     scene::mesh::Mesh,
@@ -62,6 +63,7 @@ fn face_vs_face(
     data: &mut SurfaceSharedData,
     face_triangles: &[usize],
     other_face_triangles: &[usize],
+    patch: &mut SurfaceDataPatch,
 ) {
     for other_triangle_index in other_face_triangles.iter() {
         let other_triangle = data.triangles[*other_triangle_index].clone();
@@ -70,6 +72,7 @@ fn face_vs_face(
                 for &other_vertex_index in other_triangle.indices() {
                     if *vertex_index == other_vertex_index {
                         // We have adjacency, add new vertex and fix current index.
+                        patch.additional_vertices.push(other_vertex_index);
                         let vertex = data.vertices[other_vertex_index as usize];
                         *vertex_index = data.vertices.len() as u32;
                         data.vertices.push(vertex);
@@ -81,9 +84,51 @@ fn face_vs_face(
     }
 }
 
-fn make_seam(data: &mut SurfaceSharedData, face_triangles: &[usize], other_faces: &[&[usize]]) {
+fn make_seam(
+    data: &mut SurfaceSharedData,
+    face_triangles: &[usize],
+    other_faces: &[&[usize]],
+    patch: &mut SurfaceDataPatch,
+) {
     for &other_face_triangles in other_faces.iter() {
-        face_vs_face(data, face_triangles, other_face_triangles);
+        face_vs_face(data, face_triangles, other_face_triangles, patch);
+    }
+}
+
+/// A patch for surface data that contains secondary texture coordinates and
+/// new topology for data. It is needed for serialization: during the UV generation,
+/// generator could multiply vertices to make seams, it adds new data to existing
+/// vertices. The problem is that we do not serialize surface data - we store only a
+/// "link" to resource from which we'll load surface data on deserialization. But
+/// freshly loaded resource is not suitable for generated lightmap - in most cases
+/// it just does not have secondary texture coordinates. So we have to patch data after
+/// loading somehow with required data, this is where `SurfaceDataPatch` comes into
+/// play.
+#[derive(Clone, Debug, Default)]
+pub struct SurfaceDataPatch {
+    /// A surface data id. Usually it is just a hash of surface data.
+    pub data_id: u64,
+    /// New topology for surface data. Old topology must be replaced with new,
+    /// because UV generator splits vertices at uv map.
+    pub triangles: Vec<TriangleDefinition>,
+    /// List of second texture coordinates used for light maps.
+    pub second_tex_coords: Vec<Vector2<f32>>,
+    /// List of indices of vertices that must be cloned and pushed into vertices
+    /// array of surface data.
+    pub additional_vertices: Vec<u32>,
+}
+
+impl Visit for SurfaceDataPatch {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        visitor.enter_region(name)?;
+
+        self.data_id.visit("DataId", visitor)?;
+        self.triangles.visit("Triangles", visitor)?;
+        self.second_tex_coords.visit("SecondTexCoords", visitor)?;
+        self.additional_vertices
+            .visit("AdditionalVertices", visitor)?;
+
+        visitor.leave_region()
     }
 }
 
@@ -131,7 +176,15 @@ fn generate_uv_box(data: &SurfaceSharedData) -> UvBox {
 }
 
 /// Generates a set of UV meshes.
-pub fn generate_uv_meshes(uv_box: &UvBox, data: &mut SurfaceSharedData) -> Vec<UvMesh> {
+pub fn generate_uv_meshes(
+    uv_box: &UvBox,
+    data: &mut SurfaceSharedData,
+) -> (Vec<UvMesh>, SurfaceDataPatch) {
+    let mut mesh_patch = SurfaceDataPatch {
+        data_id: data.id(),
+        ..Default::default()
+    };
+
     // Step 1. Split vertices at boundary between each face. This step multiplies the
     // number of vertices at boundary so we'll get separate texture coordinates at
     // seams.
@@ -139,33 +192,39 @@ pub fn generate_uv_meshes(uv_box: &UvBox, data: &mut SurfaceSharedData) -> Vec<U
         data,
         &uv_box.px,
         &[&uv_box.nx, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+        &mut mesh_patch,
     );
     make_seam(
         data,
         &uv_box.nx,
         &[&uv_box.px, &uv_box.py, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+        &mut mesh_patch,
     );
 
     make_seam(
         data,
         &uv_box.py,
         &[&uv_box.px, &uv_box.nx, &uv_box.ny, &uv_box.pz, &uv_box.nz],
+        &mut mesh_patch,
     );
     make_seam(
         data,
         &uv_box.ny,
         &[&uv_box.py, &uv_box.nx, &uv_box.px, &uv_box.pz, &uv_box.nz],
+        &mut mesh_patch,
     );
 
     make_seam(
         data,
         &uv_box.pz,
         &[&uv_box.nz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
+        &mut mesh_patch,
     );
     make_seam(
         data,
         &uv_box.nz,
         &[&uv_box.pz, &uv_box.px, &uv_box.nx, &uv_box.py, &uv_box.ny],
+        &mut mesh_patch,
     );
 
     // Step 2. Find separate "meshes" on uv map. After box mapping we will most likely
@@ -221,7 +280,7 @@ pub fn generate_uv_meshes(uv_box: &UvBox, data: &mut SurfaceSharedData) -> Vec<U
         }
     }
 
-    meshes
+    (meshes, mesh_patch)
 }
 
 /// Generates UV map for given surface data.
@@ -230,10 +289,10 @@ pub fn generate_uv_meshes(uv_box: &UvBox, data: &mut SurfaceSharedData) -> Vec<U
 ///
 /// This method utilizes lots of "brute force" algorithms, so it is not fast as it
 /// could be in ideal case. It also allocates some memory for internal needs.
-pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
+pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) -> SurfaceDataPatch {
     let uv_box = generate_uv_box(data);
 
-    let mut meshes = generate_uv_meshes(&uv_box, data);
+    let (mut meshes, mut patch) = generate_uv_meshes(&uv_box, data);
 
     // Step 4. Arrange and scale all meshes on uv map so it fits into [0;1] range.
     let area = meshes.iter().fold(0.0, |area, mesh| area + mesh.area());
@@ -290,6 +349,15 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) {
             }
         }
     }
+
+    patch.triangles = data.triangles.clone();
+    patch.second_tex_coords = data
+        .vertices
+        .iter()
+        .map(|v| v.second_tex_coord)
+        .collect::<Vec<_>>();
+
+    patch
 }
 
 /// Generates UVs for a specified mesh.

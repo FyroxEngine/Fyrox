@@ -738,7 +738,7 @@ impl TextureData {
     }
 
     /// Sets new path to source file.
-    pub fn set_path<P: AsRef<Path>>(&mut self, path: &P) {
+    pub fn set_path<P: AsRef<Path>>(&mut self, path: P) {
         self.path = path.as_ref().to_owned();
     }
 

@@ -7,6 +7,8 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
+use crate::engine::resource_manager::{ResourceManager, TextureRegistrationError};
+use crate::resource::texture::TextureError;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
@@ -14,19 +16,18 @@ use crate::{
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
         pool::{ErasedHandle, Handle},
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     renderer::{surface::SurfaceSharedData, surface::Vertex},
-    resource::texture::{
-        Texture, TextureData, TextureError, TextureKind, TexturePixelKind, TextureState,
-    },
+    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
     scene::{light::Light, node::Node, Scene},
-    utils::uvgen,
+    utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use rayon::prelude::*;
+use std::path::Path;
 use std::{
     collections::HashMap,
-    path::Path,
+    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
@@ -56,23 +57,6 @@ impl Visit for LightmapEntry {
     }
 }
 
-#[derive(Clone, Debug)]
-struct VertexLink {
-    index: u32,
-}
-
-#[derive(Clone, Debug)]
-struct MeshPatch {
-    /// New topology for surface data. Old topology must be replaced with new,
-    /// because UV generator splits vertices at uv map.
-    triangles: Vec<TriangleDefinition>,
-    /// List of second texture coordinates used for light maps.
-    second_tex_coords: Vec<Vector2<f32>>,
-    /// List of indices of vertices that must be cloned and pushed into vertices
-    /// array of surface data.
-    additional_vertices: Vec<VertexLink>,
-}
-
 /// Lightmap is a texture with precomputed lighting.
 #[derive(Default, Clone, Debug)]
 pub struct Lightmap {
@@ -80,14 +64,17 @@ pub struct Lightmap {
     /// lightmaps for any node in scene.
     pub map: HashMap<Handle<Node>, Vec<LightmapEntry>>,
 
-    patches: HashMap<Handle<Node>, MeshPatch>,
+    /// List of surface data patches. Each patch will be applied to corresponding
+    /// surface data on resolve stage.
+    pub patches: HashMap<u64, SurfaceDataPatch>,
 }
 
 impl Visit for Lightmap {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         visitor.enter_region(name)?;
 
-        self.map.visit(name, visitor)?;
+        self.map.visit("Map", visitor)?;
+        self.patches.visit("Patches", visitor)?;
 
         visitor.leave_region()
     }
@@ -99,7 +86,6 @@ struct Instance {
     transform: Matrix4<f32>,
     octree: Octree,
     world_vertices: Vec<Vector3<f32>>,
-    atlas_size: u32,
 }
 
 impl Lightmap {
@@ -116,47 +102,46 @@ impl Lightmap {
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Light(light) = node {
                 match light {
-                    Light::Directional(_) => lights.push((
-                        handle,
-                        LightDefinition::Directional(DirectionalLightDefinition {
+                    Light::Directional(_) => {
+                        lights.push(LightDefinition::Directional(DirectionalLightDefinition {
+                            handle: handle.into(),
                             intensity: 1.0,
                             direction: light
                                 .up_vector()
                                 .try_normalize(std::f32::EPSILON)
                                 .unwrap_or_else(Vector3::y),
                             color: light.color().as_frgb(),
-                        }),
-                    )),
-                    Light::Spot(spot) => lights.push((
-                        handle,
-                        LightDefinition::Spot(SpotLightDefinition {
-                            intensity: 1.0,
-                            edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5)
-                                .cos(),
-                            edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
-                            color: light.color().as_frgb(),
-                            direction: light
-                                .up_vector()
-                                .try_normalize(std::f32::EPSILON)
-                                .unwrap_or_else(Vector3::y),
-                            position: light.global_position(),
-                            distance: spot.distance(),
-                        }),
-                    )),
-                    Light::Point(point) => lights.push((
-                        handle,
-                        LightDefinition::Point(PointLightDefinition {
+                        }))
+                    }
+                    Light::Spot(spot) => lights.push(LightDefinition::Spot(SpotLightDefinition {
+                        handle: handle.into(),
+                        intensity: 1.0,
+                        edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5)
+                            .cos(),
+                        edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
+                        color: light.color().as_frgb(),
+                        direction: light
+                            .up_vector()
+                            .try_normalize(std::f32::EPSILON)
+                            .unwrap_or_else(Vector3::y),
+                        position: light.global_position(),
+                        distance: spot.distance(),
+                    })),
+                    Light::Point(point) => {
+                        lights.push(LightDefinition::Point(PointLightDefinition {
+                            handle: handle.into(),
                             intensity: 1.0,
                             position: light.global_position(),
                             color: light.color().as_frgb(),
                             radius: point.radius(),
-                        }),
-                    )),
+                        }))
+                    }
                 }
             }
         }
 
         let mut instances = Vec::new();
+        let mut data_set = HashMap::new();
 
         for (handle, node) in scene.graph.pair_iter() {
             if let Node::Mesh(mesh) = node {
@@ -165,6 +150,13 @@ impl Lightmap {
                 }
                 let global_transform = mesh.global_transform();
                 for surface in mesh.surfaces() {
+                    // Gather unique "list" of surface data to generate UVs for.
+                    let data = surface.data();
+                    let key = &*data.read().unwrap() as *const _ as u64;
+                    if !data_set.contains_key(&key) {
+                        data_set.insert(key, surface.data());
+                    }
+
                     instances.push(Instance {
                         owner: handle.into(),
                         data: surface.data(),
@@ -172,21 +164,26 @@ impl Lightmap {
                         // Rest will be calculated below in parallel.
                         world_vertices: Default::default(),
                         octree: Default::default(),
-                        atlas_size: 0,
                     });
                 }
             }
         }
+
+        let patches = data_set
+            .into_par_iter()
+            .map(|(_, data)| {
+                let mut data = data.write().unwrap();
+                let patch = uvgen::generate_uvs(&mut data, 0.005);
+                (patch.data_id, patch)
+            })
+            .collect::<HashMap<_, _>>();
 
         // Generate secondary texture coordinates and other stuff for each lightmap
         // in parallel to utilize all available CPU power.
         instances
             .par_iter_mut()
             .for_each(|instance: &mut Instance| {
-                let mut data = instance.data.write().unwrap();
-
-                instance.atlas_size =
-                    generate_surface_uvs(&mut data, &instance.transform, texels_per_unit);
+                let data = instance.data.read().unwrap();
 
                 let world_vertices = transform_vertices(&data, &instance.transform);
                 let world_triangles = data
@@ -206,40 +203,34 @@ impl Lightmap {
 
         let mut map: HashMap<Handle<Node>, Vec<LightmapEntry>> = HashMap::new();
         for instance in instances.iter() {
-            let lightmap = generate_lightmap(
-                &instance,
-                &instances,
-                lights.iter().map(|(_, definition)| definition),
-            );
+            let lightmap = generate_lightmap(&instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner.into())
                 .or_default()
                 .push(LightmapEntry {
                     texture: Some(Texture::new(TextureState::Ok(lightmap))),
-                    lights: lights
-                        .iter()
-                        .map(|(light_handle, _)| *light_handle)
-                        .collect(),
+                    lights: lights.iter().map(|light| light.handle()).collect(),
                 });
         }
 
-        Self {
-            map,
-            patches: Default::default(),
-        }
+        Self { map, patches }
     }
 
     /// Saves lightmap textures into specified folder.
-    pub fn save<P: AsRef<Path>>(&self, base_path: P) -> Result<(), TextureError> {
+    pub fn save<P: AsRef<Path>>(
+        &self,
+        base_path: P,
+        resource_manager: ResourceManager,
+    ) -> Result<(), TextureRegistrationError> {
+        if !base_path.as_ref().exists() {
+            std::fs::create_dir(base_path.as_ref()).unwrap();
+        }
+
         for (handle, entries) in self.map.iter() {
             let handle_path = handle.index().to_string();
             for (i, entry) in entries.iter().enumerate() {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
-                let mut texture = texture.state();
-                if let TextureState::Ok(texture) = &mut *texture {
-                    texture.set_path(&base_path.as_ref().join(file_path));
-                    texture.save()?;
-                }
+                resource_manager.register_texture(texture, base_path.as_ref().join(file_path))?;
             }
         }
         Ok(())
@@ -248,6 +239,8 @@ impl Lightmap {
 
 /// Directional light is a light source with parallel rays. Example: Sun.
 pub struct DirectionalLightDefinition {
+    /// A handle of light in the scene.
+    pub handle: ErasedHandle,
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Direction of light rays.
@@ -258,6 +251,8 @@ pub struct DirectionalLightDefinition {
 
 /// Spot light is a cone light source. Example: flashlight.
 pub struct SpotLightDefinition {
+    /// A handle of light in the scene.
+    pub handle: ErasedHandle,
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Color of light.
@@ -276,6 +271,8 @@ pub struct SpotLightDefinition {
 
 /// Point light is a spherical light source. Example: light bulb.
 pub struct PointLightDefinition {
+    /// A handle of light in the scene.
+    pub handle: ErasedHandle,
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Position of light in world coordinates.
@@ -294,6 +291,16 @@ pub enum LightDefinition {
     Spot(SpotLightDefinition),
     /// See docs of [PointLightDefinition](struct.PointLightDefinition.html)
     Point(PointLightDefinition),
+}
+
+impl LightDefinition {
+    fn handle(&self) -> Handle<Node> {
+        match self {
+            LightDefinition::Directional(v) => v.handle.into(),
+            LightDefinition::Spot(v) => v.handle.into(),
+            LightDefinition::Point(v) => v.handle.into(),
+        }
+    }
 }
 
 /// Computes total area of triangles in surface data and returns size of square
@@ -448,18 +455,6 @@ fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
     k * k * (3.0 - 2.0 * k)
 }
 
-fn generate_surface_uvs(
-    data: &mut SurfaceSharedData,
-    transform: &Matrix4<f32>,
-    texels_per_unit: u32,
-) -> u32 {
-    // Estimate size of texture and adjust spacing between charts on lightmap.
-    let world_positions = transform_vertices(data, transform);
-    let size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
-    uvgen::generate_uvs(data, 2.0 / size as f32);
-    size
-}
-
 /// Generates lightmap for given surface data with specified transform.
 ///
 /// # Performance
@@ -467,18 +462,23 @@ fn generate_surface_uvs(
 /// This method is has linear complexity - the more complex mesh you pass, the more
 /// time it will take. Required time increases drastically if you enable shadows and
 /// global illumination (TODO), because in this case your data will be raytraced.
-fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
+fn generate_lightmap(
     instance: &Instance,
     other_instances: &[Instance],
-    lights: I,
+    lights: &[LightDefinition],
+    texels_per_unit: u32,
 ) -> TextureData {
-    let scale = 1.0 / instance.atlas_size as f32;
     let data = instance.data.read().unwrap();
+
+    let world_positions = transform_vertices(&data, &instance.transform);
+    let atlas_size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
+
+    let scale = 1.0 / atlas_size as f32;
 
     // We have to re-generate new set of world-space vertices because UV generator
     // may add new vertices on seams.
     let world_positions = transform_vertices(&data, &instance.transform);
-    let grid = Grid::new(&data, (instance.atlas_size / 16).max(4) as usize);
+    let grid = Grid::new(&data, (atlas_size / 16).max(4) as usize);
 
     let normal_matrix = instance
         .transform
@@ -487,17 +487,15 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         .map(|m| m.transpose())
         .unwrap_or_else(Matrix3::identity);
 
-    let mut pixels = Vec::with_capacity((instance.atlas_size * instance.atlas_size) as usize);
-    for y in 0..(instance.atlas_size as usize) {
-        for x in 0..(instance.atlas_size as usize) {
+    let mut pixels = Vec::with_capacity((atlas_size * atlas_size) as usize);
+    for y in 0..(atlas_size as usize) {
+        for x in 0..(atlas_size as usize) {
             pixels.push(Pixel {
                 coords: Vector2::new(x as u16, y as u16),
                 color: Vector3::new(0, 0, 0),
             });
         }
     }
-
-    let lights: Vec<&LightDefinition> = lights.into_iter().collect();
 
     let half_pixel = scale * 0.5;
     pixels.par_iter_mut().for_each(|pixel: &mut Pixel| {
@@ -517,7 +515,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
             scale,
         ) {
             let mut pixel_color = Vector3::default();
-            for light in &lights {
+            for light in lights {
                 let (light_color, mut attenuation, light_position) = match light {
                     LightDefinition::Directional(directional) => {
                         let attenuation =
@@ -596,7 +594,7 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
         }
     });
 
-    let mut bytes = Vec::with_capacity((instance.atlas_size * instance.atlas_size * 3) as usize);
+    let mut bytes = Vec::with_capacity((atlas_size * atlas_size * 3) as usize);
     for pixel in pixels {
         bytes.push(pixel.color.x);
         bytes.push(pixel.color.y);
@@ -604,8 +602,8 @@ fn generate_lightmap<'a, I: IntoIterator<Item = &'a LightDefinition>>(
     }
     let data = TextureData::from_bytes(
         TextureKind::Rectangle {
-            width: instance.atlas_size,
-            height: instance.atlas_size,
+            width: atlas_size,
+            height: atlas_size,
         },
         TexturePixelKind::RGB8,
         bytes,

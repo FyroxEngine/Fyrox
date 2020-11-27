@@ -1,11 +1,14 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::resource::texture::TextureWrapMode;
+use crate::resource::texture::{TextureError, TextureWrapMode};
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
         model::{Model, ModelData},
-        texture::{Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter},
+        texture::{
+            Texture, TextureData, TextureMagnificationFilter, TextureMinificationFilter,
+            TextureState,
+        },
         Resource, ResourceData, ResourceState,
     },
     sound::buffer::{DataSource, SoundBuffer},
@@ -210,6 +213,19 @@ impl TextureImportOptions {
     }
 }
 
+#[derive(Debug)]
+pub enum TextureRegistrationError {
+    Texture(TextureError),
+    InvalidState,
+    AlreadyRegistered,
+}
+
+impl From<TextureError> for TextureRegistrationError {
+    fn from(e: TextureError) -> Self {
+        Self::Texture(e)
+    }
+}
+
 impl ResourceManager {
     pub(in crate) fn new() -> Self {
         Self {
@@ -291,6 +307,37 @@ impl ResourceManager {
         });
 
         result
+    }
+
+    /// Saves given texture in the specified path and registers it in resource manager, so
+    /// it will be accessible through it later.
+    pub fn register_texture<P: AsRef<Path>>(
+        &self,
+        texture: Texture,
+        path: P,
+    ) -> Result<(), TextureRegistrationError> {
+        let mut state = self.state();
+        if state.find_texture(path.as_ref()).is_some() {
+            Err(TextureRegistrationError::AlreadyRegistered)
+        } else {
+            let mut texture_state = texture.state();
+            match &mut *texture_state {
+                TextureState::Ok(texture_data) => {
+                    texture_data.set_path(path);
+                    if let Err(e) = texture_data.save() {
+                        Err(TextureRegistrationError::Texture(e))
+                    } else {
+                        std::mem::drop(texture_state);
+                        state.textures.push(TimedEntry {
+                            value: texture,
+                            time_to_live: MAX_RESOURCE_TTL,
+                        });
+                        Ok(())
+                    }
+                }
+                _ => Err(TextureRegistrationError::InvalidState),
+            }
+        }
     }
 
     /// Tries to load new model resource from given path or get instance of existing, if any.
