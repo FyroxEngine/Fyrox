@@ -823,9 +823,7 @@ impl<M: MessageData, C: Control<M, C>> WidgetBuilder<M, C> {
             background: self
                 .background
                 .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
-            foreground: self
-                .foreground
-                .unwrap_or_else(|| Brush::Solid(Color::WHITE)),
+            foreground: self.foreground.unwrap_or(Brush::Solid(Color::WHITE)),
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,

@@ -13,7 +13,7 @@ use crate::{
         arrayvec::ArrayVec,
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
-        pool::{ErasedHandle, Handle},
+        pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
@@ -83,7 +83,7 @@ impl Visit for Lightmap {
 }
 
 struct Instance {
-    owner: ErasedHandle,
+    owner: Handle<Node>,
     data: Arc<RwLock<SurfaceSharedData>>,
     transform: Matrix4<f32>,
     octree: Octree,
@@ -91,13 +91,13 @@ struct Instance {
 }
 
 /// Small helper that allows you stop lightmap generation in any time.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct CancellationToken(pub Arc<AtomicBool>);
 
 impl CancellationToken {
     /// Creates new cancellation token.
     pub fn new() -> Self {
-        Self(Arc::new(AtomicBool::new(false)))
+        Self::default()
     }
 
     /// Checks if generation was cancelled.
@@ -126,6 +126,7 @@ pub enum ProgressStage {
 }
 
 /// Progress internals.
+#[derive(Default)]
 pub struct ProgressData {
     stage: AtomicU32,
     // Range is [0; max_iterations]
@@ -134,14 +135,6 @@ pub struct ProgressData {
 }
 
 impl ProgressData {
-    fn new() -> Self {
-        Self {
-            stage: Default::default(),
-            progress: Default::default(),
-            max_iterations: Default::default(),
-        }
-    }
-
     /// Returns progress percentage in [0; 100] range.
     pub fn progress_percent(&self) -> u32 {
         let iterations = self.max_iterations.load(atomic::Ordering::SeqCst);
@@ -178,15 +171,13 @@ impl ProgressData {
 }
 
 /// Small helper that allows you to track progress of lightmap generation.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ProgressIndicator(pub Arc<ProgressData>);
 
 impl ProgressIndicator {
     /// Creates new progress indicator.
     pub fn new() -> Self {
-        Self {
-            0: Arc::new(ProgressData::new()),
-        }
+        Self::default()
     }
 }
 
@@ -248,7 +239,7 @@ impl Lightmap {
             match light {
                 Light::Directional(_) => {
                     lights.push(LightDefinition::Directional(DirectionalLightDefinition {
-                        handle: handle.into(),
+                        handle,
                         intensity: 1.0,
                         direction: light
                             .up_vector()
@@ -258,7 +249,7 @@ impl Lightmap {
                     }))
                 }
                 Light::Spot(spot) => lights.push(LightDefinition::Spot(SpotLightDefinition {
-                    handle: handle.into(),
+                    handle,
                     intensity: 1.0,
                     edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5).cos(),
                     edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
@@ -271,7 +262,7 @@ impl Lightmap {
                     distance: spot.distance(),
                 })),
                 Light::Point(point) => lights.push(LightDefinition::Point(PointLightDefinition {
-                    handle: handle.into(),
+                    handle,
                     intensity: 1.0,
                     position: light.global_position(),
                     color: light.color().as_frgb(),
@@ -295,12 +286,10 @@ impl Lightmap {
                     // Gather unique "list" of surface data to generate UVs for.
                     let data = surface.data();
                     let key = &*data.read().unwrap() as *const _ as u64;
-                    if !data_set.contains_key(&key) {
-                        data_set.insert(key, surface.data());
-                    }
+                    data_set.entry(key).or_insert_with(|| surface.data());
 
                     instances.push(Instance {
-                        owner: handle.into(),
+                        owner: handle,
                         data: surface.data(),
                         transform: global_transform,
                         // Rest will be calculated below in parallel.
@@ -366,12 +355,10 @@ impl Lightmap {
             }
 
             let lightmap = generate_lightmap(&instance, &instances, &lights, texels_per_unit);
-            map.entry(instance.owner.into())
-                .or_default()
-                .push(LightmapEntry {
-                    texture: Some(Texture::new(TextureState::Ok(lightmap))),
-                    lights: lights.iter().map(|light| light.handle()).collect(),
-                });
+            map.entry(instance.owner).or_default().push(LightmapEntry {
+                texture: Some(Texture::new(TextureState::Ok(lightmap))),
+                lights: lights.iter().map(|light| light.handle()).collect(),
+            });
 
             progress_indicator.advance_progress();
         }
@@ -404,7 +391,7 @@ impl Lightmap {
 /// Directional light is a light source with parallel rays. Example: Sun.
 pub struct DirectionalLightDefinition {
     /// A handle of light in the scene.
-    pub handle: ErasedHandle,
+    pub handle: Handle<Node>,
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Direction of light rays.
@@ -416,7 +403,7 @@ pub struct DirectionalLightDefinition {
 /// Spot light is a cone light source. Example: flashlight.
 pub struct SpotLightDefinition {
     /// A handle of light in the scene.
-    pub handle: ErasedHandle,
+    pub handle: Handle<Node>,
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Color of light.
@@ -436,7 +423,7 @@ pub struct SpotLightDefinition {
 /// Point light is a spherical light source. Example: light bulb.
 pub struct PointLightDefinition {
     /// A handle of light in the scene.
-    pub handle: ErasedHandle,
+    pub handle: Handle<Node>,
     /// Intensity is how bright light is. Default is 1.0.
     pub intensity: f32,
     /// Position of light in world coordinates.
@@ -460,9 +447,9 @@ pub enum LightDefinition {
 impl LightDefinition {
     fn handle(&self) -> Handle<Node> {
         match self {
-            LightDefinition::Directional(v) => v.handle.into(),
-            LightDefinition::Spot(v) => v.handle.into(),
-            LightDefinition::Point(v) => v.handle.into(),
+            LightDefinition::Directional(v) => v.handle,
+            LightDefinition::Spot(v) => v.handle,
+            LightDefinition::Point(v) => v.handle,
         }
     }
 }
@@ -764,7 +751,8 @@ fn generate_lightmap(
         bytes.push(pixel.color.y);
         bytes.push(pixel.color.z);
     }
-    let data = TextureData::from_bytes(
+
+    TextureData::from_bytes(
         TextureKind::Rectangle {
             width: atlas_size,
             height: atlas_size,
@@ -772,9 +760,7 @@ fn generate_lightmap(
         TexturePixelKind::RGB8,
         bytes,
     )
-    .unwrap();
-
-    data
+    .unwrap()
 }
 
 #[cfg(test)]

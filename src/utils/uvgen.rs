@@ -364,11 +364,7 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) -> SurfaceDataPa
 pub fn generate_uvs_mesh(mesh: &Mesh, spacing: f32) {
     let last = std::time::Instant::now();
 
-    let data_set = mesh
-        .surfaces()
-        .iter()
-        .map(|s| s.data().clone())
-        .collect::<Vec<_>>();
+    let data_set = mesh.surfaces().iter().map(|s| s.data()).collect::<Vec<_>>();
 
     data_set.par_iter().for_each(|data| {
         generate_uvs(&mut data.write().unwrap(), spacing);

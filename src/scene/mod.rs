@@ -776,9 +776,7 @@ impl Scene {
                     for surface in mesh.surfaces() {
                         let data = surface.data();
                         let key = &*data as *const _ as u64;
-                        if !unique_data_set.contains_key(&key) {
-                            unique_data_set.insert(key, data);
-                        }
+                        unique_data_set.entry(key).or_insert(data);
                     }
                 }
             }
@@ -788,7 +786,7 @@ impl Scene {
                 if let Some(patch) = lightmap.patches.get(&data.id()) {
                     data.triangles = patch.triangles.clone();
                     for &v in patch.additional_vertices.iter() {
-                        let vertex = data.vertices[v as usize].clone();
+                        let vertex = data.vertices[v as usize];
                         data.vertices.push(vertex);
                     }
                     assert_eq!(data.vertices.len(), patch.second_tex_coords.len());
@@ -799,10 +797,11 @@ impl Scene {
                     }
                     dbg!();
                 } else {
-                    Log::writeln(format!(
+                    Log::writeln(
                         "Failed to get surface data patch while resolving lightmap!\
                     This means that surface has changed and lightmap must be regenerated!"
-                    ));
+                            .to_owned(),
+                    );
                 }
             }
 
