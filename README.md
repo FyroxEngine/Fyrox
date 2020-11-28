@@ -52,6 +52,8 @@ There are many examples covering various aspects of the engine. Also don't hesit
 - Render in texture.
 - Sky box.
 - Multi-camera rendering.
+- Multiple scenes.
+- Lightmap generator.
 - Level-of-detail (LOD) support.
 - Scene graph with pivot, camera, mesh, light, particle system, sprite nodes.
 - Built-in save/load - save/load state of engine in one call.

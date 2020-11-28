@@ -51,6 +51,8 @@ pub struct Handle<T> {
     type_marker: PhantomData<T>,
 }
 
+unsafe impl<T> Send for Handle<T> {}
+
 /// Type-erased handle.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq)]
 pub struct ErasedHandle {

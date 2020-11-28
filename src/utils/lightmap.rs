@@ -7,8 +7,6 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
-use crate::engine::resource_manager::{ResourceManager, TextureRegistrationError};
-use crate::resource::texture::TextureError;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
@@ -16,19 +14,23 @@ use crate::{
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
         pool::{ErasedHandle, Handle},
-        visitor::{Visit, VisitError, VisitResult, Visitor},
+        visitor::{Visit, VisitResult, Visitor},
     },
+    engine::resource_manager::{ResourceManager, TextureRegistrationError},
     renderer::{surface::SurfaceSharedData, surface::Vertex},
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
     scene::{light::Light, node::Node, Scene},
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use rayon::prelude::*;
-use std::path::Path;
+use std::ops::Deref;
 use std::{
     collections::HashMap,
-    path::PathBuf,
-    sync::{Arc, RwLock},
+    path::Path,
+    sync::{
+        atomic::{self, AtomicBool, AtomicU32},
+        Arc, RwLock,
+    },
 };
 
 ///
@@ -88,56 +90,196 @@ struct Instance {
     world_vertices: Vec<Vector3<f32>>,
 }
 
+/// Small helper that allows you stop lightmap generation in any time.
+#[derive(Clone)]
+pub struct CancellationToken(pub Arc<AtomicBool>);
+
+impl CancellationToken {
+    /// Creates new cancellation token.
+    pub fn new() -> Self {
+        Self(Arc::new(AtomicBool::new(false)))
+    }
+
+    /// Checks if generation was cancelled.
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(atomic::Ordering::SeqCst)
+    }
+
+    /// Raises cancellation flag, actual cancellation is not immediate!
+    pub fn cancel(&self) {
+        self.0.store(true, atomic::Ordering::SeqCst)
+    }
+}
+
+/// Lightmap generation stage.
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq)]
+#[repr(u32)]
+pub enum ProgressStage {
+    /// Gathering info about lights, doing precalculations.
+    LightsCaching = 0,
+    /// Generating secondary texture coordinates.
+    UvGeneration = 1,
+    /// Caching geometry, building octrees.
+    GeometryCaching = 2,
+    /// Actual lightmap generation.
+    CalculatingLight = 3,
+}
+
+/// Progress internals.
+pub struct ProgressData {
+    stage: AtomicU32,
+    // Range is [0; max_iterations]
+    progress: AtomicU32,
+    max_iterations: AtomicU32,
+}
+
+impl ProgressData {
+    fn new() -> Self {
+        Self {
+            stage: Default::default(),
+            progress: Default::default(),
+            max_iterations: Default::default(),
+        }
+    }
+
+    /// Returns progress percentage in [0; 100] range.
+    pub fn progress_percent(&self) -> u32 {
+        let iterations = self.max_iterations.load(atomic::Ordering::SeqCst);
+        if iterations > 0 {
+            self.progress.load(atomic::Ordering::SeqCst) * 100 / iterations
+        } else {
+            0
+        }
+    }
+
+    /// Returns current stage.
+    pub fn stage(&self) -> ProgressStage {
+        match self.stage.load(atomic::Ordering::SeqCst) {
+            0 => ProgressStage::LightsCaching,
+            1 => ProgressStage::UvGeneration,
+            2 => ProgressStage::GeometryCaching,
+            3 => ProgressStage::CalculatingLight,
+            _ => unreachable!(),
+        }
+    }
+
+    /// Sets new stage with max iterations per stage.
+    fn set_stage(&self, stage: ProgressStage, max_iterations: u32) {
+        self.max_iterations
+            .store(max_iterations, atomic::Ordering::SeqCst);
+        self.progress.store(0, atomic::Ordering::SeqCst);
+        self.stage.store(stage as u32, atomic::Ordering::SeqCst);
+    }
+
+    /// Advances progress.
+    fn advance_progress(&self) {
+        self.progress.fetch_add(1, atomic::Ordering::SeqCst);
+    }
+}
+
+/// Small helper that allows you to track progress of lightmap generation.
+#[derive(Clone)]
+pub struct ProgressIndicator(pub Arc<ProgressData>);
+
+impl ProgressIndicator {
+    /// Creates new progress indicator.
+    pub fn new() -> Self {
+        Self {
+            0: Arc::new(ProgressData::new()),
+        }
+    }
+}
+
+impl Deref for ProgressIndicator {
+    type Target = ProgressData;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+/// An error that may occur during ligthmap generation.
+#[derive(Debug)]
+pub enum LightmapGenerationError {
+    /// Generation was cancelled by user.
+    Cancelled,
+}
+
 impl Lightmap {
     /// Generates lightmap for given scene. This method **automatically** generates secondary
-    /// texture coordinates!
+    /// texture coordinates! This method is blocking, however internally it uses massive parallelism
+    /// to use all available CPU power efficiently.
     ///
     /// `texels_per_unit` defines resolution of lightmap, the higher value is, the more quality
     /// lightmap will be generated, but also it will be slow to generate.
-    pub fn new(scene: &mut Scene, texels_per_unit: u32) -> Self {
+    /// `progress_indicator` allows you to get info about current progress.
+    /// `cancellation_token` allows you to stop generation in any time.
+    pub fn new(
+        scene: &mut Scene,
+        texels_per_unit: u32,
+        cancellation_token: CancellationToken,
+        progress_indicator: ProgressIndicator,
+    ) -> Result<Self, LightmapGenerationError> {
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
-        let mut lights = Vec::new();
-        for (handle, node) in scene.graph.pair_iter() {
-            if let Node::Light(light) = node {
-                match light {
-                    Light::Directional(_) => {
-                        lights.push(LightDefinition::Directional(DirectionalLightDefinition {
-                            handle: handle.into(),
-                            intensity: 1.0,
-                            direction: light
-                                .up_vector()
-                                .try_normalize(std::f32::EPSILON)
-                                .unwrap_or_else(Vector3::y),
-                            color: light.color().as_frgb(),
-                        }))
-                    }
-                    Light::Spot(spot) => lights.push(LightDefinition::Spot(SpotLightDefinition {
+        let mut light_count = 0;
+        for node in scene.graph.linear_iter() {
+            if matches!(node, Node::Light(_)) {
+                light_count += 1;
+            }
+        }
+
+        progress_indicator.set_stage(ProgressStage::LightsCaching, light_count);
+
+        let mut lights = Vec::with_capacity(light_count as usize);
+
+        for (handle, light) in scene.graph.pair_iter().filter_map(|(h, n)| {
+            if let Node::Light(light) = n {
+                Some((h, light))
+            } else {
+                None
+            }
+        }) {
+            if cancellation_token.is_cancelled() {
+                return Err(LightmapGenerationError::Cancelled);
+            }
+
+            match light {
+                Light::Directional(_) => {
+                    lights.push(LightDefinition::Directional(DirectionalLightDefinition {
                         handle: handle.into(),
                         intensity: 1.0,
-                        edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5)
-                            .cos(),
-                        edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
-                        color: light.color().as_frgb(),
                         direction: light
                             .up_vector()
                             .try_normalize(std::f32::EPSILON)
                             .unwrap_or_else(Vector3::y),
-                        position: light.global_position(),
-                        distance: spot.distance(),
-                    })),
-                    Light::Point(point) => {
-                        lights.push(LightDefinition::Point(PointLightDefinition {
-                            handle: handle.into(),
-                            intensity: 1.0,
-                            position: light.global_position(),
-                            color: light.color().as_frgb(),
-                            radius: point.radius(),
-                        }))
-                    }
+                        color: light.color().as_frgb(),
+                    }))
                 }
+                Light::Spot(spot) => lights.push(LightDefinition::Spot(SpotLightDefinition {
+                    handle: handle.into(),
+                    intensity: 1.0,
+                    edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5).cos(),
+                    edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
+                    color: light.color().as_frgb(),
+                    direction: light
+                        .up_vector()
+                        .try_normalize(std::f32::EPSILON)
+                        .unwrap_or_else(Vector3::y),
+                    position: light.global_position(),
+                    distance: spot.distance(),
+                })),
+                Light::Point(point) => lights.push(LightDefinition::Point(PointLightDefinition {
+                    handle: handle.into(),
+                    intensity: 1.0,
+                    position: light.global_position(),
+                    color: light.color().as_frgb(),
+                    radius: point.radius(),
+                })),
             }
+
+            progress_indicator.advance_progress()
         }
 
         let mut instances = Vec::new();
@@ -169,40 +311,60 @@ impl Lightmap {
             }
         }
 
+        progress_indicator.set_stage(ProgressStage::UvGeneration, data_set.len() as u32);
+
         let patches = data_set
             .into_par_iter()
             .map(|(_, data)| {
-                let mut data = data.write().unwrap();
-                let patch = uvgen::generate_uvs(&mut data, 0.005);
-                (patch.data_id, patch)
+                if cancellation_token.is_cancelled() {
+                    Err(LightmapGenerationError::Cancelled)
+                } else {
+                    let mut data = data.write().unwrap();
+                    let patch = uvgen::generate_uvs(&mut data, 0.005);
+                    progress_indicator.advance_progress();
+                    Ok((patch.data_id, patch))
+                }
             })
-            .collect::<HashMap<_, _>>();
+            .collect::<Result<HashMap<_, _>, LightmapGenerationError>>()?;
 
-        // Generate secondary texture coordinates and other stuff for each lightmap
-        // in parallel to utilize all available CPU power.
+        progress_indicator.set_stage(ProgressStage::GeometryCaching, instances.len() as u32);
+
         instances
             .par_iter_mut()
-            .for_each(|instance: &mut Instance| {
-                let data = instance.data.read().unwrap();
+            .map(|instance: &mut Instance| {
+                if cancellation_token.is_cancelled() {
+                    Err(LightmapGenerationError::Cancelled)
+                } else {
+                    let data = instance.data.read().unwrap();
 
-                let world_vertices = transform_vertices(&data, &instance.transform);
-                let world_triangles = data
-                    .triangles()
-                    .iter()
-                    .map(|tri| {
-                        [
-                            world_vertices[tri[0] as usize],
-                            world_vertices[tri[1] as usize],
-                            world_vertices[tri[2] as usize],
-                        ]
-                    })
-                    .collect::<Vec<_>>();
-                instance.octree = Octree::new(&world_triangles, 64);
-                instance.world_vertices = world_vertices;
-            });
+                    let world_vertices = transform_vertices(&data, &instance.transform);
+                    let world_triangles = data
+                        .triangles()
+                        .iter()
+                        .map(|tri| {
+                            [
+                                world_vertices[tri[0] as usize],
+                                world_vertices[tri[1] as usize],
+                                world_vertices[tri[2] as usize],
+                            ]
+                        })
+                        .collect::<Vec<_>>();
+                    instance.octree = Octree::new(&world_triangles, 64);
+                    instance.world_vertices = world_vertices;
+                    progress_indicator.advance_progress();
+                    Ok(())
+                }
+            })
+            .collect::<Result<(), LightmapGenerationError>>()?;
+
+        progress_indicator.set_stage(ProgressStage::CalculatingLight, instances.len() as u32);
 
         let mut map: HashMap<Handle<Node>, Vec<LightmapEntry>> = HashMap::new();
         for instance in instances.iter() {
+            if cancellation_token.is_cancelled() {
+                return Err(LightmapGenerationError::Cancelled);
+            }
+
             let lightmap = generate_lightmap(&instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner.into())
                 .or_default()
@@ -210,9 +372,11 @@ impl Lightmap {
                     texture: Some(Texture::new(TextureState::Ok(lightmap))),
                     lights: lights.iter().map(|light| light.handle()).collect(),
                 });
+
+            progress_indicator.advance_progress();
         }
 
-        Self { map, patches }
+        Ok(Self { map, patches })
     }
 
     /// Saves lightmap textures into specified folder.

@@ -213,10 +213,14 @@ impl TextureImportOptions {
     }
 }
 
+/// An error that may occur during texture registration.
 #[derive(Debug)]
 pub enum TextureRegistrationError {
+    /// Texture saving has failed.
     Texture(TextureError),
+    /// Texture was in invalid state (Pending, LoadErr)
     InvalidState,
+    /// Texture is already registered.
     AlreadyRegistered,
 }
 
