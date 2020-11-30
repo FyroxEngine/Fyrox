@@ -176,7 +176,7 @@ impl Font {
         for glyph in self.glyphs.iter() {
             area += (glyph.bitmap_width + border) as f32 * (glyph.bitmap_height + border) as f32;
         }
-        (1.15 * area.sqrt()) as usize
+        (1.3 * area.sqrt()) as usize
     }
 
     fn pack(&mut self) {

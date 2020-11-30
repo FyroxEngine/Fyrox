@@ -55,54 +55,6 @@ use crate::{
 };
 use std::cell::Cell;
 
-/// Mobility defines a group for scene node which has direct impact on performance
-/// and capabilities of nodes.
-///
-/// TODO: Use it.
-pub enum Mobility {
-    /// Transform cannot be changed.
-    ///
-    /// ## Scene and performance.
-    ///
-    /// Nodes with Static mobility should be used all the time you need unchangeable
-    /// node. Such nodes will have maximum optimization during the rendering.
-    ///
-    /// ### Meshes
-    ///
-    /// Static meshes will be baked into larger blocks to reduce draw call count per frame.
-    /// Also static meshes will participate in lightmap generation.
-    ///
-    /// ### Lights
-    ///
-    /// Static lights will be baked in lightmap. They lit only static geometry!
-    /// Specular lighting is not supported.
-    Static,
-
-    /// Transform cannot be changed, but other node-dependent properties are changeable.
-    ///
-    /// ## Scene and performance.
-    ///
-    /// ### Meshes
-    ///
-    /// Same as Static.
-    ///
-    /// ### Lights
-    ///
-    /// Stationary lights have complex route for shadows:
-    ///   - Shadows from Static/Stationary meshes will be baked into lightmap.
-    ///   - Shadows from Dynamic lights will be re-rendered each frame into shadow map.
-    /// Stationary lights support specular lighting.
-    Stationary,
-
-    /// Transform can be freely changed.
-    ///
-    /// ## Scene and performance.
-    ///
-    /// Dynamic mobility should be used only for the objects that are designed to be
-    /// moving in the scene, for example - objects with physics, or dynamic lights, etc.
-    Dynamic,
-}
-
 /// See module docs.
 #[derive(Clone, Debug)]
 pub struct Transform {
@@ -485,15 +437,15 @@ impl Transform {
 /// Transform builder allows you to construct transform in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct TransformBuilder {
-    local_scale: Option<Vector3<f32>>,
-    local_position: Option<Vector3<f32>>,
-    local_rotation: Option<UnitQuaternion<f32>>,
-    pre_rotation: Option<UnitQuaternion<f32>>,
-    post_rotation: Option<UnitQuaternion<f32>>,
-    rotation_offset: Option<Vector3<f32>>,
-    rotation_pivot: Option<Vector3<f32>>,
-    scaling_offset: Option<Vector3<f32>>,
-    scaling_pivot: Option<Vector3<f32>>,
+    local_scale: Vector3<f32>,
+    local_position: Vector3<f32>,
+    local_rotation: UnitQuaternion<f32>,
+    pre_rotation: UnitQuaternion<f32>,
+    post_rotation: UnitQuaternion<f32>,
+    rotation_offset: Vector3<f32>,
+    rotation_pivot: Vector3<f32>,
+    scaling_offset: Vector3<f32>,
+    scaling_pivot: Vector3<f32>,
 }
 
 impl Default for TransformBuilder {
@@ -507,69 +459,69 @@ impl TransformBuilder {
     /// identity transform as result.
     pub fn new() -> Self {
         Self {
-            local_scale: None,
-            local_position: None,
-            local_rotation: None,
-            pre_rotation: None,
-            post_rotation: None,
-            rotation_offset: None,
-            rotation_pivot: None,
-            scaling_offset: None,
-            scaling_pivot: None,
+            local_scale: Vector3::new(1.0, 1.0, 1.0),
+            local_position: Default::default(),
+            local_rotation: UnitQuaternion::identity(),
+            pre_rotation: UnitQuaternion::identity(),
+            post_rotation: UnitQuaternion::identity(),
+            rotation_offset: Default::default(),
+            rotation_pivot: Default::default(),
+            scaling_offset: Default::default(),
+            scaling_pivot: Default::default(),
         }
     }
 
     /// Sets desired local scale.
     pub fn with_local_scale(mut self, scale: Vector3<f32>) -> Self {
-        self.local_scale = Some(scale);
+        self.local_scale = scale;
         self
     }
 
     /// Sets desired local position.
     pub fn with_local_position(mut self, position: Vector3<f32>) -> Self {
-        self.local_position = Some(position);
+        self.local_position = position;
         self
     }
 
     /// Sets desired local rotation.
     pub fn with_local_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
-        self.local_rotation = Some(rotation);
+        self.local_rotation = rotation;
         self
     }
 
     /// Sets desired pre-rotation.
     pub fn with_pre_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
-        self.pre_rotation = Some(rotation);
+        self.pre_rotation = rotation;
         self
     }
 
     /// Sets desired post-rotation.
     pub fn with_post_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
-        self.post_rotation = Some(rotation);
+        self.post_rotation = rotation;
         self
     }
 
     /// Sets desired rotation offset.
     pub fn with_rotation_offset(mut self, offset: Vector3<f32>) -> Self {
-        self.rotation_offset = Some(offset);
+        self.rotation_offset = offset;
         self
     }
 
     /// Sets desired rotation pivot.
     pub fn with_rotation_pivot(mut self, pivot: Vector3<f32>) -> Self {
-        self.rotation_pivot = Some(pivot);
+        self.rotation_pivot = pivot;
         self
     }
 
     /// Sets desired scaling offset.
     pub fn with_scaling_offset(mut self, offset: Vector3<f32>) -> Self {
-        self.scaling_offset = Some(offset);
+        self.scaling_offset = offset;
         self
     }
 
     /// Sets desired scaling pivot.
     pub fn with_scaling_pivot(mut self, pivot: Vector3<f32>) -> Self {
-        self.scaling_pivot = Some(pivot);
+        self.scaling_pivot = pivot;
         self
     }
 
@@ -577,17 +529,15 @@ impl TransformBuilder {
     pub fn build(self) -> Transform {
         Transform {
             dirty: Cell::new(true),
-            local_scale: self
-                .local_scale
-                .unwrap_or_else(|| Vector3::new(1.0, 1.0, 1.0)),
-            local_position: self.local_position.unwrap_or_default(),
-            local_rotation: self.local_rotation.unwrap_or_else(UnitQuaternion::identity),
-            pre_rotation: self.pre_rotation.unwrap_or_else(UnitQuaternion::identity),
-            post_rotation: self.post_rotation.unwrap_or_else(UnitQuaternion::identity),
-            rotation_offset: self.rotation_offset.unwrap_or_default(),
-            rotation_pivot: self.rotation_pivot.unwrap_or_default(),
-            scaling_offset: self.scaling_offset.unwrap_or_default(),
-            scaling_pivot: self.scaling_pivot.unwrap_or_default(),
+            local_scale: self.local_scale,
+            local_position: self.local_position,
+            local_rotation: self.local_rotation,
+            pre_rotation: self.pre_rotation,
+            post_rotation: self.post_rotation,
+            rotation_offset: self.rotation_offset,
+            rotation_pivot: self.rotation_pivot,
+            scaling_offset: self.scaling_offset,
+            scaling_pivot: self.scaling_pivot,
             matrix: Cell::new(Matrix4::identity()),
             post_rotation_matrix: Matrix3::identity(),
         }

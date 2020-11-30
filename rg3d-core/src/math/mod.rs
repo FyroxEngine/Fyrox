@@ -83,34 +83,42 @@ where
         }
     }
 
+    #[inline(always)]
     pub fn left_top_corner(&self) -> Vector2<T> {
         self.position
     }
 
+    #[inline(always)]
     pub fn right_top_corner(&self) -> Vector2<T> {
         Vector2::new(self.position.x + self.size.x, self.position.y)
     }
 
+    #[inline(always)]
     pub fn right_bottom_corner(&self) -> Vector2<T> {
         Vector2::new(self.position.x + self.size.x, self.position.y + self.size.y)
     }
 
+    #[inline(always)]
     pub fn left_bottom_corner(&self) -> Vector2<T> {
         Vector2::new(self.position.x, self.position.y + self.size.y)
     }
 
+    #[inline(always)]
     pub fn w(&self) -> T {
         self.size.x
     }
 
+    #[inline(always)]
     pub fn h(&self) -> T {
         self.size.y
     }
 
+    #[inline(always)]
     pub fn x(&self) -> T {
         self.position.x
     }
 
+    #[inline(always)]
     pub fn y(&self) -> T {
         self.position.y
     }

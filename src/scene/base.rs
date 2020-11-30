@@ -6,12 +6,12 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
-use crate::core::algebra::{Matrix4, Vector3};
-use crate::core::math::Matrix4Ext;
 use crate::{
     core::{
+        algebra::{Matrix4, Vector3},
+        math::Matrix4Ext,
         pool::Handle,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     resource::model::Model,
     scene::{node::Node, transform::Transform},
@@ -115,6 +115,70 @@ impl Visit for LodGroup {
     }
 }
 
+/// Mobility defines a group for scene node which has direct impact on performance
+/// and capabilities of nodes.
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Debug)]
+#[repr(u32)]
+pub enum Mobility {
+    /// Transform cannot be changed.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// Nodes with Static mobility should be used all the time you need unchangeable
+    /// node. Such nodes will have maximum optimization during the rendering.
+    ///
+    /// ### Meshes
+    ///
+    /// Static meshes will be baked into larger blocks to reduce draw call count per frame.
+    /// Also static meshes will participate in lightmap generation.
+    ///
+    /// ### Lights
+    ///
+    /// Static lights will be baked in lightmap. They lit only static geometry!
+    /// Specular lighting is not supported.
+    Static = 0,
+
+    /// Transform cannot be changed, but other node-dependent properties are changeable.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// ### Meshes
+    ///
+    /// Same as Static.
+    ///
+    /// ### Lights
+    ///
+    /// Stationary lights have complex route for shadows:
+    ///   - Shadows from Static/Stationary meshes will be baked into lightmap.
+    ///   - Shadows from Dynamic lights will be re-rendered each frame into shadow map.
+    /// Stationary lights support specular lighting.
+    Stationary = 1,
+
+    /// Transform can be freely changed.
+    ///
+    /// ## Scene and performance.
+    ///
+    /// Dynamic mobility should be used only for the objects that are designed to be
+    /// moving in the scene, for example - objects with physics, or dynamic lights, etc.
+    Dynamic = 2,
+}
+
+impl Visit for Mobility {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut id = *self as u32;
+        id.visit(name, visitor)?;
+        if visitor.is_reading() {
+            *self = match id {
+                0 => Self::Static,
+                1 => Self::Stationary,
+                2 => Self::Dynamic,
+                _ => return Err(VisitError::User(format!("Invalid mobility id {}!", id))),
+            };
+        }
+        Ok(())
+    }
+}
+
 /// See module docs.
 #[derive(Debug)]
 pub struct Base {
@@ -142,6 +206,7 @@ pub struct Base {
     pub(in crate) lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
+    mobility: Mobility,
 }
 
 impl Base {
@@ -195,7 +260,7 @@ impl Base {
     }
 
     /// Returns handle of parent node.
-    pub fn parent(&self) -> crate::core::pool::Handle<Node> {
+    pub fn parent(&self) -> Handle<Node> {
         self.parent
     }
 
@@ -326,6 +391,7 @@ impl Base {
             resource: self.resource.clone(),
             is_resource_instance: self.is_resource_instance,
             lifetime: self.lifetime,
+            mobility: self.mobility,
             // Rest of data is *not* copied!
             ..Default::default()
         }
@@ -353,6 +419,7 @@ impl Visit for Base {
         self.lifetime.visit("Lifetime", visitor)?;
         self.depth_offset.visit("DepthOffset", visitor)?;
         let _ = self.lod_group.visit("LodGroup", visitor);
+        let _ = self.mobility.visit("Mobility", visitor);
 
         visitor.leave_region()
     }
@@ -360,13 +427,14 @@ impl Visit for Base {
 
 /// Base node builder allows you to create nodes in declarative manner.
 pub struct BaseBuilder {
-    name: Option<String>,
-    visibility: Option<bool>,
-    local_transform: Option<Transform>,
-    children: Option<Vec<Handle<Node>>>,
+    name: String,
+    visibility: bool,
+    local_transform: Transform,
+    children: Vec<Handle<Node>>,
     lifetime: Option<f32>,
     depth_offset: f32,
     lod_group: Option<LodGroup>,
+    mobility: Mobility,
 }
 
 impl Default for BaseBuilder {
@@ -379,37 +447,44 @@ impl BaseBuilder {
     /// Creates new builder instance.
     pub fn new() -> Self {
         Self {
-            name: None,
-            visibility: None,
-            local_transform: None,
-            children: None,
+            name: Default::default(),
+            visibility: true,
+            local_transform: Default::default(),
+            children: Default::default(),
             lifetime: None,
             depth_offset: 0.0,
             lod_group: None,
+            mobility: Mobility::Dynamic,
         }
+    }
+
+    /// Sets desired mobility.
+    pub fn with_mobility(mut self, mobility: Mobility) -> Self {
+        self.mobility = mobility;
+        self
     }
 
     /// Sets desired name.
     pub fn with_name<P: AsRef<str>>(mut self, name: P) -> Self {
-        self.name = Some(name.as_ref().to_owned());
+        self.name = name.as_ref().to_owned();
         self
     }
 
     /// Sets desired visibility.
     pub fn with_visibility(mut self, visibility: bool) -> Self {
-        self.visibility = Some(visibility);
+        self.visibility = visibility;
         self
     }
 
     /// Sets desired local transform.
     pub fn with_local_transform(mut self, transform: Transform) -> Self {
-        self.local_transform = Some(transform);
+        self.local_transform = transform;
         self
     }
 
     /// Sets desired list of children nodes.
     pub fn with_children(mut self, children: Vec<Handle<Node>>) -> Self {
-        self.children = Some(children);
+        self.children = children;
         self
     }
 
@@ -435,11 +510,11 @@ impl BaseBuilder {
     /// node to scene or pass to other nodes as base.
     pub fn build(self) -> Base {
         Base {
-            name: self.name.unwrap_or_default(),
-            children: self.children.unwrap_or_default(),
-            local_transform: self.local_transform.unwrap_or_else(Transform::identity),
+            name: self.name,
+            children: self.children,
+            local_transform: self.local_transform,
             lifetime: self.lifetime,
-            visibility: self.visibility.unwrap_or(true),
+            visibility: self.visibility,
             global_visibility: Cell::new(true),
             parent: Handle::NONE,
             global_transform: Cell::new(Matrix4::identity()),
@@ -449,6 +524,7 @@ impl BaseBuilder {
             is_resource_instance: false,
             depth_offset: self.depth_offset,
             lod_group: self.lod_group,
+            mobility: self.mobility,
         }
     }
 

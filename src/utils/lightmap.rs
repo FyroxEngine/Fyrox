@@ -7,9 +7,11 @@
 //! WARNING: There is still work-in-progress, so it is not advised to use lightmapper
 //! now!
 
+#![forbid(unsafe_code)]
+
 use crate::{
     core::{
-        algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3},
+        algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
@@ -17,15 +19,15 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
-    renderer::{surface::SurfaceSharedData, surface::Vertex},
+    renderer::surface::SurfaceSharedData,
     resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
     scene::{light::Light, node::Node, Scene},
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use rayon::prelude::*;
-use std::ops::Deref;
 use std::{
     collections::HashMap,
+    ops::Deref,
     path::Path,
     sync::{
         atomic::{self, AtomicBool, AtomicU32},
@@ -82,12 +84,30 @@ impl Visit for Lightmap {
     }
 }
 
+struct WorldVertex {
+    world_normal: Vector3<f32>,
+    world_position: Vector3<f32>,
+    second_tex_coord: Vector2<f32>,
+}
+
+struct InstanceData {
+    /// World-space vertices.
+    vertices: Vec<WorldVertex>,
+    triangles: Vec<TriangleDefinition>,
+    octree: Octree,
+}
+
 struct Instance {
     owner: Handle<Node>,
-    data: Arc<RwLock<SurfaceSharedData>>,
+    source_data: Arc<RwLock<SurfaceSharedData>>,
+    data: Option<InstanceData>,
     transform: Matrix4<f32>,
-    octree: Octree,
-    world_vertices: Vec<Vector3<f32>>,
+}
+
+impl Instance {
+    pub fn data(&self) -> &InstanceData {
+        self.data.as_ref().unwrap()
+    }
 }
 
 /// Small helper that allows you stop lightmap generation in any time.
@@ -260,6 +280,7 @@ impl Lightmap {
                         .unwrap_or_else(Vector3::y),
                     position: light.global_position(),
                     distance: spot.distance(),
+                    sqr_distance: spot.distance() * spot.distance(),
                 })),
                 Light::Point(point) => lights.push(LightDefinition::Point(PointLightDefinition {
                     handle,
@@ -267,6 +288,7 @@ impl Lightmap {
                     position: light.global_position(),
                     color: light.color().as_frgb(),
                     radius: point.radius(),
+                    sqr_radius: point.radius() * point.radius(),
                 })),
             }
 
@@ -290,11 +312,10 @@ impl Lightmap {
 
                     instances.push(Instance {
                         owner: handle,
-                        data: surface.data(),
+                        source_data: data.clone(),
                         transform: global_transform,
-                        // Rest will be calculated below in parallel.
-                        world_vertices: Default::default(),
-                        octree: Default::default(),
+                        // Calculated down below.
+                        data: None,
                     });
                 }
             }
@@ -324,23 +345,54 @@ impl Lightmap {
                 if cancellation_token.is_cancelled() {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
-                    let data = instance.data.read().unwrap();
+                    let data = instance.source_data.read().unwrap();
 
-                    let world_vertices = transform_vertices(&data, &instance.transform);
+                    let normal_matrix = instance
+                        .transform
+                        .basis()
+                        .try_inverse()
+                        .map(|m| m.transpose())
+                        .unwrap_or_else(Matrix3::identity);
+
+                    let world_vertices = data
+                        .vertices
+                        .iter()
+                        .map(|v| {
+                            let world_position = instance
+                                .transform
+                                .transform_point(&Point3::from(v.position))
+                                .coords;
+                            let world_normal = (normal_matrix * v.normal)
+                                .try_normalize(f32::EPSILON)
+                                .unwrap_or_default();
+                            WorldVertex {
+                                world_normal,
+                                world_position,
+                                second_tex_coord: v.second_tex_coord,
+                            }
+                        })
+                        .collect::<Vec<_>>();
+
                     let world_triangles = data
                         .triangles()
                         .iter()
                         .map(|tri| {
                             [
-                                world_vertices[tri[0] as usize],
-                                world_vertices[tri[1] as usize],
-                                world_vertices[tri[2] as usize],
+                                world_vertices[tri[0] as usize].world_position,
+                                world_vertices[tri[1] as usize].world_position,
+                                world_vertices[tri[2] as usize].world_position,
                             ]
                         })
                         .collect::<Vec<_>>();
-                    instance.octree = Octree::new(&world_triangles, 64);
-                    instance.world_vertices = world_vertices;
+
+                    instance.data = Some(InstanceData {
+                        vertices: world_vertices,
+                        triangles: data.triangles.clone(),
+                        octree: Octree::new(&world_triangles, 64),
+                    });
+
                     progress_indicator.advance_progress();
+
                     Ok(())
                 }
             })
@@ -414,6 +466,8 @@ pub struct SpotLightDefinition {
     pub position: Vector3<f32>,
     /// Distance at which light intensity decays to zero.
     pub distance: f32,
+    /// Square of distance.
+    pub sqr_distance: f32,
     /// Smoothstep left bound. It is ((hotspot_cone_angle + falloff_angle_delta) * 0.5).cos()
     pub edge0: f32,
     /// Smoothstep right bound. It is (hotspot_cone_angle * 0.5).cos()
@@ -432,6 +486,8 @@ pub struct PointLightDefinition {
     pub color: Vector3<f32>,
     /// Radius of sphere at which light intensity decays to zero.
     pub radius: f32,
+    /// Square of radius.
+    pub sqr_radius: f32,
 }
 
 /// Light definition for lightmap rendering.
@@ -456,16 +512,12 @@ impl LightDefinition {
 
 /// Computes total area of triangles in surface data and returns size of square
 /// in which triangles can fit.
-fn estimate_size(
-    vertices: &[Vector3<f32>],
-    triangles: &[TriangleDefinition],
-    texels_per_unit: u32,
-) -> u32 {
+fn estimate_size(data: &InstanceData, texels_per_unit: u32) -> u32 {
     let mut area = 0.0;
-    for triangle in triangles.iter() {
-        let a = vertices[triangle[0] as usize];
-        let b = vertices[triangle[1] as usize];
-        let c = vertices[triangle[2] as usize];
+    for triangle in data.triangles.iter() {
+        let a = data.vertices[triangle[0] as usize].world_position;
+        let b = data.vertices[triangle[1] as usize].world_position;
+        let c = data.vertices[triangle[2] as usize].world_position;
         area += math::triangle_area(a, b, c);
     }
     area.sqrt().ceil() as u32 * texels_per_unit
@@ -473,71 +525,54 @@ fn estimate_size(
 
 /// Calculates distance attenuation for a point using given distance to the point and
 /// radius of a light.
-fn distance_attenuation(distance: f32, radius: f32) -> f32 {
-    let attenuation = (1.0 - distance * distance / (radius * radius))
-        .max(0.0)
-        .min(1.0);
+fn distance_attenuation(distance: f32, sqr_radius: f32) -> f32 {
+    let attenuation = (1.0 - distance * distance / sqr_radius).max(0.0).min(1.0);
     attenuation * attenuation
-}
-
-/// Transforms vertices of surface data into set of world space positions.
-fn transform_vertices(data: &SurfaceSharedData, transform: &Matrix4<f32>) -> Vec<Vector3<f32>> {
-    data.vertices
-        .iter()
-        .map(|v| transform.transform_point(&Point3::from(v.position)).coords)
-        .collect()
-}
-
-struct Pixel {
-    coords: Vector2<u16>,
-    color: Vector3<u8>,
 }
 
 /// Calculates properties of pixel (world position, normal) at given position.
 fn pick(
     uv: Vector2<f32>,
     grid: &Grid,
-    triangles: &[TriangleDefinition],
-    vertices: &[Vertex],
-    world_positions: &[Vector3<f32>],
-    normal_matrix: &Matrix3<f32>,
+    data: &InstanceData,
     scale: f32,
 ) -> Option<(Vector3<f32>, Vector3<f32>)> {
     if let Some(cell) = grid.pick(uv) {
-        for triangle in cell.triangles.iter().map(|&ti| &triangles[ti]) {
-            let uv_a = vertices[triangle[0] as usize].second_tex_coord;
-            let uv_b = vertices[triangle[1] as usize].second_tex_coord;
-            let uv_c = vertices[triangle[2] as usize].second_tex_coord;
+        for triangle in cell.triangles.iter().map(|&ti| &data.triangles[ti]) {
+            let ia = triangle[0] as usize;
+            let ib = triangle[1] as usize;
+            let ic = triangle[2] as usize;
+
+            let uv_a = data.vertices[ia].second_tex_coord;
+            let uv_b = data.vertices[ib].second_tex_coord;
+            let uv_c = data.vertices[ic].second_tex_coord;
 
             let center = (uv_a + uv_b + uv_c).scale(1.0 / 3.0);
             let to_center = (center - uv)
                 .try_normalize(std::f32::EPSILON)
                 .unwrap_or_default()
-                .scale(scale);
+                .scale(scale * 0.3333333);
 
             let mut current_uv = uv;
             for _ in 0..3 {
                 let barycentric = math::get_barycentric_coords_2d(current_uv, uv_a, uv_b, uv_c);
 
                 if math::barycentric_is_inside(barycentric) {
-                    let a = world_positions[triangle[0] as usize];
-                    let b = world_positions[triangle[1] as usize];
-                    let c = world_positions[triangle[2] as usize];
+                    let a = data.vertices[ia].world_position;
+                    let b = data.vertices[ib].world_position;
+                    let c = data.vertices[ic].world_position;
+
+                    let na = data.vertices[ia].world_normal;
+                    let nb = data.vertices[ib].world_normal;
+                    let nc = data.vertices[ic].world_normal;
+
                     return Some((
                         math::barycentric_to_world(barycentric, a, b, c),
-                        (normal_matrix
-                            * math::barycentric_to_world(
-                                barycentric,
-                                vertices[triangle[0] as usize].normal,
-                                vertices[triangle[1] as usize].normal,
-                                vertices[triangle[2] as usize].normal,
-                            ))
-                        .try_normalize(std::f32::EPSILON)
-                        .unwrap_or_else(Vector3::y),
+                        math::barycentric_to_world(barycentric, na, nb, nc),
                     ));
                 }
 
-                // Offset uv to center to remove seams.
+                // Offset uv to center for conservative rasterization.
                 current_uv += to_center;
             }
         }
@@ -553,12 +588,13 @@ struct GridCell {
 struct Grid {
     cells: Vec<GridCell>,
     size: usize,
+    fsize: f32,
 }
 
 impl Grid {
     /// Creates uniform grid where each cell contains list of triangles
     /// whose second texture coordinates intersects with it.
-    fn new(data: &SurfaceSharedData, size: usize) -> Self {
+    fn new(data: &InstanceData, size: usize) -> Self {
         let mut cells = Vec::with_capacity(size);
         let fsize = size as f32;
         for y in 0..size {
@@ -585,12 +621,16 @@ impl Grid {
             }
         }
 
-        Self { cells, size }
+        Self {
+            cells,
+            size,
+            fsize: size as f32,
+        }
     }
 
     fn pick(&self, v: Vector2<f32>) -> Option<&GridCell> {
-        let ix = (v.x as f32 * self.size as f32) as usize;
-        let iy = (v.y as f32 * self.size as f32) as usize;
+        let ix = (v.x * self.fsize) as usize;
+        let iy = (v.y * self.fsize) as usize;
         self.cells.get(iy * self.size + ix)
     }
 }
@@ -619,137 +659,151 @@ fn generate_lightmap(
     lights: &[LightDefinition],
     texels_per_unit: u32,
 ) -> TextureData {
-    let data = instance.data.read().unwrap();
-
-    let world_positions = transform_vertices(&data, &instance.transform);
-    let atlas_size = estimate_size(&world_positions, &data.triangles, texels_per_unit);
-
-    let scale = 1.0 / atlas_size as f32;
-
     // We have to re-generate new set of world-space vertices because UV generator
     // may add new vertices on seams.
-    let world_positions = transform_vertices(&data, &instance.transform);
-    let grid = Grid::new(&data, (atlas_size / 16).max(4) as usize);
+    let atlas_size = estimate_size(&instance.data(), texels_per_unit);
+    let scale = 1.0 / atlas_size as f32;
+    let grid = Grid::new(instance.data(), (atlas_size / 32).max(4) as usize);
 
-    let normal_matrix = instance
-        .transform
-        .basis()
-        .try_inverse()
-        .map(|m| m.transpose())
-        .unwrap_or_else(Matrix3::identity);
-
-    let mut pixels = Vec::with_capacity((atlas_size * atlas_size) as usize);
-    for y in 0..(atlas_size as usize) {
-        for x in 0..(atlas_size as usize) {
-            pixels.push(Pixel {
-                coords: Vector2::new(x as u16, y as u16),
-                color: Vector3::new(0, 0, 0),
-            });
-        }
-    }
+    let mut pixels: Vec<Vector4<u8>> =
+        vec![Vector4::new(0, 0, 0, 0); (atlas_size * atlas_size) as usize];
 
     let half_pixel = scale * 0.5;
-    pixels.par_iter_mut().for_each(|pixel: &mut Pixel| {
-        // Get uv in center of pixel.
-        let uv = Vector2::new(
-            pixel.coords.x as f32 * scale + half_pixel,
-            pixel.coords.y as f32 * scale + half_pixel,
-        );
+    pixels
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, pixel): (usize, &mut Vector4<u8>)| {
+            let x = i as u32 % atlas_size;
+            let y = i as u32 / atlas_size;
 
-        if let Some((world_position, world_normal)) = pick(
-            uv,
-            &grid,
-            &data.triangles,
-            &data.vertices,
-            &world_positions,
-            &normal_matrix,
-            scale,
-        ) {
-            let mut pixel_color = Vector3::default();
-            for light in lights {
-                let (light_color, mut attenuation, light_position) = match light {
-                    LightDefinition::Directional(directional) => {
-                        let attenuation =
-                            directional.intensity * lambertian(directional.direction, world_normal);
-                        (directional.color, attenuation, Vector3::default())
-                    }
-                    LightDefinition::Spot(spot) => {
-                        let d = spot.position - world_position;
-                        let distance = d.norm();
-                        let light_vec = d.scale(1.0 / distance);
-                        let spot_angle_cos = light_vec.dot(&spot.direction);
-                        let cone_factor = smoothstep(spot.edge0, spot.edge1, spot_angle_cos);
-                        let attenuation = cone_factor
-                            * spot.intensity
-                            * lambertian(light_vec, world_normal)
-                            * distance_attenuation(distance, spot.distance);
-                        (spot.color, attenuation, spot.position)
-                    }
-                    LightDefinition::Point(point) => {
-                        let d = point.position - world_position;
-                        let distance = d.norm();
-                        let light_vec = d.scale(1.0 / distance);
-                        let attenuation = point.intensity
-                            * lambertian(light_vec, world_normal)
-                            * distance_attenuation(distance, point.radius);
-                        (point.color, attenuation, point.position)
-                    }
-                };
-                // Shadows
-                if attenuation >= 0.01 {
-                    let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
-                    let shadow_bias = 0.01;
-                    if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
-                        'outer_loop: for other_instance in other_instances {
-                            other_instance
-                                .octree
-                                .ray_query_static(&ray, &mut query_buffer);
-                            for &node in query_buffer.iter() {
-                                match other_instance.octree.node(node) {
-                                    OctreeNode::Leaf { indices, .. } => {
-                                        let other_data = other_instance.data.read().unwrap();
-                                        for &triangle_index in indices {
-                                            let triangle =
-                                                &other_data.triangles[triangle_index as usize];
-                                            let a =
-                                                other_instance.world_vertices[triangle[0] as usize];
-                                            let b =
-                                                other_instance.world_vertices[triangle[1] as usize];
-                                            let c =
-                                                other_instance.world_vertices[triangle[2] as usize];
-                                            if let Some(pt) = ray.triangle_intersection(&[a, b, c])
-                                            {
-                                                if ray.origin.metric_distance(&pt) + shadow_bias
-                                                    < ray.dir.norm()
+            let uv = Vector2::new(x as f32 * scale + half_pixel, y as f32 * scale + half_pixel);
+
+            if let Some((world_position, world_normal)) = pick(uv, &grid, instance.data(), scale) {
+                let mut pixel_color = Vector3::default();
+                for light in lights {
+                    let (light_color, mut attenuation, light_position) = match light {
+                        LightDefinition::Directional(directional) => {
+                            let attenuation = directional.intensity
+                                * lambertian(directional.direction, world_normal);
+                            (directional.color, attenuation, Vector3::default())
+                        }
+                        LightDefinition::Spot(spot) => {
+                            let d = spot.position - world_position;
+                            let distance = d.norm();
+                            let light_vec = d.scale(1.0 / distance);
+                            let spot_angle_cos = light_vec.dot(&spot.direction);
+                            let cone_factor = smoothstep(spot.edge0, spot.edge1, spot_angle_cos);
+                            let attenuation = cone_factor
+                                * spot.intensity
+                                * lambertian(light_vec, world_normal)
+                                * distance_attenuation(distance, spot.sqr_distance);
+                            (spot.color, attenuation, spot.position)
+                        }
+                        LightDefinition::Point(point) => {
+                            let d = point.position - world_position;
+                            let distance = d.norm();
+                            let light_vec = d.scale(1.0 / distance);
+                            let attenuation = point.intensity
+                                * lambertian(light_vec, world_normal)
+                                * distance_attenuation(distance, point.sqr_radius);
+                            (point.color, attenuation, point.position)
+                        }
+                    };
+                    // Shadows
+                    if attenuation >= 0.01 {
+                        let mut query_buffer = ArrayVec::<[Handle<OctreeNode>; 64]>::new();
+                        let shadow_bias = 0.01;
+                        if let Some(ray) = Ray::from_two_points(&light_position, &world_position) {
+                            'outer_loop: for other_instance in other_instances {
+                                other_instance
+                                    .data()
+                                    .octree
+                                    .ray_query_static(&ray, &mut query_buffer);
+                                for &node in query_buffer.iter() {
+                                    match other_instance.data().octree.node(node) {
+                                        OctreeNode::Leaf { indices, .. } => {
+                                            let other_data = other_instance.data();
+                                            for &triangle_index in indices {
+                                                let triangle =
+                                                    &other_data.triangles[triangle_index as usize];
+                                                let a = other_data.vertices[triangle[0] as usize]
+                                                    .world_position;
+                                                let b = other_data.vertices[triangle[1] as usize]
+                                                    .world_position;
+                                                let c = other_data.vertices[triangle[2] as usize]
+                                                    .world_position;
+                                                if let Some(pt) =
+                                                    ray.triangle_intersection(&[a, b, c])
                                                 {
-                                                    attenuation = 0.0;
-                                                    break 'outer_loop;
+                                                    if ray.origin.metric_distance(&pt) + shadow_bias
+                                                        < ray.dir.norm()
+                                                    {
+                                                        attenuation = 0.0;
+                                                        break 'outer_loop;
+                                                    }
                                                 }
                                             }
                                         }
+                                        OctreeNode::Branch { .. } => unreachable!(),
                                     }
-                                    OctreeNode::Branch { .. } => unreachable!(),
                                 }
                             }
                         }
                     }
+                    pixel_color += light_color.scale(attenuation);
                 }
-                pixel_color += light_color.scale(attenuation);
+
+                *pixel = Vector4::new(
+                    (pixel_color.x.max(0.0).min(1.0) * 255.0) as u8,
+                    (pixel_color.y.max(0.0).min(1.0) * 255.0) as u8,
+                    (pixel_color.z.max(0.0).min(1.0) * 255.0) as u8,
+                    255, // Indicates that this pixel was "filled"
+                );
             }
+        });
 
-            pixel.color = Vector3::new(
-                (pixel_color.x.max(0.0).min(1.0) * 255.0) as u8,
-                (pixel_color.y.max(0.0).min(1.0) * 255.0) as u8,
-                (pixel_color.z.max(0.0).min(1.0) * 255.0) as u8,
-            );
+    // Prepare light map for bilinear filtration. This step is mandatory to prevent bleeding.
+    let mut bytes: Vec<u8> = Vec::with_capacity((atlas_size * atlas_size * 3) as usize);
+    for y in 0..(atlas_size as i32) {
+        for x in 0..(atlas_size as i32) {
+            let fetch = |dx: i32, dy: i32| -> Option<[u8; 3]> {
+                pixels
+                    .get(((y + dy) * (atlas_size as i32) + x + dx) as usize)
+                    .and_then(|p| {
+                        if p.w != 0 {
+                            Some([p.x, p.y, p.z])
+                        } else {
+                            None
+                        }
+                    })
+            };
+
+            let src_pixel = pixels[(y * (atlas_size as i32) + x) as usize];
+            if src_pixel.w == 0 {
+                // Check neighbour pixels marked as "filled" and use it as value.
+                if let Some(west) = fetch(-1, 0) {
+                    bytes.extend_from_slice(&west);
+                } else if let Some(east) = fetch(1, 0) {
+                    bytes.extend_from_slice(&east);
+                } else if let Some(north) = fetch(0, -1) {
+                    bytes.extend_from_slice(&north);
+                } else if let Some(south) = fetch(0, 1) {
+                    bytes.extend_from_slice(&south);
+                } else if let Some(north_west) = fetch(-1, -1) {
+                    bytes.extend_from_slice(&north_west);
+                } else if let Some(north_east) = fetch(1, -1) {
+                    bytes.extend_from_slice(&north_east);
+                } else if let Some(south_east) = fetch(1, 1) {
+                    bytes.extend_from_slice(&south_east);
+                } else if let Some(south_west) = fetch(-1, 1) {
+                    bytes.extend_from_slice(&south_west);
+                } else {
+                    bytes.extend_from_slice(&[0, 0, 0]);
+                }
+            } else {
+                bytes.extend_from_slice(&[src_pixel.x, src_pixel.y, src_pixel.z])
+            }
         }
-    });
-
-    let mut bytes = Vec::with_capacity((atlas_size * atlas_size * 3) as usize);
-    for pixel in pixels {
-        bytes.push(pixel.color.x);
-        bytes.push(pixel.color.y);
-        bytes.push(pixel.color.z);
     }
 
     TextureData::from_bytes(
