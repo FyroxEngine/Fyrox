@@ -245,8 +245,6 @@ fn create_scene_async(
                     .instantiate(&mut scene)
                     .root;
 
-                scene.graph.update_hierarchical_data();
-
                 if let Ok(lightmap) =
                     Lightmap::new(&mut scene, 64, cancellation_token, progress_indicator)
                 {

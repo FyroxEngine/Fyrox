@@ -231,6 +231,8 @@ impl Lightmap {
         cancellation_token: CancellationToken,
         progress_indicator: ProgressIndicator,
     ) -> Result<Self, LightmapGenerationError> {
+        scene.graph.update_hierarchical_data();
+
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
