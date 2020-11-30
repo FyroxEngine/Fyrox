@@ -106,6 +106,9 @@ impl BatchStorage {
                     mesh.global_transform()
                 };
 
+                let data = surface.data();
+                let key = surface.batch_id();
+
                 let diffuse_texture = surface
                     .diffuse_texture()
                     .and_then(|texture| texture_cache.get(state, texture))
@@ -131,8 +134,6 @@ impl BatchStorage {
                     .and_then(|texture| texture_cache.get(state, texture))
                     .unwrap_or_else(|| black_dummy.clone());
 
-                let data = surface.data();
-                let key = &*data as *const _ as u64;
                 let batch = if let Some(&batch_index) = self.inner.get(&key) {
                     self.batches.get_mut(batch_index).unwrap()
                 } else {

@@ -1067,6 +1067,32 @@ impl Surface {
         }
     }
 
+    /// Calculates batch id.
+    pub fn batch_id(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+
+        let data_key = &*self.data() as *const _ as u64;
+        data_key.hash(&mut hasher);
+
+        if let Some(diffuse_texture) = self.diffuse_texture.as_ref() {
+            diffuse_texture.key().hash(&mut hasher);
+        }
+        if let Some(normal_texture) = self.normal_texture.as_ref() {
+            normal_texture.key().hash(&mut hasher);
+        }
+        if let Some(specular_texture) = self.specular_texture.as_ref() {
+            specular_texture.key().hash(&mut hasher);
+        }
+        if let Some(roughness_texture) = self.roughness_texture.as_ref() {
+            roughness_texture.key().hash(&mut hasher);
+        }
+        if let Some(lightmap_texture) = self.lightmap_texture.as_ref() {
+            lightmap_texture.key().hash(&mut hasher);
+        }
+
+        hasher.finish()
+    }
+
     /// Returns current data used by surface.
     #[inline]
     pub fn data(&self) -> Arc<RwLock<SurfaceSharedData>> {
