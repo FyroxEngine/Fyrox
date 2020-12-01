@@ -152,6 +152,11 @@ impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
         self.state.as_ref().unwrap().lock().unwrap()
     }
 
+    /// Tries to lock internal mutex provides access to the state.
+    pub fn try_acquire_state(&self) -> Option<MutexGuard<'_, ResourceState<T, E>>> {
+        self.state.as_ref().unwrap().try_lock().ok()
+    }
+
     /// Returns exact amount of users of the resource.
     pub fn use_count(&self) -> usize {
         Arc::strong_count(&self.state.as_ref().unwrap())

@@ -1,6 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::resource::texture::{TextureError, TextureWrapMode};
+use crate::resource::ResourceLoadError;
 use crate::{
     core::visitor::{Visit, VisitResult, Visitor},
     resource::{
@@ -635,6 +636,37 @@ impl ResourceManager {
     }
 }
 
+fn count_pending_resources<T, E>(resources: &[TimedEntry<Resource<T, E>>]) -> usize
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    let mut count = 0;
+    for entry in resources.iter() {
+        if let ResourceState::Pending { .. } = *entry.value.state() {
+            count += 1;
+        }
+    }
+    count
+}
+
+fn count_loaded_resources<T, E>(resources: &[TimedEntry<Resource<T, E>>]) -> usize
+where
+    T: ResourceData,
+    E: ResourceLoadError,
+{
+    let mut count = 0;
+    for entry in resources.iter() {
+        match *entry.value.state() {
+            ResourceState::LoadError { .. } | ResourceState::Ok(_) => {
+                count += 1;
+            }
+            _ => {}
+        }
+    }
+    count
+}
+
 impl ResourceManagerState {
     pub(in crate::engine) fn new() -> Self {
         Self {
@@ -699,6 +731,68 @@ impl ResourceManagerState {
             }
         }
         None
+    }
+
+    /// Returns total amount of textures in pending state.
+    pub fn count_pending_textures(&self) -> usize {
+        count_pending_resources(&self.textures)
+    }
+
+    /// Returns total amount of loaded textures (including textures, that failed to load).
+    pub fn count_loaded_textures(&self) -> usize {
+        count_loaded_resources(&self.textures)
+    }
+
+    /// Returns total amount of sound buffers in pending state.
+    pub fn count_pending_sound_buffers(&self) -> usize {
+        count_pending_resources(&self.sound_buffers)
+    }
+
+    /// Returns total amount of loaded sound buffers (including sound buffers, that failed to load).
+    pub fn count_loaded_sound_buffers(&self) -> usize {
+        count_loaded_resources(&self.sound_buffers)
+    }
+
+    /// Returns total amount of models in pending state.
+    pub fn count_pending_models(&self) -> usize {
+        count_pending_resources(&self.models)
+    }
+
+    /// Returns total amount of loaded models (including models, that failed to load).
+    pub fn count_loaded_models(&self) -> usize {
+        count_loaded_resources(&self.models)
+    }
+
+    /// Returns total amount of resources in pending state.
+    pub fn count_pending_resources(&self) -> usize {
+        self.count_pending_textures()
+            + self.count_pending_sound_buffers()
+            + self.count_pending_models()
+    }
+
+    /// Returns total amount of loaded resources.
+    pub fn count_loaded_resources(&self) -> usize {
+        self.count_loaded_textures()
+            + self.count_loaded_sound_buffers()
+            + self.count_loaded_models()
+    }
+
+    /// Returns total amount of registered resources.
+    pub fn count_registered_resources(&self) -> usize {
+        self.textures.len() + self.sound_buffers.len() + self.models.len()
+    }
+
+    /// Returns percentage of loading progress. This method is useful to show progress on
+    /// loading screen in your game. This method could be used alone if your game depends
+    /// only on external resources, or if your game doing some heavy calculations this value
+    /// can be combined with progress of your tasks.  
+    pub fn loading_progress(&self) -> usize {
+        let registered = self.count_registered_resources();
+        if registered > 0 {
+            self.count_loaded_resources() * 100 / registered
+        } else {
+            100
+        }
     }
 
     /// Returns current path where to search texture when loading complex model resources.
