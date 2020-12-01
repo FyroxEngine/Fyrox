@@ -765,15 +765,15 @@ fn generate_lightmap(
         });
 
     // Prepare light map for bilinear filtration. This step is mandatory to prevent bleeding.
-    let mut bytes: Vec<u8> = Vec::with_capacity((atlas_size * atlas_size * 3) as usize);
+    let mut rgb_pixels: Vec<Vector3<u8>> = Vec::with_capacity((atlas_size * atlas_size) as usize);
     for y in 0..(atlas_size as i32) {
         for x in 0..(atlas_size as i32) {
-            let fetch = |dx: i32, dy: i32| -> Option<[u8; 3]> {
+            let fetch = |dx: i32, dy: i32| -> Option<Vector3<u8>> {
                 pixels
                     .get(((y + dy) * (atlas_size as i32) + x + dx) as usize)
                     .and_then(|p| {
                         if p.w != 0 {
-                            Some([p.x, p.y, p.z])
+                            Some(Vector3::new(p.x, p.y, p.z))
                         } else {
                             None
                         }
@@ -784,26 +784,67 @@ fn generate_lightmap(
             if src_pixel.w == 0 {
                 // Check neighbour pixels marked as "filled" and use it as value.
                 if let Some(west) = fetch(-1, 0) {
-                    bytes.extend_from_slice(&west);
+                    rgb_pixels.push(west);
                 } else if let Some(east) = fetch(1, 0) {
-                    bytes.extend_from_slice(&east);
+                    rgb_pixels.push(east);
                 } else if let Some(north) = fetch(0, -1) {
-                    bytes.extend_from_slice(&north);
+                    rgb_pixels.push(north);
                 } else if let Some(south) = fetch(0, 1) {
-                    bytes.extend_from_slice(&south);
+                    rgb_pixels.push(south);
                 } else if let Some(north_west) = fetch(-1, -1) {
-                    bytes.extend_from_slice(&north_west);
+                    rgb_pixels.push(north_west);
                 } else if let Some(north_east) = fetch(1, -1) {
-                    bytes.extend_from_slice(&north_east);
+                    rgb_pixels.push(north_east);
                 } else if let Some(south_east) = fetch(1, 1) {
-                    bytes.extend_from_slice(&south_east);
+                    rgb_pixels.push(south_east);
                 } else if let Some(south_west) = fetch(-1, 1) {
-                    bytes.extend_from_slice(&south_west);
+                    rgb_pixels.push(south_west);
                 } else {
-                    bytes.extend_from_slice(&[0, 0, 0]);
+                    rgb_pixels.push(Vector3::new(0, 0, 0));
                 }
             } else {
-                bytes.extend_from_slice(&[src_pixel.x, src_pixel.y, src_pixel.z])
+                rgb_pixels.push(Vector3::new(src_pixel.x, src_pixel.y, src_pixel.z))
+            }
+        }
+    }
+
+    // Blur lightmap using simplest box filter.
+    let mut bytes = Vec::with_capacity((atlas_size * atlas_size * 3) as usize);
+    for y in 0..(atlas_size as i32) {
+        for x in 0..(atlas_size as i32) {
+            if x < 1 || y < 1 || x + 1 == atlas_size as i32 || y + 1 == atlas_size as i32 {
+                bytes.extend_from_slice(
+                    rgb_pixels[(y * (atlas_size as i32) + x) as usize].as_slice(),
+                );
+            } else {
+                let fetch = |dx: i32, dy: i32| -> Vector3<i16> {
+                    let u8_pixel = rgb_pixels[((y + dy) * (atlas_size as i32) + x + dx) as usize];
+                    Vector3::new(u8_pixel.x as i16, u8_pixel.y as i16, u8_pixel.z as i16)
+                };
+
+                let north_west = fetch(-1, -1);
+                let north = fetch(0, -1);
+                let north_east = fetch(1, -1);
+                let west = fetch(-1, 0);
+                let center = fetch(0, 0);
+                let east = fetch(1, 0);
+                let south_west = fetch(-1, 1);
+                let south = fetch(0, 1);
+                let south_east = fetch(-1, 1);
+
+                let sum = north_west
+                    + north
+                    + north_east
+                    + west
+                    + center
+                    + east
+                    + south_west
+                    + south
+                    + south_east;
+
+                bytes.push((sum.x / 9).max(0).min(255) as u8);
+                bytes.push((sum.y / 9).max(0).min(255) as u8);
+                bytes.push((sum.z / 9).max(0).min(255) as u8);
             }
         }
     }
