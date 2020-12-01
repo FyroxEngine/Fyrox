@@ -33,7 +33,7 @@ use rg3d::{
         sprite::SpriteBuilder,
     },
 };
-use std::sync::{mpsc::Sender, Arc, Mutex};
+use std::sync::{mpsc::Sender, Arc, RwLock};
 
 pub struct Menu {
     pub menu: Handle<UiNode>,
@@ -444,7 +444,7 @@ impl Menu {
                     if message.destination() == self.create_cube {
                         let mut mesh = Mesh::default();
                         mesh.set_name("Cube");
-                        mesh.add_surface(Surface::new(Arc::new(Mutex::new(
+                        mesh.add_surface(Surface::new(Arc::new(RwLock::new(
                             SurfaceSharedData::make_cube(Matrix4::identity()),
                         ))));
                         let node = Node::Mesh(mesh);
@@ -481,7 +481,7 @@ impl Menu {
                             .unwrap();
                     } else if message.destination() == self.create_cone {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                            .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
                                 SurfaceSharedData::make_cone(16, 1.0, 1.0, Matrix4::identity()),
                             )))])
                             .build_node();
@@ -492,7 +492,7 @@ impl Menu {
                             .unwrap();
                     } else if message.destination() == self.create_cylinder {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                            .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
                                 SurfaceSharedData::make_cylinder(
                                     16,
                                     1.0,
@@ -509,7 +509,7 @@ impl Menu {
                             .unwrap();
                     } else if message.destination() == self.create_sphere {
                         let mesh = MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                            .with_surfaces(vec![Surface::new(Arc::new(Mutex::new(
+                            .with_surfaces(vec![Surface::new(Arc::new(RwLock::new(
                                 SurfaceSharedData::make_sphere(16, 16, 1.0),
                             )))])
                             .build_node();

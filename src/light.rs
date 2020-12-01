@@ -142,8 +142,16 @@ impl LightPanel {
                             }
                         }
 
-                        let lightmap = Lightmap::new(&scene, self.texels_per_unit);
-                        lightmap.save("./").unwrap();
+                        let lightmap = Lightmap::new(
+                            scene,
+                            self.texels_per_unit,
+                            Default::default(),
+                            Default::default(),
+                        )
+                        .unwrap();
+                        lightmap
+                            .save("./", engine.resource_manager.clone())
+                            .unwrap();
                         scene.set_lightmap(lightmap).unwrap();
                     }
                 }
