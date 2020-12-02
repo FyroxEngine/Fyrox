@@ -497,7 +497,7 @@ fn main() {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.renderer.set_frame_size(dbg!(size.into()));
+                        engine.renderer.set_frame_size(size.into());
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(key_code) = input.virtual_keycode {

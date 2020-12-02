@@ -767,7 +767,6 @@ impl Scene {
         // data at this stage, but if we'd do this before we wouldn't be able to do this because
         // meshes contains invalid surface data.
         if let Some(lightmap) = self.lightmap.as_mut() {
-            dbg!();
             // Patch surface data first. To do this we gather all surface data instances and
             // look in patch data if we have patch for data.
             let mut unique_data_set = HashMap::new();
@@ -795,7 +794,6 @@ impl Scene {
                     {
                         v.second_tex_coord = tex_coord;
                     }
-                    dbg!();
                 } else {
                     Log::writeln(
                         "Failed to get surface data patch while resolving lightmap!\

@@ -253,11 +253,6 @@ impl ResourceManager {
     ///
     /// Each Texture implements Future trait and can be used in async contexts.
     ///
-    /// # Performance
-    ///
-    /// Currently this method creates a thread which is responsible for actual texture loading, this is very
-    /// unoptimal and will be replaced with worker threads in the near future.
-    ///
     /// # Supported formats
     ///
     /// To load images and decode them, rg3d uses image create which supports following image
@@ -354,11 +349,6 @@ impl ResourceManager {
     /// # Async/.await
     ///
     /// Each model implements Future trait and can be used in async contexts.
-    ///
-    /// # Performance
-    ///
-    /// Currently this method creates a thread which is responsible for actual model loading, this is very
-    /// unoptimal and will be replaced with worker threads in the near future.
     ///
     /// # Supported formats
     ///

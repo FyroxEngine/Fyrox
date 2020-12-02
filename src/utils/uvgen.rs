@@ -290,7 +290,6 @@ pub fn generate_uv_meshes(
 /// This method utilizes lots of "brute force" algorithms, so it is not fast as it
 /// could be in ideal case. It also allocates some memory for internal needs.
 pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) -> SurfaceDataPatch {
-    let last = std::time::Instant::now();
     let uv_box = generate_uv_box(data);
 
     let (mut meshes, mut patch) = generate_uv_meshes(&uv_box, data);
@@ -357,8 +356,6 @@ pub fn generate_uvs(data: &mut SurfaceSharedData, spacing: f32) -> SurfaceDataPa
         .iter()
         .map(|v| v.second_tex_coord)
         .collect::<Vec<_>>();
-
-    dbg!(std::time::Instant::now() - last);
 
     patch
 }
