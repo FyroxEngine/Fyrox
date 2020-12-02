@@ -70,6 +70,13 @@ active development and not meant to be used.
 
 ![Example 09](screenshots/lightmap.png?raw=true "Example 09")
 
-## Example 10 - Simple game
+## Example 10 - Instancing
+
+This example shows how to create simple scene with lots of animated models with low performance
+impact.
+
+![Example 10](screenshots/instancing.jpg?raw=true "Example 10")
+
+## Example 11 - Simple game
 
 - TODO

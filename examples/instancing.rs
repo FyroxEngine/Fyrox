@@ -1,9 +1,9 @@
-//! Example X. Instancing.
+//! Example 10. Instancing.
 //!
 //! Difficulty: Easy.
 //!
-//! This example shows how to create simple scene with lots of animated models without
-//! any performance impact.
+//! This example shows how to create simple scene with lots of animated models with low performance
+//! impact.
 
 extern crate rg3d;
 
@@ -266,7 +266,7 @@ fn main() {
                 }
 
                 let text = format!(
-                    "Example - Instancing\n\
+                    "Example 10 - Instancing\n\
                     Models count: {}\n\
                     Use [A][D] keys to rotate camera.\n\
                     {}",
