@@ -66,9 +66,12 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 32.0, -140.0)).await;
-
-    let camera = scene.graph.add_node(Node::Camera(camera));
+    let camera = create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 32.0, -140.0),
+        &mut scene.graph,
+    )
+    .await;
 
     // Load model and animation resource in parallel. Is does *not* adds anything to
     // our scene - it just loads a resource then can be used later on to instantiate
@@ -126,35 +129,33 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         }
     }
 
-    scene.graph.add_node(
-        PointLightBuilder::new(BaseLightBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 30.0, -50.0))
-                    .build(),
-            ),
-        ))
-        .with_radius(100.0)
-        .build_node(),
-    );
+    // Add point light with shadows.
+    PointLightBuilder::new(BaseLightBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vector3::new(0.0, 30.0, -50.0))
+                .build(),
+        ),
+    ))
+    .with_radius(100.0)
+    .build(&mut scene.graph);
 
-    scene.graph.add_node(
-        MeshBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, -0.25, 0.0))
-                    .build(),
-            ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
-                300.0, 0.25, 300.0,
-            ))),
-        )))
-        .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
-        .build()])
-        .build_node(),
-    );
+    // Add floor.
+    MeshBuilder::new(
+        BaseBuilder::new().with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(Vector3::new(0.0, -0.25, 0.0))
+                .build(),
+        ),
+    )
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+            300.0, 0.25, 300.0,
+        ))),
+    )))
+    .with_diffuse_texture(resource_manager.request_texture("examples/data/concrete2.dds"))
+    .build()])
+    .build(&mut scene.graph);
 
     GameScene {
         scene,

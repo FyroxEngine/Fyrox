@@ -9,6 +9,7 @@
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
 use crate::core::algebra::{Matrix4, Point3, Vector3};
+use crate::core::pool::Handle;
 use crate::{
     core::{
         color::Color,
@@ -246,17 +247,17 @@ impl MeshBuilder {
     }
 
     /// Creates new mesh.
-    pub fn build(self) -> Mesh {
-        Mesh {
-            base: self.base_builder.build(),
+    pub fn build_node(self) -> Node {
+        Node::Mesh(Mesh {
+            base: self.base_builder.build_base(),
             surfaces: self.surfaces,
             bounding_box: Default::default(),
             bounding_box_dirty: Cell::new(true),
-        }
+        })
     }
 
-    /// Creates new node instance.
-    pub fn build_node(self) -> Node {
-        Node::Mesh(self.build())
+    /// Creates new mesh and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

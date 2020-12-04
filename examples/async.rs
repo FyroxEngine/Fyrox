@@ -137,10 +137,12 @@ fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneLoadC
                 .report_progress(0.0, "Creating camera...");
 
             // Camera is our eyes in the world - you won't see anything without it.
-            let camera =
-                create_camera(resource_manager.clone(), Vector3::new(0.0, 6.0, -12.0)).await;
-
-            scene.graph.add_node(Node::Camera(camera));
+            create_camera(
+                resource_manager.clone(),
+                Vector3::new(0.0, 6.0, -12.0),
+                &mut scene.graph,
+            )
+            .await;
 
             context
                 .lock()

@@ -20,6 +20,9 @@ use std::{
 use crate::core::algebra::{Matrix4, UnitQuaternion, Vector2, Vector3, Vector4};
 use crate::core::math;
 use crate::core::math::RotationOrder;
+use crate::scene::base::BaseBuilder;
+use crate::scene::mesh::MeshBuilder;
+use crate::scene::transform::TransformBuilder;
 use crate::{
     animation::{Animation, AnimationContainer, KeyFrame, Track},
     core::{math::triangulator::triangulate, pool::Handle},
@@ -33,7 +36,7 @@ use crate::{
             FbxComponent, FbxMapping, FbxScene,
         },
     },
-    scene::{base::Base, graph::Graph, mesh::Mesh, node::Node, Scene},
+    scene::{base::Base, graph::Graph, node::Node, Scene},
     utils::{log::Log, raw_mesh::RawMeshBuilder},
 };
 use rapier3d::na::Point3;
@@ -205,10 +208,11 @@ struct SurfaceData {
 fn create_surfaces(
     fbx_scene: &FbxScene,
     data_set: Vec<SurfaceData>,
-    mesh: &mut Mesh,
     resource_manager: ResourceManager,
     model: &FbxModel,
-) -> Result<(), FbxError> {
+) -> Result<Vec<Surface>, FbxError> {
+    let mut surfaces = Vec::new();
+
     // Create surfaces per material
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
@@ -218,7 +222,7 @@ fn create_surfaces(
             false,
         ))));
         surface.vertex_weights = data.skin_data;
-        mesh.add_surface(surface);
+        surfaces.push(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
@@ -244,20 +248,20 @@ fn create_surfaces(
                     }
                 }
             }
-            mesh.add_surface(surface);
+            surfaces.push(surface);
         }
     }
 
-    Ok(())
+    Ok(surfaces)
 }
 
 fn convert_mesh(
+    base: BaseBuilder,
     fbx_scene: &FbxScene,
     resource_manager: ResourceManager,
     model: &FbxModel,
-) -> Result<Mesh, FbxError> {
-    let mut mesh = Mesh::default();
-
+    graph: &mut Graph,
+) -> Result<Handle<Node>, FbxError> {
     let geometric_transform = Matrix4::new_translation(&model.geometric_translation)
         * quat_from_euler(model.geometric_rotation).to_homogeneous()
         * Matrix4::new_nonuniform_scaling(&model.geometric_scale);
@@ -269,6 +273,7 @@ fn convert_mesh(
     // triangulated polygon.
     let mut face_triangles = Vec::new();
 
+    let mut mesh_surfaces = Vec::new();
     for &geom_handle in &model.geoms {
         let geom = fbx_scene.get(geom_handle).as_geometry()?;
         let skin_data = geom.get_skin_data(fbx_scene)?;
@@ -320,22 +325,41 @@ fn convert_mesh(
             }
         }
 
-        create_surfaces(
-            fbx_scene,
-            data_set,
-            &mut mesh,
-            resource_manager.clone(),
-            model,
-        )?;
+        let mut surfaces = create_surfaces(fbx_scene, data_set, resource_manager.clone(), model)?;
 
         if geom.tangents.is_none() {
-            for surface in mesh.surfaces_mut() {
+            for surface in surfaces.iter_mut() {
                 surface.data().write().unwrap().calculate_tangents();
             }
         }
+
+        for surface in surfaces {
+            mesh_surfaces.push(surface);
+        }
     }
 
-    Ok(mesh)
+    Ok(MeshBuilder::new(base)
+        .with_surfaces(mesh_surfaces)
+        .build(graph))
+}
+
+fn convert_model_to_base(model: &FbxModel) -> BaseBuilder {
+    BaseBuilder::new()
+        .with_inv_bind_pose_transform(model.inv_bind_transform)
+        .with_name(model.name.as_str())
+        .with_local_transform(
+            TransformBuilder::new()
+                .with_local_rotation(quat_from_euler(model.rotation))
+                .with_local_scale(model.scale)
+                .with_local_position(model.translation)
+                .with_post_rotation(quat_from_euler(model.post_rotation))
+                .with_pre_rotation(quat_from_euler(model.pre_rotation))
+                .with_rotation_offset(model.rotation_offset)
+                .with_rotation_pivot(model.rotation_pivot)
+                .with_scaling_offset(model.scaling_offset)
+                .with_scaling_pivot(model.scaling_pivot)
+                .build(),
+        )
 }
 
 fn convert_model(
@@ -346,31 +370,16 @@ fn convert_model(
     animations: &mut AnimationContainer,
     animation_handle: Handle<Animation>,
 ) -> Result<Handle<Node>, FbxError> {
+    let base = convert_model_to_base(model);
+
     // Create node with correct kind.
-    let mut node = if !model.geoms.is_empty() {
-        Node::Mesh(convert_mesh(fbx_scene, resource_manager, model)?)
+    let node_handle = if !model.geoms.is_empty() {
+        convert_mesh(base, fbx_scene, resource_manager, model, graph)?
     } else if model.light.is_some() {
-        let fbx_light_component = fbx_scene.get(model.light);
-        Node::Light(fbx_light_component.as_light()?.convert())
+        fbx_scene.get(model.light).as_light()?.convert(base, graph)
     } else {
-        Node::Base(Base::default())
+        base.build(graph)
     };
-
-    let node_local_rotation = quat_from_euler(model.rotation);
-    node.set_name(model.name.as_str())
-        .local_transform_mut()
-        .set_rotation(node_local_rotation)
-        .set_scale(model.scale)
-        .set_position(model.translation)
-        .set_post_rotation(quat_from_euler(model.post_rotation))
-        .set_pre_rotation(quat_from_euler(model.pre_rotation))
-        .set_rotation_offset(model.rotation_offset)
-        .set_rotation_pivot(model.rotation_pivot)
-        .set_scaling_offset(model.scaling_offset)
-        .set_scaling_pivot(model.scaling_pivot);
-    node.inv_bind_pose_transform = model.inv_bind_transform;
-
-    let node_handle = graph.add_node(node);
 
     // Convert animations
     if !model.animation_curve_nodes.is_empty() {
@@ -394,6 +403,8 @@ fn convert_model(
         // Convert to engine format
         let mut track = Track::new();
         track.set_node(node_handle);
+
+        let node_local_rotation = quat_from_euler(model.rotation);
 
         let mut time = 0.0;
         loop {

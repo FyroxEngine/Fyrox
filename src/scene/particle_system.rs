@@ -69,7 +69,9 @@
 //! ```
 
 use crate::core::algebra::{Vector2, Vector3};
+use crate::core::pool::Handle;
 use crate::rand::Rng;
+use crate::scene::graph::Graph;
 use crate::scene::node::Node;
 use crate::{
     core::{
@@ -1299,7 +1301,7 @@ impl Visit for ParticleSystem {
 
 impl Default for ParticleSystem {
     fn default() -> Self {
-        ParticleSystemBuilder::new(BaseBuilder::new()).build()
+        ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system()
     }
 }
 
@@ -1355,10 +1357,9 @@ impl ParticleSystemBuilder {
         self
     }
 
-    /// Creates new instance of particle system.
-    pub fn build(self) -> ParticleSystem {
+    fn build_particle_system(self) -> ParticleSystem {
         ParticleSystem {
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             particles: Vec::new(),
             free_particles: Vec::new(),
             emitters: self.emitters,
@@ -1368,8 +1369,13 @@ impl ParticleSystemBuilder {
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new instance of particle system.
     pub fn build_node(self) -> Node {
-        Node::ParticleSystem(self.build())
+        Node::ParticleSystem(self.build_particle_system())
+    }
+
+    /// Creates new instance of particle system and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

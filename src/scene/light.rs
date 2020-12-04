@@ -17,6 +17,9 @@
 //! performance.
 
 use crate::core::algebra::Vector3;
+use crate::core::pool::Handle;
+use crate::resource::texture::Texture;
+use crate::scene::graph::Graph;
 use crate::{
     core::{
         color::Color,
@@ -29,7 +32,6 @@ use crate::{
     },
 };
 use std::ops::{Deref, DerefMut};
-use crate::resource::texture::Texture;
 
 /// Default amount of light scattering, it is set to 3% which is fairly
 /// significant value and you'll clearly see light volume with such settings.
@@ -164,7 +166,7 @@ impl SpotLight {
     /// Set cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn set_cookie_texture(&mut self, texture: Texture) -> &mut Self{
+    pub fn set_cookie_texture(&mut self, texture: Texture) -> &mut Self {
         self.cookie_texture = Some(texture);
         self
     }
@@ -258,8 +260,8 @@ impl SpotLightBuilder {
         self
     }
 
-    /// Builds new spot light instance.
-    pub fn build(self) -> SpotLight {
+    /// Creates new spot light.
+    pub fn build_spot_light(self) -> SpotLight {
         SpotLight {
             base_light: self.base_light_builder.build(),
             hotspot_cone_angle: self.hotspot_cone_angle,
@@ -270,9 +272,14 @@ impl SpotLightBuilder {
         }
     }
 
-    /// Creates new node.
+    /// Creates new spot light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Spot(self.build()))
+        Node::Light(Light::Spot(self.build_spot_light()))
+    }
+
+    /// Creates new spot light instance and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 
@@ -402,7 +409,7 @@ impl PointLightBuilder {
     }
 
     /// Builds new instance of point light.
-    pub fn build(self) -> PointLight {
+    pub fn build_point_light(self) -> PointLight {
         PointLight {
             base_light: self.base_light_builder.build(),
             radius: self.radius,
@@ -410,9 +417,14 @@ impl PointLightBuilder {
         }
     }
 
-    /// Creates new scene node.
+    /// Builds new instance of point light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Point(self.build()))
+        Node::Light(Light::Point(self.build_point_light()))
+    }
+
+    /// Builds new instance of point light and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 
@@ -479,16 +491,21 @@ impl DirectionalLightBuilder {
         Self { base_light_builder }
     }
 
-    /// Builds new instance of directional light.
-    pub fn build(self) -> DirectionalLight {
+    /// Creates new instance of directional light.
+    pub fn build_directional_light(self) -> DirectionalLight {
         DirectionalLight {
             base_light: self.base_light_builder.build(),
         }
     }
 
-    /// Creates new scene node.
+    /// Creates new instance of directional light node.
     pub fn build_node(self) -> Node {
-        Node::Light(Light::Directional(self.build()))
+        Node::Light(Light::Directional(self.build_directional_light()))
+    }
+
+    /// Creates new instance of directional light and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 
@@ -754,12 +771,10 @@ impl BaseLightBuilder {
         self
     }
 
-    /// Creates new instance of light scene node. Warning: each scene node
-    /// must be added to scene, otherwise it won't have any effect and most
-    /// likely will be dropped as soon as it go out of scope.
+    /// Creates new instance of base light.
     pub fn build(self) -> BaseLight {
         BaseLight {
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             color: self.color,
             cast_shadows: self.cast_shadows,
             scatter: self.scatter_factor,

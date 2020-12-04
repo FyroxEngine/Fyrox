@@ -15,6 +15,8 @@
 //! almost double load of your GPU.
 
 use crate::core::algebra::{Matrix4, Vector2, Vector3, Vector4};
+use crate::core::pool::Handle;
+use crate::scene::graph::Graph;
 use crate::{
     core::{
         math::{ray::Ray, Rect},
@@ -62,8 +64,8 @@ impl DerefMut for Camera {
 }
 
 impl Default for Camera {
-    fn default() -> Camera {
-        CameraBuilder::new(BaseBuilder::new()).build()
+    fn default() -> Self {
+        CameraBuilder::new(BaseBuilder::new()).build_camera()
     }
 }
 
@@ -364,12 +366,11 @@ impl CameraBuilder {
         self
     }
 
-    /// Creates new instance of camera node. Do not forget to add node to scene,
-    /// otherwise it is useless.
-    pub fn build(self) -> Camera {
+    /// Creates new instance of camera.
+    pub fn build_camera(self) -> Camera {
         Camera {
             enabled: self.enabled,
-            base: self.base_builder.build(),
+            base: self.base_builder.build_base(),
             fov: self.fov,
             z_near: self.z_near,
             z_far: self.z_far,
@@ -384,9 +385,14 @@ impl CameraBuilder {
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new instance of camera node.
     pub fn build_node(self) -> Node {
-        Node::Camera(self.build())
+        Node::Camera(self.build_camera())
+    }
+
+    /// Creates new instance of camera node and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }
 

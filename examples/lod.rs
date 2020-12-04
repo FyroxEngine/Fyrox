@@ -51,10 +51,15 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let mut camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 1.5, -5.0)).await;
+    let camera = create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 1.5, -5.0),
+        &mut scene.graph,
+    )
+    .await;
+
     // Set small z far for the sake of example.
-    camera.set_z_far(32.0);
-    let camera = scene.graph.add_node(Node::Camera(camera));
+    scene.graph[camera].as_camera_mut().set_z_far(32.0);
 
     // Load model resource. Is does *not* adds anything to our scene - it just loads a
     // resource then can be used later on to instantiate models from it on scene. Why

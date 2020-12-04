@@ -50,9 +50,12 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     let mut scene = Scene::new();
 
     // Camera is our eyes in the world - you won't see anything without it.
-    let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 4.0, -8.0)).await;
-
-    scene.graph.add_node(Node::Camera(camera));
+    create_camera(
+        resource_manager.clone(),
+        Vector3::new(0.0, 4.0, -8.0),
+        &mut scene.graph,
+    )
+    .await;
 
     // There is no difference between scene created in rusty-editor and any other
     // model file, so any scene can be used directly as resource.

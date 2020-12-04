@@ -8,6 +8,7 @@ use rapier3d::dynamics::RigidBodyBuilder;
 use rapier3d::geometry::ColliderBuilder;
 use rapier3d::na::{Isometry3, UnitQuaternion, Vector3};
 use rg3d::core::algebra::Vector2;
+use rg3d::scene::graph::Graph;
 use rg3d::scene::RigidBodyHandle;
 use rg3d::{
     animation::{
@@ -30,7 +31,7 @@ use rg3d::{
     resource::texture::TextureWrapMode,
     scene::{
         base::BaseBuilder,
-        camera::{Camera, CameraBuilder, SkyBox},
+        camera::{CameraBuilder, SkyBox},
         node::Node,
         transform::TransformBuilder,
         Scene,
@@ -48,7 +49,11 @@ pub type UiNode = rg3d::gui::node::UINode<(), StubNode>;
 pub type BuildContext<'a> = rg3d::gui::BuildContext<'a, (), StubNode>;
 
 /// Creates a camera at given position with a skybox.
-pub async fn create_camera(resource_manager: ResourceManager, position: Vector3<f32>) -> Camera {
+pub async fn create_camera(
+    resource_manager: ResourceManager,
+    position: Vector3<f32>,
+    graph: &mut Graph,
+) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = rg3d::futures::join!(
         resource_manager
@@ -91,7 +96,7 @@ pub async fn create_camera(resource_manager: ResourceManager, position: Vector3<
         ),
     )
     .with_skybox(skybox)
-    .build()
+    .build(graph)
 }
 
 pub struct Game {
@@ -424,22 +429,29 @@ impl Player {
             .unwrap()
             .report_progress(0.0, "Creating camera...");
 
-        // Camera is our eyes in the world - you won't see anything without it.
-        let camera = create_camera(resource_manager.clone(), Vector3::new(0.0, 0.0, -3.0)).await;
-        let camera = scene.graph.add_node(Node::Camera(camera));
-
-        let camera_pivot = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
-        let camera_hinge = scene.graph.add_node(Node::Base(
-            BaseBuilder::new()
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
-                        .build(),
-                )
-                .build(),
-        ));
-        scene.graph.link_nodes(camera_hinge, camera_pivot);
-        scene.graph.link_nodes(camera, camera_hinge);
+        let camera;
+        let camera_hinge;
+        let camera_pivot = BaseBuilder::new()
+            .with_children(&[{
+                camera_hinge = BaseBuilder::new()
+                    .with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(Vector3::new(0.0, 1.0, 0.0))
+                            .build(),
+                    )
+                    .with_children(&[{
+                        camera = create_camera(
+                            resource_manager.clone(),
+                            Vector3::new(0.0, 0.0, -3.0),
+                            &mut scene.graph,
+                        )
+                        .await;
+                        camera
+                    }])
+                    .build(&mut scene.graph);
+                camera_hinge
+            }])
+            .build(&mut scene.graph);
 
         context
             .lock()
@@ -476,9 +488,9 @@ impl Player {
             // Our model is too big, fix it by scale.
             .set_scale(Vector3::new(0.0125, 0.0125, 0.0125));
 
-        let pivot = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
-
-        scene.graph.link_nodes(model_handle, pivot);
+        let pivot = BaseBuilder::new()
+            .with_children(&[model_handle])
+            .build(&mut scene.graph);
 
         let capsule = ColliderBuilder::capsule_y(body_height, 0.6).build();
         let body = scene.physics.add_body(

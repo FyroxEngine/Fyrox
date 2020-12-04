@@ -6,6 +6,7 @@
 //! block for all complex node hierarchies - it contains list of children and handle to
 //! parent node.
 
+use crate::scene::graph::Graph;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -400,7 +401,7 @@ impl Base {
 
 impl Default for Base {
     fn default() -> Self {
-        BaseBuilder::new().build()
+        BaseBuilder::new().build_base()
     }
 }
 
@@ -435,6 +436,7 @@ pub struct BaseBuilder {
     depth_offset: f32,
     lod_group: Option<LodGroup>,
     mobility: Mobility,
+    inv_bind_pose_transform: Matrix4<f32>,
 }
 
 impl Default for BaseBuilder {
@@ -455,6 +457,7 @@ impl BaseBuilder {
             depth_offset: 0.0,
             lod_group: None,
             mobility: Mobility::Dynamic,
+            inv_bind_pose_transform: Matrix4::identity(),
         }
     }
 
@@ -482,9 +485,22 @@ impl BaseBuilder {
         self
     }
 
+    /// Sets desired inverse bind pose transform.
+    pub fn with_inv_bind_pose_transform(mut self, inv_bind_pose: Matrix4<f32>) -> Self {
+        self.inv_bind_pose_transform = inv_bind_pose;
+        self
+    }
+
     /// Sets desired list of children nodes.
-    pub fn with_children(mut self, children: Vec<Handle<Node>>) -> Self {
-        self.children = children;
+    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<Node>>>(
+        mut self,
+        children: I,
+    ) -> Self {
+        for &child in children.into_iter() {
+            if child.is_some() {
+                self.children.push(child)
+            }
+        }
         self
     }
 
@@ -506,9 +522,7 @@ impl BaseBuilder {
         self
     }
 
-    /// Creates new instance of base scene node. Do not forget to add
-    /// node to scene or pass to other nodes as base.
-    pub fn build(self) -> Base {
+    pub(in crate) fn build_base(self) -> Base {
         Base {
             name: self.name,
             children: self.children,
@@ -518,7 +532,7 @@ impl BaseBuilder {
             global_visibility: Cell::new(true),
             parent: Handle::NONE,
             global_transform: Cell::new(Matrix4::identity()),
-            inv_bind_pose_transform: Matrix4::identity(),
+            inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: None,
             original: Handle::NONE,
             is_resource_instance: false,
@@ -528,8 +542,13 @@ impl BaseBuilder {
         }
     }
 
-    /// Creates new node instance.
+    /// Creates new instance of base node.
     pub fn build_node(self) -> Node {
-        Node::Base(self.build())
+        Node::Base(self.build_base())
+    }
+
+    /// Creates new instance of base node and adds it to the graph.
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

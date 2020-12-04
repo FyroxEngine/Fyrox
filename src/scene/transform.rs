@@ -539,7 +539,7 @@ impl TransformBuilder {
             scaling_offset: self.scaling_offset,
             scaling_pivot: self.scaling_pivot,
             matrix: Cell::new(Matrix4::identity()),
-            post_rotation_matrix: Matrix3::identity(),
+            post_rotation_matrix: build_post_rotation_matrix(self.post_rotation),
         }
     }
 }

@@ -94,10 +94,15 @@ impl Graph {
     /// storage and you'll get a handle to the node. Node will be automatically attached
     /// to root node of graph, it is required because graph can contain only one root.
     #[inline]
-    pub fn add_node(&mut self, node: Node) -> Handle<Node> {
+    pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
+        let children = node.children.clone();
+        node.children.clear();
         let handle = self.pool.spawn(node);
         if self.root.is_some() {
             self.link_nodes(handle, self.root);
+        }
+        for child in children {
+            self.link_nodes(child, handle);
         }
         handle
     }
