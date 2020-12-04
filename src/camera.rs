@@ -41,22 +41,22 @@ struct PickContext {
 
 impl CameraController {
     pub fn new(graph: &mut Graph, root: Handle<Node>) -> Self {
-        let camera = CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera")).build();
-
+        let camera;
         let pivot = BaseBuilder::new()
+            .with_children(&[{
+                camera =
+                    CameraBuilder::new(BaseBuilder::new().with_name("EditorCamera")).build(graph);
+                camera
+            }])
             .with_name("EditorCameraPivot")
             .with_local_transform(
                 TransformBuilder::new()
                     .with_local_position(Vector3::new(0.0, 1.0, -3.0))
                     .build(),
             )
-            .build();
-
-        let pivot = graph.add_node(Node::Base(pivot));
-        let camera = graph.add_node(Node::Camera(camera));
+            .build(graph);
 
         graph.link_nodes(pivot, root);
-        graph.link_nodes(camera, pivot);
 
         Self {
             pivot,

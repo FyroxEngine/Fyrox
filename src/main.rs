@@ -825,7 +825,7 @@ impl Editor {
             Some(into_gui_texture(scene.render_target.clone().unwrap())),
         ));
 
-        let root = scene.graph.add_node(Node::Base(BaseBuilder::new().build()));
+        let root = BaseBuilder::new().build(&mut scene.graph);
 
         let graph = &mut scene.graph;
         let camera_controller = CameraController::new(graph, root);

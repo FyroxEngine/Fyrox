@@ -37,10 +37,10 @@ impl Physics {
 
         for (h, b) in scene.physics.bodies.iter() {
             let pool_handle = bodies.spawn(RigidBodyDesc {
-                position: b.position.translation.vector,
-                rotation: b.position.rotation,
-                linvel: b.linvel,
-                angvel: b.angvel,
+                position: b.position().translation.vector,
+                rotation: b.position().rotation,
+                linvel: *b.linvel(),
+                angvel: *b.angvel(),
                 sleeping: b.is_sleeping(),
                 status: b.body_status.into(),
                 // Filled later.

@@ -80,43 +80,43 @@ fn make_move_axis(
     color: Color,
     name_prefix: &str,
 ) -> (Handle<Node>, Handle<Node>) {
-    let axis = graph.add_node(Node::Mesh(
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(name_prefix.to_owned() + "Axis")
-                .with_depth_offset(0.5)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_rotation(rotation)
-                        .build(),
-                ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
-        )))
-        .with_color(color)
-        .build()])
-        .build(),
-    ));
-    let arrow = graph.add_node(Node::Mesh(
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(name_prefix.to_owned() + "Arrow")
-                .with_depth_offset(0.5)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
-                        .build(),
-                ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cone(10, 0.05, 0.1, Matrix4::identity()),
-        )))
-        .with_color(color)
-        .build()])
-        .build(),
-    ));
-    graph.link_nodes(arrow, axis);
+    let arrow;
+    let axis = MeshBuilder::new(
+        BaseBuilder::new()
+            .with_children(&[{
+                arrow = MeshBuilder::new(
+                    BaseBuilder::new()
+                        .with_name(name_prefix.to_owned() + "Arrow")
+                        .with_depth_offset(0.5)
+                        .with_local_transform(
+                            TransformBuilder::new()
+                                .with_local_position(Vector3::new(0.0, 1.0, 0.0))
+                                .build(),
+                        ),
+                )
+                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+                    SurfaceSharedData::make_cone(10, 0.05, 0.1, Matrix4::identity()),
+                )))
+                .with_color(color)
+                .build()])
+                .build(graph);
+                arrow
+            }])
+            .with_name(name_prefix.to_owned() + "Axis")
+            .with_depth_offset(0.5)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_rotation(rotation)
+                    .build(),
+            ),
+    )
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
+    )))
+    .with_color(color)
+    .build()])
+    .build(graph);
+
     (axis, arrow)
 }
 
@@ -126,26 +126,24 @@ fn create_quad_plane(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
-    graph.add_node(Node::Mesh(
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(name)
-                .with_depth_offset(0.5)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
-                        .build(),
-                ),
-        )
-        .with_surfaces(vec![{
-            SurfaceBuilder::new(Arc::new(RwLock::new(SurfaceSharedData::make_quad(
-                transform,
-            ))))
-            .with_color(color)
-            .build()
-        }])
-        .build(),
-    ))
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_name(name)
+            .with_depth_offset(0.5)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_scale(Vector3::new(0.15, 0.15, 0.15))
+                    .build(),
+            ),
+    )
+    .with_surfaces(vec![{
+        SurfaceBuilder::new(Arc::new(RwLock::new(SurfaceSharedData::make_quad(
+            transform,
+        ))))
+        .with_color(color)
+        .build()
+    }])
+    .build(graph)
 }
 
 impl MoveGizmo {
@@ -153,12 +151,10 @@ impl MoveGizmo {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
-        let origin = graph.add_node(Node::Base(
-            BaseBuilder::new()
-                .with_name("Origin")
-                .with_visibility(false)
-                .build(),
-        ));
+        let origin = BaseBuilder::new()
+            .with_name("Origin")
+            .with_visibility(false)
+            .build(graph);
 
         graph.link_nodes(origin, editor_scene.root);
 
@@ -577,45 +573,45 @@ fn make_scale_axis(
     color: Color,
     name_prefix: &str,
 ) -> (Handle<Node>, Handle<Node>) {
-    let axis = graph.add_node(Node::Mesh(
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(name_prefix.to_owned() + "Axis")
-                .with_depth_offset(0.5)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_rotation(rotation)
-                        .build(),
-                ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
-        )))
-        .with_color(color)
-        .build()])
-        .build(),
-    ));
-    let arrow = graph.add_node(Node::Mesh(
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(name_prefix.to_owned() + "Arrow")
-                .with_depth_offset(0.5)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
-                        .build(),
-                ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
-                0.1, 0.1, 0.1,
-            ))),
-        )))
-        .with_color(color)
-        .build()])
-        .build(),
-    ));
-    graph.link_nodes(arrow, axis);
+    let arrow;
+    let axis = MeshBuilder::new(
+        BaseBuilder::new()
+            .with_children(&[{
+                arrow = MeshBuilder::new(
+                    BaseBuilder::new()
+                        .with_name(name_prefix.to_owned() + "Arrow")
+                        .with_depth_offset(0.5)
+                        .with_local_transform(
+                            TransformBuilder::new()
+                                .with_local_position(Vector3::new(0.0, 1.0, 0.0))
+                                .build(),
+                        ),
+                )
+                .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+                    SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+                        0.1, 0.1, 0.1,
+                    ))),
+                )))
+                .with_color(color)
+                .build()])
+                .build(graph);
+                arrow
+            }])
+            .with_name(name_prefix.to_owned() + "Axis")
+            .with_depth_offset(0.5)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_rotation(rotation)
+                    .build(),
+            ),
+    )
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        SurfaceSharedData::make_cylinder(10, 0.015, 1.0, true, Matrix4::identity()),
+    )))
+    .with_color(color)
+    .build()])
+    .build(graph);
+
     (axis, arrow)
 }
 
@@ -624,22 +620,20 @@ impl ScaleGizmo {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
-        let origin = graph.add_node(Node::Mesh(
-            MeshBuilder::new(
-                BaseBuilder::new()
-                    .with_depth_offset(0.5)
-                    .with_name("Origin")
-                    .with_visibility(false),
-            )
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-                SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
-                    0.1, 0.1, 0.1,
-                ))),
-            )))
-            .with_color(Color::opaque(0, 255, 255))
-            .build()])
-            .build(),
-        ));
+        let origin = MeshBuilder::new(
+            BaseBuilder::new()
+                .with_depth_offset(0.5)
+                .with_name("Origin")
+                .with_visibility(false),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+            SurfaceSharedData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
+                0.1, 0.1, 0.1,
+            ))),
+        )))
+        .with_color(Color::opaque(0, 255, 255))
+        .build()])
+        .build(graph);
 
         graph.link_nodes(origin, editor_scene.root);
 
@@ -1013,30 +1007,28 @@ fn make_rotation_ribbon(
     color: Color,
     name: &str,
 ) -> Handle<Node> {
-    graph.add_node(
-        MeshBuilder::new(
-            BaseBuilder::new()
-                .with_name(name)
-                .with_depth_offset(0.5)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_rotation(rotation)
-                        .build(),
-                ),
-        )
-        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-            SurfaceSharedData::make_cylinder(
-                30,
-                0.5,
-                0.05,
-                false,
-                Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_name(name)
+            .with_depth_offset(0.5)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_rotation(rotation)
+                    .build(),
             ),
-        )))
-        .with_color(color)
-        .build()])
-        .build_node(),
     )
+    .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+        SurfaceSharedData::make_cylinder(
+            30,
+            0.5,
+            0.05,
+            false,
+            Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
+        ),
+    )))
+    .with_color(color)
+    .build()])
+    .build(graph)
 }
 
 impl RotationGizmo {
@@ -1044,20 +1036,18 @@ impl RotationGizmo {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
-        let origin = graph.add_node(
-            MeshBuilder::new(
-                BaseBuilder::new()
-                    .with_name("Origin")
-                    .with_depth_offset(0.5)
-                    .with_visibility(false),
-            )
-            .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
-                SurfaceSharedData::make_sphere(10, 10, 0.1),
-            )))
-            .with_color(Color::opaque(100, 100, 100))
-            .build()])
-            .build_node(),
-        );
+        let origin = MeshBuilder::new(
+            BaseBuilder::new()
+                .with_name("Origin")
+                .with_depth_offset(0.5)
+                .with_visibility(false),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(Arc::new(RwLock::new(
+            SurfaceSharedData::make_sphere(10, 10, 0.1),
+        )))
+        .with_color(Color::opaque(100, 100, 100))
+        .build()])
+        .build(graph);
 
         graph.link_nodes(origin, editor_scene.root);
 
