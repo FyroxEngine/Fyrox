@@ -555,15 +555,24 @@ impl Player {
             .unwrap_or(Vector3::default());
         let is_moving = velocity.norm_squared() > 0.0;
 
-        // TODO: Rapier does not provide access to contacts yet.
-        let has_ground_contact = true;
-        /*
-        for contact in body.get_contacts() {
-            if contact.position.y < position.y {
-                has_ground_contact = true;
-                break;
+        let body = scene.physics.bodies.get_mut(self.body.into()).unwrap();
+
+        let mut has_ground_contact = false;
+        if let Some(iterator) = scene
+            .physics
+            .narrow_phase
+            .contacts_with(body.colliders()[0])
+        {
+            'outer_loop: for (_, _, contact) in iterator {
+                for manifold in contact.manifolds.iter() {
+                    if manifold.local_n1.y > 0.7 {
+                        has_ground_contact = true;
+                        break 'outer_loop;
+                    }
+                }
             }
-        }*/
+        }
+
         let mut new_y_vel = None;
         while let Some(event) = scene
             .animations
@@ -577,27 +586,26 @@ impl Player {
 
         let quat_yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.controller.yaw);
 
-        {
-            let mut body = scene.physics.bodies.get_mut(self.body.into()).unwrap();
-            body.wake_up(true);
-            body.angvel = Default::default();
-            body.linvel.x = velocity.x / dt;
-            body.linvel.z = velocity.z / dt;
-            if let Some(new_y_vel) = new_y_vel {
-                body.linvel.y = new_y_vel / dt;
-            }
+        body.wake_up(true);
+        body.set_angvel(Default::default(), true);
+        if let Some(new_y_vel) = new_y_vel {
+            body.set_linvel(
+                Vector3::new(velocity.x / dt, new_y_vel / dt, velocity.z / dt),
+                true,
+            );
+        } else {
+            body.set_linvel(
+                Vector3::new(velocity.x / dt, body.linvel().y, velocity.z / dt),
+                true,
+            );
         }
 
         if is_moving {
             // Since we have free camera while not moving, we have to sync rotation of pivot
             // with rotation of camera so character will start moving in look direction.
-            scene
-                .physics
-                .bodies
-                .get_mut(self.body.into())
-                .unwrap()
-                .position
-                .rotation = quat_yaw;
+            let mut current_position = *body.position();
+            current_position.rotation = quat_yaw;
+            body.set_position(current_position, true);
 
             // Apply additional rotation to model - it will turn in front of walking direction.
             let angle: f32 = if self.controller.walk_left {

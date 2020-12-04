@@ -178,12 +178,12 @@ impl Physics {
     /// rigid bodies, which colliders they have and so on.
     pub fn draw(&self, context: &mut SceneDrawingContext) {
         for (_, body) in self.bodies.iter() {
-            context.draw_transform(body.position.to_homogeneous());
+            context.draw_transform(body.position().to_homogeneous());
         }
 
         for (_, collider) in self.colliders.iter() {
             let body = self.bodies.get(collider.parent()).unwrap();
-            let transform = body.position.to_homogeneous();
+            let transform = body.position().to_homogeneous();
             if let Some(trimesh) = collider.shape().as_trimesh() {
                 let trimesh: &Trimesh = trimesh;
                 for triangle in trimesh.triangles() {
@@ -452,7 +452,7 @@ impl Physics {
     pub fn remove_collider(&mut self, collider_handle: ColliderHandle) -> Option<Collider> {
         self.query_updated.set(false);
         self.colliders
-            .remove(collider_handle.into(), &mut self.bodies)
+            .remove(collider_handle.into(), &mut self.bodies, true)
     }
 
     /// Adds new joint. This method must be used instead of joints.insert(...) because
@@ -560,10 +560,10 @@ impl<C: From<Index>> RigidBodyDesc<C> {
     #[doc(hidden)]
     pub fn from_body(body: &RigidBody) -> Self {
         Self {
-            position: body.position.translation.vector,
-            rotation: body.position.rotation,
-            linvel: body.linvel,
-            angvel: body.angvel,
+            position: body.position().translation.vector,
+            rotation: body.position().rotation,
+            linvel: *body.linvel(),
+            angvel: *body.angvel(),
             status: body.body_status.into(),
             sleeping: body.is_sleeping(),
             colliders: body.colliders().iter().map(|&c| C::from(c)).collect(),

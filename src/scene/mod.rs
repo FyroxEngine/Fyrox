@@ -728,8 +728,8 @@ impl Scene {
             let body = physics.bodies.get(body.into()).unwrap();
             self.graph[node]
                 .local_transform_mut()
-                .set_position(body.position.translation.vector)
-                .set_rotation(body.position.rotation);
+                .set_position(body.position().translation.vector)
+                .set_rotation(body.position().rotation);
         }
     }
 
